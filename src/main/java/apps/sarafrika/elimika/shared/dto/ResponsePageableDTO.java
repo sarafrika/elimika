@@ -3,10 +3,12 @@ package apps.sarafrika.elimika.shared.dto;
 import java.util.List;
 
 public record ResponsePageableDTO<T>(
-        List<T> content,
+        List<T> data,
         int page,
         int size,
         int totalPages,
-        long totalElements
+        long totalElements,
+        int status,
+        String message
 ) {
 }
