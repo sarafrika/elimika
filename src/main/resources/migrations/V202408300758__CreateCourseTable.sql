@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS course
     created_at       TIMESTAMP    NOT NULL DEFAULT current_timestamp,
     created_by       VARCHAR(50)  NOT NULL,
     updated_at       TIMESTAMP    NOT NULL DEFAULT current_timestamp,
-    updated_by       VARCHAR(50)
+    updated_by       VARCHAR(50),
+    deleted          BOOLEAN      NOT NULL
 );
