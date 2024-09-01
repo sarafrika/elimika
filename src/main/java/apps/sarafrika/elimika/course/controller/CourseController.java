@@ -41,4 +41,11 @@ public class CourseController {
 
         return courseService.create(createCourseRequestDTO);
     }
+
+    @DeleteMapping(path = ID_PATH)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCourse(final @PathVariable Long id) {
+
+        courseService.delete(id);
+    }
 }

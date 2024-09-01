@@ -23,10 +23,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CourseServiceImpl implements CourseService {
 
-    private static final String ERROR_COURSE_NOT_FOUND = "Course not found";
-    private static final String COURSE_CREATED_SUCCESS = "Course has been persisted successfully";
-    private static final String COURSES_FOUND_SUCCESS = "Courses retrieved successfully";
-    private static final String COURSE_FOUND_SUCCESS = "Course retrieved successfully";
+    private static final String ERROR_COURSE_NOT_FOUND = "Course not found.";
+    private static final String COURSE_CREATED_SUCCESS = "Course has been persisted successfully.";
+    private static final String COURSES_FOUND_SUCCESS = "Courses retrieved successfully.";
+    private static final String COURSE_FOUND_SUCCESS = "Course retrieved successfully.";
 
     private final CourseRepository courseRepository;
 
@@ -70,7 +70,10 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public void delete(int id) {
+    public void delete(Long id) {
 
+        Course course = courseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(ERROR_COURSE_NOT_FOUND));
+
+        courseRepository.delete(course);
     }
 }
