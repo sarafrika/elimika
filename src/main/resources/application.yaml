@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: elimika
+  docker:
+    compose:
+      lifecycle-management: start_only
+
+  # database configuration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/elimika}
+  jpa:
+    database: postgresql
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    baseline-version: 0
+    baseline-on-migrate: true
+    validate-migration-naming: true
+    locations: classpath:migrations
+
+server:
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 2048
+  port: ${ELIMIKA_PORT:8080}
+
+logging:
+  file:
+    name: logs/elimika.log
+  level:
+    org.springframework.web: error
+    org.hibernate: error
+    root: info
