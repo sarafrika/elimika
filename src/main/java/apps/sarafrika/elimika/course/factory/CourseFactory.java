@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
+import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
 import apps.sarafrika.elimika.course.model.Course;
 
 import java.security.SecureRandom;
@@ -24,7 +25,16 @@ public class CourseFactory {
                 .build();
     }
 
-    private static String generateCourseCode(String courseName) {
+    public static void update(final Course course, UpdateCourseRequestDTO updateCourseRequestDTO) {
+
+        course.setName(updateCourseRequestDTO.name());
+        course.setMaxAge(updateCourseRequestDTO.maxAge());
+        course.setMinAge(updateCourseRequestDTO.minAge());
+        course.setDescription(updateCourseRequestDTO.description());
+        course.setDifficultyLevel(updateCourseRequestDTO.difficultyLevel().name());
+    }
+
+    private static String generateCourseCode(final String courseName) {
 
         String courseNameCode = courseName.substring(0, Math.min(courseName.length(), 3)).toUpperCase();
         String dateCode = LocalDateTime.now().format(DATE_FORMATTER);

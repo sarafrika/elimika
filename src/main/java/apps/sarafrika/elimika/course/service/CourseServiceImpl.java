@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
+import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.model.Course;
@@ -24,9 +25,10 @@ import java.util.stream.Collectors;
 public class CourseServiceImpl implements CourseService {
 
     private static final String ERROR_COURSE_NOT_FOUND = "Course not found.";
-    private static final String COURSE_CREATED_SUCCESS = "Course has been persisted successfully.";
-    private static final String COURSES_FOUND_SUCCESS = "Courses retrieved successfully.";
     private static final String COURSE_FOUND_SUCCESS = "Course retrieved successfully.";
+    private static final String COURSES_FOUND_SUCCESS = "Courses retrieved successfully.";
+    private static final String COURSE_UPDATED_SUCCESS = "Course has been updated successfully.";
+    private static final String COURSE_CREATED_SUCCESS = "Course has been persisted successfully.";
 
     private final CourseRepository courseRepository;
 
@@ -34,8 +36,9 @@ public class CourseServiceImpl implements CourseService {
     @Transactional(readOnly = true)
     public ResponseDTO<CourseResponseDTO> findById(Long id) {
 
-        CourseResponseDTO courseResponseDTO = CourseResponseDTO.from(courseRepository.findById(id).orElseThrow(
-                () -> new ResourceNotFoundException(ERROR_COURSE_NOT_FOUND)));
+        final Course course = findCourseById(id);
+
+        CourseResponseDTO courseResponseDTO = CourseResponseDTO.from(course);
 
         return new ResponseDTO<>(courseResponseDTO, HttpStatus.OK.value(), COURSE_FOUND_SUCCESS, null, LocalDateTime.now());
     }
@@ -65,15 +68,28 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public CourseResponseDTO update(Course course) {
-        return null;
+    @Transactional
+    public ResponseDTO<Void> update(UpdateCourseRequestDTO updateCourseRequestDTO, Long id) {
+
+        final Course courseToUpdate = findCourseById(id);
+
+        CourseFactory.update(courseToUpdate, updateCourseRequestDTO);
+        courseRepository.save(courseToUpdate);
+
+        return new ResponseDTO<>(null, HttpStatus.OK.value(), COURSE_UPDATED_SUCCESS, null, LocalDateTime.now());
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
 
-        Course course = courseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(ERROR_COURSE_NOT_FOUND));
+        final Course course = findCourseById(id);
 
         courseRepository.delete(course);
+    }
+
+    private Course findCourseById(Long id) {
+
+        return courseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(ERROR_COURSE_NOT_FOUND));
     }
 }

@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
+import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
@@ -13,7 +14,7 @@ public interface CourseService {
 
     ResponseDTO<Void> create(CreateCourseRequestDTO createCourseRequestDTO);
 
-    CourseResponseDTO update(Course course);
+    ResponseDTO<Void> update(UpdateCourseRequestDTO updateCourseRequestDTO, Long id);
 
     void delete(Long id);
 }

@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
+import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
@@ -40,6 +41,13 @@ public class CourseController {
     public ResponseDTO<Void> createCourse(@RequestBody CreateCourseRequestDTO createCourseRequestDTO) {
 
         return courseService.create(createCourseRequestDTO);
+    }
+
+    @PutMapping(path = ID_PATH)
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseDTO<Void> updateCourse(@RequestBody UpdateCourseRequestDTO updateCourseRequestDTO, @PathVariable Long id) {
+
+        return courseService.update(updateCourseRequestDTO, id);
     }
 
     @DeleteMapping(path = ID_PATH)
