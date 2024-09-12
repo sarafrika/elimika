@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.DayOfWeek;
 import java.util.Date;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -39,5 +40,8 @@ public class InstructorAvailability extends AuditableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Instructor instructor;
+
+    @OneToMany(mappedBy = "availabilitySlot", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    private Set<Class> classes;
 
 }

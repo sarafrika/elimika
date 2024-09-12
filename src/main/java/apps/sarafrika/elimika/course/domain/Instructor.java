@@ -33,4 +33,7 @@ public class Instructor extends AuditableEntity {
     @OneToMany(mappedBy = "instructor", fetch = FetchType.LAZY)
     private Set<InstructorAvailability> availableSlots;
 
+    @OneToMany(mappedBy = "instructor", fetch = FetchType.LAZY)
+    private Set<Class> classes;
+
 }

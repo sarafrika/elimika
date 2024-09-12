@@ -1,7 +1,6 @@
 package apps.sarafrika.elimika.course.domain;
 
 import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
-import ch.qos.logback.core.model.INamedModel;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,6 +39,9 @@ public class Course extends AuditableEntity {
             joinColumns = @JoinColumn(name = "course_id"),
             inverseJoinColumns = @JoinColumn(name = "instructor_id")
     )
-    Set<Instructor> instructors;
+    private Set<Instructor> instructors;
+
+    @OneToMany(mappedBy = "course", fetch = FetchType.LAZY)
+    private Set<Class> classes;
 
 }

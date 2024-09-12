@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.config;
 
+import apps.sarafrika.elimika.course.application.exceptions.ClassNotFoundException;
 import apps.sarafrika.elimika.course.application.exceptions.CourseNotFoundException;
+import apps.sarafrika.elimika.course.application.exceptions.InstructorAvailabilityNotFoundException;
 import apps.sarafrika.elimika.course.application.exceptions.InstructorNotFoundException;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import org.springframework.core.Ordered;
@@ -29,6 +31,23 @@ class CourseExceptionHandler {
     @ExceptionHandler(InstructorNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ResponseEntity<ResponseDTO<Void>> handleInstructorNotFoundException(InstructorNotFoundException e) {
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseDTO<>(null, HttpStatus.NOT_FOUND.value(), e.getMessage(), null, LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(InstructorAvailabilityNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    ResponseEntity<ResponseDTO<Void>> handleInstructorAvailabilityNotFoundException(InstructorAvailabilityNotFoundException e) {
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseDTO<>(null, HttpStatus.NOT_FOUND.value(), e.getMessage(), null, LocalDateTime.now()));
+    }
+
+
+    @ExceptionHandler(ClassNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    ResponseEntity<ResponseDTO<Void>> handleClassNotFoundException(ClassNotFoundException e) {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ResponseDTO<>(null, HttpStatus.NOT_FOUND.value(), e.getMessage(), null, LocalDateTime.now()));

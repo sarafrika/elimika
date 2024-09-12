@@ -40,4 +40,9 @@ public class JpaInstructorAvailabilityRepositoryAdapter implements InstructorAva
     public void saveAll(Set<InstructorAvailability> availabilitySlots) {
         jpaInstructorAvailabilityRepository.saveAll(availabilitySlots);
     }
+
+    @Override
+    public Optional<InstructorAvailability> findByIdAndInstructor(Long id, Instructor instructor) {
+        return jpaInstructorAvailabilityRepository.findByIdAndInstructor(id, instructor);
+    }
 }

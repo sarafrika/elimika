@@ -16,4 +16,6 @@ public interface InstructorAvailabilityRepository {
     void save(InstructorAvailability instructorAvailability);
 
     void saveAll(Set<InstructorAvailability> availabilitySlots);
+
+    Optional<InstructorAvailability> findByIdAndInstructor(Long id, Instructor instructor);
 }
