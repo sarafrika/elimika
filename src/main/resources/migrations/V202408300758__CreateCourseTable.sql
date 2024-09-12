@@ -1,17 +1,21 @@
 CREATE TABLE IF NOT EXISTS course
 (
     id               BIGSERIAL PRIMARY KEY,
-    name             VARCHAR(255)                              NOT NULL,
-    code             VARCHAR(50)                               NOT NULL UNIQUE,
+    name             VARCHAR(255) NOT NULL,
+    code             VARCHAR(50)  NOT NULL UNIQUE,
     description      TEXT,
     difficulty_level VARCHAR(50),
-    min_age          INT CHECK (min_age >= 0),
-    max_age          INT CHECK (max_age >= min_age),
-    created_at       TIMESTAMP                                 NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by       VARCHAR(50)                               NOT NULL,
-    updated_at       TIMESTAMP                                 NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    min_age          INT,
+    max_age          INT,
+    created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       VARCHAR(50)  NOT NULL,
+    updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_by       VARCHAR(50),
-    deleted          BOOLEAN CHECK ( deleted IN (TRUE, FALSE)) NOT NULL DEFAULT FALSE
+    deleted          BOOLEAN      NOT NULL DEFAULT FALSE,
+
+    CONSTRAINT min_age_check CHECK (min_age >= 0),
+    CONSTRAINT max_age_check CHECK (max_age >= min_age),
+    CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
 );
 
 CREATE INDEX idx_course_created_by ON course (created_by);

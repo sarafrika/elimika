@@ -15,11 +15,11 @@ public interface InstructorService {
 
     Set<Instructor> findByIds(final Set<Long> ids);
 
-    ResponsePageableDTO<InstructorResponseDTO> findAll(Pageable pageable);
+    ResponsePageableDTO<InstructorResponseDTO> findAll(final Pageable pageable);
 
     ResponseDTO<Void> create(CreateInstructorRequestDTO createInstructorRequestDTO);
 
     ResponseDTO<Void> update(UpdateInstructorRequestDTO updateInstructorRequestDTO, Long id);
 
-    void delete(Long id);
+    void delete(final Long id);
 }

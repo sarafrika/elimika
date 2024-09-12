@@ -30,4 +30,7 @@ public class Instructor extends AuditableEntity {
     @ManyToMany(mappedBy = "instructors")
     private Set<Course> courses;
 
+    @OneToMany(mappedBy = "instructor", fetch = FetchType.LAZY)
+    private Set<InstructorAvailability> availableSlots;
+
 }

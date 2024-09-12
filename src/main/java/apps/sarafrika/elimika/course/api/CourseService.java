@@ -8,13 +8,13 @@ import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
 import org.springframework.data.domain.Pageable;
 
 public interface CourseService {
-    ResponseDTO<CourseResponseDTO> findById(Long id);
+    ResponseDTO<CourseResponseDTO> findById(final Long id);
 
-    ResponsePageableDTO<CourseResponseDTO> findAll(Pageable pageable);
+    ResponsePageableDTO<CourseResponseDTO> findAll(final Pageable pageable);
 
     ResponseDTO<Void> create(CreateCourseRequestDTO createCourseRequestDTO);
 
     ResponseDTO<Void> update(UpdateCourseRequestDTO updateCourseRequestDTO, Long id);
 
-    void delete(Long id);
+    void delete(final Long id);
 }
