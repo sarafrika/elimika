@@ -11,11 +11,11 @@ public interface CourseService {
 
     ResponseDTO<Void> createCourse(CreateCourseRequestDTO createCourseRequestDTO);
 
-    ResponseDTO<CourseResponseDTO> findCourse(Long id);
+    ResponseDTO<CourseResponseDTO> findCourse(Long courseId);
 
     ResponsePageableDTO<CourseResponseDTO> findAllCourses(Pageable pageable);
 
-    ResponseDTO<Void> updateCourse(UpdateCourseRequestDTO updateCourseRequestDTO, Long id);
+    ResponseDTO<Void> updateCourse(UpdateCourseRequestDTO updateCourseRequestDTO, Long courseId);
 
-    void deleteCourse(Long id);
+    void deleteCourse(Long courseId);
 }

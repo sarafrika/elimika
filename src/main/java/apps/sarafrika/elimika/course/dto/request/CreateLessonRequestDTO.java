@@ -6,7 +6,7 @@ public record CreateLessonRequestDTO(
         String content,
         int lessonOrder,
         boolean isPublished,
-        Long classId
+        Long courseId
 ) {
 }
 

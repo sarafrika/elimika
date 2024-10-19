@@ -6,5 +6,11 @@ services:
       - POSTGRES_DB=${ELIMIKA_POSTGRES_DB:-elimika}
       - POSTGRES_USER=${ELIMIKA_POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${ELIMIKA_POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - db_data:/var/lib/postgresql/data
     ports:
       - ${ELIMIKA_POSTGRES_PORT:-5432}:5432
+
+volumes:
+  db_data:
+    name: ${ELIMIKA_DATABASE_VOLUME:-elimika-database-data}

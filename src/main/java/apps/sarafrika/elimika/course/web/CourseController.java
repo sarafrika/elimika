@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 class CourseController {
 
     protected static final String ROOT_PATH = "api/v1/courses";
-    protected static final String ID_PATH = "{id}";
+    protected static final String ID_PATH = "{courseId}";
 
     private final CourseService courseService;
 
@@ -31,9 +31,9 @@ class CourseController {
 
     @GetMapping(path = ID_PATH)
     @ResponseStatus(HttpStatus.OK)
-    ResponseDTO<CourseResponseDTO> getCourse(final @PathVariable Long id) {
+    ResponseDTO<CourseResponseDTO> getCourse(final @PathVariable Long courseId) {
 
-        return courseService.findCourse(id);
+        return courseService.findCourse(courseId);
     }
 
     @PostMapping
@@ -45,16 +45,16 @@ class CourseController {
 
     @PutMapping(path = ID_PATH)
     @ResponseStatus(HttpStatus.OK)
-    ResponseDTO<Void> updateCourse(@RequestBody UpdateCourseRequestDTO updateCourseRequestDTO, @PathVariable Long id) {
+    ResponseDTO<Void> updateCourse(@RequestBody UpdateCourseRequestDTO updateCourseRequestDTO, @PathVariable Long courseId) {
 
-        return courseService.updateCourse(updateCourseRequestDTO, id);
+        return courseService.updateCourse(updateCourseRequestDTO, courseId);
     }
 
     @DeleteMapping(path = ID_PATH)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void deleteCourse(final @PathVariable Long id) {
+    void deleteCourse(final @PathVariable Long courseId) {
 
-        courseService.deleteCourse(id);
+        courseService.deleteCourse(courseId);
     }
 }
 

@@ -8,8 +8,8 @@ Content-Type: application/json
 {
   "firstName": "tonny",
   "lastName": "ocholla",
-  "email": "tonnyocholla@gmail.com",
-  "bio": "I am a JAVA instructor"
+  "email": "tonnyocholla8@gmail.com",
+  "bio": "I am a Java Instructor"
 }
 
 ### Get All Instructors
@@ -36,15 +36,15 @@ PUT http://localhost:8080/api/v1/instructors/{{id}}
 Content-Type: application/json
 
 {
-  "firstName": "tonny",
-  "otherNames": "",
-  "lastName": "ocholla",
-  "email": "tonnyocholla8@gmail.com",
+  "firstName": "wilfred",
+  "otherNames": "njuguna",
+  "lastName": "mwangi",
+  "email": "wmwangi@gmail.com",
   "bio": "I am a Java & PHP developer."
 }
 
 ### Create Availability Slots
-POST http://localhost:8080/api/v1/instructors/{{id}}/availability-slots/batch
+POST http://localhost:8080/api/v1/instructors/{{id}}/availability/batch
 Content-Type: application/json
 
 [
@@ -68,18 +68,11 @@ Content-Type: application/json
     "dayOfWeek": "FRIDAY",
     "timeSlotStart": "2024-09-16T15:00:00",
     "timeSlotEnd": "2024-09-16T17:00:00"
-  },
-  {
-    "availabilityStart": "2024-09-16T00:00:00",
-    "availabilityEnd": "2024-12-16T00:00:00",
-    "dayOfWeek": "MONDAY",
-    "timeSlotStart": "2024-09-16T10:00:00",
-    "timeSlotEnd": "2024-09-16T12:00:00"
   }
 ]
 
 ### Get Availability Slots
-GET http://localhost:8080/api/v1/instructors/{{id}}/availability-slots
+GET http://localhost:8080/api/v1/instructors/{{id}}/availability
 Accept: application/json
 
 > {%
@@ -110,7 +103,7 @@ Content-Type: application/json
 }
 
 
-### Delete instructor
+### Delete availa
 DELETE http://localhost:8080/api/v1/instructors/{{id}}/availability-slots/{{slot-id}}
 
 ### Delete instructor

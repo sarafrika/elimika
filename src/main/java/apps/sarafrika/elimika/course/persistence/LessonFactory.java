@@ -13,7 +13,6 @@ public class LessonFactory {
                 .content(createLessonRequestDTO.content())
                 .lessonOrder(createLessonRequestDTO.lessonOrder())
                 .isPublished(createLessonRequestDTO.isPublished())
-                .classId(createLessonRequestDTO.classId())
                 .build();
     }
 

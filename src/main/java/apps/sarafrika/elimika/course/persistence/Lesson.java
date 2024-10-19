@@ -31,7 +31,7 @@ public class Lesson extends AuditableEntity {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean isPublished;
 
-    private Long classId;
-
+    @Column(nullable = false)
+    private Long courseId;
 }
 
