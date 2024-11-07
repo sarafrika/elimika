@@ -15,7 +15,9 @@ public record CreateCourseRequestDTO(
 
         int maxAge,
 
-        Set<Long> instructorIds
+        Set<Long> instructorIds,
+
+        CreateCoursePricingRequestDTO pricing
 ) {
 }
 

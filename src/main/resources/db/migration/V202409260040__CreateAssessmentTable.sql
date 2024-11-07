@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS assessment
     passing_score INT          NOT NULL,
     due_date      TIMESTAMP    NOT NULL,
     time_limit    INT          NOT NULL,
-    scope         VARCHAR(50)  NOT NULL,
     course_id     BIGINT       NOT NULL,
     lesson_id     BIGINT,
     created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,

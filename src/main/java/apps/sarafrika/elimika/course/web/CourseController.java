@@ -38,14 +38,14 @@ class CourseController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    ResponseDTO<Void> createCourse(@RequestBody CreateCourseRequestDTO createCourseRequestDTO) {
+    ResponseDTO<CourseResponseDTO> createCourse(@RequestBody CreateCourseRequestDTO createCourseRequestDTO) {
 
         return courseService.createCourse(createCourseRequestDTO);
     }
 
     @PutMapping(path = ID_PATH)
     @ResponseStatus(HttpStatus.OK)
-    ResponseDTO<Void> updateCourse(@RequestBody UpdateCourseRequestDTO updateCourseRequestDTO, @PathVariable Long courseId) {
+    ResponseDTO<CourseResponseDTO> updateCourse(@RequestBody UpdateCourseRequestDTO updateCourseRequestDTO, @PathVariable Long courseId) {
 
         return courseService.updateCourse(updateCourseRequestDTO, courseId);
     }

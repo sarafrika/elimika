@@ -8,11 +8,13 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Optional;
 
 
+@Slf4j
 @Builder
 @AllArgsConstructor
 public class LearningMaterialSpecification implements Specification<LearningMaterial> {
@@ -31,11 +33,13 @@ public class LearningMaterialSpecification implements Specification<LearningMate
 
     private Optional<Predicate> searchByCourseId(Root<LearningMaterial> root, CriteriaBuilder criteriaBuilder) {
 
-        return Optional.of(criteriaBuilder.equal(root.get("courseId"), learningMaterialRequestDTO.courseId()));
+        return Optional.ofNullable(learningMaterialRequestDTO.courseId())
+                .map(courseId -> criteriaBuilder.equal(root.get("courseId"), courseId));
     }
 
     private Optional<Predicate> searchByLessonId(Root<LearningMaterial> root, CriteriaBuilder criteriaBuilder) {
 
-        return Optional.of(criteriaBuilder.equal(root.get("lessonId"), learningMaterialRequestDTO.lessonId()));
+        return Optional.ofNullable(learningMaterialRequestDTO.lessonId())
+                .map(lessonId -> criteriaBuilder.equal(root.get("lessonId"), lessonId));
     }
 }

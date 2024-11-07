@@ -2,9 +2,8 @@ package apps.sarafrika.elimika.course.persistence;
 
 import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.util.Set;
+import lombok.*;
 
 @Getter
 @Setter
@@ -36,10 +35,12 @@ public class Course extends AuditableEntity {
 
     @ElementCollection
     @CollectionTable(
-            name = "course_instructor",
-            joinColumns = @JoinColumn(name = "course_id", referencedColumnName = "id")
+        name = "course_instructor",
+        joinColumns = @JoinColumn(
+            name = "course_id",
+            referencedColumnName = "id"
+        )
     )
     @Column(name = "instructor_id")
     private Set<Long> instructorIds;
-
 }

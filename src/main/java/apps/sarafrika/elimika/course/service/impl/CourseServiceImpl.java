@@ -3,11 +3,13 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.config.exception.CourseNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
+import apps.sarafrika.elimika.course.dto.response.CoursePricingResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.event.CreateCourseEvent;
 import apps.sarafrika.elimika.course.persistence.Course;
 import apps.sarafrika.elimika.course.persistence.CourseFactory;
 import apps.sarafrika.elimika.course.persistence.CourseRepository;
+import apps.sarafrika.elimika.course.service.CoursePricingService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
@@ -34,19 +36,22 @@ class CourseServiceImpl implements CourseService {
     private static final String COURSE_UPDATED_SUCCESS = "Course has been updated successfully.";
 
     private final CourseRepository courseRepository;
+    private final CoursePricingService coursePricingService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     @Override
-    public ResponseDTO<Void> createCourse(CreateCourseRequestDTO createCourseRequestDTO) {
+    public ResponseDTO<CourseResponseDTO> createCourse(CreateCourseRequestDTO createCourseRequestDTO) {
 
         final Course course = CourseFactory.create(createCourseRequestDTO);
 
         eventPublisher.publishEvent(new CreateCourseEvent(course, createCourseRequestDTO));
 
-        courseRepository.save(course);
+        Course savedCourse = courseRepository.save(course);
 
-        return new ResponseDTO<>(null, HttpStatus.CREATED.value(), COURSE_CREATED_SUCCESS, null, LocalDateTime.now());
+        ResponseDTO<CoursePricingResponseDTO> pricing = coursePricingService.createCoursePricing(createCourseRequestDTO.pricing(), course.getId());
+
+        return new ResponseDTO<>(CourseResponseDTO.from(savedCourse, pricing.data()), HttpStatus.CREATED.value(), COURSE_CREATED_SUCCESS, null, LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -55,7 +60,9 @@ class CourseServiceImpl implements CourseService {
 
         final Course course = findCourseById(courseId);
 
-        CourseResponseDTO courseResponseDTO = CourseResponseDTO.from(course);
+        ResponseDTO<CoursePricingResponseDTO> pricing = coursePricingService.findCoursePricingForCourse(courseId);
+
+        CourseResponseDTO courseResponseDTO = CourseResponseDTO.from(course, pricing.data());
 
         return new ResponseDTO<>(courseResponseDTO, HttpStatus.OK.value(), COURSE_FOUND_SUCCESS, null, LocalDateTime.now());
     }
@@ -71,7 +78,7 @@ class CourseServiceImpl implements CourseService {
 
         Page<CourseResponseDTO> coursesPage = courseRepository.findAll(pageable)
                 .stream()
-                .map(CourseResponseDTO::from)
+                .map(course -> CourseResponseDTO.from(course, coursePricingService.findCoursePricingForCourse(course.getId()).data()))
                 .collect(Collectors.collectingAndThen(Collectors.toList(), PageImpl::new));
 
         return new ResponsePageableDTO<>(coursesPage.getContent(), coursesPage.getNumber(), coursesPage.getSize(),
@@ -82,15 +89,17 @@ class CourseServiceImpl implements CourseService {
 
     @Transactional
     @Override
-    public ResponseDTO<Void> updateCourse(UpdateCourseRequestDTO updateCourseRequestDTO, Long courseId) {
+    public ResponseDTO<CourseResponseDTO> updateCourse(UpdateCourseRequestDTO updateCourseRequestDTO, Long courseId) {
 
         final Course course = findCourseById(courseId);
 
         CourseFactory.update(course, updateCourseRequestDTO);
 
+        ResponseDTO<CoursePricingResponseDTO> pricing = coursePricingService.updateCoursePricing(updateCourseRequestDTO.pricing());
+
         courseRepository.save(course);
 
-        return new ResponseDTO<>(null, HttpStatus.OK.value(), COURSE_UPDATED_SUCCESS, null, LocalDateTime.now());
+        return new ResponseDTO<>(CourseResponseDTO.from(course, pricing.data()), HttpStatus.OK.value(), COURSE_UPDATED_SUCCESS, null, LocalDateTime.now());
     }
 
 

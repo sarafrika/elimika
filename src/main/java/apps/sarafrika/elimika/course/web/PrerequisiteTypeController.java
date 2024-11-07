@@ -1,9 +1,12 @@
 package apps.sarafrika.elimika.course.web;
 
 import apps.sarafrika.elimika.course.dto.request.CreatePrerequisiteTypeRequestDTO;
+import apps.sarafrika.elimika.course.dto.response.PrerequisiteTypeResponseDTO;
 import apps.sarafrika.elimika.course.service.PrerequisiteTypeService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
+import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,5 +25,12 @@ public class PrerequisiteTypeController {
     ResponseDTO<Void> createPrerequisiteType(@RequestBody CreatePrerequisiteTypeRequestDTO createPrerequisiteTypeRequestDTO) {
 
         return prerequisiteTypeService.createPrerequisiteType(createPrerequisiteTypeRequestDTO);
+    }
+
+    @GetMapping
+    @ResponseStatus(HttpStatus.OK)
+    ResponsePageableDTO<PrerequisiteTypeResponseDTO> getPrerequisiteTypes(Pageable pageable) {
+
+        return prerequisiteTypeService.findAllPrerequisiteTypes(pageable);
     }
 }

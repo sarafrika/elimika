@@ -9,13 +9,13 @@ import org.springframework.data.domain.Pageable;
 
 public interface CourseService {
 
-    ResponseDTO<Void> createCourse(CreateCourseRequestDTO createCourseRequestDTO);
+    ResponseDTO<CourseResponseDTO> createCourse(CreateCourseRequestDTO createCourseRequestDTO);
 
     ResponseDTO<CourseResponseDTO> findCourse(Long courseId);
 
     ResponsePageableDTO<CourseResponseDTO> findAllCourses(Pageable pageable);
 
-    ResponseDTO<Void> updateCourse(UpdateCourseRequestDTO updateCourseRequestDTO, Long courseId);
+    ResponseDTO<CourseResponseDTO> updateCourse(UpdateCourseRequestDTO updateCourseRequestDTO, Long courseId);
 
     void deleteCourse(Long courseId);
 }

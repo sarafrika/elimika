@@ -4,9 +4,7 @@ import apps.sarafrika.elimika.course.config.exception.LearningMaterialNotFoundEx
 import apps.sarafrika.elimika.course.dto.request.CreateLearningMaterialRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.LearningMaterialRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLearningMaterialRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.LearningMaterialResponseDTO;
-import apps.sarafrika.elimika.course.dto.response.LessonResponseDTO;
 import apps.sarafrika.elimika.course.persistence.LearningMaterial;
 import apps.sarafrika.elimika.course.persistence.LearningMaterialFactory;
 import apps.sarafrika.elimika.course.persistence.LearningMaterialRepository;
@@ -40,6 +38,7 @@ class LearningMaterialServiceImpl implements LearningMaterialService {
     private final LessonService lessonService;
     private final LearningMaterialRepository learningMaterialRepository;
 
+    @Transactional(readOnly = true)
     @Override
     public ResponsePageableDTO<LearningMaterialResponseDTO> findAllLearningMaterials(LearningMaterialRequestDTO learningMaterialRequestDTO, Pageable pageable) {
 
@@ -71,25 +70,25 @@ class LearningMaterialServiceImpl implements LearningMaterialService {
         return learningMaterialRepository.findById(learningMaterialId).orElseThrow(() -> new LearningMaterialNotFoundException(ERROR_LEARNING_MATERIAL_NOT_FOUND));
     }
 
+    @Transactional
     @Override
     public ResponseDTO<Void> createLearningMaterial(CreateLearningMaterialRequestDTO createLearningMaterialRequestDTO) {
 
-        LearningMaterial learningMaterial = LearningMaterialFactory.create(createLearningMaterialRequestDTO);
-
-        ResponseDTO<CourseResponseDTO> course = courseService.findCourse(createLearningMaterialRequestDTO.courseId());
-        learningMaterial.setCourseId(course.data().id());
+        courseService.findCourse(createLearningMaterialRequestDTO.courseId());
 
         if (createLearningMaterialRequestDTO.lessonId() != null) {
 
-            ResponseDTO<LessonResponseDTO> lesson = lessonService.findLesson(createLearningMaterialRequestDTO.courseId(), createLearningMaterialRequestDTO.lessonId());
-            learningMaterial.setLessonId(lesson.data().id());
+            lessonService.findLesson(createLearningMaterialRequestDTO.courseId(), createLearningMaterialRequestDTO.lessonId());
         }
+
+        LearningMaterial learningMaterial = LearningMaterialFactory.create(createLearningMaterialRequestDTO);
 
         learningMaterialRepository.save(learningMaterial);
 
         return new ResponseDTO<>(null, HttpStatus.CREATED.value(), LEARNING_MATERIAL_CREATED_SUCCESS, null, LocalDateTime.now());
     }
 
+    @Transactional
     @Override
     public ResponseDTO<Void> updateLearningMaterial(Long learningMaterialId, UpdateLearningMaterialRequestDTO updateLearningMaterialRequestDTO) {
 
@@ -102,6 +101,7 @@ class LearningMaterialServiceImpl implements LearningMaterialService {
         return new ResponseDTO<>(null, HttpStatus.OK.value(), LEARNING_MATERIAL_UPDATED_SUCCESS, null, LocalDateTime.now());
     }
 
+    @Transactional
     @Override
     public void deleteLearningMaterial(Long learningMaterialId) {
 

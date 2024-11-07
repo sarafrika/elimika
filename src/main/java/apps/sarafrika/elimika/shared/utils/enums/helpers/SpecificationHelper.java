@@ -4,17 +4,22 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 public class SpecificationHelper {
 
     @SafeVarargs
     public static Predicate toPredicateConditionAND(final CriteriaBuilder criteriaBuilder, final Optional<Predicate>... predicates) {
-
-        return Arrays.stream(predicates)
+        List<Predicate> validPredicates = Arrays.stream(predicates)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .reduce(criteriaBuilder::and)
-                .orElse(null);
+                .toList();
+
+        if (validPredicates.isEmpty()) {
+            return criteriaBuilder.conjunction();
+        }
+
+        return criteriaBuilder.and(validPredicates.toArray(new Predicate[0]));
     }
 }

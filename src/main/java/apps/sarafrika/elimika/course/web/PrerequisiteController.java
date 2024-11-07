@@ -31,36 +31,42 @@ class PrerequisiteController {
     }
 
     @PostMapping
-    ResponseDTO<Void> createPrerequisite(CreatePrerequisiteRequestDTO createPrerequisiteRequestDTO) {
+    @ResponseStatus(HttpStatus.CREATED)
+    ResponseDTO<Void> createPrerequisite(@RequestBody CreatePrerequisiteRequestDTO createPrerequisiteRequestDTO) {
 
         return prerequisiteService.createPrerequisite(createPrerequisiteRequestDTO);
     }
 
     @PostMapping(GROUP_PATH)
-    ResponseDTO<Void> createPrerequisiteGroup(CreatePrerequisiteGroupRequestDTO createPrerequisiteGroupRequestDTO) {
+    @ResponseStatus(HttpStatus.CREATED)
+    ResponseDTO<Void> createPrerequisiteGroup(@RequestBody CreatePrerequisiteGroupRequestDTO createPrerequisiteGroupRequestDTO) {
 
         return prerequisiteService.createPrerequisiteGroup(createPrerequisiteGroupRequestDTO);
     }
 
     @PutMapping(ID_PATH)
-    ResponseDTO<Void> updatePrerequisite(UpdatePrerequisiteRequestDTO updatePrerequisiteRequestDTO, @PathVariable Long prerequisiteId) {
+    @ResponseStatus(HttpStatus.OK)
+    ResponseDTO<Void> updatePrerequisite(@RequestBody UpdatePrerequisiteRequestDTO updatePrerequisiteRequestDTO, @PathVariable Long prerequisiteId) {
 
         return prerequisiteService.updatePrerequisite(updatePrerequisiteRequestDTO, prerequisiteId);
     }
 
     @DeleteMapping(ID_PATH)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     void deletePrerequisite(@PathVariable Long prerequisiteId) {
 
         prerequisiteService.deletePrerequisite(prerequisiteId);
     }
 
     @PutMapping(GROUP_PATH + GROUP_ID_PATH)
-    ResponseDTO<Void> updatePrerequisiteGroup(UpdatePrerequisiteGroupRequestDTO updatePrerequisiteGroupRequestDTO, @PathVariable Long prerequisiteGroupId) {
+    @ResponseStatus(HttpStatus.OK)
+    ResponseDTO<Void> updatePrerequisiteGroup(@RequestBody UpdatePrerequisiteGroupRequestDTO updatePrerequisiteGroupRequestDTO, @PathVariable Long prerequisiteGroupId) {
 
         return prerequisiteService.updatePrerequisiteGroup(updatePrerequisiteGroupRequestDTO, prerequisiteGroupId);
     }
 
     @DeleteMapping(GROUP_PATH + GROUP_ID_PATH)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     void deletePrerequisiteGroup(@PathVariable Long prerequisiteGroupId) {
 
         prerequisiteService.deletePrerequisiteGroup(prerequisiteGroupId);

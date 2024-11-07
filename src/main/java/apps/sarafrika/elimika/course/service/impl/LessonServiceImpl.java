@@ -3,7 +3,6 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.config.exception.LessonNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.CreateLessonRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.LessonResponseDTO;
 import apps.sarafrika.elimika.course.persistence.Lesson;
 import apps.sarafrika.elimika.course.persistence.LessonFactory;
@@ -63,11 +62,11 @@ class LessonServiceImpl implements LessonService {
     @Override
     public ResponseDTO<Void> createLesson(Long courseId, CreateLessonRequestDTO createLessonRequestDTO) {
 
-        ResponseDTO<CourseResponseDTO> course = courseService.findCourse(courseId);
+        courseService.findCourse(courseId);
 
         Lesson lesson = LessonFactory.create(createLessonRequestDTO);
 
-        lesson.setCourseId(course.data().id());
+        lesson.setCourseId(courseId);
 
         lessonRepository.save(lesson);
 

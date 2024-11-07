@@ -1,162 +1,220 @@
-### Get All Instructors
-< {%
-    client.global.clearAll()
-%}
-GET http://localhost:8080/api/v1/instructors?page=0&size=15
-Accept: application/json
-
-> {%
-    let instructor = response.body["data"][0]
-
-    if (instructor) {
-
-        let instructorId = instructor.id
-        client.global.set("instructor_id", instructorId)
-    }
-%}
-
-
-### Create Course
+### Create a course
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
 
 {
-  "name": "Football",
-  "description": "A comprehensive course on Football.",
+  "name": "Java Programming",
+  "description": "Learn the basics of Java programming",
   "difficultyLevel": "BEGINNER",
-  "minAge": 15,
-  "maxAge": 50
+  "minAge": 0,
+  "maxAge": 10
 }
 
-### Get All Courses
-GET http://localhost:8080/api/v1/courses?page=0&size=15
-Accept: application/json
+### Create another course
+POST http://localhost:8080/api/v1/courses
+Content-Type: application/json
 
-> {%
-    let courseId = response.body["data"][0].id
+{
+  "name": "Object Oriented Programming",
+  "description": "Learn the basics of Object Oriented Programming",
+  "difficultyLevel": "BEGINNER",
+  "minAge": 0,
+  "maxAge": 10
+}
 
-    client.global.set("courseId", courseId)
-%}
+### Get all courses
+GET http://localhost:8080/api/v1/courses?page=0&size=10
+#
+#> {%
+#    const course = response.body["data"][0];
+#    const otherCourse = response.body["data"][1];
+#
+#    if (course) {
+#        client.global.set("courseId", course.id);
+#    }
+#
+#    if (otherCourse) {
+#        client.global.set("otherCourseId", otherCourse.id);
+#    }
+#%}
 
-### Get Course
+### Get a course
 GET http://localhost:8080/api/v1/courses/{{courseId}}
-Accept: application/json
 
-### Update Course
+### Update a course
 PUT http://localhost:8080/api/v1/courses/{{courseId}}
 Content-Type: application/json
 
 {
-  "name": "Football",
-  "description": "A comprehensive course on Football.",
-  "difficultyLevel": "BEGINNER",
-  "minAge": 15,
-  "maxAge": 35
+  "name": "Java Programming",
+  "description": "Learn the basics of Java programming",
+  "difficultyLevel": "INTERMEDIATE",
+  "minAge": 0,
+  "maxAge": 10
 }
 
-### Delete course
-DELETE http://localhost:8080/api/v1/courses/{{courseId}}
-
-
-### Create module
-POST http://localhost:8080/api/v1/courses/{{courseId}}/modules
+### Create a lesson
+POST http://localhost:8080/api/v1/courses/{{courseId}}/lessons
 Content-Type: application/json
 
 {
-  "name": "Intermediate",
-  "description": "A beginner's intro to music."
+  "title": "Introduction to Java",
+  "description": "Learn the basics of Java programming",
+  "content": "Java is a popular programming language used for building a wide range of applications. It is an object-oriented language, which means that it is based on the concept of objects, which are instances of classes. Java is known for its simplicity and readability, making it a great language for beginners.",
+  "lessonOrder": 2,
+  "isPublished": false
 }
 
-### Get All Modules
-GET http://localhost:8080/api/v1/courses/{{courseId}}/modules?page=0&size=15
+### Get all lessons
+GET http://localhost:8080/api/v1/courses/{{courseId}}/lessons
 Accept: application/json
 
 > {%
-    let moduleId = response.body["data"][0].id
+    const lesson = response.body["data"][0];
 
-    client.global.set("moduleId", moduleId)
+    if (lesson) {
+        client.global.set("lessonId", lesson.id);
+    }
 %}
 
-### Create Lesson
-POST http://localhost:8080/api/v1/courses/{{courseId}}/modules/{{moduleId}}/lessons
+### Get a lesson
+GET http://localhost:8080/api/v1/courses/{{courseId}}/lessons/{{lessonId}}
+
+### Update a lesson
+PUT http://localhost:8080/api/v1/courses/{{courseId}}/lessons/{{lessonId}}
 Content-Type: application/json
 
 {
-  "title": "Introduction to Music I",
-  "description": "A beginner's intro to music.",
-  "content": "A beginner's intro to music.",
-  "lessonOrder": 1
+  "title": "Introduction to Java",
+  "description": "Learn the basics of Java programming",
+  "content": "Java is a popular programming language used for building a wide range of applications. It is an object-oriented language, which means that it is based on the concept of objects, which are instances of classes. Java is known for its simplicity and readability, making it a great language for beginners.",
+  "lessonOrder": 1,
+  "isPublished": false
 }
 
-### Get Lessons
-GET http://localhost:8080/api/v1/courses/{{courseId}}/modules/{{moduleId}}/lessons?page=0&size=15
-Accept: application/json
+### Delete a lesson
+DELETE http://localhost:8080/api/v1/courses/{{courseId}}/lessons/{{lessonId}}
 
-> {%
-    let lessonId = response.body["data"][0].id
-
-    client.global.set("lessonId", lessonId)
-%}
-
-### Create assessment
-POST http://localhost:8080/api/v1/assessments
+### Create a learning material
+POST http://localhost:8080/api/v1/learning-materials
 Content-Type: application/json
 
 {
-  "title": "Introduction to Music Quiz 1",
-  "type": "Quiz",
-  "description": "First assessment for the Introduction to Music course.",
-  "maximumScore": 100,
-  "passingScore": 40,
-  "dueDate": "2024-09-13T00:00:00",
-  "timeLimit": 60,
-  "scope": "LESSON",
+  "title": "Java Programming",
+  "type": "OTHER",
+  "url": "https://www.javatpoint.com/java-tutorial",
   "courseId": {{courseId}},
   "lessonId": {{lessonId}}
 }
 
-
-### Create Prerequisite Type
-POST http://localhost:8080/api/v1/prerequisite-types
-Content-Type: application/json
-
-{
-  "name": "course"
-}
-
-### Get Prerequisite Types
-GET http://localhost:8080/api/v1/prerequisite-types?page=0&size=15
+### Get all learning materials
+GET http://localhost:8080/api/v1/learning-materials?courseId={{courseId}}&lessonId={{lessonId}}&page=0&size=10
 Accept: application/json
 
 > {%
-    let prerequisiteTypeId = response.body["data"][0].id
+    const learningMaterial = response.body["data"][0];
 
-    client.global.set("prerequisiteTypeId", prerequisiteTypeId)
+    if (learningMaterial) {
+        client.global.set("learningMaterialId", learningMaterial.id);
+    }
 %}
 
-### Create prerequisite
-POST http://localhost:8080/api/v1/prerequisites
+### Create an assessment
+POST http://localhost:8080/api/v1/assessments
 Content-Type: application/json
 
 {
-  "prerequisiteTypeId": {{prerequisiteTypeId}},
-  "ownerType": "COURSE",
-  "ownerId": {{courseId}},
-  "requiredOwnerType": "MODULE",
-  "requiredOwnerId": {{moduleId}},
-  "minimumScore": 10
+    "title": "Java Quiz",
+    "type": "Project",
+    "description": "Quiz about Java",
+    "maximumScore": 70,
+    "passingScore": 40,
+    "dueDate": "2023-01-01T00:00:00.000Z",
+    "timeLimit": 100,
+    "courseId": {{courseId}},
+    "lessonId": {{lessonId}}
 }
 
-### Create Prerequisite Group
-POST http://localhost:8080/api/v1/prerequisite-groups
+### Get all assessments
+GET http://localhost:8080/api/v1/assessments/course/{{courseId}}
+Accept: application/json
+
+> {%
+    const assessment = response.body["data"][0]
+
+    if (assessment) {
+        client.global.set("assessmentId", assessment.id);
+    }
+%}
+
+### Create a question
+POST http://localhost:8080/api/v1/assessments/{{assessmentId}}/questions
 Content-Type: application/json
 
 {
-  "ownerType": "COURSE",
-  "ownerId": {{courseId}},
-  "groupType": "COURSE",
-  "prerequisiteIds": [
-    {{prerequisiteId}}
+  "description": "What is the output of the following code?",
+  "questionType": "SHORT_ANSWER",
+  "orderInAssessment": 1,
+  "pointValue": 3
+}
+
+### Create another question
+POST http://localhost:8080/api/v1/assessments/{{assessmentId}}/questions
+Content-Type: application/json
+
+{
+  "description": "Will the code below run?",
+  "questionType": "TRUE_FALSE",
+  "orderInAssessment": 2,
+  "pointValue": 1,
+  "answerOptions": [
+    {
+      "optionText": "YES",
+      "correct": true
+    },
+    {
+      "optionText": "NO",
+      "correct": false
+    }
   ]
 }
 
+### Get all questions for assessment
+GET http://localhost:8080/api/v1/assessments/{{assessmentId}}/questions
+Accept: application/json
+
+### Create a prerequisite type
+POST http://localhost:8080/api/v1/prerequisite-types
+Content-Type: application/json
+
+// course, grade, level
+{
+  "name": "grade"
+}
+
+### Get all prerequisite types
+GET http://localhost:8080/api/v1/prerequisite-types
+Accept: application/json
+
+> {%
+    const prerequisiteType = response.body["data"][1];
+
+    if (prerequisiteType) {
+        client.global.set("prerequisiteTypeId", prerequisiteType.id);
+    }
+%}
+
+### Create a prerequisite
+POST http://localhost:8080/api/v1/prerequisite
+Content-Type: application/json
+
+{
+"prerequisiteTypeId": {{prerequisiteTypeId}},
+"courseId": {{otherCourseId}},
+"requiredForCourseId": {{courseId}},
+"minimumScore": 40
+}
+
+### Get prerequisites
+GET http://localhost:8080/api/v1/prerequisites?courseId={{courseId}}
+Accept: application/json
