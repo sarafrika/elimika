@@ -1,0 +1,319 @@
+### Get all categories
+GET http://localhost:8080/api/v1/categories
+Accept: application/json
+
+> {%
+    const category = response.body["data"][0];
+
+    if (category) {
+        client.global.set("categoryId", category.id);
+    }
+%}
+
+### Create a course
+POST http://localhost:8080/api/v1/courses
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="course";
+Content-Type: application/json
+
+{
+  "name": "Java Programming",
+  "description": "Learn the basics of Java programming",
+  "difficultyLevel": "beginner",
+  "minAge": 0,
+  "maxAge": 10,
+  "durationHours": 2,
+  "pricing": {
+    "originalPrice": 100,
+    "salePrice": 50
+  },
+  "learningObjectives": [
+    {
+      "objective": "Learn the basics of Java programming"
+    },
+    {
+      "objective": "Learn the basics of Object Oriented Programming"
+    }
+  ],
+  "categories": [
+    {
+      "id": 3,
+      "name": "technology",
+      "description": "Courses on computer science, software development, and information technology."
+    },
+    {
+      "id": 4,
+      "name": "engineering",
+      "description": "Courses related to civil, mechanical, electrical, and aerospace engineering."
+    }
+  ]
+}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="thumbnail"; filename="thumbnail.png"
+Content-Type: image/png
+
+< ./thumbnail.png
+--WebAppBoundary
+
+### Get all courses
+GET http://localhost:8080/api/v1/courses?page=0&size=10
+
+> {%
+    const course = response.body["data"][0];
+
+    if (course) {
+        client.global.set("courseId", course.id);
+    }
+%}
+
+### Get a course
+GET http://localhost:8080/api/v1/courses/{{courseId}}
+
+### Update a course
+PUT http://localhost:8080/api/v1/courses/{{courseId}}
+Content-Type: application/json
+
+{
+  "name": "Java Programming",
+  "description": "Learn the basics of Java programming",
+  "difficultyLevel": "beginner",
+  "minAge": 0,
+  "maxAge": 10,
+  "durationHours": 2,
+  "pricing": {
+    "originalPrice": 100,
+    "salePrice": 50,
+    "discount": 10
+  },
+  "learningObjectives": [
+    {
+      "id": 1,
+      "objective": "Learn the basics of Java programming"
+    },
+    {
+      "id": 2,
+      "objective": "Learn the basics of Object Oriented Programming with an emphasis on Java"
+    }
+  ],
+  "categories": [
+    {
+      "id": 2,
+      "name": "science",
+      "description": "Courses covering topics in physics, chemistry, biology, and environmental science."
+    },
+    {
+      "id": 4,
+      "name": "engineering",
+      "description": "Courses related to civil, mechanical, electrical, and aerospace engineering."
+    },
+    {
+      "name": "Political Science"
+    }
+  ]
+}
+
+### Create a lesson
+POST http://localhost:8080/api/v1/courses/{{courseId}}/lessons
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="lesson"
+Content-Type: application/json
+
+{
+  "title": "Introduction to Java",
+  "description": "Learn the basics of Java programming",
+  "lessonOrder": 1,
+  "isPublished": false,
+  "resources": [
+    {
+      "title": "Java Programming",
+      "resourceUrl": "https://www.javatpoint.com/java-tutorial",
+      "displayOrder": 1
+    },
+    {
+      "title": "Spring Framework",
+      "resourceUrl": "https://spring.io/projects/spring-framework",
+      "displayOrder": 2
+    }
+  ],
+  "content": [
+    {
+      "title": "Introduction to Java",
+      "displayOrder": 1,
+      "duration": 2,
+      "contentType": "text",
+      "contentText": "Java is a popular programming language used for building a wide range of applications. It is an object-oriented language, which means that it is based on the concept of objects, which are instances of classes. Java is known for its simplicity and readability, making it a great language for beginners."
+    },
+    {
+      "title": "Java Programming",
+      "displayOrder": 2,
+      "duration": 50,
+      "contentType": "pdf"
+    }
+  ]
+}
+--WebAppBoundary--
+Content-Disposition: form-data; name="files"; filename="Ocholla Tonny Resume.pdf"
+Content-Type: application/pdf
+
+< ./Ocholla%20Tonny%20Resume.pdf
+--WebAppBoundary--
+
+
+### Get all lessons
+GET http://localhost:8080/api/v1/courses/{{courseId}}/lessons
+Accept: application/json
+
+> {%
+    const lesson = response.body["data"][0];
+
+    if (lesson) {
+        client.global.set("lessonId", lesson.id);
+    }
+%}
+
+### Get a lesson
+GET http://localhost:8080/api/v1/courses/{{courseId}}/lessons/{{lessonId}}
+
+### Update a lesson
+PUT http://localhost:8080/api/v1/courses/{{courseId}}/lessons/{{lessonId}}
+Content-Type: application/json
+
+{
+  "title": "Introduction to Java",
+  "description": "Learn the basics of Java programming",
+  "content": "Java is a popular programming language used for building a wide range of applications. It is an object-oriented language, which means that it is based on the concept of objects, which are instances of classes. Java is known for its simplicity and readability, making it a great language for beginners.",
+  "lessonOrder": 1,
+  "isPublished": false
+}
+
+### Delete a lesson
+DELETE http://localhost:8080/api/v1/courses/{{courseId}}/lessons/{{lessonId}}
+
+### Create a learning material
+POST http://localhost:8080/api/v1/learning-materials
+Content-Type: application/json
+
+{
+  "title": "Java Programming",
+  "type": "OTHER",
+  "url": "https://www.javatpoint.com/java-tutorial",
+  "courseId": {{courseId}},
+  "lessonId": {{lessonId}}
+}
+
+### Get all learning materials
+GET http://localhost:8080/api/v1/learning-materials?courseId={{courseId}}&lessonId={{lessonId}}&page=0&size=10
+Accept: application/json
+
+> {%
+    const learningMaterial = response.body["data"][0];
+
+    if (learningMaterial) {
+        client.global.set("learningMaterialId", learningMaterial.id);
+    }
+%}
+
+### Create an assessment
+POST http://localhost:8080/api/v1/assessments
+Content-Type: application/json
+
+{
+    "title": "Java Quiz",
+    "type": "Project",
+    "description": "Quiz about Java",
+    "maximumScore": 70,
+    "passingScore": 40,
+    "dueDate": "2023-01-01T00:00:00.000Z",
+    "timeLimit": 100,
+    "courseId": {{courseId}},
+    "lessonId": {{lessonId}}
+}
+
+### Get all assessments
+GET http://localhost:8080/api/v1/assessments/course/{{courseId}}
+Accept: application/json
+
+> {%
+    const assessment = response.body["data"][0]
+
+    if (assessment) {
+        client.global.set("assessmentId", assessment.id);
+    }
+%}
+
+### Create a question
+POST http://localhost:8080/api/v1/assessments/{{assessmentId}}/questions
+Content-Type: application/json
+
+{
+  "description": "What is the output of the following code?",
+  "questionType": "SHORT_ANSWER",
+  "orderInAssessment": 1,
+  "pointValue": 3
+}
+
+### Create another question
+POST http://localhost:8080/api/v1/assessments/{{assessmentId}}/questions
+Content-Type: application/json
+
+{
+  "description": "Will the code below run?",
+  "questionType": "TRUE_FALSE",
+  "orderInAssessment": 2,
+  "pointValue": 1,
+  "answerOptions": [
+    {
+      "optionText": "YES",
+      "correct": true
+    },
+    {
+      "optionText": "NO",
+      "correct": false
+    }
+  ]
+}
+
+### Get all questions for assessment
+GET http://localhost:8080/api/v1/assessments/{{assessmentId}}/questions
+Accept: application/json
+
+### Create a prerequisite type
+POST http://localhost:8080/api/v1/prerequisite-types
+Content-Type: application/json
+
+// course, grade, level
+{
+  "name": "grade"
+}
+
+### Get all prerequisite types
+GET http://localhost:8080/api/v1/prerequisite-types
+Accept: application/json
+
+> {%
+    const prerequisiteType = response.body["data"][1];
+
+    if (prerequisiteType) {
+        client.global.set("prerequisiteTypeId", prerequisiteType.id);
+    }
+%}
+
+### Create a prerequisite
+POST http://localhost:8080/api/v1/prerequisite
+Content-Type: application/json
+
+{
+"prerequisiteTypeId": {{prerequisiteTypeId}},
+"courseId": {{otherCourseId}},
+"requiredForCourseId": {{courseId}},
+"minimumScore": 40
+}
+
+### Get prerequisites
+GET http://localhost:8080/api/v1/prerequisites?courseId={{courseId}}
+Accept: application/json

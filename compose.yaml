@@ -1,9 +1,16 @@
 services:
-  postgres:
+  elimika-postgres:
     image: 'postgres:latest'
+    container_name: 'elimika-postgres'
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      - POSTGRES_DB=${ELIMIKA_POSTGRES_DB:-elimika}
+      - POSTGRES_USER=${ELIMIKA_POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${ELIMIKA_POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - db_data:/var/lib/postgresql/data
     ports:
-      - '5432'
+      - ${ELIMIKA_POSTGRES_PORT:-5432}:5432
+
+volumes:
+  db_data:
+    name: ${ELIMIKA_DATABASE_VOLUME:-elimika-database-data}
