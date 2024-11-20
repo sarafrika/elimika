@@ -18,7 +18,12 @@ public class CourseFactory {
                 .name(createCourseRequestDTO.name())
                 .code(generateCourseCode(createCourseRequestDTO.name()))
                 .description(createCourseRequestDTO.description())
+                .thumbnailUrl(createCourseRequestDTO.thumbnailUrl())
+                .durationHours(createCourseRequestDTO.durationHours())
                 .difficultyLevel(createCourseRequestDTO.difficultyLevel().name())
+                .isFree(createCourseRequestDTO.pricing().isFree())
+                .originalPrice(createCourseRequestDTO.pricing().originalPrice())
+                .salePrice(createCourseRequestDTO.pricing().salePrice())
                 .maxAge(createCourseRequestDTO.maxAge())
                 .minAge(createCourseRequestDTO.minAge())
                 .build();
@@ -27,10 +32,15 @@ public class CourseFactory {
     public static void update(final Course course, UpdateCourseRequestDTO updateCourseRequestDTO) {
 
         course.setName(updateCourseRequestDTO.name());
+        course.setDescription(updateCourseRequestDTO.description());
+        course.setThumbnailUrl(updateCourseRequestDTO.thumbnailUrl());
+        course.setDurationHours(updateCourseRequestDTO.durationHours());
         course.setMaxAge(updateCourseRequestDTO.maxAge());
         course.setMinAge(updateCourseRequestDTO.minAge());
-        course.setDescription(updateCourseRequestDTO.description());
         course.setDifficultyLevel(updateCourseRequestDTO.difficultyLevel().name());
+        course.setFree(updateCourseRequestDTO.pricing().isFree());
+        course.setOriginalPrice(updateCourseRequestDTO.pricing().originalPrice());
+        course.setSalePrice(updateCourseRequestDTO.pricing().salePrice());
     }
 
     private static String generateCourseCode(final String courseName) {

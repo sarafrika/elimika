@@ -10,8 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-@CrossOrigin
+import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(path = CourseController.ROOT_PATH)
@@ -36,11 +38,11 @@ class CourseController {
         return courseService.findCourse(courseId);
     }
 
-    @PostMapping
+    @PostMapping(consumes = MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    ResponseDTO<CourseResponseDTO> createCourse(@RequestBody CreateCourseRequestDTO createCourseRequestDTO) {
+    ResponseDTO<CourseResponseDTO> createCourse(@RequestPart(name = "course") CreateCourseRequestDTO createCourseRequestDTO, @RequestPart(name = "thumbnail") MultipartFile thumbnail) {
 
-        return courseService.createCourse(createCourseRequestDTO);
+        return courseService.createCourse(createCourseRequestDTO, thumbnail);
     }
 
     @PutMapping(path = ID_PATH)

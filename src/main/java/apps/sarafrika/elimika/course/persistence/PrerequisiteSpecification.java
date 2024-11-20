@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.course.persistence;
 
 import apps.sarafrika.elimika.course.dto.request.PrerequisiteRequestDTO;
-import apps.sarafrika.elimika.shared.utils.enums.helpers.SpecificationHelper;
+import apps.sarafrika.elimika.shared.utils.helpers.SpecificationHelper;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;

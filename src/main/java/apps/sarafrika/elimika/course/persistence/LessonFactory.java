@@ -10,7 +10,6 @@ public class LessonFactory {
         return Lesson.builder()
                 .title(createLessonRequestDTO.title())
                 .description(createLessonRequestDTO.description())
-                .content(createLessonRequestDTO.content())
                 .lessonOrder(createLessonRequestDTO.lessonOrder())
                 .isPublished(createLessonRequestDTO.isPublished())
                 .build();
@@ -20,7 +19,6 @@ public class LessonFactory {
 
         lesson.setTitle(updateLessonRequestDTO.title());
         lesson.setDescription(updateLessonRequestDTO.description());
-        lesson.setContent(updateLessonRequestDTO.content());
         lesson.setLessonOrder(updateLessonRequestDTO.lessonOrder());
         lesson.setPublished(updateLessonRequestDTO.isPublished());
     }

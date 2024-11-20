@@ -1,42 +1,73 @@
+### Get all categories
+GET http://localhost:8080/api/v1/categories
+Accept: application/json
+
+> {%
+    const category = response.body["data"][0];
+
+    if (category) {
+        client.global.set("categoryId", category.id);
+    }
+%}
+
 ### Create a course
 POST http://localhost:8080/api/v1/courses
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="course";
 Content-Type: application/json
 
 {
   "name": "Java Programming",
   "description": "Learn the basics of Java programming",
-  "difficultyLevel": "BEGINNER",
+  "difficultyLevel": "beginner",
   "minAge": 0,
-  "maxAge": 10
+  "maxAge": 10,
+  "durationHours": 2,
+  "pricing": {
+    "originalPrice": 100,
+    "salePrice": 50
+  },
+  "learningObjectives": [
+    {
+      "objective": "Learn the basics of Java programming"
+    },
+    {
+      "objective": "Learn the basics of Object Oriented Programming"
+    }
+  ],
+  "categories": [
+    {
+      "id": 3,
+      "name": "technology",
+      "description": "Courses on computer science, software development, and information technology."
+    },
+    {
+      "id": 4,
+      "name": "engineering",
+      "description": "Courses related to civil, mechanical, electrical, and aerospace engineering."
+    }
+  ]
 }
 
-### Create another course
-POST http://localhost:8080/api/v1/courses
-Content-Type: application/json
+--WebAppBoundary
+Content-Disposition: form-data; name="thumbnail"; filename="thumbnail.png"
+Content-Type: image/png
 
-{
-  "name": "Object Oriented Programming",
-  "description": "Learn the basics of Object Oriented Programming",
-  "difficultyLevel": "BEGINNER",
-  "minAge": 0,
-  "maxAge": 10
-}
+< ./thumbnail.png
+--WebAppBoundary
 
 ### Get all courses
 GET http://localhost:8080/api/v1/courses?page=0&size=10
-#
-#> {%
-#    const course = response.body["data"][0];
-#    const otherCourse = response.body["data"][1];
-#
-#    if (course) {
-#        client.global.set("courseId", course.id);
-#    }
-#
-#    if (otherCourse) {
-#        client.global.set("otherCourseId", otherCourse.id);
-#    }
-#%}
+
+> {%
+    const course = response.body["data"][0];
+
+    if (course) {
+        client.global.set("courseId", course.id);
+    }
+%}
 
 ### Get a course
 GET http://localhost:8080/api/v1/courses/{{courseId}}
@@ -48,22 +79,90 @@ Content-Type: application/json
 {
   "name": "Java Programming",
   "description": "Learn the basics of Java programming",
-  "difficultyLevel": "INTERMEDIATE",
+  "difficultyLevel": "beginner",
   "minAge": 0,
-  "maxAge": 10
+  "maxAge": 10,
+  "durationHours": 2,
+  "pricing": {
+    "originalPrice": 100,
+    "salePrice": 50,
+    "discount": 10
+  },
+  "learningObjectives": [
+    {
+      "id": 1,
+      "objective": "Learn the basics of Java programming"
+    },
+    {
+      "id": 2,
+      "objective": "Learn the basics of Object Oriented Programming with an emphasis on Java"
+    }
+  ],
+  "categories": [
+    {
+      "id": 2,
+      "name": "science",
+      "description": "Courses covering topics in physics, chemistry, biology, and environmental science."
+    },
+    {
+      "id": 4,
+      "name": "engineering",
+      "description": "Courses related to civil, mechanical, electrical, and aerospace engineering."
+    },
+    {
+      "name": "Political Science"
+    }
+  ]
 }
 
 ### Create a lesson
 POST http://localhost:8080/api/v1/courses/{{courseId}}/lessons
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="lesson"
 Content-Type: application/json
 
 {
   "title": "Introduction to Java",
   "description": "Learn the basics of Java programming",
-  "content": "Java is a popular programming language used for building a wide range of applications. It is an object-oriented language, which means that it is based on the concept of objects, which are instances of classes. Java is known for its simplicity and readability, making it a great language for beginners.",
-  "lessonOrder": 2,
-  "isPublished": false
+  "lessonOrder": 1,
+  "isPublished": false,
+  "resources": [
+    {
+      "title": "Java Programming",
+      "resourceUrl": "https://www.javatpoint.com/java-tutorial",
+      "displayOrder": 1
+    },
+    {
+      "title": "Spring Framework",
+      "resourceUrl": "https://spring.io/projects/spring-framework",
+      "displayOrder": 2
+    }
+  ],
+  "content": [
+    {
+      "title": "Introduction to Java",
+      "displayOrder": 1,
+      "duration": 2,
+      "contentType": "text",
+      "contentText": "Java is a popular programming language used for building a wide range of applications. It is an object-oriented language, which means that it is based on the concept of objects, which are instances of classes. Java is known for its simplicity and readability, making it a great language for beginners."
+    },
+    {
+      "title": "Java Programming",
+      "displayOrder": 2,
+      "duration": 50,
+      "contentType": "pdf"
+    }
+  ]
 }
+--WebAppBoundary--
+Content-Disposition: form-data; name="files"; filename="Ocholla Tonny Resume.pdf"
+Content-Type: application/pdf
+
+< ./Ocholla%20Tonny%20Resume.pdf
+--WebAppBoundary--
+
 
 ### Get all lessons
 GET http://localhost:8080/api/v1/courses/{{courseId}}/lessons

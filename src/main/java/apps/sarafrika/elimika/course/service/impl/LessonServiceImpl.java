@@ -2,12 +2,17 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.config.exception.LessonNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.CreateLessonRequestDTO;
+import apps.sarafrika.elimika.course.dto.request.LessonResouceRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonRequestDTO;
+import apps.sarafrika.elimika.course.dto.response.LessonContentResponseDTO;
+import apps.sarafrika.elimika.course.dto.response.LessonResourceResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.LessonResponseDTO;
 import apps.sarafrika.elimika.course.persistence.Lesson;
 import apps.sarafrika.elimika.course.persistence.LessonFactory;
 import apps.sarafrika.elimika.course.persistence.LessonRepository;
 import apps.sarafrika.elimika.course.service.CourseService;
+import apps.sarafrika.elimika.course.service.LessonContentService;
+import apps.sarafrika.elimika.course.service.LessonResourceService;
 import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
@@ -18,8 +23,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +40,8 @@ class LessonServiceImpl implements LessonService {
 
     private final CourseService courseService;
     private final LessonRepository lessonRepository;
+    private final LessonContentService lessonContentService;
+    private final LessonResourceService lessonResourceService;
 
     @Transactional(readOnly = true)
     @Override
@@ -40,9 +49,11 @@ class LessonServiceImpl implements LessonService {
 
         final Lesson lesson = findLessonByCourseIdAndLessonId(courseId, lessonId);
 
-        LessonResponseDTO lessonResponseDTO = LessonResponseDTO.from(lesson);
+        List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(lesson.getId()).data();
 
-        return new ResponseDTO<>(lessonResponseDTO, HttpStatus.OK.value(), LESSON_FOUND_SUCCESS, null, LocalDateTime.now());
+        List<LessonResourceResponseDTO> resources = lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data();
+
+        return new ResponseDTO<>(LessonResponseDTO.from(lesson, content, resources), HttpStatus.OK.value(), LESSON_FOUND_SUCCESS, null, LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -51,7 +62,7 @@ class LessonServiceImpl implements LessonService {
 
         Page<LessonResponseDTO> lessonsPage = lessonRepository.findAllByCourseId(courseId, pageable)
                 .stream()
-                .map(LessonResponseDTO::from)
+                .map(lesson -> LessonResponseDTO.from(lesson, lessonContentService.findAllLessonContent(lesson.getId()).data(), lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data()))
                 .collect(Collectors.collectingAndThen(Collectors.toList(), PageImpl::new));
 
         return new ResponsePageableDTO<>(lessonsPage.getContent(), lessonsPage.getNumber(), lessonsPage.getSize(),
@@ -60,7 +71,7 @@ class LessonServiceImpl implements LessonService {
 
     @Transactional
     @Override
-    public ResponseDTO<Void> createLesson(Long courseId, CreateLessonRequestDTO createLessonRequestDTO) {
+    public ResponseDTO<LessonResponseDTO> createLesson(Long courseId, CreateLessonRequestDTO createLessonRequestDTO, List<MultipartFile> files) {
 
         courseService.findCourse(courseId);
 
@@ -68,9 +79,13 @@ class LessonServiceImpl implements LessonService {
 
         lesson.setCourseId(courseId);
 
-        lessonRepository.save(lesson);
+        Lesson savedLesson = lessonRepository.save(lesson);
 
-        return new ResponseDTO<>(null, HttpStatus.CREATED.value(), LESSON_CREATED_SUCCESS, null, LocalDateTime.now());
+        List<LessonContentResponseDTO> content = lessonContentService.createLessonContent(savedLesson.getId(), createLessonRequestDTO.content(), files).data();
+
+        List<LessonResourceResponseDTO> resources = lessonResourceService.createLessonResources(savedLesson.getId(), createLessonRequestDTO.resources()).data();
+
+        return new ResponseDTO<>(LessonResponseDTO.from(savedLesson, content, resources), HttpStatus.CREATED.value(), LESSON_CREATED_SUCCESS, null, LocalDateTime.now());
     }
 
     @Transactional
@@ -101,9 +116,11 @@ class LessonServiceImpl implements LessonService {
 
         Lesson lesson = findById(lessonId);
 
-        LessonResponseDTO lessonResponseDTO = LessonResponseDTO.from(lesson);
+        List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(lesson.getId()).data();
 
-        return new ResponseDTO<>(lessonResponseDTO, HttpStatus.OK.value(), LESSON_FOUND_SUCCESS, null, LocalDateTime.now());
+        List<LessonResourceResponseDTO> resources = lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data();
+
+        return new ResponseDTO<>(LessonResponseDTO.from(lesson, content, resources), HttpStatus.OK.value(), LESSON_FOUND_SUCCESS, null, LocalDateTime.now());
     }
 
     private Lesson findById(Long lessonId) {

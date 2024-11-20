@@ -3,16 +3,20 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.config.exception.CourseNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.CoursePricingResponseDTO;
+import apps.sarafrika.elimika.course.dto.response.CategoryResponseDTO;
+import apps.sarafrika.elimika.course.dto.response.CourseLearningObjectiveResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
+import apps.sarafrika.elimika.course.dto.response.PricingResponseDTO;
 import apps.sarafrika.elimika.course.event.CreateCourseEvent;
 import apps.sarafrika.elimika.course.persistence.Course;
 import apps.sarafrika.elimika.course.persistence.CourseFactory;
 import apps.sarafrika.elimika.course.persistence.CourseRepository;
-import apps.sarafrika.elimika.course.service.CoursePricingService;
+import apps.sarafrika.elimika.course.service.CourseCategoryService;
+import apps.sarafrika.elimika.course.service.CourseLearningObjectiveService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -21,8 +25,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,23 +41,33 @@ class CourseServiceImpl implements CourseService {
     private static final String COURSES_FOUND_SUCCESS = "Courses retrieved successfully.";
     private static final String COURSE_UPDATED_SUCCESS = "Course has been updated successfully.";
 
+    private final StorageService storageService;
     private final CourseRepository courseRepository;
-    private final CoursePricingService coursePricingService;
+    private final CourseCategoryService courseCategoryService;
+    private final CourseLearningObjectiveService courseLearningObjectiveService;
+
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     @Override
-    public ResponseDTO<CourseResponseDTO> createCourse(CreateCourseRequestDTO createCourseRequestDTO) {
+    public ResponseDTO<CourseResponseDTO> createCourse(CreateCourseRequestDTO createCourseRequestDTO, MultipartFile thumbnail) {
+
+        String thumbnailUrl = storageService.store(thumbnail);
 
         final Course course = CourseFactory.create(createCourseRequestDTO);
+        course.setThumbnailUrl(thumbnailUrl);
 
         eventPublisher.publishEvent(new CreateCourseEvent(course, createCourseRequestDTO));
 
         Course savedCourse = courseRepository.save(course);
 
-        ResponseDTO<CoursePricingResponseDTO> pricing = coursePricingService.createCoursePricing(createCourseRequestDTO.pricing(), course.getId());
+        PricingResponseDTO pricing = PricingResponseDTO.from(savedCourse);
 
-        return new ResponseDTO<>(CourseResponseDTO.from(savedCourse, pricing.data()), HttpStatus.CREATED.value(), COURSE_CREATED_SUCCESS, null, LocalDateTime.now());
+        List<CourseLearningObjectiveResponseDTO> learningObjectives = courseLearningObjectiveService.createCourseLearningObjectives(createCourseRequestDTO.learningObjectives(), savedCourse.getId()).data();
+
+        List<CategoryResponseDTO> courseCategories = courseCategoryService.updateCourseCategories(savedCourse.getId(), createCourseRequestDTO.categories()).data();
+
+        return new ResponseDTO<>(CourseResponseDTO.from(savedCourse, pricing, learningObjectives, courseCategories), HttpStatus.CREATED.value(), COURSE_CREATED_SUCCESS, null, LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -60,9 +76,13 @@ class CourseServiceImpl implements CourseService {
 
         final Course course = findCourseById(courseId);
 
-        ResponseDTO<CoursePricingResponseDTO> pricing = coursePricingService.findCoursePricingForCourse(courseId);
+        List<CourseLearningObjectiveResponseDTO> learningObjectives = courseLearningObjectiveService.findAllCourseLearningObjectives(course.getId()).data();
 
-        CourseResponseDTO courseResponseDTO = CourseResponseDTO.from(course, pricing.data());
+        PricingResponseDTO pricing = PricingResponseDTO.from(course);
+
+        List<CategoryResponseDTO> courseCategories = courseCategoryService.findCourseCategoriesByCourseId(course.getId()).data();
+
+        CourseResponseDTO courseResponseDTO = CourseResponseDTO.from(course, pricing, learningObjectives, courseCategories);
 
         return new ResponseDTO<>(courseResponseDTO, HttpStatus.OK.value(), COURSE_FOUND_SUCCESS, null, LocalDateTime.now());
     }
@@ -78,7 +98,15 @@ class CourseServiceImpl implements CourseService {
 
         Page<CourseResponseDTO> coursesPage = courseRepository.findAll(pageable)
                 .stream()
-                .map(course -> CourseResponseDTO.from(course, coursePricingService.findCoursePricingForCourse(course.getId()).data()))
+                .map((Course course) -> {
+                    List<CourseLearningObjectiveResponseDTO> learningObjectives = courseLearningObjectiveService.findAllCourseLearningObjectives(course.getId()).data();
+
+                    PricingResponseDTO pricing = PricingResponseDTO.from(course);
+
+                    List<CategoryResponseDTO> courseCategories = courseCategoryService.findCourseCategoriesByCourseId(course.getId()).data();
+
+                    return CourseResponseDTO.from(course, pricing, learningObjectives, courseCategories);
+                })
                 .collect(Collectors.collectingAndThen(Collectors.toList(), PageImpl::new));
 
         return new ResponsePageableDTO<>(coursesPage.getContent(), coursesPage.getNumber(), coursesPage.getSize(),
@@ -95,11 +123,15 @@ class CourseServiceImpl implements CourseService {
 
         CourseFactory.update(course, updateCourseRequestDTO);
 
-        ResponseDTO<CoursePricingResponseDTO> pricing = coursePricingService.updateCoursePricing(updateCourseRequestDTO.pricing());
+        List<CourseLearningObjectiveResponseDTO> learningObjectives = courseLearningObjectiveService.updateCourseLearningObjectives(updateCourseRequestDTO.learningObjectives()).data();
 
-        courseRepository.save(course);
+        List<CategoryResponseDTO> courseCategories = courseCategoryService.updateCourseCategories(course.getId(), updateCourseRequestDTO.categories()).data();
 
-        return new ResponseDTO<>(CourseResponseDTO.from(course, pricing.data()), HttpStatus.OK.value(), COURSE_UPDATED_SUCCESS, null, LocalDateTime.now());
+        Course updatedCourse = courseRepository.save(course);
+
+        PricingResponseDTO pricing = PricingResponseDTO.from(updatedCourse);
+
+        return new ResponseDTO<>(CourseResponseDTO.from(updatedCourse, pricing, learningObjectives, courseCategories), HttpStatus.OK.value(), COURSE_UPDATED_SUCCESS, null, LocalDateTime.now());
     }
 
 

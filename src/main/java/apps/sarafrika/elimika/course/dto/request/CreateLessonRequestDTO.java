@@ -1,11 +1,19 @@
 package apps.sarafrika.elimika.course.dto.request;
 
+import java.util.List;
+
 public record CreateLessonRequestDTO(
         String title,
+
         String description,
-        String content,
+
         int lessonOrder,
-        boolean isPublished
+
+        boolean isPublished,
+
+        List<CreateLessonContentDTO> content,
+
+        List<CreateLessonResourceRequestDTO> resources
 ) {
 }
 

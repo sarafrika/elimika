@@ -22,9 +22,6 @@ public class Lesson extends AuditableEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(columnDefinition = "TEXT")
-    private String content;
-
     @Column(nullable = false)
     private int lessonOrder;
 

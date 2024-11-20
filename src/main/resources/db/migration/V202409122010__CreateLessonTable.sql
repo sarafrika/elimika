@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS lesson
     id           BIGSERIAL PRIMARY KEY,
     title        VARCHAR     NOT NULL,
     description  TEXT,
-    content      TEXT        NOT NULL,
     lesson_order INT         NOT NULL,
     is_published BOOLEAN              DEFAULT FALSE,
     course_id    BIGINT      NOT NULL,
@@ -15,8 +14,7 @@ CREATE TABLE IF NOT EXISTS lesson
 
     FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE ON UPDATE CASCADE,
 
-    CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE)),
-    CONSTRAINT unique_lesson_order UNIQUE (course_id, lesson_order)
+    CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
 );
 
 CREATE INDEX idx_lesson_course_id ON lesson (course_id);

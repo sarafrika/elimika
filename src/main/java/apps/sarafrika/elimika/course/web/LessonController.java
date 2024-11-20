@@ -10,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @CrossOrigin
 @RestController
@@ -38,9 +41,10 @@ class LessonController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    ResponseDTO<Void> createLesson(@RequestBody final CreateLessonRequestDTO createLessonRequestDTO, final @PathVariable Long courseId) {
+    ResponseDTO<LessonResponseDTO> createLesson(final @PathVariable Long courseId, @RequestPart("lesson") CreateLessonRequestDTO createLessonRequestDTO,
+                                   @RequestPart("files") List<MultipartFile> files) {
 
-        return lessonService.createLesson(courseId, createLessonRequestDTO);
+        return lessonService.createLesson(courseId, createLessonRequestDTO, files);
     }
 
     @PutMapping(path = ID_PATH)
