@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.config.exception.LessonNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.CreateLessonRequestDTO;
+import apps.sarafrika.elimika.course.dto.request.LessonContentRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.LessonResouceRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.LessonContentResponseDTO;
@@ -49,7 +50,7 @@ class LessonServiceImpl implements LessonService {
 
         final Lesson lesson = findLessonByCourseIdAndLessonId(courseId, lessonId);
 
-        List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(lesson.getId()).data();
+        List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(new LessonContentRequestDTO(lesson.getId())).data();
 
         List<LessonResourceResponseDTO> resources = lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data();
 
@@ -62,7 +63,12 @@ class LessonServiceImpl implements LessonService {
 
         Page<LessonResponseDTO> lessonsPage = lessonRepository.findAllByCourseId(courseId, pageable)
                 .stream()
-                .map(lesson -> LessonResponseDTO.from(lesson, lessonContentService.findAllLessonContent(lesson.getId()).data(), lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data()))
+                .map(lesson -> {
+                    List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(new LessonContentRequestDTO(lesson.getId())).data();
+                    List<LessonResourceResponseDTO> resources = lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data();
+
+                    return LessonResponseDTO.from(lesson, content, resources);
+                })
                 .collect(Collectors.collectingAndThen(Collectors.toList(), PageImpl::new));
 
         return new ResponsePageableDTO<>(lessonsPage.getContent(), lessonsPage.getNumber(), lessonsPage.getSize(),
@@ -116,7 +122,7 @@ class LessonServiceImpl implements LessonService {
 
         Lesson lesson = findById(lessonId);
 
-        List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(lesson.getId()).data();
+        List<LessonContentResponseDTO> content = lessonContentService.findAllLessonContent(new LessonContentRequestDTO(lesson.getId())).data();
 
         List<LessonResourceResponseDTO> resources = lessonResourceService.findLessonResources(new LessonResouceRequestDTO(lesson.getId())).data();
 
