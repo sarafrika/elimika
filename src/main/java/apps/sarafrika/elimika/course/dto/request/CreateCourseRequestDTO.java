@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.course.dto.request;
 
-import apps.sarafrika.elimika.course.dto.response.CategoryResponseDTO;
 import apps.sarafrika.elimika.shared.utils.enums.DifficultyLevel;
 
 import java.math.BigDecimal;
@@ -28,7 +27,7 @@ public record CreateCourseRequestDTO(
 
         List<UpdateCourseCategoryRequestDTO> categories,
 
-        Set<Long>instructorIds
+        Set<Long> instructorIds
 ) {
 }
 
