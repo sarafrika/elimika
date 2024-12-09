@@ -17,26 +17,30 @@ services:
     image: quay.io/keycloak/keycloak:26.0.5
     container_name: elimika-keycloak
     ports:
-      - "9090:8080"
+      - "9090:8443" # Map HTTPS port 8443 in container to 9090 on the host
     environment:
       - KC_DB=postgres
       - KC_DB_URL=jdbc:postgresql://elimika-postgres:5432/keycloak
       - KC_DB_USERNAME=postgres
       - KC_DB_PASSWORD=postgres
       - KEYCLOAK_HTTPS_ONLY=true
-      - KEYCLOAK_SSL_CERTIFICATE=/opt/keycloak/conf/certs/fullchain.pem
-      - KEYCLOAK_SSL_PRIVATE_KEY=/opt/keycloak/conf/certs/privkey.pem
+      - KEYCLOAK_SSL_CERTIFICATE=/opt/keycloak/conf/keycloak.crt
+      - KEYCLOAK_SSL_PRIVATE_KEY=/opt/keycloak/conf/keycloak.pem
+      - KEYCLOAK_TRUSTSTORE=/opt/keycloak/conf/server.keystore
+      - KEYCLOAK_TRUSTSTORE_PASSWORD=12345678
     volumes:
-      - /etc/letsencrypt/live/signin.sarafrika.com/fullchain.pem:/opt/keycloak/conf/certs/fullchain.pem
-      - /etc/letsencrypt/live/signin.sarafrika.com/privkey.pem:/opt/keycloak/conf/certs/privkey.pem
+      - /home/prod/certs/keycloak.crt:/opt/keycloak/conf/keycloak.crt
+      - /home/prod/certs/keycloak.pem:/opt/keycloak/conf/keycloak.pem
+      - /home/prod/certs/server.keystore:/opt/keycloak/conf/server.keystore
     networks:
       - elimika
     command:
       - "start"
+      - "--https-port=8443"
+      - "--http-port=8080"
     restart: unless-stopped
     depends_on:
       - elimika-postgres
-
 
 networks:
   elimika:
