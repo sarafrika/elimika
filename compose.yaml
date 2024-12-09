@@ -44,6 +44,7 @@ services:
       - "--https-trust-store-password=staging"
       - "--hostname=signin.sarafrika.com"
       - "--hostname-strict=true"
+      - "--https-trust-store-type=PKCS12"
 
     restart: unless-stopped
     depends_on:
