@@ -23,6 +23,11 @@ services:
       - KC_DB_URL=jdbc:postgresql://elimika-postgres:5432/keycloak
       - KC_DB_USERNAME=postgres
       - KC_DB_PASSWORD=postgres
+      - KEYCLOAK_HTTPS_ONLY=true
+      - KEYCLOAK_SSL_CERTIFICATE=/opt/keycloak/conf/certs/fullchain.pem
+      - KEYCLOAK_SSL_PRIVATE_KEY=/opt/keycloak/conf/certs/privkey.pem
+    volumes:
+      - certbot-certs:/opt/keycloak/conf/certs
     networks:
       - elimika
     command:
@@ -31,6 +36,7 @@ services:
     depends_on:
       - elimika-postgres
 
+
 networks:
   elimika:
     driver: bridge
@@ -38,3 +44,7 @@ networks:
 volumes:
   db_data:
     name: elimika-database-data
+
+  certbot-certs:
+    source: /etc/letsencrypt/live/signin.sarafrika.com
+    target: /opt/keycloak/conf/certs
