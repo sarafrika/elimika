@@ -14,7 +14,9 @@ services:
       - elimika
 
   elimika-keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.keycloak
     container_name: "elimika-keycloak"
     ports:
       - "9090:8080"
@@ -29,12 +31,10 @@ services:
       - KC_HOSTNAME_STRICT_HTTPS=true
       - PROXY_ADDRESS_FORWARDING=true
       - KC_HTTP_ENABLED=true
-      - KC_PRODUCTION=true
     networks:
       - elimika
     command:
       - start
-      - --optimized
     restart: unless-stopped
     depends_on:
       - elimika-postgres
