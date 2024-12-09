@@ -1,21 +1,21 @@
 services:
   elimika-postgres:
-    image: 'postgres:latest'
-    container_name: 'elimika-postgres'
+    image: postgres:latest
+    container_name: elimika-postgres
     environment:
-      - POSTGRES_DB=${ELIMIKA_POSTGRES_DB:-elimika}
-      - POSTGRES_USER=${ELIMIKA_POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${ELIMIKA_POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=elimika
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
-      - ${ELIMIKA_POSTGRES_PORT:-5432}:5432
+      - "5432:5432"
     networks:
       - elimika
 
   elimika-keycloak:
     image: quay.io/keycloak/keycloak:26.0.5
-    container_name: "elimika-keycloak"
+    container_name: elimika-keycloak
     ports:
       - "9090:8080"
     environment:
@@ -23,12 +23,10 @@ services:
       - KC_DB_URL=jdbc:postgresql://elimika-postgres:5432/keycloak
       - KC_DB_USERNAME=postgres
       - KC_DB_PASSWORD=postgres
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
     networks:
       - elimika
     command:
-      - "start-dev"
+      - "start"
     restart: unless-stopped
     depends_on:
       - elimika-postgres
@@ -39,4 +37,4 @@ networks:
 
 volumes:
   db_data:
-    name: ${ELIMIKA_DATABASE_VOLUME:-elimika-database-data}
+    name: elimika-database-data
