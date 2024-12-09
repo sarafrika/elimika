@@ -23,12 +23,18 @@ services:
       - KC_DB_URL=jdbc:postgresql://elimika-postgres:5432/keycloak
       - KC_DB_USERNAME=postgres
       - KC_DB_PASSWORD=postgres
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - KC_PROXY=edge
+      - KC_HOSTNAME=signin.sarafrika.com
+      - KC_HOSTNAME_STRICT=true
+      - KC_HOSTNAME_STRICT_HTTPS=true
+      - PROXY_ADDRESS_FORWARDING=true
+      - KC_HTTP_ENABLED=true
+      - KC_PRODUCTION=true
     networks:
       - elimika
     command:
-      - "start-dev"
+      - start
+      - --optimized
     restart: unless-stopped
     depends_on:
       - elimika-postgres
