@@ -27,7 +27,8 @@ services:
       - KEYCLOAK_SSL_CERTIFICATE=/opt/keycloak/conf/certs/fullchain.pem
       - KEYCLOAK_SSL_PRIVATE_KEY=/opt/keycloak/conf/certs/privkey.pem
     volumes:
-      - /etc/letsencrypt/live/signin.sarafrika.com:/opt/keycloak/conf/certs
+      - /etc/letsencrypt/live/signin.sarafrika.com/fullchain.pem:/opt/keycloak/conf/certs/fullchain.pem
+      - /etc/letsencrypt/live/signin.sarafrika.com/privkey.pem:/opt/keycloak/conf/certs/privkey.pem
     networks:
       - elimika
     command:
