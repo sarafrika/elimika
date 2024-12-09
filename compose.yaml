@@ -38,6 +38,13 @@ services:
       - "start"
       - "--https-port=8443"
       - "--http-port=8080"
+      - "--https-certificate-file=/opt/keycloak/conf/keycloak.crt"
+      - "--https-certificate-key-file=/opt/keycloak/conf/keycloak.pem"
+      - "--https-trust-store-file=/opt/keycloak/conf/server.keystore"
+      - "--https-trust-store-password=staging"
+      - "--hostname=signin.sarafrika.com"
+      - "--hostname-strict=true"
+
     restart: unless-stopped
     depends_on:
       - elimika-postgres
