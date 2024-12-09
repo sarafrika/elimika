@@ -13,9 +13,9 @@ services:
     networks:
       - elimika
 
-  keycloack:
+  elimika-keycloack:
     image: quay.io/keycloak/keycloak:latest
-    container_name: "keycloack-elimika"
+    container_name: "elimika-keycloack"
     ports:
       - "9090:8080"
     environment:
