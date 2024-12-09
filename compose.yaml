@@ -11,6 +11,28 @@ services:
     ports:
       - ${ELIMIKA_POSTGRES_PORT:-5432}:5432
 
+  keycloack:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: "keycloack-elimika"
+    ports:
+      - "9090:8080"
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+      - KC_DB_USERNAME=postgres
+      - KC_DB_PASSWORD=postgres
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+    networks:
+      - blastwave
+    command:
+      - "start-dev"
+    restart: unless-stopped
+
+networks:
+  elimika:
+    driver: bridge
+
 volumes:
   db_data:
     name: ${ELIMIKA_DATABASE_VOLUME:-elimika-database-data}
