@@ -28,7 +28,7 @@ services:
     networks:
       - elimika
     command:
-      - "start"
+      - "start-dev"
     restart: unless-stopped
     depends_on:
       - elimika-postgres
