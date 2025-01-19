@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.web;
 
+import apps.sarafrika.elimika.course.dto.request.CourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
@@ -26,9 +27,9 @@ class CourseController {
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    ResponsePageableDTO<CourseResponseDTO> getCourses(final Pageable pageable) {
+    ResponsePageableDTO<CourseResponseDTO> getCourses(CourseRequestDTO courseRequestDTO, final Pageable pageable) {
 
-        return courseService.findAllCourses(pageable);
+        return courseService.findAllCourses(courseRequestDTO, pageable);
     }
 
     @GetMapping(path = ID_PATH)

@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,10 +40,10 @@ class LessonController {
         return lessonService.findLesson(courseId, lessonId);
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     ResponseDTO<LessonResponseDTO> createLesson(final @PathVariable Long courseId, @RequestPart("lesson") CreateLessonRequestDTO createLessonRequestDTO,
-                                   @RequestPart("files") List<MultipartFile> files) {
+                                                @RequestPart("files") List<MultipartFile> files) {
 
         return lessonService.createLesson(courseId, createLessonRequestDTO, files);
     }

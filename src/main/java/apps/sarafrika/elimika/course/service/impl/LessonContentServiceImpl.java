@@ -3,11 +3,13 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.config.exception.LessonContentNotFoundException;
 import apps.sarafrika.elimika.course.config.exception.ValidationException;
 import apps.sarafrika.elimika.course.dto.request.CreateLessonContentDTO;
+import apps.sarafrika.elimika.course.dto.request.LessonContentRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonContentDTO;
 import apps.sarafrika.elimika.course.dto.response.ContentTypeResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.LessonContentResponseDTO;
 import apps.sarafrika.elimika.course.persistence.LessonContent;
 import apps.sarafrika.elimika.course.persistence.LessonContentRepository;
+import apps.sarafrika.elimika.course.persistence.LessonContentSpecification;
 import apps.sarafrika.elimika.course.service.ContentTypeService;
 import apps.sarafrika.elimika.course.service.LessonContentService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
@@ -31,6 +33,7 @@ public class LessonContentServiceImpl implements LessonContentService {
     private static final String ERROR_EXTRA_FILES_PROVIDED = "More files provided than expected.";
     private static final String ERROR_FILE_MISSING = "Missing file for content type.";
     private static final String LESSON_CONTENT_CREATED_SUCCESS = "Lesson content has been persisted successfully.";
+    private static final String LESSON_CONTENT_FOUND_SUCCESS = "Lesson content retrieved successfully.";
     private static final String ERROR_FILE_MIME_TYPE_MISSING = "Could not determine file mime type.";
     private static final String ERROR_FILE_MIME_TYPE_INVALID = "Invalid file type for content type.";
 
@@ -39,9 +42,19 @@ public class LessonContentServiceImpl implements LessonContentService {
     private final LessonContentRepository lessonContentRepository;
 
     @Override
-    public ResponseDTO<List<LessonContentResponseDTO>> findAllLessonContent(Long lessonId) {
+    public ResponseDTO<List<LessonContentResponseDTO>> findAllLessonContent(LessonContentRequestDTO lessonContentRequestDTO) {
 
-        return null;
+        List<LessonContent> lessonContent = lessonContentRepository.findAll(new LessonContentSpecification(lessonContentRequestDTO));
+
+        List<LessonContentResponseDTO> lessonContentResponseDTOS = lessonContent.stream()
+                .map(content -> {
+                    ContentTypeResponseDTO contentType = contentTypeService.findContentType(content.getContentTypeId()).data();
+
+                    return LessonContentResponseDTO.from(content, contentType.name());
+                })
+                .toList();
+
+        return new ResponseDTO<>(lessonContentResponseDTOS, HttpStatus.OK.value(), LESSON_CONTENT_FOUND_SUCCESS, null, LocalDateTime.now());
     }
 
     @Override
