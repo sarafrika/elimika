@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.persistence;
 
-import jakarta.persistence.*;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import lombok.*;
 
 @Getter
@@ -9,20 +11,18 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Prerequisite {
+public class Prerequisite extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+    @Column(name = "course_id")
     private Long courseId;
 
-    @Column(nullable = false)
+    @Column(name = "required_for_course_id")
     private Long requiredForCourseId;
 
+    @Column(name = "minimum_score")
     private double minimumScore;
 
+    @Column(name = "prerequisite_type_id")
     private Long prerequisiteTypeId;
 
 }

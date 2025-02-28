@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,21 +12,17 @@ import java.time.LocalDate;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AvailabilityPattern extends AuditableEntity {
+public class AvailabilityPattern extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+    @Column(name = "pattern_type")
     private String patternType;
 
-    @Column(nullable = false)
+    @Column(name = "start_date")
     private LocalDate startDate;
 
+    @Column(name = "end_date")
     private LocalDate endDate;
 
-    @Column(nullable = false)
+    @Column(name = "instructor_id")
     private Long instructorId;
-
 }

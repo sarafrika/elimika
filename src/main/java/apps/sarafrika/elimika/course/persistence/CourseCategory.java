@@ -1,10 +1,8 @@
 package apps.sarafrika.elimika.course.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import lombok.*;
 
 @Getter
@@ -13,14 +11,12 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-public class CourseCategory extends AuditableEntity {
+public class CourseCategory extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(name = "course_id")
     private Long courseId;
 
+    @Column(name = "category_id")
     private Long categoryId;
 
 }

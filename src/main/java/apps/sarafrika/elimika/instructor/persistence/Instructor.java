@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,19 +12,15 @@ import java.util.Set;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-public class Instructor extends AuditableEntity {
+public class Instructor extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+    @Column(name = "name")
     private String name;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "email")
     private String email;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "bio")
     private String bio;
 
     @ElementCollection

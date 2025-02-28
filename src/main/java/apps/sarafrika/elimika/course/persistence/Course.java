@@ -1,11 +1,11 @@
 package apps.sarafrika.elimika.course.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.Set;
-import lombok.*;
 
 @Getter
 @Setter
@@ -13,48 +13,48 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-public class Course extends AuditableEntity {
+public class Course extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(name = "name")
     private String name;
 
-    @Column(length = 50)
+    @Column(name = "code")
     private String code;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description")
     private String description;
 
+    @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
-    @Column(precision = 5, scale = 2)
+    @Column(name = "duration_hours")
     private BigDecimal durationHours;
 
-    @Column(length = 50)
+    @Column(name = "difficulty_level")
     private String difficultyLevel;
 
+    @Column(name = "is_free")
     private boolean isFree;
 
-    @Column(precision = 5, scale = 2)
+    @Column(name = "original_price")
     private BigDecimal originalPrice;
 
-    @Column(precision = 5, scale = 2)
+    @Column(name = "sale_price")
     private BigDecimal salePrice;
 
+    @Column(name = "min_age")
     private int minAge;
 
+    @Column(name = "max_age")
     private int maxAge;
 
     @ElementCollection
     @CollectionTable(
-        name = "course_instructor",
-        joinColumns = @JoinColumn(
-            name = "course_id",
-            referencedColumnName = "id"
-        )
+            name = "course_instructor",
+            joinColumns = @JoinColumn(
+                    name = "course_id",
+                    referencedColumnName = "id"
+            )
     )
     @Column(name = "instructor_id")
     private Set<Long> instructorIds;

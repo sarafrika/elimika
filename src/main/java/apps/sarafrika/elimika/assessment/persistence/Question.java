@@ -1,7 +1,8 @@
 package apps.sarafrika.elimika.assessment.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
-import jakarta.persistence.*;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import lombok.*;
 
 @Getter
@@ -10,24 +11,21 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-public class Question extends AuditableEntity {
+public class Question extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(name = "description")
     private String description;
 
-    @Column(nullable = false)
+    @Column(name = "question_type")
     private String questionType;
 
-    @Column(nullable = false)
+    @Column(name = "point_value")
     private int pointValue;
 
-    @Column(nullable = false)
+    @Column(name = "order_in_assessment")
     private int orderInAssessment;
 
-    @Column(nullable = false)
+    @Column(name = " assessment_id")
     private Long assessmentId;
 
 }

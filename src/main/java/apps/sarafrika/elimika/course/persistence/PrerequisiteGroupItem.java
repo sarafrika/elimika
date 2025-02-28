@@ -1,7 +1,8 @@
 package apps.sarafrika.elimika.course.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
-import jakarta.persistence.*;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import lombok.*;
 
 @Getter
@@ -10,14 +11,12 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PrerequisiteGroupItem extends AuditableEntity {
+public class PrerequisiteGroupItem extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(name = "prerequisite_group_id")
     private Long prerequisiteGroupId;
 
+    @Column(name = "prerequisite_id")
     private Long prerequisiteId;
 }
 

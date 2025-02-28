@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.assessment.persistence;
 
-import apps.sarafrika.elimika.shared.audit.model.AuditableEntity;
+import apps.sarafrika.elimika.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,35 +12,32 @@ import java.util.Date;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-public class Assessment extends AuditableEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+public class Assessment extends BaseEntity {
+    @Column(name = "title")
     private String title;
 
-    @Column(nullable = false)
+    @Column(name = "type")
     private String type;
 
+    @Column(name = "description")
     private String description;
 
-    @Column(nullable = false)
+    @Column(name = "maximum_score")
     private int maximumScore;
 
-    @Column(nullable = false)
+    @Column(name = "passing_score")
     private int passingScore;
 
-    @Column(nullable = false)
+    @Column(name = "due_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dueDate;
 
-    @Column(nullable = false)
+    @Column(name = "time_limit")
     private int timeLimit;
 
-    @Column(nullable = false)
+    @Column(name = "Course_id")
     private Long courseId;
 
+    @Column(name = "lesson_id")
     private Long lessonId;
 }

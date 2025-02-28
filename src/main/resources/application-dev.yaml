@@ -2,21 +2,30 @@ spring:
 
   # database configuration
   datasource:
-    url: ${DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/elimika}
-    username: ${DATASOURCE_USERNAME:admin}
-    password: ${DATASOURCE_PASSWORD:educacion}
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/elimika}
+    username: ${DATASOURCE_USERNAME:postgres}
+    password: ${DATASOURCE_PASSWORD:admin}
   jpa:
-    database: postgresql
-    hibernate:
-      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
   flyway:
-    baseline-on-migrate: true
-    validate-migration-naming: true
+    clean-on-validation-error: true
+    clean-disabled: false
+    validate-on-migrate: true
 
   servlet:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://127.0.0.1:9090/realms/blast-wave
+          jwk-set-uri: http://localhost:9090/realms/blast-wave/protocol/openid-connect/certs
 
 server:
   compression:
@@ -26,3 +35,15 @@ server:
 
 storage:
   location: /tmp/elimika
+
+app:
+  keycloak:
+    admin:
+      clientId: elimika
+      clientSecret: 48N6y5Itbggfmf1q8DPXPqS7Dcn1useZ
+    realm: sarafrika
+    serverUrl: http://localhost:9090
+
+encryption:
+  secret-key: "986114de17023120b40eb549e17b11eaf080f14404f62b5ab994a538879b0c6b"
+  salt: "364d2cdca2a27d02d4de972e752bdb8f"

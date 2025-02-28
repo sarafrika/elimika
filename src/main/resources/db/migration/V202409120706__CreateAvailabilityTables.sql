@@ -1,13 +1,14 @@
 CREATE TABLE IF NOT EXISTS availability_pattern
 (
     id            BIGSERIAL PRIMARY KEY,
+    uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     instructor_id BIGINT REFERENCES instructor (id),
     pattern_type  VARCHAR(20) NOT NULL CHECK (pattern_type IN ('weekly', 'monthly', 'custom')),
     start_date    DATE        NOT NULL,
     end_date      DATE,
-    created_at    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_date    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by    VARCHAR(50) NOT NULL,
-    updated_at    TIMESTAMP,
+    updated_date    TIMESTAMP,
     updated_by    VARCHAR(50),
     deleted       BOOLEAN     NOT NULL DEFAULT FALSE,
 
