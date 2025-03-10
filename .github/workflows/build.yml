@@ -1,0 +1,55 @@
+name: Build and Push Docker Image
+
+on:
+  pull_request:
+    types:
+      - closed  # Runs when a PR is merged
+
+jobs:
+  build:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Retrieve Current Version
+        id: get_version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION)
+          else
+            VERSION="0.0.1"
+          fi
+          
+          PATCH=$(echo "$VERSION" | cut -d '.' -f3)
+          NEXT_PATCH=$((PATCH + 1))
+          
+          if [ "$NEXT_PATCH" -le 999 ]; then
+            NEW_VERSION="0.0.$NEXT_PATCH"
+          else
+            NEW_VERSION="$VERSION"  # Stop incrementing at 1000
+          fi
+
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "$NEW_VERSION" > VERSION
+
+      - name: Commit and Push Updated Version
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add VERSION
+          git commit -m "Increment version to $NEW_VERSION"
+          git push origin HEAD:main
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t codex254/elimika:$NEW_VERSION .
+          docker push codex254/elimika:$NEW_VERSION
