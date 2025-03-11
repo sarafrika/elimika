@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.entity.BaseEntity;
+import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.event.role.AssignRoleToUserEvent;
 import apps.sarafrika.elimika.common.event.user.*;
 import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;

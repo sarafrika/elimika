@@ -23,6 +23,9 @@ CREATE UNIQUE INDEX idx_organisation_uuid ON organisation (uuid);
 CREATE INDEX idx_organisation_name ON organisation (name);
 CREATE INDEX idx_organisation_active ON organisation (active);
 
+-- Creation of Gender Type
+CREATE TYPE gender AS ENUM ('MALE', 'FEMALE');
+
 -- Users Table - Modified organisation_id to be nullable
 CREATE TABLE IF NOT EXISTS users
 (
@@ -33,6 +36,8 @@ CREATE TABLE IF NOT EXISTS users
     last_name       VARCHAR(50) NOT NULL,
     email           VARCHAR(50) NOT NULL UNIQUE,
     phone_number    VARCHAR(50) UNIQUE,
+    gender          gender,
+    dob             DATE,
     active          BOOLEAN     NOT NULL        DEFAULT true,
     organisation_id BIGINT,
     keycloak_id     varchar(36),
@@ -54,6 +59,7 @@ CREATE INDEX idx_users_active ON users (active);
 CREATE INDEX idx_users_organisation_id ON users (organisation_id);
 CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_phone_number ON users (phone_number);
+CREATE INDEX idx_users_gender ON users (gender);
 
 -- Step 2: Create the permissions table (if it doesn't already exist)
 DROP TABLE IF EXISTS permissions CASCADE;
