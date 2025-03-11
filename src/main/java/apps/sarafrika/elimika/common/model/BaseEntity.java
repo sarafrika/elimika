@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.common.entity;
+package apps.sarafrika.elimika.common.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.assessment.persistence;
 
-import apps.sarafrika.elimika.common.entity.BaseEntity;
+import apps.sarafrika.elimika.common.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
