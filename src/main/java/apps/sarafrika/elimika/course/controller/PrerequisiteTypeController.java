@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.course.web;
+package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.course.dto.request.CreatePrerequisiteTypeRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.PrerequisiteTypeResponseDTO;

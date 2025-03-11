@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.course.web;
+package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.course.dto.request.CreateLessonRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonRequestDTO;
