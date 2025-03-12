@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: elimika
+
+  profiles:
+    active: dev
+
+  modulith:
+    detection-strategy: explicitly-annotated
+    republish-outstanding-events-on-restart: true
+
+  #Diallow JPA from managing the database schema
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    com.your.package: DEBUG
+  file:
+    name: logs/elimika.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      total-size-cap: 100MB
+      max-history: 90
