@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS course_learning_objective
 (
-    id         BIGSERIAL PRIMARY KEY,
-    uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    course_id  BIGINT       NOT NULL,
-    objective  VARCHAR(255) NOT NULL,
-    created_date TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(50)  NOT NULL,
-    updated_date TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by VARCHAR(50),
-    deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
+    id           BIGSERIAL PRIMARY KEY,
+    uuid         UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    course_id    BIGINT       NOT NULL,
+    objective    VARCHAR(255) NOT NULL,
+    created_date TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
+    created_by   VARCHAR(50)  NOT NULL,
+    updated_date TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
+    updated_by   VARCHAR(50),
+    deleted      BOOLEAN      NOT NULL        DEFAULT FALSE,
 
     FOREIGN KEY (course_id) REFERENCES course (id),
 
