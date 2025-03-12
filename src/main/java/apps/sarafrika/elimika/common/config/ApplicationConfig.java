@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.config;
+package apps.sarafrika.elimika.common.config;
 
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import org.springframework.boot.ApplicationRunner;

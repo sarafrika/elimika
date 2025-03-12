@@ -15,23 +15,23 @@ import io.swagger.v3.oas.annotations.servers.Server;
 @OpenAPIDefinition(
         info = @Info(
                 contact = @Contact(
-                        name = "Fortune Connect",
-                        email = "info@fortuneconnectltd.com",
-                        url = "https://fortuneconnectltd.com"
+                        name = "Sarafrika",
+                        email = "info@sarafrika.com",
+                        url = "https://sarafrika.com"
                 ),
-                description = "OpenApi documentation for the Blast Wave Application",
-                title = "OpenApi specification - Blast Wave",
+                description = "OpenApi documentation for the Elimika Application",
+                title = "OpenApi specification - Elimika",
                 version = "1.0",
                 license = @License(
                         name = "Licence name",
-                        url = "https://some-url.com"
+                        url = "https://sarafrika.com"
                 ),
                 termsOfService = "Terms of service"
         ),
         servers = {
                 @Server(
                         description = "Local ENV",
-                        url = "http://localhost:30003/api/v1"
+                        url = "http://localhost:8080/api/v1"
                 ),
                 @Server(
                         description = "TEST ENV",
