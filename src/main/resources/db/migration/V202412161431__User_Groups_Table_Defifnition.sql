@@ -1,15 +1,15 @@
 CREATE TABLE IF NOT EXISTS user_group
 (
     id              BIGSERIAL PRIMARY KEY,
-    uuid            UUID                     NOT NULL UNIQUE,
-    organisation_id BIGINT                   NOT NULL,
-    name            VARCHAR(50)              NOT NULL UNIQUE,
-    active          BOOLEAN                  NOT NULL DEFAULT true,
-    created_date            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by            VARCHAR(50) NOT NULL,
-    updated_date            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by            VARCHAR(50),
-    deleted               BOOLEAN     NOT NULL DEFAULT FALSE,
+    uuid            UUID        NOT NULL UNIQUE,
+    organisation_id BIGINT      NOT NULL,
+    name            VARCHAR(50) NOT NULL UNIQUE,
+    active          BOOLEAN     NOT NULL DEFAULT true,
+    created_date    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by      VARCHAR(50) NOT NULL,
+    updated_date    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by      VARCHAR(50),
+    deleted         BOOLEAN     NOT NULL DEFAULT FALSE,
     CONSTRAINT user_group_organisation_fk FOREIGN KEY (organisation_id)
         REFERENCES organisation (id)
         ON DELETE CASCADE

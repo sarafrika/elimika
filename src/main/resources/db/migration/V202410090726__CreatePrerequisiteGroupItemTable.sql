@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS prerequisite_group_item
 (
     id                    BIGSERIAL PRIMARY KEY,
-    uuid                  UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    uuid                  UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     prerequisite_group_id BIGINT      NOT NULL,
     prerequisite_id       BIGINT      NOT NULL,
-    created_date            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_date          TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by            VARCHAR(50) NOT NULL,
-    updated_date            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_date          TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     updated_by            VARCHAR(50),
-    deleted               BOOLEAN     NOT NULL DEFAULT FALSE,
+    deleted               BOOLEAN     NOT NULL        DEFAULT FALSE,
 
     FOREIGN KEY (prerequisite_group_id) REFERENCES prerequisite_group (id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (prerequisite_id) REFERENCES prerequisite (id) ON DELETE CASCADE ON UPDATE CASCADE,

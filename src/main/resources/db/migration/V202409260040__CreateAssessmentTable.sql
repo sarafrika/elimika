@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS assessment
 (
     id            BIGSERIAL PRIMARY KEY,
-    uuid          UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    uuid          UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     title         VARCHAR(255) NOT NULL,
     type          VARCHAR(50)  NOT NULL,
     description   TEXT,
@@ -11,11 +11,11 @@ CREATE TABLE IF NOT EXISTS assessment
     time_limit    INT          NOT NULL,
     course_id     BIGINT       NOT NULL,
     lesson_id     BIGINT,
-    created_date    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_date  TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by    VARCHAR(50)  NOT NULL,
-    updated_date    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_date  TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     updated_by    VARCHAR(50),
-    deleted       BOOLEAN      NOT NULL DEFAULT FALSE,
+    deleted       BOOLEAN      NOT NULL        DEFAULT FALSE,
 
     FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (lesson_id) REFERENCES lesson (id) ON DELETE CASCADE ON UPDATE CASCADE,

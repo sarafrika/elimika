@@ -3,10 +3,7 @@ package apps.sarafrika.elimika.student.factory;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.model.Student;
 
-public class StudentFactory {
-    private StudentFactory() {
-    }
-
+public abstract class StudentFactory {
     // Convert Student entity to StudentDTO
     public static StudentDTO toDTO(Student student) {
         if (student == null) {

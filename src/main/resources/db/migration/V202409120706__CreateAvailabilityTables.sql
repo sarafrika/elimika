@@ -1,16 +1,16 @@
 CREATE TABLE IF NOT EXISTS availability_pattern
 (
     id            BIGSERIAL PRIMARY KEY,
-    uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    uuid          UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     instructor_id BIGINT REFERENCES instructor (id),
     pattern_type  VARCHAR(20) NOT NULL CHECK (pattern_type IN ('weekly', 'monthly', 'custom')),
     start_date    DATE        NOT NULL,
     end_date      DATE,
-    created_date    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_date  TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by    VARCHAR(50) NOT NULL,
-    updated_date    TIMESTAMP,
+    updated_date  TIMESTAMP,
     updated_by    VARCHAR(50),
-    deleted       BOOLEAN     NOT NULL DEFAULT FALSE,
+    deleted       BOOLEAN     NOT NULL        DEFAULT FALSE,
 
     CONSTRAINT valid_date_range_check CHECK (end_date IS NULL OR start_date < end_date),
     CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
@@ -53,17 +53,17 @@ CREATE TABLE IF NOT EXISTS custom_availability
 
 CREATE TABLE IF NOT EXISTS availability_exception
 (
-    id            BIGSERIAL PRIMARY KEY,
-    instructor_id BIGINT REFERENCES instructor (id),
-    exception_date DATE NOT NULL,
-    start_time    TIME,
-    end_time      TIME,
-    reason        VARCHAR(255),
-    created_at    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by    VARCHAR(50) NOT NULL,
-    updated_at    TIMESTAMP,
-    updated_by    VARCHAR(50),
-    deleted       BOOLEAN     NOT NULL DEFAULT FALSE,
+    id             BIGSERIAL PRIMARY KEY,
+    instructor_id  BIGINT REFERENCES instructor (id),
+    exception_date DATE        NOT NULL,
+    start_time     TIME,
+    end_time       TIME,
+    reason         VARCHAR(255),
+    created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by     VARCHAR(50) NOT NULL,
+    updated_at     TIMESTAMP,
+    updated_by     VARCHAR(50),
+    deleted        BOOLEAN     NOT NULL DEFAULT FALSE,
 
     CONSTRAINT valid_time_range_check CHECK (end_time IS NULL OR start_time < end_time),
     CONSTRAINT valid_date_range_check CHECK (exception_date >= CURRENT_DATE),

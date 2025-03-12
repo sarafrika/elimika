@@ -8,7 +8,8 @@ CREATE SEQUENCE organisation_code_seq
 
 -- 2. Create the function to generate unique codes
 CREATE OR REPLACE FUNCTION generate_unique_organisation_code()
-    RETURNS TEXT AS $$
+    RETURNS TEXT AS
+$$
 DECLARE
     next_code BIGINT;
 BEGIN
@@ -22,7 +23,8 @@ $$ LANGUAGE plpgsql;
 
 -- 3. Create the trigger function
 CREATE OR REPLACE FUNCTION set_organisation_code()
-    RETURNS TRIGGER AS $$
+    RETURNS TRIGGER AS
+$$
 BEGIN
     -- Set the code using the generated unique organization code
     NEW.code := generate_unique_organisation_code();
@@ -32,6 +34,7 @@ $$ LANGUAGE plpgsql;
 
 -- 4. Finally, create the trigger
 CREATE TRIGGER set_organisation_code_before_insert
-    BEFORE INSERT ON organisation
+    BEFORE INSERT
+    ON organisation
     FOR EACH ROW
 EXECUTE FUNCTION set_organisation_code();

@@ -1,17 +1,17 @@
 CREATE TABLE IF NOT EXISTS question
 (
     id                  BIGSERIAL PRIMARY KEY,
-    uuid                UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    uuid                UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     description         TEXT,
     question_type       VARCHAR(50) NOT NULL,
     point_value         INT         NOT NULL,
     order_in_assessment INT         NOT NULL,
     assessment_id       BIGINT      NOT NULL,
-    created_date          TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_date        TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by          VARCHAR(50) NOT NULL,
-    updated_date          TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_date        TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     updated_by          VARCHAR(50),
-    deleted             BOOLEAN     NOT NULL DEFAULT FALSE,
+    deleted             BOOLEAN     NOT NULL        DEFAULT FALSE,
 
     FOREIGN KEY (assessment_id) REFERENCES assessment (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
