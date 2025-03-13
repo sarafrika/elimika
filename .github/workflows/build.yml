@@ -1,55 +1,56 @@
-name: Build and Push Docker Image
+name: Docker Build and Push
 
 on:
   pull_request:
+    branches:
+      - main
     types:
-      - closed  # Runs when a PR is merged
+      - closed  # Only trigger when PR is merged into main
 
 jobs:
-  build:
-    if: github.event.pull_request.merged == true
+  build-and-push:
+    if: github.event.pull_request.merged == true  # Run only when a PR is merged into main
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Retrieve Current Version
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}
+
+      - name: Extract Application Version
         id: get_version
-        run: |
-          if [ -f VERSION ]; then
-            VERSION=$(cat VERSION)
-          else
-            VERSION="0.0.1"
-          fi
-          
-          PATCH=$(echo "$VERSION" | cut -d '.' -f3)
-          NEXT_PATCH=$((PATCH + 1))
-          
-          if [ "$NEXT_PATCH" -le 999 ]; then
-            NEW_VERSION="0.0.$NEXT_PATCH"
-          else
-            NEW_VERSION="$VERSION"  # Stop incrementing at 1000
-          fi
+        run: echo "APP_VERSION=$(./gradlew properties --no-daemon | grep "version:" | awk '{print $2}')" >> $GITHUB_ENV
 
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "$NEW_VERSION" > VERSION
-
-      - name: Commit and Push Updated Version
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git add VERSION
-          git commit -m "Increment version to $NEW_VERSION"
-          git push origin HEAD:main
+      - name: Build JAR file with Gradle
+        run: ./gradlew clean build -x test
 
       - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Docker Image
+      - name: Build and tag Docker image with version
         run: |
-          docker build -t codex254/elimika:$NEW_VERSION .
-          docker push codex254/elimika:$NEW_VERSION
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/elimika:${{ env.APP_VERSION }} .
+          docker tag ${{ secrets.DOCKER_USERNAME }}/elimika:${{ env.APP_VERSION }} ${{ secrets.DOCKER_USERNAME }}/elimika:latest
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/elimika:${{ env.APP_VERSION }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/elimika:latest
