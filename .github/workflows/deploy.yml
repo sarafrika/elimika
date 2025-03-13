@@ -51,7 +51,7 @@ jobs:
           
           services:
             elimika:
-              image: \${{ secrets.DOCKER_USERNAME }}/elimika:latest
+              image: ${{ secrets.DOCKER_USERNAME }}/elimika:latest
               restart: unless-stopped
               environment:
                 SERVER_PORT: 30000        
@@ -78,7 +78,7 @@ jobs:
           fi
       - name: Pull Latest Docker Image
         run: |
-          docker pull \${{ secrets.DOCKER_USERNAME }}/elimika:latest
+          docker pull ${{ secrets.DOCKER_USERNAME }}/elimika:latest
       - name: Ensure Network Exists
         run: |
           if ! docker network ls | grep -q sarafrika; then
