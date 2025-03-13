@@ -7,8 +7,8 @@ WORKDIR /elimika
 # Copy the entire project for build context
 COPY . .
 
-# Build the application using Gradle and skip tests for faster build
-RUN gradle clean build -x test
+# Build the application using Gradle wrapper and skip tests for faster build
+RUN ./gradlew clean build -x test
 
 # Use Eclipse Temurin JDK 21 for the runtime stage
 FROM eclipse-temurin:21-jre
@@ -16,8 +16,8 @@ FROM eclipse-temurin:21-jre
 # Set the working directory for the application
 WORKDIR /elimika
 
-# Copy the built JAR from the build stage and rename it to infraops.jar
-COPY --from=build /elimiks/build/libs/*.jar elimika.jar
+# Copy the built JAR from the build stage and rename it to elimika.jar
+COPY --from=build /elimika/build/libs/*.jar elimika.jar  # ✅ Fixed path
 
 # Expose the port the application will run on
 EXPOSE 8080
