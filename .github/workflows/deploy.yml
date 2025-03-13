@@ -1,0 +1,97 @@
+name: Deploy to Self-Hosted Server
+on:
+  workflow_run:
+    workflows: ["Docker Build and Push"]
+    types:
+      - completed
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+    steps:
+      - name: Ensure Deployment Directory Exists
+        run: |
+          mkdir -p ~/products/elimika
+      - name: Checkout Repository into Deployment Directory
+        uses: actions/checkout@v3
+        with:
+          path: ~/products/elimika
+      - name: Ensure .env File Exists (With Placeholder Values)
+        run: |
+          if [ ! -f ~/products/elimika/.env ]; then
+            cat <<EOL > ~/products/elimika/.env
+          SPRING_DATASOURCE_URL=jdbc:postgresql://<DB_HOST>:<DB_PORT>/<DB_NAME>
+          SPRING_DATASOURCE_USERNAME=<DB_USERNAME>
+          SPRING_DATASOURCE_PASSWORD=<DB_PASSWORD>
+          
+          SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=<OAUTH_ISSUER_URI>
+          SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=<OAUTH_JWK_SET_URI>
+          
+          APP_KEYCLOAK_REALM=<KEYCLOAK_REALM>
+          APP_KEYCLOAK_SERVER_URL=<KEYCLOAK_SERVER_URL>
+          APP_KEYCLOAK_ADMIN_CLIENTID=<KEYCLOAK_ADMIN_CLIENTID>
+          APP_KEYCLOAK_ADMIN_CLIENTSECRET=<KEYCLOAK_ADMIN_CLIENTSECRET>
+          
+          ENCRYPTION_SECRET_KEY=<ENCRYPTION_SECRET_KEY>
+          ENCRYPTION_SALT=<ENCRYPTION_SALT>
+          EOL
+            echo "Created .env file with placeholder values. Please update before deployment."
+          else
+            echo ".env file already exists. Keeping existing configuration."
+          fi
+      - name: Ensure docker-compose.yaml File Exists (With Placeholder Values)
+        run: |
+          if [ ! -f ~/products/elimika/docker-compose.yaml ]; then
+            cat <<EOL > ~/products/elimika/docker-compose.yaml
+          version: '3.8'
+          
+          networks:
+            sarafrika:
+              external: true
+          
+          services:
+            elimika:
+              image: \${{ secrets.DOCKER_USERNAME }}/elimika:latest
+              restart: unless-stopped
+              environment:
+                SERVER_PORT: 30000        
+                SPRING_PROFILES_ACTIVE: prod
+                SPRING_DATASOURCE_URL: \${SPRING_DATASOURCE_URL}
+                SPRING_DATASOURCE_USERNAME: \${SPRING_DATASOURCE_USERNAME}
+                SPRING_DATASOURCE_PASSWORD: \${SPRING_DATASOURCE_PASSWORD}
+                SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: \${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI}
+                SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: \${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI}
+                APP_KEYCLOAK_REALM: \${APP_KEYCLOAK_REALM}
+                APP_KEYCLOAK_SERVERURL: \${APP_KEYCLOAK_SERVER_URL}
+                APP_KEYCLOAK_ADMIN_CLIENTID: \${APP_KEYCLOAK_ADMIN_CLIENTID}
+                APP_KEYCLOAK_ADMIN_CLIENTSECRET: \${APP_KEYCLOAK_ADMIN_CLIENTSECRET}
+                ENCRYPTION_SECRET_KEY: \${ENCRYPTION_SECRET_KEY}
+                ENCRYPTION_SALT: \${ENCRYPTION_SALT}
+              ports:
+                - "30000:30000"
+              networks:
+                - sarafrika
+          EOL
+            echo "Created docker-compose.yaml file with placeholder values. Please update before deployment."
+          else
+            echo "docker-compose.yaml file already exists. Keeping existing configuration."
+          fi
+      - name: Pull Latest Docker Image
+        run: |
+          docker pull \${{ secrets.DOCKER_USERNAME }}/elimika:latest
+      - name: Ensure Network Exists
+        run: |
+          if ! docker network ls | grep -q sarafrika; then
+            echo "Creating sarafrika network..."
+            docker network create sarafrika
+          else
+            echo "sarafrika network already exists."
+          fi
+      - name: Stop and Remove Existing Containers
+        run: |
+          cd ~/products/elimika
+          docker compose down
+      - name: Start Services with Docker Compose
+        run: |
+          cd ~/products/elimika
+          docker compose up -d --force-recreate --remove-orphans
