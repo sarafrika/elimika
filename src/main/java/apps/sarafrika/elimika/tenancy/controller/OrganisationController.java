@@ -81,7 +81,7 @@ class OrganisationController {
                     "Supports pagination and sorting.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
             description = "Paginated list of organisations matching the search criteria")
-    @GetMapping("search") @PreAuthorize("hasAuthority('organisation:read_all')")
+    @GetMapping("search")
     public ResponseEntity<ApiResponse<PagedDTO<OrganisationDTO>>> search(
             @RequestParam(required = false) Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {
