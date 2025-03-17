@@ -2,11 +2,13 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
+import apps.sarafrika.elimika.common.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.ws.rs.QueryParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,23 +23,26 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("api/v1/users")
-@RequiredArgsConstructor @Tag(name = "Users API", description = "Users related operations")
+@RequiredArgsConstructor
+@Tag(name = "Users API", description = "Users related operations")
 class UserController {
     private final UserService userService;
 
     @Operation(summary = "Create a new user")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "User created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping@PreAuthorize("hasAuthority('user:create')")
-    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO) {
-        UserDTO created = userService.createUser(userDTO);
+    @PostMapping
+    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO,
+                                                           @QueryParam("user_domain") UserDomain userDomain) {
+        UserDTO created = userService.createUser(userDTO, userDomain);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "User created successfully"));
     }
 
     @Operation(summary = "Get a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
-    @GetMapping("/{uuid}") @PreAuthorize("hasAuthority('user:read')")
+    @GetMapping("/{uuid}")
+    @PreAuthorize("hasAuthority('user:read')")
     public ResponseEntity<ApiResponse<UserDTO>> getUserByUuid(@PathVariable UUID uuid) {
         UserDTO user = userService.getUserByUuid(uuid);
         return ResponseEntity.ok(ApiResponse.success(user, "User retrieved successfully"));
@@ -45,7 +50,8 @@ class UserController {
 
     @Operation(summary = "Get users by organisation ID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Users retrieved successfully")
-    @GetMapping("/organisation/{organisationId}") @PreAuthorize("hasAuthority('user:read_all')")
+    @GetMapping("/organisation/{organisationId}")
+    @PreAuthorize("hasAuthority('user:read_all')")
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getUsersByOrganisation(@PathVariable UUID organisationId, Pageable pageable) {
         Page<UserDTO> users = userService.getUsersByOrganisation(organisationId, pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(users, ServletUriComponentsBuilder
@@ -59,7 +65,8 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PutMapping("/{uuid}") @PreAuthorize("hasAuthority('user:update')")
+    @PutMapping("/{uuid}")
+    @PreAuthorize("hasAuthority('user:update')")
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
             @PathVariable UUID uuid, @Valid @RequestBody UserDTO userDTO) {
         UserDTO updated = userService.updateUser(uuid, userDTO);
@@ -80,7 +87,8 @@ class UserController {
                     "Supports pagination and sorting.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
             description = "Paginated list of users matching the search criteria")
-    @GetMapping("search") @PreAuthorize("hasAuthority('user:read_all')")
+    @GetMapping("search")
+    @PreAuthorize("hasAuthority('user:read_all')")
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> search(
             @RequestParam(required = false) Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {

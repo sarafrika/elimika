@@ -28,7 +28,7 @@ class OrganisationController {
     @Operation(summary = "Create a new organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organisation created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping @PreAuthorize("hasAuthority('organisation:create')")
+    @PostMapping
     public ResponseEntity<ApiResponse<OrganisationDTO>> createOrganisation(
             @Valid @RequestBody OrganisationDTO organisationDTO) {
         OrganisationDTO created = organisationService.createOrganisation(organisationDTO);

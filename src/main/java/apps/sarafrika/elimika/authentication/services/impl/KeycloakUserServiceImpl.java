@@ -14,14 +14,12 @@ import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -30,6 +28,9 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
     private final Keycloak keycloak;
 
     private final ApplicationEventPublisher eventPublisher;
+
+    @Value("${app.keycloak.user.attributes[0]}")
+    private String userDomain;
 
     private static final List<String> DEFAULT_REQUIRED_ACTIONS = Arrays.asList("VERIFY_EMAIL", "UPDATE_PASSWORD");
 
@@ -43,7 +44,11 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         }
 
         try {
-            UserRepresentation userRepresentation = createUserRepresentation(newUserRecord);
+            Map<String, List<String>> attributes = new HashMap<>();
+            if (newUserRecord.userDomain() != null) {
+                attributes.put(userDomain, List.of(newUserRecord.userDomain().name()));
+            }
+            UserRepresentation userRepresentation = createUserRepresentation(newUserRecord, attributes);
             UsersResource usersResource = getUsersResource(newUserRecord.realm());
 
             try (Response response = usersResource.create(userRepresentation)) {
@@ -269,7 +274,8 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         return keycloak.realm(realm).users();
     }
 
-    private static UserRepresentation createUserRepresentation(UserCreationEvent userRecord) {
+    private static UserRepresentation createUserRepresentation(UserCreationEvent userRecord, Map<String, List<String>> attributes) {
+
         UserRepresentation user = new UserRepresentation();
         user.setEnabled(true);
         user.setFirstName(userRecord.firstName());
@@ -279,6 +285,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         user.setEmailVerified(false);
         user.setEnabled(userRecord.active());
         user.setRequiredActions(DEFAULT_REQUIRED_ACTIONS);
+        user.setAttributes(attributes);
         return user;
     }
 
