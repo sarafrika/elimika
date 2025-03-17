@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.common.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.QueryParam;
@@ -33,6 +34,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
     public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO,
+                                                           @Parameter(description = "Domain of the user", required = true)
                                                            @QueryParam("user_domain") UserDomain userDomain) {
         UserDTO created = userService.createUser(userDTO, userDomain);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "User created successfully"));
