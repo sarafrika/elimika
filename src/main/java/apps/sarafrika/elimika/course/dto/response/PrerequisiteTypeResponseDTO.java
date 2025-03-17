@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.response;
 
-import apps.sarafrika.elimika.course.persistence.PrerequisiteType;
+import apps.sarafrika.elimika.course.model.PrerequisiteType;
 
 public record PrerequisiteTypeResponseDTO(Long id, String name) {
 

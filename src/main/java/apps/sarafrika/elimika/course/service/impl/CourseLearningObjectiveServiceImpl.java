@@ -1,12 +1,11 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.CourseLearningObjectiveNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.CreateCourseLearningObjectiveRequestDTO;
+import apps.sarafrika.elimika.course.exception.CourseLearningObjectiveNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.UpdateCourseLearningObjectiveRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseLearningObjectiveResponseDTO;
-import apps.sarafrika.elimika.course.persistence.CourseLearningObjective;
-import apps.sarafrika.elimika.course.persistence.CourseLearningObjectiveFactory;
-import apps.sarafrika.elimika.course.persistence.CourseLearningObjectiveRepository;
+import apps.sarafrika.elimika.course.model.CourseLearningObjective;
+import apps.sarafrika.elimika.course.factory.CourseLearningObjectiveFactory;
+import apps.sarafrika.elimika.course.repository.CourseLearningObjectiveRepository;
 import apps.sarafrika.elimika.course.service.CourseLearningObjectiveService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import lombok.RequiredArgsConstructor;

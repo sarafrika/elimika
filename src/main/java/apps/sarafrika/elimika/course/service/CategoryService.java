@@ -1,7 +1,5 @@
 package apps.sarafrika.elimika.course.service;
 
-import apps.sarafrika.elimika.course.dto.request.CategoryRequestDTO;
-import apps.sarafrika.elimika.course.dto.request.CreateCategoryRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateCategoryRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CategoryResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;

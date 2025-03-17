@@ -1,14 +1,12 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.LessonResourceNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.CreateLessonResourceRequestDTO;
+import apps.sarafrika.elimika.course.exception.LessonResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.LessonResouceRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonResourceRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.LessonResourceResponseDTO;
-import apps.sarafrika.elimika.course.persistence.LessonResource;
-import apps.sarafrika.elimika.course.persistence.LessonResourceFactory;
-import apps.sarafrika.elimika.course.persistence.LessonResourceRepository;
-import apps.sarafrika.elimika.course.persistence.LessonResourceSpecification;
+import apps.sarafrika.elimika.course.model.LessonResource;
+import apps.sarafrika.elimika.course.factory.LessonResourceFactory;
+import apps.sarafrika.elimika.course.repository.LessonResourceRepository;
 import apps.sarafrika.elimika.course.service.LessonResourceService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import lombok.RequiredArgsConstructor;

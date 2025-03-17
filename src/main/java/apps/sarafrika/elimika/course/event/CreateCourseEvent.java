@@ -1,7 +1,6 @@
 package apps.sarafrika.elimika.course.event;
 
-import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
-import apps.sarafrika.elimika.course.persistence.Course;
+import apps.sarafrika.elimika.course.model.Course;
 import lombok.Getter;
 
 @Getter

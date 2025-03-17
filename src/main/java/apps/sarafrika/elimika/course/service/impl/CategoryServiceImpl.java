@@ -1,14 +1,11 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.CategoryNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.CategoryRequestDTO;
-import apps.sarafrika.elimika.course.dto.request.CreateCategoryRequestDTO;
+import apps.sarafrika.elimika.course.exception.CategoryNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.UpdateCategoryRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CategoryResponseDTO;
-import apps.sarafrika.elimika.course.persistence.Category;
-import apps.sarafrika.elimika.course.persistence.CategoryFactory;
-import apps.sarafrika.elimika.course.persistence.CategoryRepository;
-import apps.sarafrika.elimika.course.persistence.CategorySpecification;
+import apps.sarafrika.elimika.course.model.Category;
+import apps.sarafrika.elimika.course.factory.CategoryFactory;
+import apps.sarafrika.elimika.course.repository.CategoryRepository;
 import apps.sarafrika.elimika.course.service.CategoryService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;

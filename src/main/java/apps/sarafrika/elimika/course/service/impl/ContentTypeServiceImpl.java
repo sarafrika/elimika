@@ -1,12 +1,11 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.ContentTypeNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.CreateContentTypeDTO;
+import apps.sarafrika.elimika.course.exception.ContentTypeNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.UpdateContentTypeDTO;
 import apps.sarafrika.elimika.course.dto.response.ContentTypeResponseDTO;
-import apps.sarafrika.elimika.course.persistence.ContentType;
-import apps.sarafrika.elimika.course.persistence.ContentTypeFactory;
-import apps.sarafrika.elimika.course.persistence.ContentTypeRepository;
+import apps.sarafrika.elimika.course.model.ContentType;
+import apps.sarafrika.elimika.course.factory.ContentTypeFactory;
+import apps.sarafrika.elimika.course.repository.ContentTypeRepository;
 import apps.sarafrika.elimika.course.service.ContentTypeService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import lombok.RequiredArgsConstructor;

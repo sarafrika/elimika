@@ -1,18 +1,15 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.CourseNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.CourseRequestDTO;
-import apps.sarafrika.elimika.course.dto.request.CreateCourseRequestDTO;
+import apps.sarafrika.elimika.course.exception.CourseNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.UpdateCourseRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.CategoryResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseLearningObjectiveResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.PricingResponseDTO;
 import apps.sarafrika.elimika.course.event.CreateCourseEvent;
-import apps.sarafrika.elimika.course.persistence.Course;
-import apps.sarafrika.elimika.course.persistence.CourseFactory;
-import apps.sarafrika.elimika.course.persistence.CourseRepository;
-import apps.sarafrika.elimika.course.persistence.CourseSpecification;
+import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.factory.CourseFactory;
+import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseCategoryService;
 import apps.sarafrika.elimika.course.service.CourseLearningObjectiveService;
 import apps.sarafrika.elimika.course.service.CourseService;

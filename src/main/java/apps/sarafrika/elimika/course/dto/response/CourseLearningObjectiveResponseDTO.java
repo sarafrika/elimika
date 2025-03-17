@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.response;
 
-import apps.sarafrika.elimika.course.persistence.CourseLearningObjective;
+import apps.sarafrika.elimika.course.model.CourseLearningObjective;
 
 public record CourseLearningObjectiveResponseDTO(
         Long id,

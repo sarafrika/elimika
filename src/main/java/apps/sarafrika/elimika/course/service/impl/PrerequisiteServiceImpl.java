@@ -1,13 +1,20 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.PrerequisiteGroupNotFoundException;
-import apps.sarafrika.elimika.course.config.exception.PrerequisiteNotFoundException;
+import apps.sarafrika.elimika.course.exception.PrerequisiteGroupNotFoundException;
+import apps.sarafrika.elimika.course.exception.PrerequisiteNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.*;
 import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.PrerequisiteGroupResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.PrerequisiteResponseDTO;
 import apps.sarafrika.elimika.course.dto.response.PrerequisiteTypeResponseDTO;
-import apps.sarafrika.elimika.course.persistence.*;
+import apps.sarafrika.elimika.course.factory.PrerequisiteGroupFactory;
+import apps.sarafrika.elimika.course.factory.PrerequisiteGroupItemFactory;
+import apps.sarafrika.elimika.course.model.Prerequisite;
+import apps.sarafrika.elimika.course.model.PrerequisiteGroup;
+import apps.sarafrika.elimika.course.model.PrerequisiteGroupItem;
+import apps.sarafrika.elimika.course.repository.PrerequisiteGroupItemRepository;
+import apps.sarafrika.elimika.course.repository.PrerequisiteGroupRepository;
+import apps.sarafrika.elimika.course.repository.PrerequisiteRepository;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.PrerequisiteService;
 import apps.sarafrika.elimika.course.service.PrerequisiteTypeService;

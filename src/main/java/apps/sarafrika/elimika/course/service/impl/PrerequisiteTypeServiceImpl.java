@@ -1,10 +1,10 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.config.exception.PrerequisiteTypeNotFoundException;
+import apps.sarafrika.elimika.course.exception.PrerequisiteTypeNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.CreatePrerequisiteTypeRequestDTO;
 import apps.sarafrika.elimika.course.dto.response.PrerequisiteTypeResponseDTO;
-import apps.sarafrika.elimika.course.persistence.PrerequisiteType;
-import apps.sarafrika.elimika.course.persistence.PrerequisiteTypeRepository;
+import apps.sarafrika.elimika.course.model.PrerequisiteType;
+import apps.sarafrika.elimika.course.repository.PrerequisiteTypeRepository;
 import apps.sarafrika.elimika.course.service.PrerequisiteTypeService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;

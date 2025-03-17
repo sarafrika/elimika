@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.response;
 
-import apps.sarafrika.elimika.course.persistence.Course;
+import apps.sarafrika.elimika.course.model.Course;
 
 import java.math.BigDecimal;
 

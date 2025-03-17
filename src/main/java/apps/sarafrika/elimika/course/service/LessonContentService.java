@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.course.service;
 
-import apps.sarafrika.elimika.course.dto.request.CreateLessonContentDTO;
 import apps.sarafrika.elimika.course.dto.request.LessonContentRequestDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdateLessonContentDTO;
 import apps.sarafrika.elimika.course.dto.response.LessonContentResponseDTO;

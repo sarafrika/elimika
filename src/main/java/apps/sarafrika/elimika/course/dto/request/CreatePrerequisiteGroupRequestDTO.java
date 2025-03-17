@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.request;
 
-import apps.sarafrika.elimika.course.persistence.PrerequisiteGroup;
+import apps.sarafrika.elimika.course.model.PrerequisiteGroup;
 
 import java.util.List;
 

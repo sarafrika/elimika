@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.response;
 
-import apps.sarafrika.elimika.course.persistence.LessonResource;
+import apps.sarafrika.elimika.course.model.LessonResource;
 
 public record LessonResourceResponseDTO(
         Long id,

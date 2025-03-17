@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.response;
 
-import apps.sarafrika.elimika.course.persistence.CourseCategory;
+import apps.sarafrika.elimika.course.model.CourseCategory;
 
 public record CourseCategoryResponseDTO(Long id, Long courseId, Long categoryId) {
 

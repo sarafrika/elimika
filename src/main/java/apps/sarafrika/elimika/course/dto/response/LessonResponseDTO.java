@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto.response;
 
-import apps.sarafrika.elimika.course.persistence.Lesson;
+import apps.sarafrika.elimika.course.model.Lesson;
 
 import java.util.List;
 
