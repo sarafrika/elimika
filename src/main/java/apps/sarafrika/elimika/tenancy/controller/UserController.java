@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.ws.rs.QueryParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,7 +34,7 @@ class UserController {
     @PostMapping
     public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO,
                                                            @Parameter(name = "user_domain",description = "Domain of the user", required = true)
-                                                           @QueryParam("user_domain") UserDomain userDomain) {
+                                                           @RequestParam("user_domain") UserDomain userDomain) {
         UserDTO created = userService.createUser(userDTO, userDomain);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "User created successfully"));
     }
