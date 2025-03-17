@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.common.enums.UserDomain;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.event.role.AssignRoleToUserEvent;
 import apps.sarafrika.elimika.common.event.user.*;
@@ -49,13 +50,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO createUser(UserDTO userDTO) {
+    public UserDTO createUser(UserDTO userDTO, UserDomain userDomain) {
         log.debug("Creating new user with email: {}", userDTO.email());
 
         try {
             Organisation organisation = findOrganisationOrThrow(userDTO.organisationUuid());
             User user = createAndSaveUser(userDTO, organisation);
-            publishUserCreationEvent(user);
+            publishUserCreationEvent(user, userDomain);
 
             log.info("Successfully created user with UUID: {}", user.getUuid());
             return UserFactory.toDTO(user);
@@ -241,7 +242,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void publishUserCreationEvent(User user) {
+    private void publishUserCreationEvent(User user, UserDomain userDomain) {
 
         log.debug("Publishing user creation event for user: {} with uuid {}", user.getEmail(), user.getUuid());
         applicationEventPublisher.publishEvent(
@@ -251,6 +252,7 @@ public class UserServiceImpl implements UserService {
                         user.getLastName(),
                         user.getEmail(),
                         user.isActive(),
+                        userDomain,
                         realm,
                         user.getUuid()
                 )

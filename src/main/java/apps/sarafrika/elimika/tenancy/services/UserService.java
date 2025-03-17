@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services;
 
+import apps.sarafrika.elimika.common.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface UserService {
-    UserDTO createUser(UserDTO userDTO);
+    UserDTO createUser(UserDTO userDTO, UserDomain userDomain);
 
     UserDTO getUserByUuid(UUID uuid);
 
