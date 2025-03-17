@@ -18,6 +18,12 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
+app:
+  keycloak:
+    user:
+      attributes:
+        - user_domain
+
 logging:
   level:
     root: INFO
