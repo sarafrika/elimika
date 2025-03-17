@@ -34,7 +34,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
     public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO,
-                                                           @Parameter(description = "Domain of the user", required = true)
+                                                           @Parameter(name = "user_domain",description = "Domain of the user", required = true)
                                                            @QueryParam("user_domain") UserDomain userDomain) {
         UserDTO created = userService.createUser(userDTO, userDomain);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "User created successfully"));
