@@ -52,8 +52,8 @@ public class SecurityConfiguration {
 
                                 )
                                 .permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/v1/organisations").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/organisations").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
                                 .anyRequest()
                                 .permitAll()
                 )
