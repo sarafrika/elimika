@@ -145,24 +145,24 @@ public record CourseDTO(
 
         @JsonProperty("instructors")
         @ArraySchema(
-                schema = @Schema(type = "string", format = "uuid"),
-                description = "List of instructor UUIDs assigned to teach this course",
+                schema = @Schema(type = "string", format = "uuid",
+                        description = "List of instructor UUIDs assigned to teach this course"),
                 minItems = 0
         )
         List<UUID> instructorIds,
 
         @JsonProperty("learning_objectives")
         @ArraySchema(
-                schema = @Schema(implementation = CourseLearningObjectiveDTO.class),
-                description = "List of learning objectives for this course",
+                schema = @Schema(implementation = CourseLearningObjectiveDTO.class,
+                        description = "List of learning objectives for this course"),
                 minItems = 0
         )
         List<CourseLearningObjectiveDTO> learningObjectives,
 
         @JsonProperty("course_categories")
         @ArraySchema(
-                schema = @Schema(implementation = CourseCategoryDTO.class),
-                description = "Categories this course belongs to",
+                schema = @Schema(implementation = CourseCategoryDTO.class,
+                        description = "Categories this course belongs to"),
                 minItems = 0
         )
         List<CourseCategoryDTO> courseCategories,
