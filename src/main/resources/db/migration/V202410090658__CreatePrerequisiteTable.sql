@@ -1,20 +1,16 @@
 CREATE TABLE IF NOT EXISTS prerequisite
 (
-    id                     BIGSERIAL PRIMARY KEY,
-    uuid                   UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    prerequisite_type_id   BIGINT      NOT NULL,
-    course_id              BIGINT      NOT NULL,
-    required_for_course_id BIGINT      NOT NULL,
-    minimum_score          DOUBLE PRECISION,
-    created_date           TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
-    created_by             VARCHAR(50) NOT NULL,
-    updated_date           TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
-    updated_by             VARCHAR(50),
-    deleted                BOOLEAN     NOT NULL        DEFAULT FALSE,
-
-    FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (required_for_course_id) REFERENCES course (id),
-    FOREIGN KEY (prerequisite_type_id) REFERENCES prerequisite_type (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    id                       BIGSERIAL PRIMARY KEY,
+    uuid                     UUID           NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    prerequisite_type_uuid   UUID           NOT NULL,
+    course_uuid              UUID           NOT NULL,
+    required_for_course_uuid UUID           NOT NULL,
+    minimum_score            DECIMAL(10, 4) NOT NULL,
+    created_date             TIMESTAMP      NOT NULL        DEFAULT CURRENT_TIMESTAMP,
+    created_by               VARCHAR(50)    NOT NULL,
+    updated_date             TIMESTAMP      NOT NULL        DEFAULT CURRENT_TIMESTAMP,
+    updated_by               VARCHAR(50),
+    deleted                  BOOLEAN        NOT NULL        DEFAULT FALSE,
 
     CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
 );

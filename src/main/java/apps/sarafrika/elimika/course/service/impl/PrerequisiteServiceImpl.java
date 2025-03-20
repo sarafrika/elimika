@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.dto.PrerequisiteGroupItemDTO;
 import apps.sarafrika.elimika.course.exception.PrerequisiteGroupNotFoundException;
 import apps.sarafrika.elimika.course.exception.PrerequisiteNotFoundException;
 import apps.sarafrika.elimika.course.dto.request.*;
@@ -152,7 +153,7 @@ class PrerequisiteServiceImpl implements PrerequisiteService {
         PrerequisiteGroup savedPrerequisiteGroup = prerequisiteGroupRepository.save(prerequisiteGroup);
 
         List<PrerequisiteGroupItem> prerequisiteGroupItems = createPrerequisiteGroupRequestDTO.prerequisiteIds().stream()
-                .map(prerequisiteId -> PrerequisiteGroupItemFactory.create(new CreatePrerequisiteGroupItemRequestDTO(savedPrerequisiteGroup.getId(), prerequisiteId)))
+                .map(prerequisiteId -> PrerequisiteGroupItemFactory.create(new PrerequisiteGroupItemDTO(savedPrerequisiteGroup.getId(), prerequisiteId)))
                 .toList();
 
         prerequisiteGroupItemRepository.saveAll(prerequisiteGroupItems);
@@ -173,7 +174,7 @@ class PrerequisiteServiceImpl implements PrerequisiteService {
         prerequisiteGroupItemRepository.deleteAllByPrerequisiteGroupId(prerequisiteGroupId);
 
         List<PrerequisiteGroupItem> prerequisiteGroupItems = updatePrerequisiteGroupRequestDTO.prerequisiteIds().stream()
-                .map(prerequisiteId -> PrerequisiteGroupItemFactory.create(new CreatePrerequisiteGroupItemRequestDTO(prerequisiteGroup.getId(), prerequisiteId)))
+                .map(prerequisiteId -> PrerequisiteGroupItemFactory.create(new PrerequisiteGroupItemDTO(prerequisiteGroup.getId(), prerequisiteId)))
                 .toList();
 
         prerequisiteGroupItemRepository.saveAll(prerequisiteGroupItems);

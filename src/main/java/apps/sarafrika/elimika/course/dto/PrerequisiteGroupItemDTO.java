@@ -7,37 +7,29 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Schema(
-        description = "Represents a mapping between a course and a category",
-        name = "CourseCategory"
+        description = "Represents a connection between a prerequisite group and a prerequisite item",
+        name = "PrerequisiteGroupItem"
 )
-public record CourseCategoryDTO(
-        @JsonProperty("course_uuid")
+public record PrerequisiteGroupItemDTO(
+        @JsonProperty("prerequisite_group_uuid")
         @Schema(
-                description = "UUID of the course being categorized",
+                description = "UUID of the prerequisite group this item belongs to",
                 example = "123e4567-e89b-12d3-a456-426614174000",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                externalDocs = @io.swagger.v3.oas.annotations.ExternalDocumentation(
-                        description = "Learn more about courses",
-                        url = "/api/docs#tag/Courses"
-                )
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
-        UUID courseUuid,
+        UUID prerequisiteGroupUuid,
 
-        @JsonProperty("category_uuid")
+        @JsonProperty("prerequisite_type_uuid")
         @Schema(
-                description = "UUID of the category the course belongs to",
-                example = "456e7890-e89b-12d3-a456-426614174000",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                externalDocs = @io.swagger.v3.oas.annotations.ExternalDocumentation(
-                        description = "Learn more about categories",
-                        url = "/api/docs#tag/Categories"
-                )
+                description = "UUID of the prerequisite item (course, lesson, etc.)",
+                example = "98765432-e89b-12d3-a456-426614174000",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
-        UUID categoryUuid,
+        UUID prerequisiteUuid,
 
         @JsonProperty(value = "created_by", access = JsonProperty.Access.READ_ONLY)
         @Schema(
-                description = "Username of the user who created this course-category association",
+                description = "Username of the user who created this prerequisite group item",
                 example = "john.doe",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -45,7 +37,7 @@ public record CourseCategoryDTO(
 
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
         @Schema(
-                description = "Username of the user who last modified this course-category association",
+                description = "Username of the user who last modified this prerequisite group item",
                 example = "jane.smith",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -53,7 +45,7 @@ public record CourseCategoryDTO(
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         @Schema(
-                description = "Timestamp when the course-category association was created",
+                description = "Timestamp when the prerequisite group item was created",
                 example = "2025-03-20T10:30:45.123Z",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 type = "string",
@@ -63,7 +55,7 @@ public record CourseCategoryDTO(
 
         @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY)
         @Schema(
-                description = "Timestamp when the course-category association was last updated",
+                description = "Timestamp when the prerequisite group item was last updated",
                 example = "2025-03-21T14:15:22.456Z",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 type = "string",

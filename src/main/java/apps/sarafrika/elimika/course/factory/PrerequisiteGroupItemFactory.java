@@ -1,12 +1,12 @@
 package apps.sarafrika.elimika.course.factory;
 
-import apps.sarafrika.elimika.course.dto.request.CreatePrerequisiteGroupItemRequestDTO;
+import apps.sarafrika.elimika.course.dto.PrerequisiteGroupItemDTO;
 import apps.sarafrika.elimika.course.dto.request.UpdatePrerequisiteGroupItemRequestDTO;
 import apps.sarafrika.elimika.course.model.PrerequisiteGroupItem;
 
 public class PrerequisiteGroupItemFactory {
 
-    public static PrerequisiteGroupItem create(CreatePrerequisiteGroupItemRequestDTO createPrerequisiteGroupItemRequestDTO) {
+    public static PrerequisiteGroupItem create(PrerequisiteGroupItemDTO createPrerequisiteGroupItemRequestDTO) {
 
         return PrerequisiteGroupItem.builder()
                 .prerequisiteGroupId(createPrerequisiteGroupItemRequestDTO.prerequisiteGroupId())
