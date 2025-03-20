@@ -42,12 +42,13 @@ public record CourseDTO(
 
         @NotBlank(message = "Code is required")
         @Size(max = 50, message = "Code must not exceed 50 characters")
-        @JsonProperty("code")
+        @JsonProperty(value = "code", access = JsonProperty.Access.READ_ONLY)
         @Schema(
                 description = "Unique course code used for identification and reference",
                 example = "JAVA-ENT-301",
                 requiredMode = Schema.RequiredMode.REQUIRED,
-                maxLength = 50
+                maxLength = 50,
+                accessMode = Schema.AccessMode.READ_ONLY
         )
         String code,
 
