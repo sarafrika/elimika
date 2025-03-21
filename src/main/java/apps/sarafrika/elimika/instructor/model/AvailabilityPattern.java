@@ -12,6 +12,7 @@ import java.time.LocalDate;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(name = "availability_pattern")
 public class AvailabilityPattern extends BaseEntity {
 
     @Column(name = "pattern_type")

@@ -58,17 +58,17 @@ public record LessonResourceDTO(
         )
         int displayOrder,
 
-        @JsonProperty("lesson_id")
+        @JsonProperty("lesson_uuid")
         @Schema(
                 description = "ID of the parent lesson this resource belongs to",
-                example = "42",
+                example = "123e4567-e89b-12d3-a456-426614174000",
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 externalDocs = @io.swagger.v3.oas.annotations.ExternalDocumentation(
                         description = "Learn more about lessons",
                         url = "/api/docs#tag/Lessons"
                 )
         )
-        Long lessonId,
+        UUID lessonUuid,
 
         @JsonProperty(value = "created_by", access = JsonProperty.Access.READ_ONLY)
         @Schema(

@@ -5,9 +5,9 @@ import apps.sarafrika.elimika.assessment.dto.request.CreateAnswerOptionRequestDT
 import apps.sarafrika.elimika.assessment.dto.request.UpdateAnswerOptionRequestDTO;
 import apps.sarafrika.elimika.assessment.dto.response.AnswerOptionResponseDTO;
 import apps.sarafrika.elimika.assessment.dto.response.QuestionResponseDTO;
-import apps.sarafrika.elimika.assessment.persistence.AnswerOption;
-import apps.sarafrika.elimika.assessment.persistence.AnswerOptionFactory;
-import apps.sarafrika.elimika.assessment.persistence.AnswerOptionRepository;
+import apps.sarafrika.elimika.assessment.model.AnswerOption;
+import apps.sarafrika.elimika.assessment.factory.AnswerOptionFactory;
+import apps.sarafrika.elimika.assessment.repository.AnswerOptionRepository;
 import apps.sarafrika.elimika.assessment.service.AnswerOptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

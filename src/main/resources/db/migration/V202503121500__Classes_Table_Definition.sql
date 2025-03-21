@@ -1,6 +1,3 @@
--- Rename Course Table To Courses
-ALTER TABLE course
-    RENAME TO courses;
 
 -- Classes Table
 CREATE TABLE classes

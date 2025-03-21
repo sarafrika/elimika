@@ -1,26 +1,69 @@
 package apps.sarafrika.elimika.course.service;
 
-import apps.sarafrika.elimika.course.dto.request.UpdateCategoryRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.CategoryResponseDTO;
-import apps.sarafrika.elimika.shared.dto.ResponseDTO;
-import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
+import apps.sarafrika.elimika.course.dto.CategoryDTO;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
+/**
+ * Service interface for managing course categories.
+ */
 public interface CategoryService {
 
-    ResponsePageableDTO<CategoryResponseDTO> findAllCategories(CategoryRequestDTO categoryRequestDTO, Pageable pageable);
+    /**
+     * Creates a new category.
+     *
+     * @param categoryDTO The DTO containing category details.
+     * @return The created CategoryDTO.
+     */
+    @Transactional
+    CategoryDTO createCategory(CategoryDTO categoryDTO);
 
-    ResponseDTO<CategoryResponseDTO> findCategory(Long id);
+    /**
+     * Retrieves a category by its UUID.
+     *
+     * @param uuid The UUID of the category.
+     * @return The CategoryDTO representing the category.
+     */
+    @Transactional(readOnly = true)
+    CategoryDTO getCategoryByUuid(UUID uuid);
 
-    ResponseDTO<List<CategoryResponseDTO>> findCategoriesByIds(List<Long> ids);
+    /**
+     * Retrieves all categories with pagination.
+     *
+     * @param pageable Pagination and sorting information.
+     * @return A paginated list of CategoryDTOs.
+     */
+    @Transactional(readOnly = true)
+    Page<CategoryDTO> getAllCategories(Pageable pageable);
 
-    ResponseDTO<CategoryResponseDTO> createCategory(CreateCategoryRequestDTO createCategoryRequestDTO);
+    /**
+     * Updates an existing category.
+     *
+     * @param uuid The UUID of the category to update.
+     * @param categoryDTO The DTO containing updated category details.
+     * @return The updated CategoryDTO.
+     */
+    CategoryDTO updateCategory(UUID uuid, CategoryDTO categoryDTO);
 
-    ResponseDTO<List<CategoryResponseDTO>> createCategories(List<CreateCategoryRequestDTO> createCategoryRequestDTOS);
+    /**
+     * Deletes a category by UUID.
+     *
+     * @param uuid The UUID of the category to delete.
+     */
+    @Transactional
+    void deleteCategory(UUID uuid);
 
-    ResponseDTO<CategoryResponseDTO> updateCategory(UpdateCategoryRequestDTO updateCategoryRequestDTO, Long id);
-
-    void deleteCategory(Long id);
+    /**
+     * Searches for categories based on given parameters.
+     *
+     * @param searchParams A map containing search filters.
+     * @param pageable Pagination and sorting information.
+     * @return A paginated list of CategoryDTOs matching the search criteria.
+     */
+    @Transactional(readOnly = true)
+    Page<CategoryDTO> searchCategories(Map<String, String> searchParams, Pageable pageable);
 }

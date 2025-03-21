@@ -75,7 +75,7 @@ public record LessonDTO(
                         url = "/api/docs#tag/Courses"
                 )
         )
-        UUID courseId,
+        UUID courseUuid,
 
         @JsonProperty("content")
         @ArraySchema(

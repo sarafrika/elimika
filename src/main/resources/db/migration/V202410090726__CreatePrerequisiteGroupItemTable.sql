@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS prerequisite_group_item
     CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
 );
 
-CREATE INDEX idx_prerequisite_group_item_prerequisite_group_items ON prerequisite_group_item (prerequisite_group_id, prerequisite_id);
+CREATE INDEX idx_prerequisite_group_item_prerequisite_group_items ON prerequisite_group_item (prerequisite_group_uuid, prerequisite_uuid);
 CREATE INDEX idx_prerequisite_group_item_created_by ON prerequisite_group_item (created_by);
 CREATE INDEX idx_prerequisite_group_item_updated_by ON prerequisite_group_item (updated_by);
 CREATE INDEX idx_prerequisite_group_item_deleted ON prerequisite_group_item (deleted);

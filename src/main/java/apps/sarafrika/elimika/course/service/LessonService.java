@@ -1,25 +1,70 @@
 package apps.sarafrika.elimika.course.service;
 
-import apps.sarafrika.elimika.course.dto.request.UpdateLessonRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.LessonResponseDTO;
-import apps.sarafrika.elimika.shared.dto.ResponseDTO;
-import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
+import apps.sarafrika.elimika.course.dto.LessonDTO;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
+/**
+ * Service interface for managing lessons.
+ */
 public interface LessonService {
 
-    ResponseDTO<LessonResponseDTO> findLesson(Long courseId, Long lessonId);
+    /**
+     * Creates a new lesson.
+     *
+     * @param lessonDTO The DTO containing lesson details.
+     * @return The created LessonDTO.
+     */
+    @Transactional
+    LessonDTO createLesson(LessonDTO lessonDTO);
 
-    ResponsePageableDTO<LessonResponseDTO> findAllLessons(Long courseId, Pageable pageable);
+    /**
+     * Retrieves a lesson by its UUID.
+     *
+     * @param uuid The UUID of the lesson.
+     * @return The LessonDTO representing the lesson.
+     */
+    @Transactional(readOnly = true)
+    LessonDTO getLessonByUuid(UUID uuid);
 
-    ResponseDTO<LessonResponseDTO> createLesson(Long courseId, CreateLessonRequestDTO createLessonRequestDTO, List<MultipartFile> files);
+    /**
+     * Retrieves all lessons with pagination.
+     *
+     * @param pageable Pagination and sorting information.
+     * @return A paginated list of LessonDTOs.
+     */
+    @Transactional(readOnly = true)
+    Page<LessonDTO> getAllLessons(Pageable pageable);
 
-    ResponseDTO<Void> updateLesson(Long courseId, UpdateLessonRequestDTO updateLessonRequestDTO, Long lessonId);
+    /**
+     * Updates an existing lesson.
+     *
+     * @param uuid The UUID of the lesson to update.
+     * @param lessonDTO The DTO containing updated lesson details.
+     * @return The updated LessonDTO.
+     */
+    @Transactional
+    LessonDTO updateLesson(UUID uuid, LessonDTO lessonDTO);
 
-    void deleteLesson(Long courseId,  Long lessonId);
+    /**
+     * Deletes a lesson by UUID.
+     *
+     * @param uuid The UUID of the lesson to delete.
+     */
+    @Transactional
+    void deleteLesson(UUID uuid);
 
-    ResponseDTO<LessonResponseDTO> findLessonById(Long lessonId);
+    /**
+     * Searches for lessons based on given parameters.
+     *
+     * @param searchParams A map containing search filters.
+     * @param pageable Pagination and sorting information.
+     * @return A paginated list of LessonDTOs matching the search criteria.
+     */
+    @Transactional(readOnly = true)
+    Page<LessonDTO> searchLessons(Map<String, String> searchParams, Pageable pageable);
 }

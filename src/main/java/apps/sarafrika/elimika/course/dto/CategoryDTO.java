@@ -16,7 +16,7 @@ import java.util.UUID;
 @Builder
 public record CategoryDTO(
 
-        @JsonProperty("uuif")  // NOTE: There appears to be a typo in the field name (uuif instead of uuid)
+        @JsonProperty("uuid")
         @Schema(
                 description = "Unique identifier for the category",
                 example = "123e4567-e89b-12d3-a456-426614174000",

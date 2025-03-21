@@ -3,7 +3,10 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
+
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -11,12 +14,13 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "course_category")
 public class CourseCategory extends BaseEntity {
 
-    @Column(name = "course_id")
-    private Long courseId;
+    @Column(name = "course_uuid")
+    private UUID courseId;
 
-    @Column(name = "category_id")
-    private Long categoryId;
+    @Column(name = "category_uuid")
+    private UUID categoryId;
 
 }

@@ -8,6 +8,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -63,31 +64,31 @@ public record LessonContentDTO(
                 example = "15",
                 minimum = "0"
         )
-        int duration,
+        BigDecimal duration,
 
-        @JsonProperty("lesson_id")
+        @JsonProperty("lesson_uuid")
         @Schema(
-                description = "ID of the parent lesson this content belongs to",
-                example = "42",
+                description = "UUID of the parent lesson this content belongs to",
+                example = "123e4567-e89b-12d3-a456-426614174000",
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 externalDocs = @io.swagger.v3.oas.annotations.ExternalDocumentation(
                         description = "Learn more about lessons",
                         url = "/api/docs#tag/Lessons"
                 )
         )
-        Long lessonId,
+        UUID lessonUuid,
 
-        @JsonProperty("content_type_id")
+        @JsonProperty("content_type_uuid")
         @Schema(
-                description = "ID representing the type of content (e.g., text, video, quiz, etc.)",
-                example = "1",
+                description = "UUID representing the type of content (e.g., text, video, quiz, etc.)",
+                example = "123e4567-e89b-12d3-a456-426614174000",
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 externalDocs = @io.swagger.v3.oas.annotations.ExternalDocumentation(
                         description = "Available content types",
                         url = "/api/docs#tag/ContentTypes"
                 )
         )
-        Long contentTypeId,
+        UUID contentTypeUuid,
 
         @JsonProperty(value = "created_by", access = JsonProperty.Access.READ_ONLY)
         @Schema(

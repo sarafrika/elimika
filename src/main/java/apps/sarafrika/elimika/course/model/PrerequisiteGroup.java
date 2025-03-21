@@ -1,22 +1,21 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.UUID;
 
 @Getter
 @Setter
 @Entity
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
+@AllArgsConstructor @Table(name = "prerequisite_group")
 public class PrerequisiteGroup extends BaseEntity {
 
-    @Column(name = "course_id")
-    private Long courseId;
+    @Column(name = "course_uuid")
+    private UUID courseUuid;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "group_type")

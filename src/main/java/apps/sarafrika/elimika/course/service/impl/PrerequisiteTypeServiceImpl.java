@@ -1,21 +1,15 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.exception.PrerequisiteTypeNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.CreatePrerequisiteTypeRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.PrerequisiteTypeResponseDTO;
-import apps.sarafrika.elimika.course.model.PrerequisiteType;
+import apps.sarafrika.elimika.course.dto.PrerequisiteTypeDTO;
 import apps.sarafrika.elimika.course.repository.PrerequisiteTypeRepository;
 import apps.sarafrika.elimika.course.service.PrerequisiteTypeService;
-import apps.sarafrika.elimika.shared.dto.ResponseDTO;
-import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 
 @Service
@@ -29,41 +23,32 @@ class PrerequisiteTypeServiceImpl implements PrerequisiteTypeService {
     private final PrerequisiteTypeRepository prerequisiteTypeRepository;
 
     @Override
-    public ResponsePageableDTO<PrerequisiteTypeResponseDTO> findAllPrerequisiteTypes(Pageable pageable) {
-
-        Page<PrerequisiteType> prerequisiteTypes = prerequisiteTypeRepository.findAll(pageable);
-
-        List<PrerequisiteTypeResponseDTO> prerequisiteTypeResponseDTOS = prerequisiteTypes.stream()
-                .map(PrerequisiteTypeResponseDTO::from)
-                .toList();
-
-        return new ResponsePageableDTO<>(prerequisiteTypeResponseDTOS, prerequisiteTypes.getNumber(), prerequisiteTypes.getSize(), prerequisiteTypes.getTotalPages()
-                , prerequisiteTypes.getTotalElements(), HttpStatus.OK.value(), PREREQUISITE_TYPE_FOUND_SUCCESS);
+    public PrerequisiteTypeDTO createPrerequisiteType(PrerequisiteTypeDTO prerequisiteTypeDTO) {
+        return null;
     }
 
     @Override
-    public ResponseDTO<PrerequisiteTypeResponseDTO> findPrerequisiteType(Long id) {
-
-        PrerequisiteType prerequisiteType = findPrerequisiteTypeById(id);
-
-        PrerequisiteTypeResponseDTO prerequisiteTypeResponseDTO = PrerequisiteTypeResponseDTO.from(prerequisiteType);
-
-        return new ResponseDTO<>(prerequisiteTypeResponseDTO, HttpStatus.OK.value(), PREREQUISITE_TYPE_FOUND_SUCCESS, null, LocalDateTime.now());
+    public PrerequisiteTypeDTO getPrerequisiteTypeByUuid(UUID uuid) {
+        return null;
     }
 
     @Override
-    public ResponseDTO<Void> createPrerequisiteType(CreatePrerequisiteTypeRequestDTO createPrerequisiteTypeRequestDTO) {
-
-        PrerequisiteType prerequisiteType = PrerequisiteType.builder()
-                .name(createPrerequisiteTypeRequestDTO.name())
-                .build();
-
-        prerequisiteTypeRepository.save(prerequisiteType);
-        return new ResponseDTO<>(null, HttpStatus.CREATED.value(), PREREQUISITE_TYPE_CREATED_SUCCESS, null, LocalDateTime.now());
+    public Page<PrerequisiteTypeDTO> getAllPrerequisiteTypes(Pageable pageable) {
+        return null;
     }
 
-    private PrerequisiteType findPrerequisiteTypeById(Long id) {
+    @Override
+    public PrerequisiteTypeDTO updatePrerequisiteType(UUID uuid, PrerequisiteTypeDTO prerequisiteTypeDTO) {
+        return null;
+    }
 
-        return prerequisiteTypeRepository.findById(id).orElseThrow(() -> new PrerequisiteTypeNotFoundException(PREREQUISITE_TYPE_NOT_FOUND));
+    @Override
+    public void deletePrerequisiteType(UUID uuid) {
+
+    }
+
+    @Override
+    public Page<PrerequisiteTypeDTO> searchPrerequisiteTypes(Map<String, String> searchParams, Pageable pageable) {
+        return null;
     }
 }

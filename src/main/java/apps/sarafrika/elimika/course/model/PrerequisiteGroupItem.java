@@ -12,7 +12,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "")
+@Table(name = "prerequisite_group_item")
 public class PrerequisiteGroupItem extends BaseEntity {
 
     @Column(name = "prerequisite_group_uuid")

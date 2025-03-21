@@ -3,7 +3,11 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
+
+import java.math.BigDecimal;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -11,6 +15,7 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "lesson_content")
 public class LessonContent extends BaseEntity {
 
     @Column(name = "title")
@@ -23,11 +28,11 @@ public class LessonContent extends BaseEntity {
     private int displayOrder;
 
     @Column(name = "duration")
-    private int duration;
+    private BigDecimal duration;
 
-    @Column(name = "lesson_id")
-    private Long lessonId;
+    @Column(name = "lesson_uuid")
+    private UUID lessonUuid;
 
-    @Column(name = "content_type_id")
-    private Long contentTypeId;
+    @Column(name = "content_type_uuid")
+    private UUID contentTypeUuid;
 }

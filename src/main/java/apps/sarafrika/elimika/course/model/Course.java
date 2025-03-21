@@ -1,11 +1,12 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.Set;
 
 @Getter
 @Setter
@@ -50,15 +51,4 @@ public class Course extends BaseEntity {
 
     @Column(name = "class_size")
     private int classSize;
-
-    @ElementCollection
-    @CollectionTable(
-            name = "course_instructor",
-            joinColumns = @JoinColumn(
-                    name = "course_id",
-                    referencedColumnName = "id"
-            )
-    )
-    @Column(name = "instructor_id")
-    private Set<Long> instructorIds;
 }

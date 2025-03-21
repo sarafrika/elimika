@@ -150,7 +150,7 @@ public record CourseDTO(
                         description = "List of instructor UUIDs assigned to teach this course"),
                 minItems = 0
         )
-        List<UUID> instructorIds,
+        List<UUID> instructors,
 
         @JsonProperty("learning_objectives")
         @ArraySchema(

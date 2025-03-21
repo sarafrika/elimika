@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.common.config;
 
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.common.storage.service.StorageService;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

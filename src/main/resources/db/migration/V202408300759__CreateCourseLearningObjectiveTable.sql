@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS course_learning_objective
 (
     id           BIGSERIAL PRIMARY KEY,
     uuid         UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    course_id    BIGINT       NOT NULL,
+    course_uuid  UUID         NOT NULL,
     objective    VARCHAR(255) NOT NULL,
     created_date TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by   VARCHAR(50)  NOT NULL,
@@ -10,12 +10,10 @@ CREATE TABLE IF NOT EXISTS course_learning_objective
     updated_by   VARCHAR(50),
     deleted      BOOLEAN      NOT NULL        DEFAULT FALSE,
 
-    FOREIGN KEY (course_id) REFERENCES course (id),
-
     CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
 );
 
-CREATE INDEX idx_course_learning_objective_course_id ON course_learning_objective (course_id);
+CREATE INDEX idx_course_learning_objective_course_uuid ON course_learning_objective (course_uuid);
 CREATE INDEX idx_course_learning_objective_created_by ON course_learning_objective (created_by);
 CREATE INDEX idx_course_learning_objective_updated_by ON course_learning_objective (updated_by);
 CREATE INDEX idx_course_learning_objective_deleted ON course_learning_objective (deleted);

@@ -1,23 +1,15 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.exception.CourseLearningObjectiveNotFoundException;
-import apps.sarafrika.elimika.course.dto.request.UpdateCourseLearningObjectiveRequestDTO;
-import apps.sarafrika.elimika.course.dto.response.CourseLearningObjectiveResponseDTO;
-import apps.sarafrika.elimika.course.model.CourseLearningObjective;
-import apps.sarafrika.elimika.course.factory.CourseLearningObjectiveFactory;
+import apps.sarafrika.elimika.course.dto.CourseLearningObjectiveDTO;
 import apps.sarafrika.elimika.course.repository.CourseLearningObjectiveRepository;
 import apps.sarafrika.elimika.course.service.CourseLearningObjectiveService;
-import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,122 +22,33 @@ public class CourseLearningObjectiveServiceImpl implements CourseLearningObjecti
 
     private final CourseLearningObjectiveRepository courseLearningObjectiveRepository;
 
-    @Transactional(readOnly = true)
     @Override
-    public ResponseDTO<CourseLearningObjectiveResponseDTO> findCourseLearningObjective(Long id) {
-
-        CourseLearningObjective courseLearningObjective = findCourseLearningObjectiveById(id);
-
-        return new ResponseDTO<>(CourseLearningObjectiveResponseDTO.from(courseLearningObjective), HttpStatus.OK.value(), COURSE_LEARNING_OBJECTIVE_FOUND_SUCCESS, null, LocalDateTime.now());
+    public CourseLearningObjectiveDTO createCourseLearningObjective(CourseLearningObjectiveDTO courseLearningObjectiveDTO) {
+        return null;
     }
 
-    private CourseLearningObjective findCourseLearningObjectiveById(Long id) {
-
-        return courseLearningObjectiveRepository.findById(id).orElseThrow(() -> new CourseLearningObjectiveNotFoundException(ERROR_COURSE_LEARNING_OBJECTIVE_NOT_FOUND));
-    }
-
-    @Transactional(readOnly = true)
     @Override
-    public ResponseDTO<List<CourseLearningObjectiveResponseDTO>> findAllCourseLearningObjectives(Long courseId) {
-
-        List<CourseLearningObjective> courseLearningObjectives = courseLearningObjectiveRepository.findAllByCourseId(courseId);
-
-        List<CourseLearningObjectiveResponseDTO> courseLearningObjectiveResponseDTOS = courseLearningObjectives.stream()
-                .map(CourseLearningObjectiveResponseDTO::from)
-                .toList();
-
-        return new ResponseDTO<>(courseLearningObjectiveResponseDTOS, HttpStatus.OK.value(), COURSE_LEARNING_OBJECTIVE_FOUND_SUCCESS, null, LocalDateTime.now());
+    public CourseLearningObjectiveDTO getCourseLearningObjectiveByUuid(UUID uuid) {
+        return null;
     }
 
-    @Transactional
     @Override
-    public ResponseDTO<CourseLearningObjectiveResponseDTO> createCourseLearningObjective(CreateCourseLearningObjectiveRequestDTO createCourseLearningObjectiveRequestDTO, Long courseId) {
-
-        CourseLearningObjective courseLearningObjective = CourseLearningObjectiveFactory.create(createCourseLearningObjectiveRequestDTO);
-        courseLearningObjective.setCourseId(courseId);
-
-        CourseLearningObjective savedCourseLearningObjective = courseLearningObjectiveRepository.save(courseLearningObjective);
-
-        return new ResponseDTO<>(CourseLearningObjectiveResponseDTO.from(savedCourseLearningObjective), HttpStatus.CREATED.value(), COURSE_LEARNING_OBJECTIVE_CREATED_SUCCESS, null, LocalDateTime.now());
+    public Page<CourseLearningObjectiveDTO> getAllCourseLearningObjectives(Pageable pageable) {
+        return null;
     }
 
-    @Transactional
     @Override
-    public ResponseDTO<List<CourseLearningObjectiveResponseDTO>> createCourseLearningObjectives(List<CreateCourseLearningObjectiveRequestDTO> createCourseLearningObjectiveRequestDTOS, Long courseId) {
-
-        List<CourseLearningObjective> courseLearningObjectives = createCourseLearningObjectiveRequestDTOS.stream()
-                .map(createCourseLearningObjectiveRequestDTO -> {
-                    CourseLearningObjective courseLearningObjective = CourseLearningObjectiveFactory.create(createCourseLearningObjectiveRequestDTO);
-                    courseLearningObjective.setCourseId(courseId);
-
-                    return courseLearningObjective;
-                })
-                .toList();
-
-        List<CourseLearningObjective> savedCourseLearningObjectives = courseLearningObjectiveRepository.saveAll(courseLearningObjectives);
-
-        List<CourseLearningObjectiveResponseDTO> courseLearningObjectiveResponseDTOS = savedCourseLearningObjectives.stream()
-                .map(CourseLearningObjectiveResponseDTO::from)
-                .toList();
-
-        return new ResponseDTO<>(courseLearningObjectiveResponseDTOS, HttpStatus.CREATED.value(), COURSE_LEARNING_OBJECTIVE_CREATED_SUCCESS, null, LocalDateTime.now());
+    public CourseLearningObjectiveDTO updateCourseLearningObjective(UUID uuid, CourseLearningObjectiveDTO courseLearningObjectiveDTO) {
+        return null;
     }
 
-    @Transactional
     @Override
-    public ResponseDTO<CourseLearningObjectiveResponseDTO> updateCourseLearningObjective(Long id, UpdateCourseLearningObjectiveRequestDTO updateCourseLearningObjectiveRequestDTO) {
+    public void deleteCourseLearningObjective(UUID uuid) {
 
-        CourseLearningObjective courseLearningObjective = findCourseLearningObjectiveById(id);
-
-        CourseLearningObjectiveFactory.update(courseLearningObjective, updateCourseLearningObjectiveRequestDTO);
-
-        CourseLearningObjective savedCourseLearningObjective = courseLearningObjectiveRepository.save(courseLearningObjective);
-
-        return new ResponseDTO<>(CourseLearningObjectiveResponseDTO.from(savedCourseLearningObjective), HttpStatus.OK.value(), COURSE_LEARNING_OBJECTIVE_UPDATED_SUCCESS, null, LocalDateTime.now());
     }
 
-    @Transactional
     @Override
-    public ResponseDTO<List<CourseLearningObjectiveResponseDTO>> updateCourseLearningObjectives(List<UpdateCourseLearningObjectiveRequestDTO> updateCourseLearningObjectiveRequestDTOS) {
-        List<Long> ids = updateCourseLearningObjectiveRequestDTOS.stream().map(UpdateCourseLearningObjectiveRequestDTO::id).toList();
-
-        List<CourseLearningObjective> foundObjectives = findAllCourseLearningObjectivesByIds(ids);
-
-        if (foundObjectives.size() != ids.size()) {
-            Set<Long> foundIds = foundObjectives.stream().map(CourseLearningObjective::getId).collect(Collectors.toSet());
-
-            List<Long> missingIds = ids.stream().filter(id -> !foundIds.contains(id)).toList();
-
-            throw new CourseLearningObjectiveNotFoundException(ERROR_COURSE_LEARNING_OBJECTIVE_NOT_FOUND);
-        }
-
-        Map<Long, CourseLearningObjective> objectivesMap = foundObjectives.stream()
-                .collect(Collectors.toMap(CourseLearningObjective::getId, objective -> objective));
-
-        List<CourseLearningObjective> updatedObjectives = updateCourseLearningObjectiveRequestDTOS.stream()
-                .map(updateDTO -> {
-                    CourseLearningObjective objective = objectivesMap.get(updateDTO.id());
-                    CourseLearningObjectiveFactory.update(objective, updateDTO);
-                    return objective;
-                })
-                .toList();
-
-        List<CourseLearningObjective> savedObjectives = courseLearningObjectiveRepository.saveAll(updatedObjectives);
-
-        return new ResponseDTO<>(savedObjectives.stream().map(CourseLearningObjectiveResponseDTO::from).toList(), HttpStatus.OK.value(), COURSE_LEARNING_OBJECTIVE_UPDATED_SUCCESS, null, LocalDateTime.now());
-    }
-
-    private List<CourseLearningObjective> findAllCourseLearningObjectivesByIds(List<Long> ids) {
-
-        return courseLearningObjectiveRepository.findByIdIn(ids);
-    }
-
-    @Transactional
-    @Override
-    public void deleteCourseLearningObjective(Long id) {
-
-        CourseLearningObjective courseLearningObjective = findCourseLearningObjectiveById(id);
-
-        courseLearningObjectiveRepository.delete(courseLearningObjective);
+    public Page<CourseLearningObjectiveDTO> searchCourseLearningObjectives(Map<String, String> searchParams, Pageable pageable) {
+        return null;
     }
 }

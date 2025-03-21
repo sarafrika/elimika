@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS course
+CREATE TABLE IF NOT EXISTS courses
 (
     id               BIGSERIAL PRIMARY KEY,
     uuid             UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
