@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS course
     sale_price       DECIMAL(10, 2),
     min_age          INT,
     max_age          INT,
+    class_limit      INT,
     created_date     TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by       VARCHAR(50)  NOT NULL,
     updated_date     TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
