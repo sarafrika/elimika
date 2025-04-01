@@ -1,29 +1,15 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.common.storage.service.StorageService;
 import apps.sarafrika.elimika.course.dto.LessonContentDTO;
-import apps.sarafrika.elimika.course.exception.LessonContentNotFoundException;
-import apps.sarafrika.elimika.course.exception.ValidationException;
-import apps.sarafrika.elimika.course.dto.request.LessonContentRequestDTO;
-import apps.sarafrika.elimika.course.dto.request.UpdateLessonContentDTO;
-import apps.sarafrika.elimika.course.dto.response.ContentTypeResponseDTO;
-import apps.sarafrika.elimika.course.dto.response.LessonContentResponseDTO;
-import apps.sarafrika.elimika.course.model.LessonContent;
 import apps.sarafrika.elimika.course.repository.LessonContentRepository;
 import apps.sarafrika.elimika.course.service.ContentTypeService;
 import apps.sarafrika.elimika.course.service.LessonContentService;
-import apps.sarafrika.elimika.shared.dto.ResponseDTO;
-import apps.sarafrika.elimika.common.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.service.spi.ServiceException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 

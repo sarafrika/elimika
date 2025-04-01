@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,6 +28,7 @@ public interface CourseCategoryService {
      *
      * @param uuid The UUID of the course category.
      * @return The CourseCategoryDTO representing the course category.
+     * @throws apps.sarafrika.elimika.common.exceptions.RecordNotFoundException if the course category is not found
      */
     @Transactional(readOnly = true)
     CourseCategoryDTO getCourseCategoryByUuid(UUID uuid);
@@ -46,6 +48,7 @@ public interface CourseCategoryService {
      * @param uuid The UUID of the course category to update.
      * @param courseCategoryDTO The DTO containing updated course category details.
      * @return The updated CourseCategoryDTO.
+     * @throws apps.sarafrika.elimika.common.exceptions.RecordNotFoundException if the course category is not found
      */
     @Transactional
     CourseCategoryDTO updateCourseCategory(UUID uuid, CourseCategoryDTO courseCategoryDTO);
@@ -54,6 +57,7 @@ public interface CourseCategoryService {
      * Deletes a course category by UUID.
      *
      * @param uuid The UUID of the course category to delete.
+     * @throws apps.sarafrika.elimika.common.exceptions.RecordNotFoundException if the course category is not found
      */
     @Transactional
     void deleteCourseCategory(UUID uuid);
@@ -67,4 +71,49 @@ public interface CourseCategoryService {
      */
     @Transactional(readOnly = true)
     Page<CourseCategoryDTO> searchCourseCategories(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Retrieves all categories associated with a specific course.
+     *
+     * @param courseUuid The UUID of the course.
+     * @return A list of course category DTOs.
+     */
+    @Transactional(readOnly = true)
+    List<CourseCategoryDTO> getCategoriesByCourseUuid(UUID courseUuid);
+
+    /**
+     * Saves a list of categories for a course.
+     *
+     * @param courseUuid The UUID of the course.
+     * @param categories The list of category DTOs to associate with the course.
+     */
+    @Transactional
+    void saveCourseCategories(UUID courseUuid, List<CourseCategoryDTO> categories);
+
+    /**
+     * Updates the category associations for a course.
+     *
+     * @param courseUuid The UUID of the course.
+     * @param categories The updated list of category DTOs.
+     */
+    @Transactional
+    void updateCourseCategories(UUID courseUuid, List<CourseCategoryDTO> categories);
+
+    /**
+     * Deletes all category associations for a specific course.
+     *
+     * @param courseUuid The UUID of the course whose category associations will be deleted.
+     */
+    @Transactional
+    void deleteCategoriesByCourseUuid(UUID courseUuid);
+
+    /**
+     * Checks if a course has a specific category.
+     *
+     * @param courseUuid The UUID of the course.
+     * @param categoryUuid The UUID of the category.
+     * @return True if the course has the category, false otherwise.
+     */
+    @Transactional(readOnly = true)
+    boolean hasCourseCategory(UUID courseUuid, UUID categoryUuid);
 }

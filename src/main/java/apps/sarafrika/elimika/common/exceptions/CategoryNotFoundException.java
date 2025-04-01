@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.course.exception;
+package apps.sarafrika.elimika.common.exceptions;
 
 public class CategoryNotFoundException extends RuntimeException {
     public CategoryNotFoundException(String message) {

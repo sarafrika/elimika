@@ -1,10 +1,9 @@
 package apps.sarafrika.elimika.common.config;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
-import apps.sarafrika.elimika.common.exceptions.SmtpAuthenticationException;
-import apps.sarafrika.elimika.course.exception.*;
+import apps.sarafrika.elimika.common.exceptions.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,14 +21,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RecordNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleRecordNotFoundException(RecordNotFoundException ex) {
-        log.debug("Record not found", ex);
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Record not found", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        log.debug("Validation failed", ex);
+        log.error(ex.getMessage(), ex);
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
@@ -40,14 +39,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SmtpAuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleSmtpAuthenticationException(SmtpAuthenticationException ex) {
-        log.debug("SMTP authentication failed", ex);
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("SMTP authentication failed", ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
-        log.debug("Access denied", ex);
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("Access denied", ex.getMessage()));
     }
@@ -66,7 +65,7 @@ public class GlobalExceptionHandler {
             LessonContentNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFoundExceptions(RuntimeException ex) {
-        log.debug("Resource not found", ex);
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Resource not found", ex.getMessage()));
     }
@@ -76,8 +75,17 @@ public class GlobalExceptionHandler {
             ValidationException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleValidationExceptions(RuntimeException ex) {
-        log.debug("Validation error", ex);
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error("Validation error", ex.getMessage()));
+    }
+
+    @ExceptionHandler({
+            DataIntegrityViolationException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleDatabaseIntegrityExceptions(RuntimeException ex) {
+        log.error(ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Validation error", ex.getMessage()));
     }
 

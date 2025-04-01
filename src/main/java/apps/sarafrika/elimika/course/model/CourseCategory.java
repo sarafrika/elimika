@@ -18,9 +18,9 @@ import java.util.UUID;
 public class CourseCategory extends BaseEntity {
 
     @Column(name = "course_uuid")
-    private UUID courseId;
+    private UUID courseUuid;
 
     @Column(name = "category_uuid")
-    private UUID categoryId;
+    private UUID categoryUuid;
 
 }
