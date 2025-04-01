@@ -12,7 +12,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -38,7 +37,7 @@ class OrganisationController {
     @Operation(summary = "Get an organisation by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
-    @GetMapping("/{uuid}") @PreAuthorize("hasAuthority('organisation:read')")
+    @GetMapping("/{uuid}")
     public ResponseEntity<ApiResponse<OrganisationDTO>> getOrganisationByUuid(@PathVariable UUID uuid) {
         OrganisationDTO organisation = organisationService.getOrganisationByUuid(uuid);
         return ResponseEntity.ok(ApiResponse.success(organisation, "Organisation retrieved successfully"));
@@ -46,7 +45,7 @@ class OrganisationController {
 
     @Operation(summary = "Get all organisations")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisations retrieved successfully")
-    @GetMapping @PreAuthorize("hasAuthority('organisation:read_all')")
+    @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<OrganisationDTO>>> getAllOrganisations(Pageable pageable) {
         Page<OrganisationDTO> organisations = organisationService.getAllOrganisations(pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(organisations, ServletUriComponentsBuilder
@@ -60,7 +59,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation updated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PutMapping("/{uuid}") @PreAuthorize("hasAuthority('organisation:update')")
+    @PutMapping("/{uuid}")
     public ResponseEntity<ApiResponse<OrganisationDTO>> updateOrganisation(
             @PathVariable UUID uuid, @Valid @RequestBody OrganisationDTO organisationDTO) {
         OrganisationDTO updated = organisationService.updateOrganisation(uuid, organisationDTO);
@@ -70,7 +69,7 @@ class OrganisationController {
     @Operation(summary = "Delete an organisation by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
-    @DeleteMapping("/{uuid}") @PreAuthorize("hasAuthority('organisation:delete')")
+    @DeleteMapping("/{uuid}")
     public ResponseEntity<ApiResponse<Void>> deleteOrganisation(@PathVariable UUID uuid) {
         organisationService.deleteOrganisation(uuid);
         return ResponseEntity.ok(ApiResponse.success(null, "Organisation deleted successfully"));
