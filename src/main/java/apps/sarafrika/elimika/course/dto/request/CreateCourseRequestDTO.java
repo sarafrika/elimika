@@ -21,6 +21,8 @@ public record CreateCourseRequestDTO(
 
         int maxAge,
 
+        int classLimit,
+
         PricingRequestDTO pricing,
 
         List<CreateCourseLearningObjectiveRequestDTO> learningObjectives,
