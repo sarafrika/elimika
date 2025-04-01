@@ -48,6 +48,9 @@ public class Course extends BaseEntity {
     @Column(name = "max_age")
     private int maxAge;
 
+    @Column(name = "class_limit")
+    private int classLimit;
+
     @ElementCollection
     @CollectionTable(
             name = "course_instructor",
