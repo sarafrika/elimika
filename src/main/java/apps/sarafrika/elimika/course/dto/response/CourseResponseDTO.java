@@ -23,6 +23,8 @@ public record CourseResponseDTO(
 
         int maxAge,
 
+        int classLimit,
+
         PricingResponseDTO pricing,
 
         List<CourseLearningObjectiveResponseDTO> learningObjectives,
@@ -40,6 +42,7 @@ public record CourseResponseDTO(
                 DifficultyLevel.valueOf(course.getDifficultyLevel()),
                 course.getMinAge(),
                 course.getMaxAge(),
+                course.getClassLimit(),
                 pricing,
                 learningObjectives,
                 categories
