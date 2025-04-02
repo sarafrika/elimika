@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.common.util.RoleNameConverter;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
@@ -30,6 +31,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,17 +51,21 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final OrganisationRepository organisationRepository;
 
+    private final StorageService storageService;
+
     private final GenericSpecificationBuilder<User> specificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
 
+    public static final String PROFILE_IMAGE_FOLDER = "profile_images";
+
     @Override
     @Transactional
-    public UserDTO createUser(UserDTO userDTO, UserDomain userDomain) {
+    public UserDTO createUser(UserDTO userDTO, UserDomain userDomain, MultipartFile profileImage) {
         log.debug("Creating new user with email: {}", userDTO.email());
 
         try {
             Organisation organisation = findOrganisationOrThrow(userDTO.organisationUuid());
-            User user = createAndSaveUser(userDTO, organisation);
+            User user = createAndSaveUser(userDTO, organisation, profileImage);
             publishUserCreationEvent(user, userDomain);
 
             log.info("Successfully created user with UUID: {}", user.getUuid());
@@ -200,8 +207,11 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RecordNotFoundException("User not found for UUID: " + uuid));
     }
 
-    private User createAndSaveUser(UserDTO userDTO, Organisation organisation) {
+    private User createAndSaveUser(UserDTO userDTO, Organisation organisation, MultipartFile profileImage) {
         User user = UserFactory.toEntity(userDTO);
+
+        user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
+
         user.setOrganisation(organisation);
 
         user.setRoles(new ArrayList<>());
@@ -296,5 +306,18 @@ public class UserServiceImpl implements UserService {
                         realm
                 )
         );
+    }
+
+
+    private String storeProfileImage(MultipartFile file) {
+        String fileName = storageService.store(file);
+        // Build the URL to access the profile image through your endpoint
+        return ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .path("/api/v1/users/profile-image/")
+                .path(fileName)
+                .build()
+                .toUriString();
+
     }
 }

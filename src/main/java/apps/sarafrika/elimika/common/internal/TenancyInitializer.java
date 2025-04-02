@@ -3,6 +3,10 @@ package apps.sarafrika.elimika.common.internal;
 import apps.sarafrika.elimika.authentication.services.KeycloakOrganisationService;
 import apps.sarafrika.elimika.authentication.services.KeycloakRoleService;
 import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
+import apps.sarafrika.elimika.common.enums.UserDomain;
+import apps.sarafrika.elimika.common.event.admin.RegisterAdmin;
+import apps.sarafrika.elimika.common.event.instructor.RegisterInstructor;
+import apps.sarafrika.elimika.common.event.student.RegisterStudent;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.Permission;
 import apps.sarafrika.elimika.tenancy.entity.User;
@@ -16,12 +20,10 @@ import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static apps.sarafrika.elimika.common.util.RoleNameConverter.createRoleName;
 
@@ -31,6 +33,11 @@ public class TenancyInitializer implements CommandLineRunner {
 
     @Value("${app.keycloak.realm}")
     private String realm;
+
+    @Value("${app.keycloak.user.attributes[0]}")
+    private String userDomain;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     private final KeycloakRoleService keycloakRoleService;
     private final KeycloakUserService keycloakUserService;
@@ -94,10 +101,24 @@ public class TenancyInitializer implements CommandLineRunner {
     }
 
     private void saveUser(UserRepresentation userRep) {
-        userRepository.save( new User(userRep.getFirstName(), null, userRep.getLastName(),
+        Map<String, List<String>> userAttributes = userRep.getAttributes();
+        List<String> attributes = userAttributes.get(userDomain);
+
+        User user = userRepository.save( new User(userRep.getFirstName(), null, userRep.getLastName(),
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
                 userRep.isEnabled(), userRep.getId(), null, null, null
         ));
+
+       attributes.forEach(attribute -> {
+            switch (UserDomain.valueOf(attribute)){
+                case instructor -> eventPublisher.publishEvent(new RegisterInstructor(userRep.getFirstName(), user.getUuid()));
+
+                case admin -> eventPublisher.publishEvent(new RegisterAdmin(userRep.getFirstName(), user.getUuid()));
+
+                default -> eventPublisher.publishEvent(new RegisterStudent(userRep.getFirstName(), user.getUuid()));
+
+            }
+        });
     }
 
     private void loadRoles() {
