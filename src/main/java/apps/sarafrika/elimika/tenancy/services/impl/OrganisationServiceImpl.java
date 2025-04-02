@@ -48,6 +48,12 @@ public class OrganisationServiceImpl implements OrganisationService {
             Organisation organisation = OrganisationFactory.toEntity(organisationDTO);
             organisation.setAuthRealm(realm);
             organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
+
+            if(organisationRepository.existsBySlug(organisation.getSlug()) ||
+                    organisationRepository.existsByDomain(organisation.getDomain())){
+                throw new IllegalArgumentException("Organisation already exists");
+            }
+
             organisation = organisationRepository.save(organisation);
 
             publishOrganisationCreationEvent(organisation);
@@ -56,7 +62,7 @@ public class OrganisationServiceImpl implements OrganisationService {
             return OrganisationFactory.toDTO(organisation);
         } catch (Exception e) {
             log.error("Failed to create organisation: {}", organisationDTO.name(), e);
-            throw new RuntimeException("Failed to create organisation: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to create organisation.", e);
         }
     }
 
