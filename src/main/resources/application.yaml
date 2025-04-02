@@ -24,6 +24,9 @@ app:
       attributes:
         - user_domain
 
+storage:
+  location: ${STORAGE_PATH:/app/data}
+
 logging:
   level:
     root: INFO

@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -50,14 +51,14 @@ class CourseServiceImpl implements CourseService {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    public static final String THUMBNAIL_FOLDER = "course_thumbnails";
+
     @Transactional
     @Override
     public ResponseDTO<CourseResponseDTO> createCourse(CreateCourseRequestDTO createCourseRequestDTO, MultipartFile thumbnail) {
 
-        String thumbnailUrl = storageService.store(thumbnail);
-
         final Course course = CourseFactory.create(createCourseRequestDTO);
-        course.setThumbnailUrl(thumbnailUrl);
+        course.setThumbnailUrl(storeCourseThumbnail(thumbnail, THUMBNAIL_FOLDER));
 
         eventPublisher.publishEvent(new CreateCourseEvent(course, createCourseRequestDTO));
 
@@ -144,5 +145,17 @@ class CourseServiceImpl implements CourseService {
         final Course course = findCourseById(courseId);
 
         courseRepository.delete(course);
+    }
+
+    private String storeCourseThumbnail(MultipartFile file, String folder) {
+        String fileName = storageService.store(file);
+        // Build the URL to access the profile image through your endpoint
+        return ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .path("/api/v1/users/profile-image/")
+                .path(fileName)
+                .build()
+                .toUriString();
+
     }
 }

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.common.enums.UserDomain;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,11 +11,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.Map;
@@ -26,15 +29,18 @@ import java.util.UUID;
 @Tag(name = "Users API", description = "Users related operations")
 class UserController {
     private final UserService userService;
+    private final StorageService storageService;
 
     @Operation(summary = "Create a new user")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "User created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
-    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO,
+    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestPart(name = "user") UserDTO userDTO,
+                                                           @RequestPart(value = "profile_image", required = false)
+                                                           MultipartFile profileImage,
                                                            @Parameter(name = "user_domain",description = "Domain of the user", required = true)
                                                            @RequestParam("user_domain") UserDomain userDomain) {
-        UserDTO created = userService.createUser(userDTO, userDomain);
+        UserDTO created = userService.createUser(userDTO, userDomain, profileImage);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "User created successfully"));
     }
 
@@ -93,5 +99,13 @@ class UserController {
                         .build()
                         .toUriString()),
                 "Users search successful"));
+    }
+
+    @Operation(summary = "Get user profile image by file name")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile image retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Profile image not found")
+    @GetMapping("profile-image/{fileName}")
+    public ResponseEntity<Resource> getProfileImage(@PathVariable String fileName) {
+        return ResponseEntity.ok().body(storageService.load(fileName));
     }
 }

@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,9 @@ class CourseController {
 
     @PostMapping(consumes = MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    ResponseDTO<CourseResponseDTO> createCourse(@RequestPart(name = "course") CreateCourseRequestDTO createCourseRequestDTO, @RequestPart(name = "thumbnail") MultipartFile thumbnail) {
+    ResponseDTO<CourseResponseDTO> createCourse(
+            @RequestPart(name = "course") @Valid CreateCourseRequestDTO createCourseRequestDTO,
+            @RequestPart(name = "thumbnail") MultipartFile thumbnail) {
 
         return courseService.createCourse(createCourseRequestDTO, thumbnail);
     }

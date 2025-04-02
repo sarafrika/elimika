@@ -1,14 +1,16 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
-public record UserDTO (
+public record UserDTO(
 
         @JsonProperty("uuid")
         UUID uuid,
@@ -33,6 +35,16 @@ public record UserDTO (
         @JsonProperty("phone_number")
         String phoneNumber,
 
+        @JsonProperty(access = JsonProperty.Access.READ_ONLY, value = "profile_image_url")
+        @Schema(accessMode = Schema.AccessMode.READ_ONLY)
+        String profileImageUrl,
+
+        @JsonProperty("dob")
+        LocalDate dob,
+
+        @JsonProperty("username")
+        String username,
+
         @JsonProperty("organisation_uuid")
         UUID organisationUuid,
 
@@ -47,5 +59,5 @@ public record UserDTO (
 
         @JsonProperty("roles")
         Set<RoleDTO> roles
-){
+) {
 }
