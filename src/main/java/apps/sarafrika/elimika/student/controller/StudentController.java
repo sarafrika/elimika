@@ -30,19 +30,6 @@ public class StudentController {
     private final StudentService studentService;
 
     /**
-     * Creates a new student.
-     *
-     * @param studentDTO The student data to be created.
-     * @return The created student DTO.
-     */
-    @Operation(summary = "Create a new student", description = "Saves a new student record in the system.", responses = {@ApiResponse(responseCode = "201", description = "Student created successfully", content = @Content(schema = @Schema(implementation = StudentDTO.class))), @ApiResponse(responseCode = "400", description = "Invalid request data")})
-    @PostMapping
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<StudentDTO>> createStudent(@Valid @RequestBody StudentDTO studentDTO) {
-        StudentDTO createdStudent = studentService.createStudent(studentDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(apps.sarafrika.elimika.common.dto.ApiResponse.success(createdStudent, "Student created successfully"));
-    }
-
-    /**
      * Retrieves a student by UUID.
      *
      * @param uuid The UUID of the student.

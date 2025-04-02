@@ -1,10 +1,13 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.enums.UserDomain;
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.common.event.admin.RegisterAdmin;
+import apps.sarafrika.elimika.common.event.instructor.RegisterInstructor;
 import apps.sarafrika.elimika.common.event.role.AssignRoleToUserEvent;
+import apps.sarafrika.elimika.common.event.student.RegisterStudent;
 import apps.sarafrika.elimika.common.event.user.*;
 import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.common.util.RoleNameConverter;
 import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
@@ -232,12 +235,14 @@ public class UserServiceImpl implements UserService {
             List<Role> persistedRoles = roleRepository.findAllByUuidIn(
                     userDTO.roles().stream()
                             .map(RoleDTO::uuid)
-                            .collect(Collectors.toList())
+                            .toList()
             );
             user.setRoles(persistedRoles);
 
-            persistedRoles.stream().flatMap(role -> role.getPermissions().stream()).forEach(permission -> {
-                applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()), RoleNameConverter.createRoleName(permission), realm));
+            persistedRoles.stream().flatMap(role -> role.getPermissions().stream()).forEach(
+                    permission -> {
+                applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()),
+                        RoleNameConverter.createRoleName(permission), realm));
             });
         }
     }
@@ -246,17 +251,26 @@ public class UserServiceImpl implements UserService {
 
         log.debug("Publishing user creation event for user: {} with uuid {}", user.getEmail(), user.getUuid());
         applicationEventPublisher.publishEvent(
-                new UserCreationEvent(
-                        user.getEmail(),
-                        user.getFirstName(),
-                        user.getLastName(),
-                        user.getEmail(),
-                        user.isActive(),
-                        userDomain,
-                        realm,
-                        user.getUuid()
+                new UserCreationEvent(user.getEmail(), user.getFirstName(), user.getLastName(), user.getEmail(),
+                        user.isActive(), userDomain, realm, user.getUuid()
                 )
         );
+
+        String fullName = new StringBuilder().append(user.getFirstName()).append(" ")
+                .append(user.getMiddleName() != null ? user.getMiddleName() + " " : ""
+                ).append(user.getLastName()).toString().toUpperCase();
+
+        switch (userDomain) {
+            case instructor -> {
+                applicationEventPublisher.publishEvent(new RegisterInstructor(fullName, user.getUuid()));
+            }
+            case admin -> {
+                applicationEventPublisher.publishEvent(new RegisterAdmin(fullName, user.getUuid()));
+            }
+            default -> {
+                applicationEventPublisher.publishEvent(new RegisterStudent(fullName, user.getUuid()));
+            }
+        }
     }
 
     private void publishUserUpdateEvent(User user) {

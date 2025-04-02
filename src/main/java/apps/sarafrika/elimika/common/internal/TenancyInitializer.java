@@ -58,35 +58,21 @@ public class TenancyInitializer implements CommandLineRunner {
         }
 
         Organisation organisation = new Organisation(
-                orgRep.getName(),
-                orgRep.getDescription(),
-                true,
-                null,
-                domain,
-                orgRep.getAlias(),
-                realm,
-                orgRep.getId(),
-                null,
-                null
+                orgRep.getName(), orgRep.getDescription(), true, null, domain,
+                orgRep.getAlias(), realm, orgRep.getId(), null,null, null, null
         );
 
         Organisation savedOrg = organisationRepository.save(organisation);
+
+        organisationRepository.flush();
 
         List<User> users = Optional.ofNullable(orgRep.getMembers())
                 .orElse(Collections.emptyList())
                 .stream()
                 .filter(member -> !userRepository.existsByEmail(member.getEmail()))
-                .map(member -> new User(
-                        member.getFirstName(),
-                        null,
-                        member.getLastName(),
-                        member.getEmail(),
-                        null,
-                        true,
-                        member.getId(),
-                        savedOrg,
-                        null,
-                        null
+                .map(member -> new User(member.getFirstName(), null, member.getLastName(),
+                        member.getEmail(), member.getUsername(), null, null, null,
+                        member.isEnabled(), member.getId(), savedOrg, null, null
                 ))
                 .toList();
 
@@ -108,19 +94,10 @@ public class TenancyInitializer implements CommandLineRunner {
     }
 
     private void saveUser(UserRepresentation userRep) {
-        User user = new User(
-                userRep.getFirstName(),
-                null,
-                userRep.getLastName(),
-                userRep.getEmail(),
-                null,
-                true,
-                userRep.getId(),
-                null,
-                null,
-                null
-        );
-        userRepository.save(user);
+        userRepository.save( new User(userRep.getFirstName(), null, userRep.getLastName(),
+                userRep.getEmail(), userRep.getUsername(), null, null, null,
+                userRep.isEnabled(), userRep.getId(), null, null, null
+        ));
     }
 
     private void loadRoles() {

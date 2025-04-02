@@ -67,7 +67,6 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<UserRepresentation> getUserById(String userId, String realm) {
         try {
             UserResource userResource = getUsersResource(realm).get(userId);
@@ -79,7 +78,6 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<UserRepresentation> getUserByUsername(String username, String realm) {
         return getUsersResource(realm)
                 .searchByUsername(username, true)
@@ -154,7 +152,6 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
     }
 
     @Override
-    @Transactional
     public void sendRequiredActionEmail(String userId, List<String> actions, String realm) {
         try {
             getUsersResource(realm).get(userId).executeActionsEmail(actions);
