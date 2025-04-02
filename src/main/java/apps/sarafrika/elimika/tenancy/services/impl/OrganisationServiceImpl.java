@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.event.mailgun.WebhooksCreationEvent;
 import apps.sarafrika.elimika.common.event.organisation.OrganisationCreationEvent;
 import apps.sarafrika.elimika.common.event.organisation.SuccessfulOrganisationCreationEvent;
 import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
@@ -20,7 +19,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.Map;
 import java.util.UUID;
@@ -53,8 +51,6 @@ public class OrganisationServiceImpl implements OrganisationService {
             organisation = organisationRepository.save(organisation);
 
             publishOrganisationCreationEvent(organisation);
-
-            eventPublisher.publishEvent(new WebhooksCreationEvent(organisation.getDomain(), ServletUriComponentsBuilder.fromCurrentRequestUri().build().toUriString()));
 
             log.info("Successfully created organisation with UUID: {}", organisation.getUuid());
             return OrganisationFactory.toDTO(organisation);

@@ -27,4 +27,6 @@ public class Student extends BaseEntity {
     private String secondGuardianName;
     @Column(name = "guardian_2_mobile")
     private String secondGuardianMobile;
+    @Column(name = "bio")
+    private String bio;
 }
