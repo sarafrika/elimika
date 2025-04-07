@@ -150,7 +150,7 @@ class CourseServiceImpl implements CourseService {
         // Build the URL to access the profile image through your endpoint
         return ServletUriComponentsBuilder
                 .fromCurrentContextPath()
-                .path("/api/v1/users/profile-image/")
+                .path("/api/v1/courses/thumbnail/")
                 .path(fileName)
                 .build()
                 .toUriString();

@@ -7,10 +7,13 @@ import apps.sarafrika.elimika.course.dto.response.CourseResponseDTO;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
 import apps.sarafrika.elimika.shared.dto.ResponsePageableDTO;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,8 +26,10 @@ class CourseController {
 
     protected static final String ROOT_PATH = "api/v1/courses";
     protected static final String ID_PATH = "{courseId}";
+    protected static final String THUMBNAIL_PATH = "thumbnail";
 
     private final CourseService courseService;
+    private final StorageService storageService;
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
@@ -61,6 +66,11 @@ class CourseController {
     void deleteCourse(final @PathVariable Long courseId) {
 
         courseService.deleteCourse(courseId);
+    }
+
+    @GetMapping(path = THUMBNAIL_PATH+"/{fileName}")
+    public ResponseEntity<Resource> getCourseThumbnail(@PathVariable String fileName) {
+        return ResponseEntity.ok().body(storageService.load(fileName));
     }
 }
 
