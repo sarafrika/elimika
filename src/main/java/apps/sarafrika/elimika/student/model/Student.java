@@ -15,8 +15,6 @@ import java.util.UUID;
 @Table(name = "students")
 @Getter @Setter @AllArgsConstructor @NoArgsConstructor
 public class Student extends BaseEntity {
-    @Column(name = "full_name")
-    private String fullName;
     @Column(name = "user_uuid")
     private UUID userUuid;
     @Column(name = "guardian_1_name")
@@ -27,6 +25,4 @@ public class Student extends BaseEntity {
     private String secondGuardianName;
     @Column(name = "guardian_2_mobile")
     private String secondGuardianMobile;
-    @Column(name = "bio")
-    private String bio;
 }

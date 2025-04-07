@@ -11,7 +11,6 @@ public abstract class StudentFactory {
         }
         return new StudentDTO(
                 student.getUuid(),
-                student.getFullName(),
                 student.getUserUuid(),
                 student.getFirstGuardianName(),
                 student.getFirstGuardianMobile(),
@@ -31,7 +30,6 @@ public abstract class StudentFactory {
         }
         Student student = new Student();
         student.setUuid(dto.uuid());
-        student.setFullName(dto.fullName());
         student.setUserUuid(dto.userUuid());
         student.setFirstGuardianName(dto.firstGuardianName());
         student.setFirstGuardianMobile(dto.firstGuardianMobile());
