@@ -51,14 +51,12 @@ class CourseServiceImpl implements CourseService {
 
     private final ApplicationEventPublisher eventPublisher;
 
-    public static final String THUMBNAIL_FOLDER = "course_thumbnails";
-
     @Transactional
     @Override
     public ResponseDTO<CourseResponseDTO> createCourse(CreateCourseRequestDTO createCourseRequestDTO, MultipartFile thumbnail) {
 
         final Course course = CourseFactory.create(createCourseRequestDTO);
-        course.setThumbnailUrl(storeCourseThumbnail(thumbnail, THUMBNAIL_FOLDER));
+        course.setThumbnailUrl(storeCourseThumbnail(thumbnail));
 
         eventPublisher.publishEvent(new CreateCourseEvent(course, createCourseRequestDTO));
 
@@ -147,12 +145,12 @@ class CourseServiceImpl implements CourseService {
         courseRepository.delete(course);
     }
 
-    private String storeCourseThumbnail(MultipartFile file, String folder) {
+    private String storeCourseThumbnail(MultipartFile file) {
         String fileName = storageService.store(file);
         // Build the URL to access the profile image through your endpoint
         return ServletUriComponentsBuilder
                 .fromCurrentContextPath()
-                .path("/api/v1/users/profile-image/")
+                .path("/api/v1/courses/thumbnail/")
                 .path(fileName)
                 .build()
                 .toUriString();
