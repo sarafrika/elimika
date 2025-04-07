@@ -2,12 +2,16 @@ package apps.sarafrika.elimika.tenancy.factory;
 
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFactory {
+
     public static UserDTO toDTO(User user) {
         UUID organisationUuid = null;
         if (user.getOrganisation() != null) {
@@ -30,7 +34,10 @@ public class UserFactory {
                 user.getLastModifiedDate(),
                 user.getRoles().stream()
                         .map(RoleFactory::toDTO)
-                        .collect(Collectors.toSet())
+                        .collect(Collectors.toSet()),
+                null,
+                null,
+                null
         );
     }
 

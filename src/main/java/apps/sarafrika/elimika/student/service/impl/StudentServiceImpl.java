@@ -46,8 +46,6 @@ public class StudentServiceImpl implements StudentService {
     public StudentDTO updateStudent(UUID uuid, StudentDTO studentDTO) {
         Student existingStudent = studentRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RuntimeException(String.format(STUDENT_NOT_FOUND_TEMPLATE, uuid)));
-
-        existingStudent.setFullName(studentDTO.fullName());
         existingStudent.setUserUuid(studentDTO.userUuid());
         existingStudent.setFirstGuardianName(studentDTO.firstGuardianName());
         existingStudent.setFirstGuardianMobile(studentDTO.firstGuardianMobile());

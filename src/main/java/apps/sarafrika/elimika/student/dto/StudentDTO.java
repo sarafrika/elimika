@@ -7,7 +7,6 @@ import java.util.UUID;
 
 public record StudentDTO(
         @JsonProperty("uuid") UUID uuid,
-        @JsonProperty("full_name") String fullName,
         @JsonProperty("user_uuid") UUID userUuid,
         @JsonProperty("first_guardian_name") String firstGuardianName,
         @JsonProperty("first_guardian_mobile") String firstGuardianMobile,

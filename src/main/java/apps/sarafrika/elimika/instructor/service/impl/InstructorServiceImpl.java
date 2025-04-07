@@ -52,9 +52,6 @@ public class InstructorServiceImpl implements InstructorService {
         Instructor existingInstructor = instructorRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RecordNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
 
-        existingInstructor.setName(instructorDTO.name());
-        existingInstructor.setBio(instructorDTO.bio());
-
         Instructor updatedInstructor = instructorRepository.save(existingInstructor);
         return InstructorFactory.toDTO(updatedInstructor);
     }

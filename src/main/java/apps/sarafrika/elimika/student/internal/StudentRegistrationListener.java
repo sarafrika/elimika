@@ -15,7 +15,6 @@ public class StudentRegistrationListener {
     @ApplicationModuleListener
     void onStudentRegistration(RegisterStudent event) {
         Student student = new Student();
-        student.setFullName(event.fullName());
         student.setUserUuid(event.userUuid());
 
         studentRepository.save(student);
