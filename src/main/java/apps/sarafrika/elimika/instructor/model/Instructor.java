@@ -34,6 +34,7 @@ public class Instructor extends BaseEntity {
     @Column(name = "bio")
     private String bio;
 
+    @Column(name = "professional_headline")
     private String professionalHeadline;
 
     @ElementCollection
