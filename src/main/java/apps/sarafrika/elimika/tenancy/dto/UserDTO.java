@@ -2,7 +2,6 @@ package apps.sarafrika.elimika.tenancy.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -83,21 +82,7 @@ public record UserDTO(
 
         @Schema(description = "Roles assigned to the user", example = "[\"ADMIN\", \"USER\"]")
         @JsonProperty("roles")
-        Set<RoleDTO> roles,
-
-        @Schema(description = "Professional body information of the user", implementation = ProfessionalBodyDTO.class)
-        @JsonProperty("professional_bodies")
-        ProfessionalBodyDTO professionalBody,
-
-        @Schema(description = "Training experience details of the user", implementation = TrainingExperienceDTO.class)
-        @JsonProperty("training_experiences")
-        @Valid
-        TrainingExperienceDTO trainingExperience,
-
-        @Schema(description = "User certifications details", implementation = UserCertificationDTO.class)
-        @JsonProperty("user_certifications")
-        @Valid
-        UserCertificationDTO userCertification
+        Set<RoleDTO> roles
 
 ) {
 }

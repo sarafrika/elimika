@@ -7,9 +7,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
-@Service @Slf4j
+@Service
+@Slf4j
 @RequiredArgsConstructor
+@Transactional(propagation = Propagation.REQUIRED)
 public class StudentRegistrationListener {
     private final StudentRepository studentRepository;
 
@@ -18,8 +22,11 @@ public class StudentRegistrationListener {
         log.info("Processing student registration event: name={}, userUuid={}", event.fullName(), event.userUuid());
         Student student = new Student();
         student.setUserUuid(event.userUuid());
+        student.setFullName(event.fullName());
 
-        studentRepository.save(student);
+        if(!studentRepository.existsByUserUuid(event.userUuid())) {
+            studentRepository.save(student);
+        }
 
         log.info("Successfully processed student registration event: name={}, userUuid={}", event.fullName(), event.userUuid());
     }

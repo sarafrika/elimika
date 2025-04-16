@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -47,7 +48,7 @@ public class TenancyInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PermissionRepository permissionRepository;
 
-    @Override
+    @Override @Transactional
     public void run(String... args) {
         loadOrganizations();
         loadUsers();
@@ -93,6 +94,7 @@ public class TenancyInitializer implements CommandLineRunner {
                 .forEach(userRep -> saveUser(userRep, null));
     }
 
+
     private void saveUser(UserRepresentation userRep, Organisation organisation) {
         Map<String, List<String>> userAttributes = userRep.getAttributes();
         List<String> attributes = userAttributes.get(userDomain);
@@ -103,13 +105,15 @@ public class TenancyInitializer implements CommandLineRunner {
         ));
 
        attributes.forEach(attribute -> {
-           log.info("Processing user attribute: {}", attribute);
+           String fullName = new StringBuilder().append(user.getFirstName()).append(" ")
+                   .append(user.getMiddleName() != null ? user.getMiddleName() + " " : "")
+                   .append(user.getLastName()).toString().toUpperCase();
             switch (UserDomain.valueOf(attribute)){
-                case instructor -> eventPublisher.publishEvent(new RegisterInstructor(userRep.getFirstName(), user.getUuid()));
+                case instructor -> eventPublisher.publishEvent(new RegisterInstructor(fullName, user.getUuid()));
 
-                case admin -> eventPublisher.publishEvent(new RegisterAdmin(userRep.getFirstName(), user.getUuid()));
+                case admin -> eventPublisher.publishEvent(new RegisterAdmin(fullName, user.getUuid()));
 
-                default -> eventPublisher.publishEvent(new RegisterStudent(userRep.getFirstName(), user.getUuid()));
+                default -> eventPublisher.publishEvent(new RegisterStudent(fullName, user.getUuid()));
 
             }
         });

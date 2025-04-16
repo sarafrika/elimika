@@ -34,10 +34,7 @@ public class UserFactory {
                 user.getLastModifiedDate(),
                 user.getRoles().stream()
                         .map(RoleFactory::toDTO)
-                        .collect(Collectors.toSet()),
-                null,
-                null,
-                null
+                        .collect(Collectors.toSet())
         );
     }
 

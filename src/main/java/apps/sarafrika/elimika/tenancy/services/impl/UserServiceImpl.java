@@ -257,7 +257,8 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void publishUserCreationEvent(User user, UserDomain userDomain) {
+    @Transactional
+    public void publishUserCreationEvent(User user, UserDomain userDomain) {
 
         log.debug("Publishing user creation event for user: {} with uuid {}", user.getEmail(), user.getUuid());
         applicationEventPublisher.publishEvent(
