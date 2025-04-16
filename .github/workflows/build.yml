@@ -5,16 +5,15 @@ on:
     branches:
       - main
     types:
-      - closed  # Only trigger when PR is merged into main
-
-
+      - closed
   push:
     branches:
       - main
 
 jobs:
   build-and-push:
-    if: github.event.pull_request.merged == true  # Run only when a PR is merged into main
+    # Run on direct push to main OR when a PR is merged into main
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
     steps:
