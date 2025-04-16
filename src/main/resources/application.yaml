@@ -31,7 +31,6 @@ logging:
   level:
     root: INFO
     org.springframework: INFO
-    com.your.package: DEBUG
   file:
     name: logs/elimika.log
   pattern:

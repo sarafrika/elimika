@@ -17,7 +17,6 @@ public class StudentRegistrationListener {
     void onStudentRegistration(RegisterStudent event) {
         log.info("Processing student registration event: name={}, userUuid={}", event.fullName(), event.userUuid());
         Student student = new Student();
-        student.setFullName(event.fullName());
         student.setUserUuid(event.userUuid());
 
         studentRepository.save(student);

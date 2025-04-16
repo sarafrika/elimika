@@ -14,8 +14,6 @@ public class InstructorFactory {
         }
         return new InstructorDTO(
                 instructor.getUuid(),
-                instructor.getName(),
-                instructor.getBio(),
                 instructor.getUserUuid(),
                 instructor.getCreatedDate(),
                 instructor.getCreatedBy(),
@@ -31,8 +29,6 @@ public class InstructorFactory {
         }
         Instructor instructor = new Instructor();
         instructor.setUuid(dto.uuid());
-        instructor.setName(dto.name());
-        instructor.setBio(dto.bio());
         instructor.setUserUuid(dto.userUuid());
         return instructor;
     }

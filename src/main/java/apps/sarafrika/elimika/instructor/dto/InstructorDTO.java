@@ -7,8 +7,6 @@ import java.util.UUID;
 
 public record InstructorDTO(
         @JsonProperty("uuid") UUID uuid,
-        @JsonProperty("full_name") String name,
-        @JsonProperty("bio") String bio,
         @JsonProperty("user_uuid") UUID userUuid,
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY) LocalDateTime createdDate,
         @JsonProperty(value = "created_by", access = JsonProperty.Access.READ_ONLY) String createdBy,

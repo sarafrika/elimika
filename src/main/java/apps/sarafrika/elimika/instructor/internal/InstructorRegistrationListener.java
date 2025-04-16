@@ -15,7 +15,6 @@ public class InstructorRegistrationListener {
     @ApplicationModuleListener
     void onInstructorRegistration(RegisterInstructor event) {
         Instructor instructor = new Instructor();
-        instructor.setName(event.fullName());
         instructor.setUserUuid(event.userUuid());
         instructorRepository.save(instructor);
     }

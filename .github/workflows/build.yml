@@ -6,6 +6,10 @@ on:
       - main
     types:
       - closed  # Only trigger when PR is merged into main
+  push:
+    branches:
+      - main
+
 
   push:
     branches:
