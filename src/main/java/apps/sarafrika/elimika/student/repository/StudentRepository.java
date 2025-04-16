@@ -15,4 +15,6 @@ public interface StudentRepository extends JpaRepository<Student, Long>, JpaSpec
     void deleteByUuid(UUID uuid);
 
     Optional<Student> findByUuid(UUID uuid);
+
+    boolean existsByUserUuid(UUID userUuid);
 }

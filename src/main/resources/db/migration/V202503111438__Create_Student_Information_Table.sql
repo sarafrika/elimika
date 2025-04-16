@@ -8,7 +8,7 @@ CREATE TABLE students
     guardian_1_mobile VARCHAR(15),
     guardian_2_name   VARCHAR(255),
     guardian_2_mobile VARCHAR(15),
-    user_uuid         UUID         NOT NULL,
+    user_uuid         UUID         NOT NULL UNIQUE,
     created_date      TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by        VARCHAR(50)  NOT NULL,
     updated_date      TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,

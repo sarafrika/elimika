@@ -17,4 +17,6 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
     void deleteByUuid(UUID uuid);
 
     boolean existsByUuid(UUID uuid);
+
+    boolean existsByUserUuid(UUID userUuid);
 }

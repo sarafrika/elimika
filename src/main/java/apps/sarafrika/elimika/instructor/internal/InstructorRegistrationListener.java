@@ -6,8 +6,10 @@ import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
-@Service
+@Service @Transactional(propagation = Propagation.REQUIRED)
 @RequiredArgsConstructor
 public class InstructorRegistrationListener {
     private final InstructorRepository instructorRepository;
@@ -16,6 +18,9 @@ public class InstructorRegistrationListener {
     void onInstructorRegistration(RegisterInstructor event) {
         Instructor instructor = new Instructor();
         instructor.setUserUuid(event.userUuid());
-        instructorRepository.save(instructor);
+        instructor.setFullName(event.fullName());
+        if(!instructorRepository.existsByUserUuid(event.userUuid())) {
+            instructorRepository.save(instructor);
+        }
     }
 }

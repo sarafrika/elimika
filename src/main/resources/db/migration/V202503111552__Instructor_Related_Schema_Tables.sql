@@ -6,6 +6,6 @@ ALTER TABLE instructor
     RENAME TO instructors;
 
 ALTER TABLE instructors
-    ADD COLUMN user_uuid UUID NOT NULL;
+    ADD COLUMN user_uuid UUID NOT NULL UNIQUE;
 
 CREATE INDEX idx_instructor_user_uuid ON instructors (user_uuid);
