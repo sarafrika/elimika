@@ -4,20 +4,24 @@ import apps.sarafrika.elimika.common.event.student.RegisterStudent;
 import apps.sarafrika.elimika.student.model.Student;
 import apps.sarafrika.elimika.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
 
-@Service
+@Service @Slf4j
 @RequiredArgsConstructor
 public class StudentRegistrationListener {
     private final StudentRepository studentRepository;
 
     @ApplicationModuleListener
     void onStudentRegistration(RegisterStudent event) {
+        log.info("Processing student registration event: name={}, userUuid={}", event.fullName(), event.userUuid());
         Student student = new Student();
         student.setFullName(event.fullName());
         student.setUserUuid(event.userUuid());
 
         studentRepository.save(student);
+
+        log.info("Successfully processed student registration event: name={}, userUuid={}", event.fullName(), event.userUuid());
     }
 }

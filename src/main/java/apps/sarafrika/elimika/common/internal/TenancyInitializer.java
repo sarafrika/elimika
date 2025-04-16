@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.PermissionRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.OrganizationDomainRepresentation;
 import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
@@ -28,7 +29,7 @@ import java.util.*;
 import static apps.sarafrika.elimika.common.util.RoleNameConverter.createRoleName;
 
 @Component
-@RequiredArgsConstructor
+@RequiredArgsConstructor @Slf4j
 public class TenancyInitializer implements CommandLineRunner {
 
     @Value("${app.keycloak.realm}")
@@ -71,19 +72,11 @@ public class TenancyInitializer implements CommandLineRunner {
 
         Organisation savedOrg = organisationRepository.save(organisation);
 
-        organisationRepository.flush();
-
-        List<User> users = Optional.ofNullable(orgRep.getMembers())
+        Optional.ofNullable(keycloakOrganisationService.getOrganizationMembers(orgRep.getId(), realm))
                 .orElse(Collections.emptyList())
                 .stream()
                 .filter(member -> !userRepository.existsByEmail(member.getEmail()))
-                .map(member -> new User(member.getFirstName(), null, member.getLastName(),
-                        member.getEmail(), member.getUsername(), null, null, null,
-                        member.isEnabled(), member.getId(), savedOrg, null, null
-                ))
-                .toList();
-
-        userRepository.saveAll(users);
+                .forEach(member -> saveUser(member, savedOrg));
     }
 
     private String getFirstDomainName(OrganizationRepresentation orgRep) {
@@ -97,19 +90,20 @@ public class TenancyInitializer implements CommandLineRunner {
         List<UserRepresentation> userRepresentations = keycloakUserService.getAllUsers(realm);
         userRepresentations.stream()
                 .filter(userRep -> !userRepository.existsByEmail(userRep.getEmail()))
-                .forEach(this::saveUser);
+                .forEach(userRep -> saveUser(userRep, null));
     }
 
-    private void saveUser(UserRepresentation userRep) {
+    private void saveUser(UserRepresentation userRep, Organisation organisation) {
         Map<String, List<String>> userAttributes = userRep.getAttributes();
         List<String> attributes = userAttributes.get(userDomain);
 
         User user = userRepository.save( new User(userRep.getFirstName(), null, userRep.getLastName(),
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
-                userRep.isEnabled(), userRep.getId(), null, null, null
+                userRep.isEnabled(), userRep.getId(), organisation, null, null
         ));
 
        attributes.forEach(attribute -> {
+           log.info("Processing user attribute: {}", attribute);
             switch (UserDomain.valueOf(attribute)){
                 case instructor -> eventPublisher.publishEvent(new RegisterInstructor(userRep.getFirstName(), user.getUuid()));
 

@@ -25,7 +25,7 @@ app:
         - user_domain
 
 storage:
-  location: ${STORAGE_PATH:/app/data}
+  location: ${STORAGE_PATH:/tmp}
 
 logging:
   level:

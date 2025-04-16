@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.authentication.services;
 
+import org.keycloak.representations.idm.MemberRepresentation;
 import org.keycloak.representations.idm.OrganizationRepresentation;
 
 import java.util.List;
@@ -17,4 +18,6 @@ public interface KeycloakOrganisationService {
     Map<String, String> getOrganizationMetadata(String realm, String orgId);
 
     List<OrganizationRepresentation> getAllOrganizations(String realm);
+
+    List<MemberRepresentation> getOrganizationMembers(String orgId, String realm);
 }

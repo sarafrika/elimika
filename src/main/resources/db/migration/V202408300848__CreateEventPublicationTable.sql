@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS event_publication
     publication_date TIMESTAMP WITH TIME ZONE NOT NULL,
     completion_date  TIMESTAMP WITH TIME ZONE,
     created_date     TIMESTAMP                NOT NULL        DEFAULT CURRENT_TIMESTAMP,
-    created_by       VARCHAR(50)              NOT NULL,
+    created_by       VARCHAR(50)              NOT NULL        DEFAULT 'SYSTEM',
     updated_date     TIMESTAMP                NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     updated_by       VARCHAR(50),
     PRIMARY KEY (id)

@@ -24,8 +24,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://127.0.0.1:9090/realms/blast-wave
-          jwk-set-uri: http://localhost:9090/realms/blast-wave/protocol/openid-connect/certs
+          issuer-uri: https://signin.sarafrika.com/realms/elimika
+          jwk-set-uri: https://signin.sarafrika.com/realms/elimika/protocol/openid-connect/certs
 
 server:
   compression:
@@ -36,10 +36,10 @@ server:
 app:
   keycloak:
     admin:
-      clientId: elimika
-      clientSecret: 48N6y5Itbggfmf1q8DPXPqS7Dcn1useZ
-    realm: sarafrika
-    serverUrl: http://localhost:9090
+      clientId: ${KC_PROD_CLIENT_ID:elimika}
+      clientSecret: ${KC_PROD_CLIENT_SECRET:VzIw2uVpdLItRC0KNQF47vApi84sdmTz}
+    realm: ${KC_PROD_REALM:elimika}
+    serverUrl: ${SERVER_URL:https://signin.sarafrika.com}
 
 encryption:
   secret-key: "986114de17023120b40eb549e17b11eaf080f14404f62b5ab994a538879b0c6b"

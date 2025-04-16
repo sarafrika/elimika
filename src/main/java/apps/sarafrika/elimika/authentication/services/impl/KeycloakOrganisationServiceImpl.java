@@ -8,6 +8,7 @@ import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.representations.idm.MemberRepresentation;
 import org.keycloak.representations.idm.OrganizationDomainRepresentation;
 import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.springframework.context.ApplicationEventPublisher;
@@ -112,6 +113,16 @@ public class KeycloakOrganisationServiceImpl implements KeycloakOrganisationServ
             return keycloak.realm(realm).organizations().getAll();
         } catch (Exception e) {
             log.error("Failed to get all organizations: realm={}", realm, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<MemberRepresentation> getOrganizationMembers(String orgId, String realm) {
+        try {
+            return keycloak.realm(realm).organizations().get(orgId).members().list(0, 1000);
+        } catch (Exception e) {
+            log.error("Failed to get members of organization: orgId={}, realm={}", orgId, realm, e);
             throw new RuntimeException(e);
         }
     }
