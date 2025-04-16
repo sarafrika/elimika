@@ -7,6 +7,10 @@ on:
     types:
       - closed  # Only trigger when PR is merged into main
 
+  push:
+    branches:
+      - main
+
 jobs:
   build-and-push:
     if: github.event.pull_request.merged == true  # Run only when a PR is merged into main
