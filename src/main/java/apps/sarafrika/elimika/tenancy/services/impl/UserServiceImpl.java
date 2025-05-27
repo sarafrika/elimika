@@ -66,7 +66,6 @@ public class UserServiceImpl implements UserService {
         try {
             Organisation organisation = findOrganisationOrThrow(userDTO.organisationUuid());
             User user = createAndSaveUser(userDTO, organisation, profileImage);
-            publishUserCreationEvent(user, userDomain);
 
             log.info("Successfully created user with UUID: {}", user.getUuid());
             return UserFactory.toDTO(user);
