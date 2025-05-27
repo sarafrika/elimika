@@ -42,15 +42,15 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and tag Docker image with version
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/elimika:${{ env.APP_VERSION }} .
-          docker tag ${{ secrets.DOCKER_USERNAME }}/elimika:${{ env.APP_VERSION }} ${{ secrets.DOCKER_USERNAME }}/elimika:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }} .
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }} ${{ secrets.DOCKERHUB_USERNAME }}/elimika:latest
 
       - name: Push Docker image to Docker Hub
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/elimika:${{ env.APP_VERSION }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/elimika:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/elimika:latest
