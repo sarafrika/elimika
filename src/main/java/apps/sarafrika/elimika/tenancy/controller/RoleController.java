@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@RestController
+@RestController @CrossOrigin
 @RequestMapping("api/v1/roles")
 @RequiredArgsConstructor @Tag(name = "Roles API", description = "Roles related operations")
 public class RoleController {
