@@ -46,7 +46,6 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         try {
             Organisation organisation = OrganisationFactory.toEntity(organisationDTO);
-            organisation.setAuthRealm(realm);
             organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
 
             if(organisationRepository.existsBySlug(organisation.getSlug()) ||
