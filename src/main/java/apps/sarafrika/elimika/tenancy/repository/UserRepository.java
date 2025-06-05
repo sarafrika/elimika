@@ -23,6 +23,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     boolean existsByEmail(String email);
 
+    boolean existsByKeycloakId(String keycloakId);
+
     Page<User> findByOrganisationId(Long organisationId, Pageable pageable);
 
     List<User> findAllByUuidIn(List<UUID> uuids);

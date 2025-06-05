@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -34,7 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -60,19 +60,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO createUser(UserDTO userDTO, UserDomain userDomain, MultipartFile profileImage) {
-        log.debug("Creating new user with email: {}", userDTO.email());
+    public void createUser(UserRepresentation userRep) {
+        log.debug("Creating new user with email: {}", userRep.getEmail());
 
-        try {
-            Organisation organisation = findOrganisationOrThrow(userDTO.organisationUuid());
-            User user = createAndSaveUser(userDTO, organisation, profileImage);
-
-            log.info("Successfully created user with UUID: {}", user.getUuid());
-            return UserFactory.toDTO(user);
-        } catch (Exception e) {
-            log.error("Failed to create user with email: {}", userDTO.email(), e);
-            throw new RuntimeException("Failed to create user: " + e.getMessage(), e);
-        }
+        userRepository.save(new User(userRep.getFirstName(), null, userRep.getLastName(),
+                userRep.getEmail(), userRep.getUsername(), null, null, null,
+                userRep.isEnabled(), userRep.getId(), null, null, null, null
+        ));
     }
 
     @Override
@@ -101,14 +95,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO updateUser(UUID uuid, UserDTO userDTO) {
+    public UserDTO updateUser(UUID uuid, UserDTO userDTO, MultipartFile profileImage) {
         log.debug("Updating user with UUID: {}", uuid);
 
         Organisation organisation = findOrganisationOrThrow(userDTO.organisationUuid());
         User user = findUserOrThrow(uuid);
 
         try {
-            updateUserFields(user, userDTO, organisation);
+            updateUserFields(user, userDTO, organisation, profileImage);
             user = userRepository.save(user);
             publishUserUpdateEvent(user);
 
@@ -206,32 +200,8 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RecordNotFoundException("User not found for UUID: " + uuid));
     }
 
-    private User createAndSaveUser(UserDTO userDTO, Organisation organisation, MultipartFile profileImage) {
-        User user = UserFactory.toEntity(userDTO);
-
+    private void updateUserFields(User user, UserDTO userDTO, Organisation organisation, MultipartFile profileImage) {
         user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
-
-        user.setOrganisation(organisation);
-
-        user.setRoles(new ArrayList<>());
-
-        user = userRepository.save(user);
-
-        if (userDTO.roles() != null && !userDTO.roles().isEmpty()) {
-            List<Role> persistedRoles = roleRepository.findAllByUuidIn(
-                    userDTO.roles().stream()
-                            .map(RoleDTO::uuid)
-                            .collect(Collectors.toList())
-            );
-
-            user.setRoles(persistedRoles);
-            user = userRepository.save(user);
-        }
-
-        return user;
-    }
-
-    private void updateUserFields(User user, UserDTO userDTO, Organisation organisation) {
         user.setFirstName(userDTO.firstName());
         user.setMiddleName(userDTO.middleName());
         user.setLastName(userDTO.lastName());

@@ -31,19 +31,6 @@ class UserController {
     private final UserService userService;
     private final StorageService storageService;
 
-    @Operation(summary = "Create a new user")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "User created successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping
-    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestPart(name = "user") UserDTO userDTO,
-                                                           @RequestPart(value = "profile_image", required = false)
-                                                           MultipartFile profileImage,
-                                                           @Parameter(name = "user_domain",description = "Domain of the user", required = true)
-                                                           @RequestParam("user_domain") UserDomain userDomain) {
-        UserDTO created = userService.createUser(userDTO, userDomain, profileImage);
-        return ResponseEntity.status(201).body(ApiResponse.success(created, "User created successfully"));
-    }
-
     @Operation(summary = "Get a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
@@ -71,8 +58,9 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}")
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
-            @PathVariable UUID uuid, @Valid @RequestBody UserDTO userDTO) {
-        UserDTO updated = userService.updateUser(uuid, userDTO);
+            @PathVariable UUID uuid, @Valid @RequestPart(name = "user")  UserDTO userDTO, @RequestPart(value = "profile_image", required = false)
+            MultipartFile profileImage) {
+        UserDTO updated = userService.updateUser(uuid, userDTO, profileImage);
         return ResponseEntity.ok(ApiResponse.success(updated, "User updated successfully"));
     }
 

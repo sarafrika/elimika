@@ -34,7 +34,8 @@ public class UserFactory {
                 user.getLastModifiedDate(),
                 user.getRoles().stream()
                         .map(RoleFactory::toDTO)
-                        .collect(Collectors.toSet())
+                        .collect(Collectors.toSet()),
+                user.getGender()
         );
     }
 
@@ -48,6 +49,7 @@ public class UserFactory {
         user.setPhoneNumber(dto.phoneNumber());
         user.setActive(dto.active());
         user.setRoles(new ArrayList<>());
+        user.setGender(dto.gender());
         return user;
     }
 }
