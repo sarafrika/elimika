@@ -20,7 +20,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.util.Map;
 import java.util.UUID;
 
-@RestController @CrossOrigin
+@RestController
 @RequestMapping(StudentController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Student Management", description = "Endpoints for managing students")

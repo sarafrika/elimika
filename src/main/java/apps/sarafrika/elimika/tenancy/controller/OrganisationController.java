@@ -18,7 +18,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.util.Map;
 import java.util.UUID;
 
-@RestController @CrossOrigin
+@RestController
 @RequestMapping("api/v1/organisations")
 @RequiredArgsConstructor @Tag(name = "Organisations API", description = "Organisations related operations")
 class OrganisationController {

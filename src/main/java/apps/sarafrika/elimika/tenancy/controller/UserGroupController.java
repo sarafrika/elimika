@@ -23,7 +23,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("api/v1/user-groups")
-@RequiredArgsConstructor @CrossOrigin
+@RequiredArgsConstructor
 @Tag(name = "User Group API", description = "Endpoints for managing user groups")
 public class UserGroupController {
 
