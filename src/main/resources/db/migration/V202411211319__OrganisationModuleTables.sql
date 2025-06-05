@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS organisation
     description  VARCHAR,
     active       BOOLEAN      NOT NULL        DEFAULT true,
     code         VARCHAR      NOT NULL UNIQUE,
-    auth_realm   VARCHAR(100) NOT NULL,
     domain       VARCHAR(255),
     keycloak_id  varchar(36),
     slug         varchar(200),
@@ -24,7 +23,7 @@ CREATE INDEX idx_organisation_name ON organisation (name);
 CREATE INDEX idx_organisation_active ON organisation (active);
 
 -- Creation of Gender Type
-CREATE TYPE gender AS ENUM ('MALE', 'FEMALE');
+CREATE TYPE gender_enum AS ENUM ('MALE', 'FEMALE', 'PREFER_NOT_TO_SAY');
 
 -- Users Table - Modified organisation_id to be nullable
 CREATE TABLE IF NOT EXISTS users

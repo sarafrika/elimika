@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.tenancy.enums.Gender;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -60,4 +61,7 @@ public class User extends BaseEntity {
 
     @ManyToMany(mappedBy = "users")
     private List<UserGroup> userGroups = new ArrayList<>();
+
+    @Column(name="gender")
+    private Gender gender;
 }

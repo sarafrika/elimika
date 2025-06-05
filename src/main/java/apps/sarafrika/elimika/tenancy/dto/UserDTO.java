@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.tenancy.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -213,7 +214,9 @@ public record UserDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty("roles")
-        Set<RoleDTO> roles
+        Set<RoleDTO> roles,
+        @JsonProperty("gender")
+        Gender gender
 
 ) {
         /**

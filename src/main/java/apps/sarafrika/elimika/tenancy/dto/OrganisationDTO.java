@@ -28,10 +28,6 @@ public record OrganisationDTO (
         @JsonProperty(value = "slug", access = JsonProperty.Access.READ_ONLY)
         String slug,
 
-        @NotBlank(message = "Auth realm is required")
-        @JsonProperty("auth_realm")
-        String authRealm,
-
         @JsonProperty("domain")
         @NotBlank(message = "Domain is required")
         String domain,

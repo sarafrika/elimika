@@ -12,7 +12,6 @@ public class OrganisationFactory {
                 organisation.isActive(),
                 organisation.getCode(),
                 organisation.getSlug(),
-                organisation.getAuthRealm(),
                 organisation.getDomain(),
                 organisation.getCreatedDate(),
                 organisation.getLastModifiedDate()
@@ -26,7 +25,6 @@ public class OrganisationFactory {
         organisation.setDescription(organisationDTO.description());
         organisation.setActive(organisationDTO.active());
         organisation.setCode(organisationDTO.code());
-        organisation.setAuthRealm(organisationDTO.authRealm());
         organisation.setDomain(organisationDTO.domain());
         return organisation;
     }

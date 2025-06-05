@@ -1,7 +1,13 @@
 package apps.sarafrika.elimika.common.security;
 
+import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
+import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.repository.UserRepository;
+import apps.sarafrika.elimika.tenancy.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
@@ -24,16 +30,45 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Slf4j
 public class KeyCloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+
     @Value("${app.keycloak.admin.clientId}")
     private String CLIENT_KEY;
 
+    private final UserRepository userRepository;
+    private final KeycloakUserService keycloakUserService;
+    private final UserService userService;
 
     private static final String RESOURCE_ACCESS = "resource_access";
-
     private static final String ROLES_KEY = "roles";
+    private static final String SUB_CLAIM = "sub"; // Keycloak user ID
 
     @Override
     public AbstractAuthenticationToken convert(@NonNull Jwt source) {
+        // Extract Keycloak user ID from JWT
+        String keycloakUserId = source.getClaimAsString(SUB_CLAIM);
+
+        if (keycloakUserId != null) {
+            try {
+                // Ensure user exists in database
+                boolean userExists = userRepository.existsByKeycloakId(keycloakUserId);
+
+                if(userExists){
+                    UserRepresentation userRepresentation = keycloakUserService.getUserById(keycloakUserId, "elimika" )
+                            .orElseThrow(() -> new RecordNotFoundException("User not found"));
+
+                    userService.createUser(userRepresentation);
+
+                }
+
+                log.info("User verified/created in database");
+            } catch (Exception e) {
+                log.error("Failed to ensure user exists for Keycloak ID: {}", keycloakUserId, e);
+            }
+        } else {
+            log.warn("No 'sub' claim found in JWT token");
+        }
+
+        // Extract authorities as before
         Collection<GrantedAuthority> authorities = Stream.concat(
                         new JwtGrantedAuthoritiesConverter().convert(source).stream(),
                         extractResourceRoles(source).stream())
