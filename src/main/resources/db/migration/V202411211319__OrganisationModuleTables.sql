@@ -23,7 +23,7 @@ CREATE INDEX idx_organisation_name ON organisation (name);
 CREATE INDEX idx_organisation_active ON organisation (active);
 
 -- Creation of Gender Type
-CREATE TYPE gender_enum AS ENUM ('MALE', 'FEMALE', 'PREFER_NOT_TO_SAY');
+CREATE TYPE gender AS ENUM ('MALE', 'FEMALE', 'PREFER_NOT_TO_SAY');
 
 -- Users Table - Modified organisation_id to be nullable
 CREATE TABLE IF NOT EXISTS users
