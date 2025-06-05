@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.factory;
 
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.enums.Gender;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -35,7 +36,7 @@ public class UserFactory {
                 user.getRoles().stream()
                         .map(RoleFactory::toDTO)
                         .collect(Collectors.toSet()),
-                user.getGender()
+                Gender.fromString(user.getGender())
         );
     }
 
@@ -49,7 +50,7 @@ public class UserFactory {
         user.setPhoneNumber(dto.phoneNumber());
         user.setActive(dto.active());
         user.setRoles(new ArrayList<>());
-        user.setGender(dto.gender());
+        user.setGender(dto.gender().toString().toUpperCase());
         return user;
     }
 }
