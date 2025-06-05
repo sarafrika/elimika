@@ -22,7 +22,7 @@ import java.util.UUID;
 /**
  * REST Controller for managing instructor operations.
  */
-@RestController @CrossOrigin
+@RestController
 @RequestMapping(InstructorController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Instructor Management", description = "Endpoints for managing instructors")
