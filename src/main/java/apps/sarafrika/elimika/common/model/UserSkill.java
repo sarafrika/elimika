@@ -4,23 +4,30 @@ import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.io.Serializable;
 import java.util.UUID;
 
-@Entity @Table(name = "user_skills")
-@AllArgsConstructor @NoArgsConstructor @Getter @Setter
+@Entity
+@Table(name = "user_skills")
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 public class UserSkill {
     @EmbeddedId
     private UserSkillId id;
 
+    @Embeddable
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Getter
-    @Setter @Embeddable
-    abstract static class UserSkillId implements Serializable {
+    @Setter
+    @EqualsAndHashCode  // This generates equals() and hashCode() for you
+    public static class UserSkillId implements Serializable {
+        private static final long serialVersionUID = 1L;
+
         private UUID userUuid;
         private UUID skillUuid;
     }
