@@ -38,9 +38,6 @@ public class Organisation extends BaseEntity {
     @Column(name = "slug")
     private String slug;
 
-    @Column(name = "auth_realm")
-    private String authRealm;
-
     @Column(name = "keycloak_id")
     private String keycloakId;
 
