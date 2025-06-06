@@ -56,7 +56,7 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS).permitAll() // Allow preflight requests
                                 .anyRequest()
-                                .authenticated() // Changed from permitAll to authenticated for better security
+                                .authenticated()
                 )
                 .oauth2ResourceServer(auth ->
                         auth.jwt(token -> token
@@ -64,7 +64,6 @@ public class SecurityConfiguration {
                                 .jwtAuthenticationConverter(keyCloakJwtAuthenticationConverter)
                         )
                 )
-                // Add the user sync filter after JWT authentication
                 .addFilterAfter(userSyncFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
@@ -82,7 +81,7 @@ public class SecurityConfiguration {
         config.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
                 "https://localhost:*",
-                "https://*.yourdomain.com" // Replace with your actual domain
+                "https://*.sarafrika.com"
         ));
 
         config.setAllowedHeaders(Arrays.asList(
