@@ -53,6 +53,8 @@ public class UserSyncFilter implements Filter {
         try {
             boolean userExists = userRepository.existsByKeycloakId(keycloakUserId);
 
+            log.info("User exixts vallue {}", userExists);
+
             if (!userExists) {
                 log.info("User not found in database, creating user for Keycloak ID: {}", keycloakUserId);
 
