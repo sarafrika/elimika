@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.common.security;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -14,7 +14,6 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
 
@@ -22,19 +21,20 @@ import java.util.Arrays;
 @EnableWebSecurity
 @RequiredArgsConstructor
 @EnableMethodSecurity(securedEnabled = true)
+@Slf4j
 public class SecurityConfiguration {
 
     private final KeyCloakJwtAuthenticationConverter keyCloakJwtAuthenticationConverter;
     private final JwtConfig jwtConfig;
     private final UserSyncFilter userSyncFilter;
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
-    private String jwkSetUri;
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        log.info("Configuring security filter chain");
+
         http
-                .cors(AbstractHttpConfigurer::disable)
+                // Enable CORS (don't disable it since we have a CORS filter)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req ->
                         req.requestMatchers(
@@ -49,7 +49,8 @@ public class SecurityConfiguration {
                                         "/webjars/**",
                                         "/swagger-ui.html",
                                         "/actuator/**",
-                                        "/health/**"
+                                        "/health/**",
+                                        "/error"
                                 )
                                 .permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/organisations").permitAll()
@@ -64,13 +65,15 @@ public class SecurityConfiguration {
                                 .jwtAuthenticationConverter(keyCloakJwtAuthenticationConverter)
                         )
                 )
+                // Add UserSyncFilter after JWT processing but before other filters
                 .addFilterAfter(userSyncFilter, BearerTokenAuthenticationFilter.class);
 
+        log.info("Security filter chain configured successfully");
         return http.build();
     }
 
     @Bean
-    public CorsFilter corsFilter() {
+    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         final CorsConfiguration config = new CorsConfiguration();
 
@@ -116,6 +119,6 @@ public class SecurityConfiguration {
         config.setMaxAge(3600L); // Cache preflight response for 1 hour
 
         source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+        return source;
     }
 }
