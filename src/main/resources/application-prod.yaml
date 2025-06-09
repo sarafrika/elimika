@@ -46,3 +46,10 @@ app:
 encryption:
   secret-key: "986114de17023120b40eb549e17b11eaf080f14404f62b5ab994a538879b0c6b"
   salt: "364d2cdca2a27d02d4de972e752bdb8f"
+
+logging:
+  level:
+    apps.sarafrika.elimika.common.security: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.filter: DEBUG
+    root: INFO
