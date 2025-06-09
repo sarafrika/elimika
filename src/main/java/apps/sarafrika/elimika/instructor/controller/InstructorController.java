@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -31,6 +32,29 @@ public class InstructorController {
     public static final String API_ROOT_PATH = "/api/v1/instructors";
 
     private final InstructorService instructorService;
+
+    /**
+     * Creates a new instructor.
+     *
+     * @param instructorDTO The instructor data to be created.
+     * @return A success response with no content.
+     */
+    @Operation(
+            summary = "Create a new instructor",
+            description = "Saves a new instructor record in the system.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Instructor created successfully",
+                            content = @Content(schema = @Schema(implementation = InstructorDTO.class))),
+                    @ApiResponse(responseCode = "400", description = "Invalid request data")
+            }
+    )
+    @PostMapping
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDTO>> createInstructor(@Valid @RequestBody InstructorDTO instructorDTO) {
+        InstructorDTO createdInstructor = instructorService.createInstructor(instructorDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(createdInstructor, "Instructor created successfully"));
+    }
 
     /**
      * Retrieves an instructor by UUID.
