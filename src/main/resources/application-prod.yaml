@@ -11,7 +11,6 @@ spring:
       hibernate:
         format_sql: true
   flyway:
-    clean-on-validation-error: true
     clean-disabled: false
     validate-on-migrate: true
 
