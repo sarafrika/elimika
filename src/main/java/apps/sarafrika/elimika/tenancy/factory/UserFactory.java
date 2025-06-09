@@ -36,7 +36,8 @@ public class UserFactory {
                 user.getRoles().stream()
                         .map(RoleFactory::toDTO)
                         .collect(Collectors.toSet()),
-                Gender.fromString(user.getGender())
+                Gender.fromString(user.getGender()),
+                null
         );
     }
 

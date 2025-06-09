@@ -34,8 +34,8 @@ import io.swagger.v3.oas.annotations.servers.Server;
                         url = "http://localhost:8080/api/v1"
                 ),
                 @Server(
-                        description = "TEST ENV",
-                        url = ""
+                        description = "Development ENV",
+                        url = "https://api.elimika.sarafrika.com"
                 )
         },
         security = {
@@ -52,7 +52,7 @@ import io.swagger.v3.oas.annotations.servers.Server;
         flows = @OAuthFlows(
                 clientCredentials =
                 @OAuthFlow(
-                        authorizationUrl = "http://localhost:9090/realms/blast-wve/protocol/openid-connect/auth"
+                        authorizationUrl = "http://localhost:8080/realms/elimika/protocol/openid-connect/auth"
                 )
         ),
         bearerFormat = "JWT",

@@ -103,11 +103,12 @@ public class UserServiceImpl implements UserService {
 
         try {
             updateUserFields(user, userDTO, organisation, profileImage);
-            user = userRepository.save(user);
-            publishUserUpdateEvent(user);
+            User updatedUser = userRepository.save(user);
+            userDTO.userDomain().forEach(domain -> publishUserDomainUpdateEvent(updatedUser, domain));
+            publishUserUpdateEvent(updatedUser);
 
             log.info("Successfully updated user with UUID: {}", uuid);
-            return UserFactory.toDTO(user);
+            return UserFactory.toDTO(updatedUser);
         } catch (Exception e) {
             log.error("Failed to update user with UUID: {}", uuid, e);
             throw new RuntimeException("Failed to update user: " + e.getMessage(), e);
@@ -209,6 +210,7 @@ public class UserServiceImpl implements UserService {
         user.setPhoneNumber(userDTO.phoneNumber());
         user.setActive(userDTO.active());
         user.setOrganisation(organisation);
+        user.setGender(userDTO.gender().toString().toUpperCase());
 
         if (userDTO.roles() != null) {
             List<Role> persistedRoles = roleRepository.findAllByUuidIn(
@@ -227,7 +229,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Transactional
-    public void publishUserCreationEvent(User user, UserDomain userDomain) {
+    public void publishUserDomainUpdateEvent(User user, UserDomain userDomain) {
 
         log.debug("Publishing user creation event for user: {} with uuid {}", user.getEmail(), user.getUuid());
         applicationEventPublisher.publishEvent(

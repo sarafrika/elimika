@@ -1,7 +1,6 @@
 package apps.sarafrika.elimika.common.security;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -27,9 +26,6 @@ public class SecurityConfiguration {
     private final KeyCloakJwtAuthenticationConverter keyCloakJwtAuthenticationConverter;
     private final JwtConfig jwtConfig;
     private final UserSyncFilter userSyncFilter;
-
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
-    private String jwkSetUri;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
