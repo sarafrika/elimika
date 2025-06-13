@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.tenancy.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -59,5 +60,6 @@ public class User extends BaseEntity {
     private List<UserGroup> userGroups = new ArrayList<>();
 
     @Column(name="gender")
-    private String gender;
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
 }
