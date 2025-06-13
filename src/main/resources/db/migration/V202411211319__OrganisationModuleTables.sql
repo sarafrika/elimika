@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS users
     last_name       VARCHAR(50) NOT NULL,
     email           VARCHAR(50) NOT NULL UNIQUE,
     phone_number    VARCHAR(50) UNIQUE,
-    gender          gender,
+    gender          gender NULL,
     dob             DATE,
     active          BOOLEAN     NOT NULL        DEFAULT true,
     organisation_id BIGINT,
