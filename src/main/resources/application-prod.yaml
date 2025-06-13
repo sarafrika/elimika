@@ -10,6 +10,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        generate_statistics: true
   flyway:
     clean-disabled: false
     validate-on-migrate: true
@@ -52,3 +53,6 @@ logging:
     org.springframework.security: DEBUG
     org.springframework.web.filter: DEBUG
     root: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.type.descriptor.sql.BasicExtractor: TRACE

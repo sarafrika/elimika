@@ -59,7 +59,7 @@ public class User extends BaseEntity {
     @ManyToMany(mappedBy = "users")
     private List<UserGroup> userGroups = new ArrayList<>();
 
-    @Column(name="gender")
+    @Column(name="gender", columnDefinition = "gender")
     @Enumerated(EnumType.STRING)
     private Gender gender;
 }
