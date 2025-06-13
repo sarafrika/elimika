@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.tenancy.enums;
 
 public enum Gender {
-    MALE("Male"),
-    FEMALE("Female"),
-    PREFER_NOT_TO_SAY("Prefer not to say");
+    MALE("MALE"),
+    FEMALE("FEMALE"),
+    PREFER_NOT_TO_SAY("PREFER_NOT_TO_SAY");
 
     private final String displayName;
 
