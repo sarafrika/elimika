@@ -211,7 +211,7 @@ public class UserServiceImpl implements UserService {
         user.setPhoneNumber(userDTO.phoneNumber());
         user.setActive(userDTO.active());
         user.setOrganisation(organisation);
-        user.setGender(userDTO.gender().toString().toUpperCase());
+        user.setGender(userDTO.gender());
 
         if (userDTO.roles() != null) {
             List<Role> persistedRoles = roleRepository.findAllByUuidIn(
