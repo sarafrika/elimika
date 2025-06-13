@@ -14,7 +14,8 @@ public class UserDomainSelector {
     private final StudentRepository studentRepository;
     private final InstructorRepository instructorRepository;
 
+    // TODO: Revisit
     public List<UserDomain> selectUserDomains(UUID userUUid){
-
+        return null;
     }
 }
