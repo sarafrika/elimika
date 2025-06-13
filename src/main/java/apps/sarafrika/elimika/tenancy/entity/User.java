@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -60,6 +62,7 @@ public class User extends BaseEntity {
     private List<UserGroup> userGroups = new ArrayList<>();
 
     @Column(name="gender", columnDefinition = "gender")
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
     private Gender gender;
 }
