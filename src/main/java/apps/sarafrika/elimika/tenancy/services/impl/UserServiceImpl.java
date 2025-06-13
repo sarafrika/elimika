@@ -16,6 +16,7 @@ import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.Role;
 import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.RoleRepository;
@@ -64,7 +65,7 @@ public class UserServiceImpl implements UserService {
         log.debug("Creating new user with email: {}", userRep.getEmail());
         User user = new User(userRep.getFirstName(), null, userRep.getLastName(),
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
-                userRep.isEnabled(), userRep.getId(), null, null, null, null
+                userRep.isEnabled(), userRep.getId(), null, null, null, Gender.PREFER_NOT_TO_SAY
         );
         log.info("User {}", user);
         userRepository.save(user);
