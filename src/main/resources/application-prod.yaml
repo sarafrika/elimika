@@ -49,7 +49,7 @@ encryption:
 
 logging:
   level:
-    apps.sarafrika.elimika.common.security: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web.filter: DEBUG
-    root: INFO
+    apps.sarafrika.elimika.common.security: INFO
+    org.springframework.security: INFO
+    org.springframework.web.filter: INFO
+    root: DEBUG
