@@ -48,8 +48,8 @@ class CourseController {
     @PostMapping(consumes = MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     ResponseDTO<CourseResponseDTO> createCourse(
-            @RequestPart(name = "course") @Valid CreateCourseRequestDTO createCourseRequestDTO,
-            @RequestPart(name = "thumbnail") MultipartFile thumbnail) {
+            @RequestParam(name = "course") @Valid CreateCourseRequestDTO createCourseRequestDTO,
+            @RequestParam(name = "thumbnail") MultipartFile thumbnail) {
 
         return courseService.createCourse(createCourseRequestDTO, thumbnail);
     }

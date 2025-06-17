@@ -41,8 +41,8 @@ class LessonController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    ResponseDTO<LessonResponseDTO> createLesson(final @PathVariable Long courseId, @RequestPart("lesson") CreateLessonRequestDTO createLessonRequestDTO,
-                                                @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+    ResponseDTO<LessonResponseDTO> createLesson(final @PathVariable Long courseId, @RequestParam("lesson") CreateLessonRequestDTO createLessonRequestDTO,
+                                                @RequestParam(value = "files", required = false) List<MultipartFile> files) {
 
         return lessonService.createLesson(courseId, createLessonRequestDTO, files);
     }
