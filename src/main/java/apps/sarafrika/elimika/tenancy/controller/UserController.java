@@ -8,7 +8,6 @@ import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +25,7 @@ import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 
 @RestController
 @RequestMapping("api/v1/users")
-@RequiredArgsConstructor @Slf4j
+@RequiredArgsConstructor
 @Tag(name = "Users API", description = "Users related operations")
 class UserController {
     private final UserService userService;
@@ -59,11 +58,10 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping(value = "/{uuid}", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
-            @PathVariable UUID uuid, @RequestParam(name = "user")  String userDTO, @RequestParam(value = "profile_image", required = false)
+            @PathVariable UUID uuid, @RequestParam(name = "user")  UserDTO userDTO, @RequestParam(value = "profile_image", required = false)
             MultipartFile profileImage) {
-        log.info("Request {}", userDTO);
-//        UserDTO updated = userService.updateUser(uuid, userDTO, profileImage);
-        return ResponseEntity.ok(ApiResponse.success(null, "User updated successfully"));
+        UserDTO updated = userService.updateUser(uuid, userDTO, profileImage);
+        return ResponseEntity.ok(ApiResponse.success(updated, "User updated successfully"));
     }
 
     @Operation(summary = "Delete a user by UUID")
