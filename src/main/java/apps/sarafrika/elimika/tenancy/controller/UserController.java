@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -58,7 +59,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping(value = "/{uuid}", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
-            @PathVariable UUID uuid, @RequestParam(name = "user")  UserDTO userDTO, @RequestParam(value = "profile_image", required = false)
+            @PathVariable UUID uuid, @Valid @RequestPart(name = "user")  UserDTO userDTO, @RequestPart(value = "profile_image", required = false)
             MultipartFile profileImage) {
         UserDTO updated = userService.updateUser(uuid, userDTO, profileImage);
         return ResponseEntity.ok(ApiResponse.success(updated, "User updated successfully"));
