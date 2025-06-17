@@ -58,22 +58,22 @@ public record StudentDTO(
         UUID userUuid,
 
         @Schema(
-                description = "**[REQUIRED]** Full name of the primary guardian/parent. This is the main emergency contact for the student.",
+                description = "**[OPTIONAL]** Full name of the primary guardian/parent. This is the main emergency contact for the student.",
                 example = "John Doe",
                 minLength = 1,
                 maxLength = 100,
-                requiredMode = Schema.RequiredMode.REQUIRED
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @Size(max = 100, message = "First guardian name must not exceed 100 characters")
         @JsonProperty("first_guardian_name")
         String firstGuardianName,
 
         @Schema(
-                description = "**[REQUIRED]** Mobile phone number of the primary guardian. Used for emergency contacts and notifications. Should include country code.",
+                description = "**[OPTIONAL]** Mobile phone number of the primary guardian. Used for emergency contacts and notifications. Should include country code.",
                 example = "+254712345678",
                 minLength = 1,
                 maxLength = 20,
-                requiredMode = Schema.RequiredMode.REQUIRED
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @Size(max = 20, message = "First guardian mobile must not exceed 20 characters")
         @JsonProperty("first_guardian_mobile")
