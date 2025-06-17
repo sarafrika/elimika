@@ -64,7 +64,6 @@ public record StudentDTO(
                 maxLength = 100,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "First guardian name is required")
         @Size(max = 100, message = "First guardian name must not exceed 100 characters")
         @JsonProperty("first_guardian_name")
         String firstGuardianName,
@@ -76,7 +75,6 @@ public record StudentDTO(
                 maxLength = 20,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "First guardian mobile is required")
         @Size(max = 20, message = "First guardian mobile must not exceed 20 characters")
         @JsonProperty("first_guardian_mobile")
         String firstGuardianMobile,
