@@ -97,14 +97,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO updateUser(UUID uuid, UserDTO userDTO, MultipartFile profileImage) {
+    public UserDTO updateUser(UUID uuid, UserDTO userDTO) {
         log.debug("Updating user with UUID: {}", uuid);
 
-        Organisation organisation = findOrganisationOrThrow(userDTO.organisationUuid());
+        Organisation organisation = null;
+
+        if(userDTO.organisationUuid() != null){
+           organisation = findOrganisationOrThrow(userDTO.organisationUuid());
+        }
+
         User user = findUserOrThrow(uuid);
 
         try {
-            updateUserFields(user, userDTO, organisation, profileImage);
+            updateUserFields(user, userDTO, organisation);
             User updatedUser = userRepository.save(user);
             userDTO.userDomain().forEach(domain -> publishUserDomainUpdateEvent(updatedUser, domain));
             publishUserUpdateEvent(updatedUser);
@@ -114,6 +119,19 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             log.error("Failed to update user with UUID: {}", uuid, e);
             throw new RuntimeException("Failed to update user: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public UserDTO uploadProfileImage(UUID userUuid, MultipartFile profileImage) {
+        User user = findUserOrThrow(userUuid);
+
+        try{
+            user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
+            return UserFactory.toDTO(userRepository.save(user));
+        } catch (Exception ex){
+            log.error("Failed to upload User's Image ", ex);
+            throw new RuntimeException("Failed to upload user's profile image: " + ex.getMessage(), ex);
         }
     }
 
@@ -149,7 +167,11 @@ public class UserServiceImpl implements UserService {
             user.setKeycloakId(event.keycloakId());
             userRepository.save(user);
 
-            Organisation organisation = findOrganisationOrThrow(user.getOrganisation().getUuid());
+            Organisation organisation = null;
+
+            if(user.getOrganisation().getUuid() != null){
+                organisation = findOrganisationOrThrow(user.getOrganisation().getUuid());
+            }
 
             publishAddUserToOrganisationEvent(event.keycloakId(), organisation.getKeycloakId());
 
@@ -203,8 +225,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RecordNotFoundException("User not found for UUID: " + uuid));
     }
 
-    private void updateUserFields(User user, UserDTO userDTO, Organisation organisation, MultipartFile profileImage) {
-        user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
+    private void updateUserFields(User user, UserDTO userDTO, Organisation organisation) {
         user.setFirstName(userDTO.firstName());
         user.setMiddleName(userDTO.middleName());
         user.setLastName(userDTO.lastName());
