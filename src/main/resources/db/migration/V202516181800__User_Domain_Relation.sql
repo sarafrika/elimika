@@ -40,4 +40,5 @@ CREATE TABLE user_domain_mapping
 
 -- Create indexes for performance
 CREATE INDEX idx_user_domain_mapping_user_uuid ON user_domain_mapping (user_uuid);
-CREATE INDEX idx_user_domain_mapping_domain_uuid
+CREATE INDEX idx_user_domain_mapping_domain_uuid ON user_domain_mapping (domain_uuid);
+CREATE INDEX idx_user_domain_mapping_composite ON user_domain_mapping (user_uuid, domain_uuid);
