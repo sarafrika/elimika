@@ -57,12 +57,23 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PutMapping(value = "/{uuid}", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
+    @PutMapping(value = "/{uuid}", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
-            @PathVariable UUID uuid, @Valid @RequestParam(name = "user")  UserDTO userDTO, @RequestParam(value = "profile_image", required = false)
-            MultipartFile profileImage) {
-        UserDTO updated = userService.updateUser(uuid, userDTO, profileImage);
+            @PathVariable UUID uuid, @Valid UserDTO userDTO) {
+        UserDTO updated = userService.updateUser(uuid, userDTO);
         return ResponseEntity.ok(ApiResponse.success(updated, "User updated successfully"));
+    }
+
+    @Operation(summary = "Upload User's Profile Image")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile Image Uploaded successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
+    @PutMapping(value = "/{uuid}/profile-image", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<UserDTO>> updateUser(
+            @PathVariable UUID uuid, @RequestParam(value = "profile_image", required = true)
+            MultipartFile profileImage) {
+        UserDTO updated = userService.uploadProfileImage(uuid, profileImage);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Profile Image successfully"));
     }
 
     @Operation(summary = "Delete a user by UUID")
