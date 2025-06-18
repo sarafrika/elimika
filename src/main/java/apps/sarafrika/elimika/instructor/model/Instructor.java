@@ -37,6 +37,9 @@ public class Instructor extends BaseEntity {
     @Column(name = "professional_headline")
     private String professionalHeadline;
 
+    @Column(name="admin_verified")
+    private boolean adminVerified;
+
     @ElementCollection
     @CollectionTable(
             name = "course_instructor",

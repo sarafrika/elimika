@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
-import apps.sarafrika.elimika.common.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -240,7 +239,7 @@ public record UserDTO(
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @JsonProperty("user_domain")
-        List<UserDomain> userDomain
+        List<String> userDomain
 
 ) {
         /**

@@ -1,11 +1,13 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.enums.UserDomain;
 import apps.sarafrika.elimika.common.event.admin.RegisterAdmin;
 import apps.sarafrika.elimika.common.event.instructor.RegisterInstructor;
 import apps.sarafrika.elimika.common.event.role.AssignRoleToUserEvent;
 import apps.sarafrika.elimika.common.event.student.RegisterStudent;
-import apps.sarafrika.elimika.common.event.user.*;
+import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
+import apps.sarafrika.elimika.common.event.user.SuccessfulUserCreation;
+import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
+import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
 import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
@@ -16,11 +18,10 @@ import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.Role;
 import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
-import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
-import apps.sarafrika.elimika.tenancy.repository.RoleRepository;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
+import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -51,6 +53,8 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final OrganisationRepository organisationRepository;
+    private final UserDomainRepository userDomainRepository;
+    private final UserDomainMappingRepository userDomainMappingRepository;
 
     private final StorageService storageService;
 
@@ -74,9 +78,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserDTO getUserByUuid(UUID uuid) {
-        log.debug("Fetching user by UUID: {}", uuid);
+        List<String> userDomains =  getUserDomains(uuid);
         return userRepository.findByUuid(uuid)
-                .map(UserFactory::toDTO)
+                .map(u -> UserFactory.toDTO(u, userDomains))
                 .orElseThrow(() -> {
                     log.warn("User not found for UUID: {}", uuid);
                     return new RecordNotFoundException("User not found for UUID: " + uuid);
@@ -86,12 +90,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> getUsersByOrganisation(UUID organisationId, Pageable pageable) {
-        log.debug("Fetching users for organisation ID: {}", organisationId);
-
         Organisation organisation = findOrganisationOrThrow(organisationId);
 
+        List<String> userDomains =  getUserDomains(organisationId);
+
         return userRepository.findByOrganisationId(organisation.getId(), pageable)
-                .map(UserFactory::toDTO);
+                .map(u -> UserFactory.toDTO(u, userDomains));
     }
 
 
@@ -102,8 +106,8 @@ public class UserServiceImpl implements UserService {
 
         Organisation organisation = null;
 
-        if(userDTO.organisationUuid() != null){
-           organisation = findOrganisationOrThrow(userDTO.organisationUuid());
+        if (userDTO.organisationUuid() != null) {
+            organisation = findOrganisationOrThrow(userDTO.organisationUuid());
         }
 
         User user = findUserOrThrow(uuid);
@@ -111,11 +115,11 @@ public class UserServiceImpl implements UserService {
         try {
             updateUserFields(user, userDTO, organisation);
             User updatedUser = userRepository.save(user);
+
             userDTO.userDomain().forEach(domain -> publishUserDomainUpdateEvent(updatedUser, domain));
             publishUserUpdateEvent(updatedUser);
 
-            log.info("Successfully updated user with UUID: {}", uuid);
-            return UserFactory.toDTO(updatedUser);
+            return UserFactory.toDTO(updatedUser, getUserDomains(uuid));
         } catch (Exception e) {
             log.error("Failed to update user with UUID: {}", uuid, e);
             throw new RuntimeException("Failed to update user: " + e.getMessage(), e);
@@ -126,10 +130,13 @@ public class UserServiceImpl implements UserService {
     public UserDTO uploadProfileImage(UUID userUuid, MultipartFile profileImage) {
         User user = findUserOrThrow(userUuid);
 
-        try{
+        try {
             user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
-            return UserFactory.toDTO(userRepository.save(user));
-        } catch (Exception ex){
+
+            List<String> userDomains =  getUserDomains(userUuid);
+
+            return UserFactory.toDTO(userRepository.save(user), userDomains);
+        } catch (Exception ex) {
             log.error("Failed to upload User's Image ", ex);
             throw new RuntimeException("Failed to upload user's profile image: " + ex.getMessage(), ex);
         }
@@ -155,8 +162,24 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable) {
         Specification<User> spec = specificationBuilder.buildSpecification(User.class, searchParams);
-        Page<User> organisations = userRepository.findAll(spec, pageable);
-        return organisations.map(UserFactory::toDTO);
+        Page<User> users = userRepository.findAll(spec, pageable);
+        return users.map(u -> {
+            List<String> userDomains = getUserDomains(u.getUuid());
+            return UserFactory.toDTO(u, userDomains);
+        });
+    }
+
+    @Override
+    public List<String> getUserDomains(UUID userUuid) {
+        List<UserDomainMapping> userDomainMappings = userDomainMappingRepository.findByUserUuid(userUuid);
+        List<String> userDomains = new ArrayList<>();
+        for (UserDomainMapping userDomainMapping : userDomainMappings) {
+            apps.sarafrika.elimika.tenancy.entity.UserDomain userDomain = userDomainRepository
+                    .findByUuid(userDomainMapping.getUserDomainUuid())
+                    .orElseThrow(() -> new RecordNotFoundException("User domain not found for UUID: " + userDomainMapping.getUserDomainUuid()));
+            userDomains.add(userDomain.getDomainName());
+        }
+        return userDomains;
     }
 
     @EventListener
@@ -169,7 +192,7 @@ public class UserServiceImpl implements UserService {
 
             Organisation organisation = null;
 
-            if(user.getOrganisation().getUuid() != null){
+            if (user.getOrganisation().getUuid() != null) {
                 organisation = findOrganisationOrThrow(user.getOrganisation().getUuid());
             }
 
@@ -245,32 +268,36 @@ public class UserServiceImpl implements UserService {
 
             persistedRoles.stream().flatMap(role -> role.getPermissions().stream()).forEach(
                     permission -> {
-                applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()),
-                        RoleNameConverter.createRoleName(permission), realm));
-            });
+                        applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()),
+                                RoleNameConverter.createRoleName(permission), realm));
+                    });
         }
     }
 
     @Transactional
-    public void publishUserDomainUpdateEvent(User user, UserDomain userDomain) {
+    public void publishUserDomainUpdateEvent(User user, String userDomain) {
 
-        log.debug("Publishing user creation event for user: {} with uuid {}", user.getEmail(), user.getUuid());
-        applicationEventPublisher.publishEvent(
-                new UserCreationEvent(user.getEmail(), user.getFirstName(), user.getLastName(), user.getEmail(),
-                        user.isActive(), userDomain, realm, user.getUuid()
-                )
-        );
+        UUID domainUuid = userDomainRepository.findByDomainName(userDomain)
+                .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name"))
+                .getUuid();
+
+        UserDomainMapping userDomainMapping = new UserDomainMapping(null, user.getUuid(), domainUuid, null, null);
+
+        userDomainMappingRepository.save(userDomainMapping);
 
         String fullName = new StringBuilder().append(user.getFirstName()).append(" ")
                 .append(user.getMiddleName() != null ? user.getMiddleName() + " " : ""
                 ).append(user.getLastName()).toString().toUpperCase();
 
         switch (userDomain) {
-            case instructor -> {
+            case "instructor" -> {
                 applicationEventPublisher.publishEvent(new RegisterInstructor(fullName, user.getUuid()));
             }
-            case admin -> {
+            case "admin" -> {
                 applicationEventPublisher.publishEvent(new RegisterAdmin(fullName, user.getUuid()));
+            }
+            case "organisation_user" -> {
+                //
             }
             default -> {
                 applicationEventPublisher.publishEvent(new RegisterStudent(fullName, user.getUuid()));
