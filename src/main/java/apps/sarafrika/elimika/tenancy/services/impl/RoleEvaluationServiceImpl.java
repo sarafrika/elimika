@@ -6,7 +6,6 @@ import apps.sarafrika.elimika.tenancy.entity.Role;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.factory.RoleFactory;
 import apps.sarafrika.elimika.tenancy.repository.RoleRepository;
-import apps.sarafrika.elimika.tenancy.repository.UserGroupRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.RoleEvaluationService;
 import lombok.RequiredArgsConstructor;
