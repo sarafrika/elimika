@@ -49,7 +49,4 @@ public class Organisation extends BaseEntity {
 
     @OneToMany(mappedBy = "organisation")
     private List<User> users = new ArrayList<>();
-
-    @OneToMany(mappedBy = "organisation")
-    private List<UserGroup> userGroups = new ArrayList<>();
 }

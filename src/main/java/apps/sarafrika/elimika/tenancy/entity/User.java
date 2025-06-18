@@ -58,9 +58,6 @@ public class User extends BaseEntity {
     )
     private List<Role> roles = new ArrayList<>();
 
-    @ManyToMany(mappedBy = "users")
-    private List<UserGroup> userGroups = new ArrayList<>();
-
     @Column(name="gender", columnDefinition = "gender")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
