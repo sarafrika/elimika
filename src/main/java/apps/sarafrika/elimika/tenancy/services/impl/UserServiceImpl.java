@@ -281,9 +281,10 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name"))
                 .getUuid();
 
-        UserDomainMapping userDomainMapping = new UserDomainMapping(null, user.getUuid(), domainUuid, null, null);
-
-        userDomainMappingRepository.save(userDomainMapping);
+        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domainUuid)) {
+            UserDomainMapping userDomainMapping = new UserDomainMapping(null, user.getUuid(), domainUuid, null, null);
+            userDomainMappingRepository.save(userDomainMapping);
+        }
 
         String fullName = new StringBuilder().append(user.getFirstName()).append(" ")
                 .append(user.getMiddleName() != null ? user.getMiddleName() + " " : ""

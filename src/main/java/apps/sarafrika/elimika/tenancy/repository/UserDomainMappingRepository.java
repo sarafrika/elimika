@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface UserDomainMappingRepository extends JpaRepository<UserDomainMapping, Long> {
     List<UserDomainMapping> findByUserUuid(UUID useruuid);
+
+    boolean existsByUserUuidAndUserDomainUuid(UUID useruuid, UUID domainuuid);
 }
