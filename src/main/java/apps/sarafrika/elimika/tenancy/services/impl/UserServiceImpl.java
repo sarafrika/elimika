@@ -69,7 +69,7 @@ public class UserServiceImpl implements UserService {
         log.debug("Creating new user with email: {}", userRep.getEmail());
         User user = new User(userRep.getFirstName(), null, userRep.getLastName(),
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
-                userRep.isEnabled(), userRep.getId(), null, null, null, Gender.PREFER_NOT_TO_SAY
+                userRep.isEnabled(), userRep.getId(), null, null, Gender.PREFER_NOT_TO_SAY
         );
         log.info("User {}", user);
         userRepository.save(user);

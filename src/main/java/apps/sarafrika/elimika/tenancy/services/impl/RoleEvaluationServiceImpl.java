@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 @Service @RequiredArgsConstructor
 public class RoleEvaluationServiceImpl implements RoleEvaluationService {
     private final UserRepository userRepository;
-    private final UserGroupRepository userGroupRepository;
     private final RoleRepository roleRepository;
 
     @Override
@@ -32,13 +31,6 @@ public class RoleEvaluationServiceImpl implements RoleEvaluationService {
                 .orElseThrow(() -> new RecordNotFoundException("User not found for UUID: " + userUuid));
 
         Set<Role> directRoles = new HashSet<>(roleRepository.findByUsers_Id(user.getId()));
-
-        Set<Role> groupRoles = userGroupRepository.findByUsers_Id(user.getId()).stream()
-                .flatMap(group -> group.getRoles().stream())
-                .collect(Collectors.toSet());
-
-        groupRoles.removeAll(directRoles);
-        directRoles.addAll(groupRoles);
 
         return directRoles.stream().map(RoleFactory::toDTO).collect(Collectors.toList());
     }
