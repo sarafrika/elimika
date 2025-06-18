@@ -233,7 +233,7 @@ public record UserDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** List of domain roles that define the user's functional areas within the system. Determines available features and workflows. Can contain multiple values.",
-                example = "[\"Student\", \"Instructor\"]",
+                example = "[\"student\", \"instructor\"]",
                 allowableValues = {"student", "instructor", "admin", "organisation_user"},
                 nullable = true,
                 requiredMode = Schema.RequiredMode.REQUIRED
