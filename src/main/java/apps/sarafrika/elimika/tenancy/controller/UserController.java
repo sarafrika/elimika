@@ -59,7 +59,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping(value = "/{uuid}", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
-            @PathVariable UUID uuid, @Valid UserDTO userDTO) {
+            @PathVariable UUID uuid, @Valid @RequestBody UserDTO userDTO) {
         UserDTO updated = userService.updateUser(uuid, userDTO);
         return ResponseEntity.ok(ApiResponse.success(updated, "User updated successfully"));
     }
