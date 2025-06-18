@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,4 +24,6 @@ public interface UserService {
     void deleteUser(UUID uuid);
 
     Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    List<String> getUserDomains(UUID userUuid);
 }

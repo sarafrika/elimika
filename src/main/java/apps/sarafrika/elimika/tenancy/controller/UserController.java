@@ -69,7 +69,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping(value = "/{uuid}/profile-image", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<UserDTO>> updateUser(
+    public ResponseEntity<ApiResponse<UserDTO>> uploadProfileImage(
             @PathVariable UUID uuid, @RequestParam(value = "profile_image", required = true)
             MultipartFile profileImage) {
         UserDTO updated = userService.uploadProfileImage(uuid, profileImage);

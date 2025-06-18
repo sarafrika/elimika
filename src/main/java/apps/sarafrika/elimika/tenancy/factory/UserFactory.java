@@ -6,13 +6,14 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFactory {
 
-    public static UserDTO toDTO(User user) {
+    public static UserDTO toDTO(User user, List<String> userDomains) {
         UUID organisationUuid = null;
         if (user.getOrganisation() != null) {
             organisationUuid = user.getOrganisation().getUuid();
@@ -36,7 +37,7 @@ public class UserFactory {
                         .map(RoleFactory::toDTO)
                         .collect(Collectors.toSet()),
                 user.getGender(),
-                null
+                userDomains
         );
     }
 

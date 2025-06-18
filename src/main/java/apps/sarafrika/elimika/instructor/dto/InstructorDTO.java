@@ -123,6 +123,15 @@ public record InstructorDTO(
         BigDecimal longitude,
 
         @Schema(
+                description = "**[READ-ONLY]** Indicates whether the instructor has been verified by an administrator. True if verified, false if not verified, null if verification status is unknown or pending.",
+                example = "true",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "admin_verified", access = JsonProperty.Access.READ_ONLY)
+        Boolean verified,
+
+        @Schema(
                 description = "**[OPTIONAL]** Professional website or portfolio URL. Used to showcase instructor's work, testimonials, and additional credentials.",
                 example = "https://drjanesmith.com",
                 format = "uri",
