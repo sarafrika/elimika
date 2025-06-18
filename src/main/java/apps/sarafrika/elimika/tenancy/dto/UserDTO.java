@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.dto;
 
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -16,7 +17,7 @@ import java.util.UUID;
 
 /**
  * User Data Transfer Object
- *
+ * <p>
  * Represents a user in the Sarafrika Elimika system with all necessary
  * personal information, authentication details, and organizational relationships.
  *
@@ -28,31 +29,31 @@ import java.util.UUID;
         name = "User",
         description = "Complete user profile information including personal details, authentication, and organizational data",
         example = """
-        {
-            "uuid": "d2e6f6c4-3d44-11ee-be56-0242ac120002",
-            "first_name": "Jane",
-            "middle_name": "A.",
-            "last_name": "Doe",
-            "email": "jane.doe@example.com",
-            "phone_number": "+254712345678",
-            "profile_image_url": "https://example.com/images/jane.jpg",
-            "dob": "1990-01-01",
-            "username": "janedoe",
-            "organisation_uuid": "b1c2d3e4-f5g6-h7i8-j9k0-lmnopqrstuv",
-            "active": true,
-            "created_date": "2024-04-01T12:00:00",
-            "modified_date": "2024-04-15T15:30:00",
-            "gender": "FEMALE",
-            "user_domain": ["Student", "Instructor"],
-            "roles": [
                 {
-                    "uuid": "role-uuid-1",
-                    "name": "ADMIN",
-                    "description": "Administrator role"
+                    "uuid": "d2e6f6c4-3d44-11ee-be56-0242ac120002",
+                    "first_name": "Jane",
+                    "middle_name": "A.",
+                    "last_name": "Doe",
+                    "email": "jane.doe@example.com",
+                    "phone_number": "+254712345678",
+                    "profile_image_url": "https://example.com/images/jane.jpg",
+                    "dob": "1990-01-01",
+                    "username": "janedoe",
+                    "organisation_uuid": "b1c2d3e4-f5g6-h7i8-j9k0-lmnopqrstuv",
+                    "active": true,
+                    "created_date": "2024-04-01T12:00:00",
+                    "modified_date": "2024-04-15T15:30:00",
+                    "gender": "FEMALE",
+                    "user_domain": ["Student", "Instructor"],
+                    "roles": [
+                        {
+                            "uuid": "role-uuid-1",
+                            "name": "ADMIN",
+                            "description": "Administrator role"
+                        }
+                    ]
                 }
-            ]
-        }
-        """
+                """
 )
 public record UserDTO(
 
@@ -202,19 +203,19 @@ public record UserDTO(
         @Schema(
                 description = "**[OPTIONAL]** Set of roles assigned to this user. Determines user permissions and access levels within the system. Can be empty for users with no specific roles assigned.",
                 example = """
-                [
-                    {
-                        "uuid": "role-uuid-1",
-                        "name": "ADMIN",
-                        "description": "Administrator role with full system access"
-                    },
-                    {
-                        "uuid": "role-uuid-2",
-                        "name": "USER",
-                        "description": "Standard user role with basic access"
-                    }
-                ]
-               \s""",
+                         [
+                             {
+                                 "uuid": "role-uuid-1",
+                                 "name": "ADMIN",
+                                 "description": "Administrator role with full system access"
+                             },
+                             {
+                                 "uuid": "role-uuid-2",
+                                 "name": "USER",
+                                 "description": "Standard user role with basic access"
+                             }
+                         ]
+                        \s""",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -231,51 +232,54 @@ public record UserDTO(
         @JsonProperty("gender")
         Gender gender,
 
-        @Schema(
-                description = "**[OPTIONAL]** List of domain roles that define the user's functional areas within the system. Determines available features and workflows. Can contain multiple values.",
-                example = "[\"Student\", \"Instructor\"]",
-                allowableValues = {"student", "instructor", "admin", "organisation_user"},
-                nullable = true,
-                requiredMode = Schema.RequiredMode.REQUIRED
+        @ArraySchema(
+                schema = @Schema(
+                        description = "Domain roles that define the user's functional areas within the system",
+                        allowableValues = {"student", "instructor", "admin", "organisation_user"}
+                ),
+                arraySchema = @Schema(
+                        description = "**[OPTIONAL]** List of domain roles that define the user's functional areas within the system. Determines available features and workflows. Can contain multiple values.",
+                        example = "[\"student\", \"instructor\"]"
+                )
         )
         @JsonProperty("user_domain")
         List<String> userDomain
 
 ) {
-        /**
-         * Returns the user's full name by concatenating first, middle (if present), and last names.
-         *
-         * @return Full name as a single string
-         */
-        public String getFullName() {
-                StringBuilder fullName = new StringBuilder(firstName);
+    /**
+     * Returns the user's full name by concatenating first, middle (if present), and last names.
+     *
+     * @return Full name as a single string
+     */
+    public String getFullName() {
+        StringBuilder fullName = new StringBuilder(firstName);
 
-                if (middleName != null && !middleName.trim().isEmpty()) {
-                        fullName.append(" ").append(middleName.trim());
-                }
-
-                fullName.append(" ").append(lastName);
-
-                return fullName.toString();
+        if (middleName != null && !middleName.trim().isEmpty()) {
+            fullName.append(" ").append(middleName.trim());
         }
 
-        /**
-         * Returns display name for UI purposes (first name + last name).
-         *
-         * @return Display name without middle name
-         */
-        public String getDisplayName() {
-                return firstName + " " + lastName;
-        }
+        fullName.append(" ").append(lastName);
 
-        /**
-         * Checks if the user has a specific role.
-         *
-         * @param roleName The role name to check
-         * @return true if user has the role, false otherwise
-         */
-        public boolean hasRole(String roleName) {
-                return roles != null && roles.stream()
-                        .anyMatch(role -> roleName.equals(role.name()));
-        }
+        return fullName.toString();
+    }
+
+    /**
+     * Returns display name for UI purposes (first name + last name).
+     *
+     * @return Display name without middle name
+     */
+    public String getDisplayName() {
+        return firstName + " " + lastName;
+    }
+
+    /**
+     * Checks if the user has a specific role.
+     *
+     * @param roleName The role name to check
+     * @return true if user has the role, false otherwise
+     */
+    public boolean hasRole(String roleName) {
+        return roles != null && roles.stream()
+                .anyMatch(role -> roleName.equals(role.name()));
+    }
 }
