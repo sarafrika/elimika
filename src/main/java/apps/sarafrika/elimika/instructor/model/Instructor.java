@@ -1,11 +1,12 @@
 package apps.sarafrika.elimika.instructor.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -39,14 +40,5 @@ public class Instructor extends BaseEntity {
 
     @Column(name="admin_verified")
     private boolean adminVerified;
-
-    @ElementCollection
-    @CollectionTable(
-            name = "course_instructor",
-            joinColumns = @JoinColumn(name = "instructor_id")
-    )
-    @Column(name = "course_id")
-    private Set<Long> courseIds;
-
 }
 
