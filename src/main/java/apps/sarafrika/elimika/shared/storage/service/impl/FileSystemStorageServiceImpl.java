@@ -59,7 +59,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-                return targetLocation.toString();
+                return uniqueFileName.toString();
             }
         } catch (IOException e) {
             throw new StorageException("Failed to store file.", e);

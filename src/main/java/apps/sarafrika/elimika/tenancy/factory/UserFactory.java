@@ -51,6 +51,7 @@ public class UserFactory {
         user.setActive(dto.active());
         user.setRoles(new ArrayList<>());
         user.setGender(dto.gender());
+        user.setDob(dto.dob());
         return user;
     }
 }
