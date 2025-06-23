@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "semantic-release"
   },
   "repository": {
     "type": "git",
@@ -13,11 +15,21 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/sarafrika/elimika/issues"
   },
   "homepage": "https://github.com/sarafrika/elimika#readme",
+  "release": {
+    "branches": ["main"],
+    "tagFormat": "v${version}",
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/github",
+      "@semantic-release/git"
+    ]
+  },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
