@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.common.config;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.exceptions.SmtpAuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,8 +17,8 @@ import java.util.Map;
 
 @RestControllerAdvice @Slf4j
 public class GlobalExceptionHandler {
-    @ExceptionHandler(RecordNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleRecordNotFoundException(RecordNotFoundException ex) {
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRecordNotFoundException(ResourceNotFoundException ex) {
         log.debug("Record not found", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Record not found", ex.getMessage()));

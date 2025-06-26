@@ -8,7 +8,7 @@ import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.common.util.RoleNameConverter;
@@ -83,7 +83,7 @@ public class UserServiceImpl implements UserService {
                 .map(u -> UserFactory.toDTO(u, userDomains))
                 .orElseThrow(() -> {
                     log.warn("User not found for UUID: {}", uuid);
-                    return new RecordNotFoundException("User not found for UUID: " + uuid);
+                    return new ResourceNotFoundException("User not found for UUID: " + uuid);
                 });
     }
 
@@ -150,7 +150,7 @@ public class UserServiceImpl implements UserService {
             User user = findUserOrThrow(uuid);
             userRepository.delete(user);
             log.info("Successfully deleted user with UUID: {}", uuid);
-        } catch (RecordNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to delete user with UUID: {}", uuid, e);
@@ -176,7 +176,7 @@ public class UserServiceImpl implements UserService {
         for (UserDomainMapping userDomainMapping : userDomainMappings) {
             apps.sarafrika.elimika.tenancy.entity.UserDomain userDomain = userDomainRepository
                     .findByUuid(userDomainMapping.getUserDomainUuid())
-                    .orElseThrow(() -> new RecordNotFoundException("User domain not found for UUID: " + userDomainMapping.getUserDomainUuid()));
+                    .orElseThrow(() -> new ResourceNotFoundException("User domain not found for UUID: " + userDomainMapping.getUserDomainUuid()));
             userDomains.add(userDomain.getDomainName());
         }
         return userDomains;
@@ -245,7 +245,7 @@ public class UserServiceImpl implements UserService {
 
     private User findUserOrThrow(UUID uuid) {
         return userRepository.findByUuid(uuid)
-                .orElseThrow(() -> new RecordNotFoundException("User not found for UUID: " + uuid));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for UUID: " + uuid));
     }
 
     private void updateUserFields(User user, UserDTO userDTO, Organisation organisation) {

@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.event.organisation.OrganisationCreationEvent;
 import apps.sarafrika.elimika.common.event.organisation.SuccessfulOrganisationCreationEvent;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
@@ -73,7 +73,7 @@ public class OrganisationServiceImpl implements OrganisationService {
                 .map(OrganisationFactory::toDTO)
                 .orElseThrow(() -> {
                     log.warn("Organisation not found for UUID: {}", uuid);
-                    return new RecordNotFoundException("Organisation not found for UUID: " + uuid);
+                    return new ResourceNotFoundException("Organisation not found for UUID: " + uuid);
                 });
     }
 
@@ -98,7 +98,7 @@ public class OrganisationServiceImpl implements OrganisationService {
 
             log.info("Successfully updated organisation with UUID: {}", uuid);
             return OrganisationFactory.toDTO(organisation);
-        } catch (RecordNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to update organisation with UUID: {}", uuid, e);
@@ -115,7 +115,7 @@ public class OrganisationServiceImpl implements OrganisationService {
             Organisation organisation = findOrganisationOrThrow(uuid);
             organisationRepository.delete(organisation);
             log.info("Successfully deleted organisation with UUID: {}", uuid);
-        } catch (RecordNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to delete organisation with UUID: {}", uuid, e);
@@ -148,7 +148,7 @@ public class OrganisationServiceImpl implements OrganisationService {
 
     private Organisation findOrganisationOrThrow(UUID uuid) {
         return organisationRepository.findByUuid(uuid)
-                .orElseThrow(() -> new RecordNotFoundException("Organisation not found for UUID: " + uuid));
+                .orElseThrow(() -> new ResourceNotFoundException("Organisation not found for UUID: " + uuid));
     }
 
     private void updateOrganisationFields(Organisation organisation, OrganisationDTO dto) {

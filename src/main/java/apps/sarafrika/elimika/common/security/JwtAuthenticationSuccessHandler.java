@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.common.security;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +39,7 @@ public class JwtAuthenticationSuccessHandler {
             if (!userExists) {
                 UserRepresentation userRepresentation = keycloakUserService
                         .getUserById(keycloakUserId, "elimika")
-                        .orElseThrow(() -> new RecordNotFoundException("User not found in Keycloak"));
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak"));
 
                 userService.createUser(userRepresentation);
                 log.info("User created in database for Keycloak ID: {}", keycloakUserId);
