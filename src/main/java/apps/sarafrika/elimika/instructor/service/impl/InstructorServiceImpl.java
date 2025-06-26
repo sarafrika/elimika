@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
@@ -39,7 +39,7 @@ public class InstructorServiceImpl implements InstructorService {
     public InstructorDTO getInstructorByUuid(UUID uuid) {
         return instructorRepository.findByUuid(uuid)
                 .map(InstructorFactory::toDTO)
-                .orElseThrow(() -> new RecordNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
     }
 
     @Override
@@ -50,7 +50,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Override
     public InstructorDTO updateInstructor(UUID uuid, InstructorDTO instructorDTO) {
         Instructor existingInstructor = instructorRepository.findByUuid(uuid)
-                .orElseThrow(() -> new RecordNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
 
         Instructor updatedInstructor = instructorRepository.save(existingInstructor);
         return InstructorFactory.toDTO(updatedInstructor);
@@ -59,7 +59,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Override
     public void deleteInstructor(UUID uuid) {
         if (!instructorRepository.existsByUuid(uuid)) {
-            throw new RecordNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid));
+            throw new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid));
         }
         instructorRepository.deleteByUuid(uuid);
     }

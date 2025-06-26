@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.event.role.CreateRoleOnKeyCloakEvent;
 import apps.sarafrika.elimika.common.event.role.SuccessfulRoleCreationOnKeycloakEvent;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.common.util.RoleNameConverter;
 import apps.sarafrika.elimika.tenancy.dto.PermissionDTO;
@@ -75,7 +75,7 @@ public class RoleServiceImpl implements RoleService {
     public RoleDTO getRoleByUuid(UUID uuid) {
         log.info("Fetching role with UUID: {}", uuid);
         Role role = roleRepository.findByUuid(uuid).orElseThrow(
-                () -> new RecordNotFoundException("Role not found for UUID: " + uuid)
+                () -> new ResourceNotFoundException("Role not found for UUID: " + uuid)
         );
         return RoleFactory.toDTO(role);
     }
@@ -92,7 +92,7 @@ public class RoleServiceImpl implements RoleService {
     public RoleDTO updateRole(UUID uuid, RoleDTO roleDTO) {
         log.info("Updating role with UUID: {}", uuid);
         Role role = roleRepository.findByUuid(uuid).orElseThrow(
-                () -> new RecordNotFoundException("Role not found for UUID: " + uuid)
+                () -> new ResourceNotFoundException("Role not found for UUID: " + uuid)
         );
 
         role.setName(roleDTO.name());
@@ -124,7 +124,7 @@ public class RoleServiceImpl implements RoleService {
     public void deleteRole(UUID uuid) {
         log.info("Deleting role with UUID: {}", uuid);
         Role role = roleRepository.findByUuid(uuid).orElseThrow(
-                () -> new RecordNotFoundException("Role not found for UUID: " + uuid)
+                () -> new ResourceNotFoundException("Role not found for UUID: " + uuid)
         );
 
         // Clear permissions before deletion
@@ -145,13 +145,13 @@ public class RoleServiceImpl implements RoleService {
     public RoleDTO addPermissionsToRole(UUID roleUuid, List<UUID> permissionUuids) {
         log.info("Adding permissions to role with UUID: {}", roleUuid);
         Role role = roleRepository.findByUuid(roleUuid).orElseThrow(
-                () -> new RecordNotFoundException("Role with UUID " + roleUuid + " not found")
+                () -> new ResourceNotFoundException("Role with UUID " + roleUuid + " not found")
         );
 
         List<Permission> permissions = permissionRepository.findAllByUuidIn(permissionUuids);
 
         if (permissions.isEmpty()) {
-            throw new RecordNotFoundException("No permissions found for the provided UUIDs");
+            throw new ResourceNotFoundException("No permissions found for the provided UUIDs");
         }
 
         role.getPermissions().addAll(permissions);
@@ -164,13 +164,13 @@ public class RoleServiceImpl implements RoleService {
     public RoleDTO removePermissionsFromRole(UUID roleUuid, List<UUID> permissionUuids) {
         log.info("Removing permissions from role with UUID: {}", roleUuid);
         Role role = roleRepository.findByUuid(roleUuid).orElseThrow(
-                () -> new RecordNotFoundException("Role with UUID " + roleUuid + " not found")
+                () -> new ResourceNotFoundException("Role with UUID " + roleUuid + " not found")
         );
 
         List<Permission> permissions = permissionRepository.findAllByUuidIn(permissionUuids);
 
         if (permissions.isEmpty()) {
-            throw new RecordNotFoundException("No permissions found for the provided UUIDs");
+            throw new ResourceNotFoundException("No permissions found for the provided UUIDs");
         }
 
         role.getPermissions().removeAll(permissions);
@@ -183,7 +183,7 @@ public class RoleServiceImpl implements RoleService {
     public List<PermissionDTO> getPermissionsByRole(UUID roleUuid) {
         log.info("Fetching permissions for role with UUID: {}", roleUuid);
         Role role = roleRepository.findByUuid(roleUuid).orElseThrow(
-                () -> new RecordNotFoundException("Role with UUID " + roleUuid + " not found")
+                () -> new ResourceNotFoundException("Role with UUID " + roleUuid + " not found")
         );
 
         return role.getPermissions().stream()
@@ -199,7 +199,7 @@ public class RoleServiceImpl implements RoleService {
     @ApplicationModuleListener
     void onSuccessfulRoleCreation(SuccessfulRoleCreationOnKeycloakEvent event) {
         Permission permission = permissionRepository.findByUuid(event.keycloakId()).orElseThrow(
-                () -> new RecordNotFoundException("Role not found for UUID: " + event.keycloakId())
+                () -> new ResourceNotFoundException("Role not found for UUID: " + event.keycloakId())
         );
         permission.setKeycloakId(event.keycloakId());
         permissionRepository.save(permission);

@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.common.security;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import jakarta.servlet.Filter;
@@ -91,7 +91,7 @@ public class UserSyncFilter implements Filter {
 
                 UserRepresentation userRepresentation = keycloakUserService
                         .getUserById(keycloakUserId, "elimika")
-                        .orElseThrow(() -> new RecordNotFoundException("User not found in Keycloak with ID: " + keycloakUserId));
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak with ID: " + keycloakUserId));
 
                 log.debug("Retrieved user from Keycloak: username={}, email={}",
                         userRepresentation.getUsername(), userRepresentation.getEmail());
@@ -109,7 +109,7 @@ public class UserSyncFilter implements Filter {
             } else {
                 log.debug("User already exists in database for Keycloak ID: {}", keycloakUserId);
             }
-        } catch (RecordNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             log.error("User not found in Keycloak for ID: {}", keycloakUserId, e);
             throw new RuntimeException("Critical: User exists in JWT but not in Keycloak", e);
         } catch (Exception e) {

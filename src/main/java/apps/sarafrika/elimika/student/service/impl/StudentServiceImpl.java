@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.student.service.impl;
 
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.factory.StudentFactory;
@@ -34,7 +34,7 @@ public class StudentServiceImpl implements StudentService {
     public StudentDTO getStudentByUuId(UUID uuid) {
         return studentRepository.findByUuid(uuid)
                 .map(StudentFactory::toDTO)
-                .orElseThrow(() -> new RecordNotFoundException(String.format(STUDENT_NOT_FOUND_TEMPLATE, uuid)));
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(STUDENT_NOT_FOUND_TEMPLATE, uuid)));
     }
 
     @Override
@@ -59,7 +59,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public void deleteStudent(UUID uuid) {
         if (!studentRepository.existsByUuid(uuid)) {
-            throw new RecordNotFoundException("Student not found with ID: " + uuid);
+            throw new ResourceNotFoundException("Student not found with ID: " + uuid);
         }
         studentRepository.deleteByUuid(uuid);
     }

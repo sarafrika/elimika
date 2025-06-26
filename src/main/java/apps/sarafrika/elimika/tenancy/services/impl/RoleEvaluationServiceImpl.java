@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
 import apps.sarafrika.elimika.tenancy.entity.Role;
 import apps.sarafrika.elimika.tenancy.entity.User;
@@ -28,7 +28,7 @@ public class RoleEvaluationServiceImpl implements RoleEvaluationService {
     @Transactional(readOnly = true)
     public List<RoleDTO> getEffectiveRolesForUser(UUID userUuid) {
         User user = userRepository.findByUuid(userUuid)
-                .orElseThrow(() -> new RecordNotFoundException("User not found for UUID: " + userUuid));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for UUID: " + userUuid));
 
         Set<Role> directRoles = new HashSet<>(roleRepository.findByUsers_Id(user.getId()));
 

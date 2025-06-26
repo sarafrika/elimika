@@ -6,7 +6,7 @@ import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.common.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
-import apps.sarafrika.elimika.common.exceptions.RecordNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -33,7 +33,7 @@ class UserEventsListener {
     void onUserUpdate(UserUpdateEvent event) {
         log.debug("User update event received {}", event);
         UserRepresentation representation = keycloakUserService.getUserById(event.keyCloakId(), event.realm())
-                .orElseThrow(() -> new RecordNotFoundException("User not found on keycloak"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found on keycloak"));
         representation.setFirstName(event.firstName());
         representation.setLastName(event.lastName());
         representation.setEmail(event.email());
