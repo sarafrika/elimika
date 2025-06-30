@@ -1,23 +1,45 @@
 spring:
   application:
-    name: elimika
+    name: ELIMIKA
 
   profiles:
-    active: dev
+    active: prod
 
   modulith:
     detection-strategy: explicitly-annotated
     republish-outstanding-events-on-restart: true
 
-  #Diallow JPA from managing the database schema
+  # Mail configuration
+  mail:
+    enabled: ${MAIL_ENABLED:true}
+    host: ${MAIL_SERVER}
+    port: ${MAIL_SERVER_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    test-connection: false
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connection-timeout: 10000
+          timeout: 10000
+          write-timeout: 10000
+
+  # JPA configuration
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
+    show-sql: false
 
+# Application-specific configuration
 app:
   keycloak:
     user:
@@ -25,12 +47,14 @@ app:
         - user_domain
 
 storage:
-  location: ${STORAGE_PATH:/tmp}
+  location: ${STORAGE_PATH:${user.home}/elimika-storage}
 
 logging:
   level:
     root: INFO
     org.springframework: INFO
+    org.springframework.mail: WARN
+    com.sun.mail: WARN
   file:
     name: logs/elimika.log
   pattern:
