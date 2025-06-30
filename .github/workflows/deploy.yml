@@ -119,20 +119,20 @@ jobs:
           echo "🔧 Configured environment variables:"
           echo "$existing_props" | sed 's/^/  ✓ /'
 
-      - name: Copy Docker Compose File to Deployment Directory
+      - name: Copy Compose File to Deployment Directory
         run: |
           WORKSPACE_DIR="${GITHUB_WORKSPACE}"
           DEPLOY_DIR="$HOME/products/elimika"
           
-          # Copy docker-compose.yaml from repository to deployment directory
-          cp "$WORKSPACE_DIR/docker/docker-compose.yaml" "$DEPLOY_DIR/docker-compose.yaml"
-          
-          # Replace DOCKER_USERNAME if it's a placeholder
-          if grep -q "\${DOCKER_USERNAME" "$DEPLOY_DIR/docker-compose.yaml"; then
-            sed -i "s|\${DOCKER_USERNAME[^}]*}|${{ secrets.DOCKER_USERNAME }}|g" "$DEPLOY_DIR/docker-compose.yaml"
+          # Simple copy of compose.yaml from repository to deployment directory
+          if [ ! -f "$WORKSPACE_DIR/docker/compose.yaml" ]; then
+            echo "❌ docker/compose.yaml not found in repository!"
+            echo "Expected location: $WORKSPACE_DIR/docker/compose.yaml"
+            exit 1
           fi
           
-          echo "✅ Docker Compose file configured in deployment directory."
+          cp "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"
+          echo "✅ Copied compose.yaml from repository to deployment directory."
 
       - name: Pull Latest Docker Image
         run: |
@@ -152,13 +152,13 @@ jobs:
         run: |
           cd ~/products/elimika
           echo "🛑 Stopping existing containers..."
-          docker compose down
+          docker compose -f compose.yaml down
 
       - name: Start Services with Docker Compose
         run: |
           cd ~/products/elimika
           echo "🚀 Starting services..."
-          docker compose up -d --force-recreate --remove-orphans
+          docker compose -f compose.yaml up -d --force-recreate --remove-orphans
           echo ""
           echo "✅ Deployment completed successfully!"
           echo "🌍 Service should be available on port 30000"
