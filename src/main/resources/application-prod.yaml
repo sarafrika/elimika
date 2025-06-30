@@ -41,7 +41,7 @@ app:
       clientId: ${KC_PROD_CLIENT_ID}
       clientSecret: ${KC_PROD_CLIENT_SECRET}
     realm: ${KC_PROD_REALM}
-    serverUrl: ${SERVER_URL}
+    serverUrl: ${KC_PROD_SERVER_URL}
 
 encryption:
   secret-key: "986114de17023120b40eb549e17b11eaf080f14404f62b5ab994a538879b0c6b"
