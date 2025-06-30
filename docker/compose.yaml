@@ -1,32 +1,19 @@
+version: '3.8'
+
 networks:
   sarafrika:
     external: true
 
-volumes:
-  elimika_uploads:
-    name: elimika_uploads
-
 services:
   elimika:
-    image: sarafrika/elimika:latest
+    image: ${DOCKER_USERNAME:-defaultuser}/elimika:latest
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       SERVER_PORT: 30000
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI}
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI}
-      APP_KEYCLOAK_REALM: ${APP_KEYCLOAK_REALM}
-      APP_KEYCLOAK_SERVERURL: ${APP_KEYCLOAK_SERVER_URL}
-      APP_KEYCLOAK_ADMIN_CLIENTID: ${APP_KEYCLOAK_ADMIN_CLIENTID}
-      APP_KEYCLOAK_ADMIN_CLIENTSECRET: ${APP_KEYCLOAK_ADMIN_CLIENTSECRET}
-      ENCRYPTION_SECRET_KEY: ${ENCRYPTION_SECRET_KEY}
-      ENCRYPTION_SALT: ${ENCRYPTION_SALT}
     ports:
-      - "8080:30000"
-    volumes:
-      - elimika_uploads:/app/data
+      - "30000:30000"
     networks:
       - sarafrika

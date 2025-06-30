@@ -1,0 +1,121 @@
+name: Docker Build and Push
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should-build: ${{ steps.changes.outputs.should-build }}
+      changed-files: ${{ steps.changes.outputs.changed-files }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch full history to compare changes
+
+      - name: Check for relevant changes
+        id: changes
+        run: |
+          # Get the list of changed files in the PR
+          if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
+            # For merged PRs, compare against the base branch
+            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          else
+            echo "PR was closed but not merged, skipping build"
+            echo "should-build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Changed files:"
+          echo "$changed_files"
+          echo "changed-files<<EOF" >> $GITHUB_OUTPUT
+          echo "$changed_files" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Check if only .github folder was changed
+          non_github_changes=$(echo "$changed_files" | grep -v "^\.github/" | grep -v "^$" || true)
+          
+          if [ -z "$non_github_changes" ]; then
+            echo "⏭️  Only .github folder was modified, skipping build"
+            echo "should-build=false" >> $GITHUB_OUTPUT
+          else
+            echo "🔨 Application files were modified, proceeding with build"
+            echo "should-build=true" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push:
+    needs: check-changes
+    if: needs.check-changes.outputs.should-build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}
+
+      - name: Extract Application Version
+        id: get_version
+        run: echo "APP_VERSION=$(./gradlew properties --no-daemon | grep "version:" | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Build JAR file with Gradle
+        run: ./gradlew clean build -x test
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and tag Docker image with version
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }} .
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }} ${{ secrets.DOCKERHUB_USERNAME }}/elimika:latest
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/elimika:latest
+
+      - name: Build Summary
+        run: |
+          echo "✅ Build completed successfully!"
+          echo "📦 Docker images pushed:"
+          echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }}"
+          echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/elimika:latest"
+
+  skip-build:
+    needs: check-changes
+    if: needs.check-changes.outputs.should-build == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip Build Notification
+        run: |
+          echo "⏭️  Build skipped - only workflow/documentation changes detected"
+          echo ""
+          echo "Changed files:"
+          echo "${{ needs.check-changes.outputs.changed-files }}"
+          echo ""
+          echo "💡 To force a build, make changes to application code or:"
+          echo "   - Update version in build.gradle"
+          echo "   - Modify source code"
+          echo "   - Update dependencies"
