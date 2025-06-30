@@ -8,7 +8,6 @@ jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
-    environment: production # Use GitHub Environment for better secret management
     steps:
       - name: Ensure Deployment Directory Exists
         run: |
@@ -17,93 +16,125 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ~/products/elimika
-      - name: Create .env File from .env.sample and Secrets
-        env:
-          # Database Configuration
-          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-          # OAuth/JWT Configuration
-          SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${{ secrets.SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI }}
-          SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${{ secrets.SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI }}
-          # Keycloak Configuration
-          APP_KEYCLOAK_REALM: ${{ secrets.APP_KEYCLOAK_REALM }}
-          APP_KEYCLOAK_SERVER_URL: ${{ secrets.APP_KEYCLOAK_SERVER_URL }}
-          APP_KEYCLOAK_ADMIN_CLIENTID: ${{ secrets.APP_KEYCLOAK_ADMIN_CLIENTID }}
-          APP_KEYCLOAK_ADMIN_CLIENTSECRET: ${{ secrets.APP_KEYCLOAK_ADMIN_CLIENTSECRET }}
-          # Encryption Configuration
-          ENCRYPTION_SECRET_KEY: ${{ secrets.ENCRYPTION_SECRET_KEY }}
-          ENCRYPTION_SALT: ${{ secrets.ENCRYPTION_SALT }}
-          # Mail Server Configuration
-          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
-          MAIL_SERVER_PORT: ${{ secrets.MAIL_SERVER_PORT }}
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-          STORAGE_PATH: ${{ secrets.STORAGE_PATH }}
-          MAIL_ENABLED: ${{ secrets.MAIL_ENABLED }}
+      - name: Validate Environment Configuration
         run: |
           cd ~/products/elimika
           
-          # Copy .env.sample from docker folder and replace placeholders
-          cp docker/.env.sample .env
-          
-          # Replace placeholders with actual secret values using environment variables
-          sed -i "s|<DB_HOST>:<DB_PORT>/<DB_NAME>|${SPRING_DATASOURCE_URL}|g" .env
-          sed -i "s|<DB_USERNAME>|${SPRING_DATASOURCE_USERNAME}|g" .env
-          sed -i "s|<DB_PASSWORD>|${SPRING_DATASOURCE_PASSWORD}|g" .env
-          sed -i "s|<OAUTH_ISSUER_URI>|${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI}|g" .env
-          sed -i "s|<OAUTH_JWK_SET_URI>|${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI}|g" .env
-          sed -i "s|<KEYCLOAK_REALM>|${APP_KEYCLOAK_REALM}|g" .env
-          sed -i "s|<KEYCLOAK_SERVER_URL>|${APP_KEYCLOAK_SERVER_URL}|g" .env
-          sed -i "s|<KEYCLOAK_ADMIN_CLIENTID>|${APP_KEYCLOAK_ADMIN_CLIENTID}|g" .env
-          sed -i "s|<KEYCLOAK_ADMIN_CLIENTSECRET>|${APP_KEYCLOAK_ADMIN_CLIENTSECRET}|g" .env
-          sed -i "s|<ENCRYPTION_SECRET_KEY>|${ENCRYPTION_SECRET_KEY}|g" .env
-          sed -i "s|<ENCRYPTION_SALT>|${ENCRYPTION_SALT}|g" .env
-          sed -i "s|<YOUR_EMAIL@GMAIL.COM>|${MAIL_USERNAME}|g" .env
-          sed -i "s|<YOUR_APP_PASSWORD>|${MAIL_PASSWORD}|g" .env
-          sed -i "s|<CUSTOM_STORAGE_PATH>|${STORAGE_PATH}|g" .env
-          
-          # Handle optional values with defaults if secrets are empty
-          if [ -n "${MAIL_SERVER}" ]; then
-            sed -i "s|smtp.gmail.com|${MAIL_SERVER}|g" .env
-          fi
-          if [ -n "${MAIL_SERVER_PORT}" ]; then
-            sed -i "s|587|${MAIL_SERVER_PORT}|g" .env
-          fi
-          if [ -n "${MAIL_ENABLED}" ]; then
-            sed -i "s|true                   # optional|${MAIL_ENABLED}|g" .env
+          # Check if .env exists, if not create from sample
+          if [ ! -f .env ]; then
+            echo "📋 .env file not found. Creating from sample..."
+            cp docker/.env.sample .env
+            echo "✅ Created .env file from docker/.env.sample"
+            echo ""
+            echo "⚠️  DEPLOYMENT PAUSED: Please configure the following environment variables in ~/products/elimika/.env:"
+            echo ""
+            grep -E '^[A-Z_]+=<.*>$' .env | sed 's/=<.*>//' | sed 's/^/  - /'
+            echo ""
+            echo "After updating the .env file, re-run this workflow."
+            exit 1
           fi
           
-          echo "Created .env file from docker/.env.sample with secret values."
-          echo "Environment variables configured:"
-          cat .env | sed 's/=.*/=***/' # Show variables but hide values
-      - name: Copy and Configure Docker Compose File
+          # Validate existing .env against .env.sample
+          echo "🔍 Validating existing .env file against sample..."
+          
+          # Extract property names from .env.sample (lines with <PLACEHOLDER>)
+          sample_props=$(grep -E '^[A-Z_]+=<.*>$' docker/.env.sample | cut -d'=' -f1 | sort)
+          
+          # Extract property names from existing .env (non-comment, non-empty lines)
+          existing_props=$(grep -E '^[A-Z_]+=' .env | cut -d'=' -f1 | sort)
+          
+          # Find missing properties
+          missing_props=""
+          for prop in $sample_props; do
+            if ! echo "$existing_props" | grep -q "^$prop$"; then
+              missing_props="$missing_props $prop"
+            fi
+          done
+          
+          # Find properties with placeholder values still
+          placeholder_props=""
+          while IFS= read -r line; do
+            if [[ $line =~ ^([A-Z_]+)=\<.*\>$ ]]; then
+              prop_name="${BASH_REMATCH[1]}"
+              if grep -q "^$prop_name=<.*>$" .env; then
+                placeholder_props="$placeholder_props $prop_name"
+              fi
+            fi
+          done < docker/.env.sample
+          
+          # Check for any issues
+          if [ -n "$missing_props" ] || [ -n "$placeholder_props" ]; then
+            echo ""
+            echo "❌ DEPLOYMENT FAILED: Environment configuration issues found!"
+            echo ""
+          
+            if [ -n "$missing_props" ]; then
+              echo "📝 Missing properties in .env file:"
+              for prop in $missing_props; do
+                # Get the sample value to show what's expected
+                sample_value=$(grep "^$prop=" docker/.env.sample | cut -d'=' -f2-)
+                echo "  - $prop=$sample_value"
+              done
+              echo ""
+            fi
+          
+            if [ -n "$placeholder_props" ]; then
+              echo "🔧 Properties with placeholder values (need real values):"
+              for prop in $placeholder_props; do
+                echo "  - $prop"
+              done
+              echo ""
+            fi
+          
+            echo "📍 Please update ~/products/elimika/.env with the missing/placeholder values and re-run this workflow."
+            echo ""
+            echo "💡 Tip: You can copy missing properties from docker/.env.sample"
+            exit 1
+          fi
+          
+          # Validation successful
+          echo "✅ Environment validation passed!"
+          echo "📊 Found $(echo "$existing_props" | wc -w) configured properties"
+          
+          # Show configured properties (without values for security)
+          echo ""
+          echo "🔧 Configured environment variables:"
+          echo "$existing_props" | sed 's/^/  ✓ /'
+      - name: Copy Docker Compose File
         run: |
           cd ~/products/elimika
           
-          # Copy docker-compose.yaml from docker folder to deployment directory
+          # Copy docker-compose.yaml from docker folder
           cp docker/docker-compose.yaml .
           
-          # Replace DOCKER_USERNAME placeholder with actual value
-          sed -i "s|\${DOCKER_USERNAME:-defaultuser}|${{ secrets.DOCKER_USERNAME }}|g" docker-compose.yaml
+          # Replace DOCKER_USERNAME if it's a placeholder
+          if grep -q "\${DOCKER_USERNAME" docker-compose.yaml; then
+            sed -i "s|\${DOCKER_USERNAME[^}]*}|${{ secrets.DOCKER_USERNAME }}|g" docker-compose.yaml
+          fi
           
-          echo "Copied and configured docker-compose.yaml from docker folder."
+          echo "✅ Docker Compose file configured."
       - name: Pull Latest Docker Image
         run: |
+          echo "📥 Pulling latest Docker image..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/elimika:latest
       - name: Ensure Network Exists
         run: |
           if ! docker network ls | grep -q sarafrika; then
-            echo "Creating sarafrika network..."
+            echo "🌐 Creating sarafrika network..."
             docker network create sarafrika
           else
-            echo "sarafrika network already exists."
+            echo "✅ sarafrika network already exists."
           fi
       - name: Stop and Remove Existing Containers
         run: |
           cd ~/products/elimika
+          echo "🛑 Stopping existing containers..."
           docker compose down
       - name: Start Services with Docker Compose
         run: |
           cd ~/products/elimika
+          echo "🚀 Starting services..."
           docker compose up -d --force-recreate --remove-orphans
+          echo ""
+          echo "✅ Deployment completed successfully!"
+          echo "🌍 Service should be available on port 30000"
