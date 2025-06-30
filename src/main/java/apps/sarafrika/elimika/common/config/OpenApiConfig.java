@@ -30,33 +30,43 @@ import io.swagger.v3.oas.annotations.servers.Server;
         ),
         servers = {
                 @Server(
-                        description = "Local ENV",
-                        url = "http://localhost:8080/api/v1"
-                ),
-                @Server(
                         description = "Development ENV",
                         url = "https://api.elimika.sarafrika.com"
                 )
         },
         security = {
-                @SecurityRequirement(
-                        name = "bearerAuth"
-                )
+                @SecurityRequirement(name = "bearerAuth"),
+                @SecurityRequirement(name = "basicAuth"),
+                @SecurityRequirement(name = "oauth2")
         }
 )
+// Bearer Token Authentication (existing)
 @SecurityScheme(
         name = "bearerAuth",
         description = "JWT auth description",
         scheme = "bearer",
-        type = SecuritySchemeType.OAUTH2,
-        flows = @OAuthFlows(
-                clientCredentials =
-                @OAuthFlow(
-                        authorizationUrl = "http://localhost:8080/realms/elimika/protocol/openid-connect/auth"
-                )
-        ),
+        type = SecuritySchemeType.HTTP,
         bearerFormat = "JWT",
         in = SecuritySchemeIn.HEADER
+)
+// Basic Authentication (Username/Password)
+@SecurityScheme(
+        name = "basicAuth",
+        description = "Basic Authentication",
+        type = SecuritySchemeType.HTTP,
+        scheme = "basic"
+)
+// OAuth2 with Password Flow (Alternative approach)
+@SecurityScheme(
+        name = "oauth2",
+        description = "OAuth2 with password flow",
+        type = SecuritySchemeType.OAUTH2,
+        flows = @OAuthFlows(
+                password = @OAuthFlow(
+                        tokenUrl = "/oauth/token",
+                        refreshUrl = "/oauth/token"
+                )
+        )
 )
 public class OpenApiConfig {
 }
