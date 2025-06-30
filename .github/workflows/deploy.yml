@@ -4,11 +4,44 @@ on:
     workflows: ["Docker Build and Push"]
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      deployment_reason:
+        description: 'Reason for manual deployment (optional)'
+        required: false
+        default: 'Manual deployment'
+        type: string
+      skip_validation:
+        description: 'Skip environment validation (use with caution)'
+        required: false
+        default: false
+        type: boolean
+      force_recreate:
+        description: 'Force recreate all containers'
+        required: false
+        default: true
+        type: boolean
+
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # For workflow_run: only deploy if the triggering workflow succeeded
+    # For workflow_dispatch: always deploy
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
     steps:
+      - name: Deployment Context
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "🚀 Manual Deployment Triggered"
+            echo "Reason: ${{ github.event.inputs.deployment_reason }}"
+            echo "Skip validation: ${{ github.event.inputs.skip_validation }}"
+            echo "Force recreate: ${{ github.event.inputs.force_recreate }}"
+          else
+            echo "🔄 Automatic Deployment (triggered by successful build)"
+            echo "Triggering workflow: ${{ github.event.workflow_run.name }}"
+          fi
+          echo ""
+
       - name: Checkout Repository
         uses: actions/checkout@v3
 
@@ -17,6 +50,7 @@ jobs:
           mkdir -p ~/products/elimika
 
       - name: Validate Environment Configuration
+        if: ${{ github.event_name == 'workflow_run' || github.event.inputs.skip_validation == 'false' }}
         run: |
           # Work in the GitHub workspace where files are checked out
           WORKSPACE_DIR="${GITHUB_WORKSPACE}"
@@ -107,6 +141,7 @@ jobs:
             echo "📍 Please update $DEPLOY_DIR/.env with the missing/placeholder values and re-run this workflow."
             echo ""
             echo "💡 Tip: You can copy missing properties from the repository's docker/.env.sample"
+            echo "🚀 Alternative: Use manual trigger with 'Skip validation' option for emergency deployments"
             exit 1
           fi
           
@@ -118,6 +153,14 @@ jobs:
           echo ""
           echo "🔧 Configured environment variables:"
           echo "$existing_props" | sed 's/^/  ✓ /'
+
+      - name: Skip Validation Warning
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.skip_validation == 'true' }}
+        run: |
+          echo "⚠️  WARNING: Environment validation was skipped!"
+          echo "This deployment may fail if environment configuration is incomplete."
+          echo "Use this option only for emergency deployments or when you're certain the configuration is correct."
+          echo ""
 
       - name: Copy Compose File to Deployment Directory
         run: |
@@ -137,7 +180,7 @@ jobs:
       - name: Pull Latest Docker Image
         run: |
           echo "📥 Pulling latest Docker image..."
-          docker pull ${{ secrets.DOCKER_USERNAME }}/elimika:latest
+          docker pull sarafrika/elimika:latest
 
       - name: Ensure Network Exists
         run: |
@@ -158,7 +201,24 @@ jobs:
         run: |
           cd ~/products/elimika
           echo "🚀 Starting services..."
-          docker compose -f compose.yaml up -d --force-recreate --remove-orphans
+          
+          # Use force recreate option based on input (default true for manual, always true for auto)
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.force_recreate }}" == "false" ]; then
+            docker compose -f compose.yaml up -d
+            echo "Started with existing containers (no force recreate)"
+          else
+            docker compose -f compose.yaml up -d --force-recreate --remove-orphans
+            echo "Started with force recreate and orphan removal"
+          fi
+          
           echo ""
           echo "✅ Deployment completed successfully!"
           echo "🌍 Service should be available on port 30000"
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo ""
+            echo "🚀 Manual deployment details:"
+            echo "  Reason: ${{ github.event.inputs.deployment_reason }}"
+            echo "  Validation skipped: ${{ github.event.inputs.skip_validation }}"
+            echo "  Force recreate: ${{ github.event.inputs.force_recreate }}"
+          fi
