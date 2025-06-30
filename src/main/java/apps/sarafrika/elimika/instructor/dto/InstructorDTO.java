@@ -15,14 +15,14 @@ import java.util.UUID;
 
 /**
  * Instructor Data Transfer Object
- *
+ * <p>
  * Represents an instructor profile in the Sarafrika Elimika system, extending user information
  * with instructor-specific data including professional qualifications, training experience,
  * certifications, and geographical location for training services.
  *
- * @author Sarafrika Team
+ * @author Wilfred Njuguna
  * @version 1.0
- * @since 2024-01-01
+ * @since 2024-06-30
  */
 @Schema(
         name = "Instructor",
@@ -63,7 +63,14 @@ import java.util.UUID;
             "created_date": "2024-04-01T12:00:00",
             "created_by": "admin@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
-            "updated_by": "admin@sarafrika.com"
+            "updated_by": "admin@sarafrika.com",
+            "has_location_coordinates": true,
+            "total_professional_credentials": 2,
+            "has_certifications": true,
+            "has_professional_bodies": true,
+            "has_training_experience": true,
+            "formatted_location": "-1.292100, 36.821900",
+            "is_profile_complete": true
         }
         """
 )
@@ -274,6 +281,12 @@ public record InstructorDTO(
          *
          * @return true if both latitude and longitude are provided, false otherwise
          */
+        @JsonProperty(value = "has_location_coordinates", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Indicates if the instructor has both latitude and longitude coordinates configured.",
+                example = "true",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public boolean hasLocationCoordinates() {
                 return latitude != null && longitude != null;
         }
@@ -283,6 +296,13 @@ public record InstructorDTO(
          *
          * @return Total count of professional credentials
          */
+        @JsonProperty(value = "total_professional_credentials", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Total count of professional credentials including certifications and professional body memberships.",
+                example = "5",
+                minimum = "0",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public int getTotalProfessionalCredentials() {
                 int bodyCount = professionalBodies != null ? professionalBodies.size() : 0;
                 int certCount = certifications != null ? certifications.size() : 0;
@@ -294,6 +314,12 @@ public record InstructorDTO(
          *
          * @return true if certifications list is not null and not empty
          */
+        @JsonProperty(value = "has_certifications", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Indicates if the instructor has any professional certifications recorded.",
+                example = "true",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public boolean hasCertifications() {
                 return certifications != null && !certifications.isEmpty();
         }
@@ -303,6 +329,12 @@ public record InstructorDTO(
          *
          * @return true if professional bodies list is not null and not empty
          */
+        @JsonProperty(value = "has_professional_bodies", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Indicates if the instructor has any professional body memberships recorded.",
+                example = "true",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public boolean hasProfessionalBodies() {
                 return professionalBodies != null && !professionalBodies.isEmpty();
         }
@@ -312,6 +344,12 @@ public record InstructorDTO(
          *
          * @return true if training experiences list is not null and not empty
          */
+        @JsonProperty(value = "has_training_experience", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Indicates if the instructor has any training or teaching experience recorded.",
+                example = "true",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public boolean hasTrainingExperience() {
                 return trainingExperiences != null && !trainingExperiences.isEmpty();
         }
@@ -321,6 +359,13 @@ public record InstructorDTO(
          *
          * @return Formatted coordinate string or null if no location data
          */
+        @JsonProperty(value = "formatted_location", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Formatted location coordinates as a string. Returns null if location coordinates are not available.",
+                example = "-1.292100, 36.821900",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public String getFormattedLocation() {
                 if (!hasLocationCoordinates()) {
                         return null;
@@ -333,6 +378,12 @@ public record InstructorDTO(
          *
          * @return true if instructor has bio, headline, and at least one professional credential
          */
+        @JsonProperty(value = "is_profile_complete", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Indicates if the instructor profile is considered complete. Requires bio, professional headline, and at least one professional credential.",
+                example = "true",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
         public boolean isProfileComplete() {
                 return bio != null && !bio.trim().isEmpty() &&
                         professionalHeadline != null && !professionalHeadline.trim().isEmpty() &&
