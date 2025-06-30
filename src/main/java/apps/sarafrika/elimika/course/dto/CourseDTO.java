@@ -18,9 +18,9 @@ import java.util.UUID;
  * Represents a course in the Sarafrika Elimika system with all necessary
  * course information, pricing details, access controls, and audit information.
  *
- * @author Sarafrika Team
+ * @author Wilfred Njuguna
  * @version 1.0
- * @since 2024-01-01
+ * @since 2024-06-30
  */
 @Schema(
         name = "Course",
@@ -43,7 +43,13 @@ import java.util.UUID;
                     "created_date": "2024-06-01T10:00:00",
                     "updated_date": "2024-06-15T14:30:00",
                     "created_by": "admin@sarafrika.com",
-                    "updated_by": "course.admin@sarafrika.com"
+                    "updated_by": "course.admin@sarafrika.com",
+                    "is_active": true,
+                    "is_draft": false,
+                    "is_enrollment_available": true,
+                    "discount_percentage": 33.3333,
+                    "discount_rate": 0.3333,
+                    "effective_price": 199.99
                 }
                 """
 )
@@ -264,6 +270,12 @@ public record CourseDTO(
      *
      * @return true if course status is ACTIVE, false otherwise
      */
+    @JsonProperty(value = "is_active", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the course is currently active and available for enrollment.",
+            example = "true",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
     public boolean isActive() {
         return CourseStatus.ACTIVE.equals(courseStatus);
     }
@@ -273,6 +285,12 @@ public record CourseDTO(
      *
      * @return true if course status is DRAFT, false otherwise
      */
+    @JsonProperty(value = "is_draft", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the course is currently in draft status.",
+            example = "false",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
     public boolean isDraft() {
         return CourseStatus.DRAFT.equals(courseStatus);
     }
@@ -282,6 +300,12 @@ public record CourseDTO(
      *
      * @return true if access start date is null or in the past/present, false if in the future
      */
+    @JsonProperty(value = "is_enrollment_available", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if enrollment is currently available based on the access start date.",
+            example = "true",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
     public boolean isEnrollmentAvailable() {
         if (accessStartDate == null) {
             return true;
@@ -294,6 +318,13 @@ public record CourseDTO(
      *
      * @return discount percentage as BigDecimal, or null if calculation is not possible
      */
+    @JsonProperty(value = "discount_percentage", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Calculated discount percentage between initial and current price. Returns null if either price is not available.",
+            example = "33.3333",
+            nullable = true,
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
     public BigDecimal getDiscountPercentage() {
         if (initialPrice == null || currentPrice == null || initialPrice.compareTo(BigDecimal.ZERO) <= 0) {
             return null;
@@ -305,7 +336,50 @@ public record CourseDTO(
     }
 
     /**
+     * Calculates the discount rate as a decimal value (0.0 to 1.0) if both initial and current prices are available.
+     * This is useful for calculations where you need the discount as a multiplier rather than a percentage.
+     *
+     * @return discount rate as BigDecimal (e.g., 0.25 for 25% discount), or null if calculation is not possible
+     */
+    @JsonProperty(value = "discount_rate", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Calculated discount rate as decimal (0.0 to 1.0) between initial and current price. Returns null if either price is not available.",
+            example = "0.3333",
+            nullable = true,
+            accessMode = Schema.AccessMode.READ_ONLY,
+            minimum = "0.0",
+            maximum = "1.0"
+    )
+    public BigDecimal getDiscountRate() {
+        if (initialPrice == null || currentPrice == null || initialPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        BigDecimal discount = initialPrice.subtract(currentPrice);
+        return discount.divide(initialPrice, 4, BigDecimal.ROUND_HALF_UP);
+    }
+
+    /**
+     * Returns the effective price for the course (current price if available, otherwise initial price).
+     *
+     * @return the effective price, or null if no price is set
+     */
+    @JsonProperty(value = "effective_price", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** The effective price for the course - current price if available, otherwise initial price.",
+            example = "199.99",
+            nullable = true,
+            accessMode = Schema.AccessMode.READ_ONLY,
+            minimum = "0.01",
+            maximum = "99999.99"
+    )
+    public BigDecimal getEffectivePrice() {
+        return currentPrice != null ? currentPrice : initialPrice;
+    }
+
+    /**
      * Checks if a student with the given age is eligible for this course based on age limits.
+     * Note: This method is not exposed as a JSON property since it requires a parameter.
      *
      * @param studentAge the age of the student
      * @return true if student is eligible, false otherwise
@@ -318,14 +392,5 @@ public record CourseDTO(
             return false;
         }
         return true;
-    }
-
-    /**
-     * Returns the effective price for the course (current price if available, otherwise initial price).
-     *
-     * @return the effective price, or null if no price is set
-     */
-    public BigDecimal getEffectivePrice() {
-        return currentPrice != null ? currentPrice : initialPrice;
     }
 }
