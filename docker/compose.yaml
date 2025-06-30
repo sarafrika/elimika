@@ -6,7 +6,7 @@ networks:
 
 services:
   elimika:
-    image: ${DOCKER_USERNAME:-defaultuser}/elimika:latest
+    image: sarafrika/elimika:latest
     restart: unless-stopped
     env_file:
       - .env
