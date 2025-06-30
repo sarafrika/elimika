@@ -6,6 +6,18 @@ on:
       - main
     types:
       - closed
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if only .github files changed'
+        required: false
+        default: false
+        type: boolean
+      build_reason:
+        description: 'Reason for manual build (optional)'
+        required: false
+        default: 'Manual trigger'
+        type: string
 
 jobs:
   check-changes:
@@ -13,6 +25,7 @@ jobs:
     outputs:
       should-build: ${{ steps.changes.outputs.should-build }}
       changed-files: ${{ steps.changes.outputs.changed-files }}
+      trigger-type: ${{ steps.changes.outputs.trigger-type }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,6 +35,19 @@ jobs:
       - name: Check for relevant changes
         id: changes
         run: |
+          # Check if this is a manual workflow dispatch
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "🚀 Manual workflow dispatch triggered"
+            echo "Reason: ${{ github.event.inputs.build_reason }}"
+            echo "Force build: ${{ github.event.inputs.force_build }}"
+            echo "trigger-type=manual" >> $GITHUB_OUTPUT
+            echo "should-build=true" >> $GITHUB_OUTPUT
+            echo "changed-files=Manual trigger - no file changes to analyze" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "trigger-type=pull_request" >> $GITHUB_OUTPUT
+          
           # Get the list of changed files in the PR
           if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
             # For merged PRs, compare against the base branch
@@ -54,6 +80,17 @@ jobs:
     if: needs.check-changes.outputs.should-build == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Build Context
+        run: |
+          if [ "${{ needs.check-changes.outputs.trigger-type }}" == "manual" ]; then
+            echo "🚀 Manual Build Triggered"
+            echo "Reason: ${{ github.event.inputs.build_reason }}"
+            echo "Force build: ${{ github.event.inputs.force_build }}"
+          else
+            echo "🔄 PR Merge Build"
+            echo "Changed files detected, proceeding with build"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -102,6 +139,13 @@ jobs:
           echo "📦 Docker images pushed:"
           echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/elimika:${{ env.APP_VERSION }}"
           echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/elimika:latest"
+          echo ""
+          if [ "${{ needs.check-changes.outputs.trigger-type }}" == "manual" ]; then
+            echo "🚀 Trigger: Manual workflow dispatch"
+            echo "📝 Reason: ${{ github.event.inputs.build_reason }}"
+          else
+            echo "🔄 Trigger: PR merge to main"
+          fi
 
   skip-build:
     needs: check-changes
@@ -115,7 +159,8 @@ jobs:
           echo "Changed files:"
           echo "${{ needs.check-changes.outputs.changed-files }}"
           echo ""
-          echo "💡 To force a build, make changes to application code or:"
+          echo "💡 To force a build, you can:"
+          echo "   - Make changes to application code"
           echo "   - Update version in build.gradle"
-          echo "   - Modify source code"
-          echo "   - Update dependencies"
+          echo "   - Modify source code or dependencies"
+          echo "   - Use 'Run workflow' button with 'Force build' option"
