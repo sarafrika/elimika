@@ -56,15 +56,15 @@ import io.swagger.v3.oas.annotations.servers.Server;
         type = SecuritySchemeType.HTTP,
         scheme = "basic"
 )
-// OAuth2 with Password Flow (Alternative approach)
+// OAuth2 with Password Flow (Keycloak)
 @SecurityScheme(
         name = "oauth2",
-        description = "OAuth2 with password flow",
+        description = "OAuth2 with password flow via Keycloak",
         type = SecuritySchemeType.OAUTH2,
         flows = @OAuthFlows(
                 password = @OAuthFlow(
-                        tokenUrl = "/oauth/token",
-                        refreshUrl = "/oauth/token"
+                        tokenUrl = "https://signin.sarafrika.com/realms/elimika/protocol/openid-connect/token",
+                        refreshUrl = "https://signin.sarafrika.com/realms/elimika/protocol/openid-connect/token"
                 )
         )
 )
