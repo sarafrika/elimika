@@ -2,10 +2,11 @@ package apps.sarafrika.elimika.instructor.factory;
 
 import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
 import apps.sarafrika.elimika.instructor.model.Instructor;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class InstructorFactory {
-    private InstructorFactory() {
-    }
 
     // Convert Instructor entity to InstructorDTO
     public static InstructorDTO toDTO(Instructor instructor) {
@@ -22,9 +23,6 @@ public class InstructorFactory {
                 instructor.getWebsite(),
                 instructor.getBio(),
                 instructor.getProfessionalHeadline(),
-                null,
-                null,
-                null,
                 instructor.getCreatedDate(),
                 instructor.getCreatedBy(),
                 instructor.getLastModifiedDate(),
@@ -40,6 +38,17 @@ public class InstructorFactory {
         Instructor instructor = new Instructor();
         instructor.setUuid(dto.uuid());
         instructor.setUserUuid(dto.userUuid());
+        instructor.setFullName(dto.fullName());
+        instructor.setLatitude(dto.latitude());
+        instructor.setLongitude(dto.longitude());
+        instructor.setAdminVerified(dto.verified());
+        instructor.setWebsite(dto.website());
+        instructor.setBio(dto.bio());
+        instructor.setProfessionalHeadline(dto.professionalHeadline());
+        instructor.setCreatedDate(dto.createdDate());
+        instructor.setCreatedBy(dto.createdBy());
+        instructor.setLastModifiedDate(dto.updatedDate());
+        instructor.setLastModifiedBy(dto.updatedBy());
         return instructor;
     }
 }
