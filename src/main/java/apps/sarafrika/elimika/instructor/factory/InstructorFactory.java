@@ -2,10 +2,11 @@ package apps.sarafrika.elimika.instructor.factory;
 
 import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
 import apps.sarafrika.elimika.instructor.model.Instructor;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class InstructorFactory {
-    private InstructorFactory() {
-    }
 
     // Convert Instructor entity to InstructorDTO
     public static InstructorDTO toDTO(Instructor instructor) {
