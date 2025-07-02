@@ -9,9 +9,14 @@ import java.util.UUID;
 
 public interface DifficultyLevelService {
     DifficultyLevelDTO createDifficultyLevel(DifficultyLevelDTO difficultyLevelDTO);
+
     DifficultyLevelDTO getDifficultyLevelByUuid(UUID uuid);
+
     Page<DifficultyLevelDTO> getAllDifficultyLevels(Pageable pageable);
+
     DifficultyLevelDTO updateDifficultyLevel(UUID uuid, DifficultyLevelDTO difficultyLevelDTO);
+
     void deleteDifficultyLevel(UUID uuid);
+
     Page<DifficultyLevelDTO> search(Map<String, String> searchParams, Pageable pageable);
 }

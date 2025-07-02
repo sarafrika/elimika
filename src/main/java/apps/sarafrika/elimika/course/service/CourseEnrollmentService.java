@@ -8,10 +8,15 @@ import java.util.UUID;
 
 public interface CourseEnrollmentService {
     CourseEnrollmentDTO createCourseEnrollment(CourseEnrollmentDTO courseEnrollmentDTO);
+
     CourseEnrollmentDTO getCourseEnrollmentByUuid(UUID uuid);
+
     Page<CourseEnrollmentDTO> getAllCourseEnrollments(Pageable pageable);
+
     CourseEnrollmentDTO updateCourseEnrollment(UUID uuid, CourseEnrollmentDTO courseEnrollmentDTO);
+
     void deleteCourseEnrollment(UUID uuid);
+
     Page<CourseEnrollmentDTO> search(Map<String, String> searchParams, Pageable pageable);
 }
 
