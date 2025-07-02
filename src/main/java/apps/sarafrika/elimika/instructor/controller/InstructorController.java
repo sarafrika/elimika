@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.instructor.controller;
 
 import apps.sarafrika.elimika.common.dto.PagedDTO;
-import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
-import apps.sarafrika.elimika.instructor.service.InstructorService;
+import apps.sarafrika.elimika.instructor.dto.*;
+import apps.sarafrika.elimika.instructor.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,28 +17,30 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST Controller for managing instructor operations.
+ * REST Controller for managing instructor operations and related entities.
  */
 @RestController
 @RequestMapping(InstructorController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Instructor Management", description = "Endpoints for managing instructors")
+@Tag(name = "Instructor Management", description = "Comprehensive endpoints for managing instructors and related entities")
 public class InstructorController {
 
     public static final String API_ROOT_PATH = "/api/v1/instructors";
 
     private final InstructorService instructorService;
+    private final InstructorDocumentService instructorDocumentService;
+    private final InstructorEducationService instructorEducationService;
+    private final InstructorExperienceService instructorExperienceService;
+    private final InstructorProfessionalMembershipService instructorProfessionalMembershipService;
+    private final InstructorSkillService instructorSkillService;
 
-    /**
-     * Creates a new instructor.
-     *
-     * @param instructorDTO The instructor data to be created.
-     * @return A success response with no content.
-     */
+    // ===== INSTRUCTOR BASIC OPERATIONS =====
+
     @Operation(
             summary = "Create a new instructor",
             description = "Saves a new instructor record in the system.",
@@ -56,12 +58,6 @@ public class InstructorController {
                         .success(createdInstructor, "Instructor created successfully"));
     }
 
-    /**
-     * Retrieves an instructor by UUID.
-     *
-     * @param uuid The UUID of the instructor.
-     * @return The instructor DTO if found.
-     */
     @Operation(
             summary = "Get instructor by UUID",
             description = "Fetches an instructor by their UUID.",
@@ -78,12 +74,6 @@ public class InstructorController {
                 .success(instructorDTO, "Instructor record fetched successfully"));
     }
 
-    /**
-     * Retrieves a paginated list of all instructors.
-     *
-     * @param pageable Pagination details.
-     * @return A paginated list of instructor DTOs.
-     */
     @Operation(
             summary = "Get all instructors",
             description = "Fetches a paginated list of instructors."
@@ -93,17 +83,10 @@ public class InstructorController {
         Page<InstructorDTO> instructors = instructorService.getAllInstructors(pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success(PagedDTO.from(instructors, ServletUriComponentsBuilder
-                        .fromCurrentRequestUri().build().toString()),
+                                .fromCurrentRequestUri().build().toString()),
                         "Instructors fetched successfully"));
     }
 
-    /**
-     * Updates an existing instructor by UUID.
-     *
-     * @param uuid The UUID of the instructor to update.
-     * @param instructorDTO The updated instructor data.
-     * @return The updated instructor DTO.
-     */
     @Operation(
             summary = "Update an instructor",
             description = "Updates an existing instructor record.",
@@ -122,12 +105,6 @@ public class InstructorController {
                 .success(updatedInstructor, "Instructor updated successfully"));
     }
 
-    /**
-     * Deletes an instructor by UUID.
-     *
-     * @param uuid The UUID of the instructor to delete.
-     * @return A response entity with no content.
-     */
     @Operation(
             summary = "Delete an instructor",
             description = "Removes an instructor record from the system.",
@@ -142,16 +119,56 @@ public class InstructorController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Searches for instructors with pagination.
-     *
-     * @param searchParams Search parameters as key-value pairs.
-     * @param pageable Pagination details.
-     * @return A paginated list of matching instructor DTOs.
-     */
     @Operation(
             summary = "Search instructors",
-            description = "Search for instructors based on criteria.",
+            description = """
+                    Search for instructors using flexible criteria with advanced operators.
+                   \s
+                    **Basic Search:**
+                    - `field=value` - Exact match (default operation)
+                    - `firstName=John` - Find instructors with firstName exactly "John"
+                   \s
+                    **Comparison Operators:**
+                    - `field_gt=value` - Greater than
+                    - `field_lt=value` - Less than \s
+                    - `field_gte=value` - Greater than or equal
+                    - `field_lte=value` - Less than or equal
+                    - `createdDate_gte=2024-01-01T00:00:00` - Created after Jan 1, 2024
+                   \s
+                    **String Operations:**
+                    - `field_like=value` - Contains (case-insensitive)
+                    - `field_startswith=value` - Starts with (case-insensitive) \s
+                    - `field_endswith=value` - Ends with (case-insensitive)
+                    - `lastName_like=smith` - Last name contains "smith"
+                   \s
+                    **List Operations:**
+                    - `field_in=val1,val2,val3` - Field is in list
+                    - `field_notin=val1,val2` - Field is not in list
+                    - `status_in=ACTIVE,PENDING` - Status is either ACTIVE or PENDING
+                   \s
+                    **Negation:**
+                    - `field_noteq=value` - Not equal to value
+                    - `isActive_noteq=false` - Is not false (i.e., is true)
+                   \s
+                    **Range Operations:**
+                    - `field_between=start,end` - Value between start and end (inclusive)
+                    - `createdDate_between=2024-01-01T00:00:00,2024-12-31T23:59:59` - Created in 2024
+                   \s
+                    **Complex Operations:**
+                    - `field_notingroup=relationshipField,groupId` - Not in specific group
+                   \s
+                    **Nested Field Access:**
+                    - `nestedObject.field=value` - Search in nested objects
+                   \s
+                    **Supported Data Types:**
+                    - String, UUID, Boolean (true/false or 1/0), Integer, Long, Double, Float, BigDecimal
+                    - Date (YYYY-MM-DD), Timestamp, LocalDateTime (ISO format)
+                   \s
+                    **Examples:**
+                    - `/search?firstName_like=john&isActive=true&createdDate_gte=2024-01-01T00:00:00`
+                    - `/search?experience_gt=5&status_in=ACTIVE,VERIFIED`
+                    - `/search?email_endswith=@company.com&department_noteq=IT`
+                   \s""",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Search results returned successfully",
                             content = @Content(schema = @Schema(implementation = Page.class)))
@@ -164,7 +181,408 @@ public class InstructorController {
         Page<InstructorDTO> instructors = instructorService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success(PagedDTO.from(instructors, ServletUriComponentsBuilder
-                        .fromCurrentRequestUri().build().toString()),
+                                .fromCurrentRequestUri().build().toString()),
                         "Instructor search successful"));
+    }
+
+    // ===== INSTRUCTOR DOCUMENTS =====
+
+    @Operation(summary = "Add document to instructor", description = "Uploads and associates a document with an instructor")
+    @PostMapping("/{instructorUuid}/documents")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDocumentDTO>> addInstructorDocument(
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody InstructorDocumentDTO documentDTO) {
+
+        InstructorDocumentDTO createdDocument = instructorDocumentService.createInstructorDocument(documentDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(createdDocument, "Document added successfully"));
+    }
+
+    @Operation(summary = "Get instructor documents", description = "Retrieves all documents for a specific instructor")
+    @GetMapping("/{instructorUuid}/documents")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<InstructorDocumentDTO>>> getInstructorDocuments(
+            @PathVariable UUID instructorUuid) {
+        List<InstructorDocumentDTO> documents = instructorDocumentService.getDocumentsByInstructorUuid(instructorUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(documents, "Documents fetched successfully"));
+    }
+
+    @Operation(summary = "Update instructor document", description = "Updates a specific document")
+    @PutMapping("/{instructorUuid}/documents/{documentUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDocumentDTO>> updateInstructorDocument(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID documentUuid,
+            @Valid @RequestBody InstructorDocumentDTO documentDTO) {
+        InstructorDocumentDTO updatedDocument = instructorDocumentService.updateInstructorDocument(documentUuid, documentDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedDocument, "Document updated successfully"));
+    }
+
+    @Operation(summary = "Delete instructor document", description = "Removes a document from an instructor")
+    @DeleteMapping("/{instructorUuid}/documents/{documentUuid}")
+    public ResponseEntity<Void> deleteInstructorDocument(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID documentUuid) {
+        instructorDocumentService.deleteInstructorDocument(documentUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Verify instructor document", description = "Marks a document as verified")
+    @PostMapping("/{instructorUuid}/documents/{documentUuid}/verify")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDocumentDTO>> verifyDocument(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID documentUuid,
+            @RequestParam String verifiedBy,
+            @RequestParam(required = false) String verificationNotes) {
+        InstructorDocumentDTO verifiedDocument = instructorDocumentService.verifyDocument(documentUuid, verifiedBy, verificationNotes);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(verifiedDocument, "Document verified successfully"));
+    }
+
+    // ===== INSTRUCTOR EDUCATION =====
+
+    @Operation(summary = "Add education to instructor", description = "Adds educational qualification to an instructor")
+    @PostMapping("/{instructorUuid}/education")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorEducationDTO>> addInstructorEducation(
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody InstructorEducationDTO educationDTO) {
+
+        InstructorEducationDTO createdEducation = instructorEducationService.createInstructorEducation(educationDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(createdEducation, "Education record added successfully"));
+    }
+
+    @Operation(summary = "Get instructor education", description = "Retrieves all education records for a specific instructor")
+    @GetMapping("/{instructorUuid}/education")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<InstructorEducationDTO>>> getInstructorEducation(
+            @PathVariable UUID instructorUuid) {
+        List<InstructorEducationDTO> education = instructorEducationService.getEducationByInstructorUuid(instructorUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(education, "Education records fetched successfully"));
+    }
+
+    @Operation(summary = "Update instructor education", description = "Updates a specific education record")
+    @PutMapping("/{instructorUuid}/education/{educationUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorEducationDTO>> updateInstructorEducation(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID educationUuid,
+            @Valid @RequestBody InstructorEducationDTO educationDTO) {
+        InstructorEducationDTO updatedEducation = instructorEducationService.updateInstructorEducation(educationUuid, educationDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedEducation, "Education record updated successfully"));
+    }
+
+    @Operation(summary = "Delete instructor education", description = "Removes an education record from an instructor")
+    @DeleteMapping("/{instructorUuid}/education/{educationUuid}")
+    public ResponseEntity<Void> deleteInstructorEducation(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID educationUuid) {
+        instructorEducationService.deleteInstructorEducation(educationUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== INSTRUCTOR EXPERIENCE =====
+
+    @Operation(summary = "Add experience to instructor", description = "Adds work experience to an instructor")
+    @PostMapping("/{instructorUuid}/experience")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorExperienceDTO>> addInstructorExperience(
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody InstructorExperienceDTO experienceDTO) {
+
+        InstructorExperienceDTO createdExperience = instructorExperienceService.createInstructorExperience(experienceDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(createdExperience, "Experience record added successfully"));
+    }
+
+    @Operation(summary = "Get instructor experience", description = "Retrieves all experience records for a specific instructor")
+    @GetMapping("/{instructorUuid}/experience")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> getInstructorExperience(
+            @PathVariable UUID instructorUuid,
+            Pageable pageable) {
+        Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
+        Page<InstructorExperienceDTO> experience = instructorExperienceService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(experience, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Experience records fetched successfully"));
+    }
+
+    @Operation(summary = "Update instructor experience", description = "Updates a specific experience record")
+    @PutMapping("/{instructorUuid}/experience/{experienceUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorExperienceDTO>> updateInstructorExperience(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID experienceUuid,
+            @Valid @RequestBody InstructorExperienceDTO experienceDTO) {
+        InstructorExperienceDTO updatedExperience = instructorExperienceService.updateInstructorExperience(experienceUuid, experienceDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedExperience, "Experience record updated successfully"));
+    }
+
+    @Operation(summary = "Delete instructor experience", description = "Removes an experience record from an instructor")
+    @DeleteMapping("/{instructorUuid}/experience/{experienceUuid}")
+    public ResponseEntity<Void> deleteInstructorExperience(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID experienceUuid) {
+        instructorExperienceService.deleteInstructorExperience(experienceUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== INSTRUCTOR PROFESSIONAL MEMBERSHIPS =====
+
+    @Operation(summary = "Add membership to instructor", description = "Adds professional membership to an instructor")
+    @PostMapping("/{instructorUuid}/memberships")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorProfessionalMembershipDTO>> addInstructorMembership(
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody InstructorProfessionalMembershipDTO membershipDTO) {
+
+        InstructorProfessionalMembershipDTO createdMembership = instructorProfessionalMembershipService
+                .createInstructorProfessionalMembership(membershipDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(createdMembership, "Membership record added successfully"));
+    }
+
+    @Operation(summary = "Get instructor memberships", description = "Retrieves all membership records for a specific instructor")
+    @GetMapping("/{instructorUuid}/memberships")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> getInstructorMemberships(
+            @PathVariable UUID instructorUuid,
+            Pageable pageable) {
+        Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
+        Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(memberships, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Membership records fetched successfully"));
+    }
+
+    @Operation(summary = "Update instructor membership", description = "Updates a specific membership record")
+    @PutMapping("/{instructorUuid}/memberships/{membershipUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorProfessionalMembershipDTO>> updateInstructorMembership(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID membershipUuid,
+            @Valid @RequestBody InstructorProfessionalMembershipDTO membershipDTO) {
+        InstructorProfessionalMembershipDTO updatedMembership = instructorProfessionalMembershipService.updateInstructorProfessionalMembership(membershipUuid, membershipDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedMembership, "Membership record updated successfully"));
+    }
+
+    @Operation(summary = "Delete instructor membership", description = "Removes a membership record from an instructor")
+    @DeleteMapping("/{instructorUuid}/memberships/{membershipUuid}")
+    public ResponseEntity<Void> deleteInstructorMembership(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID membershipUuid) {
+        instructorProfessionalMembershipService.deleteInstructorProfessionalMembership(membershipUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== INSTRUCTOR SKILLS =====
+
+    @Operation(summary = "Add skill to instructor", description = "Adds a skill to an instructor")
+    @PostMapping("/{instructorUuid}/skills")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorSkillDTO>> addInstructorSkill(
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody InstructorSkillDTO skillDTO) {
+
+        InstructorSkillDTO createdSkill = instructorSkillService.createInstructorSkill(skillDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(createdSkill, "Skill added successfully"));
+    }
+
+    @Operation(summary = "Get instructor skills", description = "Retrieves all skills for a specific instructor")
+    @GetMapping("/{instructorUuid}/skills")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> getInstructorSkills(
+            @PathVariable UUID instructorUuid,
+            Pageable pageable) {
+        Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
+        Page<InstructorSkillDTO> skills = instructorSkillService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(skills, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Skills fetched successfully"));
+    }
+
+    @Operation(summary = "Update instructor skill", description = "Updates a specific skill record")
+    @PutMapping("/{instructorUuid}/skills/{skillUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorSkillDTO>> updateInstructorSkill(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID skillUuid,
+            @Valid @RequestBody InstructorSkillDTO skillDTO) {
+        InstructorSkillDTO updatedSkill = instructorSkillService.updateInstructorSkill(skillUuid, skillDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedSkill, "Skill updated successfully"));
+    }
+
+    @Operation(summary = "Delete instructor skill", description = "Removes a skill from an instructor")
+    @DeleteMapping("/{instructorUuid}/skills/{skillUuid}")
+    public ResponseEntity<Void> deleteInstructorSkill(
+            @PathVariable UUID instructorUuid,
+            @PathVariable UUID skillUuid) {
+        instructorSkillService.deleteInstructorSkill(skillUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== SEARCH ENDPOINTS FOR RELATED ENTITIES =====
+
+    @Operation(
+            summary = "Search instructor documents",
+            description = """
+                    Search documents with flexible criteria using advanced operators.
+                    
+                    **Common Document Search Examples:**
+                    - `instructorUuid=uuid` - All documents for specific instructor
+                    - `isVerified=false` - Unverified documents
+                    - `status=PENDING` - Documents with pending status
+                    - `status_in=APPROVED,VERIFIED` - Approved or verified documents
+                    - `expiryDate_lte=2025-12-31` - Documents expiring by end of 2025
+                    - `mimeType_like=pdf` - PDF documents
+                    - `fileSizeBytes_gt=1048576` - Files larger than 1MB
+                    - `title_startswith=Certificate` - Titles starting with "Certificate"
+                    - `createdDate_between=2024-01-01T00:00:00,2024-12-31T23:59:59` - Created in 2024
+                    
+                    **Special Document Queries:**
+                    - `isVerified=false&expiryDate_lte=2025-12-31` - Unverified expiring documents
+                    - `status_noteq=EXPIRED&expiryDate_lt=2025-07-02` - Non-expired but overdue docs
+                    
+                    For complete operator documentation, see the main search endpoint.
+                    """
+    )
+    @GetMapping("/documents/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDocumentDTO>>> searchDocuments(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        Page<InstructorDocumentDTO> documents = instructorDocumentService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(documents, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Document search completed successfully"));
+    }
+
+    @Operation(
+            summary = "Search instructor education",
+            description = """
+                    Search education records with flexible criteria.
+                    
+                    **Common Education Search Examples:**
+                    - `instructorUuid=uuid` - All education for specific instructor
+                    - `qualification_like=degree` - Qualifications containing "degree"
+                    - `schoolName_startswith=University` - Schools starting with "University"
+                    - `yearCompleted_gte=2020` - Completed in 2020 or later
+                    - `yearCompleted_between=2015,2020` - Completed between 2015-2020
+                    - `certificateNumber_noteq=null` - Has certificate number
+                    
+                    For complete operator documentation, see the main search endpoint.
+                    """
+    )
+    @GetMapping("/education/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorEducationDTO>>> searchEducation(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        Page<InstructorEducationDTO> education = instructorEducationService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(education, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Education search completed successfully"));
+    }
+
+    @Operation(
+            summary = "Search instructor experience",
+            description = """
+                    Search experience records with flexible criteria.
+                    
+                    **Common Experience Search Examples:**
+                    - `instructorUuid=uuid` - All experience for specific instructor
+                    - `isCurrentPosition=true` - Current positions only
+                    - `position_like=manager` - Positions containing "manager"
+                    - `organizationName_endswith=Ltd` - Organizations ending with "Ltd"
+                    - `yearsOfExperience_gte=5` - 5+ years experience
+                    - `startDate_gte=2020-01-01` - Started in 2020 or later
+                    - `endDate=null` - Ongoing positions (no end date)
+                    - `responsibilities_like=team` - Responsibilities mentioning "team"
+                    
+                    **Experience Analysis Queries:**
+                    - `isCurrentPosition=false&endDate_gte=2023-01-01` - Recent past positions
+                    - `yearsOfExperience_between=3,10` - Mid-level experience (3-10 years)
+                    
+                    For complete operator documentation, see the main search endpoint.
+                    """
+    )
+    @GetMapping("/experience/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> searchExperience(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        Page<InstructorExperienceDTO> experience = instructorExperienceService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(experience, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Experience search completed successfully"));
+    }
+
+    @Operation(
+            summary = "Search instructor memberships",
+            description = """
+                    Search membership records with flexible criteria.
+                    
+                    **Common Membership Search Examples:**
+                    - `instructorUuid=uuid` - All memberships for specific instructor
+                    - `isActive=true` - Active memberships only
+                    - `organizationName_like=professional` - Organizations with "professional" in name
+                    - `startDate_gte=2023-01-01` - Memberships started in 2023 or later
+                    - `endDate=null` - Ongoing memberships (no end date)
+                    - `membershipNumber_startswith=PRO` - Numbers starting with "PRO"
+                    
+                    **Membership Analysis Queries:**
+                    - `isActive=true&endDate=null` - Currently active ongoing memberships
+                    - `isActive=false&endDate_gte=2024-01-01` - Recently expired memberships
+                    - `startDate_between=2020-01-01,2023-12-31` - Joined between 2020-2023
+                    
+                    For complete operator documentation, see the main search endpoint.
+                    """
+    )
+    @GetMapping("/memberships/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> searchMemberships(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(memberships, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Membership search completed successfully"));
+    }
+
+    @Operation(
+            summary = "Search instructor skills",
+            description = """
+                    Search skills with flexible criteria.
+                    
+                    **Common Skills Search Examples:**
+                    - `instructorUuid=uuid` - All skills for specific instructor
+                    - `skillName_like=java` - Skills containing "java"
+                    - `proficiencyLevel=EXPERT` - Expert level skills only
+                    - `proficiencyLevel_in=ADVANCED,EXPERT` - Advanced or expert skills
+                    - `skillName_startswith=Data` - Skills starting with "Data"
+                    - `proficiencyLevel_noteq=BEGINNER` - Non-beginner skills
+                    
+                    **Skills Analysis Queries:**
+                    - `skillName_like=programming&proficiencyLevel_in=ADVANCED,EXPERT` - Advanced programming skills
+                    - `createdDate_gte=2024-01-01&proficiencyLevel=EXPERT` - Recently added expert skills
+                    
+                    **Proficiency Levels:** BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+                    
+                    For complete operator documentation, see the main search endpoint.
+                    """
+    )
+    @GetMapping("/skills/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> searchSkills(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        Page<InstructorSkillDTO> skills = instructorSkillService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(skills, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Skills search completed successfully"));
     }
 }
