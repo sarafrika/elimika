@@ -1,7 +1,7 @@
-- V1.8__Create_document_status_enum.sql
+-- V202506301849__Create_document_status_enum.sql
 CREATE TYPE document_status_enum AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED');
 
--- V1.9__Create_instructor_documents_table.sql
+-- V202506301849__Create_instructor_documents_table.sql
 CREATE TABLE instructor_documents
 (
     id                 BIGSERIAL PRIMARY KEY,
