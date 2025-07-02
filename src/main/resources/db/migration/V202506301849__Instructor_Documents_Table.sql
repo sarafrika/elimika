@@ -10,9 +10,9 @@ CREATE TABLE instructor_documents
     document_type_uuid UUID         NOT NULL,
 
     -- Reference to specific records (nullable - documents can be general)
-    education_uuid     BIGINT       NULL,
-    experience_uuid    BIGINT       NULL,
-    membership_uuid    BIGINT       NULL,
+    education_uuid     UUID       NULL,
+    experience_uuid    UUID       NULL,
+    membership_uuid    UUID       NULL,
 
     -- File information
     original_filename  VARCHAR(255) NOT NULL,
