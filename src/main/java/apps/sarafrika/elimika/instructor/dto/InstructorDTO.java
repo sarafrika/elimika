@@ -1,24 +1,18 @@
 package apps.sarafrika.elimika.instructor.dto;
 
-import apps.sarafrika.elimika.tenancy.dto.ProfessionalBodyDTO;
-import apps.sarafrika.elimika.tenancy.dto.TrainingExperienceDTO;
-import apps.sarafrika.elimika.tenancy.dto.UserCertificationDTO;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 /**
  * Instructor Data Transfer Object
  * <p>
  * Represents an instructor profile in the Sarafrika Elimika system, extending user information
- * with instructor-specific data including professional qualifications, training experience,
- * certifications, and geographical location for training services.
+ * with instructor-specific data including geographical location for training services.
  *
  * @author Wilfred Njuguna
  * @version 1.0
@@ -26,7 +20,7 @@ import java.util.UUID;
  */
 @Schema(
         name = "Instructor",
-        description = "Comprehensive instructor profile including professional qualifications, training experience, certifications, and location data for educational service delivery",
+        description = "Instructor profile including location data for educational service delivery",
         example = """
         {
             "uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
@@ -37,38 +31,11 @@ import java.util.UUID;
             "website": "https://drjanesmith.com",
             "bio": "Experienced educator with 10+ years in software development training and mentorship.",
             "professional_headline": "Senior Software Development Instructor & Tech Consultant",
-            "professional_bodies": [
-                {
-                    "uuid": "pb-uuid-1",
-                    "name": "IEEE",
-                    "membership_number": "12345678"
-                }
-            ],
-            "training_experiences": [
-                {
-                    "uuid": "te-uuid-1",
-                    "title": "Full Stack Development Bootcamp",
-                    "duration_months": 6,
-                    "organization": "Tech Academy"
-                }
-            ],
-            "certifications": [
-                {
-                    "uuid": "cert-uuid-1",
-                    "name": "AWS Certified Solutions Architect",
-                    "issuing_organization": "Amazon Web Services",
-                    "issue_date": "2023-01-15"
-                }
-            ],
             "created_date": "2024-04-01T12:00:00",
             "created_by": "admin@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
             "updated_by": "admin@sarafrika.com",
             "has_location_coordinates": true,
-            "total_professional_credentials": 2,
-            "has_certifications": true,
-            "has_professional_bodies": true,
-            "has_training_experience": true,
             "formatted_location": "-1.292100, 36.821900",
             "is_profile_complete": true
         }
@@ -174,69 +141,6 @@ public record InstructorDTO(
         String professionalHeadline,
 
         @Schema(
-                description = "**[OPTIONAL]** List of professional bodies and associations the instructor is affiliated with. Used to verify professional standing and credibility.",
-                example = """
-                [
-                    {
-                        "uuid": "pb-uuid-1",
-                        "name": "Institute of Electrical and Electronics Engineers (IEEE)",
-                        "membership_number": "12345678",
-                        "membership_type": "Professional Member",
-                        "status": "Active"
-                    }
-                ]
-                """,
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @Valid
-        @JsonProperty("professional_bodies")
-        List<ProfessionalBodyDTO> professionalBodies,
-
-        @Schema(
-                description = "**[OPTIONAL]** Detailed training and teaching experience history. Documents instructor's practical experience in delivering educational content.",
-                example = """
-                [
-                    {
-                        "uuid": "te-uuid-1",
-                        "title": "Full Stack Development Bootcamp",
-                        "organization": "Tech Academy Kenya",
-                        "duration_months": 6,
-                        "participants_trained": 150,
-                        "start_date": "2022-01-01",
-                        "end_date": "2023-12-31"
-                    }
-                ]
-                """,
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @Valid
-        @JsonProperty("training_experiences")
-        List<TrainingExperienceDTO> trainingExperiences,
-
-        @Schema(
-                description = "**[OPTIONAL]** Professional certifications and qualifications held by the instructor. Used to verify expertise and authorize teaching specific subjects.",
-                example = """
-                [
-                    {
-                        "uuid": "cert-uuid-1",
-                        "name": "AWS Certified Solutions Architect - Professional",
-                        "issuing_organization": "Amazon Web Services",
-                        "issue_date": "2023-01-15",
-                        "expiry_date": "2026-01-15",
-                        "credential_id": "AWS-SAP-12345"
-                    }
-                ]
-                """,
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @Valid
-        @JsonProperty("certifications")
-        List<UserCertificationDTO> certifications,
-
-        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the instructor profile was first created. Automatically set by the system.",
                 example = "2024-04-01T12:00:00",
                 format = "date-time",
@@ -292,69 +196,6 @@ public record InstructorDTO(
         }
 
         /**
-         * Returns the total number of professional affiliations (bodies + certifications).
-         *
-         * @return Total count of professional credentials
-         */
-        @JsonProperty(value = "total_professional_credentials", access = JsonProperty.Access.READ_ONLY)
-        @Schema(
-                description = "**[READ-ONLY]** Total count of professional credentials including certifications and professional body memberships.",
-                example = "5",
-                minimum = "0",
-                accessMode = Schema.AccessMode.READ_ONLY
-        )
-        public int getTotalProfessionalCredentials() {
-                int bodyCount = professionalBodies != null ? professionalBodies.size() : 0;
-                int certCount = certifications != null ? certifications.size() : 0;
-                return bodyCount + certCount;
-        }
-
-        /**
-         * Checks if the instructor has any professional certifications.
-         *
-         * @return true if certifications list is not null and not empty
-         */
-        @JsonProperty(value = "has_certifications", access = JsonProperty.Access.READ_ONLY)
-        @Schema(
-                description = "**[READ-ONLY]** Indicates if the instructor has any professional certifications recorded.",
-                example = "true",
-                accessMode = Schema.AccessMode.READ_ONLY
-        )
-        public boolean hasCertifications() {
-                return certifications != null && !certifications.isEmpty();
-        }
-
-        /**
-         * Checks if the instructor has any professional body memberships.
-         *
-         * @return true if professional bodies list is not null and not empty
-         */
-        @JsonProperty(value = "has_professional_bodies", access = JsonProperty.Access.READ_ONLY)
-        @Schema(
-                description = "**[READ-ONLY]** Indicates if the instructor has any professional body memberships recorded.",
-                example = "true",
-                accessMode = Schema.AccessMode.READ_ONLY
-        )
-        public boolean hasProfessionalBodies() {
-                return professionalBodies != null && !professionalBodies.isEmpty();
-        }
-
-        /**
-         * Checks if the instructor has any training experience recorded.
-         *
-         * @return true if training experiences list is not null and not empty
-         */
-        @JsonProperty(value = "has_training_experience", access = JsonProperty.Access.READ_ONLY)
-        @Schema(
-                description = "**[READ-ONLY]** Indicates if the instructor has any training or teaching experience recorded.",
-                example = "true",
-                accessMode = Schema.AccessMode.READ_ONLY
-        )
-        public boolean hasTrainingExperience() {
-                return trainingExperiences != null && !trainingExperiences.isEmpty();
-        }
-
-        /**
          * Returns a formatted location string if coordinates are available.
          *
          * @return Formatted coordinate string or null if no location data
@@ -376,17 +217,16 @@ public record InstructorDTO(
         /**
          * Checks if the instructor profile is considered complete based on key fields.
          *
-         * @return true if instructor has bio, headline, and at least one professional credential
+         * @return true if instructor has bio and headline
          */
         @JsonProperty(value = "is_profile_complete", access = JsonProperty.Access.READ_ONLY)
         @Schema(
-                description = "**[READ-ONLY]** Indicates if the instructor profile is considered complete. Requires bio, professional headline, and at least one professional credential.",
+                description = "**[READ-ONLY]** Indicates if the instructor profile is considered complete. Requires bio and professional headline.",
                 example = "true",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         public boolean isProfileComplete() {
                 return bio != null && !bio.trim().isEmpty() &&
-                        professionalHeadline != null && !professionalHeadline.trim().isEmpty() &&
-                        getTotalProfessionalCredentials() > 0;
+                        professionalHeadline != null && !professionalHeadline.trim().isEmpty();
         }
 }

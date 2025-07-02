@@ -23,9 +23,6 @@ public class InstructorFactory {
                 instructor.getWebsite(),
                 instructor.getBio(),
                 instructor.getProfessionalHeadline(),
-                null,
-                null,
-                null,
                 instructor.getCreatedDate(),
                 instructor.getCreatedBy(),
                 instructor.getLastModifiedDate(),
@@ -41,6 +38,17 @@ public class InstructorFactory {
         Instructor instructor = new Instructor();
         instructor.setUuid(dto.uuid());
         instructor.setUserUuid(dto.userUuid());
+        instructor.setFullName(dto.fullName());
+        instructor.setLatitude(dto.latitude());
+        instructor.setLongitude(dto.longitude());
+        instructor.setAdminVerified(dto.verified());
+        instructor.setWebsite(dto.website());
+        instructor.setBio(dto.bio());
+        instructor.setProfessionalHeadline(dto.professionalHeadline());
+        instructor.setCreatedDate(dto.createdDate());
+        instructor.setCreatedBy(dto.createdBy());
+        instructor.setLastModifiedDate(dto.updatedDate());
+        instructor.setLastModifiedBy(dto.updatedBy());
         return instructor;
     }
 }
