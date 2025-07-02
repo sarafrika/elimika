@@ -6,7 +6,7 @@ CREATE TABLE training_programs
     id                     BIGSERIAL PRIMARY KEY,
     uuid                   UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     title                  VARCHAR(255)             NOT NULL,
-    author_uuid            UUID                     NOT NULL REFERENCES users (uuid),
+    instructor_uuid        UUID                     NOT NULL REFERENCES instructors (uuid),
     category_uuid          UUID REFERENCES categories (uuid),
     description            TEXT,
     objectives             TEXT,
@@ -25,7 +25,7 @@ CREATE TABLE training_programs
 
 -- Create performance indexes
 CREATE INDEX idx_training_programs_uuid ON training_programs (uuid);
-CREATE INDEX idx_training_programs_author_uuid ON training_programs (author_uuid);
+CREATE INDEX idx_training_programs_author_uuid ON training_programs (instructor_uuid);
 CREATE INDEX idx_training_programs_category_uuid ON training_programs (category_uuid);
 CREATE INDEX idx_training_programs_is_published ON training_programs (is_published);
 CREATE INDEX idx_training_programs_created_date ON training_programs (created_date);
