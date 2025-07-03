@@ -7,7 +7,7 @@ CREATE TABLE course_categories
     uuid         UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     name         VARCHAR(100)             NOT NULL UNIQUE,
     description  TEXT,
-    parent_uuid  UUID REFERENCES categories (uuid),
+    parent_uuid  UUID REFERENCES course_categories (uuid),
     is_active    BOOLEAN                                  DEFAULT true,
     created_date TIMESTAMP WITH TIME ZONE NOT NULL        DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
     updated_date TIMESTAMP WITH TIME ZONE                 DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
