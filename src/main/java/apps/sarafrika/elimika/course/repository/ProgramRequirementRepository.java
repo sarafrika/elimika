@@ -11,5 +11,8 @@ import java.util.UUID;
 @Repository
 public interface ProgramRequirementRepository extends JpaRepository<ProgramRequirement, Long>, JpaSpecificationExecutor<ProgramRequirement> {
     Optional<ProgramRequirement> findByUuid(UUID uuid);
+
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

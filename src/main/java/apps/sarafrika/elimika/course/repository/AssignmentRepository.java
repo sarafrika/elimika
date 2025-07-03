@@ -14,4 +14,6 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long>,
     Optional<Assignment> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

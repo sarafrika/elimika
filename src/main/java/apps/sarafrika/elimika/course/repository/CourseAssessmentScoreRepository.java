@@ -14,4 +14,6 @@ public interface CourseAssessmentScoreRepository extends JpaRepository<CourseAss
     Optional<CourseAssessmentScore> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

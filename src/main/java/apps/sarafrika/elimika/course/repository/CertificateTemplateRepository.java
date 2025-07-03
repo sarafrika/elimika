@@ -15,4 +15,6 @@ public interface CertificateTemplateRepository extends JpaRepository<Certificate
     Optional<CertificateTemplate> findByName(String name);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

@@ -11,6 +11,8 @@ import java.util.UUID;
 @Repository
 public interface GradingLevelRepository extends JpaRepository<GradingLevel, Long>, JpaSpecificationExecutor<GradingLevel> {
     Optional<GradingLevel> findByUuid(UUID uuid);
-    Optional<GradingLevel> findByName(String name);
+
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

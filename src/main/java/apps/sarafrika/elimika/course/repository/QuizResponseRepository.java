@@ -13,4 +13,10 @@ public interface QuizResponseRepository extends JpaRepository<QuizResponse, Long
     Optional<QuizResponse> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    Optional<QuizResponse> findByAttemptUuid(UUID attemptUuid);
+
+    boolean existsByUuid(UUID uuid);
+
+    long countByQuestionUuid(UUID questionUuid);
 }

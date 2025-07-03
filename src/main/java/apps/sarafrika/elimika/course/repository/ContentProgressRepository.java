@@ -13,4 +13,6 @@ public interface ContentProgressRepository extends JpaRepository<ContentProgress
     Optional<ContentProgress> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

@@ -13,4 +13,14 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     Optional<Course> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    long countByCategoryUuid(UUID categoryUuid);
+
+    boolean existsByUuid(UUID uuid);
+
+    Optional<Course> findByInstructorUuid(UUID instructorUuid);
+
+    Optional<Course> findByCategoryUuid(UUID categoryUuid);
+
+    long countByDifficultyUuid(UUID difficultyUuid);
 }

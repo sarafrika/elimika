@@ -14,4 +14,6 @@ public interface RubricCriteriaRepository extends JpaRepository<RubricCriteria, 
     Optional<RubricCriteria> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

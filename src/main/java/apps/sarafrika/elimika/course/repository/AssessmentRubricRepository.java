@@ -13,4 +13,6 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
     Optional<AssessmentRubric> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

@@ -13,4 +13,6 @@ public interface QuizRepository extends JpaRepository<Quiz, Long>, JpaSpecificat
     Optional<Quiz> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

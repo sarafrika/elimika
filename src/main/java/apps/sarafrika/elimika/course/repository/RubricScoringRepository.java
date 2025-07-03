@@ -14,4 +14,6 @@ public interface RubricScoringRepository extends JpaRepository<RubricScoring, Lo
     Optional<RubricScoring> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

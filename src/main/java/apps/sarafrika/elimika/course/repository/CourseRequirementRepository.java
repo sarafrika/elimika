@@ -13,4 +13,6 @@ public interface CourseRequirementRepository extends JpaRepository<CourseRequire
     Optional<CourseRequirement> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }

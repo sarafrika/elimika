@@ -13,4 +13,6 @@ public interface LessonRepository extends JpaRepository<Lesson, Long>, JpaSpecif
     Optional<Lesson> findByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByUuid(UUID uuid);
 }
