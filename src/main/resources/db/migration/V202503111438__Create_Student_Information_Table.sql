@@ -13,7 +13,11 @@ CREATE TABLE students
     created_by        VARCHAR(50)  NOT NULL,
     updated_date      TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     updated_by        VARCHAR(50),
-    deleted           BOOLEAN      NOT NULL        DEFAULT FALSE
+    deleted           BOOLEAN      NOT NULL        DEFAULT FALSE,
+
+    -- Add missing foreign key constraint
+    CONSTRAINT fk_students_user_uuid
+        FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE INDEX idx_user_uuid ON students (user_uuid);
