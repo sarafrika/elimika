@@ -5,21 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface LessonRepository extends JpaRepository<Lesson,Long>, JpaSpecificationExecutor<Lesson> {
-    Optional<Lesson> findByUuid(UUID courseUuid);
+public interface LessonRepository extends JpaRepository<Lesson, Long>, JpaSpecificationExecutor<Lesson> {
+    Optional<Lesson> findByUuid(UUID uuid);
 
-    List<Lesson> findByCourseUuidOrderByLessonNoAsc(UUID courseUuid);
+    void deleteByUuid(UUID uuid);
 
-    List<Lesson> findAllByUuidIn(List<UUID> courseUuids);
-
-    boolean existsByUuid(UUID lessonUuid);
-
-    boolean existsByCourseUuidAndLessonNo(UUID courseUuid, Integer lessonNo);
-
-    List<Lesson> findByCourseUuidAndLessonNoGreaterThanOrderByLessonNoAsc(UUID courseUuid, Integer lessonNo);
+    boolean existsByUuid(UUID uuid);
 }

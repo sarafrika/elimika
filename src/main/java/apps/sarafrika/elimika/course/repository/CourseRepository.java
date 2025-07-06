@@ -9,8 +9,18 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface CourseRepository extends JpaRepository<Course,Long>, JpaSpecificationExecutor<Course> {
-    Optional<Course> findByUuid(UUID courseUuid);
+public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecificationExecutor<Course> {
+    Optional<Course> findByUuid(UUID uuid);
 
-    boolean existsByCourseCode(String courseCode);
+    void deleteByUuid(UUID uuid);
+
+    long countByCategoryUuid(UUID categoryUuid);
+
+    boolean existsByUuid(UUID uuid);
+
+    Optional<Course> findByInstructorUuid(UUID instructorUuid);
+
+    Optional<Course> findByCategoryUuid(UUID categoryUuid);
+
+    long countByDifficultyUuid(UUID difficultyUuid);
 }

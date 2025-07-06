@@ -5,52 +5,52 @@ import apps.sarafrika.elimika.course.model.Lesson;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-/**
- * Lesson Factory
- * <p>
- * Factory class responsible for converting between Lesson entities and LessonDTO objects.
- * Provides centralized conversion logic to ensure consistency across the application.
- *
- * @author Wilfred Njuguna
- * @version 1.0
- * @since Thursday, June 26, 2025
- */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class LessonFactory {
 
+    // Convert Lesson entity to LessonDTO
     public static LessonDTO toDTO(Lesson lesson) {
         if (lesson == null) {
             return null;
         }
-
         return new LessonDTO(
                 lesson.getUuid(),
-                lesson.getLessonNo(),
                 lesson.getCourseUuid(),
-                lesson.getLessonName(),
-                lesson.getLessonDescription(),
-                lesson.getLessonType(),
-                lesson.getEstimatedDurationMinutes(),
+                lesson.getLessonNumber(),
+                lesson.getTitle(),
+                lesson.getDurationHours(),
+                lesson.getDurationMinutes(),
+                lesson.getDescription(),
+                lesson.getLearningObjectives(),
+                lesson.getStatus(),
+                lesson.getActive(),
                 lesson.getCreatedDate(),
-                lesson.getLastModifiedDate(),
                 lesson.getCreatedBy(),
+                lesson.getLastModifiedDate(),
                 lesson.getLastModifiedBy()
         );
     }
 
-    public static Lesson toEntity(LessonDTO lessonDTO) {
-        if (lessonDTO == null) {
+    // Convert LessonDTO to Lesson entity
+    public static Lesson toEntity(LessonDTO dto) {
+        if (dto == null) {
             return null;
         }
-
         Lesson lesson = new Lesson();
-        lesson.setLessonNo(lessonDTO.lessonNo());
-        lesson.setCourseUuid(lessonDTO.courseUuid());
-        lesson.setLessonName(lessonDTO.lessonName());
-        lesson.setLessonDescription(lessonDTO.lessonDescription());
-        lesson.setLessonType(lessonDTO.lessonType());
-        lesson.setEstimatedDurationMinutes(lessonDTO.estimatedDurationMinutes());
-
+        lesson.setUuid(dto.uuid());
+        lesson.setCourseUuid(dto.courseUuid());
+        lesson.setLessonNumber(dto.lessonNumber());
+        lesson.setTitle(dto.title());
+        lesson.setDurationHours(dto.durationHours());
+        lesson.setDurationMinutes(dto.durationMinutes());
+        lesson.setDescription(dto.description());
+        lesson.setLearningObjectives(dto.learningObjectives());
+        lesson.setStatus(dto.status());
+        lesson.setActive(dto.active());
+        lesson.setCreatedDate(dto.createdDate());
+        lesson.setCreatedBy(dto.createdBy());
+        lesson.setLastModifiedDate(dto.updatedDate());
+        lesson.setLastModifiedBy(dto.updatedBy());
         return lesson;
     }
 }
