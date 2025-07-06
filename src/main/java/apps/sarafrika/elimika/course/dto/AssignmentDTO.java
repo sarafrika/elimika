@@ -1,12 +1,11 @@
 package apps.sarafrika.elimika.course.dto;
 
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.DecimalMin;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -138,22 +137,12 @@ public record AssignmentDTO(
         String[] submissionTypes,
 
         @Schema(
-                description = "**[REQUIRED]** Assignment publication status in the content workflow.",
-                example = "PUBLISHED",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                allowableValues = {"DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"}
-        )
-        @NotNull(message = "Status is required")
-        @JsonProperty("status")
-        ContentStatus status,
-
-        @Schema(
                 description = "**[OPTIONAL]** Indicates if the assignment is actively available for students. Can only be true for published assignments.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @JsonProperty("active")
-        Boolean active,
+        @JsonProperty("is_published")
+        Boolean published,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the assignment was created. Automatically set by the system.",
@@ -223,21 +212,6 @@ public record AssignmentDTO(
         }
 
         return "General Assignment";
-    }
-
-    /**
-     * Checks if the assignment is published and available for students.
-     *
-     * @return true if status is PUBLISHED
-     */
-    @JsonProperty(value = "is_published", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Indicates if the assignment is published and available for students.",
-            example = "true",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public boolean isPublished() {
-        return status == ContentStatus.PUBLISHED;
     }
 
     /**

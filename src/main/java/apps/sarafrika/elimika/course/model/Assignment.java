@@ -1,11 +1,13 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -43,11 +45,6 @@ public class Assignment extends BaseEntity {
     @Column(name = "submission_types")
     private String[] submissionTypes;
 
-    @Column(name = "status")
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private ContentStatus status;
-
-    @Column(name = "is_active")
-    private Boolean active;
+    @Column(name = "is_published")
+    private Boolean published;
 }
