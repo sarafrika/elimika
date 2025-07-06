@@ -12,6 +12,7 @@ CREATE TABLE assessment_rubrics
     instructor_uuid UUID                     NOT NULL REFERENCES instructors (uuid),
     is_public       BOOLEAN                                  DEFAULT false,
     is_active       BOOLEAN                                  DEFAULT true,
+    status          VARCHAR(20)              NOT NULL        DEFAULT 'draft' CHECK (status IN ('draft', 'in_review', 'published', 'archived')),
     created_date    TIMESTAMP WITH TIME ZONE NOT NULL        DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
     updated_date    TIMESTAMP WITH TIME ZONE                 DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
     created_by      VARCHAR(255)             NOT NULL,
