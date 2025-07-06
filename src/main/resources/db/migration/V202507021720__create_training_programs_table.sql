@@ -7,7 +7,7 @@ CREATE TABLE training_programs
     uuid                   UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     title                  VARCHAR(255)             NOT NULL,
     instructor_uuid        UUID                     NOT NULL REFERENCES instructors (uuid),
-    category_uuid          UUID REFERENCES categories (uuid),
+    category_uuid          UUID REFERENCES course_categories (uuid),
     description            TEXT,
     objectives             TEXT,
     prerequisites          TEXT,
