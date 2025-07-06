@@ -7,16 +7,17 @@ CREATE TABLE courses
     uuid             UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     name             VARCHAR(255)             NOT NULL,
     instructor_uuid  UUID                     NOT NULL REFERENCES users (uuid),
-    category_uuid    UUID REFERENCES categories (uuid),
-    difficulty_uuid  UUID REFERENCES course_difficulty_levels (uuid),    description      TEXT,
+    category_uuid    UUID REFERENCES course_categories (uuid),
+    difficulty_uuid  UUID REFERENCES course_difficulty_levels (uuid),
+    description      TEXT,
     objectives       TEXT,
     prerequisites    TEXT,
     duration_hours   INTEGER                  NOT NULL        DEFAULT 0,
     duration_minutes INTEGER                  NOT NULL        DEFAULT 0,
     class_limit      INTEGER,
     price            DECIMAL(10, 2),
-    age_lower_limit  INTEGER                                  CHECK (age_lower_limit >= 1 AND age_lower_limit <= 120),
-    age_upper_limit  INTEGER                                  CHECK (age_upper_limit >= 1 AND age_upper_limit <= 120),
+    age_lower_limit  INTEGER CHECK (age_lower_limit >= 1 AND age_lower_limit <= 120),
+    age_upper_limit  INTEGER CHECK (age_upper_limit >= 1 AND age_upper_limit <= 120),
     thumbnail_url    VARCHAR(500),
     intro_video_url  VARCHAR(500),
     banner_url       VARCHAR(500),
@@ -27,7 +28,8 @@ CREATE TABLE courses
     created_by       VARCHAR(255)             NOT NULL,
     updated_by       VARCHAR(255),
     CONSTRAINT check_active_only_if_published CHECK (active = false OR (active = true AND status = 'published')),
-    CONSTRAINT check_age_limits CHECK (age_lower_limit IS NULL OR age_upper_limit IS NULL OR age_lower_limit <= age_upper_limit)
+    CONSTRAINT check_age_limits CHECK (age_lower_limit IS NULL OR age_upper_limit IS NULL OR
+                                       age_lower_limit <= age_upper_limit)
 );
 
 -- Create performance indexes
