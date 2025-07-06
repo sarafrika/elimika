@@ -33,13 +33,18 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
 
+    // ===== BASIC CRUD OPERATIONS =====
+
     @Override
     public AssignmentSubmissionDTO createAssignmentSubmission(AssignmentSubmissionDTO assignmentSubmissionDTO) {
         AssignmentSubmission submission = AssignmentSubmissionFactory.toEntity(assignmentSubmissionDTO);
 
-        // Set defaults based on AssignmentSubmissionDTO business logic
+        // Set defaults
         if (submission.getStatus() == null) {
-            submission.setStatus(SubmissionStatus.DRAFT);
+            submission.setStatus(SubmissionStatus.SUBMITTED);
+        }
+        if (submission.getSubmittedAt() == null) {
+            submission.setSubmittedAt(LocalDateTime.now());
         }
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
@@ -58,7 +63,8 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentSubmissionDTO> getAllAssignmentSubmissions(Pageable pageable) {
-        return assignmentSubmissionRepository.findAll(pageable).map(AssignmentSubmissionFactory::toDTO);
+        return assignmentSubmissionRepository.findAll(pageable)
+                .map(AssignmentSubmissionFactory::toDTO);
     }
 
     @Override
@@ -87,16 +93,20 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     public Page<AssignmentSubmissionDTO> search(Map<String, String> searchParams, Pageable pageable) {
         Specification<AssignmentSubmission> spec = specificationBuilder.buildSpecification(
                 AssignmentSubmission.class, searchParams);
-        return assignmentSubmissionRepository.findAll(spec, pageable).map(AssignmentSubmissionFactory::toDTO);
+        return assignmentSubmissionRepository.findAll(spec, pageable)
+                .map(AssignmentSubmissionFactory::toDTO);
     }
 
-    // Domain-specific methods leveraging AssignmentSubmissionDTO computed properties
+    // ===== SUBMISSION WORKFLOW OPERATIONS =====
+
+    @Override
     public AssignmentSubmissionDTO submitAssignment(UUID enrollmentUuid, UUID assignmentUuid,
                                                     String content, String[] fileUrls) {
-        // Check if already submitted
-        if (assignmentSubmissionRepository.existsByEnrollmentUuidAndAssignmentUuid(enrollmentUuid, assignmentUuid)) {
-            throw new IllegalStateException("Assignment already submitted");
-        }
+        // Check if student already has a submission for this assignment
+        assignmentSubmissionRepository.findByEnrollmentUuidAndAssignmentUuid(enrollmentUuid, assignmentUuid)
+                .ifPresent(existing -> {
+                    throw new IllegalStateException("Student has already submitted this assignment");
+                });
 
         AssignmentSubmission submission = new AssignmentSubmission();
         submission.setEnrollmentUuid(enrollmentUuid);
@@ -110,75 +120,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         return AssignmentSubmissionFactory.toDTO(savedSubmission);
     }
 
-    public AssignmentSubmissionDTO gradeSubmission(UUID submissionUuid, BigDecimal score,
-                                                   BigDecimal maxScore, String comments) {
-        AssignmentSubmission submission = assignmentSubmissionRepository.findByUuid(submissionUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(SUBMISSION_NOT_FOUND_TEMPLATE, submissionUuid)));
-
-        // Calculate percentage
-        BigDecimal percentage = BigDecimal.ZERO;
-        if (maxScore != null && maxScore.compareTo(BigDecimal.ZERO) > 0) {
-            percentage = score.divide(maxScore,2, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
-        }
-
-        submission.setScore(score);
-        submission.setMaxScore(maxScore);
-        submission.setPercentage(percentage);
-        submission.setInstructorComments(comments);
-        submission.setGradedAt(LocalDateTime.now());
-        submission.setStatus(SubmissionStatus.GRADED);
-
-        AssignmentSubmission gradedSubmission = assignmentSubmissionRepository.save(submission);
-        return AssignmentSubmissionFactory.toDTO(gradedSubmission);
-    }
-
-    public AssignmentSubmissionDTO returnForRevision(UUID submissionUuid, String feedback) {
-        AssignmentSubmission submission = assignmentSubmissionRepository.findByUuid(submissionUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(SUBMISSION_NOT_FOUND_TEMPLATE, submissionUuid)));
-
-        submission.setInstructorComments(feedback);
-        submission.setStatus(SubmissionStatus.RETURNED);
-
-        AssignmentSubmission returnedSubmission = assignmentSubmissionRepository.save(submission);
-        return AssignmentSubmissionFactory.toDTO(returnedSubmission);
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getPendingGrading(UUID instructorUuid) {
-        return assignmentSubmissionRepository.findSubmissionsPendingGradingByInstructor(instructorUuid)
-                .stream()
-                .map(AssignmentSubmissionFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getGradedSubmissions(UUID assignmentUuid) {
-        return assignmentSubmissionRepository.findByAssignmentUuidAndStatus(assignmentUuid, SubmissionStatus.GRADED)
-                .stream()
-                .map(AssignmentSubmissionFactory::toDTO)
-                .filter(AssignmentSubmissionDTO::isGraded) // Using computed property
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getSubmissionsRequiringFeedback() {
-        return assignmentSubmissionRepository.findByStatusAndInstructorCommentsIsNull(SubmissionStatus.GRADED)
-                .stream()
-                .map(AssignmentSubmissionFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getSubmissionsByStudent(UUID studentUuid) {
-        return assignmentSubmissionRepository.findByEnrollmentUuid(studentUuid)
-                .stream()
-                .map(AssignmentSubmissionFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
+    @Override
     @Transactional(readOnly = true)
     public List<AssignmentSubmissionDTO> getSubmissionsByAssignment(UUID assignmentUuid) {
         return assignmentSubmissionRepository.findByAssignmentUuid(assignmentUuid)
@@ -187,70 +129,97 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
                 .collect(Collectors.toList());
     }
 
-    // Analytics using AssignmentSubmissionDTO computed properties
+    @Override
+    public AssignmentSubmissionDTO gradeSubmission(UUID submissionUuid, BigDecimal score,
+                                                   BigDecimal maxScore, String comments) {
+        AssignmentSubmission submission = assignmentSubmissionRepository.findByUuid(submissionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SUBMISSION_NOT_FOUND_TEMPLATE, submissionUuid)));
+
+        // Validate score
+        if (score.compareTo(BigDecimal.ZERO) < 0 || score.compareTo(maxScore) > 0) {
+            throw new IllegalArgumentException("Score must be between 0 and maximum score");
+        }
+
+        // Calculate percentage
+        BigDecimal percentage = score.divide(maxScore, 2, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
+
+        submission.setScore(score);
+        submission.setMaxScore(maxScore);
+        submission.setPercentage(percentage);
+        submission.setInstructorComments(comments);
+        submission.setGradedAt(LocalDateTime.now());
+        submission.setStatus(SubmissionStatus.GRADED);
+
+        AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
+        return AssignmentSubmissionFactory.toDTO(savedSubmission);
+    }
+
+    @Override
+    public AssignmentSubmissionDTO returnForRevision(UUID submissionUuid, String feedback) {
+        AssignmentSubmission submission = assignmentSubmissionRepository.findByUuid(submissionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SUBMISSION_NOT_FOUND_TEMPLATE, submissionUuid)));
+
+        submission.setInstructorComments(feedback);
+        submission.setStatus(SubmissionStatus.RETURNED);
+        submission.setGradedAt(LocalDateTime.now());
+
+        AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
+        return AssignmentSubmissionFactory.toDTO(savedSubmission);
+    }
+
+    // ===== ANALYTICS OPERATIONS =====
+
+    @Override
     @Transactional(readOnly = true)
     public Map<String, Long> getSubmissionCategoryDistribution(UUID assignmentUuid) {
-        return assignmentSubmissionRepository.findByAssignmentUuid(assignmentUuid)
-                .stream()
-                .map(AssignmentSubmissionFactory::toDTO)
+        List<AssignmentSubmission> submissions = assignmentSubmissionRepository.findByAssignmentUuid(assignmentUuid);
+
+        return submissions.stream()
                 .collect(Collectors.groupingBy(
-                        AssignmentSubmissionDTO::getSubmissionCategory, // Using computed property
+                        submission -> submission.getStatus().name(),
                         Collectors.counting()
                 ));
     }
 
-    @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getHighPerformanceSubmissions(UUID assignmentUuid) {
-        BigDecimal highPerformanceThreshold = new BigDecimal("85.00");
-        return assignmentSubmissionRepository.findByAssignmentUuidAndPercentageGreaterThan(
-                        assignmentUuid, highPerformanceThreshold)
-                .stream()
-                .map(AssignmentSubmissionFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
+    @Override
     @Transactional(readOnly = true)
     public Double getAverageSubmissionScore(UUID assignmentUuid) {
-        List<AssignmentSubmission> gradedSubmissions = assignmentSubmissionRepository
-                .findByAssignmentUuidAndStatus(assignmentUuid, SubmissionStatus.GRADED);
-
-        return gradedSubmissions.stream()
-                .filter(s -> s.getPercentage() != null)
-                .mapToDouble(s -> s.getPercentage().doubleValue())
+        return assignmentSubmissionRepository.findByAssignmentUuidAndStatus(assignmentUuid, SubmissionStatus.GRADED)
+                .stream()
+                .filter(submission -> submission.getPercentage() != null)
+                .mapToDouble(submission -> submission.getPercentage().doubleValue())
                 .average()
                 .orElse(0.0);
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public boolean hasSubmitted(UUID studentUuid, UUID assignmentUuid) {
-        return assignmentSubmissionRepository.existsByEnrollmentUuidAndAssignmentUuid(
-                studentUuid, assignmentUuid);
-    }
+    public List<AssignmentSubmissionDTO> getHighPerformanceSubmissions(UUID assignmentUuid) {
+        BigDecimal threshold = BigDecimal.valueOf(85.0);
 
-    @Transactional(readOnly = true)
-    public AssignmentSubmissionDTO getSubmissionByStudentAndAssignment(UUID studentUuid, UUID assignmentUuid) {
-        return assignmentSubmissionRepository.findByEnrollmentUuidAndAssignmentUuid(studentUuid, assignmentUuid)
-                .map(AssignmentSubmissionFactory::toDTO)
-                .orElse(null);
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getTextSubmissions(UUID assignmentUuid) {
-        return assignmentSubmissionRepository.findByAssignmentUuid(assignmentUuid)
+        return assignmentSubmissionRepository.findByAssignmentUuidAndStatus(assignmentUuid, SubmissionStatus.GRADED)
                 .stream()
+                .filter(submission -> submission.getPercentage() != null &&
+                        submission.getPercentage().compareTo(threshold) >= 0)
                 .map(AssignmentSubmissionFactory::toDTO)
-                .filter(submission -> "Text Submission".equals(submission.getSubmissionCategory()))
                 .collect(Collectors.toList());
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public List<AssignmentSubmissionDTO> getFileSubmissions(UUID assignmentUuid) {
-        return assignmentSubmissionRepository.findByAssignmentUuid(assignmentUuid)
+    public List<AssignmentSubmissionDTO> getPendingGrading(UUID instructorUuid) {
+        // This would typically require a join with Assignment table to filter by instructor
+        // For now, returning all submissions with SUBMITTED status
+        return assignmentSubmissionRepository.findByStatus(SubmissionStatus.SUBMITTED)
                 .stream()
                 .map(AssignmentSubmissionFactory::toDTO)
-                .filter(submission -> "File Submission".equals(submission.getSubmissionCategory()))
                 .collect(Collectors.toList());
     }
+
+    // ===== PRIVATE HELPER METHODS =====
 
     private void updateSubmissionFields(AssignmentSubmission existingSubmission, AssignmentSubmissionDTO dto) {
         if (dto.enrollmentUuid() != null) {

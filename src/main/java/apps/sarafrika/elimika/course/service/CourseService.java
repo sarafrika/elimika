@@ -19,4 +19,10 @@ public interface CourseService {
     void deleteCourse(UUID uuid);
 
     Page<CourseDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    boolean isCourseReadyForPublishing(UUID uuid);
+
+    CourseDTO publishCourse(UUID uuid);
+
+    double getCourseCompletionRate(UUID uuid);
 }

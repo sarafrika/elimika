@@ -13,6 +13,10 @@ public record ApiResponse<T>(
         return new ApiResponse<>(true, data, message, null);
     }
 
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(false, null, message, null);
+    }
+
     public static <T> ApiResponse<T> error(String message, Object errorDetails) {
         return new ApiResponse<>(false, null, message, errorDetails);
     }

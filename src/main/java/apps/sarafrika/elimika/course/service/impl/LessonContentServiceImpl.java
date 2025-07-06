@@ -14,6 +14,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -86,31 +87,6 @@ public class LessonContentServiceImpl implements LessonContentService {
         return lessonContentRepository.findAll(spec, pageable).map(LessonContentFactory::toDTO);
     }
 
-    // Domain-specific methods leveraging LessonContentDTO computed properties
-    @Transactional(readOnly = true)
-    public List<LessonContentDTO> getContentByLesson(UUID lessonUuid) {
-        return lessonContentRepository.findByLessonUuidOrderByDisplayOrderAsc(lessonUuid)
-                .stream()
-                .map(LessonContentFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<LessonContentDTO> getRequiredContent(UUID lessonUuid) {
-        return lessonContentRepository.findByLessonUuidAndIsRequiredTrueOrderByDisplayOrderAsc(lessonUuid)
-                .stream()
-                .map(LessonContentFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<LessonContentDTO> getOptionalContent(UUID lessonUuid) {
-        return lessonContentRepository.findByLessonUuidAndIsRequiredFalseOrderByDisplayOrderAsc(lessonUuid)
-                .stream()
-                .map(LessonContentFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
     // Content filtering by computed properties
     @Transactional(readOnly = true)
     public List<LessonContentDTO> getVideoContent(UUID lessonUuid) {
@@ -151,12 +127,47 @@ public class LessonContentServiceImpl implements LessonContentService {
                 ));
     }
 
+    @Transactional(readOnly = true)
+    public List<LessonContentDTO> getContentByLesson(UUID lessonUuid) {
+        Map<String, String> searchParams = Map.of("lessonUuid", lessonUuid.toString());
+        Page<LessonContentDTO> content = search(searchParams, Pageable.unpaged());
+        return content.getContent().stream()
+                .sorted(Comparator.comparingInt(a -> a.displayOrder() != null ? a.displayOrder() : 0))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LessonContentDTO> getRequiredContent(UUID lessonUuid) {
+        Map<String, String> searchParams = Map.of(
+                "lessonUuid", lessonUuid.toString(),
+                "isRequired", "true"
+        );
+        Page<LessonContentDTO> requiredContent = search(searchParams, Pageable.unpaged());
+        return requiredContent.getContent().stream()
+                .sorted(Comparator.comparingInt(a -> a.displayOrder() != null ? a.displayOrder() : 0))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LessonContentDTO> getOptionalContent(UUID lessonUuid) {
+        Map<String, String> searchParams = Map.of(
+                "lessonUuid", lessonUuid.toString(),
+                "isRequired", "false"
+        );
+        Page<LessonContentDTO> optionalContent = search(searchParams, Pageable.unpaged());
+        return optionalContent.getContent().stream()
+                .sorted((a, b) -> Integer.compare(
+                        a.displayOrder() != null ? a.displayOrder() : 0,
+                        b.displayOrder() != null ? b.displayOrder() : 0))
+                .collect(Collectors.toList());
+    }
+
     public void reorderContent(UUID lessonUuid, List<UUID> contentUuids) {
         for (int i = 0; i < contentUuids.size(); i++) {
-            int finalI = i;
-            LessonContent content = lessonContentRepository.findByUuid(contentUuids.get(i))
+            UUID contentUuid = contentUuids.get(i);
+            LessonContent content = lessonContentRepository.findByUuid(contentUuid)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(LESSON_CONTENT_NOT_FOUND_TEMPLATE, contentUuids.get(finalI))));
+                            String.format("Lesson content with ID %s not found", contentUuid)));
 
             content.setDisplayOrder(i + 1);
             lessonContentRepository.save(content);
@@ -165,36 +176,50 @@ public class LessonContentServiceImpl implements LessonContentService {
 
     @Transactional(readOnly = true)
     public int getNextDisplayOrder(UUID lessonUuid) {
-        int maxOrder = lessonContentRepository.findMaxDisplayOrderByLessonUuid(lessonUuid);
+        List<LessonContentDTO> content = getContentByLesson(lessonUuid);
+        int maxOrder = content.stream()
+                .mapToInt(c -> c.displayOrder() != null ? c.displayOrder() : 0)
+                .max()
+                .orElse(0);
         return maxOrder + 1;
     }
 
     @Transactional(readOnly = true)
+    public boolean hasContent(UUID lessonUuid) {
+        Map<String, String> searchParams = Map.of("lessonUuid", lessonUuid.toString());
+        Page<LessonContentDTO> content = search(searchParams, Pageable.ofSize(1));
+        return !content.isEmpty();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasRequiredContent(UUID lessonUuid) {
+        Map<String, String> searchParams = Map.of(
+                "lessonUuid", lessonUuid.toString(),
+                "isRequired", "true"
+        );
+        Page<LessonContentDTO> requiredContent = search(searchParams, Pageable.ofSize(1));
+        return !requiredContent.isEmpty();
+    }
+
+    @Transactional(readOnly = true)
     public long getTotalContentSize(UUID lessonUuid) {
-        return lessonContentRepository.findByLessonUuid(lessonUuid)
-                .stream()
-                .filter(content -> content.getFileSizeBytes() != null)
-                .mapToLong(LessonContent::getFileSizeBytes)
+        List<LessonContentDTO> content = getContentByLesson(lessonUuid);
+        return content.stream()
+                .filter(c -> c.fileSizeBytes() != null)
+                .mapToLong(LessonContentDTO::fileSizeBytes)
                 .sum();
     }
 
     @Transactional(readOnly = true)
     public List<LessonContentDTO> getLargeFiles(UUID lessonUuid, long sizeThresholdBytes) {
-        return lessonContentRepository.findByLessonUuidAndFileSizeBytesGreaterThan(lessonUuid, sizeThresholdBytes)
-                .stream()
-                .map(LessonContentFactory::toDTO)
-                .collect(Collectors.toList());
+        Map<String, String> searchParams = Map.of(
+                "lessonUuid", lessonUuid.toString(),
+                "fileSizeBytes_gt", String.valueOf(sizeThresholdBytes)
+        );
+        Page<LessonContentDTO> largeFiles = search(searchParams, Pageable.unpaged());
+        return largeFiles.getContent();
     }
 
-    @Transactional(readOnly = true)
-    public boolean hasContent(UUID lessonUuid) {
-        return lessonContentRepository.countByLessonUuid(lessonUuid) > 0;
-    }
-
-    @Transactional(readOnly = true)
-    public boolean hasRequiredContent(UUID lessonUuid) {
-        return lessonContentRepository.countByLessonUuidAndIsRequiredTrue(lessonUuid) > 0;
-    }
 
     private void updateLessonContentFields(LessonContent existingLessonContent, LessonContentDTO dto) {
         if (dto.lessonUuid() != null) {

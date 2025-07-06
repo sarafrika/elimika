@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -219,6 +218,16 @@ public class QuizQuestionServiceImpl implements QuizQuestionService {
     public boolean canDeleteQuestion(UUID questionUuid) {
         // Check if any responses exist for this question
         return quizResponseRepository.countByQuestionUuid(questionUuid) == 0;
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuizQuestionDTO> getQuestionsByType(UUID quizUuid, String questionType) {
+        Map<String, String> searchParams = Map.of(
+                "quizUuid", quizUuid.toString(),
+                "questionType", questionType
+        );
+        Page<QuizQuestionDTO> questions = search(searchParams, Pageable.unpaged());
+        return questions.getContent();
     }
 
     private void updateQuizQuestionFields(QuizQuestion existingQuizQuestion, QuizQuestionDTO dto) {
