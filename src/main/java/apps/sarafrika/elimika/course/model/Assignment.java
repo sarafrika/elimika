@@ -48,6 +48,6 @@ public class Assignment extends BaseEntity {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ContentStatus status;
 
-    @Column(name = "active")
+    @Column(name = "is_active")
     private Boolean active;
 }
