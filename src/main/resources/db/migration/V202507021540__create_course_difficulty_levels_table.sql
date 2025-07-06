@@ -15,7 +15,7 @@ CREATE TABLE course_difficulty_levels
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_difficulty_levels_uuid ON difficulty_levels (uuid);
-CREATE INDEX idx_difficulty_levels_order ON difficulty_levels (level_order);
-CREATE INDEX idx_difficulty_levels_name ON difficulty_levels (name);
-CREATE INDEX idx_difficulty_levels_created_date ON difficulty_levels (created_date);
+CREATE INDEX idx_course_difficulty_levels_uuid ON course_difficulty_levels (uuid);
+CREATE INDEX idx_course_difficulty_levels_order ON course_difficulty_levels (level_order);
+CREATE INDEX idx_course_difficulty_levels_name ON course_difficulty_levels (name);
+CREATE INDEX idx_course_difficulty_levels_created_date ON course_difficulty_levels (created_date);

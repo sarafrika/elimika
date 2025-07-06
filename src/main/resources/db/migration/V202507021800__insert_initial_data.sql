@@ -10,7 +10,7 @@ VALUES ('PDF', ARRAY ['application/pdf'], 50, 'SYSTEM'),
        ('Audio', ARRAY ['audio/mp3', 'audio/wav', 'audio/ogg'], 100, 'SYSTEM');
 
 -- Insert difficulty levels
-INSERT INTO difficulty_levels (name, level_order, description, created_by)
+INSERT INTO course_difficulty_levels (name, level_order, description, created_by)
 VALUES ('Prep', 1, 'Preparatory level for beginners', 'SYSTEM'),
        ('Beginner', 2, 'Basic level for new learners', 'SYSTEM'),
        ('Intermediate', 3, 'Intermediate level for developing skills', 'SYSTEM'),
