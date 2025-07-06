@@ -6,7 +6,7 @@ CREATE TABLE lesson_contents
     id                BIGSERIAL PRIMARY KEY,
     uuid              UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     lesson_uuid       UUID                     NOT NULL REFERENCES lessons (uuid) ON DELETE CASCADE,
-    content_type_uuid UUID                     NOT NULL REFERENCES content_types (uuid),
+    content_type_uuid UUID                     NOT NULL REFERENCES lesson_content_types (uuid),
     title             VARCHAR(255)             NOT NULL,
     description       TEXT,
     content_text      TEXT,         -- For text content
