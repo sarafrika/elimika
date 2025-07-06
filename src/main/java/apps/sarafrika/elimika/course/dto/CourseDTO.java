@@ -36,6 +36,8 @@ import java.util.UUID;
             "duration_minutes": 30,
             "class_limit": 25,
             "price": 299.99,
+            "age_lower_limit": 18,
+            "age_upper_limit": 65,
             "thumbnail_url": "https://cdn.sarafrika.com/courses/java-advanced-thumb.jpg",
             "intro_video_url": "https://cdn.sarafrika.com/courses/java-advanced-intro.mp4",
             "banner_url": "https://cdn.sarafrika.com/courses/java-advanced-banner.jpg",
@@ -176,6 +178,32 @@ public record CourseDTO(
         @DecimalMin(value = "0.00", message = "Price cannot be negative")
         @JsonProperty("price")
         BigDecimal price,
+
+        @Schema(
+                description = "**[OPTIONAL]** Minimum age requirement for course enrollment.",
+                example = "18",
+                minimum = "1",
+                maximum = "120",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Min(value = 1, message = "Age lower limit must be at least 1")
+        @Max(value = 120, message = "Age lower limit cannot exceed 120")
+        @JsonProperty("age_lower_limit")
+        Integer ageLowerLimit,
+
+        @Schema(
+                description = "**[OPTIONAL]** Maximum age requirement for course enrollment.",
+                example = "65",
+                minimum = "1",
+                maximum = "120",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Min(value = 1, message = "Age upper limit must be at least 1")
+        @Max(value = 120, message = "Age upper limit cannot exceed 120")
+        @JsonProperty("age_upper_limit")
+        Integer ageUpperLimit,
 
         @Schema(
                 description = "**[OPTIONAL]** URL to course thumbnail image for course listings and previews.",

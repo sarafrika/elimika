@@ -7,7 +7,7 @@ CREATE TABLE lesson_progress
     uuid               UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     enrollment_uuid    UUID                     NOT NULL REFERENCES course_enrollments (uuid) ON DELETE CASCADE,
     lesson_uuid        UUID                     NOT NULL REFERENCES lessons (uuid),
-    status             VARCHAR(20)              NOT NULL        DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
+    status             VARCHAR(20)              NOT NULL        DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed', 'skipped')),
     started_at         TIMESTAMP WITH TIME ZONE,
     completed_at       TIMESTAMP WITH TIME ZONE,
     time_spent_minutes INTEGER                                  DEFAULT 0,

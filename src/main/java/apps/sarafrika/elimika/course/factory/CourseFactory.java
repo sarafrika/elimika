@@ -26,6 +26,8 @@ public class CourseFactory {
                 course.getDurationMinutes(),
                 course.getClassLimit(),
                 course.getPrice(),
+                course.getAgeLowerLimit(),
+                course.getAgeUpperLimit(),
                 course.getThumbnailUrl(),
                 course.getIntroVideoUrl(),
                 course.getBannerUrl(),
@@ -65,6 +67,8 @@ public class CourseFactory {
         course.setCreatedBy(dto.createdBy());
         course.setLastModifiedDate(dto.updatedDate());
         course.setLastModifiedBy(dto.updatedBy());
+        course.setAgeUpperLimit(dto.ageUpperLimit());
+        course.setAgeLowerLimit(dto.ageLowerLimit());
         return course;
     }
 }
