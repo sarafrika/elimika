@@ -2,7 +2,7 @@
 -- Insert initial reference data
 
 -- Insert content types
-INSERT INTO content_types (name, mime_types, max_file_size_mb, created_by)
+INSERT INTO lesson_content_types (name, mime_types, max_file_size_mb, created_by)
 VALUES ('PDF', ARRAY ['application/pdf'], 50, 'SYSTEM'),
        ('Text', ARRAY ['text/plain', 'text/html'], 1, 'SYSTEM'),
        ('Image', ARRAY ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], 10, 'SYSTEM'),
@@ -24,8 +24,8 @@ VALUES ('Distinction', 5, 1, 'SYSTEM'),
        ('Fail', 2, 4, 'SYSTEM'),
        ('No Effort', 1, 5, 'SYSTEM');
 
--- Insert default categories
-INSERT INTO categories (name, description, created_by)
+-- Insert default categocourse_categoriesries
+INSERT INTO course_categories (name, description, created_by)
 VALUES ('Music', 'Music education courses', 'SYSTEM'),
        ('Piano', 'Piano-specific courses', 'SYSTEM'),
        ('Theory', 'Music theory courses', 'SYSTEM'),
