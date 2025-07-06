@@ -15,6 +15,6 @@ CREATE TABLE lesson_content_types
 );
 
 -- Create indexes
-CREATE INDEX idx_content_types_uuid ON content_types (uuid);
-CREATE INDEX idx_content_types_name ON content_types (name);
-CREATE INDEX idx_content_types_created_date ON content_types (created_date);
+CREATE INDEX idx_content_types_uuid ON lesson_content_types (uuid);
+CREATE INDEX idx_content_types_name ON lesson_content_types (name);
+CREATE INDEX idx_content_types_created_date ON lesson_content_types (created_date);
