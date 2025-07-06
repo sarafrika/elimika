@@ -51,6 +51,12 @@ public class Course extends BaseEntity {
     @Column(name = "price")
     private BigDecimal price;
 
+    @Column(name = "age_lower_limit")
+    private Integer ageLowerLimit;
+
+    @Column(name = "age_upper_limit")
+    private Integer ageUpperLimit;
+
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
