@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.course.factory.AssignmentFactory;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.service.AssignmentService;
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,12 +31,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     public AssignmentDTO createAssignment(AssignmentDTO assignmentDTO) {
         Assignment assignment = AssignmentFactory.toEntity(assignmentDTO);
 
-        // Set defaults based on AssignmentDTO business logic
-        if (assignment.getStatus() == null) {
-            assignment.setStatus(ContentStatus.DRAFT);
-        }
-        if (assignment.getActive() == null) {
-            assignment.setActive(false);
+        if (assignment.getPublished() == null) {
+            assignment.setPublished(false);
         }
 
         Assignment savedAssignment = assignmentRepository.save(assignment);
@@ -113,11 +108,8 @@ public class AssignmentServiceImpl implements AssignmentService {
         if (dto.submissionTypes() != null) {
             existingAssignment.setSubmissionTypes(dto.submissionTypes());
         }
-        if (dto.status() != null) {
-            existingAssignment.setStatus(dto.status());
-        }
-        if (dto.active() != null) {
-            existingAssignment.setActive(dto.active());
+        if (dto.published() != null) {
+            existingAssignment.setPublished(dto.published());
         }
     }
 }
