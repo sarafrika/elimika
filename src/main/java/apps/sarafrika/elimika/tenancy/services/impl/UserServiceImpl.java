@@ -8,13 +8,10 @@ import apps.sarafrika.elimika.common.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
-import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
-import apps.sarafrika.elimika.tenancy.entity.Role;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
@@ -39,7 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -67,7 +63,7 @@ public class UserServiceImpl implements UserService {
         log.debug("Creating new user with email: {}", userRep.getEmail());
         User user = new User(userRep.getFirstName(), null, userRep.getLastName(),
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
-                userRep.isEnabled(), userRep.getId(), null, null, Gender.PREFER_NOT_TO_SAY
+                userRep.isEnabled(), userRep.getId(),null,Gender.PREFER_NOT_TO_SAY
         );
         log.info("User {}", user);
         userRepository.save(user);
@@ -196,12 +192,6 @@ public class UserServiceImpl implements UserService {
 
             publishAddUserToOrganisationEvent(event.keycloakId(), organisation.getKeycloakId());
 
-            List<Role> persistedRoles = roleRepository.findAllByUuidIn(
-                    user.getRoles().stream()
-                            .map(BaseEntity::getUuid)
-                            .collect(Collectors.toList())
-            );
-
             log.info("Successfully processed user creation event for UUID: {}", event.userId());
         } catch (Exception e) {
             log.error("Failed to process user creation event for UUID: {}", event.userId(), e);
@@ -214,12 +204,6 @@ public class UserServiceImpl implements UserService {
         log.debug("Processing successful user update event for UUID: {}", event.userId());
         try {
             User user = findUserOrThrow(event.userId());
-
-            List<Role> persistedRoles = roleRepository.findAllByUuidIn(
-                    user.getRoles().stream()
-                            .map(BaseEntity::getUuid)
-                            .collect(Collectors.toList())
-            );
 
             log.info("Successfully processed user update event for UUID: {}", event.userId());
         } catch (Exception e) {
@@ -247,15 +231,6 @@ public class UserServiceImpl implements UserService {
         user.setActive(userDTO.active());
         user.setOrganisation(organisation);
         user.setGender(userDTO.gender());
-
-        if (userDTO.roles() != null) {
-            List<Role> persistedRoles = roleRepository.findAllByUuidIn(
-                    userDTO.roles().stream()
-                            .map(RoleDTO::uuid)
-                            .toList()
-            );
-            user.setRoles(persistedRoles);
-        }
     }
 
     @Transactional

@@ -5,10 +5,8 @@ import apps.sarafrika.elimika.tenancy.entity.User;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFactory {
@@ -33,9 +31,7 @@ public class UserFactory {
                 user.isActive(),
                 user.getCreatedDate(),
                 user.getLastModifiedDate(),
-                user.getRoles().stream()
-                        .map(RoleFactory::toDTO)
-                        .collect(Collectors.toSet()),
+                null,
                 user.getGender(),
                 userDomains
         );
@@ -50,7 +46,6 @@ public class UserFactory {
         user.setEmail(dto.email());
         user.setPhoneNumber(dto.phoneNumber());
         user.setActive(dto.active());
-        user.setRoles(new ArrayList<>());
         user.setGender(dto.gender());
         user.setDob(dto.dob());
         return user;
