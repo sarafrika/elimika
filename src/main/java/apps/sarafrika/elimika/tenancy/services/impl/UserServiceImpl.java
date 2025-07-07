@@ -88,7 +88,7 @@ public class UserServiceImpl implements UserService {
 
         List<String> userDomains =  getUserDomains(organisationId);
 
-        return userRepository.findByOrganisationId(organisation.getId(), pageable)
+        return userRepository.findByOrganisationUuid(organisation.getUuid(), pageable)
                 .map(u -> UserFactory.toDTO(u, userDomains));
     }
 
