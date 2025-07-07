@@ -25,7 +25,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     boolean existsByKeycloakId(String keycloakId);
 
-    Page<User> findByOrganisationId(Long organisationId, Pageable pageable);
+    Page<User> findByOrganisationUuid(UUID organisationUuid, Pageable pageable);
 
     List<User> findAllByUuidIn(List<UUID> uuids);
 
