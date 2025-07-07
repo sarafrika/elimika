@@ -21,13 +21,21 @@ public interface ContentTypeRepository extends JpaRepository<ContentType, Long>,
 
     boolean existsByUuid(UUID uuid);
 
-    @Query("SELECT ct FROM ContentType ct WHERE :mimeType MEMBER OF ct.mimeTypes")
+    @Query(value = """
+            SELECT * FROM lesson_content_types 
+            WHERE :mimeType = ANY(mime_types)
+            """, nativeQuery = true)
     List<ContentType> findByMimeTypesContaining(@Param("mimeType") String mimeType);
 
     List<ContentType> findByMaxFileSizeMbIsNull();
 
     List<ContentType> findByMaxFileSizeMbGreaterThan(int maxFileSizeMb);
 
-    @Query("SELECT CASE WHEN COUNT(ct) > 0 THEN true ELSE false END FROM ContentType ct WHERE :mimeType MEMBER OF ct.mimeTypes")
+    @Query(value = """
+            SELECT EXISTS(
+                SELECT 1 FROM lesson_content_types 
+                WHERE :mimeType = ANY(mime_types)
+            )
+            """, nativeQuery = true)
     boolean existsByMimeTypesContaining(@Param("mimeType") String mimeType);
 }
