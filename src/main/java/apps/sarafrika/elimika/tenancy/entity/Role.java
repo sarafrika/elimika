@@ -34,8 +34,8 @@ public class Role extends BaseEntity {
     @ManyToMany
     @JoinTable(
             name = "role_permissions",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
+            joinColumns = @JoinColumn(name = "role_uuid"),
+            inverseJoinColumns = @JoinColumn(name = "permission_uuid")
     )
     private List<Permission> permissions = new ArrayList<>();
 
