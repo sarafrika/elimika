@@ -21,7 +21,13 @@ public interface RoleRepository extends JpaRepository<Role, Long>, JpaSpecificat
 
     List<Role> findAllByUuidIn(List<UUID> uuids);
 
-    List<Role> findByUsers_Id(Long userId);
+    @Query(value = """
+            SELECT r.*
+            FROM role r
+            JOIN user_role ur ON r.uuid = ur.role_uuid
+            WHERE ur.user_uuid = :userUuid
+            """, nativeQuery = true)
+    List<Role> findRolesByUserUuid(@Param("userUuid") UUID userUuid);
 
     @Query(value = """
             SELECT r.*

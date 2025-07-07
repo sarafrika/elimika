@@ -30,7 +30,7 @@ public class RoleEvaluationServiceImpl implements RoleEvaluationService {
         User user = userRepository.findByUuid(userUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for UUID: " + userUuid));
 
-        Set<Role> directRoles = new HashSet<>(roleRepository.findByUsers_Id(user.getId()));
+        Set<Role> directRoles = new HashSet<>(roleRepository.findRolesByUserUuid(user.getUuid()));
 
         return directRoles.stream().map(RoleFactory::toDTO).collect(Collectors.toList());
     }
