@@ -9,7 +9,7 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "content_types")
+@Table(name = "lesson_content_types")
 public class ContentType extends BaseEntity {
 
     @Column(name = "name")
