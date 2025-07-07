@@ -1,23 +1,11 @@
 package apps.sarafrika.elimika.tenancy.factory;
 
-import apps.sarafrika.elimika.tenancy.dto.PermissionDTO;
 import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
 import apps.sarafrika.elimika.tenancy.entity.Role;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class RoleFactory {
 
     public static RoleDTO toDTO(Role role) {
-        List<PermissionDTO> permissions = role.getPermissions().stream()
-                .map(permission -> new PermissionDTO(
-                        permission.getUuid(),
-                        permission.getModuleName(),
-                        permission.getPermissionName(),
-                        permission.getDescription()
-                ))
-                .collect(Collectors.toList());
 
         return new RoleDTO(
                 role.getUuid(),
@@ -25,7 +13,7 @@ public class RoleFactory {
                 role.getName(),
                 role.getDescription(),
                 role.isActive(),
-                permissions,
+                null,
                 role.getCreatedDate(),
                 role.getLastModifiedDate()
         );

@@ -2,7 +2,6 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.event.admin.RegisterAdmin;
 import apps.sarafrika.elimika.common.event.instructor.RegisterInstructor;
-import apps.sarafrika.elimika.common.event.role.AssignRoleToUserEvent;
 import apps.sarafrika.elimika.common.event.student.RegisterStudent;
 import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserCreation;
@@ -11,7 +10,6 @@ import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.common.util.RoleNameConverter;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -204,10 +202,6 @@ public class UserServiceImpl implements UserService {
                             .collect(Collectors.toList())
             );
 
-            persistedRoles.stream().flatMap(role -> role.getPermissions().stream()).forEach(permission -> {
-                applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()), RoleNameConverter.createRoleName(permission), realm));
-            });
-
             log.info("Successfully processed user creation event for UUID: {}", event.userId());
         } catch (Exception e) {
             log.error("Failed to process user creation event for UUID: {}", event.userId(), e);
@@ -226,10 +220,6 @@ public class UserServiceImpl implements UserService {
                             .map(BaseEntity::getUuid)
                             .collect(Collectors.toList())
             );
-
-            persistedRoles.stream().flatMap(role -> role.getPermissions().stream()).forEach(permission -> {
-                applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()), RoleNameConverter.createRoleName(permission), realm));
-            });
 
             log.info("Successfully processed user update event for UUID: {}", event.userId());
         } catch (Exception e) {
@@ -265,12 +255,6 @@ public class UserServiceImpl implements UserService {
                             .toList()
             );
             user.setRoles(persistedRoles);
-
-            persistedRoles.stream().flatMap(role -> role.getPermissions().stream()).forEach(
-                    permission -> {
-                        applicationEventPublisher.publishEvent(new AssignRoleToUserEvent(UUID.fromString(user.getKeycloakId()),
-                                RoleNameConverter.createRoleName(permission), realm));
-                    });
         }
     }
 

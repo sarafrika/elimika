@@ -1,10 +1,8 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.event.role.CreateRoleOnKeyCloakEvent;
 import apps.sarafrika.elimika.common.event.role.SuccessfulRoleCreationOnKeycloakEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.common.util.RoleNameConverter;
 import apps.sarafrika.elimika.tenancy.dto.PermissionDTO;
 import apps.sarafrika.elimika.tenancy.dto.RoleDTO;
 import apps.sarafrika.elimika.tenancy.entity.Permission;
@@ -24,7 +22,6 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,18 +51,10 @@ public class RoleServiceImpl implements RoleService {
             List<Permission> permissions = permissionRepository.findAllByUuidIn(
                     roleDTO.permissions().stream().map(PermissionDTO::uuid).collect(Collectors.toList())
             );
-            role.setPermissions(new ArrayList<>(permissions));
         }
 
         role = roleRepository.save(role);
 
-        if(role.getPermissions() != null && !role.getPermissions().isEmpty()) {
-            role.getPermissions().stream().filter(permission -> permission.getKeycloakId() == null).forEach(permission -> {
-                applicationEventPublisher.publishEvent(
-                        new CreateRoleOnKeyCloakEvent(RoleNameConverter.createRoleName(permission),
-                                permission.getDescription(), realm, permission.getUuid()));
-            });
-        }
 
         return RoleFactory.toDTO(role);
     }
@@ -103,18 +92,9 @@ public class RoleServiceImpl implements RoleService {
             List<Permission> permissions = permissionRepository.findAllByUuidIn(
                     roleDTO.permissions().stream().map(PermissionDTO::uuid).collect(Collectors.toList())
             );
-            role.setPermissions(new ArrayList<>(permissions));
         }
 
         role = roleRepository.save(role);
-
-        if(role.getPermissions() != null && !role.getPermissions().isEmpty()) {
-            role.getPermissions().stream().filter(permission -> permission.getKeycloakId() == null).forEach(permission -> {
-                applicationEventPublisher.publishEvent(
-                        new CreateRoleOnKeyCloakEvent(RoleNameConverter.createRoleName(permission),
-                                permission.getDescription(), realm, permission.getUuid()));
-            });
-        }
 
         return RoleFactory.toDTO(role);
     }
@@ -127,8 +107,6 @@ public class RoleServiceImpl implements RoleService {
                 () -> new ResourceNotFoundException("Role not found for UUID: " + uuid)
         );
 
-        // Clear permissions before deletion
-        role.getPermissions().clear();
         roleRepository.delete(role);
     }
 
@@ -154,7 +132,6 @@ public class RoleServiceImpl implements RoleService {
             throw new ResourceNotFoundException("No permissions found for the provided UUIDs");
         }
 
-        role.getPermissions().addAll(permissions);
         Role updatedRole = roleRepository.save(role);
         return RoleFactory.toDTO(updatedRole);
     }
@@ -173,7 +150,6 @@ public class RoleServiceImpl implements RoleService {
             throw new ResourceNotFoundException("No permissions found for the provided UUIDs");
         }
 
-        role.getPermissions().removeAll(permissions);
         Role updatedRole = roleRepository.save(role);
         return RoleFactory.toDTO(updatedRole);
     }
@@ -186,14 +162,7 @@ public class RoleServiceImpl implements RoleService {
                 () -> new ResourceNotFoundException("Role with UUID " + roleUuid + " not found")
         );
 
-        return role.getPermissions().stream()
-                .map(permission -> new PermissionDTO(
-                        permission.getUuid(),
-                        permission.getModuleName(),
-                        permission.getPermissionName(),
-                        permission.getDescription()
-                ))
-                .collect(Collectors.toList());
+        return null;
     }
 
     @ApplicationModuleListener
