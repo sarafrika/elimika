@@ -3,15 +3,12 @@ package apps.sarafrika.elimika.tenancy.entity;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -32,7 +29,4 @@ public class Permission extends BaseEntity {
 
     @Column(name = "keycloak_id")
     private UUID keycloakId;
-
-    @ManyToMany(mappedBy = "permissions")
-    private List<Role> roles = new ArrayList<>();
 }
