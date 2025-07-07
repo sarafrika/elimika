@@ -46,9 +46,6 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         TrainingProgram program = TrainingProgramFactory.toEntity(trainingProgramDTO);
 
         // Set defaults based on TrainingProgramDTO business logic
-        if (program.getStatus() == null) {
-            program.setStatus(ContentStatus.DRAFT);
-        }
         if (program.getActive() == null) {
             program.setActive(false);
         }
@@ -131,7 +128,6 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         return trainingProgramRepository.findByStatus(ContentStatus.PUBLISHED)
                 .stream()
                 .map(TrainingProgramFactory::toDTO)
-                .filter(TrainingProgramDTO::isPublished) // Using computed property
                 .collect(Collectors.toList());
     }
 
@@ -227,7 +223,6 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
 
-        program.setStatus(ContentStatus.PUBLISHED);
         program.setActive(true);
 
         TrainingProgram updatedProgram = trainingProgramRepository.save(program);
@@ -284,9 +279,6 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         }
         if (dto.price() != null) {
             existingProgram.setPrice(dto.price());
-        }
-        if (dto.status() != null) {
-            existingProgram.setStatus(dto.status());
         }
         if (dto.active() != null) {
             existingProgram.setActive(dto.active());
