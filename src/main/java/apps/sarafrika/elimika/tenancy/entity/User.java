@@ -8,6 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -44,9 +45,8 @@ public class User extends BaseEntity {
     @Column(name = "keycloak_id")
     private String keycloakId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organisation_id")
-    private Organisation organisation;
+    @Column(name = "organisation_uuid")
+    private UUID organisation;
 
     @Column(name="gender", columnDefinition = "gender")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
