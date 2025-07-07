@@ -186,8 +186,8 @@ public class UserServiceImpl implements UserService {
 
             Organisation organisation = null;
 
-            if (user.getOrganisation().getUuid() != null) {
-                organisation = findOrganisationOrThrow(user.getOrganisation().getUuid());
+            if (user.getOrganisation() != null) {
+                organisation = findOrganisationOrThrow(user.getOrganisation());
             }
 
             publishAddUserToOrganisationEvent(event.keycloakId(), organisation.getKeycloakId());
@@ -229,7 +229,6 @@ public class UserServiceImpl implements UserService {
         user.setEmail(userDTO.email());
         user.setPhoneNumber(userDTO.phoneNumber());
         user.setActive(userDTO.active());
-        user.setOrganisation(organisation);
         user.setGender(userDTO.gender());
     }
 
