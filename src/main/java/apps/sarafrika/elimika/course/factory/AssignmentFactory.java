@@ -23,7 +23,7 @@ public class AssignmentFactory {
                 assignment.getMaxPoints(),
                 assignment.getRubricUuid(),
                 assignment.getSubmissionTypes(),
-                assignment.getPublished(),
+                assignment.getIsPublished(),
                 assignment.getCreatedDate(),
                 assignment.getCreatedBy(),
                 assignment.getLastModifiedDate(),
@@ -46,7 +46,7 @@ public class AssignmentFactory {
         assignment.setMaxPoints(dto.maxPoints());
         assignment.setRubricUuid(dto.rubricUuid());
         assignment.setSubmissionTypes(dto.submissionTypes());
-        assignment.setPublished(dto.published());
+        assignment.setIsPublished(dto.published());
         assignment.setCreatedDate(dto.createdDate());
         assignment.setCreatedBy(dto.createdBy());
         assignment.setLastModifiedDate(dto.updatedDate());

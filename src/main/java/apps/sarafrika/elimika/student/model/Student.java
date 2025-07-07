@@ -17,14 +17,22 @@ import java.util.UUID;
 public class Student extends BaseEntity {
     @Column(name = "user_uuid")
     private UUID userUuid;
+
     @Column(name = "full_name")
     private String fullName;
+
     @Column(name = "guardian_1_name")
     private String firstGuardianName;
+
     @Column(name = "guardian_1_mobile")
     private String firstGuardianMobile;
+
     @Column(name = "guardian_2_name")
     private String secondGuardianName;
+
     @Column(name = "guardian_2_mobile")
     private String secondGuardianMobile;
+
+    @Column(name = "bio", columnDefinition = "TEXT")
+    private String bio;
 }

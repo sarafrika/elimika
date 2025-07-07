@@ -13,8 +13,8 @@ public class UserFactory {
 
     public static UserDTO toDTO(User user, List<String> userDomains) {
         UUID organisationUuid = null;
-        if (user.getOrganisation() != null) {
-            organisationUuid = user.getOrganisation();
+        if (user.getOrganisationUuid() != null) {
+            organisationUuid = user.getOrganisationUuid();
         }
 
         return new UserDTO(

@@ -22,7 +22,7 @@ public class AssessmentRubricFactory {
                 assessmentRubric.getInstructorUuid(),
                 assessmentRubric.getIsPublic(),
                 assessmentRubric.getStatus(),
-                assessmentRubric.getActive(),
+                assessmentRubric.getIsActive(),
                 assessmentRubric.getCreatedDate(),
                 assessmentRubric.getCreatedBy(),
                 assessmentRubric.getLastModifiedDate(),
@@ -44,7 +44,7 @@ public class AssessmentRubricFactory {
         assessmentRubric.setInstructorUuid(dto.instructorUuid());
         assessmentRubric.setIsPublic(dto.isPublic());
         assessmentRubric.setStatus(dto.status());
-        assessmentRubric.setActive(dto.active());
+        assessmentRubric.setIsActive(dto.active());
         assessmentRubric.setCreatedDate(dto.createdDate());
         assessmentRubric.setCreatedBy(dto.createdBy());
         assessmentRubric.setLastModifiedDate(dto.updatedDate());

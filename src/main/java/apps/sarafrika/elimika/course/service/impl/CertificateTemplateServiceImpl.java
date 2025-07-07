@@ -31,8 +31,8 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
     public CertificateTemplateDTO createCertificateTemplate(CertificateTemplateDTO certificateTemplateDTO) {
         CertificateTemplate certificateTemplate = CertificateTemplateFactory.toEntity(certificateTemplateDTO);
 
-        if (certificateTemplate.getActive() == null) {
-            certificateTemplate.setActive(false);
+        if (certificateTemplate.getIsActive() == null) {
+            certificateTemplate.setIsActive(false);
         }
 
         CertificateTemplate savedCertificateTemplate = certificateTemplateRepository.save(certificateTemplate);
@@ -100,7 +100,7 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
             existingCertificateTemplate.setBackgroundImageUrl(dto.backgroundImageUrl());
         }
         if (dto.active() != null) {
-            existingCertificateTemplate.setActive(dto.active());
+            existingCertificateTemplate.setIsActive(dto.active());
         }
     }
 }

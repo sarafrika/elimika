@@ -50,6 +50,9 @@ public class TrainingProgram extends BaseEntity {
     @Column(name = "price")
     private BigDecimal price;
 
+    @Column(name = "is_published")
+    private Boolean isPublished;
+
     @Column(name = "is_active")
     private Boolean active;
 }

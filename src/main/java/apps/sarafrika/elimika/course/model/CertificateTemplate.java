@@ -36,5 +36,5 @@ public class CertificateTemplate extends BaseEntity {
     private String backgroundImageUrl;
 
     @Column(name = "is_active")
-    private Boolean active;
+    private Boolean isActive;
 }

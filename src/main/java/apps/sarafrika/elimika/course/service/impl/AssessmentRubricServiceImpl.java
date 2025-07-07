@@ -36,8 +36,8 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (assessmentRubric.getStatus() == null) {
             assessmentRubric.setStatus(ContentStatus.DRAFT);
         }
-        if (assessmentRubric.getActive() == null) {
-            assessmentRubric.setActive(false);
+        if (assessmentRubric.getIsActive() == null) {
+            assessmentRubric.setIsActive(false);
         }
         if (assessmentRubric.getIsPublic() == null) {
             assessmentRubric.setIsPublic(false);
@@ -114,7 +114,7 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
             existingAssessmentRubric.setStatus(dto.status());
         }
         if (dto.active() != null) {
-            existingAssessmentRubric.setActive(dto.active());
+            existingAssessmentRubric.setIsActive(dto.active());
         }
     }
 }

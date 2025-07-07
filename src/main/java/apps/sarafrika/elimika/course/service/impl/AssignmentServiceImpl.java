@@ -31,8 +31,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     public AssignmentDTO createAssignment(AssignmentDTO assignmentDTO) {
         Assignment assignment = AssignmentFactory.toEntity(assignmentDTO);
 
-        if (assignment.getPublished() == null) {
-            assignment.setPublished(false);
+        if (assignment.getIsPublished() == null) {
+            assignment.setIsPublished(false);
         }
 
         Assignment savedAssignment = assignmentRepository.save(assignment);
@@ -109,7 +109,7 @@ public class AssignmentServiceImpl implements AssignmentService {
             existingAssignment.setSubmissionTypes(dto.submissionTypes());
         }
         if (dto.published() != null) {
-            existingAssignment.setPublished(dto.published());
+            existingAssignment.setIsPublished(dto.published());
         }
     }
 }
