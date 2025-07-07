@@ -25,7 +25,6 @@ public class TrainingProgramFactory {
                 trainingProgram.getTotalDurationMinutes(),
                 trainingProgram.getClassLimit(),
                 trainingProgram.getPrice(),
-                trainingProgram.getStatus(),
                 trainingProgram.getActive(),
                 trainingProgram.getCreatedDate(),
                 trainingProgram.getCreatedBy(),
@@ -51,7 +50,6 @@ public class TrainingProgramFactory {
         trainingProgram.setTotalDurationMinutes(dto.totalDurationMinutes());
         trainingProgram.setClassLimit(dto.classLimit());
         trainingProgram.setPrice(dto.price());
-        trainingProgram.setStatus(dto.status());
         trainingProgram.setActive(dto.active());
         trainingProgram.setCreatedDate(dto.createdDate());
         trainingProgram.setCreatedBy(dto.createdBy());

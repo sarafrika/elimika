@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.course.dto;
 
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -165,16 +164,6 @@ public record TrainingProgramDTO(
         BigDecimal price,
 
         @Schema(
-                description = "**[REQUIRED]** Program publication status in the content workflow.",
-                example = "PUBLISHED",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                allowableValues = {"DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"}
-        )
-        @NotNull(message = "Status is required")
-        @JsonProperty("status")
-        ContentStatus status,
-
-        @Schema(
                 description = "**[OPTIONAL]** Indicates if the program is actively available to students. Can only be true for published programs.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -270,21 +259,6 @@ public record TrainingProgramDTO(
     )
     public boolean isFree() {
         return price == null || price.compareTo(BigDecimal.ZERO) == 0;
-    }
-
-    /**
-     * Checks if the program is published and available to students.
-     *
-     * @return true if status is PUBLISHED
-     */
-    @JsonProperty(value = "is_published", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Indicates if the program is published and discoverable.",
-            example = "true",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public boolean isPublished() {
-        return status == ContentStatus.PUBLISHED;
     }
 
     /**
