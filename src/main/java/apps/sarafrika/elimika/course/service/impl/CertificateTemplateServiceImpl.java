@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.course.factory.CertificateTemplateFactory;
 import apps.sarafrika.elimika.course.model.CertificateTemplate;
 import apps.sarafrika.elimika.course.repository.CertificateTemplateRepository;
 import apps.sarafrika.elimika.course.service.CertificateTemplateService;
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,10 +31,6 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
     public CertificateTemplateDTO createCertificateTemplate(CertificateTemplateDTO certificateTemplateDTO) {
         CertificateTemplate certificateTemplate = CertificateTemplateFactory.toEntity(certificateTemplateDTO);
 
-        // Set defaults based on CertificateTemplateDTO business logic
-        if (certificateTemplate.getStatus() == null) {
-            certificateTemplate.setStatus(ContentStatus.DRAFT);
-        }
         if (certificateTemplate.getActive() == null) {
             certificateTemplate.setActive(false);
         }
@@ -103,9 +98,6 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
         }
         if (dto.backgroundImageUrl() != null) {
             existingCertificateTemplate.setBackgroundImageUrl(dto.backgroundImageUrl());
-        }
-        if (dto.status() != null) {
-            existingCertificateTemplate.setStatus(dto.status());
         }
         if (dto.active() != null) {
             existingCertificateTemplate.setActive(dto.active());

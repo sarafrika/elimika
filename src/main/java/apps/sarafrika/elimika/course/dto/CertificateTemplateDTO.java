@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.course.dto;
 
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.TemplateType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -109,16 +108,6 @@ public record CertificateTemplateDTO(
         String backgroundImageUrl,
 
         @Schema(
-                description = "**[REQUIRED]** Template publication status in the content workflow.",
-                example = "PUBLISHED",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                allowableValues = {"DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"}
-        )
-        @NotNull(message = "Status is required")
-        @JsonProperty("status")
-        ContentStatus status,
-
-        @Schema(
                 description = "**[OPTIONAL]** Indicates if the template is actively available for use. Can only be true for published templates.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -165,20 +154,6 @@ public record CertificateTemplateDTO(
         String updatedBy
 
 ) {
-    /**
-     * Checks if the template is published and available for use.
-     *
-     * @return true if status is PUBLISHED
-     */
-    @JsonProperty(value = "is_published", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Indicates if the template is published and available for use.",
-            example = "true",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public boolean isPublished() {
-        return status == ContentStatus.PUBLISHED;
-    }
 
     /**
      * Returns an assessment of the template's design complexity.
@@ -205,38 +180,5 @@ public record CertificateTemplateDTO(
         }
 
         return "Basic Template";
-    }
-
-    /**
-     * Returns a comprehensive usage summary.
-     *
-     * @return Usage summary for administrative purposes
-     */
-    @JsonProperty(value = "usage_summary", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Comprehensive summary indicating template availability and status.",
-            example = "Active Public Template",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public String getUsageSummary() {
-        StringBuilder summaryBuilder = new StringBuilder();
-
-        if (active != null && active) {
-            summaryBuilder.append("Active ");
-        } else {
-            summaryBuilder.append("Inactive ");
-        }
-
-        summaryBuilder.append("Public Template");
-
-        if (status == ContentStatus.DRAFT) {
-            summaryBuilder.append(" (Draft)");
-        } else if (status == ContentStatus.IN_REVIEW) {
-            summaryBuilder.append(" (Under Review)");
-        } else if (status == ContentStatus.ARCHIVED) {
-            summaryBuilder.append(" (Archived)");
-        }
-
-        return summaryBuilder.toString();
     }
 }
