@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
 
@@ -17,7 +18,8 @@ public class UserDomain {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "uuid")
+    @UuidGenerator
+    @Column(name = "uuid", unique = true)
     private UUID uuid;
 
     @Column(name = "domain_name", nullable = false, unique = true)

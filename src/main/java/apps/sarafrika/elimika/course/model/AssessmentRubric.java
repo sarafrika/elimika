@@ -41,5 +41,5 @@ public class AssessmentRubric extends BaseEntity {
     private ContentStatus status;
 
     @Column(name = "is_active")
-    private Boolean active;
+    private Boolean isActive;
 }

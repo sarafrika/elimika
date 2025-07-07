@@ -46,7 +46,7 @@ public class User extends BaseEntity {
     private String keycloakId;
 
     @Column(name = "organisation_uuid")
-    private UUID organisation;
+    private UUID organisationUuid;
 
     @Column(name="gender", columnDefinition = "gender")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

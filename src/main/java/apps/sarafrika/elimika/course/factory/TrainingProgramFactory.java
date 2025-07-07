@@ -26,6 +26,7 @@ public class TrainingProgramFactory {
                 trainingProgram.getClassLimit(),
                 trainingProgram.getPrice(),
                 trainingProgram.getActive(),
+                trainingProgram.getIsPublished(),
                 trainingProgram.getCreatedDate(),
                 trainingProgram.getCreatedBy(),
                 trainingProgram.getLastModifiedDate(),
@@ -55,6 +56,7 @@ public class TrainingProgramFactory {
         trainingProgram.setCreatedBy(dto.createdBy());
         trainingProgram.setLastModifiedDate(dto.updatedDate());
         trainingProgram.setLastModifiedBy(dto.updatedBy());
+        trainingProgram.setIsPublished(dto.published());
         return trainingProgram;
     }
 }

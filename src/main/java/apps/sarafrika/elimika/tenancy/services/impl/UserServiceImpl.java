@@ -186,8 +186,8 @@ public class UserServiceImpl implements UserService {
 
             Organisation organisation = null;
 
-            if (user.getOrganisation() != null) {
-                organisation = findOrganisationOrThrow(user.getOrganisation());
+            if (user.getOrganisationUuid() != null) {
+                organisation = findOrganisationOrThrow(user.getOrganisationUuid());
             }
 
             publishAddUserToOrganisationEvent(event.keycloakId(), organisation.getKeycloakId());

@@ -46,5 +46,5 @@ public class Assignment extends BaseEntity {
     private String[] submissionTypes;
 
     @Column(name = "is_published")
-    private Boolean published;
+    private Boolean isPublished;
 }

@@ -172,6 +172,14 @@ public record TrainingProgramDTO(
         Boolean active,
 
         @Schema(
+                description = "**[REQUIRED]** Indicates if the program is published,",
+                example = "true",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @JsonProperty("active")
+        Boolean published,
+
+        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the program was created. Automatically set by the system.",
                 example = "2024-04-01T12:00:00",
                 format = "date-time",

@@ -20,7 +20,7 @@ public class CertificateTemplateFactory {
                 certificateTemplate.getTemplateHtml(),
                 certificateTemplate.getTemplateCss(),
                 certificateTemplate.getBackgroundImageUrl(),
-                certificateTemplate.getActive(),
+                certificateTemplate.getIsActive(),
                 certificateTemplate.getCreatedDate(),
                 certificateTemplate.getCreatedBy(),
                 certificateTemplate.getLastModifiedDate(),
@@ -40,7 +40,7 @@ public class CertificateTemplateFactory {
         certificateTemplate.setTemplateHtml(dto.templateHtml());
         certificateTemplate.setTemplateCss(dto.templateCss());
         certificateTemplate.setBackgroundImageUrl(dto.backgroundImageUrl());
-        certificateTemplate.setActive(dto.active());
+        certificateTemplate.setIsActive(dto.active());
         certificateTemplate.setCreatedDate(dto.createdDate());
         certificateTemplate.setCreatedBy(dto.createdBy());
         certificateTemplate.setLastModifiedDate(dto.updatedDate());
