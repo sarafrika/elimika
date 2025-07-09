@@ -31,13 +31,13 @@ CREATE TABLE IF NOT EXISTS user_organisation_domain_mapping
         FOREIGN KEY (branch_uuid) REFERENCES training_branches (uuid) ON DELETE SET NULL,
 
     -- Business rules constraints
-    CONSTRAINT chk_valid_date_range CHECK (end_date IS NULL OR end_date >= start_date),
-
-    -- Unique constraint: A user can only have one active domain per organization
-    CONSTRAINT uk_user_org_active_domain
-        UNIQUE (user_uuid, organisation_uuid, active)
-            WHERE active = true AND deleted = false
+    CONSTRAINT chk_valid_date_range CHECK (end_date IS NULL OR end_date >= start_date)
+    -- Remove the UNIQUE constraint with WHERE from here
 );
+
+-- Add a separate UNIQUE INDEX with the WHERE clause
+CREATE UNIQUE INDEX uk_user_org_active_domain ON user_organisation_domain_mapping (user_uuid, organisation_uuid, active)
+    WHERE active = true AND deleted = false;
 
 -- Performance indexes
 CREATE INDEX idx_user_org_domain_user_uuid ON user_organisation_domain_mapping (user_uuid);
