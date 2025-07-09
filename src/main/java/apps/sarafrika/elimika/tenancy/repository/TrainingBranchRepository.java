@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,5 +66,7 @@ public interface TrainingBranchRepository extends JpaRepository<TrainingBranch, 
      * @param organisationUuid the UUID of the organisation
      * @return list of training branches for the organisation
      */
-    java.util.List<TrainingBranch> findByOrganisationUuidAndDeletedFalse(UUID organisationUuid);
+    List<TrainingBranch> findByOrganisationUuidAndDeletedFalse(UUID organisationUuid);
+
+    Optional<TrainingBranch> findByUuid(UUID uuid);
 }

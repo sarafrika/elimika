@@ -5,9 +5,11 @@ import apps.sarafrika.elimika.common.event.organisation.SuccessfulOrganisationCr
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
-import apps.sarafrika.elimika.tenancy.entity.Organisation;
+import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.factory.OrganisationFactory;
-import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
+import apps.sarafrika.elimika.tenancy.factory.UserFactory;
+import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +22,9 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-import java.util.UUID;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,10 @@ public class OrganisationServiceImpl implements OrganisationService {
 
     private final ApplicationEventPublisher eventPublisher;
     private final OrganisationRepository organisationRepository;
+    private final UserRepository userRepository;
+    private final UserDomainRepository userDomainRepository;
+    private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
+    private final TrainingBranchRepository trainingBranchRepository;
     private final GenericSpecificationBuilder<Organisation> specificationBuilder;
 
     @Override
@@ -115,7 +122,18 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         try {
             Organisation organisation = findOrganisationOrThrow(uuid);
-            // Soft delete instead of hard delete
+
+            // Soft delete all user mappings for this organisation
+            List<UserOrganisationDomainMapping> mappings =
+                    userOrganisationDomainMappingRepository.findActiveByOrganisation(uuid);
+            mappings.forEach(mapping -> {
+                mapping.setActive(false);
+                mapping.setEndDate(LocalDate.now());
+                mapping.setDeleted(true);
+            });
+            userOrganisationDomainMappingRepository.saveAll(mappings);
+
+            // Soft delete the organisation
             organisation.setDeleted(true);
             organisation.setActive(false);
             organisationRepository.save(organisation);
@@ -141,6 +159,165 @@ public class OrganisationServiceImpl implements OrganisationService {
         return organisations.map(OrganisationFactory::toDTO);
     }
 
+    @Override
+    @Transactional
+    public void inviteUserToOrganisation(UUID organisationUuid, String email, String domainName, UUID branchUuid) {
+        log.debug("Inviting user with email {} to organisation {} with domain {}", email, organisationUuid, domainName);
+
+        Organisation organisation = findOrganisationOrThrow(organisationUuid);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        UserDomain domain = findDomainByNameOrThrow(domainName);
+
+        // Validate branch belongs to organisation if provided
+        if (branchUuid != null) {
+            TrainingBranch branch = trainingBranchRepository.findByUuid(branchUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException("Training branch not found"));
+
+            if (!branch.getOrganisationUuid().equals(organisationUuid)) {
+                throw new IllegalArgumentException("Training branch does not belong to the specified organisation");
+            }
+        }
+
+        // Check if mapping already exists
+        Optional<UserOrganisationDomainMapping> existingMapping =
+                userOrganisationDomainMappingRepository.findActiveByUserAndOrganisation(user.getUuid(), organisationUuid);
+
+        if (existingMapping.isPresent()) {
+            log.warn("User {} is already associated with organisation {}", email, organisationUuid);
+            throw new IllegalStateException("User is already associated with this organisation");
+        }
+
+        // Create new mapping
+        UserOrganisationDomainMapping mapping = UserOrganisationDomainMapping.builder()
+                .userUuid(user.getUuid())
+                .organisationUuid(organisationUuid)
+                .domainUuid(domain.getUuid())
+                .branchUuid(branchUuid)
+                .active(true)
+                .startDate(LocalDate.now())
+                .createdBy("system") // TODO: Replace with actual user context
+                .build();
+
+        userOrganisationDomainMappingRepository.save(mapping);
+
+        log.info("Successfully invited user {} to organisation {} with domain {}", email, organisationUuid, domainName);
+
+        // TODO: Send invitation email
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserDTO> getOrganisationUsers(UUID organisationUuid) {
+        List<UserOrganisationDomainMapping> mappings =
+                userOrganisationDomainMappingRepository.findActiveByOrganisation(organisationUuid);
+
+        return mappings.stream()
+                .map(mapping -> {
+                    User user = userRepository.findByUuid(mapping.getUserUuid())
+                            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                    UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
+                            .orElseThrow(() -> new ResourceNotFoundException("Domain not found"));
+
+                    // Get all user domains for this user
+                    List<String> userDomains = getUserDomainsForUser(user.getUuid());
+                    return UserFactory.toDTO(user, userDomains);
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserDTO> getOrganisationUsersByDomain(UUID organisationUuid, String domainName) {
+        UserDomain domain = findDomainByNameOrThrow(domainName);
+
+        List<UserOrganisationDomainMapping> mappings =
+                userOrganisationDomainMappingRepository.findActiveByOrganisationAndDomain(organisationUuid, domain.getUuid());
+
+        return mappings.stream()
+                .map(mapping -> {
+                    User user = userRepository.findByUuid(mapping.getUserUuid())
+                            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                    List<String> userDomains = getUserDomainsForUser(user.getUuid());
+                    return UserFactory.toDTO(user, userDomains);
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void removeUserFromOrganisation(UUID organisationUuid, UUID userUuid) {
+        log.debug("Removing user {} from organisation {}", userUuid, organisationUuid);
+
+        UserOrganisationDomainMapping mapping = userOrganisationDomainMappingRepository
+                .findActiveByUserAndOrganisation(userUuid, organisationUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No active mapping found for user and organisation"));
+
+        // Soft delete - set end date and deactivate
+        mapping.setActive(false);
+        mapping.setEndDate(LocalDate.now());
+
+        userOrganisationDomainMappingRepository.save(mapping);
+        log.info("Removed user {} from organisation {}", userUuid, organisationUuid);
+    }
+
+    @Override
+    @Transactional
+    public void updateUserRoleInOrganisation(UUID organisationUuid, UUID userUuid, String newDomainName) {
+        log.debug("Updating user {} role in organisation {} to {}", userUuid, organisationUuid, newDomainName);
+
+        UserDomain newDomain = findDomainByNameOrThrow(newDomainName);
+
+        UserOrganisationDomainMapping mapping = userOrganisationDomainMappingRepository
+                .findActiveByUserAndOrganisation(userUuid, organisationUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No active mapping found for user and organisation"));
+
+        mapping.setDomainUuid(newDomain.getUuid());
+
+        userOrganisationDomainMappingRepository.save(mapping);
+        log.info("Updated user {} role in organisation {} to {}", userUuid, organisationUuid, newDomainName);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrganisationDTO> getUserOrganisations(UUID userUuid) {
+        List<UserOrganisationDomainMapping> mappings =
+                userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+
+        return mappings.stream()
+                .map(mapping -> {
+                    Organisation organisation = organisationRepository.findByUuid(mapping.getOrganisationUuid())
+                            .orElseThrow(() -> new ResourceNotFoundException("Organisation not found"));
+                    return OrganisationFactory.toDTO(organisation);
+                })
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isUserInOrganisation(UUID organisationUuid, UUID userUuid) {
+        return userOrganisationDomainMappingRepository
+                .findActiveByUserAndOrganisation(userUuid, organisationUuid)
+                .isPresent();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getUserRoleInOrganisation(UUID organisationUuid, UUID userUuid) {
+        UserOrganisationDomainMapping mapping = userOrganisationDomainMappingRepository
+                .findActiveByUserAndOrganisation(userUuid, organisationUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User is not associated with this organisation"));
+
+        UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
+                .orElseThrow(() -> new ResourceNotFoundException("Domain not found"));
+
+        return domain.getDomainName();
+    }
+
     @ApplicationModuleListener
     void onOrganisationCreation(SuccessfulOrganisationCreationEvent event) {
         log.debug("Processing successful organisation creation event for UUID: {}", event.blastWaveId());
@@ -156,9 +333,29 @@ public class OrganisationServiceImpl implements OrganisationService {
         }
     }
 
+    // Private helper methods
     private Organisation findOrganisationOrThrow(UUID uuid) {
         return organisationRepository.findByUuidAndDeletedFalse(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Organisation not found for UUID: " + uuid));
+    }
+
+    private UserDomain findDomainByNameOrThrow(String domainName) {
+        return userDomainRepository.findByDomainName(domainName)
+                .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name: " + domainName));
+    }
+
+    private List<String> getUserDomainsForUser(UUID userUuid) {
+        List<UserOrganisationDomainMapping> mappings =
+                userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+
+        return mappings.stream()
+                .map(mapping -> {
+                    UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
+                            .orElseThrow(() -> new ResourceNotFoundException("Domain not found"));
+                    return domain.getDomainName();
+                })
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private void updateOrganisationFields(Organisation organisation, OrganisationDTO dto) {

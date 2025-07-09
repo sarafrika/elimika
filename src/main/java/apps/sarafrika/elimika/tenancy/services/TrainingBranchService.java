@@ -2,30 +2,37 @@ package apps.sarafrika.elimika.tenancy.services;
 
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Service interface for managing training branches.
+ * Enhanced service interface for managing training branches and their user relationships.
  * <p>
- * Provides operations for creating, reading, updating, and deleting training branches
- * within organisations in the Sarafrika Elimika system.
+ * Provides operations for training branch management including user assignments,
+ * role management within branches, and point of contact management. Training branches
+ * are sub-units within organizations that can have specific user assignments.
  *
- * @author Wilfred Njuguna
- * @version 1.0
+ * @author Elimika Team
+ * @version 2.0
  * @since 2025-07-09
  */
 public interface TrainingBranchService {
 
+    // ================================
+    // CORE TRAINING BRANCH MANAGEMENT
+    // ================================
+
     /**
-     * Creates a new training branch.
+     * Creates a new training branch within an organization.
      *
      * @param trainingBranchDTO the training branch data to create
      * @return the created training branch
-     * @throws IllegalArgumentException if validation fails
+     * @throws IllegalArgumentException if validation fails or branch name already exists in organization
      * @throws RuntimeException if creation fails
      */
     TrainingBranchDTO createTrainingBranch(TrainingBranchDTO trainingBranchDTO);
@@ -68,7 +75,8 @@ public interface TrainingBranchService {
     TrainingBranchDTO updateTrainingBranch(UUID uuid, TrainingBranchDTO trainingBranchDTO);
 
     /**
-     * Deletes a training branch (soft delete).
+     * Deletes a training branch (soft delete) and removes all user assignments.
+     * Users remain in the parent organization but lose branch-specific assignments.
      *
      * @param uuid the UUID of the training branch to delete
      * @throws ResourceNotFoundException if training branch is not found
@@ -84,4 +92,82 @@ public interface TrainingBranchService {
      * @return paginated search results
      */
     Page<TrainingBranchDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    // ================================
+    // USER-BRANCH ASSIGNMENT MANAGEMENT
+    // ================================
+
+    /**
+     * Assigns a user to a specific training branch with a role.
+     * If user is not in the parent organization, creates organization membership first.
+     * If user is already in organization, updates their branch assignment.
+     *
+     * @param branchUuid the training branch UUID
+     * @param userUuid the user UUID
+     * @param domainName the role/domain for the user in this branch
+     * @throws IllegalArgumentException if domain is invalid
+     */
+    void assignUserToBranch(UUID branchUuid, UUID userUuid, String domainName);
+
+    /**
+     * Removes a user from a training branch.
+     * User remains in the parent organization but loses branch-specific assignment.
+     *
+     * @param branchUuid the training branch UUID
+     * @param userUuid the user UUID
+     * @throws ResourceNotFoundException if user is not assigned to the branch
+     */
+    void removeUserFromBranch(UUID branchUuid, UUID userUuid);
+
+    // ================================
+    // BRANCH USER QUERIES
+    // ================================
+
+    /**
+     * Gets all users assigned to a specific training branch.
+     *
+     * @param branchUuid the training branch UUID
+     * @return list of users assigned to the branch
+     */
+    List<UserDTO> getBranchUsers(UUID branchUuid);
+
+    /**
+     * Gets users in a training branch filtered by role/domain.
+     *
+     * @param branchUuid the training branch UUID
+     * @param domainName the role/domain to filter by
+     * @return list of users with the specified role in the branch
+     */
+    List<UserDTO> getBranchUsersByDomain(UUID branchUuid, String domainName);
+
+    /**
+     * Gets all training branches a user is assigned to.
+     *
+     * @param userUuid the user UUID
+     * @return list of training branches the user is assigned to
+     */
+    List<TrainingBranchDTO> getUserBranches(UUID userUuid);
+
+    /**
+     * Checks if a user is assigned to a specific training branch.
+     *
+     * @param branchUuid the training branch UUID
+     * @param userUuid the user UUID
+     * @return true if user is assigned to the branch
+     */
+    boolean isUserInBranch(UUID branchUuid, UUID userUuid);
+
+    // ================================
+    // POINT OF CONTACT MANAGEMENT
+    // ================================
+
+    /**
+     * Updates the point of contact for a training branch.
+     * The POC must be either assigned to the branch or be a member of the parent organization.
+     *
+     * @param branchUuid the training branch UUID
+     * @param pocUserUuid the UUID of the user to set as point of contact
+     * @throws IllegalArgumentException if user is not eligible to be POC
+     */
+    void updatePointOfContact(UUID branchUuid, UUID pocUserUuid);
 }

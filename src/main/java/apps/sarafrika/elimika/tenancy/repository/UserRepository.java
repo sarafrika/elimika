@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
@@ -25,8 +26,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     boolean existsByKeycloakId(String keycloakId);
 
-    Page<User> findByOrganisationUuid(UUID organisationUuid, Pageable pageable);
-
     List<User> findAllByUuidIn(List<UUID> uuids);
 
     @Query(value = """
@@ -37,4 +36,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             WHERE ug.uuid = :uuid
             """, nativeQuery = true)
     Page<User> getUsersInUserGroup(@Param("uuid") UUID uuid, Pageable pageable);
+
+    Page<User> findByUuidIn(Set<UUID> uuids, Pageable pageable);
 }
