@@ -6,16 +6,11 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.UUID;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFactory {
 
     public static UserDTO toDTO(User user, List<String> userDomains) {
-        UUID organisationUuid = null;
-        if (user.getOrganisationUuid() != null) {
-            organisationUuid = user.getOrganisationUuid();
-        }
 
         return new UserDTO(
                 user.getUuid(),
@@ -27,7 +22,6 @@ public class UserFactory {
                 user.getProfileImageUrl(),
                 user.getDob(),
                 user.getUsername(),
-                organisationUuid,
                 user.isActive(),
                 user.getCreatedDate(),
                 user.getLastModifiedDate(),

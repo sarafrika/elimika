@@ -161,16 +161,6 @@ public record UserDTO(
         String username,
 
         @Schema(
-                description = "**[OPTIONAL]** UUID of the organization this user belongs to. Links user to their organizational context and determines available resources. Can be null for system administrators.",
-                example = "b1c2d3e4-f5g6-h7i8-j9k0-lmnopqrstuv",
-                format = "uuid",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("organisation_uuid")
-        UUID organisationUuid,
-
-        @Schema(
                 description = "**[REQUIRED]** Indicates whether the user account is active and can access the system. Inactive users cannot log in or perform any operations.",
                 example = "true",
                 defaultValue = "true",

@@ -10,11 +10,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Entity
 @Table(name = "organisation")
 @Getter
-@Setter @NoArgsConstructor @AllArgsConstructor
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Organisation extends BaseEntity {
 
     @Column(name = "name")
@@ -29,7 +32,7 @@ public class Organisation extends BaseEntity {
     @Column(name = "code")
     private String code;
 
-    @Column(name="licence_no")
+    @Column(name = "licence_no")
     private String licenceNo;
 
     @Column(name = "domain")
@@ -46,4 +49,16 @@ public class Organisation extends BaseEntity {
 
     @Column(name = "long")
     private BigDecimal longitude;
+
+    @Column(name = "deleted")
+    private boolean deleted = false;
+
+    @Column(name = "user_uuid")
+    private UUID userUuid;
+
+    @Column(name = "location")
+    private String location;
+
+    @Column(name = "country")
+    private String country;
 }
