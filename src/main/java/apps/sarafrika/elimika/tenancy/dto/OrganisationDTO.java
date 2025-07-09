@@ -29,8 +29,10 @@ import java.util.UUID;
                     "active": true,
                     "code": "SARU",
                     "licence_no": "EDU-2024-001",
-                    "slug": "sarafrika-university",
                     "domain": "sarafrika.edu.ke",
+                    "user_uuid": "a1b2c3d4-e5f6-g7h8-i9j0-klmnopqrstuv",
+                    "location": "Nairobi, Kenya",
+                    "country": "Kenya",
                     "created_date": "2024-01-01T09:00:00",
                     "updated_date": "2024-04-15T14:30:00"
                 }
@@ -91,30 +93,51 @@ public record OrganisationDTO(
                 description = "**[OPTIONAL]** Official licence number or registration number for the organisation. Used for regulatory compliance and verification.",
                 example = "EDU-2024-001",
                 nullable = true,
+                maxLength = 100,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty("licence_no")
         String licenceNo,
 
         @Schema(
-                description = "**[READ-ONLY]** URL-friendly version of the organisation name. Automatically generated from the name and cannot be directly modified.",
-                example = "sarafrika-university",
-                accessMode = Schema.AccessMode.READ_ONLY,
+                description = "**[OPTIONAL]** Organisation's domain name. Used for email validation and system integration.",
+                example = "sarafrika.edu.ke",
+                nullable = true,
+                maxLength = 255,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("domain")
+        String domain,
+
+        @Schema(
+                description = "**[OPTIONAL]** Reference to the primary contact user for this organisation.",
+                example = "a1b2c3d4-e5f6-g7h8-i9j0-klmnopqrstuv",
+                format = "uuid",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @JsonProperty(value = "slug", access = JsonProperty.Access.READ_ONLY)
-        String slug,
+        @JsonProperty("user_uuid")
+        UUID userUuid,
 
         @Schema(
-                description = "**[REQUIRED]** Organisation's domain name. Used for email validation and system integration. Must be unique across the system.",
-                example = "sarafrika.edu.ke",
-                minLength = 1,
-                requiredMode = Schema.RequiredMode.REQUIRED
+                description = "**[OPTIONAL]** Physical location or address of the organisation.",
+                example = "Nairobi, Kenya",
+                nullable = true,
+                maxLength = 200,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @NotBlank(message = "Domain is required")
-        @JsonProperty("domain")
-        String domain,
+        @JsonProperty("location")
+        String location,
+
+        @Schema(
+                description = "**[OPTIONAL]** Country where the organisation is located.",
+                example = "Kenya",
+                nullable = true,
+                maxLength = 100,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("country")
+        String country,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the organisation was first created. Automatically set by the system and cannot be modified.",

@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.tenancy.repository;
 
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -17,4 +19,8 @@ public interface OrganisationRepository extends JpaRepository<Organisation, Long
     boolean existsByDomain(String domain);
 
     boolean existsBySlug(String slug);
+
+    Page<Organisation> findByDeletedFalse(Pageable pageable);
+
+    Optional<Organisation> findByUuidAndDeletedFalse(UUID uuid);
 }

@@ -62,7 +62,7 @@ public class UserServiceImpl implements UserService {
         log.debug("Creating new user with email: {}", userRep.getEmail());
         User user = new User(userRep.getFirstName(), null, userRep.getLastName(),
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
-                userRep.isEnabled(), userRep.getId(),null,Gender.PREFER_NOT_TO_SAY
+                userRep.isEnabled(), userRep.getId(),Gender.PREFER_NOT_TO_SAY
         );
         log.info("User {}", user);
         userRepository.save(user);
@@ -99,14 +99,10 @@ public class UserServiceImpl implements UserService {
 
         Organisation organisation = null;
 
-        if (userDTO.organisationUuid() != null) {
-            organisation = findOrganisationOrThrow(userDTO.organisationUuid());
-        }
-
         User user = findUserOrThrow(uuid);
 
         try {
-            updateUserFields(user, userDTO, organisation);
+            updateUserFields(user, userDTO);
             User updatedUser = userRepository.save(user);
 
             userDTO.userDomain().forEach(domain -> publishUserDomainUpdateEvent(updatedUser, domain));
@@ -183,14 +179,6 @@ public class UserServiceImpl implements UserService {
             user.setKeycloakId(event.keycloakId());
             userRepository.save(user);
 
-            Organisation organisation = null;
-
-            if (user.getOrganisationUuid() != null) {
-                organisation = findOrganisationOrThrow(user.getOrganisationUuid());
-            }
-
-            publishAddUserToOrganisationEvent(event.keycloakId(), organisation.getKeycloakId());
-
             log.info("Successfully processed user creation event for UUID: {}", event.userId());
         } catch (Exception e) {
             log.error("Failed to process user creation event for UUID: {}", event.userId(), e);
@@ -221,7 +209,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for UUID: " + uuid));
     }
 
-    private void updateUserFields(User user, UserDTO userDTO, Organisation organisation) {
+    private void updateUserFields(User user, UserDTO userDTO) {
         user.setFirstName(userDTO.firstName());
         user.setMiddleName(userDTO.middleName());
         user.setLastName(userDTO.lastName());
