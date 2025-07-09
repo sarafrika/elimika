@@ -1,19 +1,20 @@
 CREATE TABLE IF NOT EXISTS organisation
 (
     id           BIGSERIAL PRIMARY KEY,
-    uuid         UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    name         VARCHAR(50)  NOT NULL,
+    uuid         UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    name         VARCHAR(50) NOT NULL,
     description  VARCHAR,
-    active       BOOLEAN      NOT NULL        DEFAULT true,
-    code         VARCHAR      NOT NULL UNIQUE,
+    active       BOOLEAN     NOT NULL        DEFAULT true,
+    code         VARCHAR     NOT NULL UNIQUE,
     domain       VARCHAR(255),
+    licence_no   VARCHAR(100),
     keycloak_id  varchar(36),
     slug         varchar(200),
-    created_date TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
-    created_by   VARCHAR(50)  NOT NULL,
-    updated_date TIMESTAMP    NOT NULL        DEFAULT CURRENT_TIMESTAMP,
+    created_date TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
+    created_by   VARCHAR(50) NOT NULL,
+    updated_date TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     updated_by   VARCHAR(50),
-    deleted      BOOLEAN      NOT NULL        DEFAULT FALSE
+    deleted      BOOLEAN     NOT NULL        DEFAULT FALSE
 );
 
 -- Indices remain the same
@@ -34,10 +35,10 @@ CREATE TABLE IF NOT EXISTS users
     last_name         VARCHAR(50) NOT NULL,
     email             VARCHAR(50) NOT NULL UNIQUE,
     phone_number      VARCHAR(50) UNIQUE,
-    gender            gender NULL,
+    gender            gender      NULL,
     dob               DATE,
     active            BOOLEAN     NOT NULL        DEFAULT true,
-    organisation_uuid UUID,  -- CHANGED: from organisation_id to organisation_uuid
+    organisation_uuid UUID,             -- CHANGED: from organisation_id to organisation_uuid
     keycloak_id       varchar(36),
     created_date      TIMESTAMP   NOT NULL        DEFAULT CURRENT_TIMESTAMP,
     created_by        VARCHAR(50) NOT NULL,
@@ -45,7 +46,7 @@ CREATE TABLE IF NOT EXISTS users
     updated_by        VARCHAR(50),
     deleted           BOOLEAN     NOT NULL        DEFAULT FALSE,
     CONSTRAINT user_organisation_fk
-        FOREIGN KEY (organisation_uuid)  -- CHANGED: now references uuid
+        FOREIGN KEY (organisation_uuid) -- CHANGED: now references uuid
             REFERENCES organisation (uuid)
             ON DELETE CASCADE
             ON UPDATE CASCADE
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS users
 -- Indices for Users Table - FIXED: Updated index name
 CREATE UNIQUE INDEX idx_users_uuid ON users (uuid);
 CREATE INDEX idx_users_active ON users (active);
-CREATE INDEX idx_users_organisation_uuid ON users (organisation_uuid);  -- CHANGED: from organisation_id to organisation_uuid
+CREATE INDEX idx_users_organisation_uuid ON users (organisation_uuid); -- CHANGED: from organisation_id to organisation_uuid
 CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_phone_number ON users (phone_number);
 CREATE INDEX idx_users_gender ON users (gender);
