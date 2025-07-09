@@ -2,7 +2,10 @@ package apps.sarafrika.elimika.tenancy.factory;
 
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OrganisationFactory {
     public static OrganisationDTO toDTO(Organisation organisation) {
         return new OrganisationDTO(
@@ -11,6 +14,7 @@ public class OrganisationFactory {
                 organisation.getDescription(),
                 organisation.isActive(),
                 organisation.getCode(),
+                organisation.getLicenceNo(),
                 organisation.getSlug(),
                 organisation.getDomain(),
                 organisation.getCreatedDate(),
@@ -25,6 +29,7 @@ public class OrganisationFactory {
         organisation.setDescription(organisationDTO.description());
         organisation.setActive(organisationDTO.active());
         organisation.setCode(organisationDTO.code());
+        organisation.setLicenceNo(organisationDTO.licenceNo());
         organisation.setDomain(organisationDTO.domain());
         return organisation;
     }

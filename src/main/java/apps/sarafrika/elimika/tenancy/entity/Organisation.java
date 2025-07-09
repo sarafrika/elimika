@@ -29,6 +29,9 @@ public class Organisation extends BaseEntity {
     @Column(name = "code")
     private String code;
 
+    @Column(name="licence_no")
+    private String licenceNo;
+
     @Column(name = "domain")
     private String domain;
 

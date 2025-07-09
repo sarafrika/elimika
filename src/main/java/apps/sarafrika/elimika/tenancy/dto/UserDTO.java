@@ -20,9 +20,9 @@ import java.util.UUID;
  * Represents a user in the Sarafrika Elimika system with all necessary
  * personal information, authentication details, and organizational relationships.
  *
- * @author Sarafrika Team
+ * @author Wilfred Njuguna
  * @version 1.0
- * @since 2024-01-01
+ * @since 2025-07-09
  */
 @Schema(
         name = "User",
