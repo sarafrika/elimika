@@ -31,7 +31,6 @@ public class UserFactory {
                 user.isActive(),
                 user.getCreatedDate(),
                 user.getLastModifiedDate(),
-                null,
                 user.getGender(),
                 userDomains
         );

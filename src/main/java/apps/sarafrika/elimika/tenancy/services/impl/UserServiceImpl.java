@@ -45,7 +45,6 @@ public class UserServiceImpl implements UserService {
     private String realm;
 
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
     private final OrganisationRepository organisationRepository;
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
