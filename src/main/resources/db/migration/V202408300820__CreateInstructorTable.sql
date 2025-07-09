@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS instructor
+CREATE TABLE IF NOT EXISTS instructors
 (
     id           BIGSERIAL PRIMARY KEY,
     uuid         UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
@@ -13,6 +13,6 @@ CREATE TABLE IF NOT EXISTS instructor
     CONSTRAINT deleted_check CHECK (deleted IN (TRUE, FALSE))
 );
 
-CREATE INDEX idx_instructor_created_by ON instructor (created_by);
-CREATE INDEX idx_instructor_updated_by ON instructor (updated_by);
-CREATE INDEX idx_instructor_deleted ON instructor (deleted);
+CREATE INDEX idx_instructor_created_by ON instructors (created_by);
+CREATE INDEX idx_instructor_updated_by ON instructors (updated_by);
+CREATE INDEX idx_instructor_deleted ON instructors (deleted);

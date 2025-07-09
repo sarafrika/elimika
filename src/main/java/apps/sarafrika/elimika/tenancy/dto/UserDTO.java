@@ -12,7 +12,6 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -201,28 +200,6 @@ public record UserDTO(
         LocalDateTime modifiedDate,
 
         @Schema(
-                description = "**[OPTIONAL]** Set of roles assigned to this user. Determines user permissions and access levels within the system. Can be empty for users with no specific roles assigned.",
-                example = """
-                         [
-                             {
-                                 "uuid": "role-uuid-1",
-                                 "name": "ADMIN",
-                                 "description": "Administrator role with full system access"
-                             },
-                             {
-                                 "uuid": "role-uuid-2",
-                                 "name": "USER",
-                                 "description": "Standard user role with basic access"
-                             }
-                         ]
-                        \s""",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("roles")
-        Set<RoleDTO> roles,
-
-        @Schema(
                 description = "**[OPTIONAL]** User's gender information. Used for demographic analytics and personalization. Can be null if not specified or preferred not to disclose.",
                 example = "FEMALE",
                 allowableValues = {"MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"},
@@ -270,16 +247,5 @@ public record UserDTO(
      */
     public String getDisplayName() {
         return firstName + " " + lastName;
-    }
-
-    /**
-     * Checks if the user has a specific role.
-     *
-     * @param roleName The role name to check
-     * @return true if user has the role, false otherwise
-     */
-    public boolean hasRole(String roleName) {
-        return roles != null && roles.stream()
-                .anyMatch(role -> roleName.equals(role.name()));
     }
 }

@@ -1,10 +1,6 @@
 -- Define the proficiency level type
 CREATE TYPE proficiency_level AS ENUM ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT');
 
--- Create Instructors Table
-ALTER TABLE instructor
-    RENAME TO instructors;
-
 ALTER TABLE instructors
     ADD COLUMN user_uuid UUID NOT NULL UNIQUE,
     ADD COLUMN admin_verified bool NOT NULL DEFAULT false;
