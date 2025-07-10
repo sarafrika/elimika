@@ -49,8 +49,7 @@ class UserController {
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getAllUsers(
             @Parameter(description = "Pagination and sorting parameters. " +
                     "Default page size is 20. Supports sorting by fields like firstName, lastName, email, createdAt. " +
-                    "Example: ?page=0&size=10&sort=firstName,asc",
-                    example = "page=0&size=20&sort=firstName,asc")
+                    "Example: ?page=0&size=10&sort=firstName,asc")
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(userService.getAllUsers(pageable), ServletUriComponentsBuilder
                         .fromCurrentRequestUri()
