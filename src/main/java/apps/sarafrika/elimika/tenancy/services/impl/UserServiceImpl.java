@@ -62,7 +62,7 @@ public class UserServiceImpl implements UserService {
                 userRep.getEmail(), userRep.getUsername(), null, null, null,
                 userRep.isEnabled(), userRep.getId(), Gender.PREFER_NOT_TO_SAY
         );
-        log.info("User {}", user);
+        log.info("User created: {}", user);
         userRepository.save(user);
     }
 
@@ -79,7 +79,7 @@ public class UserServiceImpl implements UserService {
     public Page<UserDTO> getUsersByOrganisation(UUID organisationId, Pageable pageable) {
         Organisation organisation = findOrganisationOrThrow(organisationId);
 
-        // Get users through the new organisation domain mapping
+        // Get users through the organisation domain mapping
         List<UserOrganisationDomainMapping> mappings = userOrganisationDomainMappingRepository
                 .findActiveByOrganisation(organisation.getUuid());
 
@@ -106,9 +106,9 @@ public class UserServiceImpl implements UserService {
             updateUserFields(user, userDTO);
             User updatedUser = userRepository.save(user);
 
-            // Update user domains if provided
-            if (userDTO.userDomain() != null) {
-                userDTO.userDomain().forEach(domain -> publishUserDomainUpdateEvent(updatedUser, domain));
+            // Handle user domain assignment with validation
+            if (userDTO.userDomain() != null && !userDTO.userDomain().isEmpty()) {
+                updateUserDomains(updatedUser, userDTO.userDomain());
             }
 
             publishUserUpdateEvent(updatedUser);
@@ -123,12 +123,19 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO inviteUserToOrganisation(String email, UUID organisationUuid, String domainName, UUID branchUuid) {
-        log.debug("Inviting user with email {} to organisation {} with domain {}", email, organisationUuid, domainName);
+        log.debug("Processing organization invitation for {} to organisation {} with domain {}",
+                email, organisationUuid, domainName);
 
-        // Find or create user
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        // Check if user exists
+        Optional<User> userOptional = userRepository.findByEmail(email);
 
+        if (userOptional.isEmpty()) {
+            // User doesn't exist - they need to register on Keycloak first
+            throw new IllegalStateException("User must register on the platform before accepting invitations. " +
+                    "Please ask them to create an account first.");
+        }
+
+        User user = userOptional.get();
         return assignUserToOrganisation(user.getUuid(), organisationUuid, domainName, branchUuid);
     }
 
@@ -151,19 +158,19 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // Check if active mapping already exists
+        // Check if user is already in this organization
         Optional<UserOrganisationDomainMapping> existingMapping =
                 userOrganisationDomainMappingRepository.findActiveByUserAndOrganisation(userUuid, organisationUuid);
 
         if (existingMapping.isPresent()) {
-            // Update existing mapping
+            // Update existing mapping (change role or branch)
             UserOrganisationDomainMapping mapping = existingMapping.get();
             mapping.setDomainUuid(domain.getUuid());
             mapping.setBranchUuid(branchUuid);
             userOrganisationDomainMappingRepository.save(mapping);
-            log.info("Updated existing mapping for user {} in organisation {}", userUuid, organisationUuid);
+            log.info("Updated existing organisation mapping for user {} in organisation {}", userUuid, organisationUuid);
         } else {
-            // Create new mapping
+            // Create new organisation relationship
             UserOrganisationDomainMapping mapping = UserOrganisationDomainMapping.builder()
                     .userUuid(userUuid)
                     .organisationUuid(organisationUuid)
@@ -175,7 +182,13 @@ public class UserServiceImpl implements UserService {
                     .build();
 
             userOrganisationDomainMappingRepository.save(mapping);
-            log.info("Created new mapping for user {} in organisation {} with domain {}", userUuid, organisationUuid, domainName);
+            log.info("Created new organisation mapping for user {} in organisation {} with domain {}",
+                    userUuid, organisationUuid, domainName);
+        }
+
+        // For invitation-only roles (admin, organisation_user), add the domain to user's standalone domains
+        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
+            addStandaloneDomainToUser(user, domain);
         }
 
         // Publish domain-specific events
@@ -203,6 +216,7 @@ public class UserServiceImpl implements UserService {
         // Soft delete - set end date and deactivate
         mapping.setActive(false);
         mapping.setEndDate(LocalDate.now());
+        mapping.setDeleted(true);
 
         userOrganisationDomainMappingRepository.save(mapping);
         log.info("Removed user {} from organisation {}", userUuid, organisationUuid);
@@ -279,6 +293,10 @@ public class UserServiceImpl implements UserService {
             });
             userOrganisationDomainMappingRepository.saveAll(mappings);
 
+            // Delete standalone domain mappings
+            List<UserDomainMapping> domainMappings = userDomainMappingRepository.findByUserUuid(uuid);
+            userDomainMappingRepository.deleteAll(domainMappings);
+
             // Delete user
             userRepository.delete(user);
             log.info("Successfully deleted user with UUID: {}", uuid);
@@ -306,20 +324,84 @@ public class UserServiceImpl implements UserService {
         return getUserDomainsFromMappings(userUuid);
     }
 
-    // Enhanced method to get user domains from new mapping table
-    private List<String> getUserDomainsFromMappings(UUID userUuid) {
-        List<UserOrganisationDomainMapping> mappings =
-                userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+    // ================================
+    // PRIVATE HELPER METHODS
+    // ================================
 
-        return mappings.stream()
+    /**
+     * Gets all domains for a user from both standalone and organisation mappings
+     */
+    private List<String> getUserDomainsFromMappings(UUID userUuid) {
+        Set<String> allDomains = new HashSet<>();
+
+        // Get standalone domains (from user_domain_mapping)
+        List<UserDomainMapping> standaloneMappings = userDomainMappingRepository.findByUserUuid(userUuid);
+        for (UserDomainMapping mapping : standaloneMappings) {
+            UserDomain domain = userDomainRepository.findByUuid(mapping.getUserDomainUuid())
+                    .orElse(null);
+            if (domain != null) {
+                allDomains.add(domain.getDomainName());
+            }
+        }
+
+        // Get domains from organisation mappings (for context)
+        List<UserOrganisationDomainMapping> orgMappings =
+                userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+        for (UserOrganisationDomainMapping mapping : orgMappings) {
+            UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
+                    .orElse(null);
+            if (domain != null) {
+                allDomains.add(domain.getDomainName());
+            }
+        }
+
+        return new ArrayList<>(allDomains);
+    }
+
+    /**
+     * Updates user domains with validation for self-registration rules
+     */
+    private void updateUserDomains(User user, List<String> requestedDomains) {
+        log.debug("Updating domains for user {} with domains: {}", user.getUuid(), requestedDomains);
+
+        // Validate that user is not trying to self-assign restricted domains
+        for (String domainName : requestedDomains) {
+            if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
+                throw new IllegalArgumentException("Domain '" + domainName +
+                        "' can only be assigned through invitation. Students and Instructors can self-register.");
+            }
+        }
+
+        // Get current standalone domains
+        List<UserDomainMapping> currentMappings = userDomainMappingRepository.findByUserUuid(user.getUuid());
+        Set<String> currentDomains = currentMappings.stream()
                 .map(mapping -> {
-                    UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
-                            .orElseThrow(() -> new ResourceNotFoundException(
-                                    "User domain not found for UUID: " + mapping.getDomainUuid()));
-                    return domain.getDomainName();
+                    UserDomain domain = userDomainRepository.findByUuid(mapping.getUserDomainUuid()).orElse(null);
+                    return domain != null ? domain.getDomainName() : null;
                 })
-                .distinct()
-                .collect(Collectors.toList());
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Add new domains
+        for (String domainName : requestedDomains) {
+            if (!currentDomains.contains(domainName)) {
+                UserDomain domain = findDomainByNameOrThrow(domainName);
+                addStandaloneDomainToUser(user, domain);
+                publishUserDomainEvent(user, domainName);
+            }
+        }
+    }
+
+    /**
+     * Adds a standalone domain to a user (not organisation-specific)
+     */
+    private void addStandaloneDomainToUser(User user, UserDomain domain) {
+        // Check if mapping already exists
+        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domain.getUuid())) {
+            UserDomainMapping mapping = new UserDomainMapping(null, user.getUuid(), domain.getUuid(), null, null);
+            userDomainMappingRepository.save(mapping);
+            log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
+        }
     }
 
     // Event Listeners
@@ -375,21 +457,6 @@ public class UserServiceImpl implements UserService {
         user.setGender(userDTO.gender());
     }
 
-    @Transactional
-    public void publishUserDomainUpdateEvent(User user, String userDomain) {
-        UUID domainUuid = userDomainRepository.findByDomainName(userDomain)
-                .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name"))
-                .getUuid();
-
-        // Keep backward compatibility with old table for now
-        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domainUuid)) {
-            UserDomainMapping userDomainMapping = new UserDomainMapping(null, user.getUuid(), domainUuid, null, null);
-            userDomainMappingRepository.save(userDomainMapping);
-        }
-
-        publishUserDomainEvent(user, userDomain);
-    }
-
     private void publishUserDomainEvent(User user, String userDomain) {
         String fullName = new StringBuilder().append(user.getFirstName()).append(" ")
                 .append(user.getMiddleName() != null ? user.getMiddleName() + " " : "")
@@ -403,7 +470,7 @@ public class UserServiceImpl implements UserService {
                 applicationEventPublisher.publishEvent(new RegisterAdmin(fullName, user.getUuid()));
             }
             case "organisation_user" -> {
-                // Handle organisation user specific logic
+                // Handle organisation user specific logic if needed
             }
             default -> {
                 applicationEventPublisher.publishEvent(new RegisterStudent(fullName, user.getUuid()));

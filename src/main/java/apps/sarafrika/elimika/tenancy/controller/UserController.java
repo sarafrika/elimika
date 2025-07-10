@@ -3,14 +3,16 @@ package apps.sarafrika.elimika.tenancy.controller;
 import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,30 +30,26 @@ import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 @RestController
 @RequestMapping("api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "Users API", description = "Users related operations")
+@Tag(name = "Users API", description = "Complete user management including profile management, domain assignments, and user-specific invitations")
 class UserController {
     private final UserService userService;
+    private final InvitationService invitationService;
     private final StorageService storageService;
+
+    // ================================
+    // CORE USER MANAGEMENT
+    // ================================
 
     @Operation(summary = "Get a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<UserDTO>> getUserByUuid(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<UserDTO>> getUserByUuid(
+            @Parameter(description = "UUID of the user to retrieve. Must be an existing user identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
         UserDTO user = userService.getUserByUuid(uuid);
         return ResponseEntity.ok(ApiResponse.success(user, "User retrieved successfully"));
-    }
-
-    @Operation(summary = "Get users by organisation ID")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Users retrieved successfully")
-    @GetMapping("/organisation/{organisationId}")
-    public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getUsersByOrganisation(@PathVariable UUID organisationId, Pageable pageable) {
-        Page<UserDTO> users = userService.getUsersByOrganisation(organisationId, pageable);
-        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(users, ServletUriComponentsBuilder
-                        .fromCurrentRequestUri()
-                        .build()
-                        .toUriString()),
-                "Users retrieved successfully"));
     }
 
     @Operation(summary = "Update a user by UUID")
@@ -59,7 +58,10 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping(value = "/{uuid}", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
-            @PathVariable UUID uuid, @Valid @RequestBody UserDTO userDTO) {
+            @Parameter(description = "UUID of the user to update. Must be an existing user identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Valid @RequestBody UserDTO userDTO) {
         UserDTO updated = userService.updateUser(uuid, userDTO);
         return ResponseEntity.ok(ApiResponse.success(updated, "User updated successfully"));
     }
@@ -70,17 +72,35 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping(value = "/{uuid}/profile-image", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<UserDTO>> uploadProfileImage(
-            @PathVariable UUID uuid, @RequestParam(value = "profile_image", required = true)
-            MultipartFile profileImage) {
+            @Parameter(description = "UUID of the user whose profile image is being uploaded. Must be an existing user identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Profile image file to upload. Supported formats: JPG, PNG, GIF. Maximum size: 5MB.",
+                    required = true)
+            @RequestParam(value = "profile_image", required = true) MultipartFile profileImage) {
         UserDTO updated = userService.uploadProfileImage(uuid, profileImage);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Profile Image successfully"));
+        return ResponseEntity.ok(ApiResponse.success(updated, "Profile Image uploaded successfully"));
+    }
+
+    @Operation(summary = "Get user profile image by file name")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile image retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Profile image not found")
+    @GetMapping("profile-image/{fileName}")
+    public ResponseEntity<Resource> getProfileImage(
+            @Parameter(description = "Name of the profile image file to retrieve. This is typically returned from the upload endpoint.",
+                    example = "profile_550e8400-e29b-41d4-a716-446655440001.jpg", required = true)
+            @PathVariable String fileName) {
+        return ResponseEntity.ok().body(storageService.load(fileName));
     }
 
     @Operation(summary = "Delete a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @DeleteMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @Parameter(description = "UUID of the user to delete. This will remove the user and all their organization relationships.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
         userService.deleteUser(uuid);
         return ResponseEntity.ok(ApiResponse.success(null, "User deleted successfully"));
     }
@@ -92,6 +112,10 @@ class UserController {
             description = "Paginated list of users matching the search criteria")
     @GetMapping("search")
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> search(
+            @Parameter(description = "Optional search parameters for filtering users. " +
+                    "Supported filters: firstName, lastName, email, phoneNumber, active, gender. " +
+                    "Example: firstName=John&active=true",
+                    example = "firstName=John&active=true")
             @RequestParam(required = false) Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(userService.search(searchParams, pageable), ServletUriComponentsBuilder
@@ -101,11 +125,83 @@ class UserController {
                 "Users search successful"));
     }
 
-    @Operation(summary = "Get user profile image by file name")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile image retrieved successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Profile image not found")
-    @GetMapping("profile-image/{fileName}")
-    public ResponseEntity<Resource> getProfileImage(@PathVariable String fileName) {
-        return ResponseEntity.ok().body(storageService.load(fileName));
+    // ================================
+    // USER INVITATIONS MANAGEMENT
+    // ================================
+
+    @Operation(
+            summary = "Get pending invitations for user by email",
+            description = "Retrieves all pending invitations sent to a specific user's email address across all organizations and branches. " +
+                    "This endpoint helps users see all outstanding invitations they have received. " +
+                    "Only returns invitations with PENDING status that haven't expired."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending invitations retrieved successfully (may be empty list)")
+    @GetMapping("/{uuid}/invitations/pending")
+    public ResponseEntity<ApiResponse<List<InvitationDTO>>> getPendingInvitationsForUser(
+            @Parameter(description = "UUID of the user to get pending invitations for. The system will use the user's email to find invitations.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
+        UserDTO user = userService.getUserByUuid(uuid);
+        List<InvitationDTO> invitations = invitationService.getPendingInvitationsForEmail(user.email());
+        return ResponseEntity.ok(ApiResponse.success(invitations, "Pending invitations retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get invitations sent by user",
+            description = "Retrieves all invitations that have been sent by a specific user across all organizations and branches. " +
+                    "This endpoint helps users track invitations they have created. " +
+                    "Results are ordered by creation date (most recent first) and include all invitation statuses."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User's sent invitations retrieved successfully (may be empty list)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
+    @GetMapping("/{uuid}/invitations/sent")
+    public ResponseEntity<ApiResponse<List<InvitationDTO>>> getInvitationsSentByUser(
+            @Parameter(description = "UUID of the user to retrieve sent invitations for. Must be an existing user.",
+                    example = "550e8400-e29b-41d4-a716-446655440004", required = true)
+            @PathVariable UUID uuid) {
+        List<InvitationDTO> invitations = invitationService.getInvitationsSentByUser(uuid);
+        return ResponseEntity.ok(ApiResponse.success(invitations, "Sent invitations retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Accept invitation by token",
+            description = "Accepts a pending invitation for the specified user using the unique token from the invitation email. " +
+                    "This creates the user-organization relationship with the specified role and sends confirmation emails. " +
+                    "The invitation must be valid (not expired, not already accepted/declined) and the user email must match the invitation recipient."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation accepted successfully, user added to organization/branch with specified role")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid token, expired invitation, user email mismatch, or user already member of organization")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Invitation token not found or user not found")
+    @PostMapping("/{uuid}/invitations/accept")
+    public ResponseEntity<ApiResponse<UserDTO>> acceptInvitation(
+            @Parameter(description = "UUID of the user who is accepting the invitation. The user's email must match the invitation recipient email for security.",
+                    example = "550e8400-e29b-41d4-a716-446655440005", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Unique invitation token from the invitation email URL. This is the 64-character token that identifies the specific invitation.",
+                    example = "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz0123456789abcd", required = true)
+            @RequestParam("token") String token) {
+        UserDTO user = invitationService.acceptInvitation(token, uuid);
+        return ResponseEntity.ok(ApiResponse.success(user, "Invitation accepted successfully"));
+    }
+
+    @Operation(
+            summary = "Decline invitation by token",
+            description = "Declines a pending invitation for the specified user using the unique token from the invitation email. " +
+                    "This marks the invitation as declined and sends notification emails to the inviter. " +
+                    "The invitation must be valid (not expired, not already accepted/declined) and the user email must match the invitation recipient."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation declined successfully, notifications sent to inviter")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid token, expired invitation, or user email mismatch")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Invitation token not found or user not found")
+    @PostMapping("/{uuid}/invitations/decline")
+    public ResponseEntity<ApiResponse<Void>> declineInvitation(
+            @Parameter(description = "UUID of the user who is declining the invitation. The user's email must match the invitation recipient email for security.",
+                    example = "550e8400-e29b-41d4-a716-446655440005", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Unique invitation token from the invitation email URL. This is the 64-character token that identifies the specific invitation.",
+                    example = "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz0123456789abcd", required = true)
+            @RequestParam("token") String token) {
+        invitationService.declineInvitation(token, uuid);
+        return ResponseEntity.ok(ApiResponse.success(null, "Invitation declined successfully"));
     }
 }
