@@ -509,8 +509,8 @@ public class InvitationServiceImpl implements InvitationService {
         }
 
         // User is an admin in the organization
-        return !userService.hasUserRoleInOrganisation(userUuid, invitation.getOrganisationUuid(), "admin") &&
-                !userService.hasUserRoleInOrganisation(userUuid, invitation.getOrganisationUuid(), "organisation_user");
+        return userService.hasUserRoleInOrganisation(userUuid, invitation.getOrganisationUuid(), "admin") &&
+                userService.hasUserRoleInOrganisation(userUuid, invitation.getOrganisationUuid(), "organisation_user");
     }
 
     private String getDomainNameByUuid(UUID domainUuid) {

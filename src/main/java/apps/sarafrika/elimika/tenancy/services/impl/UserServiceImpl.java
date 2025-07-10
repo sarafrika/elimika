@@ -269,7 +269,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public boolean hasUserRoleInOrganisation(UUID userUuid, UUID organisationUuid, String domainName) {
         UserDomain domain = findDomainByNameOrThrow(domainName);
-        return userOrganisationDomainMappingRepository
+        return !userOrganisationDomainMappingRepository
                 .existsActiveByUserOrganisationAndDomain(userUuid, organisationUuid, domain.getUuid());
     }
 
