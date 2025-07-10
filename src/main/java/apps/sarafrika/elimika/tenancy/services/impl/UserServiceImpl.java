@@ -68,6 +68,17 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<UserDTO> getAllUsers(Pageable pageable) {
+        log.debug("Retrieving all users with pagination: {}", pageable);
+        Page<User> users = userRepository.findAll(pageable);
+        return users.map(user -> {
+            List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
+            return UserFactory.toDTO(user, userDomains);
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public UserDTO getUserByUuid(UUID uuid) {
         User user = findUserOrThrow(uuid);
         List<String> userDomains = getUserDomainsFromMappings(uuid);

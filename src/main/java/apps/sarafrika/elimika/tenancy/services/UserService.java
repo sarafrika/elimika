@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Enhanced service interface for managing users and their organization relationships.
+ * User service interface for managing users and their organization relationships.
  * <p>
  * Provides operations for user management including organization affiliations,
  * role assignments, and branch associations. Users can exist independently
@@ -33,6 +33,14 @@ public interface UserService {
      * @param userRep the Keycloak user representation
      */
     void createUser(UserRepresentation userRep);
+
+    /**
+     * Retrieves all users in the system with pagination.
+     *
+     * @param pageable pagination information
+     * @return paginated list of all users
+     */
+    Page<UserDTO> getAllUsers(Pageable pageable);
 
     /**
      * Retrieves a user by UUID with all their domains across organizations.

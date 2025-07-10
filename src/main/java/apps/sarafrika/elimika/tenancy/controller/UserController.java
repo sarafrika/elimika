@@ -40,6 +40,25 @@ class UserController {
     // CORE USER MANAGEMENT
     // ================================
 
+    @Operation(summary = "Get all users",
+            description = "Fetches a paginated list of all users in the system. " +
+                    "Supports pagination and sorting by any user field.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+            description = "Paginated list of all users retrieved successfully")
+    @GetMapping
+    public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getAllUsers(
+            @Parameter(description = "Pagination and sorting parameters. " +
+                    "Default page size is 20. Supports sorting by fields like firstName, lastName, email, createdAt. " +
+                    "Example: ?page=0&size=10&sort=firstName,asc",
+                    example = "page=0&size=20&sort=firstName,asc")
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(userService.getAllUsers(pageable), ServletUriComponentsBuilder
+                        .fromCurrentRequestUri()
+                        .build()
+                        .toUriString()),
+                "Users retrieved successfully"));
+    }
+
     @Operation(summary = "Get a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
