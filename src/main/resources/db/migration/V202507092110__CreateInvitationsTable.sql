@@ -75,11 +75,6 @@ CREATE INDEX idx_invitations_branch_status_created ON invitations (branch_uuid, 
     WHERE branch_uuid IS NOT NULL;
 CREATE INDEX idx_invitations_inviter_created ON invitations (inviter_uuid, created_date DESC);
 
--- Partial indexes for active invitations (performance optimization)
-CREATE INDEX idx_invitations_pending_not_expired ON invitations (recipient_email, organisation_uuid)
-    WHERE status = 'PENDING' AND expires_at > CURRENT_TIMESTAMP;
-CREATE INDEX idx_invitations_expired_pending ON invitations (expires_at)
-    WHERE status = 'PENDING' AND expires_at < CURRENT_TIMESTAMP;
 
 -- Comments for documentation
 COMMENT ON TABLE invitations IS 'Stores organization and training branch invitations sent via email';
