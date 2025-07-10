@@ -45,6 +45,12 @@ app:
       attributes:
         - user_domain
 
+  email:
+    from: no-reply@sarafrika.com
+    from-name: Elimika
+    frontend:
+      url: https://elimika.sarafrika.com
+
 storage:
   location: ${STORAGE_PATH:${user.home}/elimika-storage}
 
@@ -52,8 +58,8 @@ logging:
   level:
     root: INFO
     org.springframework: INFO
-    org.springframework.mail: WARN
-    com.sun.mail: WARN
+    org.springframework.mail: INFO
+    com.sun.mail: INFO
   file:
     name: logs/elimika.log
   pattern:

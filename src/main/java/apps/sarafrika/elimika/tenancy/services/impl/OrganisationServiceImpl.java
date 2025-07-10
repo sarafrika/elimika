@@ -38,6 +38,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     private final OrganisationRepository organisationRepository;
     private final UserRepository userRepository;
     private final UserDomainRepository userDomainRepository;
+    private final UserDomainMappingRepository userDomainMappingRepository;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final TrainingBranchRepository trainingBranchRepository;
     private final GenericSpecificationBuilder<Organisation> specificationBuilder;
@@ -60,9 +61,14 @@ public class OrganisationServiceImpl implements OrganisationService {
 
             organisation = organisationRepository.save(organisation);
 
+            // Automatically assign the creating user as organisation_user
+            if (organisationDTO.userUuid() != null) {
+                assignCreatorAsOrganisationUser(organisationDTO.userUuid(), organisation.getUuid());
+            }
+
             publishOrganisationCreationEvent(organisation);
 
-            log.info("Successfully created organisation with UUID: {} and code: {}",
+            log.info("Successfully created organisation with UUID: {} and code: {}, creator assigned as organisation_user",
                     organisation.getUuid(), organisation.getCode());
             return OrganisationFactory.toDTO(organisation);
         } catch (Exception e) {
@@ -165,8 +171,6 @@ public class OrganisationServiceImpl implements OrganisationService {
         log.debug("Inviting user with email {} to organisation {} with domain {}", email, organisationUuid, domainName);
 
         Organisation organisation = findOrganisationOrThrow(organisationUuid);
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         UserDomain domain = findDomainByNameOrThrow(domainName);
 
         // Validate branch belongs to organisation if provided
@@ -178,6 +182,24 @@ public class OrganisationServiceImpl implements OrganisationService {
                 throw new IllegalArgumentException("Training branch does not belong to the specified organisation");
             }
         }
+
+        // Check if user exists
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isEmpty()) {
+            // For admin and organisation_user roles, user must exist (they should register first)
+            if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
+                throw new IllegalStateException("User must register on the platform before being invited as " + domainName +
+                        ". Please ask them to create an account first.");
+            }
+
+            // For student/instructor invitations, we'll create invitation and let them register later
+            log.info("Creating invitation for non-existent user {} with domain {}", email, domainName);
+            // This will be handled by the InvitationService
+            return;
+        }
+
+        User user = userOptional.get();
 
         // Check if mapping already exists
         Optional<UserOrganisationDomainMapping> existingMapping =
@@ -201,9 +223,12 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        log.info("Successfully invited user {} to organisation {} with domain {}", email, organisationUuid, domainName);
+        // For invitation-only roles, also add to standalone domains
+        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
+            addStandaloneDomainToUser(user, domain);
+        }
 
-        // TODO: Send invitation email
+        log.info("Successfully invited user {} to organisation {} with domain {}", email, organisationUuid, domainName);
     }
 
     @Override
@@ -216,8 +241,6 @@ public class OrganisationServiceImpl implements OrganisationService {
                 .map(mapping -> {
                     User user = userRepository.findByUuid(mapping.getUserUuid())
                             .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-                    UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
-                            .orElseThrow(() -> new ResourceNotFoundException("Domain not found"));
 
                     // Get all user domains for this user
                     List<String> userDomains = getUserDomainsForUser(user.getUuid());
@@ -257,6 +280,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         // Soft delete - set end date and deactivate
         mapping.setActive(false);
         mapping.setEndDate(LocalDate.now());
+        mapping.setDeleted(true);
 
         userOrganisationDomainMappingRepository.save(mapping);
         log.info("Removed user {} from organisation {}", userUuid, organisationUuid);
@@ -277,6 +301,15 @@ public class OrganisationServiceImpl implements OrganisationService {
         mapping.setDomainUuid(newDomain.getUuid());
 
         userOrganisationDomainMappingRepository.save(mapping);
+
+        // If updating to invitation-only role, add to standalone domains
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if ("admin".equals(newDomainName) || "organisation_user".equals(newDomainName)) {
+            addStandaloneDomainToUser(user, newDomain);
+        }
+
         log.info("Updated user {} role in organisation {} to {}", userUuid, organisationUuid, newDomainName);
     }
 
@@ -333,7 +366,57 @@ public class OrganisationServiceImpl implements OrganisationService {
         }
     }
 
-    // Private helper methods
+    // ================================
+    // PRIVATE HELPER METHODS
+    // ================================
+
+    /**
+     * Automatically assigns the creating user as organisation_user
+     */
+    private void assignCreatorAsOrganisationUser(UUID creatorUuid, UUID organisationUuid) {
+        log.debug("Assigning creator {} as organisation_user for organisation {}", creatorUuid, organisationUuid);
+
+        try {
+            User creator = userRepository.findByUuid(creatorUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException("Creator user not found"));
+
+            UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
+
+            // Create organisation mapping
+            UserOrganisationDomainMapping mapping = UserOrganisationDomainMapping.builder()
+                    .userUuid(creatorUuid)
+                    .organisationUuid(organisationUuid)
+                    .domainUuid(organisationUserDomain.getUuid())
+                    .branchUuid(null) // Primary organisation user, not branch-specific
+                    .active(true)
+                    .startDate(LocalDate.now())
+                    .createdBy("system")
+                    .build();
+
+            userOrganisationDomainMappingRepository.save(mapping);
+
+            // Add organisation_user domain to standalone domains
+            addStandaloneDomainToUser(creator, organisationUserDomain);
+
+            log.info("Successfully assigned creator {} as organisation_user for organisation {}", creatorUuid, organisationUuid);
+        } catch (Exception e) {
+            log.error("Failed to assign creator as organisation_user", e);
+            throw new RuntimeException("Failed to assign creator as organisation_user: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Adds a standalone domain to a user (not organisation-specific)
+     */
+    private void addStandaloneDomainToUser(User user, UserDomain domain) {
+        // Check if mapping already exists
+        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domain.getUuid())) {
+            UserDomainMapping mapping = new UserDomainMapping(null, user.getUuid(), domain.getUuid(), null, null);
+            userDomainMappingRepository.save(mapping);
+            log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
+        }
+    }
+
     private Organisation findOrganisationOrThrow(UUID uuid) {
         return organisationRepository.findByUuidAndDeletedFalse(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Organisation not found for UUID: " + uuid));
@@ -345,17 +428,28 @@ public class OrganisationServiceImpl implements OrganisationService {
     }
 
     private List<String> getUserDomainsForUser(UUID userUuid) {
-        List<UserOrganisationDomainMapping> mappings =
-                userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+        Set<String> allDomains = new HashSet<>();
 
-        return mappings.stream()
-                .map(mapping -> {
-                    UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
-                            .orElseThrow(() -> new ResourceNotFoundException("Domain not found"));
-                    return domain.getDomainName();
-                })
-                .distinct()
-                .collect(Collectors.toList());
+        // Get standalone domains
+        List<UserDomainMapping> standaloneMappings = userDomainMappingRepository.findByUserUuid(userUuid);
+        for (UserDomainMapping mapping : standaloneMappings) {
+            UserDomain domain = userDomainRepository.findByUuid(mapping.getUserDomainUuid()).orElse(null);
+            if (domain != null) {
+                allDomains.add(domain.getDomainName());
+            }
+        }
+
+        // Get domains from organisation mappings
+        List<UserOrganisationDomainMapping> orgMappings =
+                userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+        for (UserOrganisationDomainMapping mapping : orgMappings) {
+            UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid()).orElse(null);
+            if (domain != null) {
+                allDomains.add(domain.getDomainName());
+            }
+        }
+
+        return new ArrayList<>(allDomains);
     }
 
     private void updateOrganisationFields(Organisation organisation, OrganisationDTO dto) {
