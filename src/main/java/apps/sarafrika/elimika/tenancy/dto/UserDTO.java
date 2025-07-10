@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.common.validation.ValidPhoneNumber;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -38,19 +39,14 @@ import java.util.UUID;
                     "profile_image_url": "https://example.com/images/jane.jpg",
                     "dob": "1990-01-01",
                     "username": "janedoe",
-                    "organisation_uuid": "b1c2d3e4-f5g6-h7i8-j9k0-lmnopqrstuv",
                     "active": true,
+                    "keycloak_id": "keycloak-user-123",
                     "created_date": "2024-04-01T12:00:00",
-                    "modified_date": "2024-04-15T15:30:00",
+                    "updated_date": "2024-04-15T15:30:00",
+                    "created_by": "system",
+                    "updated_by": "admin",
                     "gender": "FEMALE",
-                    "user_domain": ["Student", "Instructor"],
-                    "roles": [
-                        {
-                            "uuid": "role-uuid-1",
-                            "name": "ADMIN",
-                            "description": "Administrator role"
-                        }
-                    ]
+                    "user_domain": ["Student", "Instructor"]
                 }
                 """
 )
@@ -116,16 +112,16 @@ public record UserDTO(
         String email,
 
         @Schema(
-                description = "**[REQUIRED]** User's contact phone number. Should include country code for international numbers. Used for notifications and verification.",
-                example = "+254712345678",
+                description = "**[REQUIRED]** Unique username for system login. Must be unique across the system and cannot be changed after account creation.",
+                example = "janedoe",
                 minLength = 1,
-                maxLength = 20,
+                maxLength = 50,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "Phone number is required")
-        @Size(max = 20, message = "Phone number must not exceed 20 characters")
-        @JsonProperty("phone_number")
-        String phoneNumber,
+        @NotBlank(message = "Username is required")
+        @Size(max = 50, message = "Username must not exceed 50 characters")
+        @JsonProperty("username")
+        String username,
 
         @Schema(
                 description = "**[READ-ONLY]** URL to the user's profile image/avatar. Automatically generated after image upload and cannot be directly modified.",
@@ -149,16 +145,17 @@ public record UserDTO(
         LocalDate dob,
 
         @Schema(
-                description = "**[REQUIRED]** Unique username for system login. Must be unique across the system and cannot be changed after account creation.",
-                example = "janedoe",
+                description = "**[REQUIRED]** User's contact phone number. Should include country code for international numbers. Used for notifications and verification.",
+                example = "+254712345678",
                 minLength = 1,
-                maxLength = 50,
+                maxLength = 20,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "Username is required")
-        @Size(max = 50, message = "Username must not exceed 50 characters")
-        @JsonProperty("username")
-        String username,
+        @NotBlank(message = "Phone number is required")
+        @Size(max = 20, message = "Phone number must not exceed 20 characters")
+        @JsonProperty("phone_number")
+        @ValidPhoneNumber(mobileOnly = true)
+        String phoneNumber,
 
         @Schema(
                 description = "**[REQUIRED]** Indicates whether the user account is active and can access the system. Inactive users cannot log in or perform any operations.",
@@ -168,6 +165,17 @@ public record UserDTO(
         )
         @JsonProperty("active")
         boolean active,
+
+        @Schema(
+                description = "**[OPTIONAL]** Keycloak user identifier for authentication integration. Links the user to their Keycloak identity for SSO functionality.",
+                example = "keycloak-user-123",
+                maxLength = 255,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 255, message = "Keycloak ID must not exceed 255 characters")
+        @JsonProperty("keycloak_id")
+        String keycloakId,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the user account was first created. Automatically set by the system and cannot be modified.",
@@ -186,8 +194,26 @@ public record UserDTO(
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @JsonProperty(value = "modified_date", access = JsonProperty.Access.READ_ONLY)
-        LocalDateTime modifiedDate,
+        @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime updatedDate,
+
+        @Schema(
+                description = "**[READ-ONLY]** Identifier of the user who created this account. Automatically set by the system for audit purposes.",
+                example = "system",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "created_by", access = JsonProperty.Access.READ_ONLY)
+        String createdBy,
+
+        @Schema(
+                description = "**[READ-ONLY]** Identifier of the user who last updated this account. Automatically set by the system for audit purposes.",
+                example = "admin",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
+        String updatedBy,
 
         @Schema(
                 description = "**[OPTIONAL]** User's gender information. Used for demographic analytics and personalization. Can be null if not specified or preferred not to disclose.",
@@ -213,29 +239,43 @@ public record UserDTO(
         List<String> userDomain
 
 ) {
-    /**
-     * Returns the user's full name by concatenating first, middle (if present), and last names.
-     *
-     * @return Full name as a single string
-     */
-    public String getFullName() {
-        StringBuilder fullName = new StringBuilder(firstName);
+        /**
+         * Returns the user's full name by concatenating first, middle (if present), and last names.
+         *
+         * @return Full name as a single string
+         */
+        @Schema(
+                description = "**[READ-ONLY]** User's complete full name including first, middle (if present), and last names concatenated together. Automatically computed from individual name components.",
+                example = "Jane A. Doe",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "full_name", access = JsonProperty.Access.READ_ONLY)
+        public String getFullName() {
+                StringBuilder fullName = new StringBuilder(firstName);
 
-        if (middleName != null && !middleName.trim().isEmpty()) {
-            fullName.append(" ").append(middleName.trim());
+                if (middleName != null && !middleName.trim().isEmpty()) {
+                        fullName.append(" ").append(middleName.trim());
+                }
+
+                fullName.append(" ").append(lastName);
+
+                return fullName.toString();
         }
 
-        fullName.append(" ").append(lastName);
-
-        return fullName.toString();
-    }
-
-    /**
-     * Returns display name for UI purposes (first name + last name).
-     *
-     * @return Display name without middle name
-     */
-    public String getDisplayName() {
-        return firstName + " " + lastName;
-    }
+        /**
+         * Returns display name for UI purposes (first name + last name).
+         *
+         * @return Display name without middle name
+         */
+        @Schema(
+                description = "**[READ-ONLY]** User's display name for UI purposes, consisting of first name and last name only (excludes middle name). Automatically computed from name components.",
+                example = "Jane Doe",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "display_name", access = JsonProperty.Access.READ_ONLY)
+        public String getDisplayName() {
+                return firstName + " " + lastName;
+        }
 }

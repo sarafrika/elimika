@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.common.validator.impl;
+package apps.sarafrika.elimika.common.validation.impl;
 
-import apps.sarafrika.elimika.common.validator.PdfFile;
+import apps.sarafrika.elimika.common.validation.PdfFile;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.springframework.web.multipart.MultipartFile;

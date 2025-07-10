@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.security.OAuthFlows;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
+import io.swagger.v3.oas.models.media.Schema;
+import org.springdoc.core.customizers.OpenApiCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @OpenAPIDefinition(
         info = @Info(
@@ -68,5 +72,86 @@ import io.swagger.v3.oas.annotations.servers.Server;
                 )
         )
 )
+@Configuration
 public class OpenApiConfig {
+
+    @Bean
+    public OpenApiCustomizer phoneNumberSchemaCustomizer() {
+        return openApi -> {
+            // Add custom schema components for phone numbers
+            if (openApi.getComponents() == null) {
+                openApi.setComponents(new io.swagger.v3.oas.models.Components());
+            }
+
+            // Add reusable phone number schemas for different regions
+            addPhoneNumberSchemas(openApi);
+        };
+    }
+
+    private void addPhoneNumberSchemas(io.swagger.v3.oas.models.OpenAPI openApi) {
+        var components = openApi.getComponents();
+
+        // Generic African Phone Number Schema
+        Schema<?> africanPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^\\+?[1-9]\\d{7,14}$")
+                .example("+254712345678")
+                .description("Valid African phone number in international or local format");
+        components.addSchemas("AfricanPhoneNumber", africanPhoneSchema);
+
+        // Kenyan Phone Number Schema
+        Schema<?> kenyanPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^(\\+254|0)?[17]\\d{8}$")
+                .example("+254712345678")
+                .description("Valid Kenyan mobile phone number (Safaricom, Airtel formats)");
+        components.addSchemas("KenyanPhoneNumber", kenyanPhoneSchema);
+
+        // Nigerian Phone Number Schema
+        Schema<?> nigerianPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^(\\+234|0)?[789]\\d{9}$")
+                .example("+2348012345678")
+                .description("Valid Nigerian mobile phone number (MTN, Glo, Airtel, 9mobile formats)");
+        components.addSchemas("NigerianPhoneNumber", nigerianPhoneSchema);
+
+        // East African Phone Number Schema
+        Schema<?> eastAfricanPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^(\\+25[0-6]|0)?[1-9]\\d{7,9}$")
+                .example("+254712345678")
+                .description("Valid East African phone number (Kenya, Uganda, Tanzania, Rwanda, Burundi, South Sudan)");
+        components.addSchemas("EastAfricanPhoneNumber", eastAfricanPhoneSchema);
+
+        // West African Phone Number Schema
+        Schema<?> westAfricanPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^(\\+2[2-3][0-9]|0)?[1-9]\\d{6,9}$")
+                .example("+2348012345678")
+                .description("Valid West African phone number (Nigeria, Ghana, Senegal, Mali, etc.)");
+        components.addSchemas("WestAfricanPhoneNumber", westAfricanPhoneSchema);
+
+        // Southern African Phone Number Schema
+        Schema<?> southernAfricanPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^(\\+2[67]\\d|0)?[1-9]\\d{6,9}$")
+                .example("+27821234567")
+                .description("Valid Southern African phone number (South Africa, Zimbabwe, Zambia, Botswana, etc.)");
+        components.addSchemas("SouthernAfricanPhoneNumber", southernAfricanPhoneSchema);
+
+        // International Phone Number Schema
+        Schema<?> internationalPhoneSchema = new Schema<String>()
+                .type("string")
+                .format("phone")
+                .pattern("^\\+?[1-9]\\d{7,14}$")
+                .example("+1234567890")
+                .description("Valid international phone number in E.164 format");
+        components.addSchemas("InternationalPhoneNumber", internationalPhoneSchema);
+    }
 }

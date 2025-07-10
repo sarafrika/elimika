@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.common.validator;
+package apps.sarafrika.elimika.common.validation;
 
-import apps.sarafrika.elimika.common.validator.impl.PdfFileValidator;
+import apps.sarafrika.elimika.common.validation.impl.PdfFileValidator;
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
 

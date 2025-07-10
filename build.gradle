@@ -24,10 +24,11 @@ repositories {
 }
 
 ext {
-	set('springModulithVersion', "1.2.1")
+	set('springModulithVersion', "1.4.1")
 }
 
 dependencies {
+	implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.9'
 	implementation 'org.keycloak:keycloak-admin-client:26.0.5'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
