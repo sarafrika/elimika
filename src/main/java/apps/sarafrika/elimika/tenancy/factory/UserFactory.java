@@ -11,20 +11,22 @@ import java.util.List;
 public class UserFactory {
 
     public static UserDTO toDTO(User user, List<String> userDomains) {
-
         return new UserDTO(
                 user.getUuid(),
                 user.getFirstName(),
                 user.getMiddleName(),
                 user.getLastName(),
                 user.getEmail(),
-                user.getPhoneNumber(),
+                user.getUsername(),
                 user.getProfileImageUrl(),
                 user.getDob(),
-                user.getUsername(),
+                user.getPhoneNumber(),
                 user.isActive(),
+                user.getKeycloakId(),
                 user.getCreatedDate(),
                 user.getLastModifiedDate(),
+                user.getCreatedBy(),
+                user.getLastModifiedBy(),
                 user.getGender(),
                 userDomains
         );
@@ -37,10 +39,12 @@ public class UserFactory {
         user.setMiddleName(dto.middleName());
         user.setLastName(dto.lastName());
         user.setEmail(dto.email());
+        user.setUsername(dto.username());
         user.setPhoneNumber(dto.phoneNumber());
-        user.setActive(dto.active());
-        user.setGender(dto.gender());
         user.setDob(dto.dob());
+        user.setActive(dto.active());
+        user.setKeycloakId(dto.keycloakId());
+        user.setGender(dto.gender());
         return user;
     }
 }
