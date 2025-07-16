@@ -38,6 +38,11 @@ spring:
         format_sql: false
     show-sql: false
 
+  #Jackson Mapper Configuration
+  jackson:
+    mapper:
+      accept-case-insensitive-enums: true
+
 # Application-specific configuration
 app:
   keycloak:
