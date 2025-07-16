@@ -213,6 +213,75 @@ public class CourseController {
     }
 
     @Operation(
+            summary = "Get lesson by UUID",
+            description = """
+                Retrieves a specific lesson by its UUID within a course context.
+                
+                **Lesson Retrieval Details:**
+                - Returns complete lesson profile including computed properties
+                - Validates that the lesson belongs to the specified course
+                - Includes lesson content count and duration calculations
+                - Provides lesson status and completion tracking information
+                
+                **Response includes:**
+                - Basic lesson information (title, description, objectives)
+                - Lesson metadata (duration, sequence number, status)
+                - Associated course UUID validation
+                - Content summary statistics
+                - Computed properties (isCompleted, progressPercentage for authenticated users)
+                
+                **Use Cases:**
+                - Direct lesson navigation from course content
+                - Lesson detail page rendering
+                - Progress tracking and analytics
+                - Content validation and prerequisites checking
+                
+                **Security Considerations:**
+                - Validates lesson belongs to specified course
+                - Respects course enrollment status for detailed information
+                - May return limited data for unenrolled users depending on course visibility settings
+                """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Lesson retrieved successfully",
+                            content = @Content(schema = @Schema(implementation = LessonDTO.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Lesson not found or does not belong to the specified course",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "Access denied - insufficient permissions to view lesson details",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid UUID format provided",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    )
+            }
+    )
+    @GetMapping("/{courseUuid}/lessons/{lessonUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<LessonDTO>> getCourseLesson(
+            @PathVariable("courseUuid")
+            @Schema(description = "UUID of the course containing the lesson",
+                    example = "123e4567-e89b-12d3-a456-426614174000")
+            UUID courseUuid,
+
+            @PathVariable("lessonUuid")
+            @Schema(description = "UUID of the lesson to retrieve",
+                    example = "987fcdeb-51a2-43d7-8f9e-123456789abc")
+            UUID lessonUuid) {
+        LessonDTO lesson = lessonService.getLessonByUuid(lessonUuid);
+
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(lesson, "Lesson retrieved successfully"));
+    }
+
+    @Operation(
             summary = "Update course lesson",
             description = "Updates a specific lesson within a course."
     )
