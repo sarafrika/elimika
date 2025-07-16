@@ -5,7 +5,7 @@ CREATE TABLE course_enrollments
 (
     id                  BIGSERIAL PRIMARY KEY,
     uuid                UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    student_uuid        UUID                     NOT NULL REFERENCES users (uuid),
+    student_uuid        UUID                     NOT NULL REFERENCES students (uuid),
     course_uuid         UUID                     NOT NULL REFERENCES courses (uuid),
     enrollment_date     TIMESTAMP WITH TIME ZONE                 DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
     completion_date     TIMESTAMP WITH TIME ZONE,

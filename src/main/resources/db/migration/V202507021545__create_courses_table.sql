@@ -6,7 +6,7 @@ CREATE TABLE courses
     id               BIGSERIAL PRIMARY KEY,
     uuid             UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     name             VARCHAR(255)             NOT NULL,
-    instructor_uuid  UUID                     NOT NULL REFERENCES users (uuid),
+    instructor_uuid  UUID                     NOT NULL REFERENCES instructors (uuid),
     category_uuid    UUID REFERENCES course_categories (uuid),
     difficulty_uuid  UUID REFERENCES course_difficulty_levels (uuid),
     description      TEXT,
