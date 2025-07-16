@@ -243,9 +243,9 @@ public record CourseDTO(
 
         @Schema(
                 description = "**[REQUIRED]** Course publication status in the content workflow.",
-                example = "PUBLISHED",
+                example = "published",
                 requiredMode = Schema.RequiredMode.REQUIRED,
-                allowableValues = {"DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"}
+                allowableValues = {"draft", "in_review", "published", "archived"}
         )
         @NotNull(message = "Status is required")
         @JsonProperty("status")

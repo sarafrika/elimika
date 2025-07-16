@@ -1,9 +1,13 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -69,6 +73,7 @@ public class Course extends BaseEntity {
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Convert(converter = ContentStatusConverter.class)
     private ContentStatus status;
 
     @Column(name = "active")
