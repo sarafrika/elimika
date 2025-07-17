@@ -48,7 +48,13 @@ public class FileSystemStorageServiceImpl implements StorageService {
                 throw new StorageException("Failed to store file. File is empty.");
             }
 
-            String uniqueFileName = UUID.randomUUID().toString();
+            String originalFilename = file.getOriginalFilename();
+
+            String extension = originalFilename != null && originalFilename.contains(".")
+                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                    : "";
+
+            String uniqueFileName = UUID.randomUUID() + extension;
 
             Path targetLocation = rootLocation.resolve(uniqueFileName).normalize().toAbsolutePath();
 
@@ -59,7 +65,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-                return uniqueFileName.toString();
+                return uniqueFileName;
             }
         } catch (IOException e) {
             throw new StorageException("Failed to store file.", e);
@@ -69,19 +75,29 @@ public class FileSystemStorageServiceImpl implements StorageService {
     @Override
     public Resource load(String fileName) {
         try {
-            Path targetLocation = rootLocation.resolve(fileName);
+            Resource resource = getResource(fileName);
 
-            Resource resource = new UrlResource(targetLocation.toUri());
-
-            if (resource.exists() || resource.isReadable()) {
-
+            if (resource.exists() && resource.isReadable()) {
                 return resource;
             }
 
             throw new StorageFileNotFoundException("Could not read file: " + fileName);
         } catch (MalformedURLException e) {
-
             throw new StorageFileNotFoundException("Could not read file: " + fileName, e);
         }
+    }
+
+    private Resource getResource(String fileName) throws MalformedURLException {
+        if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+            throw new StorageFileNotFoundException("Invalid file name: " + fileName);
+        }
+
+        Path targetLocation = rootLocation.resolve(fileName).normalize().toAbsolutePath();
+
+        if (!targetLocation.startsWith(rootLocation.toAbsolutePath())) {
+            throw new StorageFileNotFoundException("File access denied: " + fileName);
+        }
+
+        return new UrlResource(targetLocation.toUri());
     }
 }
