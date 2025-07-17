@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.common.config;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
+import apps.sarafrika.elimika.common.exceptions.DatabaseAuditException;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.exceptions.SmtpAuthenticationException;
 import lombok.extern.slf4j.Slf4j;
@@ -55,4 +56,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("Access denied", ex.getMessage()));
     }
+
+
+    @ExceptionHandler(DatabaseAuditException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDatabaseAuditException(DatabaseAuditException ex) {
+        log.debug("Database audit exception caught", ex);
+
+        String message = ex.getMessage();
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        if (message.contains("already exists")) {
+            status = HttpStatus.CONFLICT;
+        } else if (message.contains("does not exist") || message.contains("not found")) {
+            status = HttpStatus.NOT_FOUND;
+        } else if (message.contains("Cannot delete") || message.contains("existing")) {
+            status = HttpStatus.CONFLICT;
+        }
+
+        return ResponseEntity.status(status)
+                .body(ApiResponse.error("Operation failed", message));
+    }
+
 }
