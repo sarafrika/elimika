@@ -93,6 +93,18 @@ public class SystemConfigController {
     }
 
     @Operation(
+            summary = "Get category by UUID",
+            description = "Retrieves a specific category by its UUID."
+    )
+    @GetMapping("/categories/{uuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CategoryDTO>> getCategoryByUuid(
+            @PathVariable UUID uuid) {
+        CategoryDTO category = categoryService.getCategoryByUuid(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(category, "Category retrieved successfully"));
+    }
+
+    @Operation(
             summary = "Update category",
             description = "Updates an existing category."
     )

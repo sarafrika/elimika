@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/sarafrika/elimika/compare/v1.0.0...v1.0.1) (2025-07-17)
+
+
+### Bug Fixes
+
+* correct DECIMAL precision and scale for latitude/longitude columns ([fcebb53](https://github.com/sarafrika/elimika/commit/fcebb53a663674b69f3450782c1e38440e4dbe9f))
+
 # 1.0.0 (2025-07-17)
 
 
