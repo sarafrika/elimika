@@ -2,24 +2,33 @@ package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
-        import apps.sarafrika.elimika.course.service.*;
-        import io.swagger.v3.oas.annotations.Operation;
+import apps.sarafrika.elimika.course.service.*;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-        import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 
 /**
  * REST Controller for comprehensive course management operations.
@@ -27,7 +36,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(CourseController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Course Management", description = "Complete course lifecycle management including content, assessments, and analytics")
+@Tag(name = "Course Management", description = "Complete course lifecycle management including content, assessments, media, and analytics")
 public class CourseController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
@@ -38,6 +47,7 @@ public class CourseController {
     private final CourseAssessmentService courseAssessmentService;
     private final CourseRequirementService courseRequirementService;
     private final CourseEnrollmentService courseEnrollmentService;
+    private final StorageService storageService;
 
     // ===== COURSE BASIC OPERATIONS =====
 
@@ -178,6 +188,247 @@ public class CourseController {
                 .success(PagedDTO.from(courses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Course search completed successfully"));
+    }
+
+    // ===== COURSE MEDIA MANAGEMENT =====
+
+    @Operation(
+            summary = "Upload course thumbnail",
+            description = """
+                Uploads a thumbnail image for the specified course. The thumbnail is typically used in course 
+                listings, search results, and course cards throughout the application.
+                
+                **File Requirements:**
+                - Supported formats: JPG, PNG, GIF, WebP
+                - Maximum file size: 5MB
+                - Recommended dimensions: 400x300 pixels or 4:3 aspect ratio
+                - Files will be automatically optimized for web delivery
+                
+                **Usage Guidelines:**
+                - Thumbnails should clearly represent the course content
+                - Use high-quality, professional images
+                - Avoid images with too much text or small details
+                - Consider accessibility and contrast for text overlays
+                
+                **Storage Details:**
+                - Files are stored in the course_thumbnails folder
+                - Previous thumbnail will be replaced if a new one is uploaded
+                - Generated URL will be automatically set in the course record
+                """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Thumbnail uploaded successfully",
+                            content = @Content(schema = @Schema(implementation = CourseDTO.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Course not found",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid file format or size exceeds limit",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    )
+            }
+    )
+    @PostMapping(value = "/{uuid}/thumbnail", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseDTO>> uploadCourseThumbnail(
+            @Parameter(
+                    description = "UUID of the course to upload thumbnail for. Must be an existing course identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001",
+                    required = true
+            )
+            @PathVariable UUID uuid,
+
+            @Parameter(
+                    description = "Thumbnail image file to upload. Supported formats: JPG, PNG, GIF, WebP. Maximum size: 5MB.",
+                    required = true
+            )
+            @RequestParam(value = "thumbnail", required = true) MultipartFile thumbnail) {
+
+        CourseDTO updatedCourse = courseService.uploadThumbnail(uuid, thumbnail);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedCourse, "Course thumbnail uploaded successfully"));
+    }
+
+    @Operation(
+            summary = "Upload course banner",
+            description = """
+                Uploads a banner image for the specified course. The banner is typically used on the course 
+                detail page as a hero image and in promotional materials.
+                
+                **File Requirements:**
+                - Supported formats: JPG, PNG, GIF, WebP
+                - Maximum file size: 10MB
+                - Recommended dimensions: 1200x400 pixels or 3:1 aspect ratio
+                - Files will be automatically optimized for web delivery
+                
+                **Usage Guidelines:**
+                - Banners should be visually striking and professional
+                - Consider responsive design - banner should work on mobile and desktop
+                - Use images that complement your course branding
+                - Ensure good contrast if overlaying text
+                
+                **Storage Details:**
+                - Files are stored in the course_banners folder
+                - Previous banner will be replaced if a new one is uploaded
+                - Generated URL will be automatically set in the course record
+                """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Banner uploaded successfully",
+                            content = @Content(schema = @Schema(implementation = CourseDTO.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Course not found",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid file format or size exceeds limit",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    )
+            }
+    )
+    @PostMapping(value = "/{uuid}/banner", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseDTO>> uploadCourseBanner(
+            @Parameter(
+                    description = "UUID of the course to upload banner for. Must be an existing course identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001",
+                    required = true
+            )
+            @PathVariable UUID uuid,
+
+            @Parameter(
+                    description = "Banner image file to upload. Supported formats: JPG, PNG, GIF, WebP. Maximum size: 10MB.",
+                    required = true
+            )
+            @RequestParam(value = "banner", required = true) MultipartFile banner) {
+
+        CourseDTO updatedCourse = courseService.uploadBanner(uuid, banner);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedCourse, "Course banner uploaded successfully"));
+    }
+
+    @Operation(
+            summary = "Upload course introduction video",
+            description = """
+                Uploads an introduction video for the specified course. The intro video is used for course 
+                previews, marketing, and helping students understand what they'll learn.
+                
+                **File Requirements:**
+                - Supported formats: MP4, WebM, MOV, AVI
+                - Maximum file size: 100MB
+                - Recommended duration: 1-3 minutes
+                - Recommended resolution: 720p or 1080p
+                
+                **Content Guidelines:**
+                - Keep intro videos concise and engaging
+                - Clearly explain what students will learn
+                - Include instructor introduction if appropriate
+                - Ensure good audio quality
+                - Consider adding captions for accessibility
+                
+                **Storage Details:**
+                - Files are stored in the course_intro_videos folder
+                - Previous intro video will be replaced if a new one is uploaded
+                - Generated URL will be automatically set in the course record
+                - Consider video compression for optimal streaming performance
+                """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Introduction video uploaded successfully",
+                            content = @Content(schema = @Schema(implementation = CourseDTO.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Course not found",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid file format or size exceeds limit",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    )
+            }
+    )
+    @PostMapping(value = "/{uuid}/intro-video", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseDTO>> uploadCourseIntroVideo(
+            @Parameter(
+                    description = "UUID of the course to upload intro video for. Must be an existing course identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001",
+                    required = true
+            )
+            @PathVariable UUID uuid,
+
+            @Parameter(
+                    description = "Introduction video file to upload. Supported formats: MP4, WebM, MOV, AVI. Maximum size: 100MB.",
+                    required = true
+            )
+            @RequestParam(value = "intro_video", required = true) MultipartFile introVideo) {
+
+        CourseDTO updatedCourse = courseService.uploadIntroVideo(uuid, introVideo);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(updatedCourse, "Course introduction video uploaded successfully"));
+    }
+
+    @Operation(
+            summary = "Get course media by file name",
+            description = """
+                Retrieves course media files (thumbnails, banners, intro videos) by their file name. 
+                This endpoint serves the actual media files with appropriate content types and caching headers.
+                
+                **File Types Served:**
+                - Course thumbnails from course_thumbnails folder
+                - Course banners from course_banners folder  
+                - Course intro videos from course_intro_videos folder
+                
+                **Response Features:**
+                - Automatic content type detection
+                - Optimized caching headers for performance
+                - Support for range requests (for videos)
+                - Proper file serving with inline disposition
+                
+                **Usage:**
+                - File names are typically returned from upload endpoints
+                - URLs are automatically generated and stored in course records
+                - Direct access via this endpoint for custom implementations
+                """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Media file retrieved successfully",
+                            content = @Content(mediaType = "application/octet-stream")
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Media file not found",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.common.dto.ApiResponse.class))
+                    )
+            }
+    )
+    @GetMapping("/media/{fileName}")
+    public ResponseEntity<Resource> getCourseMedia(
+            @Parameter(
+                    description = "Name of the media file to retrieve. This is typically returned from the upload endpoints.",
+                    example = "course_thumbnails/course_thumbnails_550e8400-e29b-41d4-a716-446655440001.jpg",
+                    required = true
+            )
+            @PathVariable String fileName) {
+
+        Resource resource = storageService.load(fileName);
+        String contentType = storageService.getContentType(fileName);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                .body(resource);
     }
 
     // ===== COURSE LESSONS =====

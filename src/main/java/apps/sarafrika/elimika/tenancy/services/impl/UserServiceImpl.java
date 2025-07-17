@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
+import apps.sarafrika.elimika.tenancy.internal.UserMediaValidationService;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,7 @@ public class UserServiceImpl implements UserService {
     private final StorageService storageService;
     private final GenericSpecificationBuilder<User> specificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final UserMediaValidationService validationService;
 
     public static final String PROFILE_IMAGE_FOLDER = "profile_images";
 
@@ -275,14 +277,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDTO uploadProfileImage(UUID userUuid, MultipartFile profileImage) {
+        log.debug("Uploading profile image for user: {}", userUuid);
+
+        // Validate file
+        validationService.validateProfileImage(profileImage);
+
         User user = findUserOrThrow(userUuid);
 
         try {
             user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
             List<String> userDomains = getUserDomainsFromMappings(userUuid);
-            return UserFactory.toDTO(userRepository.save(user), userDomains);
+            User savedUser = userRepository.save(user);
+            log.info("Successfully uploaded profile image for user: {}", userUuid);
+            return UserFactory.toDTO(savedUser, userDomains);
         } catch (Exception ex) {
-            log.error("Failed to upload User's Image ", ex);
+            log.error("Failed to upload User's profile image for UUID: {}", userUuid, ex);
             throw new RuntimeException("Failed to upload user's profile image: " + ex.getMessage(), ex);
         }
     }
@@ -514,8 +523,11 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    /**
+     * Stores a profile image file and returns the full URL
+     */
     private String storeProfileImage(MultipartFile file) {
-        String fileName = storageService.store(file);
+        String fileName = storageService.store(file, PROFILE_IMAGE_FOLDER);
         return ServletUriComponentsBuilder
                 .fromCurrentContextPath()
                 .path("/api/v1/users/profile-image/")

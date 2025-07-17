@@ -73,6 +73,46 @@ public class FileSystemStorageServiceImpl implements StorageService {
     }
 
     @Override
+    public String store(MultipartFile file, String folder) {
+        try {
+            if (file.isEmpty()) {
+                throw new StorageException("Failed to store empty file.");
+            }
+
+            // Create folder if it doesn't exist
+            Path folderPath = this.rootLocation.resolve(folder);
+            if (!Files.exists(folderPath)) {
+                Files.createDirectories(folderPath);
+            }
+
+            // Generate unique filename
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename != null && originalFilename.contains(".")
+                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                    : "";
+            String uniqueFilename = folder + "_" + UUID.randomUUID().toString() + extension;
+
+            // Store file in the specified folder
+            Path destinationFile = folderPath.resolve(uniqueFilename);
+
+            // Security check - ensure file is within the target directory
+            if (!destinationFile.getParent().equals(folderPath.toAbsolutePath())) {
+                throw new StorageException("Cannot store file outside target directory.");
+            }
+
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            // Return the relative path from root (folder/filename)
+            return folder + "/" + uniqueFilename;
+
+        } catch (IOException e) {
+            throw new StorageException("Failed to store file in folder: " + folder, e);
+        }
+    }
+
+    @Override
     public Resource load(String fileName) {
         try {
             Resource resource = getResource(fileName);
@@ -94,6 +134,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
      * @param fileName The name of the file
      * @return The MIME content type string
      */
+    @Override
     public String getContentType(String fileName) {
         if (fileName == null || fileName.trim().isEmpty()) {
             return "application/octet-stream";
@@ -102,6 +143,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
         String contentType = "application/octet-stream";
 
         try {
+            // Handle files in subfolders (e.g., "course_thumbnails/file.jpg")
             Path filePath = rootLocation.resolve(fileName).normalize().toAbsolutePath();
 
             if (Files.exists(filePath)) {
@@ -205,6 +247,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
      * @param fileName The filename
      * @return The file extension (without the dot) or empty string if no extension
      */
+    @Override
     public String getFileExtension(String fileName) {
         if (fileName == null || !fileName.contains(".")) {
             return "";
@@ -218,6 +261,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
      * @param fileName The filename to check
      * @return true if the file is an image, false otherwise
      */
+    @Override
     public boolean isImage(String fileName) {
         String extension = getFileExtension(fileName);
         return switch (extension) {
@@ -232,6 +276,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
      * @param fileName The filename to check
      * @return true if the file is a document, false otherwise
      */
+    @Override
     public boolean isDocument(String fileName) {
         String extension = getFileExtension(fileName);
         return switch (extension) {
@@ -240,8 +285,39 @@ public class FileSystemStorageServiceImpl implements StorageService {
         };
     }
 
+    /**
+     * Checks if a file is a video based on its extension.
+     *
+     * @param fileName The filename to check
+     * @return true if the file is a video, false otherwise
+     */
+    @Override
+    public boolean isVideo(String fileName) {
+        String extension = getFileExtension(fileName);
+        return switch (extension) {
+            case "mp4", "avi", "mov", "wmv", "flv", "webm", "mkv", "m4v", "3gp", "ogv" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Checks if a file is an audio file based on its extension.
+     *
+     * @param fileName The filename to check
+     * @return true if the file is an audio file, false otherwise
+     */
+    @Override
+    public boolean isAudio(String fileName) {
+        String extension = getFileExtension(fileName);
+        return switch (extension) {
+            case "mp3", "wav", "ogg", "flac", "aac", "m4a", "wma", "opus" -> true;
+            default -> false;
+        };
+    }
+
     private Resource getResource(String fileName) throws MalformedURLException {
-        if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+        // Allow files in subfolders but still prevent directory traversal
+        if (fileName.contains("..")) {
             throw new StorageFileNotFoundException("Invalid file name: " + fileName);
         }
 

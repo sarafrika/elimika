@@ -4,18 +4,23 @@ import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
+import apps.sarafrika.elimika.course.internal.CourseMediaValidationService;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.Map;
 import java.util.UUID;
@@ -23,12 +28,19 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final GenericSpecificationBuilder<Course> specificationBuilder;
     private final LessonService lessonService;
     private final CourseEnrollmentService courseEnrollmentService;
+    private final StorageService storageService;
+    private final CourseMediaValidationService validationService;
+
+    public static final String COURSE_THUMBNAILS_FOLDER = "course_thumbnails";
+    public static final String COURSE_BANNERS_FOLDER = "course_banners";
+    public static final String COURSE_INTRO_VIDEOS_FOLDER = "course_intro_videos";
 
     private static final String COURSE_NOT_FOUND_TEMPLATE = "Course with ID %s not found";
 
@@ -173,6 +185,72 @@ public class CourseServiceImpl implements CourseService {
         }
     }
 
+    @Override
+    public CourseDTO uploadThumbnail(UUID courseUuid, MultipartFile thumbnail) {
+        log.debug("Uploading thumbnail for course: {}", courseUuid);
+
+        // Validate file
+        validationService.validateThumbnail(thumbnail);
+
+        Course course = courseRepository.findByUuid(courseUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
+
+        try {
+            course.setThumbnailUrl(thumbnail != null ? storeCourseImage(thumbnail, COURSE_THUMBNAILS_FOLDER) : null);
+            Course savedCourse = courseRepository.save(course);
+            log.info("Successfully uploaded thumbnail for course: {}", courseUuid);
+            return CourseFactory.toDTO(savedCourse);
+        } catch (Exception ex) {
+            log.error("Failed to upload course thumbnail for UUID: {}", courseUuid, ex);
+            throw new RuntimeException("Failed to upload course thumbnail: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public CourseDTO uploadBanner(UUID courseUuid, MultipartFile banner) {
+        log.debug("Uploading banner for course: {}", courseUuid);
+
+        // Validate file
+        validationService.validateBanner(banner);
+
+        Course course = courseRepository.findByUuid(courseUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
+
+        try {
+            course.setBannerUrl(banner != null ? storeCourseImage(banner, COURSE_BANNERS_FOLDER) : null);
+            Course savedCourse = courseRepository.save(course);
+            log.info("Successfully uploaded banner for course: {}", courseUuid);
+            return CourseFactory.toDTO(savedCourse);
+        } catch (Exception ex) {
+            log.error("Failed to upload course banner for UUID: {}", courseUuid, ex);
+            throw new RuntimeException("Failed to upload course banner: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public CourseDTO uploadIntroVideo(UUID courseUuid, MultipartFile introVideo) {
+        log.debug("Uploading intro video for course: {}", courseUuid);
+
+        // Validate file
+        validationService.validateIntroVideo(introVideo);
+
+        Course course = courseRepository.findByUuid(courseUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
+
+        try {
+            course.setIntroVideoUrl(introVideo != null ? storeCourseImage(introVideo, COURSE_INTRO_VIDEOS_FOLDER) : null);
+            Course savedCourse = courseRepository.save(course);
+            log.info("Successfully uploaded intro video for course: {}", courseUuid);
+            return CourseFactory.toDTO(savedCourse);
+        } catch (Exception ex) {
+            log.error("Failed to upload course intro video for UUID: {}", courseUuid, ex);
+            throw new RuntimeException("Failed to upload course intro video: " + ex.getMessage(), ex);
+        }
+    }
+
     private void updateCourseFields(Course existingCourse, CourseDTO dto) {
         if (dto.name() != null) {
             existingCourse.setName(dto.name());
@@ -222,5 +300,18 @@ public class CourseServiceImpl implements CourseService {
         if (dto.active() != null) {
             existingCourse.setActive(dto.active());
         }
+    }
+
+    /**
+     * Stores a course-related file and returns the full URL
+     */
+    private String storeCourseImage(MultipartFile file, String folder) {
+        String fileName = storageService.store(file, folder);
+        return ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .path("/api/v1/courses/media/")
+                .path(fileName)
+                .build()
+                .toUriString();
     }
 }
