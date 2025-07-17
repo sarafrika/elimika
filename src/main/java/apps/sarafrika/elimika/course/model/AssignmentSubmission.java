@@ -1,14 +1,16 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.course.util.converter.SubmissionStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,8 +40,7 @@ public class AssignmentSubmission extends BaseEntity {
     private LocalDateTime submittedAt;
 
     @Column(name = "status")
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Convert(converter =  SubmissionStatusConverter.class)
     private SubmissionStatus status;
 
     @Column(name = "score")
