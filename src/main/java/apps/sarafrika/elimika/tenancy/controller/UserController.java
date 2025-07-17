@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -108,7 +110,15 @@ class UserController {
             @Parameter(description = "Name of the profile image file to retrieve. This is typically returned from the upload endpoint.",
                     example = "profile_550e8400-e29b-41d4-a716-446655440001.jpg", required = true)
             @PathVariable String fileName) {
-        return ResponseEntity.ok().body(storageService.load(fileName));
+
+        Resource resource = storageService.load(fileName);
+        String contentType = storageService.getContentType(fileName);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                .body(resource);
     }
 
     @Operation(summary = "Delete a user by UUID")

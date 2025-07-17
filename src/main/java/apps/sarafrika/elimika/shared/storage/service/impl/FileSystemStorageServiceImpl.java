@@ -87,6 +87,159 @@ public class FileSystemStorageServiceImpl implements StorageService {
         }
     }
 
+    /**
+     * Determines the MIME content type for a given file.
+     * Uses multiple detection methods for comprehensive file type support.
+     *
+     * @param fileName The name of the file
+     * @return The MIME content type string
+     */
+    public String getContentType(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            return "application/octet-stream";
+        }
+
+        String contentType = "application/octet-stream";
+
+        try {
+            Path filePath = rootLocation.resolve(fileName).normalize().toAbsolutePath();
+
+            if (Files.exists(filePath)) {
+                String detectedType = Files.probeContentType(filePath);
+                if (detectedType != null && !detectedType.isEmpty()) {
+                    contentType = detectedType;
+                } else {
+                    contentType = getContentTypeByExtension(fileName);
+                }
+            } else {
+                contentType = getContentTypeByExtension(fileName);
+            }
+        } catch (Exception e) {
+            contentType = getContentTypeByExtension(fileName);
+        }
+
+        return contentType;
+    }
+
+    /**
+     * Determines content type based on file extension.
+     * Supports a wide range of file types including images, documents, audio, video, etc.
+     */
+    private String getContentTypeByExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "application/octet-stream";
+        }
+
+        String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+
+        return switch (extension) {
+            // Images
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "svg" -> "image/svg+xml";
+            case "bmp" -> "image/bmp";
+            case "tiff", "tif" -> "image/tiff";
+            case "ico" -> "image/x-icon";
+            case "heic" -> "image/heic";
+            case "heif" -> "image/heif";
+
+            // Documents
+            case "pdf" -> "application/pdf";
+            case "doc" -> "application/msword";
+            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "xls" -> "application/vnd.ms-excel";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "ppt" -> "application/vnd.ms-powerpoint";
+            case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+            case "txt" -> "text/plain";
+            case "rtf" -> "application/rtf";
+            case "odt" -> "application/vnd.oasis.opendocument.text";
+            case "ods" -> "application/vnd.oasis.opendocument.spreadsheet";
+            case "odp" -> "application/vnd.oasis.opendocument.presentation";
+
+            // Web files
+            case "html", "htm" -> "text/html";
+            case "css" -> "text/css";
+            case "js" -> "application/javascript";
+            case "json" -> "application/json";
+            case "xml" -> "application/xml";
+
+            // Audio
+            case "mp3" -> "audio/mpeg";
+            case "wav" -> "audio/wav";
+            case "ogg" -> "audio/ogg";
+            case "flac" -> "audio/flac";
+            case "aac" -> "audio/aac";
+            case "m4a" -> "audio/mp4";
+
+            // Video
+            case "mp4" -> "video/mp4";
+            case "avi" -> "video/x-msvideo";
+            case "mov" -> "video/quicktime";
+            case "wmv" -> "video/x-ms-wmv";
+            case "flv" -> "video/x-flv";
+            case "webm" -> "video/webm";
+            case "mkv" -> "video/x-matroska";
+
+            // Archives
+            case "zip" -> "application/zip";
+            case "rar" -> "application/vnd.rar";
+            case "tar" -> "application/x-tar";
+            case "gz" -> "application/gzip";
+            case "7z" -> "application/x-7z-compressed";
+
+            // Other common types
+            case "csv" -> "text/csv";
+            case "md" -> "text/markdown";
+            case "log" -> "text/plain";
+
+            default -> "application/octet-stream";
+        };
+    }
+
+    /**
+     * Gets the file extension from a filename.
+     *
+     * @param fileName The filename
+     * @return The file extension (without the dot) or empty string if no extension
+     */
+    public String getFileExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "";
+        }
+        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+    }
+
+    /**
+     * Checks if a file is an image based on its extension.
+     *
+     * @param fileName The filename to check
+     * @return true if the file is an image, false otherwise
+     */
+    public boolean isImage(String fileName) {
+        String extension = getFileExtension(fileName);
+        return switch (extension) {
+            case "jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff", "tif", "ico", "heic", "heif" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Checks if a file is a document based on its extension.
+     *
+     * @param fileName The filename to check
+     * @return true if the file is a document, false otherwise
+     */
+    public boolean isDocument(String fileName) {
+        String extension = getFileExtension(fileName);
+        return switch (extension) {
+            case "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "odt", "ods", "odp" -> true;
+            default -> false;
+        };
+    }
+
     private Resource getResource(String fileName) throws MalformedURLException {
         if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
             throw new StorageFileNotFoundException("Invalid file name: " + fileName);
