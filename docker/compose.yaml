@@ -4,6 +4,12 @@ networks:
   sarafrika:
     external: true
 
+volumes:
+  elimika_storage:
+    driver: local
+  elimika_logs:
+    driver: local
+
 services:
   elimika:
     image: sarafrika/elimika:latest
@@ -17,3 +23,7 @@ services:
       - "30000:30000"
     networks:
       - sarafrika
+    volumes:
+      - elimika_storage:/app/storage
+      - elimika_logs:/app/logs
+    user: "1000:1000"
