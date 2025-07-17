@@ -1,3 +1,15 @@
+# [2.0.0](https://github.com/sarafrika/elimika/compare/v1.0.1...v2.0.0) (2025-07-17)
+
+
+### Features
+
+* **storage:** implement folder-based storage for profile images and course media ([005d1e8](https://github.com/sarafrika/elimika/commit/005d1e8ac811ae3dc3d9e7c2fe2d04dbe91c24d5))
+
+
+### BREAKING CHANGES
+
+* **storage:** Profile images now stored in profile_images/ folder instead of root directory
+
 ## [1.0.1](https://github.com/sarafrika/elimika/compare/v1.0.0...v1.0.1) (2025-07-17)
 
 
