@@ -1,30 +1,57 @@
 package apps.sarafrika.elimika.course.util.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Enumeration representing the various states of an assignment submission
  * Must match the database constraint: CHECK (status IN ('draft', 'submitted', 'graded', 'returned'))
  */
 public enum SubmissionStatus {
+    DRAFT("draft"),
+    SUBMITTED("submitted"),
+    GRADED("graded"),
+    RETURNED("returned");
 
-    /**
-     * Submission has been created but not yet submitted by student
-     */
-    DRAFT,
+    private final String value;
+    private static final Map<String, SubmissionStatus> VALUE_MAP = new HashMap<>();
 
-    /**
-     * Submission has been submitted by student and is awaiting grading
-     */
-    SUBMITTED,
+    static {
+        for (SubmissionStatus status : SubmissionStatus.values()) {
+            VALUE_MAP.put(status.value, status);
+            VALUE_MAP.put(status.value.toUpperCase(), status);
+        }
+    }
 
-    /**
-     * Submission has been graded and score/feedback provided
-     */
-    GRADED,
+    SubmissionStatus(String value) {
+        this.value = value;
+    }
 
-    /**
-     * Submission has been returned to student for revision with feedback
-     */
-    RETURNED;
+    @JsonValue
+    public String getValue() {
+        return value;
+    }
+
+    @Override
+    public String toString() {
+        return value;
+    }
+
+    @JsonCreator
+    public static SubmissionStatus fromValue(String value) {
+        SubmissionStatus status = VALUE_MAP.get(value);
+        if (status == null) {
+            throw new IllegalArgumentException("Unknown SubmissionStatus: " + value);
+        }
+        return status;
+    }
+
+    public static SubmissionStatus fromString(String value) {
+        return fromValue(value);
+    }
 
     /**
      * Check if this status indicates the submission is pending grading
@@ -60,19 +87,16 @@ public enum SubmissionStatus {
     }
 
     /**
-     * Get the database value (lowercase)
+     * Get the database value (same as getValue())
      */
     public String getDatabaseValue() {
-        return this.name().toLowerCase();
+        return this.value;
     }
 
     /**
-     * Create enum from database value
+     * Create enum from database value (same as fromValue())
      */
     public static SubmissionStatus fromDatabaseValue(String value) {
-        if (value == null) {
-            return null;
-        }
-        return valueOf(value.toUpperCase());
+        return fromValue(value);
     }
 }

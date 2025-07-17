@@ -1,14 +1,16 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.course.util.converter.TemplateTypeConverter;
 import apps.sarafrika.elimika.course.util.enums.TemplateType;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -22,8 +24,7 @@ public class CertificateTemplate extends BaseEntity {
     private String name;
 
     @Column(name = "template_type")
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Convert(converter = TemplateTypeConverter.class)
     private TemplateType templateType;
 
     @Column(name = "template_html")

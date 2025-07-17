@@ -1,11 +1,16 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.course.util.converter.RequirementTypeConverter;
 import apps.sarafrika.elimika.course.util.enums.RequirementType;
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.UUID;
 
@@ -21,8 +26,7 @@ public class ProgramRequirement extends BaseEntity {
     private UUID programUuid;
 
     @Column(name = "requirement_type")
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Convert(converter = RequirementTypeConverter.class)
     private RequirementType requirementType;
 
     @Column(name = "requirement_text")

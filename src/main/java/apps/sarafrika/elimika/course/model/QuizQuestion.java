@@ -28,8 +28,6 @@ public class QuizQuestion extends BaseEntity {
     private String questionText;
 
     @Column(name = "question_type")
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private QuestionType questionType;
 
     @Column(name = "points")
