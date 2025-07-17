@@ -23,24 +23,31 @@ RUN ./gradlew clean build -x test --no-daemon
 # Use a smaller JRE image for the runtime stage
 FROM eclipse-temurin:21-jre
 
-# Create a non-root user
-RUN groupadd -r elimika && useradd -r -g elimika -u 1000 elimika
+# Use existing user with UID 1000 or create elimika user
+RUN existing_user=$(getent passwd 1000 | cut -d: -f1) && \
+    if [ -n "$existing_user" ]; then \
+        echo "Using existing user: $existing_user"; \
+        user_name=$existing_user; \
+    else \
+        groupadd -r elimika && useradd -r -g elimika -u 1000 elimika; \
+        user_name=elimika; \
+    fi
 
 # Set the working directory
 WORKDIR /app
 
-# Create necessary directories and set ownership
+# Create necessary directories and set ownership to UID 1000
 RUN mkdir -p /app/storage /app/logs && \
-    chown -R elimika:elimika /app
+    chown -R 1000:1000 /app
 
 # Copy the built JAR from the build stage
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Set ownership of the JAR file
-RUN chown elimika:elimika app.jar
+# Set ownership of the JAR file to UID 1000
+RUN chown 1000:1000 app.jar
 
-# Switch to non-root user
-USER elimika
+# Switch to non-root user (UID 1000)
+USER 1000
 
 # Expose the port the application will run on
 EXPOSE 8080
