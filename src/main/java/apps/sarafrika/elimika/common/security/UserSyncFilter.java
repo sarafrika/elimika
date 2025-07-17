@@ -84,7 +84,6 @@ public class UserSyncFilter implements Filter {
         try {
             log.debug("Checking if user exists for Keycloak ID: {}", keycloakUserId);
             boolean userExists = userRepository.existsByKeycloakId(keycloakUserId);
-            log.info("User exists value: {}", userExists);
 
             if (!userExists) {
                 log.info("User not found in database, creating user for Keycloak ID: {}", keycloakUserId);

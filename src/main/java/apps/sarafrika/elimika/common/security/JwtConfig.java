@@ -34,7 +34,6 @@ public class JwtConfig {
     public JwtDecoder jwtDecoder() {
         return token -> {
             try {
-                log.info("Validating JWT token: {}", token);
                 SignedJWT signedJWT = (SignedJWT) JWTParser.parse(token);
                 JWSAlgorithm algorithm = signedJWT.getHeader().getAlgorithm();
 

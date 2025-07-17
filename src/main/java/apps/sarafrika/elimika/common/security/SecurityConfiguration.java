@@ -66,7 +66,6 @@ public class SecurityConfiguration {
                                 .jwtAuthenticationConverter(keyCloakJwtAuthenticationConverter)
                         )
                 )
-                // Add UserSyncFilter after JWT processing but before other filters
                 .addFilterAfter(userSyncFilter, BearerTokenAuthenticationFilter.class);
 
         log.info("Security filter chain configured successfully");

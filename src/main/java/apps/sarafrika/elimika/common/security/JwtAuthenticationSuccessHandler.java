@@ -42,7 +42,6 @@ public class JwtAuthenticationSuccessHandler {
                         .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak"));
 
                 userService.createUser(userRepresentation);
-                log.info("User created in database for Keycloak ID: {}", keycloakUserId);
             }
         } catch (Exception e) {
             log.error("Failed to ensure user exists for Keycloak ID: {}", keycloakUserId, e);
