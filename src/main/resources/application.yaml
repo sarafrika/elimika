@@ -63,8 +63,6 @@ logging:
   level:
     root: INFO
     org.springframework: INFO
-    org.springframework.mail: INFO
-    com.sun.mail: INFO
   file:
     name: logs/elimika.log
   pattern:
