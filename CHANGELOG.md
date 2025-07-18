@@ -1,3 +1,34 @@
+# [4.0.0](https://github.com/sarafrika/elimika/compare/v3.1.1...v4.0.0) (2025-07-18)
+
+
+* refactor!: remove redundant course category management endpoints ([b9414df](https://github.com/sarafrika/elimika/commit/b9414dfeebe7a503801c3d8d9752d63fe0c2c9e7))
+
+
+### BREAKING CHANGES
+
+* Remove unnecessary category management endpoints in favor of standard CRUD operations
+
+Removed endpoints:
+- POST /api/v1/courses/{uuid}/categories/{categoryUuid} (add single category)
+- POST /api/v1/courses/{uuid}/categories (add multiple categories)
+- PUT /api/v1/courses/{uuid}/categories (replace all categories)
+
+Rationale:
+- Course creation and updates already handle multiple categories via category_uuids field
+- Standard CRUD operations (POST/PUT /courses) provide all necessary functionality
+- Eliminates redundant API surface and reduces maintenance overhead
+- Simplifies client integration by providing single source of truth for category management
+
+Kept essential endpoints:
+- GET /api/v1/courses/{uuid}/categories (view current categories)
+- DELETE /api/v1/courses/{uuid}/categories/{categoryUuid} (remove specific category)
+- DELETE /api/v1/courses/{uuid}/categories (remove all categories)
+
+Migration guide:
+- Use POST /api/v1/courses with category_uuids for course creation with categories
+- Use PUT /api/v1/courses/{uuid} with category_uuids for updating course categories
+- Cleanup operations still available via DELETE endpoints
+
 ## [3.1.1](https://github.com/sarafrika/elimika/compare/v3.1.0...v3.1.1) (2025-07-18)
 
 
