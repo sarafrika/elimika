@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/sarafrika/elimika/compare/v3.0.0...v3.1.0) (2025-07-18)
+
+
+### Features
+
+* add smart course unpublish and lifecycle management ([ac0a57c](https://github.com/sarafrika/elimika/commit/ac0a57cb9702aa8bb189acf734dbe43dd41c4986))
+
 # [3.0.0](https://github.com/sarafrika/elimika/compare/v2.0.0...v3.0.0) (2025-07-18)
 
 
