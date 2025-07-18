@@ -1,3 +1,10 @@
+# [4.2.0](https://github.com/sarafrika/elimika/compare/v4.1.1...v4.2.0) (2025-07-18)
+
+
+### Features
+
+* add JsonProperty name resolution for validation errors ([a7e0eeb](https://github.com/sarafrika/elimika/commit/a7e0eeba5b1b19291178b349ef4ced0bb3993bd6))
+
 ## [4.1.1](https://github.com/sarafrika/elimika/compare/v4.1.0...v4.1.1) (2025-07-18)
 
 
