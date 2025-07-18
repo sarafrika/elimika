@@ -1,3 +1,22 @@
+# [3.0.0](https://github.com/sarafrika/elimika/compare/v2.0.0...v3.0.0) (2025-07-18)
+
+
+* feat!: implement many-to-many relationship between courses and categories ([918bb1b](https://github.com/sarafrika/elimika/commit/918bb1bdf0cebf59bfff1e779218fec490b5914a))
+
+
+### BREAKING CHANGES
+
+* Replace single category_uuid field with category_uuids array in Course API
+
+- Add course_category_mappings junction table with proper indexing
+- Remove deprecated category_uuid field from courses table and entities
+- Implement CourseCategoryService for relationship management
+- Add category_uuids field to CourseDTO for multiple category assignment
+- Add computed category_names field for readable category display
+- Update CourseController with category management endpoints
+- Migrate existing category data to new junction table structure
+- Add comprehensive API documentation and usage examples
+
 # [2.0.0](https://github.com/sarafrika/elimika/compare/v1.0.1...v2.0.0) (2025-07-17)
 
 
