@@ -3,16 +3,15 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -28,9 +27,6 @@ public class Course extends BaseEntity {
 
     @Column(name = "instructor_uuid")
     private UUID instructorUuid;
-
-    @Column(name = "category_uuid")
-    private UUID categoryUuid;
 
     @Column(name = "difficulty_uuid")
     private UUID difficultyUuid;
@@ -77,4 +73,32 @@ public class Course extends BaseEntity {
 
     @Column(name = "active")
     private Boolean active;
+
+    // Many-to-many relationship with categories through junction table
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<CourseCategoryMapping> categoryMappings = new HashSet<>();
+
+    // Helper methods for managing categories
+    public void addCategory(UUID categoryUuid) {
+        CourseCategoryMapping mapping = CourseCategoryMapping.builder()
+                .courseUuid(this.getUuid())
+                .categoryUuid(categoryUuid)
+                .build();
+        this.categoryMappings.add(mapping);
+    }
+
+    public void removeCategory(UUID categoryUuid) {
+        this.categoryMappings.removeIf(mapping ->
+                mapping.getCategoryUuid().equals(categoryUuid));
+    }
+
+    public void clearCategories() {
+        this.categoryMappings.clear();
+    }
+
+    public Set<UUID> getCategoryUuids() {
+        return categoryMappings.stream()
+                .map(CourseCategoryMapping::getCategoryUuid)
+                .collect(java.util.stream.Collectors.toSet());
+    }
 }

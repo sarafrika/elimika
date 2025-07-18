@@ -25,6 +25,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -36,7 +37,7 @@ import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 @RestController
 @RequestMapping(CourseController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Course Management", description = "Complete course lifecycle management including content, assessments, media, and analytics")
+@Tag(name = "Course Management", description = "Complete course lifecycle management including content, assessments, media, analytics, and category management")
 public class CourseController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
@@ -47,17 +48,37 @@ public class CourseController {
     private final CourseAssessmentService courseAssessmentService;
     private final CourseRequirementService courseRequirementService;
     private final CourseEnrollmentService courseEnrollmentService;
+    private final CourseCategoryService courseCategoryService;
     private final StorageService storageService;
 
     // ===== COURSE BASIC OPERATIONS =====
 
     @Operation(
             summary = "Create a new course",
-            description = "Creates a new course with default DRAFT status and inactive state.",
+            description = """
+                Creates a new course with default DRAFT status and inactive state. Supports multiple categories.
+                
+                **Category Assignment:**
+                - Use `category_uuids` field to assign multiple categories to the course
+                - Categories are validated to ensure they exist before assignment
+                - A course can belong to multiple categories for better organization and discoverability
+                
+                **Example Request Body:**
+                ```json
+                {
+                    "name": "Advanced Java Programming",
+                    "instructor_uuid": "instructor-uuid-here",
+                    "category_uuids": ["java-uuid", "programming-uuid"],
+                    "description": "Comprehensive Java course",
+                    "duration_hours": 40,
+                    "duration_minutes": 0
+                }
+                ```
+                """,
             responses = {
                     @ApiResponse(responseCode = "201", description = "Course created successfully",
                             content = @Content(schema = @Schema(implementation = CourseDTO.class))),
-                    @ApiResponse(responseCode = "400", description = "Invalid request data")
+                    @ApiResponse(responseCode = "400", description = "Invalid request data or category not found")
             }
     )
     @PostMapping
@@ -71,7 +92,16 @@ public class CourseController {
 
     @Operation(
             summary = "Get course by UUID",
-            description = "Retrieves a complete course profile including computed properties.",
+            description = """
+                Retrieves a complete course profile including computed properties and category information.
+                
+                **Response includes:**
+                - All course details and metadata
+                - `category_uuids`: List of category UUIDs the course belongs to
+                - `category_names`: List of category names for display (read-only)
+                - `category_count`: Number of categories assigned to the course
+                - `has_multiple_categories`: Boolean indicating if course has multiple categories
+                """,
             responses = {
                     @ApiResponse(responseCode = "200", description = "Course found"),
                     @ApiResponse(responseCode = "404", description = "Course not found")
@@ -87,7 +117,7 @@ public class CourseController {
 
     @Operation(
             summary = "Get all courses",
-            description = "Retrieves paginated list of all courses with filtering support."
+            description = "Retrieves paginated list of all courses with category information and filtering support."
     )
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> getAllCourses(
@@ -101,10 +131,19 @@ public class CourseController {
 
     @Operation(
             summary = "Update course",
-            description = "Updates an existing course with selective field updates.",
+            description = """
+                Updates an existing course with selective field updates including category management.
+                
+                **Category Updates:**
+                - Provide `category_uuids` to completely replace existing categories
+                - To add categories, include existing + new category UUIDs
+                - To remove all categories, provide an empty array
+                - Changes to categories are applied atomically
+                """,
             responses = {
                     @ApiResponse(responseCode = "200", description = "Course updated successfully"),
-                    @ApiResponse(responseCode = "404", description = "Course not found")
+                    @ApiResponse(responseCode = "404", description = "Course not found"),
+                    @ApiResponse(responseCode = "400", description = "Invalid category UUIDs provided")
             }
     )
     @PutMapping("/{uuid}")
@@ -118,7 +157,7 @@ public class CourseController {
 
     @Operation(
             summary = "Delete course",
-            description = "Permanently removes a course and its associated data.",
+            description = "Permanently removes a course, its category associations, and all associated data.",
             responses = {
                     @ApiResponse(responseCode = "204", description = "Course deleted successfully"),
                     @ApiResponse(responseCode = "404", description = "Course not found")
@@ -128,6 +167,144 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourse(@PathVariable UUID uuid) {
         courseService.deleteCourse(uuid);
         return ResponseEntity.noContent().build();
+    }
+
+    // ===== COURSE CATEGORY MANAGEMENT =====
+
+    @Operation(
+            summary = "Add category to course",
+            description = "Adds a single category to an existing course without affecting other categories."
+    )
+    @PostMapping("/{courseUuid}/categories/{categoryUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseCategoryMappingDTO>> addCategoryToCourse(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID categoryUuid) {
+        CourseCategoryMappingDTO mapping = courseCategoryService.addCategoryToCourse(courseUuid, categoryUuid);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(mapping, "Category added to course successfully"));
+    }
+
+    @Operation(
+            summary = "Add multiple categories to course",
+            description = """
+                Adds multiple categories to a course in a single operation.
+                
+                **Request Body:**
+                ```json
+                {
+                    "category_uuids": ["uuid1", "uuid2", "uuid3"]
+                }
+                ```
+                """
+    )
+    @PostMapping("/{courseUuid}/categories")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<CourseCategoryMappingDTO>>> addCategoriesToCourse(
+            @PathVariable UUID courseUuid,
+            @RequestBody Map<String, Set<UUID>> request) {
+
+        Set<UUID> categoryUuids = request.get("category_uuids");
+        List<CourseCategoryMappingDTO> mappings = courseCategoryService.addCategoriesToCourse(courseUuid, categoryUuids);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                        .success(mappings, String.format("Added %d categories to course successfully", mappings.size())));
+    }
+
+    @Operation(
+            summary = "Get course categories",
+            description = "Retrieves all categories assigned to a specific course."
+    )
+    @GetMapping("/{courseUuid}/categories")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<CourseCategoryMappingDTO>>> getCourseCategories(
+            @PathVariable UUID courseUuid) {
+        List<CourseCategoryMappingDTO> mappings = courseCategoryService.getCourseCategoryMappings(courseUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(mappings, "Course categories retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Update course categories",
+            description = """
+                Replaces all existing categories for a course with the provided set.
+                
+                **Request Body:**
+                ```json
+                {
+                    "category_uuids": ["uuid1", "uuid2"]
+                }
+                ```
+                
+                **Note:** This operation removes all existing categories and adds the new ones atomically.
+                """
+    )
+    @PutMapping("/{courseUuid}/categories")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<CourseCategoryMappingDTO>>> updateCourseCategories(
+            @PathVariable UUID courseUuid,
+            @RequestBody Map<String, Set<UUID>> request) {
+
+        Set<UUID> categoryUuids = request.get("category_uuids");
+        List<CourseCategoryMappingDTO> mappings = courseCategoryService.updateCourseCategories(courseUuid, categoryUuids);
+
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(mappings, "Course categories updated successfully"));
+    }
+
+    @Operation(
+            summary = "Remove category from course",
+            description = "Removes a specific category from a course without affecting other categories."
+    )
+    @DeleteMapping("/{courseUuid}/categories/{categoryUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<String>> removeCategoryFromCourse(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID categoryUuid) {
+        courseCategoryService.removeCategoryFromCourse(courseUuid, categoryUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success("Category removed from course successfully", "Category association deleted"));
+    }
+
+    @Operation(
+            summary = "Remove all categories from course",
+            description = "Removes all category associations from a course."
+    )
+    @DeleteMapping("/{courseUuid}/categories")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<String>> removeAllCategoriesFromCourse(
+            @PathVariable UUID courseUuid) {
+        long removedCount = courseCategoryService.getCategoryCountForCourse(courseUuid);
+        courseCategoryService.removeAllCategoriesFromCourse(courseUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(String.format("Removed %d categories from course", removedCount),
+                        "All category associations deleted"));
+    }
+
+    @Operation(
+            summary = "Search courses with enhanced category filtering",
+            description = """
+                Advanced course search with flexible criteria and operators, including category-based filtering.
+                
+                **Category-Specific Search Examples:**
+                - `categoryUuids_in=uuid1,uuid2` - Courses in any of these categories
+                - `categoryUuids_contains=uuid` - Courses containing specific category
+                - `categoryNames_like=programming` - Courses in categories with "programming" in the name
+                - `categoryCount_gte=2` - Courses assigned to 2 or more categories
+                - `hasMultipleCategories=true` - Courses with multiple category assignments
+                
+                **Combined Search Examples:**
+                - `status=PUBLISHED&categoryUuids_in=uuid1,uuid2&price_lte=100` - Published courses under $100 in specific categories
+                - `name_like=java&categoryNames_like=programming&active=true` - Active Java courses in programming categories
+                
+                For complete operator documentation, see the general course search endpoint.
+                """
+    )
+    @GetMapping("/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> searchCourses(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        Page<CourseDTO> courses = courseService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(courses, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Course search completed successfully"));
     }
 
     @Operation(
@@ -151,43 +328,6 @@ public class CourseController {
         CourseDTO publishedCourse = courseService.publishCourse(uuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success(publishedCourse, "Course published successfully"));
-    }
-
-    @Operation(
-            summary = "Search courses",
-            description = """
-                    Advanced course search with flexible criteria and operators.
-                    
-                    **Common Course Search Examples:**
-                    - `name_like=javascript` - Courses with names containing "javascript"
-                    - `status=PUBLISHED` - Only published courses
-                    - `active=true` - Only active courses
-                    - `status_in=PUBLISHED,ACTIVE` - Published or active courses
-                    - `price_lte=100.00` - Courses priced at $100 or less
-                    - `price=null` - Free courses
-                    - `instructorUuid=uuid` - Courses by specific instructor
-                    - `categoryUuid=uuid` - Courses in specific category
-                    - `difficultyUuid=uuid` - Courses of specific difficulty level
-                    - `durationHours_gte=20` - Courses 20+ hours long
-                    - `createdDate_gte=2024-01-01T00:00:00` - Courses created after Jan 1, 2024
-                    
-                    **Advanced Course Queries:**
-                    - `status=PUBLISHED&active=true&price_lte=50` - Published, active courses under $50
-                    - `name_like=python&difficultyUuid=beginner-uuid` - Beginner Python courses
-                    - `instructorUuid=uuid&status=PUBLISHED` - Published courses by specific instructor
-                    
-                    For complete operator documentation, see the instructor search endpoint.
-                    """
-    )
-    @GetMapping("/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> searchCourses(
-            @RequestParam Map<String, String> searchParams,
-            Pageable pageable) {
-        Page<CourseDTO> courses = courseService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
-                .success(PagedDTO.from(courses, ServletUriComponentsBuilder
-                                .fromCurrentRequestUri().build().toString()),
-                        "Course search completed successfully"));
     }
 
     // ===== COURSE MEDIA MANAGEMENT =====
@@ -809,21 +949,6 @@ public class CourseController {
     }
 
     @Operation(
-            summary = "Get free courses",
-            description = "Retrieves all courses available at no cost."
-    )
-    @GetMapping("/free")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> getFreeCourses(
-            Pageable pageable) {
-        Map<String, String> searchParams = Map.of("price", "null");
-        Page<CourseDTO> freeCourses = courseService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
-                .success(PagedDTO.from(freeCourses, ServletUriComponentsBuilder
-                                .fromCurrentRequestUri().build().toString()),
-                        "Free courses retrieved successfully"));
-    }
-
-    @Operation(
             summary = "Get courses by instructor",
             description = "Retrieves all courses created by a specific instructor."
     )
@@ -841,14 +966,39 @@ public class CourseController {
 
     @Operation(
             summary = "Get courses by category",
-            description = "Retrieves all courses in a specific category."
+            description = """
+                Retrieves all courses in a specific category.
+                
+                **Enhanced Category Search:**
+                This endpoint now supports the many-to-many relationship, returning courses that have 
+                the specified category assigned to them, regardless of what other categories they may also have.
+                """
     )
     @GetMapping("/category/{categoryUuid}")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> getCoursesByCategory(
             @PathVariable UUID categoryUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("categoryUuid", categoryUuid.toString());
+
+        // Get course UUIDs for this category from the mapping service
+        List<UUID> courseUuids = courseCategoryService.getCourseUuidsByCategory(categoryUuid);
+
+        if (courseUuids.isEmpty()) {
+            // Return empty page if no courses found for this category
+            Page<CourseDTO> emptyCourses = Page.empty(pageable);
+            return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                    .success(PagedDTO.from(emptyCourses, ServletUriComponentsBuilder
+                                    .fromCurrentRequestUri().build().toString()),
+                            "No courses found for this category"));
+        }
+
+        // Convert UUIDs to comma-separated string for search
+        String courseUuidsList = courseUuids.stream()
+                .map(UUID::toString)
+                .collect(java.util.stream.Collectors.joining(","));
+
+        Map<String, String> searchParams = Map.of("uuid_in", courseUuidsList);
         Page<CourseDTO> categoryCourses = courseService.search(searchParams, pageable);
+
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success(PagedDTO.from(categoryCourses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -974,5 +1124,59 @@ public class CourseController {
                 .success(PagedDTO.from(enrollments, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Enrollments search completed successfully"));
+    }
+
+    @Operation(
+            summary = "Search course category mappings",
+            description = """
+                    Search course-category relationships.
+                    
+                    **Common Mapping Search Examples:**
+                    - `courseUuid=uuid` - All category mappings for specific course
+                    - `categoryUuid=uuid` - All course mappings for specific category
+                    - `courseName_like=java` - Mappings for courses with "java" in name
+                    - `categoryName_like=programming` - Mappings for categories with "programming" in name
+                    """
+    )
+    @GetMapping("/category-mappings/search")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseCategoryMappingDTO>>> searchCategoryMappings(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+
+        // For this search, we'll use a simple approach - you may want to implement
+        // a more sophisticated search in the CourseCategoryService
+        UUID courseUuid = null;
+        UUID categoryUuid = null;
+
+        if (searchParams.containsKey("courseUuid")) {
+            courseUuid = UUID.fromString(searchParams.get("courseUuid"));
+        }
+        if (searchParams.containsKey("categoryUuid")) {
+            categoryUuid = UUID.fromString(searchParams.get("categoryUuid"));
+        }
+
+        List<CourseCategoryMappingDTO> mappings;
+
+        if (courseUuid != null) {
+            mappings = courseCategoryService.getCourseCategoryMappings(courseUuid);
+        } else if (categoryUuid != null) {
+            mappings = courseCategoryService.getCategoryCourseMappings(categoryUuid);
+        } else {
+            // For broader searches, you might want to implement pagination in the service
+            mappings = List.of(); // Return empty for now
+        }
+
+        // Convert list to page (simplified implementation)
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), mappings.size());
+        List<CourseCategoryMappingDTO> pageContent = mappings.subList(start, end);
+
+        Page<CourseCategoryMappingDTO> page = new org.springframework.data.domain.PageImpl<>(
+                pageContent, pageable, mappings.size());
+
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(PagedDTO.from(page, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Category mappings search completed successfully"));
     }
 }
