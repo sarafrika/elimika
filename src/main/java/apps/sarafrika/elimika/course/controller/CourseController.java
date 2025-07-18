@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,6 +51,7 @@ public class CourseController {
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
     private final StorageService storageService;
+    private final StorageProperties storageProperties;
 
     // ===== COURSE BASIC OPERATIONS =====
 
@@ -577,19 +579,25 @@ public class CourseController {
     public ResponseEntity<Resource> getCourseMedia(
             @Parameter(
                     description = "Name of the media file to retrieve. This is typically returned from the upload endpoints.",
-                    example = "course_thumbnails/course_thumbnails_550e8400-e29b-41d4-a716-446655440001.jpg",
+                    example = "course_thumbnails_550e8400-e29b-41d4-a716-446655440001.jpg",
                     required = true
             )
             @PathVariable String fileName) {
 
-        Resource resource = storageService.load(fileName);
-        String contentType = storageService.getContentType(fileName);
+        try {
+            String fullPath = determineMediaPath(fileName);
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                .body(resource);
+            Resource resource = storageService.load(fullPath);
+            String contentType = storageService.getContentType(fullPath);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // ===== COURSE LESSONS =====
@@ -1199,5 +1207,25 @@ public class CourseController {
                 .success(PagedDTO.from(page, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Category mappings search completed successfully"));
+    }
+
+    /**
+     * Determines the full storage path for a course media file
+     * This method tries different folders based on file patterns or types
+     */
+    private String determineMediaPath(String fileName) {
+        String lowerFileName = fileName.toLowerCase();
+
+        if (lowerFileName.contains("thumbnail")) {
+            return storageProperties.getFolders().getCourseThumbnails() + "/" + fileName;
+        } else if (lowerFileName.contains("banner")) {
+            return storageProperties.getFolders().getCourseThumbnails() + "/" + fileName; // Using same folder
+        } else if (storageService.isVideo(fileName)) {
+            return storageProperties.getFolders().getCourseMaterials() + "/" + fileName;
+        } else if (storageService.isImage(fileName)) {
+            return storageProperties.getFolders().getCourseThumbnails() + "/" + fileName;
+        } else {
+            return storageProperties.getFolders().getCourseMaterials() + "/" + fileName;
+        }
     }
 }

@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.config.exception.StorageFileNotFoundException;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -16,6 +18,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +30,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 
 @RestController
 @RequestMapping("api/v1/users")
@@ -37,6 +39,7 @@ class UserController {
     private final UserService userService;
     private final InvitationService invitationService;
     private final StorageService storageService;
+    private final StorageProperties storageProperties;
 
     // ================================
     // CORE USER MANAGEMENT
@@ -90,16 +93,21 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile Image Uploaded successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PutMapping(value = "/{uuid}/profile-image", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<UserDTO>> uploadProfileImage(
-            @Parameter(description = "UUID of the user whose profile image is being uploaded. Must be an existing user identifier.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "Profile image file to upload. Supported formats: JPG, PNG, GIF. Maximum size: 5MB.",
-                    required = true)
-            @RequestParam(value = "profile_image", required = true) MultipartFile profileImage) {
-        UserDTO updated = userService.uploadProfileImage(uuid, profileImage);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Profile Image uploaded successfully"));
+    @PostMapping("{userUuid}/profile-image")
+    public ResponseEntity<UserDTO> uploadProfileImage(
+            @Parameter(description = "UUID of the user", required = true)
+            @PathVariable UUID userUuid,
+            @Parameter(description = "Profile image file to upload", required = true)
+            @RequestParam("profileImage") MultipartFile profileImage) {
+
+        try {
+            UserDTO updatedUser = userService.uploadProfileImage(userUuid, profileImage);
+
+            return ResponseEntity.ok(updatedUser);
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @Operation(summary = "Get user profile image by file name")
@@ -107,19 +115,35 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Profile image not found")
     @GetMapping("profile-image/{fileName}")
     public ResponseEntity<Resource> getProfileImage(
-            @Parameter(description = "Name of the profile image file to retrieve. This is typically returned from the upload endpoint.",
-                    example = "profile_550e8400-e29b-41d4-a716-446655440001.jpg", required = true)
+            @Parameter(
+                    description = "Name of the profile image file to retrieve. Format: profile_images_uuid.extension",
+                    example = "profile_images_c5be646f-34c3-4782-9be4-dfbe93fe06b6.png",
+                    required = true
+            )
             @PathVariable String fileName) {
 
-        Resource resource = storageService.load(fileName);
-        String contentType = storageService.getContentType(fileName);
+        try {
+            String profileImageFolder = storageProperties.getFolders().getProfileImages();
+            String fullPath = profileImageFolder + "/" + fileName;
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                .body(resource);
+            Resource resource = storageService.load(fullPath);
+
+            String contentType = storageService.getContentType(fullPath);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+
+        } catch (StorageFileNotFoundException e) {
+            return ResponseEntity.notFound().build();
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
+
 
     @Operation(summary = "Delete a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User deleted successfully")

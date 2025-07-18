@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
@@ -50,11 +51,10 @@ public class UserServiceImpl implements UserService {
     private final TrainingBranchRepository trainingBranchRepository;
 
     private final StorageService storageService;
+    private final StorageProperties storageProperties;
     private final GenericSpecificationBuilder<User> specificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final UserMediaValidationService validationService;
-
-    public static final String PROFILE_IMAGE_FOLDER = "profile_images";
 
     @Override
     @Transactional
@@ -288,7 +288,6 @@ public class UserServiceImpl implements UserService {
             user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
             List<String> userDomains = getUserDomainsFromMappings(userUuid);
             User savedUser = userRepository.save(user);
-            log.info("Successfully uploaded profile image for user: {}", userUuid);
             return UserFactory.toDTO(savedUser, userDomains);
         } catch (Exception ex) {
             log.error("Failed to upload User's profile image for UUID: {}", userUuid, ex);
@@ -525,14 +524,41 @@ public class UserServiceImpl implements UserService {
 
     /**
      * Stores a profile image file and returns the full URL
+     * Uses configured folder name from properties
      */
     private String storeProfileImage(MultipartFile file) {
-        String fileName = storageService.store(file, PROFILE_IMAGE_FOLDER);
-        return ServletUriComponentsBuilder
-                .fromCurrentContextPath()
-                .path("/api/v1/users/profile-image/")
-                .path(fileName)
-                .build()
-                .toUriString();
+        try {
+            // Get folder name from your existing StorageProperties
+            String profileImageFolder = storageProperties.getFolders().getProfileImages();
+
+            // Store the file in the configured profile images folder
+            String storedPath = storageService.store(file, profileImageFolder);
+
+            // Extract just the filename part (after the last slash)
+            String fileName = storedPath.substring(storedPath.lastIndexOf('/') + 1);
+
+            String imageUrl;
+
+            // Use configured base URL if available
+            if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
+                imageUrl = storageProperties.getBaseUrl() + "/api/v1/users/profile-image/" + fileName;
+            } else {
+                // Fallback to current request context with HTTPS
+                imageUrl = ServletUriComponentsBuilder
+                        .fromCurrentContextPath()
+                        .scheme("https")
+                        .path("/api/v1/users/profile-image/")
+                        .path(fileName)
+                        .build()
+                        .toUriString();
+            }
+
+            log.debug("Generated profile image URL: {}", imageUrl);
+            return imageUrl;
+
+        } catch (Exception e) {
+            log.error("Failed to store profile image", e);
+            throw new RuntimeException("Failed to store profile image: " + e.getMessage(), e);
+        }
     }
 }

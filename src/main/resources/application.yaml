@@ -58,6 +58,15 @@ app:
 
 storage:
   location: ${STORAGE_PATH:${user.home}/elimika-storage}
+  base-url: ${STORAGE_BASE_URL:https://api.elimika.sarafrika.com}
+  folders:
+    profile-images: ${PROFILE_IMAGES_FOLDER:profile_images}
+    course-thumbnails: ${COURSE_THUMBNAILS_FOLDER:course_thumbnails}
+    course-materials: ${COURSE_MATERIALS_FOLDER:course_materials}
+    organization-logos: ${ORGANIZATION_LOGOS_FOLDER:organization_logos}
+    certificates: ${CERTIFICATES_FOLDER:certificates}
+    assignments: ${ASSIGNMENTS_FOLDER:assignments}
+    temp: ${TEMP_FOLDER:temp}
 
 logging:
   level:

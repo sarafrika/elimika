@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseCategoryService courseCategoryService;
     private final StorageService storageService;
     private final CourseMediaValidationService validationService;
+    private final StorageProperties storageProperties;
 
     public static final String COURSE_THUMBNAILS_FOLDER = "course_thumbnails";
     public static final String COURSE_BANNERS_FOLDER = "course_banners";
@@ -232,7 +234,6 @@ public class CourseServiceImpl implements CourseService {
     public CourseDTO uploadThumbnail(UUID courseUuid, MultipartFile thumbnail) {
         log.debug("Uploading thumbnail for course: {}", courseUuid);
 
-        // Validate file
         validationService.validateThumbnail(thumbnail);
 
         Course course = courseRepository.findByUuid(courseUuid)
@@ -240,9 +241,9 @@ public class CourseServiceImpl implements CourseService {
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         try {
-            course.setThumbnailUrl(thumbnail != null ? storeCourseImage(thumbnail, COURSE_THUMBNAILS_FOLDER) : null);
+            String thumbnailFolder = storageProperties.getFolders().getCourseThumbnails();
+            course.setThumbnailUrl(thumbnail != null ? storeCourseImage(thumbnail, thumbnailFolder) : null);
             Course savedCourse = courseRepository.save(course);
-            log.info("Successfully uploaded thumbnail for course: {}", courseUuid);
             return CourseFactory.toDTO(savedCourse);
         } catch (Exception ex) {
             log.error("Failed to upload course thumbnail for UUID: {}", courseUuid, ex);
@@ -253,8 +254,6 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public CourseDTO uploadBanner(UUID courseUuid, MultipartFile banner) {
         log.debug("Uploading banner for course: {}", courseUuid);
-
-        // Validate file
         validationService.validateBanner(banner);
 
         Course course = courseRepository.findByUuid(courseUuid)
@@ -262,12 +261,11 @@ public class CourseServiceImpl implements CourseService {
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         try {
-            course.setBannerUrl(banner != null ? storeCourseImage(banner, COURSE_BANNERS_FOLDER) : null);
-            Course savedCourse = courseRepository.save(course);
-            log.info("Successfully uploaded banner for course: {}", courseUuid);
+            String bannerFolder = storageProperties.getFolders().getCourseThumbnails(); // Note: You might want to add a separate courseBanners property
+            course.setBannerUrl(banner != null ? storeCourseImage(banner, bannerFolder) : null);
+            courseRepository.save(course);
             return getCourseByUuid(courseUuid);
         } catch (Exception ex) {
-            log.error("Failed to upload course banner for UUID: {}", courseUuid, ex);
             throw new RuntimeException("Failed to upload course banner: " + ex.getMessage(), ex);
         }
     }
@@ -276,7 +274,6 @@ public class CourseServiceImpl implements CourseService {
     public CourseDTO uploadIntroVideo(UUID courseUuid, MultipartFile introVideo) {
         log.debug("Uploading intro video for course: {}", courseUuid);
 
-        // Validate file
         validationService.validateIntroVideo(introVideo);
 
         Course course = courseRepository.findByUuid(courseUuid)
@@ -284,12 +281,11 @@ public class CourseServiceImpl implements CourseService {
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         try {
-            course.setIntroVideoUrl(introVideo != null ? storeCourseImage(introVideo, COURSE_INTRO_VIDEOS_FOLDER) : null);
-            Course savedCourse = courseRepository.save(course);
-            log.info("Successfully uploaded intro video for course: {}", courseUuid);
+            String videoFolder = storageProperties.getFolders().getCourseMaterials(); // For intro videos
+            course.setIntroVideoUrl(introVideo != null ? storeCourseImage(introVideo, videoFolder) : null);
+            courseRepository.save(course);
             return getCourseByUuid(courseUuid);
         } catch (Exception ex) {
-            log.error("Failed to upload course intro video for UUID: {}", courseUuid, ex);
             throw new RuntimeException("Failed to upload course intro video: " + ex.getMessage(), ex);
         }
     }
@@ -446,12 +442,31 @@ public class CourseServiceImpl implements CourseService {
      * Stores a course-related file and returns the full URL
      */
     private String storeCourseImage(MultipartFile file, String folder) {
-        String fileName = storageService.store(file, folder);
-        return ServletUriComponentsBuilder
-                .fromCurrentContextPath()
-                .path("/api/v1/courses/media/")
-                .path(fileName)
-                .build()
-                .toUriString();
+        try {
+            String storedPath = storageService.store(file, folder);
+
+            String fileName = storedPath.substring(storedPath.lastIndexOf('/') + 1);
+
+            String imageUrl;
+
+            if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
+                imageUrl = storageProperties.getBaseUrl() + "/api/v1/courses/media/" + fileName;
+            } else {
+                imageUrl = ServletUriComponentsBuilder
+                        .fromCurrentContextPath()
+                        .scheme("https")
+                        .path("/api/v1/courses/media/")
+                        .path(fileName)
+                        .build()
+                        .toUriString();
+            }
+
+            log.debug("Generated course media URL: {}", imageUrl);
+            return imageUrl;
+
+        } catch (Exception e) {
+            log.error("Failed to store course media file", e);
+            throw new RuntimeException("Failed to store course media: " + e.getMessage(), e);
+        }
     }
 }
