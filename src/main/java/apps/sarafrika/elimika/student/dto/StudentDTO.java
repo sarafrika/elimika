@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.student.dto;
 
+import apps.sarafrika.elimika.common.validation.ValidPhoneNumber;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -77,6 +77,7 @@ public record StudentDTO(
         )
         @Size(max = 20, message = "First guardian mobile must not exceed 20 characters")
         @JsonProperty("first_guardian_mobile")
+        @ValidPhoneNumber(mobileOnly = true)
         String firstGuardianMobile,
 
         @Schema(
@@ -99,6 +100,7 @@ public record StudentDTO(
         )
         @Size(max = 20, message = "Second guardian mobile must not exceed 20 characters")
         @JsonProperty("second_guardian_mobile")
+        @ValidPhoneNumber(mobileOnly = true)
         String secondGuardianMobile,
 
         @Schema(
