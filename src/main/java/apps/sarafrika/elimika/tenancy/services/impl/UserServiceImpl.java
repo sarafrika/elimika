@@ -524,26 +524,21 @@ public class UserServiceImpl implements UserService {
 
     /**
      * Stores a profile image file and returns the full URL
-     * Uses configured folder name from properties
+     * Uses simple UUID-based filenames for cleaner URLs
      */
     private String storeProfileImage(MultipartFile file) {
         try {
-            // Get folder name from your existing StorageProperties
             String profileImageFolder = storageProperties.getFolders().getProfileImages();
 
-            // Store the file in the configured profile images folder
             String storedPath = storageService.store(file, profileImageFolder);
 
-            // Extract just the filename part (after the last slash)
             String fileName = storedPath.substring(storedPath.lastIndexOf('/') + 1);
 
             String imageUrl;
 
-            // Use configured base URL if available
             if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
                 imageUrl = storageProperties.getBaseUrl() + "/api/v1/users/profile-image/" + fileName;
             } else {
-                // Fallback to current request context with HTTPS
                 imageUrl = ServletUriComponentsBuilder
                         .fromCurrentContextPath()
                         .scheme("https")

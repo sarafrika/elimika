@@ -85,26 +85,20 @@ public class FileSystemStorageServiceImpl implements StorageService {
                 Files.createDirectories(folderPath);
             }
 
-            // Generate unique filename
             String originalFilename = file.getOriginalFilename();
             String extension = originalFilename != null && originalFilename.contains(".")
                     ? originalFilename.substring(originalFilename.lastIndexOf("."))
                     : "";
-            String uniqueFilename = folder + "_" + UUID.randomUUID().toString() + extension;
+            String uniqueFilename = UUID.randomUUID() + extension;
 
-            // Store file in the specified folder
             Path destinationFile = folderPath.resolve(uniqueFilename);
 
-            // Security check - ensure file is within the target directory
             if (!destinationFile.getParent().equals(folderPath.toAbsolutePath())) {
                 throw new StorageException("Cannot store file outside target directory.");
             }
-
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
             }
-
-            // Return the relative path from root (folder/filename)
             return folder + "/" + uniqueFilename;
 
         } catch (IOException e) {

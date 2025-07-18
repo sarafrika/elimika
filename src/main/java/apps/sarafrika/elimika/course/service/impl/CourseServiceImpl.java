@@ -440,6 +440,7 @@ public class CourseServiceImpl implements CourseService {
 
     /**
      * Stores a course-related file and returns the full URL
+     * Uses simple UUID-based filenames for cleaner URLs
      */
     private String storeCourseImage(MultipartFile file, String folder) {
         try {
