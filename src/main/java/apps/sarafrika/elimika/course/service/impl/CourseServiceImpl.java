@@ -224,7 +224,6 @@ public class CourseServiceImpl implements CourseService {
 
         } catch (Exception e) {
             // If enrollment service is not available or fails, return 0
-            log.warn("Failed to calculate completion rate for course {}: {}", uuid, e.getMessage());
             return 0.0;
         }
     }
@@ -244,7 +243,7 @@ public class CourseServiceImpl implements CourseService {
             course.setThumbnailUrl(thumbnail != null ? storeCourseImage(thumbnail, COURSE_THUMBNAILS_FOLDER) : null);
             Course savedCourse = courseRepository.save(course);
             log.info("Successfully uploaded thumbnail for course: {}", courseUuid);
-            return getCourseByUuid(courseUuid);
+            return CourseFactory.toDTO(savedCourse);
         } catch (Exception ex) {
             log.error("Failed to upload course thumbnail for UUID: {}", courseUuid, ex);
             throw new RuntimeException("Failed to upload course thumbnail: " + ex.getMessage(), ex);
@@ -293,6 +292,87 @@ public class CourseServiceImpl implements CourseService {
             log.error("Failed to upload course intro video for UUID: {}", courseUuid, ex);
             throw new RuntimeException("Failed to upload course intro video: " + ex.getMessage(), ex);
         }
+    }
+
+    @Override
+    public CourseDTO unpublishCourse(UUID uuid) {
+        log.debug("Unpublishing course: {}", uuid);
+
+        Course course = courseRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+
+        boolean hasActiveEnrollments = hasActiveEnrollments(uuid);
+
+        course.setStatus(ContentStatus.DRAFT);
+
+        course.setActive(!hasActiveEnrollments);
+
+        courseRepository.save(course);
+
+        return getCourseByUuid(uuid);
+    }
+
+    @Override
+    public CourseDTO archiveCourse(UUID uuid) {
+        log.debug("Archiving course: {}", uuid);
+
+        Course course = courseRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+
+        course.setStatus(ContentStatus.ARCHIVED);
+        course.setActive(false);
+
+        Course archivedCourse = courseRepository.save(course);
+        log.info("Successfully archived course: {}", uuid);
+
+        return getCourseByUuid(uuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUnpublishCourse(UUID uuid) {
+        return true;
+    }
+
+    /**
+     * Helper method to check if course has active enrollments
+     */
+    private boolean hasActiveEnrollments(UUID courseUuid) {
+        try {
+            Map<String, String> activeEnrollmentParams = Map.of(
+                    "courseUuid", courseUuid.toString(),
+                    "status_in", "ACTIVE,IN_PROGRESS"
+            );
+
+            Page<apps.sarafrika.elimika.course.dto.CourseEnrollmentDTO> activeEnrollments =
+                    courseEnrollmentService.search(activeEnrollmentParams, Pageable.ofSize(1));
+
+            return !activeEnrollments.isEmpty();
+
+        } catch (Exception e) {
+            log.warn("Failed to check active enrollments for course {}: {}", courseUuid, e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContentStatus> getAvailableStatusTransitions(UUID uuid) {
+        Course course = courseRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+
+        ContentStatus currentStatus = course.getStatus();
+
+        // Define valid status transitions based on business rules
+        return switch (currentStatus) {
+            case DRAFT -> List.of(ContentStatus.IN_REVIEW, ContentStatus.PUBLISHED, ContentStatus.ARCHIVED);
+            case IN_REVIEW -> List.of(ContentStatus.DRAFT, ContentStatus.PUBLISHED, ContentStatus.ARCHIVED);
+            case PUBLISHED -> List.of(ContentStatus.DRAFT, ContentStatus.ARCHIVED); // Can always unpublish
+            case ARCHIVED -> List.of();
+        };
     }
 
     /**
