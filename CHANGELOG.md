@@ -1,3 +1,10 @@
+# [4.3.0](https://github.com/sarafrika/elimika/compare/v4.2.0...v4.3.0) (2025-07-18)
+
+
+### Features
+
+* externalize storage folder configuration to properties ([e5c2611](https://github.com/sarafrika/elimika/commit/e5c2611fa25ce0611b23f1b26bbe984b5856405f))
+
 # [4.2.0](https://github.com/sarafrika/elimika/compare/v4.1.1...v4.2.0) (2025-07-18)
 
 
