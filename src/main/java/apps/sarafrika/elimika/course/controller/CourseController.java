@@ -26,7 +26,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -261,46 +260,6 @@ public class CourseController {
     // ===== COURSE CATEGORY MANAGEMENT =====
 
     @Operation(
-            summary = "Add category to course",
-            description = "Adds a single category to an existing course without affecting other categories."
-    )
-    @PostMapping("/{courseUuid}/categories/{categoryUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseCategoryMappingDTO>> addCategoryToCourse(
-            @PathVariable UUID courseUuid,
-            @PathVariable UUID categoryUuid) {
-        CourseCategoryMappingDTO mapping = courseCategoryService.addCategoryToCourse(courseUuid, categoryUuid);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
-                        .success(mapping, "Category added to course successfully"));
-    }
-
-    @Operation(
-            summary = "Add multiple categories to course",
-            description = """
-                Adds multiple categories to a course in a single operation.
-                
-                **Request Body:**
-                ```json
-                {
-                    "category_uuids": ["uuid1", "uuid2", "uuid3"]
-                }
-                ```
-                """
-    )
-    @PostMapping("/{courseUuid}/categories")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<CourseCategoryMappingDTO>>> addCategoriesToCourse(
-            @PathVariable UUID courseUuid,
-            @RequestBody Map<String, Set<UUID>> request) {
-
-        Set<UUID> categoryUuids = request.get("category_uuids");
-        List<CourseCategoryMappingDTO> mappings = courseCategoryService.addCategoriesToCourse(courseUuid, categoryUuids);
-
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
-                        .success(mappings, String.format("Added %d categories to course successfully", mappings.size())));
-    }
-
-    @Operation(
             summary = "Get course categories",
             description = "Retrieves all categories assigned to a specific course."
     )
@@ -310,33 +269,6 @@ public class CourseController {
         List<CourseCategoryMappingDTO> mappings = courseCategoryService.getCourseCategoryMappings(courseUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success(mappings, "Course categories retrieved successfully"));
-    }
-
-    @Operation(
-            summary = "Update course categories",
-            description = """
-                Replaces all existing categories for a course with the provided set.
-                
-                **Request Body:**
-                ```json
-                {
-                    "category_uuids": ["uuid1", "uuid2"]
-                }
-                ```
-                
-                **Note:** This operation removes all existing categories and adds the new ones atomically.
-                """
-    )
-    @PutMapping("/{courseUuid}/categories")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<CourseCategoryMappingDTO>>> updateCourseCategories(
-            @PathVariable UUID courseUuid,
-            @RequestBody Map<String, Set<UUID>> request) {
-
-        Set<UUID> categoryUuids = request.get("category_uuids");
-        List<CourseCategoryMappingDTO> mappings = courseCategoryService.updateCourseCategories(courseUuid, categoryUuids);
-
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
-                .success(mappings, "Course categories updated successfully"));
     }
 
     @Operation(
