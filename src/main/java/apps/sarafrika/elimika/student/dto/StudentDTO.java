@@ -11,13 +11,13 @@ import java.util.UUID;
 
 /**
  * Student Data Transfer Object
- *
+ *<p/>
  * Represents a student profile in the Sarafrika Elimika system, extending user information
  * with student-specific data including guardian/parent contact information and academic context.
  *
- * @author Sarafrika Team
+ * @author Wilfred Njuguna
  * @version 1.0
- * @since 2024-01-01
+ * @since 2024-09-20
  */
 @Schema(
         name = "Student",
