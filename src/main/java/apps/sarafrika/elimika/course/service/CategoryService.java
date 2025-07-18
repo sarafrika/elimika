@@ -21,16 +21,7 @@ public interface CategoryService {
 
     Page<CategoryDTO> search(Map<String, String> searchParams, Pageable pageable);
 
-    // Domain-specific methods
     List<CategoryDTO> getRootCategories();
 
     List<CategoryDTO> getSubCategories(UUID parentUuid);
-
-    List<CategoryDTO> getActiveCategories();
-
-    List<CategoryDTO> getCategoryHierarchy(UUID categoryUuid);
-
-    boolean hasSubCategories(UUID categoryUuid);
-
-    boolean canDeleteCategory(UUID categoryUuid);
 }
