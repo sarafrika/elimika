@@ -6,7 +6,6 @@ import apps.sarafrika.elimika.course.dto.CategoryDTO;
 import apps.sarafrika.elimika.course.factory.CategoryFactory;
 import apps.sarafrika.elimika.course.model.Category;
 import apps.sarafrika.elimika.course.repository.CategoryRepository;
-import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,7 +25,6 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
-    private final CourseRepository courseRepository;
 
     private final GenericSpecificationBuilder<Category> specificationBuilder;
 
@@ -89,7 +87,6 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryRepository.findAll(spec, pageable).map(CategoryFactory::toDTO);
     }
 
-    // Domain-specific methods leveraging CategoryDTO computed properties
     @Transactional(readOnly = true)
     public List<CategoryDTO> getRootCategories() {
         return categoryRepository.findByParentUuidIsNull()
@@ -116,7 +113,6 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryDTO> getCategoryHierarchy(UUID categoryUuid) {
-        // This would build the full path using CategoryDTO.getCategoryPath()
         List<Category> hierarchy = categoryRepository.findCategoryHierarchy(categoryUuid);
         return hierarchy.stream()
                 .map(CategoryFactory::toDTO)
@@ -125,12 +121,6 @@ public class CategoryServiceImpl implements CategoryService {
 
     public boolean hasSubCategories(UUID categoryUuid) {
         return categoryRepository.countByParentUuid(categoryUuid) > 0;
-    }
-
-    public boolean canDeleteCategory(UUID categoryUuid) {
-        // Check if category has subcategories or courses
-        return !hasSubCategories(categoryUuid) &&
-                courseRepository.countByCategoryUuid(categoryUuid) == 0;
     }
 
     private void updateCategoryFields(Category existingCategory, CategoryDTO dto) {

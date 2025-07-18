@@ -1,3 +1,10 @@
+## [3.1.1](https://github.com/sarafrika/elimika/compare/v3.1.0...v3.1.1) (2025-07-18)
+
+
+### Bug Fixes
+
+* Remove unused and decalred JPA methods from COurse Repository ([dc8cbbd](https://github.com/sarafrika/elimika/commit/dc8cbbdd72b15d250dc62430bc6699ec105a40d3))
+
 # [3.1.0](https://github.com/sarafrika/elimika/compare/v3.0.0...v3.1.0) (2025-07-18)
 
 
