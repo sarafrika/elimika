@@ -123,11 +123,6 @@ public class SystemConfigController {
     )
     @DeleteMapping("/categories/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<String>> deleteCategory(@PathVariable UUID uuid) {
-        if (!categoryService.canDeleteCategory(uuid)) {
-            return ResponseEntity.badRequest()
-                    .body(apps.sarafrika.elimika.common.dto.ApiResponse
-                            .error("Cannot delete category with subcategories or associated courses"));
-        }
         categoryService.deleteCategory(uuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success("Category deleted successfully", "Category has been removed"));
