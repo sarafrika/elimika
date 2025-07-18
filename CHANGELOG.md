@@ -1,3 +1,10 @@
+# [4.1.0](https://github.com/sarafrika/elimika/compare/v4.0.0...v4.1.0) (2025-07-18)
+
+
+### Features
+
+* Added validation of phone numbers when registering Student Bio Information ([fb04db8](https://github.com/sarafrika/elimika/commit/fb04db8a5515b3bbc7fa703dbcf6f88508050f4c))
+
 # [4.0.0](https://github.com/sarafrika/elimika/compare/v3.1.1...v4.0.0) (2025-07-18)
 
 
