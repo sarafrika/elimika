@@ -4,20 +4,21 @@ import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.exceptions.DatabaseAuditException;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.exceptions.SmtpAuthenticationException;
+import apps.sarafrika.elimika.common.util.ValidationErrorUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice @Slf4j
+@RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleRecordNotFoundException(ResourceNotFoundException ex) {
         log.debug("Record not found", ex);
@@ -28,10 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         log.debug("Validation failed", ex);
-        Map<String, String> errors = new HashMap<>();
-        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
-            errors.put(error.getField(), error.getDefaultMessage());
-        }
+        Map<String, String> errors = ValidationErrorUtil.buildValidationErrorMap(ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error("Validation failed", errors));
     }
@@ -57,7 +55,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Access denied", ex.getMessage()));
     }
 
-
     @ExceptionHandler(DatabaseAuditException.class)
     public ResponseEntity<ApiResponse<Void>> handleDatabaseAuditException(DatabaseAuditException ex) {
         log.debug("Database audit exception caught", ex);
@@ -76,5 +73,4 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status)
                 .body(ApiResponse.error("Operation failed", message));
     }
-
 }
