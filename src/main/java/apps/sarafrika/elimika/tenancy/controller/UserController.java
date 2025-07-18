@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 
 @RestController
 @RequestMapping("api/v1/users")
@@ -93,7 +94,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile Image Uploaded successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping("{userUuid}/profile-image")
+    @PostMapping(value = "{userUuid}/profile-image", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<UserDTO> uploadProfileImage(
             @Parameter(description = "UUID of the user", required = true)
             @PathVariable UUID userUuid,
