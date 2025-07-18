@@ -1,3 +1,10 @@
+## [4.1.1](https://github.com/sarafrika/elimika/compare/v4.1.0...v4.1.1) (2025-07-18)
+
+
+### Bug Fixes
+
+* Documentation metadata fixing on StudentDTO ([2b7abee](https://github.com/sarafrika/elimika/commit/2b7abeee553f42b83d6a044b3922fcc7010d822e))
+
 # [4.1.0](https://github.com/sarafrika/elimika/compare/v4.0.0...v4.1.0) (2025-07-18)
 
 
