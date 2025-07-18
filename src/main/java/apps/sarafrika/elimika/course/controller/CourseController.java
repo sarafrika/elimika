@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.controller;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
+import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -153,6 +154,94 @@ public class CourseController {
         CourseDTO updatedCourse = courseService.updateCourse(uuid, courseDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
                 .success(updatedCourse, "Course updated successfully"));
+    }
+
+    @Operation(
+            summary = "Unpublish course",
+            description = """
+            Unpublishes a course, changing it from PUBLISHED to DRAFT status.
+            
+            **Smart Active Status Logic:**
+            - If NO active enrollments: Course becomes DRAFT and ACTIVE (available for new enrollments)
+            - If HAS active enrollments: Course becomes DRAFT and INACTIVE (existing students continue, no new enrollments)
+            
+            **Business Rules:**
+            - Course status always changes from PUBLISHED to DRAFT
+            - Active status depends on current enrollment situation
+            - Existing enrollments are never affected
+            - Course can be published again later
+            
+            **Use Cases:**
+            - Temporarily remove course from catalog while keeping it available
+            - Stop new enrollments while allowing current students to continue
+            - Prepare course for updates before republishing
+            """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Course unpublished successfully"),
+                    @ApiResponse(responseCode = "404", description = "Course not found")
+            }
+    )
+    @PostMapping("/{uuid}/unpublish")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseDTO>> unpublishCourse(
+            @PathVariable UUID uuid) {
+
+        CourseDTO unpublishedCourse = courseService.unpublishCourse(uuid);
+
+        String message = Boolean.TRUE.equals(unpublishedCourse.active()) ?
+                "Course unpublished successfully and remains active for new enrollments" :
+                "Course unpublished successfully and set to inactive due to existing enrollments";
+
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(unpublishedCourse, message));
+    }
+
+    @Operation(
+            summary = "Archive course",
+            description = """
+            Archives a course, making it completely unavailable.
+            
+            **Important:**
+            - This is typically a permanent action
+            - Course becomes completely inaccessible to new students
+            - Existing enrollments may be handled differently based on business rules
+            - Course data is preserved for historical/audit purposes
+            """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Course archived successfully"),
+                    @ApiResponse(responseCode = "404", description = "Course not found")
+            }
+    )
+    @PostMapping("/{uuid}/archive")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<CourseDTO>> archiveCourse(
+            @PathVariable UUID uuid) {
+
+        CourseDTO archivedCourse = courseService.archiveCourse(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(archivedCourse, "Course archived successfully"));
+    }
+
+    @Operation(
+            summary = "Get available status transitions",
+            description = """
+            Returns the list of valid status transitions for a course based on its current state and business rules.
+            
+            **Status Transition Rules:**
+            - DRAFT → IN_REVIEW, ARCHIVED
+            - IN_REVIEW → DRAFT, PUBLISHED, ARCHIVED  
+            - PUBLISHED → DRAFT (if no active enrollments), ARCHIVED
+            - ARCHIVED → (no transitions - permanent state)
+            """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Available transitions retrieved successfully")
+            }
+    )
+    @GetMapping("/{uuid}/status-transitions")
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<ContentStatus>>> getStatusTransitions(
+            @PathVariable UUID uuid) {
+
+        List<ContentStatus> availableTransitions = courseService.getAvailableStatusTransitions(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(availableTransitions, "Available status transitions retrieved successfully"));
     }
 
     @Operation(

@@ -422,4 +422,82 @@ public record CourseDTO(
     public int getCategoryCount() {
         return categoryUuids != null ? categoryUuids.size() : 0;
     }
+
+    /**
+     * Checks if the course is archived.
+     *
+     * @return true if status is ARCHIVED
+     */
+    @JsonProperty(value = "is_archived", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the course is archived and no longer available.",
+            example = "false",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean isArchived() {
+        return status == ContentStatus.ARCHIVED;
+    }
+
+    /**
+     * Checks if the course is in review status.
+     *
+     * @return true if status is IN_REVIEW
+     */
+    @JsonProperty(value = "is_in_review", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the course is currently under review.",
+            example = "false",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean isInReview() {
+        return status == ContentStatus.IN_REVIEW;
+    }
+
+    /**
+     * Returns the current lifecycle stage of the course.
+     *
+     * @return human-readable lifecycle stage
+     */
+    @JsonProperty(value = "lifecycle_stage", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Human-readable description of the course's current lifecycle stage.",
+            example = "Published and Active",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public String getLifecycleStage() {
+        if (isArchived()) {
+            return "Archived";
+        }
+        if (isInReview()) {
+            return "Under Review";
+        }
+        if (isPublished() && Boolean.TRUE.equals(active)) {
+            return "Published and Active";
+        }
+        if (isPublished() && !Boolean.TRUE.equals(active)) {
+            return "Published but Inactive";
+        }
+        if (isDraft() && Boolean.TRUE.equals(active)) {
+            return "Draft and Active";
+        }
+        if (isDraft() && !Boolean.TRUE.equals(active)) {
+            return "Draft and Inactive";
+        }
+        return "Unknown";
+    }
+
+    /**
+     * Indicates if the course accepts new enrollments.
+     *
+     * @return true if course is active and accepts new students
+     */
+    @JsonProperty(value = "accepts_new_enrollments", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the course is currently accepting new student enrollments.",
+            example = "true",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean acceptsNewEnrollments() {
+        return Boolean.TRUE.equals(active) && (isPublished() || isDraft());
+    }
 }
