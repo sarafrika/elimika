@@ -7,27 +7,32 @@ import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Course Data Transfer Object
  * <p>
  * Represents a complete course in the Sarafrika Elimika system, including metadata,
- * content organization, pricing, and publication status.
+ * content organization, pricing, and publication status with support for multiple categories.
  *
  * @author Wilfred Njuguna
- * @version 1.0
+ * @version 2.0
  * @since 2024-06-30
  */
 @Schema(
         name = "Course",
-        description = "Complete course with metadata, content organization, and publication status",
+        description = "Complete course with metadata, content organization, and publication status supporting multiple categories",
         example = """
         {
             "uuid": "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
             "name": "Advanced Java Programming",
             "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
-            "category_uuid": "c1a2t3e4-5g6o-7r8y-9a10-abcdefghijkl",
+            "category_uuids": [
+                "c1a2t3e4-5g6o-7r8y-9a10-abcdefghijkl",
+                "p1r2o3g4-5r6a-7m8m-9i10-abcdefghijkl"
+            ],
             "difficulty_uuid": "d1i2f3f4-5i6c-7u8l-9t10-abcdefghijkl",
             "description": "Comprehensive course covering advanced Java concepts and enterprise development",
             "objectives": "Master advanced Java features, design patterns, and enterprise frameworks",
@@ -47,6 +52,7 @@ import java.util.UUID;
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
             "updated_by": "instructor@sarafrika.com",
+            "category_names": ["Programming", "Advanced Java"],
             "total_duration_display": "40 hours 30 minutes",
             "is_free": false,
             "is_published": true,
@@ -86,13 +92,12 @@ public record CourseDTO(
         UUID instructorUuid,
 
         @Schema(
-                description = "**[OPTIONAL]** Reference to the course category UUID for organization and discovery.",
-                example = "c1a2t3e4-5g6o-7r8y-9a10-abcdefghijkl",
-                nullable = true,
+                description = "**[OPTIONAL]** List of category UUIDs for organizing the course. A course can belong to multiple categories.",
+                example = "[\"c1a2t3e4-5g6o-7r8y-9a10-abcdefghijkl\", \"p1r2o3g4-5r6a-7m8m-9i10-abcdefghijkl\"]",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @JsonProperty("category_uuid")
-        UUID categoryUuid,
+        @JsonProperty("category_uuids")
+        Set<UUID> categoryUuids,
 
         @Schema(
                 description = "**[OPTIONAL]** Reference to the difficulty level UUID indicating course complexity.",
@@ -260,6 +265,15 @@ public record CourseDTO(
         Boolean active,
 
         @Schema(
+                description = "**[READ-ONLY]** List of category names this course belongs to. Computed from category mappings.",
+                example = "[\"Programming\", \"Advanced Java\"]",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "category_names", access = JsonProperty.Access.READ_ONLY)
+        List<String> categoryNames,
+
+        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the course was created. Automatically set by the system.",
                 example = "2024-04-01T12:00:00",
                 format = "date-time",
@@ -377,5 +391,35 @@ public record CourseDTO(
     )
     public boolean isDraft() {
         return status == ContentStatus.DRAFT;
+    }
+
+    /**
+     * Returns whether the course has multiple categories assigned.
+     *
+     * @return true if course has more than one category
+     */
+    @JsonProperty(value = "has_multiple_categories", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the course belongs to multiple categories.",
+            example = "true",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean hasMultipleCategories() {
+        return categoryUuids != null && categoryUuids.size() > 1;
+    }
+
+    /**
+     * Returns the number of categories this course belongs to.
+     *
+     * @return number of categories
+     */
+    @JsonProperty(value = "category_count", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Number of categories this course belongs to.",
+            example = "2",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public int getCategoryCount() {
+        return categoryUuids != null ? categoryUuids.size() : 0;
     }
 }
