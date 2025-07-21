@@ -1,3 +1,10 @@
+# [4.5.0](https://github.com/sarafrika/elimika/compare/v4.4.0...v4.5.0) (2025-07-21)
+
+
+### Features
+
+* add ProficiencyLevel enum converter for JPA persistence ([3ac3fc3](https://github.com/sarafrika/elimika/commit/3ac3fc39e8acb31aa1b87f7590aa32ffe525b202))
+
 # [4.4.0](https://github.com/sarafrika/elimika/compare/v4.3.1...v4.4.0) (2025-07-21)
 
 
