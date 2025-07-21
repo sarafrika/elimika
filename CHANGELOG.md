@@ -1,3 +1,10 @@
+## [4.3.1](https://github.com/sarafrika/elimika/compare/v4.3.0...v4.3.1) (2025-07-21)
+
+
+### Bug Fixes
+
+* **courses:** resolve constraint violation when unpublishing courses ([0ae6105](https://github.com/sarafrika/elimika/commit/0ae61052e6d1e4e201432c0918d853ff5691e598))
+
 # [4.3.0](https://github.com/sarafrika/elimika/compare/v4.2.0...v4.3.0) (2025-07-18)
 
 
