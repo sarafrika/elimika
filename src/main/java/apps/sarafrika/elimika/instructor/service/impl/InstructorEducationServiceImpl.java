@@ -58,7 +58,6 @@ public class InstructorEducationServiceImpl implements InstructorEducationServic
         InstructorEducation existingEducation = instructorEducationRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_EDUCATION_NOT_FOUND_TEMPLATE, uuid)));
 
-        // Update fields from DTO
         updateEducationFields(existingEducation, instructorEducationDTO);
 
         InstructorEducation updatedEducation = instructorEducationRepository.save(existingEducation);

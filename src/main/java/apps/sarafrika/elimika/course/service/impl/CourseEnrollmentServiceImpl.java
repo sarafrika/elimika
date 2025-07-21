@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -91,6 +92,11 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
         Specification<CourseEnrollment> spec = specificationBuilder.buildSpecification(
                 CourseEnrollment.class, searchParams);
         return courseEnrollmentRepository.findAll(spec, pageable).map(CourseEnrollmentFactory::toDTO);
+    }
+
+    @Override
+    public boolean existsByCourseUuidAndStatusIn(UUID uuid, List<EnrollmentStatus> statuses) {
+        return courseEnrollmentRepository.existsByCourseUuidAndStatusIn(uuid, statuses);
     }
 
     private void updateEnrollmentFields(CourseEnrollment existingEnrollment, CourseEnrollmentDTO dto) {

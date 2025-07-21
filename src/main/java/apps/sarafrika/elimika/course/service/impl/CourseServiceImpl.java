@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -336,21 +337,7 @@ public class CourseServiceImpl implements CourseService {
      * Helper method to check if course has active enrollments
      */
     private boolean hasActiveEnrollments(UUID courseUuid) {
-        try {
-            Map<String, String> activeEnrollmentParams = Map.of(
-                    "courseUuid", courseUuid.toString(),
-                    "status_in", "ACTIVE,IN_PROGRESS"
-            );
-
-            Page<apps.sarafrika.elimika.course.dto.CourseEnrollmentDTO> activeEnrollments =
-                    courseEnrollmentService.search(activeEnrollmentParams, Pageable.ofSize(1));
-
-            return !activeEnrollments.isEmpty();
-
-        } catch (Exception e) {
-            log.warn("Failed to check active enrollments for course {}: {}", courseUuid, e.getMessage());
-            return false;
-        }
+        return courseEnrollmentService.existsByCourseUuidAndStatusIn(courseUuid, List.of(EnrollmentStatus.ACTIVE));
     }
 
     @Override
