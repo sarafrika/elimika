@@ -1,3 +1,10 @@
+# [4.4.0](https://github.com/sarafrika/elimika/compare/v4.3.1...v4.4.0) (2025-07-21)
+
+
+### Features
+
+* add automatic full_name generation for students table ([e99de41](https://github.com/sarafrika/elimika/commit/e99de41de8f842a2ab288b7614c15807cec4d5a8))
+
 ## [4.3.1](https://github.com/sarafrika/elimika/compare/v4.3.0...v4.3.1) (2025-07-21)
 
 
