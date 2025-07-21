@@ -1,8 +1,5 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.event.admin.RegisterAdmin;
-import apps.sarafrika.elimika.common.event.instructor.RegisterInstructor;
-import apps.sarafrika.elimika.common.event.student.RegisterStudent;
 import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
@@ -204,9 +201,6 @@ public class UserServiceImpl implements UserService {
             addStandaloneDomainToUser(user, domain);
         }
 
-        // Publish domain-specific events
-        publishUserDomainEvent(user, domainName);
-
         // Publish organisation assignment event
         if (user.getKeycloakId() != null && organisation.getKeycloakId() != null) {
             publishAddUserToOrganisationEvent(user.getKeycloakId(), organisation.getKeycloakId());
@@ -401,12 +395,10 @@ public class UserServiceImpl implements UserService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // Add new domains
         for (String domainName : requestedDomains) {
             if (!currentDomains.contains(domainName)) {
                 UserDomain domain = findDomainByNameOrThrow(domainName);
                 addStandaloneDomainToUser(user, domain);
-                publishUserDomainEvent(user, domainName);
             }
         }
     }
@@ -474,27 +466,6 @@ public class UserServiceImpl implements UserService {
         user.setPhoneNumber(userDTO.phoneNumber());
         user.setActive(userDTO.active());
         user.setGender(userDTO.gender());
-    }
-
-    private void publishUserDomainEvent(User user, String userDomain) {
-        String fullName = new StringBuilder().append(user.getFirstName()).append(" ")
-                .append(user.getMiddleName() != null ? user.getMiddleName() + " " : "")
-                .append(user.getLastName()).toString().toUpperCase();
-
-        switch (userDomain) {
-            case "instructor" -> {
-                applicationEventPublisher.publishEvent(new RegisterInstructor(fullName, user.getUuid()));
-            }
-            case "admin" -> {
-                applicationEventPublisher.publishEvent(new RegisterAdmin(fullName, user.getUuid()));
-            }
-            case "organisation_user" -> {
-                // Handle organisation user specific logic if needed
-            }
-            default -> {
-                applicationEventPublisher.publishEvent(new RegisterStudent(fullName, user.getUuid()));
-            }
-        }
     }
 
     private void publishUserUpdateEvent(User user) {
