@@ -56,6 +56,7 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/organisations").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/users/profile-image/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/courses/media/**").permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS).permitAll() // Allow preflight requests
                                 .anyRequest()
                                 .authenticated()
