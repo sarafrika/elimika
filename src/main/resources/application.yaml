@@ -58,9 +58,6 @@ app:
 
 springdoc:
   default-flat-param-object: true
-  model-converters:
-    pageable-converter:
-      enabled: false
 
 storage:
   location: ${STORAGE_PATH:${user.home}/elimika-storage}
