@@ -16,7 +16,7 @@ import java.util.UUID;
  *
  * @author Wilfred Njuguna
  * @version 1.0
- * @since 2024-06-30
+ * @since 2025-06-30
  */
 @Schema(
         name = "Instructor",
@@ -114,7 +114,7 @@ public record InstructorDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @Size(max = 255, message = "Website URL must not exceed 255 characters")
-        @Pattern(regexp = "^https?://.*", message = "Website must be a valid HTTP or HTTPS URL")
+        @Pattern(regexp = "^$|^https?://.*", message = "Website must be empty or a valid HTTP/HTTPS URL")
         @JsonProperty("website")
         String website,
 
