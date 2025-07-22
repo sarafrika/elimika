@@ -1,3 +1,10 @@
+## [4.5.3](https://github.com/sarafrika/elimika/compare/v4.5.2...v4.5.3) (2025-07-22)
+
+
+### Bug Fixes
+
+* configure SpringDoc to flatten Pageable parameters for Hey API compatibility ([a1451ca](https://github.com/sarafrika/elimika/commit/a1451ca14e38c5d900d79d446d9b3343957d7480))
+
 ## [4.5.2](https://github.com/sarafrika/elimika/compare/v4.5.1...v4.5.2) (2025-07-22)
 
 
