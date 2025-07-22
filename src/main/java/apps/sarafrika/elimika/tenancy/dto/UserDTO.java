@@ -160,7 +160,6 @@ public record UserDTO(
         @Schema(
                 description = "**[REQUIRED]** Indicates whether the user account is active and can access the system. Inactive users cannot log in or perform any operations.",
                 example = "true",
-                defaultValue = "true",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @JsonProperty("active")

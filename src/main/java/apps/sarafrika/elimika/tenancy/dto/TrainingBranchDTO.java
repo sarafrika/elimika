@@ -91,7 +91,6 @@ public record TrainingBranchDTO(
         @Schema(
                 description = "**[REQUIRED]** Indicates whether the training branch is active and operational.",
                 example = "true",
-                defaultValue = "true",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @JsonProperty("active")

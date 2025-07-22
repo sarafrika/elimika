@@ -74,7 +74,6 @@ public record OrganisationDTO(
         @Schema(
                 description = "**[REQUIRED]** Indicates whether the organisation is active and can access the system. Inactive organisations cannot perform any operations.",
                 example = "true",
-                defaultValue = "true",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @JsonProperty("active")
