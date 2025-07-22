@@ -88,6 +88,19 @@ public class OpenApiConfig {
         };
     }
 
+    @Bean
+    public OpenApiCustomizer urlSchemaCustomizer() {
+        return openApi -> {
+            // Add custom schema components for URLs
+            if (openApi.getComponents() == null) {
+                openApi.setComponents(new io.swagger.v3.oas.models.Components());
+            }
+
+            // Add reusable URL schemas
+            addUrlSchemas(openApi);
+        };
+    }
+
     private void addPhoneNumberSchemas(io.swagger.v3.oas.models.OpenAPI openApi) {
         var components = openApi.getComponents();
 
@@ -153,5 +166,63 @@ public class OpenApiConfig {
                 .example("+1234567890")
                 .description("Valid international phone number in E.164 format");
         components.addSchemas("InternationalPhoneNumber", internationalPhoneSchema);
+    }
+
+    private void addUrlSchemas(io.swagger.v3.oas.models.OpenAPI openApi) {
+        var components = openApi.getComponents();
+
+        // Generic Valid URL Schema
+        Schema<?> validUrlSchema = new Schema<String>()
+                .type("string")
+                .format("uri")
+                .pattern("^https?://[^\\s/$.?#].[^\\s]*$")
+                .example("https://example.com")
+                .description("A valid URL with HTTP or HTTPS protocol");
+        components.addSchemas("ValidUrl", validUrlSchema);
+
+        // Website URL Schema (more permissive)
+        Schema<?> websiteUrlSchema = new Schema<String>()
+                .type("string")
+                .format("uri")
+                .pattern("^https?://[^\\s/$.?#].[^\\s]*$")
+                .example("https://sarafrika.com")
+                .description("A valid website URL for personal or business websites");
+        components.addSchemas("WebsiteUrl", websiteUrlSchema);
+
+        // API URL Schema (typically HTTPS)
+        Schema<?> apiUrlSchema = new Schema<String>()
+                .type("string")
+                .format("uri")
+                .pattern("^https://[^\\s/$.?#].[^\\s]*$")
+                .example("https://api.elimika.sarafrika.com")
+                .description("A secure HTTPS URL for API endpoints");
+        components.addSchemas("ApiUrl", apiUrlSchema);
+
+        // Image URL Schema
+        Schema<?> imageUrlSchema = new Schema<String>()
+                .type("string")
+                .format("uri")
+                .pattern("^https?://[^\\s/$.?#].[^\\s]*\\.(jpg|jpeg|png|gif|webp|svg)$")
+                .example("https://images.sarafrika.com/logo.png")
+                .description("A valid URL pointing to an image file");
+        components.addSchemas("ImageUrl", imageUrlSchema);
+
+        // Document URL Schema
+        Schema<?> documentUrlSchema = new Schema<String>()
+                .type("string")
+                .format("uri")
+                .pattern("^https?://[^\\s/$.?#].[^\\s]*\\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$")
+                .example("https://docs.sarafrika.com/manual.pdf")
+                .description("A valid URL pointing to a document file");
+        components.addSchemas("DocumentUrl", documentUrlSchema);
+
+        // Social Media URL Schema
+        Schema<?> socialMediaUrlSchema = new Schema<String>()
+                .type("string")
+                .format("uri")
+                .pattern("^https?://(www\\.)?(facebook|twitter|instagram|linkedin|youtube|tiktok)\\.com/[^\\s]*$")
+                .example("https://linkedin.com/company/sarafrika")
+                .description("A valid social media profile URL");
+        components.addSchemas("SocialMediaUrl", socialMediaUrlSchema);
     }
 }

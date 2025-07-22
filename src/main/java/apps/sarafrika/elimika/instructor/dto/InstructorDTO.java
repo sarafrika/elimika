@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.instructor.dto;
 
+import apps.sarafrika.elimika.common.validation.ValidUrl;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -114,7 +115,7 @@ public record InstructorDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @Size(max = 255, message = "Website URL must not exceed 255 characters")
-        @Pattern(regexp = "^$|^https?://.*", message = "Website must be empty or a valid HTTP/HTTPS URL")
+        @ValidUrl
         @JsonProperty("website")
         String website,
 
