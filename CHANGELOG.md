@@ -1,3 +1,10 @@
+## [4.5.1](https://github.com/sarafrika/elimika/compare/v4.5.0...v4.5.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* remove invalid string defaultValue from boolean fields in DTOs ([4774e5c](https://github.com/sarafrika/elimika/commit/4774e5c92b5c9cc0d2f9a9a83af5511c1d0a2473))
+
 # [4.5.0](https://github.com/sarafrika/elimika/compare/v4.4.0...v4.5.0) (2025-07-21)
 
 
