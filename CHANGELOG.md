@@ -1,3 +1,10 @@
+## [4.5.2](https://github.com/sarafrika/elimika/compare/v4.5.1...v4.5.2) (2025-07-22)
+
+
+### Bug Fixes
+
+* configure SpringDoc to flatten Pageable parameters for TypeScript compatibility ([f5684ab](https://github.com/sarafrika/elimika/commit/f5684abd604905e94705107c3f32496b5c008da6))
+
 ## [4.5.1](https://github.com/sarafrika/elimika/compare/v4.5.0...v4.5.1) (2025-07-22)
 
 
