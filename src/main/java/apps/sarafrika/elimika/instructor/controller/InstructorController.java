@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -179,7 +180,9 @@ public class InstructorController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDTO>>> searchInstructors(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorDTO> instructors = instructorService.search(searchParams, pageable);
@@ -456,6 +459,11 @@ public class InstructorController {
     )
     @GetMapping("/documents/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDocumentDTO>>> searchDocuments(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorDocumentDTO> documents = instructorDocumentService.search(searchParams, pageable);
@@ -483,6 +491,11 @@ public class InstructorController {
     )
     @GetMapping("/education/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorEducationDTO>>> searchEducation(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorEducationDTO> education = instructorEducationService.search(searchParams, pageable);
@@ -516,6 +529,11 @@ public class InstructorController {
     )
     @GetMapping("/experience/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> searchExperience(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorExperienceDTO> experience = instructorExperienceService.search(searchParams, pageable);
@@ -548,6 +566,11 @@ public class InstructorController {
     )
     @GetMapping("/memberships/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> searchMemberships(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
@@ -581,6 +604,11 @@ public class InstructorController {
     )
     @GetMapping("/skills/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> searchSkills(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorSkillDTO> skills = instructorSkillService.search(searchParams, pageable);

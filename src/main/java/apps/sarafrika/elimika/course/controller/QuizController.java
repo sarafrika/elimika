@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -312,7 +313,9 @@ public class QuizController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<QuizDTO>>> searchQuizzes(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<QuizDTO> quizzes = quizService.search(searchParams, pageable);
@@ -338,7 +341,9 @@ public class QuizController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<QuizQuestionDTO>>> searchQuestions(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<QuizQuestionDTO> questions = quizQuestionService.search(searchParams, pageable);
@@ -366,7 +371,9 @@ public class QuizController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<QuizAttemptDTO>>> searchAttempts(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<QuizAttemptDTO> attempts = quizAttemptService.search(searchParams, pageable);

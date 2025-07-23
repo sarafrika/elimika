@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -251,6 +252,11 @@ public class AssignmentController {
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<AssignmentDTO>>> searchAssignments(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<AssignmentDTO> assignments = assignmentService.search(searchParams, pageable);
@@ -278,7 +284,9 @@ public class AssignmentController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<AssignmentSubmissionDTO>>> searchSubmissions(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<AssignmentSubmissionDTO> submissions = assignmentSubmissionService.search(searchParams, pageable);

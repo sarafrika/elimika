@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -323,7 +324,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> searchCourses(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseDTO> courses = courseService.search(searchParams, pageable);
@@ -1057,7 +1060,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<LessonDTO>>> searchLessons(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<LessonDTO> lessons = lessonService.search(searchParams, pageable);
@@ -1084,7 +1089,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<LessonContentDTO>>> searchLessonContent(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<LessonContentDTO> content = lessonContentService.search(searchParams, pageable);
@@ -1110,7 +1117,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseAssessmentDTO>>> searchAssessments(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseAssessmentDTO> assessments = courseAssessmentService.search(searchParams, pageable);
@@ -1136,7 +1145,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseRequirementDTO>>> searchRequirements(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseRequirementDTO> requirements = courseRequirementService.search(searchParams, pageable);
@@ -1163,7 +1174,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseEnrollmentDTO>>> searchEnrollments(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseEnrollmentDTO> enrollments = courseEnrollmentService.search(searchParams, pageable);
@@ -1189,7 +1202,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseCategoryMappingDTO>>> searchCategoryMappings(
             @Parameter(
                     description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object"))
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
 

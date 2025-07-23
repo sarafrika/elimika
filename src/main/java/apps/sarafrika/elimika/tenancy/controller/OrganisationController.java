@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -108,11 +109,11 @@ class OrganisationController {
             description = "Paginated list of organisations matching the search criteria")
     @GetMapping("search")
     public ResponseEntity<ApiResponse<PagedDTO<OrganisationDTO>>> search(
-            @Parameter(description = "Optional search parameters for filtering organisations. " +
-                    "Supported filters: name, description, domain, country, active. " +
-                    "Example: name=Training&active=true",
-                    example = "name=Training&active=true",
-                    schema = @Schema(type = "object"))
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
             @RequestParam() Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(organisationService.search(searchParams, pageable), ServletUriComponentsBuilder
