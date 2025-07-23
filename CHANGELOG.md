@@ -1,3 +1,10 @@
+# [4.6.0](https://github.com/sarafrika/elimika/compare/v4.5.4...v4.6.0) (2025-07-22)
+
+
+### Features
+
+* add custom URL validator with OpenAPI schema integration ([0055523](https://github.com/sarafrika/elimika/commit/00555234089180aca3bd3cfc9242d62104174683))
+
 ## [4.5.4](https://github.com/sarafrika/elimika/compare/v4.5.3...v4.5.4) (2025-07-22)
 
 
