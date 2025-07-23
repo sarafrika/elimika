@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -144,31 +145,34 @@ public class TrainingProgramController {
     @Operation(
             summary = "Search training programs",
             description = """
-                        Advanced program search with flexible criteria and operators.
-                        
-                        **Common Program Search Examples:**
-                        - `title_like=data science` - Programs with titles containing "data science"
-                        - `status=PUBLISHED` - Only published programs
-                        - `active=true` - Only active programs
-                        - `status_in=PUBLISHED,ACTIVE` - Published or active programs
-                        - `price_lte=500.00` - Programs priced at $500 or less
-                        - `price=null` - Free programs
-                        - `instructorUuid=uuid` - Programs by specific instructor
-                        - `categoryUuid=uuid` - Programs in specific category
-                        - `totalDurationHours_gte=40` - Programs 40+ hours long
-                        - `totalDurationHours_between=20,100` - Programs between 20-100 hours
-                        - `createdDate_gte=2024-01-01T00:00:00` - Programs created after Jan 1, 2024
-                        
-                        **Advanced Program Queries:**
-                        - `status=PUBLISHED&active=true&price_lte=100` - Published, active programs under $100
-                        - `title_like=certification&totalDurationHours_gte=50` - Certification programs 50+ hours
-                        - `instructorUuid=uuid&status=PUBLISHED` - Published programs by specific instructor
-                        
-                        For complete operator documentation, see the instructor search endpoint.
-                        """
+                    Advanced program search with flexible criteria and operators.
+                    
+                    **Common Program Search Examples:**
+                    - `title_like=data science` - Programs with titles containing "data science"
+                    - `status=PUBLISHED` - Only published programs
+                    - `active=true` - Only active programs
+                    - `status_in=PUBLISHED,ACTIVE` - Published or active programs
+                    - `price_lte=500.00` - Programs priced at $500 or less
+                    - `price=null` - Free programs
+                    - `instructorUuid=uuid` - Programs by specific instructor
+                    - `categoryUuid=uuid` - Programs in specific category
+                    - `totalDurationHours_gte=40` - Programs 40+ hours long
+                    - `totalDurationHours_between=20,100` - Programs between 20-100 hours
+                    - `createdDate_gte=2024-01-01T00:00:00` - Programs created after Jan 1, 2024
+                    
+                    **Advanced Program Queries:**
+                    - `status=PUBLISHED&active=true&price_lte=100` - Published, active programs under $100
+                    - `title_like=certification&totalDurationHours_gte=50` - Certification programs 50+ hours
+                    - `instructorUuid=uuid&status=PUBLISHED` - Published programs by specific instructor
+                    
+                    For complete operator documentation, see the instructor search endpoint.
+                    """
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> searchTrainingPrograms(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<TrainingProgramDTO> programs = trainingProgramService.search(searchParams, pageable);
@@ -446,17 +450,20 @@ public class TrainingProgramController {
     @Operation(
             summary = "Search program courses",
             description = """
-                        Search course associations within programs.
-                        
-                        **Common Program Course Search Examples:**
-                        - `programUuid=uuid` - All courses for specific program
-                        - `courseUuid=uuid` - All programs containing specific course
-                        - `isRequired=true` - Only required course associations
-                        - `sequenceOrder_gte=3` - Courses from sequence 3 onwards
-                        """
+                    Search course associations within programs.
+                    
+                    **Common Program Course Search Examples:**
+                    - `programUuid=uuid` - All courses for specific program
+                    - `courseUuid=uuid` - All programs containing specific course
+                    - `isRequired=true` - Only required course associations
+                    - `sequenceOrder_gte=3` - Courses from sequence 3 onwards
+                    """
     )
     @GetMapping("/courses/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<ProgramCourseDTO>>> searchProgramCourses(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<ProgramCourseDTO> programCourses = programCourseService.search(searchParams, pageable);
@@ -469,19 +476,22 @@ public class TrainingProgramController {
     @Operation(
             summary = "Search program enrollments",
             description = """
-                        Search enrollment records across all programs.
-                        
-                        **Common Program Enrollment Search Examples:**
-                        - `programUuid=uuid` - All enrollments for specific program
-                        - `studentUuid=uuid` - All program enrollments for specific student
-                        - `status=COMPLETED` - Only completed program enrollments
-                        - `progressPercentage_gte=90` - Students with 90%+ program progress
-                        - `enrollmentDate_gte=2024-01-01T00:00:00` - Program enrollments from 2024
-                        - `finalGrade_gte=85` - Program completions with grade 85+
-                        """
+                    Search enrollment records across all programs.
+                    
+                    **Common Program Enrollment Search Examples:**
+                    - `programUuid=uuid` - All enrollments for specific program
+                    - `studentUuid=uuid` - All program enrollments for specific student
+                    - `status=COMPLETED` - Only completed program enrollments
+                    - `progressPercentage_gte=90` - Students with 90%+ program progress
+                    - `enrollmentDate_gte=2024-01-01T00:00:00` - Program enrollments from 2024
+                    - `finalGrade_gte=85` - Program completions with grade 85+
+                    """
     )
     @GetMapping("/enrollments/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<ProgramEnrollmentDTO>>> searchProgramEnrollments(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<ProgramEnrollmentDTO> enrollments = programEnrollmentService.search(searchParams, pageable);
@@ -494,17 +504,20 @@ public class TrainingProgramController {
     @Operation(
             summary = "Search program requirements",
             description = """
-                        Search program requirements and prerequisites.
-                        
-                        **Common Program Requirement Search Examples:**
-                        - `programUuid=uuid` - All requirements for specific program
-                        - `requirementType=PREREQUISITE` - Only prerequisites
-                        - `isMandatory=true` - Only mandatory requirements
-                        - `requirementText_like=certification` - Requirements mentioning "certification"
-                        """
+                    Search program requirements and prerequisites.
+                    
+                    **Common Program Requirement Search Examples:**
+                    - `programUuid=uuid` - All requirements for specific program
+                    - `requirementType=PREREQUISITE` - Only prerequisites
+                    - `isMandatory=true` - Only mandatory requirements
+                    - `requirementText_like=certification` - Requirements mentioning "certification"
+                    """
     )
     @GetMapping("/requirements/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<ProgramRequirementDTO>>> searchProgramRequirements(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<ProgramRequirementDTO> requirements = programRequirementService.search(searchParams, pageable);

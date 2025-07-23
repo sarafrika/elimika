@@ -11,6 +11,7 @@ import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -168,8 +169,9 @@ class UserController {
             @Parameter(description = "Optional search parameters for filtering users. " +
                     "Supported filters: firstName, lastName, email, phoneNumber, active, gender. " +
                     "Example: firstName=John&active=true",
-                    example = "firstName=John&active=true")
-            @RequestParam(required = false) Map<String, String> searchParams,
+                    example = "firstName=John&active=true",
+                    schema = @Schema(type = "object"))
+            @RequestParam() Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(userService.search(searchParams, pageable), ServletUriComponentsBuilder
                         .fromCurrentRequestUri()

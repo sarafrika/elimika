@@ -10,6 +10,8 @@ import apps.sarafrika.elimika.course.service.ContentTypeService;
 import apps.sarafrika.elimika.course.service.DifficultyLevelService;
 import apps.sarafrika.elimika.course.service.GradingLevelService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -345,6 +347,9 @@ public class SystemConfigController {
     )
     @GetMapping("/categories/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CategoryDTO>>> searchCategories(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CategoryDTO> categories = categoryService.search(searchParams, pageable);
@@ -367,6 +372,9 @@ public class SystemConfigController {
     )
     @GetMapping("/content-types/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<ContentTypeDTO>>> searchContentTypes(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<ContentTypeDTO> contentTypes = contentTypeService.search(searchParams, pageable);

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.service.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -176,6 +177,9 @@ public class InstructorController {
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDTO>>> searchInstructors(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorDTO> instructors = instructorService.search(searchParams, pageable);

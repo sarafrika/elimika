@@ -321,6 +321,9 @@ public class CourseController {
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseDTO>>> searchCourses(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseDTO> courses = courseService.search(searchParams, pageable);
@@ -1052,6 +1055,9 @@ public class CourseController {
     )
     @GetMapping("/lessons/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<LessonDTO>>> searchLessons(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<LessonDTO> lessons = lessonService.search(searchParams, pageable);
@@ -1076,6 +1082,9 @@ public class CourseController {
     )
     @GetMapping("/content/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<LessonContentDTO>>> searchLessonContent(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<LessonContentDTO> content = lessonContentService.search(searchParams, pageable);
@@ -1099,6 +1108,9 @@ public class CourseController {
     )
     @GetMapping("/assessments/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseAssessmentDTO>>> searchAssessments(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseAssessmentDTO> assessments = courseAssessmentService.search(searchParams, pageable);
@@ -1122,6 +1134,9 @@ public class CourseController {
     )
     @GetMapping("/requirements/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseRequirementDTO>>> searchRequirements(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseRequirementDTO> requirements = courseRequirementService.search(searchParams, pageable);
@@ -1146,6 +1161,9 @@ public class CourseController {
     )
     @GetMapping("/enrollments/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseEnrollmentDTO>>> searchEnrollments(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CourseEnrollmentDTO> enrollments = courseEnrollmentService.search(searchParams, pageable);
@@ -1169,6 +1187,9 @@ public class CourseController {
     )
     @GetMapping("/category-mappings/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CourseCategoryMappingDTO>>> searchCategoryMappings(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
 

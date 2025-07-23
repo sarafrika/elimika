@@ -5,6 +5,8 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -97,7 +99,10 @@ class TrainingBranchController {
             description = "Paginated list of training branches matching the search criteria")
     @GetMapping("search")
     public ResponseEntity<ApiResponse<PagedDTO<TrainingBranchDTO>>> search(
-            @RequestParam(required = false) Map<String, String> searchParams,
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
+            @RequestParam() Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(trainingBranchService.search(searchParams, pageable), ServletUriComponentsBuilder
                         .fromCurrentRequestUri()

@@ -2,16 +2,17 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
-import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
-import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
-import apps.sarafrika.elimika.tenancy.services.OrganisationService;
-import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.InvitationService;
+import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
+import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -110,8 +111,9 @@ class OrganisationController {
             @Parameter(description = "Optional search parameters for filtering organisations. " +
                     "Supported filters: name, description, domain, country, active. " +
                     "Example: name=Training&active=true",
-                    example = "name=Training&active=true")
-            @RequestParam(required = false) Map<String, String> searchParams,
+                    example = "name=Training&active=true",
+                    schema = @Schema(type = "object"))
+            @RequestParam() Map<String, String> searchParams,
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(organisationService.search(searchParams, pageable), ServletUriComponentsBuilder
                         .fromCurrentRequestUri()

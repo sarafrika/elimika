@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -105,7 +106,11 @@ public class StudentController {
      */
     @Operation(summary = "Search students", description = "Search for students based on criteria.", responses = {@ApiResponse(responseCode = "200", description = "Search results returned successfully", content = @Content(schema = @Schema(implementation = Page.class)))})
     @GetMapping("/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<StudentDTO>>> searchStudents(@RequestParam Map<String, String> searchParams, Pageable pageable) {
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<StudentDTO>>> searchStudents(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
+            @RequestParam Map<String, String> searchParams, Pageable pageable) {
         Page<StudentDTO> students = studentService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse.success(PagedDTO.from(students, ServletUriComponentsBuilder.fromCurrentRequest().build().toString()), "Search successful"));
     }

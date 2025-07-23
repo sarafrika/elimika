@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -372,6 +373,9 @@ public class CertificateController {
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<CertificateDTO>>> searchCertificates(
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object"))
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<CertificateDTO> certificates = certificateService.search(searchParams, pageable);
