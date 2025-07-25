@@ -3,6 +3,19 @@
 
 ### Bug Fixes
 
+* adminVerified was a primitive type, converted it to a wrapper class to allow for null values ([9987067](https://github.com/sarafrika/elimika/commit/9987067051b05e0ee01075b4eb48b666cd73e340))
+* **search:** Rectify dynamic query parameter parsing and documentation ([14d7cff](https://github.com/sarafrika/elimika/commit/14d7cffb4246e96bb0778344fa2bee0954cf15d6))
+
+
+### Features
+
+* add event listener for automatic user domain assignment ([fc44c9a](https://github.com/sarafrika/elimika/commit/fc44c9ac00a2616a7da80794a1580dc69fa59a44))
+
+# [4.7.0](https://github.com/sarafrika/elimika/compare/v4.6.0...v4.7.0) (2025-07-25)
+
+
+### Bug Fixes
+
 * **search:** Rectify dynamic query parameter parsing and documentation ([14d7cff](https://github.com/sarafrika/elimika/commit/14d7cffb4246e96bb0778344fa2bee0954cf15d6))
 
 
