@@ -39,7 +39,7 @@ $$ LANGUAGE plpgsql;
 
 -- Trigger for students table using user data
 CREATE TRIGGER trigger_generate_instructor_full_name_from_user
-    BEFORE INSERT OR UPDATE ON students
+    BEFORE INSERT OR UPDATE ON instructors
     FOR EACH ROW
 EXECUTE FUNCTION generate_instructor_full_name_from_user();
 
