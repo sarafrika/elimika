@@ -1,9 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
-import apps.sarafrika.elimika.common.event.user.SuccessfulUserCreation;
-import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
-import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
+import apps.sarafrika.elimika.common.event.user.*;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
@@ -525,6 +522,21 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             log.error("Failed to store profile image", e);
             throw new RuntimeException("Failed to store profile image: " + e.getMessage(), e);
+        }
+    }
+
+
+    @EventListener
+    @Transactional
+    void assignUserTheirDomain(UserDomainMappingEvent event) {
+
+        UUID domainUuid = userDomainRepository.findByDomainName(event.userDomain())
+                .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name"))
+                .getUuid();
+
+        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(event.userUuid(), domainUuid)) {
+            UserDomainMapping userDomainMapping = new UserDomainMapping(null, event.userUuid(), domainUuid, null, null);
+            userDomainMappingRepository.save(userDomainMapping);
         }
     }
 }

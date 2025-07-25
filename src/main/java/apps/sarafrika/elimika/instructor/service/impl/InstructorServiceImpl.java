@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
+import apps.sarafrika.elimika.common.enums.UserDomain;
+import apps.sarafrika.elimika.common.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
@@ -8,6 +10,7 @@ import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,6 +26,9 @@ import java.util.UUID;
 public class InstructorServiceImpl implements InstructorService {
 
     private final InstructorRepository instructorRepository;
+
+    private final ApplicationEventPublisher applicationEventPublisher;
+
     private final GenericSpecificationBuilder<Instructor> specificationBuilder;
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
@@ -32,6 +38,11 @@ public class InstructorServiceImpl implements InstructorService {
         Instructor instructor = InstructorFactory.toEntity(instructorDTO);
 
         Instructor savedInstructor = instructorRepository.save(instructor);
+
+        applicationEventPublisher.publishEvent(
+                new UserDomainMappingEvent(instructor.getUserUuid(), UserDomain.instructor.name())
+        );
+
         return InstructorFactory.toDTO(savedInstructor);
     }
 
