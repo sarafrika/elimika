@@ -37,6 +37,8 @@ public class InstructorServiceImpl implements InstructorService {
     public InstructorDTO createInstructor(InstructorDTO instructorDTO) {
         Instructor instructor = InstructorFactory.toEntity(instructorDTO);
 
+        instructor.setAdminVerified(false);
+
         Instructor savedInstructor = instructorRepository.save(instructor);
 
         applicationEventPublisher.publishEvent(
