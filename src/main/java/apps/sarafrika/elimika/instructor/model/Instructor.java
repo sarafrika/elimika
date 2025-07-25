@@ -39,6 +39,6 @@ public class Instructor extends BaseEntity {
     private String professionalHeadline;
 
     @Column(name="admin_verified")
-    private boolean adminVerified;
+    private Boolean adminVerified;
 }
 
