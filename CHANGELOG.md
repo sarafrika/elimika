@@ -1,3 +1,10 @@
+## [4.6.1](https://github.com/sarafrika/elimika/compare/v4.6.0...v4.6.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* **search:** Rectify dynamic query parameter parsing and documentation ([14d7cff](https://github.com/sarafrika/elimika/commit/14d7cffb4246e96bb0778344fa2bee0954cf15d6))
+
 # [4.6.0](https://github.com/sarafrika/elimika/compare/v4.5.4...v4.6.0) (2025-07-22)
 
 
