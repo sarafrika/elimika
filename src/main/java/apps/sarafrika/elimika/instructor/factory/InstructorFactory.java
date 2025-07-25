@@ -19,7 +19,7 @@ public class InstructorFactory {
                 instructor.getFullName(),
                 instructor.getLatitude(),
                 instructor.getLongitude(),
-                instructor.isAdminVerified(),
+                instructor.getAdminVerified(),
                 instructor.getWebsite(),
                 instructor.getBio(),
                 instructor.getProfessionalHeadline(),
