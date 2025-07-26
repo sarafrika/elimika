@@ -193,23 +193,17 @@ public class GenericSpecificationBuilder<T> {
         }
     }
 
-    private Expression<String> getStringExpression(Path<?> field) {
-        return field.as(String.class);
-    }
-
     private Predicate createLikePredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "like");
 
-        Expression<String> stringField = getStringExpression(field);
-
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
-                    criteriaBuilder.lower(stringField),
+                    criteriaBuilder.lower(field.as(String.class)),
                     "%" + value.toString().toLowerCase() + "%"
             );
         } else {
-            return criteriaBuilder.like(stringField, "%" + value.toString() + "%");
+            return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
         }
     }
 
@@ -217,15 +211,13 @@ public class GenericSpecificationBuilder<T> {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "startswith");
 
-        Expression<String> stringField = getStringExpression(field);
-
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
-                    criteriaBuilder.lower(stringField),
+                    criteriaBuilder.lower(field.as(String.class)),
                     value.toString().toLowerCase() + "%"
             );
         } else {
-            return criteriaBuilder.like(stringField, value.toString() + "%");
+            return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
         }
     }
 
@@ -233,20 +225,18 @@ public class GenericSpecificationBuilder<T> {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "endswith");
 
-        Expression<String> stringField = getStringExpression(field);
-
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
-                    criteriaBuilder.lower(stringField),
+                    criteriaBuilder.lower(field.as(String.class)),
                     "%" + value.toString().toLowerCase()
             );
         } else {
-            return criteriaBuilder.like(stringField, "%" + value.toString());
+            return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
         }
     }
 
     private Predicate createInPredicate(Path<?> field, Object value) {
-        return field.in(Arrays.stream(value.toString().split(",")).map(String::trim).toList());
+        return field.in(Arrays.stream(value.toString().split(",")).toList());
     }
 
     private Predicate createNotInPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
