@@ -183,17 +183,6 @@ public class GenericSpecificationBuilder<T> {
         }
     }
 
-    private Expression<String> getLowerStringExpression(CriteriaBuilder criteriaBuilder, Path<?> field) {
-        Class<?> fieldType = field.getJavaType();
-
-        if (fieldType.equals(String.class)) {
-            return criteriaBuilder.lower(field.as(String.class));
-        } else {
-            Expression<String> stringField = criteriaBuilder.function("CAST", String.class, field, criteriaBuilder.literal("TEXT"));
-            return criteriaBuilder.lower(stringField);
-        }
-    }
-
     private void validateStringOperation(Class<?> fieldType, String operation) {
         if (fieldType.equals(Boolean.class) ||
                 fieldType.equals(Date.class) ||
@@ -205,21 +194,45 @@ public class GenericSpecificationBuilder<T> {
     }
 
     private Predicate createLikePredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
-        validateStringOperation(field.getJavaType(), "like");
-        Expression<String> lowerField = getLowerStringExpression(criteriaBuilder, field);
-        return criteriaBuilder.like(lowerField, "%" + value.toString().toLowerCase() + "%");
+        Class<?> fieldType = field.getJavaType();
+        validateStringOperation(fieldType, "like");
+
+        if (fieldType.equals(String.class)) {
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(field.as(String.class)),
+                    "%" + value.toString().toLowerCase() + "%"
+            );
+        } else {
+            return criteriaBuilder.like(field.as(String.class), "%" + value.toString() + "%");
+        }
     }
 
     private Predicate createStartsWithPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
-        validateStringOperation(field.getJavaType(), "startswith");
-        Expression<String> lowerField = getLowerStringExpression(criteriaBuilder, field);
-        return criteriaBuilder.like(lowerField, value.toString().toLowerCase() + "%");
+        Class<?> fieldType = field.getJavaType();
+        validateStringOperation(fieldType, "startswith");
+
+        if (fieldType.equals(String.class)) {
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(field.as(String.class)),
+                    value.toString().toLowerCase() + "%"
+            );
+        } else {
+            return criteriaBuilder.like(field.as(String.class), value.toString() + "%");
+        }
     }
 
     private Predicate createEndsWithPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
-        validateStringOperation(field.getJavaType(), "endswith");
-        Expression<String> lowerField = getLowerStringExpression(criteriaBuilder, field);
-        return criteriaBuilder.like(lowerField, "%" + value.toString().toLowerCase());
+        Class<?> fieldType = field.getJavaType();
+        validateStringOperation(fieldType, "endswith");
+
+        if (fieldType.equals(String.class)) {
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(field.as(String.class)),
+                    "%" + value.toString().toLowerCase()
+            );
+        } else {
+            return criteriaBuilder.like(field.as(String.class), "%" + value.toString());
+        }
     }
 
     private Predicate createInPredicate(Path<?> field, Object value) {
