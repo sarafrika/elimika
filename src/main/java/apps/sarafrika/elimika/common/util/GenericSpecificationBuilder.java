@@ -199,7 +199,7 @@ public class GenericSpecificationBuilder<T> {
         if (fieldType.equals(String.class)) {
             return field.as(String.class);
         } else {
-            return criteriaBuilder.function("cast", String.class, field);
+            return criteriaBuilder.function("cast", String.class, field, criteriaBuilder.literal("varchar"));
         }
     }
 
