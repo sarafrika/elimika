@@ -113,11 +113,6 @@ public class UserServiceImpl implements UserService {
             updateUserFields(user, userDTO);
             User updatedUser = userRepository.save(user);
 
-            // Handle user domain assignment with validation
-            if (userDTO.userDomain() != null && !userDTO.userDomain().isEmpty()) {
-                updateUserDomains(updatedUser, userDTO.userDomain());
-            }
-
             publishUserUpdateEvent(updatedUser);
 
             return UserFactory.toDTO(updatedUser, getUserDomainsFromMappings(uuid));

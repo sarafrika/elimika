@@ -3,7 +3,6 @@ package apps.sarafrika.elimika.tenancy.dto;
 import apps.sarafrika.elimika.common.validation.ValidPhoneNumber;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -224,15 +223,10 @@ public record UserDTO(
         @JsonProperty("gender")
         Gender gender,
 
-        @ArraySchema(
-                schema = @Schema(
-                        description = "Domain roles that define the user's functional areas within the system",
-                        allowableValues = {"student", "instructor", "admin", "organisation_user"}
-                ),
-                arraySchema = @Schema(
-                        description = "**[OPTIONAL]** List of domain roles that define the user's functional areas within the system. Determines available features and workflows. Can contain multiple values.",
-                        example = "[\"student\", \"instructor\"]"
-                )
+        @Schema(
+                description = "**[READ-ONLY]** List of domain roles that define the user's functional areas within the system. Determines available features and workflows. Can contain multiple values.",
+                example = "[\"student\", \"instructor\"]",
+                accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("user_domain")
         List<String> userDomain
