@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/sarafrika/elimika/compare/v1.0.0...v1.0.1) (2025-07-26)
+
+
+### Bug Fixes
+
+* add universal string casting for all field types in LIKE operations ([135d1e5](https://github.com/sarafrika/elimika/commit/135d1e5220a0dc773741af8bf41b56c2d24a64de))
+
 # 1.0.0 (2025-07-26)
 
 
