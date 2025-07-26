@@ -193,21 +193,15 @@ public class GenericSpecificationBuilder<T> {
         }
     }
 
-    private Expression<String> getStringExpression(CriteriaBuilder criteriaBuilder, Path<?> field) {
-        Class<?> fieldType = field.getJavaType();
-
-        if (fieldType.equals(String.class)) {
-            return field.as(String.class);
-        } else {
-            return criteriaBuilder.function("cast", String.class, field, criteriaBuilder.literal("varchar"));
-        }
+    private Expression<String> getStringExpression(Path<?> field) {
+        return field.as(String.class);
     }
 
     private Predicate createLikePredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "like");
 
-        Expression<String> stringField = getStringExpression(criteriaBuilder, field);
+        Expression<String> stringField = getStringExpression(field);
 
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
@@ -223,7 +217,7 @@ public class GenericSpecificationBuilder<T> {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "startswith");
 
-        Expression<String> stringField = getStringExpression(criteriaBuilder, field);
+        Expression<String> stringField = getStringExpression(field);
 
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
@@ -239,7 +233,7 @@ public class GenericSpecificationBuilder<T> {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "endswith");
 
-        Expression<String> stringField = getStringExpression(criteriaBuilder, field);
+        Expression<String> stringField = getStringExpression(field);
 
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
@@ -252,7 +246,7 @@ public class GenericSpecificationBuilder<T> {
     }
 
     private Predicate createInPredicate(Path<?> field, Object value) {
-        return field.in(Arrays.stream(value.toString().split(",")).toList());
+        return field.in(Arrays.stream(value.toString().split(",")).map(String::trim).toList());
     }
 
     private Predicate createNotInPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
