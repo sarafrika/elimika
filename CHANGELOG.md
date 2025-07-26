@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/sarafrika/elimika/compare/v1.0.1...v1.0.2) (2025-07-26)
+
+
+### Bug Fixes
+
+* provide target type parameter for PostgreSQL CAST function ([5c9f10e](https://github.com/sarafrika/elimika/commit/5c9f10eb4b6d1e3c81488a766fc289524853638b))
+
 ## [1.0.1](https://github.com/sarafrika/elimika/compare/v1.0.0...v1.0.1) (2025-07-26)
 
 
