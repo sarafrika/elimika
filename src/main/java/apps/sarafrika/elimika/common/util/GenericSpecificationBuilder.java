@@ -193,17 +193,29 @@ public class GenericSpecificationBuilder<T> {
         }
     }
 
+    private Expression<String> getStringExpression(CriteriaBuilder criteriaBuilder, Path<?> field) {
+        Class<?> fieldType = field.getJavaType();
+
+        if (fieldType.equals(String.class)) {
+            return field.as(String.class);
+        } else {
+            return criteriaBuilder.function("cast", String.class, field);
+        }
+    }
+
     private Predicate createLikePredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "like");
 
+        Expression<String> stringField = getStringExpression(criteriaBuilder, field);
+
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
-                    criteriaBuilder.lower(field.as(String.class)),
+                    criteriaBuilder.lower(stringField),
                     "%" + value.toString().toLowerCase() + "%"
             );
         } else {
-            return criteriaBuilder.like(field.as(String.class), "%" + value.toString() + "%");
+            return criteriaBuilder.like(stringField, "%" + value.toString() + "%");
         }
     }
 
@@ -211,13 +223,15 @@ public class GenericSpecificationBuilder<T> {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "startswith");
 
+        Expression<String> stringField = getStringExpression(criteriaBuilder, field);
+
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
-                    criteriaBuilder.lower(field.as(String.class)),
+                    criteriaBuilder.lower(stringField),
                     value.toString().toLowerCase() + "%"
             );
         } else {
-            return criteriaBuilder.like(field.as(String.class), value.toString() + "%");
+            return criteriaBuilder.like(stringField, value.toString() + "%");
         }
     }
 
@@ -225,13 +239,15 @@ public class GenericSpecificationBuilder<T> {
         Class<?> fieldType = field.getJavaType();
         validateStringOperation(fieldType, "endswith");
 
+        Expression<String> stringField = getStringExpression(criteriaBuilder, field);
+
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
-                    criteriaBuilder.lower(field.as(String.class)),
+                    criteriaBuilder.lower(stringField),
                     "%" + value.toString().toLowerCase()
             );
         } else {
-            return criteriaBuilder.like(field.as(String.class), "%" + value.toString());
+            return criteriaBuilder.like(stringField, "%" + value.toString());
         }
     }
 
