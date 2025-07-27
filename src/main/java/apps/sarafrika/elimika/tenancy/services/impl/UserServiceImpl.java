@@ -458,6 +458,8 @@ public class UserServiceImpl implements UserService {
         user.setPhoneNumber(userDTO.phoneNumber());
         user.setActive(userDTO.active());
         user.setGender(userDTO.gender());
+        user.setDob(userDTO.dob());
+        user.setUsername(userDTO.username());
     }
 
     private void publishUserUpdateEvent(User user) {
