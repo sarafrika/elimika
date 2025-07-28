@@ -301,6 +301,8 @@ public class CourseServiceImpl implements CourseService {
 
         boolean hasActiveEnrollments = hasActiveEnrollments(uuid);
 
+        log.info("Active Enrollments {}", hasActiveEnrollments);
+
         course.setStatus(ContentStatus.DRAFT);
 
         course.setActive(!hasActiveEnrollments);
