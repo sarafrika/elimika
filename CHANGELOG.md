@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/sarafrika/elimika/compare/v1.0.3...v1.0.4) (2025-07-27)
+
+
+### Bug Fixes
+
+* Ensuring update Fields method in UserServiceImpl.java handle all fields from the DTO ([5c5a355](https://github.com/sarafrika/elimika/commit/5c5a355064b9448b59d72cd5075cb40b3672ed62))
+
 ## [1.0.3](https://github.com/sarafrika/elimika/compare/v1.0.2...v1.0.3) (2025-07-26)
 
 
