@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/sarafrika/elimika/compare/v1.0.4...v1.0.5) (2025-07-28)
+
+
+### Bug Fixes
+
+* Check is course has active enrollments during course unpublishing ([0f2e72c](https://github.com/sarafrika/elimika/commit/0f2e72ca9762a68e4622b2fadbe9d885d182968f))
+
 ## [1.0.4](https://github.com/sarafrika/elimika/compare/v1.0.3...v1.0.4) (2025-07-27)
 
 
