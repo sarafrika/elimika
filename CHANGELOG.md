@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/sarafrika/elimika/compare/v1.0.5...v1.0.6) (2025-07-28)
+
+
+### Bug Fixes
+
+* Profile Image Upload Fix ([3108a27](https://github.com/sarafrika/elimika/commit/3108a27dd208accd3478393f9d881a762e0b63d8))
+
 ## [1.0.5](https://github.com/sarafrika/elimika/compare/v1.0.4...v1.0.5) (2025-07-28)
 
 
