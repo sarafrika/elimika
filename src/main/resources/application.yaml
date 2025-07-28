@@ -56,10 +56,6 @@ app:
     frontend:
       url: https://elimika.sarafrika.com
 
-springdoc:
-  default-flat-param-object: true
-  default-support-form-data: true
-
 storage:
   location: ${STORAGE_PATH:${user.home}/elimika-storage}
   base-url: ${STORAGE_BASE_URL:https://api.elimika.sarafrika.com}
