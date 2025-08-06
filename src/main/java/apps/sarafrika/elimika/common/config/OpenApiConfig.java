@@ -40,7 +40,6 @@ import org.springframework.context.annotation.Configuration;
         },
         security = {
                 @SecurityRequirement(name = "bearerAuth"),
-                @SecurityRequirement(name = "basicAuth"),
                 @SecurityRequirement(name = "oauth2")
         }
 )
@@ -53,13 +52,6 @@ import org.springframework.context.annotation.Configuration;
         bearerFormat = "JWT",
         in = SecuritySchemeIn.HEADER
 )
-// Basic Authentication (Username/Password)
-@SecurityScheme(
-        name = "basicAuth",
-        description = "Basic Authentication",
-        type = SecuritySchemeType.HTTP,
-        scheme = "basic"
-)
 // OAuth2 with Password Flow (Keycloak)
 @SecurityScheme(
         name = "oauth2",
@@ -67,8 +59,8 @@ import org.springframework.context.annotation.Configuration;
         type = SecuritySchemeType.OAUTH2,
         flows = @OAuthFlows(
                 password = @OAuthFlow(
-                        tokenUrl = "https://signin.sarafrika.com/realms/elimika/protocol/openid-connect/token",
-                        refreshUrl = "https://signin.sarafrika.com/realms/elimika/protocol/openid-connect/token"
+                        tokenUrl = "https://signin.sarafrika.com/realms/sarafrika/protocol/openid-connect/token",
+                        refreshUrl = "https://signin.sarafrika.com/realms/sarafrika/protocol/openid-connect/token"
                 )
         )
 )
