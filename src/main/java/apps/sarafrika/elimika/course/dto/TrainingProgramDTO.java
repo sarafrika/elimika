@@ -176,7 +176,7 @@ public record TrainingProgramDTO(
                 example = "true",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @JsonProperty("active")
+        @JsonProperty("published")
         Boolean published,
 
         @Schema(
