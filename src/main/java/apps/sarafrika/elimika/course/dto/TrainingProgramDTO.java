@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.dto;
 
+import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -106,6 +107,14 @@ public record TrainingProgramDTO(
         @Size(max = 1000, message = "Objectives must not exceed 1000 characters")
         @JsonProperty("objectives")
         String objectives,
+
+        @Schema(
+                description = "**[REQUIRED]** Statud",
+                example = "PUBLISHED",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @JsonProperty("status")
+        ContentStatus status,
 
         @Schema(
                 description = "**[OPTIONAL]** Required knowledge and skills students should have before starting this program.",

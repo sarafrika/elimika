@@ -20,6 +20,7 @@ public class TrainingProgramFactory {
                 trainingProgram.getCategoryUuid(),
                 trainingProgram.getDescription(),
                 trainingProgram.getObjectives(),
+                trainingProgram.getStatus(),
                 trainingProgram.getPrerequisites(),
                 trainingProgram.getTotalDurationHours(),
                 trainingProgram.getTotalDurationMinutes(),
@@ -57,6 +58,7 @@ public class TrainingProgramFactory {
         trainingProgram.setLastModifiedDate(dto.updatedDate());
         trainingProgram.setLastModifiedBy(dto.updatedBy());
         trainingProgram.setIsPublished(dto.published());
+        trainingProgram.setStatus(dto.status());
         return trainingProgram;
     }
 }
