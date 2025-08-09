@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/sarafrika/elimika/compare/v1.0.7...v1.0.8) (2025-08-09)
+
+
+### Bug Fixes
+
+* **dto:** Added status on training program status ([10e3215](https://github.com/sarafrika/elimika/commit/10e3215920f9460a8970e30738373d111440ebdb))
+
 ## [1.0.7](https://github.com/sarafrika/elimika/compare/v1.0.6...v1.0.7) (2025-07-28)
 
 
