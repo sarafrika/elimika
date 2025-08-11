@@ -1,3 +1,10 @@
+## [1.0.9](https://github.com/sarafrika/elimika/compare/v1.0.8...v1.0.9) (2025-08-11)
+
+
+### Bug Fixes
+
+* **api:** Fixing api response to match existing structure ([e59f27e](https://github.com/sarafrika/elimika/commit/e59f27e7d5b268047b8e5ea29a59f1d6bfbb882d))
+
 ## [1.0.8](https://github.com/sarafrika/elimika/compare/v1.0.7...v1.0.8) (2025-08-09)
 
 
