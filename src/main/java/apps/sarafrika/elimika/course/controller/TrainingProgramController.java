@@ -111,14 +111,15 @@ public class TrainingProgramController {
             summary = "Delete training program",
             description = "Permanently removes a training program and its associated data.",
             responses = {
-                    @ApiResponse(responseCode = "204", description = "Program deleted successfully"),
+                    @ApiResponse(responseCode = "200", description = "Program deleted successfully"),
                     @ApiResponse(responseCode = "404", description = "Program not found")
             }
     )
     @DeleteMapping("/{uuid}")
-    public ResponseEntity<Void> deleteTrainingProgram(@PathVariable UUID uuid) {
+    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<Void>> deleteTrainingProgram(@PathVariable UUID uuid) {
         trainingProgramService.deleteTrainingProgram(uuid);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+                .success(null, "Program deleted successfully"));
     }
 
     @Operation(
