@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface KeycloakOrganisationService {
-    String createOrganization(String realm, String name, String displayName, String description);
+    String createOrganization(String realm, String name, String displayName, String description ,String domain);
 
     void deleteOrganization(String realm, String orgId);
 

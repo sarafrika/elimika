@@ -579,7 +579,7 @@ public class InvitationServiceImpl implements InvitationService {
                         invitation.getRecipientEmail(),
                         invitation.getRecipientName(),
                         organisation.getName(),
-                        null,
+                        organisation.getDomain(),
                         domain.getDomainName(),
                         null, // branchName is null for org-level invitations
                         invitation.getInviterName(),
@@ -678,7 +678,7 @@ public class InvitationServiceImpl implements InvitationService {
                     invitation.getRecipientEmail(),
                     invitation.getRecipientName(),
                     organisation.getName(),
-                    null,
+                    organisation.getDomain(),
                     domain.getDomainName(),
                     branch != null ? branch.getBranchName() : null,
                     invitation.getInviterName(),

@@ -54,6 +54,9 @@ public class OrganisationServiceImpl implements OrganisationService {
             // Auto-generate slug from name
             organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
 
+            // Auto-generate a unique domain
+            organisation.setDomain(generateUniqueDomain(organisation.getName()));
+
             organisation = organisationRepository.save(organisation);
 
             // Automatically assign the creating user as organisation_user
@@ -463,7 +466,20 @@ public class OrganisationServiceImpl implements OrganisationService {
                 organisation.getSlug(),
                 organisation.getDescription(),
                 realm,
-                organisation.getUuid()
+                organisation.getDomain(),
+                organisation.getUuid(),
+                organisation.getUserUuid()
         ));
+    }
+
+    private String generateUniqueDomain(String name) {
+        String baseDomain = name.toLowerCase().replaceAll("\\s+", "");
+        String uniqueDomain = baseDomain;
+        int counter = 1;
+        while (organisationRepository.existsByDomain(uniqueDomain)) {
+            uniqueDomain = baseDomain + counter;
+            counter++;
+        }
+        return uniqueDomain;
     }
 }

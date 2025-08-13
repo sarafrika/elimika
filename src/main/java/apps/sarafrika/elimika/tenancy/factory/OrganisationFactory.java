@@ -15,6 +15,7 @@ public class OrganisationFactory {
                 organisation.isActive(),
                 organisation.getCode(),
                 organisation.getLicenceNo(),
+                organisation.getDomain(),
                 organisation.getUserUuid(),
                 organisation.getLocation(),
                 organisation.getCountry(),

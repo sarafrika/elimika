@@ -396,4 +396,33 @@ public class EmailUtility {
     public String generateInvitationToken() {
         return UUID.randomUUID().toString().replace("-", "");
     }
+
+    public void sendOrganisationRegistrationSuccess(String recipientEmail, String userName, String organisationName) throws MessagingException {
+        log.debug("Sending organisation registration success email to {}", recipientEmail);
+
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("organisationName", organisationName);
+
+        String subject = "Organization Registration Successful";
+        String htmlContent = templateEngine.process("email/organisation-registration-success", context);
+
+        sendHtmlEmail(recipientEmail, subject, htmlContent);
+        log.info("Organisation registration success email sent to {}", recipientEmail);
+    }
+
+    public void sendOrganisationRegistrationFailure(String recipientEmail, String userName, String organisationName, String errorMessage) throws MessagingException {
+        log.debug("Sending organisation registration failure email to {}", recipientEmail);
+
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("organisationName", organisationName);
+        context.setVariable("errorMessage", errorMessage);
+
+        String subject = "Organization Registration Failed";
+        String htmlContent = templateEngine.process("email/organisation-registration-failure", context);
+
+        sendHtmlEmail(recipientEmail, subject, htmlContent);
+        log.info("Organisation registration failure email sent to {}", recipientEmail);
+    }
 }
