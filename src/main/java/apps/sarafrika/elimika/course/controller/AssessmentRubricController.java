@@ -23,7 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(AssessmentRubricController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Course Management", description = "Complete course lifecycle management including content, assessments, media, analytics, and category management")
+@Tag(name = "Course Assessment Rubric Management", description = "Management of assessment rubrics, including their criteria and scoring levels.")
 public class AssessmentRubricController {
 
     public static final String API_ROOT_PATH = "/api/v1/rubrics";
