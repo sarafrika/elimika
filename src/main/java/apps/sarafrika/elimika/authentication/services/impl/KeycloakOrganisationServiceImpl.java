@@ -131,10 +131,10 @@ public class KeycloakOrganisationServiceImpl implements KeycloakOrganisationServ
 
     @ApplicationModuleListener
     void onOrganisationCreation(OrganisationCreationEvent event) {
-        log.debug("Processing organization creation event: name={}, blastWaveId={}", event.name(), event.blastWaveId());
+        log.debug("Processing organization creation event: name={}, blastWaveId={}", event.name(), event.sarafrikaCorrelationId());
         try {
             String organisationId = createOrganization(event.realm(), event.name(), event.slug(), event.description(), event.domain());
-            eventPublisher.publishEvent(new SuccessfulOrganisationCreationEvent(event.blastWaveId(), organisationId, event.userUuid(), event.name()));
+            eventPublisher.publishEvent(new SuccessfulOrganisationCreationEvent(event.sarafrikaCorrelationId(), organisationId, event.userUuid(), event.name()));
             log.info("Successfully processed organization creation event: orgId={}", organisationId);
         } catch (Exception e) {
             log.error("Failed to process organization creation event: name={}", event.name(), e);
