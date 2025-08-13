@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.authentication.services.impl;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakOrganisationService;
 import apps.sarafrika.elimika.common.event.organisation.OrganisationCreationEvent;
+import apps.sarafrika.elimika.common.event.organisation.OrganisationCreationFailureEvent;
 import apps.sarafrika.elimika.common.event.organisation.SuccessfulOrganisationCreationEvent;
 import apps.sarafrika.elimika.common.exceptions.KeycloakException;
 import jakarta.ws.rs.core.Response;
@@ -133,10 +134,11 @@ public class KeycloakOrganisationServiceImpl implements KeycloakOrganisationServ
         log.debug("Processing organization creation event: name={}, blastWaveId={}", event.name(), event.blastWaveId());
         try {
             String organisationId = createOrganization(event.realm(), event.name(), event.slug(), event.description(), event.domain());
-            eventPublisher.publishEvent(new SuccessfulOrganisationCreationEvent(event.blastWaveId(), organisationId));
+            eventPublisher.publishEvent(new SuccessfulOrganisationCreationEvent(event.blastWaveId(), organisationId, event.userUuid(), event.name()));
             log.info("Successfully processed organization creation event: orgId={}", organisationId);
         } catch (Exception e) {
             log.error("Failed to process organization creation event: name={}", event.name(), e);
+            eventPublisher.publishEvent(new OrganisationCreationFailureEvent(event.userUuid(), event.name(), e.getMessage()));
             throw new KeycloakException("Failed to process organization creation event", e);
         }
     }

@@ -1,0 +1,1 @@
+ALTER TABLE organisation ADD COLUMN domain VARCHAR(255) UNIQUE;
