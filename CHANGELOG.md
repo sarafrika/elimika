@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/sarafrika/elimika/compare/v1.2.0...v1.3.0) (2025-08-13)
+
+
+### Features
+
+* Add weighted evaluation support to assessment rubrics ([166304c](https://github.com/sarafrika/elimika/commit/166304c85ccbfa768ebe472b14867a36b87fb5f4))
+
 # [1.2.0](https://github.com/sarafrika/elimika/compare/v1.1.0...v1.2.0) (2025-08-13)
 
 
