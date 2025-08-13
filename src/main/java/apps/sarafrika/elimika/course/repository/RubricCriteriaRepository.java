@@ -20,4 +20,8 @@ public interface RubricCriteriaRepository extends JpaRepository<RubricCriteria, 
     boolean existsByUuid(UUID uuid);
 
     Page<RubricCriteria> findAllByRubricUuid(UUID rubricUuid, Pageable pageable);
+
+    Optional<RubricCriteria> findByUuidAndRubricUuid(UUID uuid, UUID rubricUuid);
+
+    boolean existsByUuidAndRubricUuid(UUID uuid, UUID rubricUuid);
 }
