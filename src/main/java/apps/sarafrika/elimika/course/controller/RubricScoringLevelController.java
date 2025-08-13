@@ -79,7 +79,7 @@ public class RubricScoringLevelController {
             Pageable pageable) {
         
         Page<RubricScoringLevelDTO> scoringLevelsPage = rubricScoringLevelService.getScoringLevelsByRubricUuid(rubricUuid, pageable);
-        PagedDTO<RubricScoringLevelDTO> pagedResponse = new PagedDTO<>(scoringLevelsPage);
+        PagedDTO<RubricScoringLevelDTO> pagedResponse = PagedDTO.from(scoringLevelsPage, "/api/v1/rubrics/" + rubricUuid + "/scoring-levels");
         return ResponseEntity.ok(ApiResponse.success(pagedResponse, "Scoring levels retrieved successfully"));
     }
 

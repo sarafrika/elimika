@@ -101,7 +101,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         if (matrixCell == null) {
             // Create new matrix cell
             RubricScoringDTO newCellDTO = new RubricScoringDTO(
-                    null, criteriaUuid, null, scoringLevelUuid, description,
+                    null, criteriaUuid, scoringLevelUuid, description,
                     null, null, null, null
             );
             rubricScoringService.createRubricScoring(criteriaUuid, newCellDTO);
@@ -109,7 +109,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
             // Update existing cell
             RubricScoringDTO updatedCellDTO = new RubricScoringDTO(
                     matrixCell.getUuid(), criteriaUuid, matrixCell.getGradingLevelUuid(), 
-                    scoringLevelUuid, description, matrixCell.getCreatedDate(), 
+                    description, matrixCell.getCreatedDate(), 
                     matrixCell.getCreatedBy(), matrixCell.getLastModifiedDate(), 
                     matrixCell.getLastModifiedBy()
             );
