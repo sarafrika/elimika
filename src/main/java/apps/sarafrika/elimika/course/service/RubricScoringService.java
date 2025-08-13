@@ -14,9 +14,9 @@ public interface RubricScoringService {
 
     Page<RubricScoringDTO> getAllRubricScorings(Pageable pageable);
 
-    RubricScoringDTO updateRubricScoring(UUID uuid, RubricScoringDTO rubricScoringDTO);
+    RubricScoringDTO updateRubricScoring(UUID criteriaUuid, UUID scoringUuid, RubricScoringDTO rubricScoringDTO);
 
-    void deleteRubricScoring(UUID uuid);
+    void deleteRubricScoring(UUID criteriaUuid, UUID scoringUuid);
 
     Page<RubricScoringDTO> search(Map<String, String> searchParams, Pageable pageable);
 

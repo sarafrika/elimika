@@ -52,10 +52,10 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     }
 
     @Override
-    public RubricScoringDTO updateRubricScoring(UUID uuid, RubricScoringDTO rubricScoringDTO) {
-        RubricScoring existingRubricScoring = rubricScoringRepository.findByUuid(uuid)
+    public RubricScoringDTO updateRubricScoring(UUID criteriaUuid, UUID scoringUuid, RubricScoringDTO rubricScoringDTO) {
+        RubricScoring existingRubricScoring = rubricScoringRepository.findByUuidAndCriteriaUuid(scoringUuid, criteriaUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(RUBRIC_SCORING_NOT_FOUND_TEMPLATE, uuid)));
+                        String.format("Rubric scoring with ID %s not found in criteria %s", scoringUuid, criteriaUuid)));
 
         updateRubricScoringFields(existingRubricScoring, rubricScoringDTO);
 
@@ -64,12 +64,12 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     }
 
     @Override
-    public void deleteRubricScoring(UUID uuid) {
-        if (!rubricScoringRepository.existsByUuid(uuid)) {
+    public void deleteRubricScoring(UUID criteriaUuid, UUID scoringUuid) {
+        if (!rubricScoringRepository.existsByUuidAndCriteriaUuid(scoringUuid, criteriaUuid)) {
             throw new ResourceNotFoundException(
-                    String.format(RUBRIC_SCORING_NOT_FOUND_TEMPLATE, uuid));
+                    String.format("Rubric scoring with ID %s not found in criteria %s", scoringUuid, criteriaUuid));
         }
-        rubricScoringRepository.deleteByUuid(uuid);
+        rubricScoringRepository.deleteByUuid(scoringUuid);
     }
 
     @Override

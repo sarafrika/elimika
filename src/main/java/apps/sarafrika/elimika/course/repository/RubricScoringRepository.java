@@ -20,4 +20,8 @@ public interface RubricScoringRepository extends JpaRepository<RubricScoring, Lo
     boolean existsByUuid(UUID uuid);
 
     Page<RubricScoring> findAllByCriteriaUuid(UUID criteriaUuid, Pageable pageable);
+
+    Optional<RubricScoring> findByUuidAndCriteriaUuid(UUID uuid, UUID criteriaUuid);
+
+    boolean existsByUuidAndCriteriaUuid(UUID uuid, UUID criteriaUuid);
 }
