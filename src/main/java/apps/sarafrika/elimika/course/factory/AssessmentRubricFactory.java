@@ -23,6 +23,9 @@ public class AssessmentRubricFactory {
                 assessmentRubric.getIsPublic(),
                 assessmentRubric.getStatus(),
                 assessmentRubric.getIsActive(),
+                assessmentRubric.getTotalWeight(),
+                assessmentRubric.getWeightUnit(),
+                assessmentRubric.getIsWeighted(),
                 assessmentRubric.getCreatedDate(),
                 assessmentRubric.getCreatedBy(),
                 assessmentRubric.getLastModifiedDate(),
@@ -45,6 +48,9 @@ public class AssessmentRubricFactory {
         assessmentRubric.setIsPublic(dto.isPublic());
         assessmentRubric.setStatus(dto.status());
         assessmentRubric.setIsActive(dto.active());
+        assessmentRubric.setTotalWeight(dto.totalWeight());
+        assessmentRubric.setWeightUnit(dto.weightUnit());
+        assessmentRubric.setIsWeighted(dto.isWeighted());
         assessmentRubric.setCreatedDate(dto.createdDate());
         assessmentRubric.setCreatedBy(dto.createdBy());
         assessmentRubric.setLastModifiedDate(dto.updatedDate());

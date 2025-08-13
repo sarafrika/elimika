@@ -42,6 +42,15 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (assessmentRubric.getIsPublic() == null) {
             assessmentRubric.setIsPublic(false);
         }
+        if (assessmentRubric.getTotalWeight() == null) {
+            assessmentRubric.setTotalWeight(new java.math.BigDecimal("100.00"));
+        }
+        if (assessmentRubric.getWeightUnit() == null) {
+            assessmentRubric.setWeightUnit("percentage");
+        }
+        if (assessmentRubric.getIsWeighted() == null) {
+            assessmentRubric.setIsWeighted(true);
+        }
 
         AssessmentRubric savedAssessmentRubric = assessmentRubricRepository.save(assessmentRubric);
         return AssessmentRubricFactory.toDTO(savedAssessmentRubric);
@@ -115,6 +124,15 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         }
         if (dto.active() != null) {
             existingAssessmentRubric.setIsActive(dto.active());
+        }
+        if (dto.totalWeight() != null) {
+            existingAssessmentRubric.setTotalWeight(dto.totalWeight());
+        }
+        if (dto.weightUnit() != null) {
+            existingAssessmentRubric.setWeightUnit(dto.weightUnit());
+        }
+        if (dto.isWeighted() != null) {
+            existingAssessmentRubric.setIsWeighted(dto.isWeighted());
         }
     }
 }
