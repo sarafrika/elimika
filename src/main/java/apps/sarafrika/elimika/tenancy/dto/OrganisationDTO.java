@@ -29,7 +29,6 @@ import java.util.UUID;
                     "active": true,
                     "code": "SARU",
                     "licence_no": "EDU-2024-001",
-                    "domain": "sarafrika.edu.ke",
                     "user_uuid": "a1b2c3d4-e5f6-g7h8-i9j0-klmnopqrstuv",
                     "location": "Nairobi, Kenya",
                     "country": "Kenya",
@@ -97,16 +96,6 @@ public record OrganisationDTO(
         )
         @JsonProperty("licence_no")
         String licenceNo,
-
-        @Schema(
-                description = "**[OPTIONAL]** Organisation's domain name. Used for email validation and system integration.",
-                example = "sarafrika.edu.ke",
-                nullable = true,
-                maxLength = 255,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("domain")
-        String domain,
 
         @Schema(
                 description = "**[OPTIONAL]** Reference to the primary contact user for this organisation.",

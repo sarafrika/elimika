@@ -35,9 +35,6 @@ public class Organisation extends BaseEntity {
     @Column(name = "licence_no")
     private String licenceNo;
 
-    @Column(name = "domain")
-    private String domain;
-
     @Column(name = "slug")
     private String slug;
 

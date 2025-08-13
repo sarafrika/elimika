@@ -29,7 +29,7 @@ public class KeycloakOrganisationServiceImpl implements KeycloakOrganisationServ
     private final Keycloak keycloak;
     private final ApplicationEventPublisher eventPublisher;
     @Override
-    public String createOrganization(String realm, String name, String displayName, String description ,String domain) {
+    public String createOrganization(String realm, String name, String displayName, String description) {
 
         log.debug("Checking if organization already exists: realm={}, name={}", realm, displayName);
         if (isOrganizationExists(realm, displayName)) {
@@ -40,7 +40,6 @@ public class KeycloakOrganisationServiceImpl implements KeycloakOrganisationServ
         org.setName(name);
         org.setAlias(displayName);
         org.setDescription(description);
-        org.addDomain(new OrganizationDomainRepresentation(domain));
 
         return retryOperation(() -> {
             try (Response response = keycloak.realm(realm).organizations().create(org)) {
@@ -132,7 +131,7 @@ public class KeycloakOrganisationServiceImpl implements KeycloakOrganisationServ
     void onOrganisationCreation(OrganisationCreationEvent event) {
         log.debug("Processing organization creation event: name={}, blastWaveId={}", event.name(), event.blastWaveId());
         try {
-            String organisationId = createOrganization(event.realm(), event.name(), event.slug(), event.description(), event.domain());
+            String organisationId = createOrganization(event.realm(), event.name(), event.slug(), event.description());
             eventPublisher.publishEvent(new SuccessfulOrganisationCreationEvent(event.blastWaveId(), organisationId));
             log.info("Successfully processed organization creation event: orgId={}", organisationId);
         } catch (Exception e) {

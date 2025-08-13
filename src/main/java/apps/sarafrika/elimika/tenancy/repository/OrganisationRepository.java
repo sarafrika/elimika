@@ -16,8 +16,6 @@ public interface OrganisationRepository extends JpaRepository<Organisation, Long
 
     Optional<Organisation> findByName(String name);
 
-    boolean existsByDomain(String domain);
-
     boolean existsBySlug(String slug);
 
     Page<Organisation> findByDeletedFalse(Pageable pageable);
