@@ -20,8 +20,8 @@ CREATE TABLE course_rubric_associations (
     -- Audit fields
     created_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(255) NOT NULL DEFAULT 'SYSTEM',
-    last_modified_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_modified_by VARCHAR(255) NOT NULL DEFAULT 'SYSTEM',
+    updated_date TIMESTAMP WITH TIME ZONE,
+    updated_by VARCHAR(255) NOT NULL DEFAULT 'SYSTEM',
     
     -- Constraints
     CONSTRAINT uk_course_rubric_associations_uuid UNIQUE(uuid),
@@ -37,12 +37,6 @@ CREATE INDEX idx_course_rubric_associations_course_uuid ON course_rubric_associa
 CREATE INDEX idx_course_rubric_associations_rubric_uuid ON course_rubric_associations(rubric_uuid);
 CREATE INDEX idx_course_rubric_associations_associated_by ON course_rubric_associations(associated_by);
 CREATE INDEX idx_course_rubric_associations_primary ON course_rubric_associations(course_uuid, is_primary_rubric) WHERE is_primary_rubric = true;
-
--- Create trigger to update last_modified_date
-CREATE TRIGGER course_rubric_associations_updated_at
-    BEFORE UPDATE ON course_rubric_associations
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments for documentation
 COMMENT ON TABLE course_rubric_associations IS 'Many-to-many association between courses and rubrics, allowing rubrics to be reused across multiple courses';

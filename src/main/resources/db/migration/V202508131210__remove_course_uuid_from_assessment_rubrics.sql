@@ -9,7 +9,7 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.table_constraints 
                WHERE constraint_name = 'fk_assessment_rubrics_course' 
                AND table_name = 'assessment_rubrics') THEN
-        ALTER TABLE assessment_rubrics DROP CONSTRAINT fk_assessment_rubrics_course;
+        ALTER TABLE assessment_rubrics DROP CONSTRAINT assessment_rubrics_course_uuid_fkey;
     END IF;
 END $$;
 
