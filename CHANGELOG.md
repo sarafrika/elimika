@@ -1,3 +1,11 @@
+## [1.5.2](https://github.com/sarafrika/elimika/compare/v1.5.1...v1.5.2) (2025-08-13)
+
+
+### Bug Fixes
+
+* Add missing update_updated_at_column function for database triggers ([55e1ec0](https://github.com/sarafrika/elimika/commit/55e1ec0304cb44b55c8c6c206e31328fdc64c474))
+* **api:** Fixing api response to match existing structure ([cbada50](https://github.com/sarafrika/elimika/commit/cbada50392cd63d2dc9d6cd492024ed1016ec399))
+
 ## [1.5.1](https://github.com/sarafrika/elimika/compare/v1.5.0...v1.5.1) (2025-08-13)
 
 
