@@ -17,7 +17,6 @@ public class AssessmentRubricFactory {
                 assessmentRubric.getUuid(),
                 assessmentRubric.getTitle(),
                 assessmentRubric.getDescription(),
-                assessmentRubric.getCourseUuid(),
                 assessmentRubric.getRubricType(),
                 assessmentRubric.getInstructorUuid(),
                 assessmentRubric.getIsPublic(),
@@ -46,7 +45,6 @@ public class AssessmentRubricFactory {
         assessmentRubric.setUuid(dto.uuid());
         assessmentRubric.setTitle(dto.title());
         assessmentRubric.setDescription(dto.description());
-        assessmentRubric.setCourseUuid(dto.courseUuid());
         assessmentRubric.setRubricType(dto.rubricType());
         assessmentRubric.setInstructorUuid(dto.instructorUuid());
         assessmentRubric.setIsPublic(dto.isPublic());

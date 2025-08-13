@@ -31,7 +31,6 @@ import java.util.UUID;
             "uuid": "a1s2s3r4-5u6b-7r8i-9c10-abcdefghijkl",
             "title": "Music Performance Assessment Rubric",
             "description": "Comprehensive rubric for evaluating music performance across multiple criteria",
-            "course_uuid": "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
             "rubric_type": "Performance",
             "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
             "is_public": true,
@@ -50,7 +49,7 @@ import java.util.UUID;
             "updated_by": "instructor@sarafrika.com",
             "rubric_category": "Performance Assessment",
             "is_published": true,
-            "assessment_scope": "Course-Specific",
+            "assessment_scope": "General Use",
             "usage_status": "Active Public Rubric"
         }
         """
@@ -87,14 +86,6 @@ public record AssessmentRubricDTO(
         @JsonProperty("description")
         String description,
 
-        @Schema(
-                description = "**[OPTIONAL]** Reference to the course UUID this rubric is associated with. Null for general rubrics.",
-                example = "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("course_uuid")
-        UUID courseUuid,
 
         @Schema(
                 description = "**[REQUIRED]** Type of assessment this rubric is designed for.",
@@ -285,18 +276,19 @@ public record AssessmentRubricDTO(
     }
 
     /**
-     * Returns the assessment scope based on course association.
+     * Returns the assessment scope for this rubric.
+     * All rubrics are now general-use and can be associated with multiple courses.
      *
      * @return Assessment scope classification
      */
     @JsonProperty(value = "assessment_scope", access = JsonProperty.Access.READ_ONLY)
     @Schema(
-            description = "**[READ-ONLY]** Scope of the rubric usage - course-specific or general.",
-            example = "Course-Specific",
+            description = "**[READ-ONLY]** Scope of the rubric usage. All rubrics are general-use and can be associated with multiple courses.",
+            example = "General Use",
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public String getAssessmentScope() {
-        return courseUuid != null ? "Course-Specific" : "General Use";
+        return "General Use";
     }
 
     /**

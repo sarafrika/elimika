@@ -28,8 +28,6 @@ public class AssessmentRubric extends BaseEntity {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "course_uuid")
-    private UUID courseUuid;
 
     @Column(name = "rubric_type")
     private String rubricType;
