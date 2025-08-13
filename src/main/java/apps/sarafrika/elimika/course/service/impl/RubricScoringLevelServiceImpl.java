@@ -1,0 +1,240 @@
+package apps.sarafrika.elimika.course.service.impl;
+
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.course.dto.RubricScoringLevelDTO;
+import apps.sarafrika.elimika.course.factory.RubricScoringLevelFactory;
+import apps.sarafrika.elimika.course.model.RubricScoringLevel;
+import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
+import apps.sarafrika.elimika.course.service.RubricScoringLevelService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Service implementation for managing rubric scoring levels
+ * <p>
+ * Provides business logic operations for managing custom scoring levels
+ * within rubrics for flexible matrix configurations.
+ *
+ * @author Wilfred Njuguna
+ * @version 1.0
+ * @since 2024-08-13
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class RubricScoringLevelServiceImpl implements RubricScoringLevelService {
+
+    private final RubricScoringLevelRepository rubricScoringLevelRepository;
+    private final GenericSpecificationBuilder<RubricScoringLevel> specificationBuilder;
+
+    private static final String SCORING_LEVEL_NOT_FOUND_TEMPLATE = "Rubric scoring level with ID %s not found";
+    private static final String SCORING_LEVEL_NOT_FOUND_IN_RUBRIC_TEMPLATE = "Rubric scoring level with ID %s not found in rubric %s";
+
+    @Override
+    public RubricScoringLevelDTO createRubricScoringLevel(UUID rubricUuid, RubricScoringLevelDTO rubricScoringLevelDTO) {
+        RubricScoringLevel rubricScoringLevel = RubricScoringLevelFactory.toEntity(rubricScoringLevelDTO);
+        rubricScoringLevel.setRubricUuid(rubricUuid);
+
+        // Set next level order if not provided
+        if (rubricScoringLevel.getLevelOrder() == null) {
+            Integer nextOrder = rubricScoringLevelRepository.findNextLevelOrderByRubricUuid(rubricUuid);
+            rubricScoringLevel.setLevelOrder(nextOrder);
+        }
+
+        RubricScoringLevel savedRubricScoringLevel = rubricScoringLevelRepository.save(rubricScoringLevel);
+        return RubricScoringLevelFactory.toDTO(savedRubricScoringLevel);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RubricScoringLevelDTO getRubricScoringLevelByUuid(UUID uuid) {
+        return rubricScoringLevelRepository.findByUuid(uuid)
+                .map(RubricScoringLevelFactory::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCORING_LEVEL_NOT_FOUND_TEMPLATE, uuid)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RubricScoringLevelDTO> getScoringLevelsByRubricUuid(UUID rubricUuid) {
+        return rubricScoringLevelRepository.findByRubricUuidOrderByLevelOrder(rubricUuid)
+                .stream()
+                .map(RubricScoringLevelFactory::toDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricScoringLevelDTO> getScoringLevelsByRubricUuid(UUID rubricUuid, Pageable pageable) {
+        return rubricScoringLevelRepository.findByRubricUuid(rubricUuid, pageable)
+                .map(RubricScoringLevelFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricScoringLevelDTO> getAllRubricScoringLevels(Pageable pageable) {
+        return rubricScoringLevelRepository.findAll(pageable)
+                .map(RubricScoringLevelFactory::toDTO);
+    }
+
+    @Override
+    public RubricScoringLevelDTO updateRubricScoringLevel(UUID rubricUuid, UUID levelUuid, RubricScoringLevelDTO rubricScoringLevelDTO) {
+        RubricScoringLevel existingScoringLevel = rubricScoringLevelRepository.findByUuid(levelUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCORING_LEVEL_NOT_FOUND_TEMPLATE, levelUuid)));
+
+        // Verify the scoring level belongs to the specified rubric
+        if (!existingScoringLevel.getRubricUuid().equals(rubricUuid)) {
+            throw new ResourceNotFoundException(
+                    String.format(SCORING_LEVEL_NOT_FOUND_IN_RUBRIC_TEMPLATE, levelUuid, rubricUuid));
+        }
+
+        updateScoringLevelFields(existingScoringLevel, rubricScoringLevelDTO);
+
+        RubricScoringLevel updatedScoringLevel = rubricScoringLevelRepository.save(existingScoringLevel);
+        return RubricScoringLevelFactory.toDTO(updatedScoringLevel);
+    }
+
+    @Override
+    public void deleteRubricScoringLevel(UUID rubricUuid, UUID levelUuid) {
+        RubricScoringLevel existingScoringLevel = rubricScoringLevelRepository.findByUuid(levelUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCORING_LEVEL_NOT_FOUND_TEMPLATE, levelUuid)));
+
+        // Verify the scoring level belongs to the specified rubric
+        if (!existingScoringLevel.getRubricUuid().equals(rubricUuid)) {
+            throw new ResourceNotFoundException(
+                    String.format(SCORING_LEVEL_NOT_FOUND_IN_RUBRIC_TEMPLATE, levelUuid, rubricUuid));
+        }
+
+        rubricScoringLevelRepository.deleteByUuid(levelUuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricScoringLevelDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        Specification<RubricScoringLevel> spec = specificationBuilder.buildSpecification(
+                RubricScoringLevel.class, searchParams);
+        return rubricScoringLevelRepository.findAll(spec, pageable)
+                .map(RubricScoringLevelFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RubricScoringLevelDTO> getPassingScoringLevels(UUID rubricUuid) {
+        return rubricScoringLevelRepository.findPassingLevelsByRubricUuid(rubricUuid)
+                .stream()
+                .map(RubricScoringLevelFactory::toDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RubricScoringLevelDTO getHighestScoringLevel(UUID rubricUuid) {
+        return rubricScoringLevelRepository.findHighestLevelByRubricUuid(rubricUuid)
+                .map(RubricScoringLevelFactory::toDTO)
+                .orElse(null);
+    }
+
+    @Override
+    public void reorderScoringLevels(UUID rubricUuid, Map<UUID, Integer> levelOrderMap) {
+        for (Map.Entry<UUID, Integer> entry : levelOrderMap.entrySet()) {
+            UUID levelUuid = entry.getKey();
+            Integer newOrder = entry.getValue();
+
+            RubricScoringLevel scoringLevel = rubricScoringLevelRepository.findByUuid(levelUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(SCORING_LEVEL_NOT_FOUND_TEMPLATE, levelUuid)));
+
+            // Verify the scoring level belongs to the specified rubric
+            if (!scoringLevel.getRubricUuid().equals(rubricUuid)) {
+                throw new ResourceNotFoundException(
+                        String.format(SCORING_LEVEL_NOT_FOUND_IN_RUBRIC_TEMPLATE, levelUuid, rubricUuid));
+            }
+
+            scoringLevel.setLevelOrder(newOrder);
+            rubricScoringLevelRepository.save(scoringLevel);
+        }
+    }
+
+    @Override
+    public List<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy) {
+        List<RubricScoringLevel> defaultLevels = new ArrayList<>();
+
+        switch (template.toLowerCase()) {
+            case "standard" -> {
+                defaultLevels.add(createScoringLevel(rubricUuid, "Excellent", "Exceeds expectations in all areas", new BigDecimal("4.00"), 1, "#4CAF50", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Good", "Meets expectations with minor areas for improvement", new BigDecimal("3.00"), 2, "#8BC34A", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Fair", "Meets basic expectations with several areas needing improvement", new BigDecimal("2.00"), 3, "#FFC107", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Poor", "Below expectations, significant improvement needed", new BigDecimal("1.00"), 4, "#FF9800", false, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Unacceptable", "Does not meet minimum requirements", new BigDecimal("0.00"), 5, "#F44336", false, createdBy));
+            }
+            case "simple" -> {
+                defaultLevels.add(createScoringLevel(rubricUuid, "Proficient", "Demonstrates proficiency", new BigDecimal("3.00"), 1, "#4CAF50", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Developing", "Shows progress toward proficiency", new BigDecimal("2.00"), 2, "#FFC107", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Beginning", "Limited evidence of understanding", new BigDecimal("1.00"), 3, "#F44336", false, createdBy));
+            }
+            case "advanced" -> {
+                defaultLevels.add(createScoringLevel(rubricUuid, "Exemplary", "Exceptional performance", new BigDecimal("5.00"), 1, "#2E7D32", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Proficient", "Solid performance", new BigDecimal("4.00"), 2, "#4CAF50", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Developing", "Adequate performance", new BigDecimal("3.00"), 3, "#8BC34A", true, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Beginning", "Needs improvement", new BigDecimal("2.00"), 4, "#FFC107", false, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "Inadequate", "Significant deficiencies", new BigDecimal("1.00"), 5, "#FF5722", false, createdBy));
+                defaultLevels.add(createScoringLevel(rubricUuid, "No Evidence", "No evidence of understanding", new BigDecimal("0.00"), 6, "#F44336", false, createdBy));
+            }
+            default -> throw new IllegalArgumentException("Unsupported template: " + template);
+        }
+
+        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(defaultLevels);
+        return savedLevels.stream()
+                .map(RubricScoringLevelFactory::toDTO)
+                .toList();
+    }
+
+    private RubricScoringLevel createScoringLevel(UUID rubricUuid, String name, String description, 
+                                                 BigDecimal points, Integer order, String colorCode, 
+                                                 Boolean isPassing, String createdBy) {
+        RubricScoringLevel level = new RubricScoringLevel();
+        level.setRubricUuid(rubricUuid);
+        level.setName(name);
+        level.setDescription(description);
+        level.setPoints(points);
+        level.setLevelOrder(order);
+        level.setColorCode(colorCode);
+        level.setIsPassing(isPassing);
+        level.setCreatedBy(createdBy);
+        return level;
+    }
+
+    private void updateScoringLevelFields(RubricScoringLevel existingScoringLevel, RubricScoringLevelDTO dto) {
+        if (dto.name() != null) {
+            existingScoringLevel.setName(dto.name());
+        }
+        if (dto.description() != null) {
+            existingScoringLevel.setDescription(dto.description());
+        }
+        if (dto.points() != null) {
+            existingScoringLevel.setPoints(dto.points());
+        }
+        if (dto.levelOrder() != null) {
+            existingScoringLevel.setLevelOrder(dto.levelOrder());
+        }
+        if (dto.colorCode() != null) {
+            existingScoringLevel.setColorCode(dto.colorCode());
+        }
+        if (dto.isPassing() != null) {
+            existingScoringLevel.setIsPassing(dto.isPassing());
+        }
+    }
+}

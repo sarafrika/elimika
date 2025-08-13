@@ -40,6 +40,10 @@ import java.util.UUID;
             "total_weight": 100.00,
             "weight_unit": "percentage",
             "is_weighted": true,
+            "uses_custom_levels": true,
+            "matrix_template": "standard",
+            "max_score": 400.00,
+            "min_passing_score": 240.00,
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -166,6 +170,43 @@ public record AssessmentRubricDTO(
         )
         @JsonProperty("is_weighted")
         Boolean isWeighted,
+
+        @Schema(
+                description = "**[OPTIONAL]** Indicates whether this rubric uses custom scoring levels or global grading levels.",
+                example = "true",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("uses_custom_levels")
+        Boolean usesCustomLevels,
+
+        @Schema(
+                description = "**[OPTIONAL]** Template used for generating default scoring levels when using custom levels.",
+                example = "standard",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                allowableValues = {"standard", "simple", "advanced"}
+        )
+        @JsonProperty("matrix_template")
+        String matrixTemplate,
+
+        @Schema(
+                description = "**[OPTIONAL]** Maximum possible score for this rubric based on weighted criteria and highest scoring levels.",
+                example = "400.00",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                minimum = "0.00"
+        )
+        @DecimalMin(value = "0.00", message = "Max score must be non-negative")
+        @JsonProperty("max_score")
+        BigDecimal maxScore,
+
+        @Schema(
+                description = "**[OPTIONAL]** Minimum score required to pass this rubric assessment.",
+                example = "240.00",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                minimum = "0.00"
+        )
+        @DecimalMin(value = "0.00", message = "Min passing score must be non-negative")
+        @JsonProperty("min_passing_score")
+        BigDecimal minPassingScore,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the rubric was created. Automatically set by the system.",
