@@ -1,6 +1,15 @@
 -- Create course_rubric_associations table to support many-to-many relationship
 -- This allows rubrics to be reused across multiple courses
 
+-- Create the timestamp update function if it doesn't exist
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_modified_date = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 CREATE TABLE course_rubric_associations (
     id BIGSERIAL PRIMARY KEY,
     uuid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
