@@ -70,18 +70,7 @@ public class AssessmentRubricController {
 
     @PostMapping("/{rubricUuid}/criteria")
     public ResponseEntity<ApiResponse<RubricCriteriaDTO>> addRubricCriterion(@PathVariable UUID rubricUuid, @Valid @RequestBody RubricCriteriaDTO rubricCriteriaDTO) {
-        RubricCriteriaDTO newRubricCriteriaDTO = new RubricCriteriaDTO(
-                null,
-                rubricUuid,
-                rubricCriteriaDTO.componentName(),
-                rubricCriteriaDTO.description(),
-                rubricCriteriaDTO.displayOrder(),
-                null,
-                null,
-                null,
-                null
-        );
-        RubricCriteriaDTO createdCriterion = rubricCriteriaService.createRubricCriteria(newRubricCriteriaDTO);
+        RubricCriteriaDTO createdCriterion = rubricCriteriaService.createRubricCriteria(rubricUuid, rubricCriteriaDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(createdCriterion, "Rubric criterion added successfully"));
     }
 
@@ -105,17 +94,7 @@ public class AssessmentRubricController {
 
     @PostMapping("/{rubricUuid}/criteria/{criteriaUuid}/scoring")
     public ResponseEntity<ApiResponse<RubricScoringDTO>> addRubricScoring(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, @Valid @RequestBody RubricScoringDTO rubricScoringDTO) {
-        RubricScoringDTO newRubricScoringDTO = new RubricScoringDTO(
-                null,
-                criteriaUuid,
-                rubricScoringDTO.gradingLevelUuid(),
-                rubricScoringDTO.description(),
-                null,
-                null,
-                null,
-                null
-        );
-        RubricScoringDTO createdScoring = rubricScoringService.createRubricScoring(newRubricScoringDTO);
+        RubricScoringDTO createdScoring = rubricScoringService.createRubricScoring(criteriaUuid, rubricScoringDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(createdScoring, "Rubric scoring added successfully"));
     }
 

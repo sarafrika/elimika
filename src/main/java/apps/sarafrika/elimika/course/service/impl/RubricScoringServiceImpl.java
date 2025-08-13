@@ -28,8 +28,9 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     private static final String RUBRIC_SCORING_NOT_FOUND_TEMPLATE = "Rubric scoring with ID %s not found";
 
     @Override
-    public RubricScoringDTO createRubricScoring(RubricScoringDTO rubricScoringDTO) {
+    public RubricScoringDTO createRubricScoring(UUID criteriaUuid, RubricScoringDTO rubricScoringDTO) {
         RubricScoring rubricScoring = RubricScoringFactory.toEntity(rubricScoringDTO);
+        rubricScoring.setCriteriaUuid(criteriaUuid);
 
         RubricScoring savedRubricScoring = rubricScoringRepository.save(rubricScoring);
         return RubricScoringFactory.toDTO(savedRubricScoring);

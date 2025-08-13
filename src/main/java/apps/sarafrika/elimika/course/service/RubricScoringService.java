@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface RubricScoringService {
-    RubricScoringDTO createRubricScoring(RubricScoringDTO rubricScoringDTO);
+    RubricScoringDTO createRubricScoring(UUID criteriaUuid, RubricScoringDTO rubricScoringDTO);
 
     RubricScoringDTO getRubricScoringByUuid(UUID uuid);
 
