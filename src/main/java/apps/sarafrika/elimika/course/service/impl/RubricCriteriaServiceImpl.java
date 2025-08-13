@@ -28,8 +28,9 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
     private static final String RUBRIC_CRITERIA_NOT_FOUND_TEMPLATE = "Rubric criteria with ID %s not found";
 
     @Override
-    public RubricCriteriaDTO createRubricCriteria(RubricCriteriaDTO rubricCriteriaDTO) {
+    public RubricCriteriaDTO createRubricCriteria(UUID rubricUuid, RubricCriteriaDTO rubricCriteriaDTO) {
         RubricCriteria rubricCriteria = RubricCriteriaFactory.toEntity(rubricCriteriaDTO);
+        rubricCriteria.setRubricUuid(rubricUuid);
 
         RubricCriteria savedRubricCriteria = rubricCriteriaRepository.save(rubricCriteria);
         return RubricCriteriaFactory.toDTO(savedRubricCriteria);
@@ -92,5 +93,11 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
         if (dto.displayOrder() != null) {
             existingRubricCriteria.setDisplayOrder(dto.displayOrder());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricCriteriaDTO> getAllByRubricUuid(UUID rubricUuid, Pageable pageable) {
+        return rubricCriteriaRepository.findAllByRubricUuid(rubricUuid, pageable).map(RubricCriteriaFactory::toDTO);
     }
 }

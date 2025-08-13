@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface RubricScoringService {
-    RubricScoringDTO createRubricScoring(RubricScoringDTO rubricScoringDTO);
+    RubricScoringDTO createRubricScoring(UUID criteriaUuid, RubricScoringDTO rubricScoringDTO);
 
     RubricScoringDTO getRubricScoringByUuid(UUID uuid);
 
@@ -19,4 +19,6 @@ public interface RubricScoringService {
     void deleteRubricScoring(UUID uuid);
 
     Page<RubricScoringDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    Page<RubricScoringDTO> getAllByCriteriaUuid(UUID criteriaUuid, Pageable pageable);
 }
