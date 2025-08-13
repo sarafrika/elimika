@@ -351,15 +351,15 @@ public class OrganisationServiceImpl implements OrganisationService {
 
     @ApplicationModuleListener
     void onOrganisationCreation(SuccessfulOrganisationCreationEvent event) {
-        log.debug("Processing successful organisation creation event for UUID: {}", event.blastWaveId());
+        log.debug("Processing successful organisation creation event for UUID: {}", event.sarafrikaCorrelationId());
 
         try {
-            Organisation organisation = findOrganisationOrThrow(event.blastWaveId());
+            Organisation organisation = findOrganisationOrThrow(event.sarafrikaCorrelationId());
             organisation.setKeycloakId(event.keycloakId());
             organisationRepository.save(organisation);
-            log.info("Successfully processed organisation creation event for UUID: {}", event.blastWaveId());
+            log.info("Successfully processed organisation creation event for UUID: {}", event.sarafrikaCorrelationId());
         } catch (Exception e) {
-            log.error("Failed to process organisation creation event for UUID: {}", event.blastWaveId(), e);
+            log.error("Failed to process organisation creation event for UUID: {}", event.sarafrikaCorrelationId(), e);
             throw new RuntimeException("Failed to process organisation creation event: " + e.getMessage(), e);
         }
     }

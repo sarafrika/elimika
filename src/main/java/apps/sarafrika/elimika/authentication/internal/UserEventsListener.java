@@ -40,7 +40,7 @@ class UserEventsListener {
         representation.setUsername(event.username());
         representation.setEnabled(event.active());
         keycloakUserService.updateUser(event.keyCloakId(), representation, event.realm());
-        eventPublisher.publishEvent(new SuccessfulUserUpdateEvent(event.keyCloakId(), event.blastWaveId()));
+        eventPublisher.publishEvent(new SuccessfulUserUpdateEvent(event.keyCloakId(), event.sarafrikaCorrelationId()));
     }
 
     @ApplicationModuleListener
