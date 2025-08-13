@@ -15,6 +15,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -113,9 +114,6 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (dto.description() != null) {
             existingAssessmentRubric.setDescription(dto.description());
         }
-        if (dto.courseUuid() != null) {
-            existingAssessmentRubric.setCourseUuid(dto.courseUuid());
-        }
         if (dto.rubricType() != null) {
             existingAssessmentRubric.setRubricType(dto.rubricType());
         }
@@ -152,5 +150,72 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (dto.minPassingScore() != null) {
             existingAssessmentRubric.setMinPassingScore(dto.minPassingScore());
         }
+    }
+
+    @Override
+    public Page<AssessmentRubricDTO> getPublicRubrics(Pageable pageable) {
+        return assessmentRubricRepository.findByIsPublicTrueAndIsActiveTrueOrderByCreatedDateDesc(pageable)
+                .map(AssessmentRubricFactory::toDTO);
+    }
+
+    @Override
+    public Page<AssessmentRubricDTO> searchPublicRubrics(String searchTerm, String rubricType, Pageable pageable) {
+        if (searchTerm != null && rubricType != null) {
+            // Search with both term and type
+            return assessmentRubricRepository.findPublicRubricsBySearchTerm(searchTerm, pageable)
+                    .map(AssessmentRubricFactory::toDTO);
+        } else if (searchTerm != null) {
+            // Search by term only
+            return assessmentRubricRepository.findPublicRubricsBySearchTerm(searchTerm, pageable)
+                    .map(AssessmentRubricFactory::toDTO);
+        } else if (rubricType != null) {
+            // Filter by type only
+            return assessmentRubricRepository.findByIsPublicTrueAndIsActiveTrueAndRubricTypeContainingIgnoreCaseOrderByCreatedDateDesc(rubricType, pageable)
+                    .map(AssessmentRubricFactory::toDTO);
+        } else {
+            // No filters - return all public rubrics
+            return getPublicRubrics(pageable);
+        }
+    }
+
+    @Override
+    public Page<AssessmentRubricDTO> getInstructorRubrics(UUID instructorUuid, boolean includePrivate, Pageable pageable) {
+        return assessmentRubricRepository.findInstructorShareableRubrics(instructorUuid, includePrivate, pageable)
+                .map(AssessmentRubricFactory::toDTO);
+    }
+
+    @Override
+    public Page<AssessmentRubricDTO> getGeneralRubrics(Pageable pageable) {
+        // All rubrics are now general-use and can be associated with multiple courses
+        return getPublicRubrics(pageable);
+    }
+
+    @Override
+    public Page<AssessmentRubricDTO> getPopularRubrics(Pageable pageable) {
+        return assessmentRubricRepository.findPopularPublicRubrics(pageable)
+                .map(AssessmentRubricFactory::toDTO);
+    }
+
+    @Override
+    public Page<AssessmentRubricDTO> getRubricsByStatus(ContentStatus status, Pageable pageable) {
+        return assessmentRubricRepository.findByStatusAndIsActiveTrueOrderByCreatedDateDesc(status, pageable)
+                .map(AssessmentRubricFactory::toDTO);
+    }
+
+    @Override
+    public Map<String, Long> getRubricStatistics() {
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("totalPublicRubrics", assessmentRubricRepository.countByIsPublicTrueAndIsActiveTrue());
+        stats.put("totalRubrics", assessmentRubricRepository.count());
+        // Add more statistics as needed
+        return stats;
+    }
+
+    @Override
+    public Map<String, Long> getInstructorRubricStatistics(UUID instructorUuid) {
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("totalRubrics", assessmentRubricRepository.countByInstructorUuidAndIsActiveTrue(instructorUuid));
+        // Add more instructor-specific statistics as needed
+        return stats;
     }
 }
