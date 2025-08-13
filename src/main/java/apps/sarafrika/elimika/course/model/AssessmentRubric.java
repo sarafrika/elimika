@@ -55,4 +55,16 @@ public class AssessmentRubric extends BaseEntity {
 
     @Column(name = "is_weighted")
     private Boolean isWeighted;
+
+    @Column(name = "uses_custom_levels")
+    private Boolean usesCustomLevels;
+
+    @Column(name = "matrix_template", length = 50)
+    private String matrixTemplate;
+
+    @Column(name = "max_score", precision = 5, scale = 2)
+    private java.math.BigDecimal maxScore;
+
+    @Column(name = "min_passing_score", precision = 5, scale = 2)
+    private java.math.BigDecimal minPassingScore;
 }

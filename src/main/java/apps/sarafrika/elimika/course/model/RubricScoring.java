@@ -19,6 +19,9 @@ public class RubricScoring extends BaseEntity {
     @Column(name = "grading_level_uuid")
     private UUID gradingLevelUuid;
 
+    @Column(name = "rubric_scoring_level_uuid")
+    private UUID rubricScoringLevelUuid;
+
     @Column(name = "description")
     private String description;
 }

@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.course.dto.RubricScoringDTO;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
 import apps.sarafrika.elimika.course.service.RubricCriteriaService;
 import apps.sarafrika.elimika.course.service.RubricScoringService;
+import apps.sarafrika.elimika.course.service.RubricMatrixService;
+import apps.sarafrika.elimika.course.dto.RubricMatrixDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class AssessmentRubricController {
     private final AssessmentRubricService assessmentRubricService;
     private final RubricCriteriaService rubricCriteriaService;
     private final RubricScoringService rubricScoringService;
+    private final RubricMatrixService rubricMatrixService;
 
     @Operation(summary = "Create a new assessment rubric", description = "Creates a new assessment rubric. The rubric can be associated with a specific course or be a general-purpose rubric.")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -130,5 +133,36 @@ public class AssessmentRubricController {
     public ResponseEntity<Void> deleteRubricScoring(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, @PathVariable UUID scoringUuid) {
         rubricScoringService.deleteRubricScoring(criteriaUuid, scoringUuid);
         return ResponseEntity.noContent().build();
+    }
+
+    // Matrix-based endpoints
+    @Operation(summary = "Get rubric matrix view", description = "Retrieves the complete rubric matrix with all criteria, scoring levels, and cell intersections.")
+    @GetMapping(value = "/{rubricUuid}/matrix-view", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<RubricMatrixDTO>> getRubricMatrixView(@PathVariable UUID rubricUuid) {
+        RubricMatrixDTO matrix = rubricMatrixService.getRubricMatrix(rubricUuid);
+        return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix retrieved successfully"));
+    }
+
+    @Operation(summary = "Initialize rubric matrix", description = "Sets up the rubric matrix with default scoring levels and prepares it for use.")
+    @PostMapping(value = "/{rubricUuid}/initialize-matrix", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<RubricMatrixDTO>> initializeMatrix(
+            @PathVariable UUID rubricUuid,
+            @RequestParam(defaultValue = "standard") String template,
+            @RequestParam(defaultValue = "SYSTEM") String createdBy) {
+        
+        RubricMatrixDTO matrix = rubricMatrixService.initializeRubricMatrix(rubricUuid, template, createdBy);
+        return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix initialized successfully"));
+    }
+
+    @Operation(summary = "Validate rubric matrix", description = "Validates the matrix for completeness and consistency before use in assessments.")
+    @GetMapping(value = "/{rubricUuid}/validate-matrix", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<RubricMatrixService.MatrixValidationResult>> validateMatrix(@PathVariable UUID rubricUuid) {
+        RubricMatrixService.MatrixValidationResult validation = rubricMatrixService.validateMatrix(rubricUuid);
+        
+        String message = validation.isValid() ? 
+                "Rubric matrix is valid and ready for use" : 
+                "Rubric matrix requires attention: " + validation.message();
+        
+        return ResponseEntity.ok(ApiResponse.success(validation, message));
     }
 }
