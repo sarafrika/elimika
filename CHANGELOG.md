@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/sarafrika/elimika/compare/v1.4.1...v1.5.0) (2025-08-13)
+
+
+### Features
+
+* Update semantic release to depend on build workflow success ([4d6d26a](https://github.com/sarafrika/elimika/commit/4d6d26af44affa49303f04a337343fecdccb1c7f))
+
 ## [1.4.1](https://github.com/sarafrika/elimika/compare/v1.4.0...v1.4.1) (2025-08-13)
 
 
