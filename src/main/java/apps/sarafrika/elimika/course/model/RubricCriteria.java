@@ -24,4 +24,7 @@ public class RubricCriteria extends BaseEntity {
 
     @Column(name = "display_order")
     private Integer displayOrder;
+
+    @Column(name = "weight", precision = 5, scale = 2)
+    private java.math.BigDecimal weight;
 }

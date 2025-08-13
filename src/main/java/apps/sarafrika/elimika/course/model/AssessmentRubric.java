@@ -46,4 +46,13 @@ public class AssessmentRubric extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @Column(name = "total_weight", precision = 5, scale = 2)
+    private java.math.BigDecimal totalWeight;
+
+    @Column(name = "weight_unit", length = 20)
+    private String weightUnit;
+
+    @Column(name = "is_weighted")
+    private Boolean isWeighted;
 }

@@ -6,7 +6,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,6 +37,9 @@ import java.util.UUID;
             "is_public": true,
             "status": "PUBLISHED",
             "active": true,
+            "total_weight": 100.00,
+            "weight_unit": "percentage",
+            "is_weighted": true,
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -131,6 +137,35 @@ public record AssessmentRubricDTO(
         )
         @JsonProperty("active")
         Boolean active,
+
+        @Schema(
+                description = "**[OPTIONAL]** Total weight distribution across all criteria for this rubric.",
+                example = "100.00",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                minimum = "1.00",
+                maximum = "1000.00"
+        )
+        @DecimalMin(value = "1.00", message = "Total weight must be at least 1.00")
+        @DecimalMax(value = "1000.00", message = "Total weight must not exceed 1000.00")
+        @JsonProperty("total_weight")
+        BigDecimal totalWeight,
+
+        @Schema(
+                description = "**[OPTIONAL]** Unit of measurement for weight calculations.",
+                example = "percentage",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                allowableValues = {"percentage", "points", "ratio"}
+        )
+        @JsonProperty("weight_unit")
+        String weightUnit,
+
+        @Schema(
+                description = "**[OPTIONAL]** Indicates whether this rubric uses weighted evaluation or equal distribution.",
+                example = "true",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("is_weighted")
+        Boolean isWeighted,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the rubric was created. Automatically set by the system.",
