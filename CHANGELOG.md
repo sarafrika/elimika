@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/sarafrika/elimika/compare/v1.1.0...v1.2.0) (2025-08-13)
+
+
+### Features
+
+* Add APIs for course rubrics ([df1a142](https://github.com/sarafrika/elimika/commit/df1a142be5b0c4bd495fd37a09d7a433948f2b54))
+
 # [1.1.0](https://github.com/sarafrika/elimika/compare/v1.0.9...v1.1.0) (2025-08-13)
 
 
