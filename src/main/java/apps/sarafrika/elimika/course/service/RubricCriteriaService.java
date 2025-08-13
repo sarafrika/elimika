@@ -19,4 +19,6 @@ public interface RubricCriteriaService {
     void deleteRubricCriteria(UUID uuid);
 
     Page<RubricCriteriaDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    Page<RubricCriteriaDTO> getAllByRubricUuid(UUID rubricUuid, Pageable pageable);
 }

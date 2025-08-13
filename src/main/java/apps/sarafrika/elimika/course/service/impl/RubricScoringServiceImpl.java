@@ -90,4 +90,10 @@ public class RubricScoringServiceImpl implements RubricScoringService {
             existingRubricScoring.setDescription(dto.description());
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricScoringDTO> getAllByCriteriaUuid(UUID criteriaUuid, Pageable pageable) {
+        return rubricScoringRepository.findAllByCriteriaUuid(criteriaUuid, pageable).map(RubricScoringFactory::toDTO);
+    }
 }

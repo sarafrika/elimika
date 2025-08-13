@@ -93,4 +93,10 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
             existingRubricCriteria.setDisplayOrder(dto.displayOrder());
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricCriteriaDTO> getAllByRubricUuid(UUID rubricUuid, Pageable pageable) {
+        return rubricCriteriaRepository.findAllByRubricUuid(rubricUuid, pageable).map(RubricCriteriaFactory::toDTO);
+    }
 }
