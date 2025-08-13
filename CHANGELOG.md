@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/sarafrika/elimika/compare/v1.5.0...v1.5.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* Complete rubric decoupling from courses to enable reusability ([36e3a64](https://github.com/sarafrika/elimika/commit/36e3a643f2bcd768e3fa1edfd7790e874dc1f4fd))
+
 # [1.5.0](https://github.com/sarafrika/elimika/compare/v1.4.1...v1.5.0) (2025-08-13)
 
 
