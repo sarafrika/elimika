@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/sarafrika/elimika/compare/v1.4.0...v1.4.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* Resolve compilation errors in rubric matrix implementation ([242d778](https://github.com/sarafrika/elimika/commit/242d7785130cf1b071c30c542b98b90fb8a49c7c))
+
 # [1.4.0](https://github.com/sarafrika/elimika/compare/v1.3.0...v1.4.0) (2025-08-13)
 
 
