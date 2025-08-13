@@ -55,7 +55,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
                 handleResponse(response, newUserRecord.username());
                 String userId = extractCreatedUserId(response);
                 sendRequiredActionEmail(userId, DEFAULT_REQUIRED_ACTIONS, newUserRecord.realm());
-                eventPublisher.publishEvent(new SuccessfulUserCreation(newUserRecord.blastWaveId(), userId));
+                eventPublisher.publishEvent(new SuccessfulUserCreation(newUserRecord.sarafrikaCorrelationId(), userId));
                 return getUserById(userId, newUserRecord.realm())
                         .orElseThrow(() -> new KeycloakException("User created but not found"));
             }

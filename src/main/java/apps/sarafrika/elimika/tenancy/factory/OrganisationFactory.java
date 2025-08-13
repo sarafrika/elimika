@@ -32,7 +32,6 @@ public class OrganisationFactory {
         organisation.setActive(organisationDTO.active());
         organisation.setCode(organisationDTO.code());
         organisation.setLicenceNo(organisationDTO.licenceNo());
-        organisation.setDomain(organisationDTO.domain());
         organisation.setUserUuid(organisationDTO.userUuid());
         organisation.setLocation(organisationDTO.location());
         organisation.setCountry(organisationDTO.country());

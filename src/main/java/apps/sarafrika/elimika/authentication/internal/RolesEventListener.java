@@ -27,7 +27,7 @@ public class RolesEventListener {
         RoleRepresentation role = keycloakRoleService.getRoleByName(event.roleName(), event.realm()).orElse(
                 keycloakRoleService.createRole(event.roleName(), event.description(), event.realm())
         );
-        applicationEventPublisher.publishEvent(new SuccessfulRoleCreationOnKeycloakEvent(event.blastWaveId(), UUID.fromString(role.getId())));
+        applicationEventPublisher.publishEvent(new SuccessfulRoleCreationOnKeycloakEvent(event.sarafrikaCorrelationId(), UUID.fromString(role.getId())));
     }
 
     @ApplicationModuleListener
