@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/sarafrika/elimika/compare/v1.3.0...v1.4.0) (2025-08-13)
+
+
+### Features
+
+* Add rubric matrix support with custom scoring levels ([a8a2d1e](https://github.com/sarafrika/elimika/commit/a8a2d1e2bebbec2568f8635c6d142e5836ba1ea8))
+
 # [1.3.0](https://github.com/sarafrika/elimika/compare/v1.2.0...v1.3.0) (2025-08-13)
 
 
