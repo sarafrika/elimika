@@ -1,20 +1,65 @@
 name: Semantic Release
 
 on:
+  workflow_run:
+    workflows: ["Docker Build and Push"]
+    types:
+      - completed
+    branches:
+      - main
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force release even if build workflow failed'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # Only run if:
+    # 1. Build workflow succeeded (for workflow_run events)
+    # 2. Direct push to main (for push events) 
+    # 3. Manual trigger (for workflow_dispatch events)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: write
       issues: write
       pull-requests: write
 
     steps:
+      - name: Release Context
+        run: |
+          case "${{ github.event_name }}" in
+            "workflow_dispatch")
+              echo "🚀 Manual Release Triggered"
+              echo "Force release: ${{ github.event.inputs.force_release }}"
+              ;;
+            "push")
+              echo "📝 Direct Push Release (triggered by push to main)"
+              echo "Commit SHA: ${{ github.sha }}"
+              echo "Pusher: ${{ github.event.pusher.name }}"
+              ;;
+            "workflow_run")
+              echo "🔄 Automatic Release (triggered by successful build)"
+              echo "Triggering workflow: ${{ github.event.workflow_run.name }}"
+              echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+              ;;
+          esac
+          echo ""
+
+      - name: Skip Release Notification
+        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
+        run: |
+          echo "⏭️ Release skipped - build workflow did not succeed"
+          echo "Build workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "💡 To force a release, use the 'Run workflow' button with 'Force release' option"
+          exit 1
       - name: Checkout repository
         uses: actions/checkout@v4
 
