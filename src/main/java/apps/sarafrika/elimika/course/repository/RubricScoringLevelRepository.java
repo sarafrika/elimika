@@ -44,6 +44,16 @@ public interface RubricScoringLevelRepository extends JpaRepository<RubricScorin
     List<RubricScoringLevel> findByRubricUuidOrderByLevelOrder(@Param("rubricUuid") UUID rubricUuid);
 
     /**
+     * Finds all scoring levels for a specific rubric ordered by level order with pagination.
+     *
+     * @param rubricUuid the UUID of the rubric
+     * @param pageable pagination information
+     * @return page of scoring levels ordered by level_order ASC
+     */
+    @Query("SELECT rsl FROM RubricScoringLevel rsl WHERE rsl.rubricUuid = :rubricUuid ORDER BY rsl.levelOrder ASC")
+    Page<RubricScoringLevel> findByRubricUuidOrderByLevelOrder(@Param("rubricUuid") UUID rubricUuid, Pageable pageable);
+
+    /**
      * Finds all scoring levels for a specific rubric with pagination.
      *
      * @param rubricUuid the UUID of the rubric
@@ -78,6 +88,16 @@ public interface RubricScoringLevelRepository extends JpaRepository<RubricScorin
      */
     @Query("SELECT rsl FROM RubricScoringLevel rsl WHERE rsl.rubricUuid = :rubricUuid AND rsl.isPassing = true ORDER BY rsl.levelOrder ASC")
     List<RubricScoringLevel> findPassingLevelsByRubricUuid(@Param("rubricUuid") UUID rubricUuid);
+
+    /**
+     * Finds all passing scoring levels for a specific rubric with pagination.
+     *
+     * @param rubricUuid the UUID of the rubric
+     * @param pageable pagination information
+     * @return page of passing scoring levels ordered by level_order ASC
+     */
+    @Query("SELECT rsl FROM RubricScoringLevel rsl WHERE rsl.rubricUuid = :rubricUuid AND rsl.isPassing = true ORDER BY rsl.levelOrder ASC")
+    Page<RubricScoringLevel> findPassingLevelsByRubricUuid(@Param("rubricUuid") UUID rubricUuid, Pageable pageable);
 
     /**
      * Finds the highest scoring level (level_order = 1) for a rubric.

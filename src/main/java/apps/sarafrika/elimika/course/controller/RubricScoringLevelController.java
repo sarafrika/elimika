@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -60,28 +61,16 @@ public class RubricScoringLevelController {
             description = "Retrieves all custom scoring levels for the specified rubric, ordered by level order."
     )
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<List<RubricScoringLevelDTO>>> getScoringLevelsByRubric(
-            @Parameter(description = "UUID of the rubric", required = true)
-            @PathVariable UUID rubricUuid) {
-        
-        List<RubricScoringLevelDTO> scoringLevels = rubricScoringLevelService.getScoringLevelsByRubricUuid(rubricUuid);
-        return ResponseEntity.ok(ApiResponse.success(scoringLevels, "Scoring levels retrieved successfully"));
-    }
-
-    @Operation(
-            summary = "Get scoring levels for a rubric with pagination",
-            description = "Retrieves custom scoring levels for the specified rubric with pagination support."
-    )
-    @GetMapping(value = "/paged", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> getScoringLevelsByRubricPaged(
+    public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> getScoringLevelsByRubric(
             @Parameter(description = "UUID of the rubric", required = true)
             @PathVariable UUID rubricUuid,
             Pageable pageable) {
         
-        Page<RubricScoringLevelDTO> scoringLevelsPage = rubricScoringLevelService.getScoringLevelsByRubricUuid(rubricUuid, pageable);
-        PagedDTO<RubricScoringLevelDTO> pagedResponse = PagedDTO.from(scoringLevelsPage, "/api/v1/rubrics/" + rubricUuid + "/scoring-levels");
+        Page<RubricScoringLevelDTO> scoringLevelsPage = rubricScoringLevelService.getScoringLevelsByRubricUuidOrderByLevelOrder(rubricUuid, pageable);
+        PagedDTO<RubricScoringLevelDTO> pagedResponse = PagedDTO.from(scoringLevelsPage, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString());
         return ResponseEntity.ok(ApiResponse.success(pagedResponse, "Scoring levels retrieved successfully"));
     }
+
 
     @Operation(
             summary = "Get a specific scoring level",
@@ -134,12 +123,14 @@ public class RubricScoringLevelController {
             description = "Retrieves only the scoring levels that are marked as passing for the specified rubric."
     )
     @GetMapping(value = "/passing", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<List<RubricScoringLevelDTO>>> getPassingScoringLevels(
+    public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> getPassingScoringLevels(
             @Parameter(description = "UUID of the rubric", required = true)
-            @PathVariable UUID rubricUuid) {
+            @PathVariable UUID rubricUuid,
+            Pageable pageable) {
         
-        List<RubricScoringLevelDTO> passingScoringLevels = rubricScoringLevelService.getPassingScoringLevels(rubricUuid);
-        return ResponseEntity.ok(ApiResponse.success(passingScoringLevels, "Passing scoring levels retrieved successfully"));
+        Page<RubricScoringLevelDTO> passingScoringLevelsPage = rubricScoringLevelService.getPassingScoringLevels(rubricUuid, pageable);
+        PagedDTO<RubricScoringLevelDTO> pagedResponse = PagedDTO.from(passingScoringLevelsPage, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString());
+        return ResponseEntity.ok(ApiResponse.success(pagedResponse, "Passing scoring levels retrieved successfully"));
     }
 
     @Operation(
@@ -178,16 +169,18 @@ public class RubricScoringLevelController {
             description = "Creates a set of default scoring levels for the rubric based on the specified template (standard, simple, advanced)."
     )
     @PostMapping(value = "/defaults", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<List<RubricScoringLevelDTO>>> createDefaultScoringLevels(
+    public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> createDefaultScoringLevels(
             @Parameter(description = "UUID of the rubric", required = true)
             @PathVariable UUID rubricUuid,
             @Parameter(description = "Template to use: standard, simple, or advanced", required = true)
             @RequestParam String template,
             @Parameter(description = "User creating the levels", required = false)
-            @RequestParam(defaultValue = "SYSTEM") String createdBy) {
+            @RequestParam(defaultValue = "SYSTEM") String createdBy,
+            Pageable pageable) {
         
-        List<RubricScoringLevelDTO> defaultLevels = rubricScoringLevelService.createDefaultScoringLevels(rubricUuid, template, createdBy);
+        Page<RubricScoringLevelDTO> defaultLevelsPage = rubricScoringLevelService.createDefaultScoringLevels(rubricUuid, template, createdBy, pageable);
+        PagedDTO<RubricScoringLevelDTO> pagedResponse = PagedDTO.from(defaultLevelsPage, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(defaultLevels, String.format("Default '%s' scoring levels created successfully", template)));
+                .body(ApiResponse.success(pagedResponse, String.format("Default '%s' scoring levels created successfully", template)));
     }
 }

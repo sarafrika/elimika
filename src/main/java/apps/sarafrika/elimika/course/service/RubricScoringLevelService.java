@@ -55,6 +55,15 @@ public interface RubricScoringLevelService {
     Page<RubricScoringLevelDTO> getScoringLevelsByRubricUuid(UUID rubricUuid, Pageable pageable);
 
     /**
+     * Retrieves all scoring levels for a specific rubric ordered by level order with pagination.
+     *
+     * @param rubricUuid the UUID of the rubric
+     * @param pageable pagination information
+     * @return page of scoring levels ordered by level_order ASC
+     */
+    Page<RubricScoringLevelDTO> getScoringLevelsByRubricUuidOrderByLevelOrder(UUID rubricUuid, Pageable pageable);
+
+    /**
      * Retrieves all scoring levels with pagination.
      *
      * @param pageable pagination information
@@ -98,6 +107,15 @@ public interface RubricScoringLevelService {
     List<RubricScoringLevelDTO> getPassingScoringLevels(UUID rubricUuid);
 
     /**
+     * Retrieves passing scoring levels for a specific rubric with pagination.
+     *
+     * @param rubricUuid the UUID of the rubric
+     * @param pageable pagination information
+     * @return page of passing scoring levels ordered by level_order ASC
+     */
+    Page<RubricScoringLevelDTO> getPassingScoringLevels(UUID rubricUuid, Pageable pageable);
+
+    /**
      * Retrieves the highest scoring level for a rubric.
      *
      * @param rubricUuid the UUID of the rubric
@@ -122,4 +140,15 @@ public interface RubricScoringLevelService {
      * @return list of created scoring level DTOs
      */
     List<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy);
+
+    /**
+     * Creates default scoring levels for a rubric based on the specified template with pagination.
+     *
+     * @param rubricUuid the UUID of the rubric
+     * @param template the template to use (standard, simple, advanced)
+     * @param createdBy the user creating the levels
+     * @param pageable pagination information
+     * @return page of created scoring level DTOs
+     */
+    Page<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy, Pageable pageable);
 }

@@ -83,6 +83,13 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
 
     @Override
     @Transactional(readOnly = true)
+    public Page<RubricScoringLevelDTO> getScoringLevelsByRubricUuidOrderByLevelOrder(UUID rubricUuid, Pageable pageable) {
+        return rubricScoringLevelRepository.findByRubricUuidOrderByLevelOrder(rubricUuid, pageable)
+                .map(RubricScoringLevelFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<RubricScoringLevelDTO> getAllRubricScoringLevels(Pageable pageable) {
         return rubricScoringLevelRepository.findAll(pageable)
                 .map(RubricScoringLevelFactory::toDTO);
@@ -141,6 +148,13 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
 
     @Override
     @Transactional(readOnly = true)
+    public Page<RubricScoringLevelDTO> getPassingScoringLevels(UUID rubricUuid, Pageable pageable) {
+        return rubricScoringLevelRepository.findPassingLevelsByRubricUuid(rubricUuid, pageable)
+                .map(RubricScoringLevelFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public RubricScoringLevelDTO getHighestScoringLevel(UUID rubricUuid) {
         return rubricScoringLevelRepository.findHighestLevelByRubricUuid(rubricUuid)
                 .map(RubricScoringLevelFactory::toDTO)
@@ -170,6 +184,21 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
 
     @Override
     public List<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy) {
+        List<RubricScoringLevel> defaultLevels = createDefaultScoringLevelsInternal(rubricUuid, template, createdBy);
+        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(defaultLevels);
+        return savedLevels.stream()
+                .map(RubricScoringLevelFactory::toDTO)
+                .toList();
+    }
+
+    @Override
+    public Page<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy, Pageable pageable) {
+        List<RubricScoringLevel> defaultLevels = createDefaultScoringLevelsInternal(rubricUuid, template, createdBy);
+        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(defaultLevels);
+        return getScoringLevelsByRubricUuidOrderByLevelOrder(rubricUuid, pageable);
+    }
+
+    private List<RubricScoringLevel> createDefaultScoringLevelsInternal(UUID rubricUuid, String template, String createdBy) {
         List<RubricScoringLevel> defaultLevels = new ArrayList<>();
 
         switch (template.toLowerCase()) {
@@ -196,10 +225,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
             default -> throw new IllegalArgumentException("Unsupported template: " + template);
         }
 
-        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(defaultLevels);
-        return savedLevels.stream()
-                .map(RubricScoringLevelFactory::toDTO)
-                .toList();
+        return defaultLevels;
     }
 
     private RubricScoringLevel createScoringLevel(UUID rubricUuid, String name, String description, 
