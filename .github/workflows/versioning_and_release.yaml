@@ -7,9 +7,6 @@ on:
       - completed
     branches:
       - main
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       force_release:
@@ -24,9 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     # Only run if:
     # 1. Build workflow succeeded (for workflow_run events)
-    # 2. Direct push to main (for push events) 
-    # 3. Manual trigger (for workflow_dispatch events)
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    # 2. Manual trigger (for workflow_dispatch events)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: write
       issues: write
@@ -40,15 +36,13 @@ jobs:
               echo "🚀 Manual Release Triggered"
               echo "Force release: ${{ github.event.inputs.force_release }}"
               ;;
-            "push")
-              echo "📝 Direct Push Release (triggered by push to main)"
-              echo "Commit SHA: ${{ github.sha }}"
-              echo "Pusher: ${{ github.event.pusher.name }}"
-              ;;
             "workflow_run")
-              echo "🔄 Automatic Release (triggered by successful build)"
+              echo "🔄 Automatic Release (triggered by successful Docker build)"
               echo "Triggering workflow: ${{ github.event.workflow_run.name }}"
               echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+              ;;
+            *)
+              echo "⚠️ Unexpected trigger: ${{ github.event_name }}"
               ;;
           esac
           echo ""
