@@ -34,7 +34,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(RubricScoringLevelController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Rubric Scoring Levels", description = "Management of custom scoring levels within assessment rubrics for matrix-based evaluation")
+@Tag(name = "Rubric Scoring Levels", description = "Management of custom scoring levels within rubrics for comprehensive matrix-based assessment and evaluation")
 public class RubricScoringLevelController {
 
     public static final String API_ROOT_PATH = "/api/v1/rubrics/{rubricUuid}/scoring-levels";
