@@ -53,7 +53,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void createUser(UserRepresentation userRep) {
         log.debug("Creating new user with email: {}", userRep.getEmail());
-        log.info("User object {}", userRep.toString());
+        log.info("User object {}", userRep.getAttributes());
 //        User user = new User(userRep.getFirstName(), userRep.getAttributes().get("middleName").get(0), userRep.getLastName(),
 //                userRep.getEmail(), userRep.getUsername(), null, userRep.getAttributes()
 //                .get("dob").get(0), userRep.getAttributes().get("primaryPhoneNumber").get(0),
