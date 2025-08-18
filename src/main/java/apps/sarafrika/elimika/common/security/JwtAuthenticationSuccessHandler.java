@@ -41,6 +41,7 @@ public class JwtAuthenticationSuccessHandler {
             boolean userExists = userRepository.existsByKeycloakId(keycloakUserId);
 
             if (!userExists) {
+                log.info("Creating user with id {} in realm {}", keycloakUserId, realm);
                 UserRepresentation userRepresentation = keycloakUserService
                         .getUserById(keycloakUserId, realm)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak"));
