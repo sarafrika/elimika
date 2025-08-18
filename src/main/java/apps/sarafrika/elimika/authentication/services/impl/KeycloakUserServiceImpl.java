@@ -70,6 +70,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
     public Optional<UserRepresentation> getUserById(String userId, String realm) {
         try {
             UserResource userResource = getUsersResource(realm).get(userId);
+            log.info("User Resource: {}", userResource);
             return Optional.of(userResource.toRepresentation());
         } catch (Exception e) {
             log.debug("User not found: {}", userId);
