@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
+import apps.sarafrika.elimika.tenancy.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.internal.UserMediaValidationService;
 import apps.sarafrika.elimika.tenancy.repository.*;
@@ -53,15 +54,42 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void createUser(UserRepresentation userRep) {
         log.debug("Creating new user with email: {}", userRep.getEmail());
-        log.info("User object {}", userRep.getAttributes());
-//        User user = new User(userRep.getFirstName(), userRep.getAttributes().get("middleName").get(0), userRep.getLastName(),
-//                userRep.getEmail(), userRep.getUsername(), null, userRep.getAttributes()
-//                .get("dob").get(0), userRep.getAttributes().get("primaryPhoneNumber").get(0),
-//                userRep.isEnabled(), userRep.getId(), userRep.getAttributes()
-//                .get("gender").get(0)
-//        );
-//        log.info("User created: {}", user);
-//        userRepository.save(user);
+        
+        Map<String, List<String>> attributes = userRep.getAttributes();
+        if (attributes == null) {
+            attributes = new HashMap<>();
+        }
+        
+        String middleName = getAttributeValue(attributes, "middleName");
+        String dobString = getAttributeValue(attributes, "dob");
+        String phoneNumber = getAttributeValue(attributes, "primaryPhoneNumber");
+        String gender = getAttributeValue(attributes, "gender");
+        
+        LocalDate dob = null;
+        if (dobString != null && !dobString.isEmpty()) {
+            try {
+                dob = LocalDate.parse(dobString);
+            } catch (Exception e) {
+                log.warn("Failed to parse date of birth: {}", dobString, e);
+            }
+        }
+        
+        Gender genderEnum = Gender.fromString(gender);
+        
+        User user = new User();
+        user.setFirstName(userRep.getFirstName());
+        user.setMiddleName(middleName);
+        user.setLastName(userRep.getLastName());
+        user.setEmail(userRep.getEmail());
+        user.setUsername(userRep.getUsername());
+        user.setDob(dob);
+        user.setPhoneNumber(phoneNumber);
+        user.setActive(userRep.isEnabled());
+        user.setKeycloakId(userRep.getId());
+        user.setGender(genderEnum);
+        
+        log.info("User created: {}", user);
+        userRepository.save(user);
     }
 
     @Override
@@ -537,5 +565,10 @@ public class UserServiceImpl implements UserService {
             UserDomainMapping userDomainMapping = new UserDomainMapping(null, event.userUuid(), domainUuid, null, null);
             userDomainMappingRepository.save(userDomainMapping);
         }
+    }
+
+    private String getAttributeValue(Map<String, List<String>> attributes, String key) {
+        List<String> values = attributes.get(key);
+        return (values != null && !values.isEmpty()) ? values.get(0) : null;
     }
 }
