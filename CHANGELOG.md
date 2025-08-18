@@ -1,3 +1,10 @@
+## [1.5.3](https://github.com/sarafrika/elimika/compare/v1.5.2...v1.5.3) (2025-08-18)
+
+
+### Bug Fixes
+
+* resolve null pointer exceptions and type casting errors in UserServiceImpl createUser method ([50c2a8b](https://github.com/sarafrika/elimika/commit/50c2a8be524b585016e35ff4e7394f5121e87266))
+
 ## [1.5.2](https://github.com/sarafrika/elimika/compare/v1.5.1...v1.5.2) (2025-08-13)
 
 
