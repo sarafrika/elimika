@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.tenancy.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -16,6 +17,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationSuccessHandler {
+
+    @Value("${app.keycloak.realm}")
+    private String realm;
 
     private final UserRepository userRepository;
     private final KeycloakUserService keycloakUserService;
@@ -38,7 +42,7 @@ public class JwtAuthenticationSuccessHandler {
 
             if (!userExists) {
                 UserRepresentation userRepresentation = keycloakUserService
-                        .getUserById(keycloakUserId, "elimika")
+                        .getUserById(keycloakUserId, realm)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak"));
 
                 userService.createUser(userRepresentation);
