@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -25,6 +26,9 @@ import java.io.IOException;
 @RequiredArgsConstructor
 @Slf4j
 public class UserSyncFilter implements Filter {
+
+    @Value("${app.keycloak.realm}")
+    private String realm;
 
     private final UserRepository userRepository;
     private final KeycloakUserService keycloakUserService;
@@ -89,7 +93,7 @@ public class UserSyncFilter implements Filter {
                 log.info("User not found in database, creating user for Keycloak ID: {}", keycloakUserId);
 
                 UserRepresentation userRepresentation = keycloakUserService
-                        .getUserById(keycloakUserId, "elimika")
+                        .getUserById(keycloakUserId, realm)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak with ID: " + keycloakUserId));
 
                 log.debug("Retrieved user from Keycloak: username={}, email={}",
