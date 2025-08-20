@@ -79,18 +79,6 @@ public interface OrganisationService {
     // USER INVITATION AND MANAGEMENT
     // ================================
 
-    /**
-     * Invites a user to the organization via email with a specific role.
-     * Creates a new user-organization relationship.
-     *
-     * @param organisationUuid the organization UUID
-     * @param email the user's email address
-     * @param domainName the role/domain for the user (student, instructor, admin, organisation_user)
-     * @param branchUuid optional training branch assignment (can be null)
-     * @throws IllegalStateException if user is already associated with the organization
-     * @throws IllegalArgumentException if branch doesn't belong to organization
-     */
-    void inviteUserToOrganisation(UUID organisationUuid, String email, String domainName, UUID branchUuid);
 
     /**
      * Removes a user from the organization (soft delete).

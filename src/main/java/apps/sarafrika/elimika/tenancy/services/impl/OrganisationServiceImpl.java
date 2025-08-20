@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.event.organisation.OrganisationCreationEvent;
+import apps.sarafrika.elimika.common.event.organisation.RegisterOrganisationUser;
 import apps.sarafrika.elimika.common.event.organisation.SuccessfulOrganisationCreationEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
@@ -163,71 +164,6 @@ public class OrganisationServiceImpl implements OrganisationService {
         return organisations.map(OrganisationFactory::toDTO);
     }
 
-    @Override
-    @Transactional
-    public void inviteUserToOrganisation(UUID organisationUuid, String email, String domainName, UUID branchUuid) {
-        log.debug("Inviting user with email {} to organisation {} with domain {}", email, organisationUuid, domainName);
-
-        Organisation organisation = findOrganisationOrThrow(organisationUuid);
-        UserDomain domain = findDomainByNameOrThrow(domainName);
-
-        // Validate branch belongs to organisation if provided
-        if (branchUuid != null) {
-            TrainingBranch branch = trainingBranchRepository.findByUuid(branchUuid)
-                    .orElseThrow(() -> new ResourceNotFoundException("Training branch not found"));
-
-            if (!branch.getOrganisationUuid().equals(organisationUuid)) {
-                throw new IllegalArgumentException("Training branch does not belong to the specified organisation");
-            }
-        }
-
-        // Check if user exists
-        Optional<User> userOptional = userRepository.findByEmail(email);
-
-        if (userOptional.isEmpty()) {
-            // For admin and organisation_user roles, user must exist (they should register first)
-            if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-                throw new IllegalStateException("User must register on the platform before being invited as " + domainName +
-                        ". Please ask them to create an account first.");
-            }
-
-            // For student/instructor invitations, we'll create invitation and let them register later
-            log.info("Creating invitation for non-existent user {} with domain {}", email, domainName);
-            // This will be handled by the InvitationService
-            return;
-        }
-
-        User user = userOptional.get();
-
-        // Check if mapping already exists
-        Optional<UserOrganisationDomainMapping> existingMapping =
-                userOrganisationDomainMappingRepository.findActiveByUserAndOrganisation(user.getUuid(), organisationUuid);
-
-        if (existingMapping.isPresent()) {
-            log.warn("User {} is already associated with organisation {}", email, organisationUuid);
-            throw new IllegalStateException("User is already associated with this organisation");
-        }
-
-        // Create new mapping
-        UserOrganisationDomainMapping mapping = UserOrganisationDomainMapping.builder()
-                .userUuid(user.getUuid())
-                .organisationUuid(organisationUuid)
-                .domainUuid(domain.getUuid())
-                .branchUuid(branchUuid)
-                .active(true)
-                .startDate(LocalDate.now())
-                .createdBy("system") // TODO: Replace with actual user context
-                .build();
-
-        userOrganisationDomainMappingRepository.save(mapping);
-
-        // For invitation-only roles, also add to standalone domains
-        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-            addStandaloneDomainToUser(user, domain);
-        }
-
-        log.info("Successfully invited user {} to organisation {} with domain {}", email, organisationUuid, domainName);
-    }
 
     @Override
     @Transactional(readOnly = true)
@@ -393,8 +329,13 @@ public class OrganisationServiceImpl implements OrganisationService {
 
             userOrganisationDomainMappingRepository.save(mapping);
 
-            // Add organisation_user domain to standalone domains
-            addStandaloneDomainToUser(creator, organisationUserDomain);
+            // Publish organisation user registration event to handle domain assignment
+            eventPublisher.publishEvent(new RegisterOrganisationUser(
+                creator.getFirstName() + " " + creator.getLastName(),
+                creatorUuid,
+                organisationUuid,
+                true // This is an organisation administrator (creator)
+            ));
 
             log.info("Successfully assigned creator {} as organisation_user for organisation {}", creatorUuid, organisationUuid);
         } catch (Exception e) {

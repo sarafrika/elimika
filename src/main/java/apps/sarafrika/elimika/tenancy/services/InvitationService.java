@@ -56,6 +56,21 @@ public interface InvitationService {
             UUID inviterUuid,
             String notes);
 
+    /**
+     * Creates and sends a system administrator invitation via email.
+     *
+     * @param recipientEmail the recipient's email address
+     * @param recipientName the recipient's full name
+     * @param inviterUuid the UUID of the user sending the invitation
+     * @param notes optional notes for the invitation
+     * @return the created invitation
+     */
+    InvitationDTO createAdminInvitation(
+            String recipientEmail,
+            String recipientName,
+            UUID inviterUuid,
+            String notes);
+
     // ================================
     // INVITATION MANAGEMENT
     // ================================
@@ -167,6 +182,14 @@ public interface InvitationService {
      * @return true if pending invitation exists
      */
     boolean hasPendingBranchInvitation(String recipientEmail, UUID organisationUuid, UUID branchUuid);
+
+    /**
+     * Checks if there's already a pending admin invitation for an email.
+     *
+     * @param recipientEmail the recipient's email
+     * @return true if pending admin invitation exists
+     */
+    boolean hasPendingAdminInvitation(String recipientEmail);
 
     // ================================
     // MAINTENANCE METHODS

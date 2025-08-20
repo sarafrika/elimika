@@ -364,4 +364,12 @@ public interface UserOrganisationDomainMappingRepository extends JpaRepository<U
     List<UserOrganisationDomainMapping> findByCreatedDateBetween(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+    
+    /**
+     * Count active organisation mappings.
+     * Used for system statistics.
+     *
+     * @return count of active mappings
+     */
+    long countByActiveTrueAndDeletedFalse();
 }

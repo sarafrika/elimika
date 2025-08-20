@@ -1,11 +1,13 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.EmailUtility;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.factory.InvitationFactory;
+import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
@@ -36,9 +38,13 @@ public class InvitationServiceImpl implements InvitationService {
 
     private final EmailUtility emailUtility;
     private final UserService userService;
+    private final KeycloakUserService keycloakUserService;
 
     @Value("${app.invitation.expiry-days:7}")
     private int invitationExpiryDays;
+
+    @Value("${app.keycloak.realm}")
+    private String keycloakRealm;
 
     // ================================
     // INVITATION CREATION
@@ -131,6 +137,55 @@ public class InvitationServiceImpl implements InvitationService {
         );
     }
 
+    @Override
+    @Transactional
+    public InvitationDTO createAdminInvitation(
+            String recipientEmail,
+            String recipientName,
+            UUID inviterUuid,
+            String notes) {
+
+        log.debug("Creating system admin invitation for {} by user {}", recipientEmail, inviterUuid);
+
+        // Validate inputs
+        validateAdminInvitationInputs(recipientEmail, recipientName, inviterUuid);
+
+        // Check for existing pending admin invitation
+        if (hasPendingAdminInvitation(recipientEmail)) {
+            throw new IllegalStateException("A pending admin invitation already exists for this email address");
+        }
+
+        // Get admin domain
+        UserDomain adminDomain = findDomainByNameOrThrow("admin");
+        User inviter = findUserOrThrow(inviterUuid);
+
+        // Create admin invitation (no organization, no branch)
+        Invitation invitation = Invitation.builder()
+                .token(emailUtility.generateInvitationToken())
+                .recipientEmail(recipientEmail.toLowerCase().trim())
+                .recipientName(recipientName.trim())
+                .organisationUuid(null) // Admin invitations are not tied to organizations
+                .branchUuid(null)
+                .domainUuid(adminDomain.getUuid())
+                .inviterUuid(inviterUuid)
+                .inviterName(inviter.getFirstName() + " " + inviter.getLastName())
+                .status(Invitation.InvitationStatus.PENDING)
+                .expiresAt(LocalDateTime.now().plusDays(invitationExpiryDays))
+                .notes(notes)
+                .createdBy(inviter.getEmail())
+                .build();
+
+        invitation = invitationRepository.save(invitation);
+
+        // Send admin invitation email asynchronously
+        sendAdminInvitationEmailAsync(invitation, adminDomain, inviter);
+
+        log.info("Created system admin invitation {} for {} by user {}",
+                invitation.getUuid(), recipientEmail, inviterUuid);
+
+        return InvitationFactory.toDTO(invitation);
+    }
+
     // ================================
     // INVITATION MANAGEMENT
     // ================================
@@ -149,39 +204,68 @@ public class InvitationServiceImpl implements InvitationService {
         UserDomain domain = findDomainByUuidOrThrow(invitation.getDomainUuid());
         String domainName = domain.getDomainName();
 
-        // Check if user is already in the organization
-        boolean alreadyMember = userOrganisationDomainMappingRepository
-                .existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
-                        userUuid, invitation.getOrganisationUuid());
-
-        if (alreadyMember) {
-            throw new IllegalStateException("User is already a member of this organization");
-        }
-
-        // Accept the invitation
-        invitation.accept(userUuid);
-        invitationRepository.save(invitation);
-
-        // Handle domain assignment based on role type
-        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-            // For invitation-only roles, add domain to standalone domains
+        // Handle admin invitations (no organization involved)
+        if ("admin".equals(domainName)) {
+            log.debug("Processing admin invitation acceptance for user {}", userUuid);
+            
+            // Check if user already has admin role
+            List<String> userDomains = getUserDomainsForUser(userUuid);
+            if (userDomains.contains("admin")) {
+                throw new IllegalStateException("User is already a system administrator");
+            }
+            
+            // Accept the invitation
+            invitation.accept(userUuid);
+            invitationRepository.save(invitation);
+            
+            // Add admin domain to standalone domains
             addStandaloneDomainToUser(user, domain);
+            
+            log.info("Accepted admin invitation {} by user {}", invitation.getUuid(), userUuid);
+            
+            // For admin invitations, return the user with updated domains
+            List<String> updatedDomains = getUserDomainsForUser(userUuid);
+            return UserFactory.toDTO(user, updatedDomains);
         }
 
-        // Create user-organization relationship using UserService
-        UserDTO updatedUser = userService.assignUserToOrganisation(
-                userUuid,
-                invitation.getOrganisationUuid(),
-                domainName,
-                invitation.getBranchUuid()
-        );
+        // Handle organization invitations
+        if (invitation.getOrganisationUuid() != null) {
+            // Check if user is already in the organization with this domain
+            boolean alreadyMember = userOrganisationDomainMappingRepository
+                    .existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
+                            userUuid, invitation.getOrganisationUuid());
 
-        // Send confirmation email asynchronously
-        sendAcceptanceConfirmationEmailAsync(invitation, user);
+            if (alreadyMember) {
+                throw new IllegalStateException("User is already a member of this organization");
+            }
 
-        log.info("Accepted invitation {} by user {}", invitation.getUuid(), userUuid);
+            // Accept the invitation
+            invitation.accept(userUuid);
+            invitationRepository.save(invitation);
 
-        return updatedUser;
+            // Handle domain assignment based on role type
+            if ("organisation_user".equals(domainName)) {
+                // For invitation-only roles, add domain to standalone domains
+                addStandaloneDomainToUser(user, domain);
+            }
+
+            // Create user-organization relationship using UserService
+            UserDTO updatedUser = userService.assignUserToOrganisation(
+                    userUuid,
+                    invitation.getOrganisationUuid(),
+                    domainName,
+                    invitation.getBranchUuid()
+            );
+
+            log.info("Accepted organization invitation {} by user {}", invitation.getUuid(), userUuid);
+            
+            // Send confirmation email asynchronously
+            sendAcceptanceConfirmationEmailAsync(invitation, user);
+            
+            return updatedUser;
+        }
+
+        throw new IllegalStateException("Invalid invitation: neither admin nor organization invitation");
     }
 
     @Override
@@ -335,6 +419,22 @@ public class InvitationServiceImpl implements InvitationService {
                 recipientEmail.toLowerCase().trim(), organisationUuid, branchUuid, Invitation.InvitationStatus.PENDING);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasPendingAdminInvitation(String recipientEmail) {
+        UserDomain adminDomain = userDomainRepository.findByDomainName("admin")
+                .orElse(null);
+        
+        if (adminDomain == null) {
+            return false;
+        }
+        
+        return invitationRepository.findByRecipientEmailAndStatus(
+                recipientEmail.toLowerCase().trim(), Invitation.InvitationStatus.PENDING)
+                .stream()
+                .anyMatch(invitation -> adminDomain.getUuid().equals(invitation.getDomainUuid()));
+    }
+
     // ================================
     // MAINTENANCE METHODS
     // ================================
@@ -474,32 +574,57 @@ public class InvitationServiceImpl implements InvitationService {
     }
 
     /**
-     * Validates invitation rules based on domain and user existence
+     * Validates invitation rules based on domain and Keycloak user existence
      */
     private void validateInvitationRules(String recipientEmail, String domainName) {
-        Optional<User> existingUser = userRepository.findByEmail(recipientEmail);
+        // KEYCLOAK SOURCE OF TRUTH: Check if user exists in Keycloak and already has the domain
+        boolean userExistsInKeycloak = keycloakUserService.userExistsByEmail(recipientEmail, keycloakRealm);
+        
+        if (userExistsInKeycloak) {
+            // Check if user already has the role in our database (for users synced from Keycloak)
+            Optional<User> localUser = userRepository.findByEmail(recipientEmail);
+            if (localUser.isPresent()) {
+                List<String> userDomains = getUserDomainsForUser(localUser.get().getUuid());
 
-        // For admin and organisation_user roles, user must already exist
-        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-            if (existingUser.isEmpty()) {
-                throw new IllegalStateException("User with email " + recipientEmail +
-                        " must register on the platform before being invited as " + domainName +
-                        ". Please ask them to create an account first.");
+                if ("student".equals(domainName) && userDomains.contains("student")) {
+                    throw new IllegalStateException("User " + recipientEmail + " already has student role");
+                } else if ("instructor".equals(domainName) && userDomains.contains("instructor")) {
+                    throw new IllegalStateException("User " + recipientEmail + " already has instructor role");
+                } else if ("admin".equals(domainName) && userDomains.contains("admin")) {
+                    throw new IllegalStateException("User " + recipientEmail + " is already a system administrator");
+                } else if ("organisation_user".equals(domainName) && userDomains.contains("organisation_user")) {
+                    throw new IllegalStateException("User " + recipientEmail + " already has organization user role");
+                }
             }
         }
+        
+        log.debug("Validation passed for inviting {} as {} (Keycloak user exists: {})", recipientEmail, domainName, userExistsInKeycloak);
+    }
 
-        // For student/instructor roles, check if user already has the domain
+    /**
+     * Validates admin invitation inputs
+     */
+    private void validateAdminInvitationInputs(String recipientEmail, String recipientName, UUID inviterUuid) {
+        if (!emailUtility.isValidEmail(recipientEmail)) {
+            throw new IllegalArgumentException("Invalid email address");
+        }
+        if (recipientName == null || recipientName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Recipient name is required");
+        }
+        if (inviterUuid == null) {
+            throw new IllegalArgumentException("Inviter UUID is required");
+        }
+
+        // Check if user already exists and has admin role
+        Optional<User> existingUser = userRepository.findByEmail(recipientEmail);
         if (existingUser.isPresent()) {
             List<String> userDomains = getUserDomainsForUser(existingUser.get().getUuid());
-
-            if ("student".equals(domainName) && !userDomains.contains("student")) {
-                // User exists but doesn't have student domain - this is fine for organization invitation
-                log.debug("Existing user {} being invited as student to organization", recipientEmail);
-            } else if ("instructor".equals(domainName) && !userDomains.contains("instructor")) {
-                // User exists but doesn't have instructor domain - this is fine for organization invitation
-                log.debug("Existing user {} being invited as instructor to organization", recipientEmail);
+            if (userDomains.contains("admin")) {
+                throw new IllegalStateException("User " + recipientEmail + " is already a system administrator");
             }
         }
+        // Note: We now allow inviting non-existing users. They will receive 
+        // registration instructions along with their invitation.
     }
 
     private boolean canManageInvitation(Invitation invitation, UUID userUuid) {
@@ -563,34 +688,132 @@ public class InvitationServiceImpl implements InvitationService {
     void sendInvitationEmailAsync(Invitation invitation, Organisation organisation,
                                   TrainingBranch branch, UserDomain domain) {
         try {
-            if (branch != null) {
-                emailUtility.sendBranchInvitation(
-                        invitation.getRecipientEmail(),
-                        invitation.getRecipientName(),
-                        organisation.getName(),
-                        branch.getBranchName(),
-                        branch.getAddress(),
-                        domain.getDomainName(),
-                        invitation.getInviterName(),
-                        invitation.getToken()
-                );
+            log.debug("Sending organization invitation email for invitation {}", invitation.getUuid());
+            
+            // KEYCLOAK SOURCE OF TRUTH: Check if the recipient already has an account in Keycloak
+            boolean userExistsInKeycloak = keycloakUserService.userExistsByEmail(invitation.getRecipientEmail(), keycloakRealm);
+            
+            if (userExistsInKeycloak) {
+                // User exists in Keycloak - send direct organization invitation
+                log.debug("Sending direct organization invitation to existing Keycloak user {}", invitation.getRecipientEmail());
+                if (branch != null) {
+                    emailUtility.sendBranchInvitation(
+                            invitation.getRecipientEmail(),
+                            invitation.getRecipientName(),
+                            organisation.getName(),
+                            branch.getBranchName(),
+                            branch.getAddress(),
+                            domain.getDomainName(),
+                            invitation.getInviterName(),
+                            invitation.getToken()
+                    );
+                } else {
+                    emailUtility.sendOrganizationInvitation(
+                            invitation.getRecipientEmail(),
+                            invitation.getRecipientName(),
+                            organisation.getName(),
+                            organisation.getDomain(),
+                            domain.getDomainName(),
+                            null, // branchName is null for org-level invitations
+                            invitation.getInviterName(),
+                            invitation.getToken()
+                    );
+                }
             } else {
-                emailUtility.sendOrganizationInvitation(
+                // User doesn't exist in Keycloak - create user and trigger Keycloak registration
+                log.debug("User {} doesn't exist in Keycloak, creating user and sending invitations", invitation.getRecipientEmail());
+                
+                // Create user in Keycloak for invitation (this triggers Keycloak's email)
+                String[] nameParts = invitation.getRecipientName().split(" ", 2);
+                String firstName = nameParts[0];
+                String lastName = nameParts.length > 1 ? nameParts[1] : "";
+                
+                keycloakUserService.createUserForInvitation(
+                        invitation.getRecipientEmail(), 
+                        firstName, 
+                        lastName, 
+                        keycloakRealm
+                );
+                
+                // Send our registration-required invitation
+                emailUtility.sendRegistrationRequiredInvitation(
                         invitation.getRecipientEmail(),
                         invitation.getRecipientName(),
-                        organisation.getName(),
-                        organisation.getDomain(),
-                        domain.getDomainName(),
-                        null, // branchName is null for org-level invitations
                         invitation.getInviterName(),
-                        invitation.getToken()
+                        domain.getDomainName(),
+                        organisation.getName(),
+                        branch != null ? branch.getBranchName() : null,
+                        invitation.getToken(),
+                        invitation.getNotes()
                 );
+                
+                log.info("Created Keycloak user and sent registration instructions for organization invitation {}", invitation.getUuid());
             }
-            log.info("Successfully sent invitation email for invitation {}", invitation.getUuid());
+            
+            log.info("Successfully sent invitation email for invitation {} (Keycloak user exists: {})", 
+                    invitation.getUuid(), userExistsInKeycloak);
         } catch (MessagingException e) {
             log.error("Failed to send invitation email for invitation {}: {}", invitation.getUuid(), e.getMessage());
         } catch (Exception e) {
             log.error("Unexpected error sending invitation email for invitation {}: {}", invitation.getUuid(), e.getMessage());
+        }
+    }
+
+    @Async
+    void sendAdminInvitationEmailAsync(Invitation invitation, UserDomain adminDomain, User inviter) {
+        try {
+            log.debug("Sending admin invitation email for invitation {}", invitation.getUuid());
+            
+            // KEYCLOAK SOURCE OF TRUTH: Check if the recipient already has an account in Keycloak
+            boolean userExistsInKeycloak = keycloakUserService.userExistsByEmail(invitation.getRecipientEmail(), keycloakRealm);
+            
+            if (userExistsInKeycloak) {
+                // User exists in Keycloak - send direct admin invitation
+                log.debug("Sending direct admin invitation to existing Keycloak user {}", invitation.getRecipientEmail());
+                emailUtility.sendAdminInvitation(
+                        invitation.getRecipientEmail(),
+                        invitation.getRecipientName(),
+                        invitation.getInviterName(),
+                        invitation.getToken(),
+                        invitation.getNotes()
+                );
+            } else {
+                // User doesn't exist in Keycloak - create user and trigger Keycloak registration
+                log.debug("User {} doesn't exist in Keycloak, creating user and sending invitations", invitation.getRecipientEmail());
+                
+                // Create user in Keycloak for invitation (this triggers Keycloak's email)
+                String[] nameParts = invitation.getRecipientName().split(" ", 2);
+                String firstName = nameParts[0];
+                String lastName = nameParts.length > 1 ? nameParts[1] : "";
+                
+                keycloakUserService.createUserForInvitation(
+                        invitation.getRecipientEmail(), 
+                        firstName, 
+                        lastName, 
+                        keycloakRealm
+                );
+                
+                // Send our registration-required invitation
+                emailUtility.sendRegistrationRequiredInvitation(
+                        invitation.getRecipientEmail(),
+                        invitation.getRecipientName(),
+                        invitation.getInviterName(),
+                        "admin",
+                        null, // No organization for admin invitations
+                        null, // No branch for admin invitations
+                        invitation.getToken(),
+                        invitation.getNotes()
+                );
+                
+                log.info("Created Keycloak user and sent registration instructions for admin invitation {}", invitation.getUuid());
+            }
+            
+            log.info("Successfully sent admin invitation email for invitation {} (Keycloak user exists: {})", 
+                    invitation.getUuid(), userExistsInKeycloak);
+        } catch (MessagingException e) {
+            log.error("Failed to send admin invitation email for invitation {}: {}", invitation.getUuid(), e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error sending admin invitation email for invitation {}: {}", invitation.getUuid(), e.getMessage());
         }
     }
 

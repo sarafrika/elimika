@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Administrator Invitation - [[${companyName}]]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="admin-pattern" x="0" y="0" width="15" height="15" patternUnits="userSpaceOnUse"><rect x="5" y="5" width="2" height="2" fill="rgba(255,255,255,0.1)"/><rect x="10" y="2" width="2" height="2" fill="rgba(255,255,255,0.08)"/><rect x="2" y="10" width="2" height="2" fill="rgba(255,255,255,0.08)"/></pattern></defs><rect width="100" height="100" fill="url(%23admin-pattern)"/></svg>');
+        }
+
+        .logo {
+            position: relative;
+            z-index: 1;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .logo svg {
+            width: 50px;
+            height: 50px;
+            fill: #dc2626;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 30px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 18px;
+            position: relative;
+            z-index: 1;
+            font-weight: 500;
+        }
+
+        .admin-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 26px;
+            color: #1a202c;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .privilege-highlight {
+            background: linear-gradient(135deg, #fef5e7 0%, #fed7aa 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .privilege-highlight::before {
+            content: '👑';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            border: 2px solid #f59e0b;
+        }
+
+        .privilege-highlight h2 {
+            color: #92400e;
+            font-size: 22px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .privilege-highlight p {
+            color: #a16207;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .admin-permissions {
+            background: #fef2f2;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #fecaca;
+        }
+
+        .admin-permissions h3 {
+            color: #b91c1c;
+            margin-bottom: 20px;
+            font-size: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .permission-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .permission-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .permission-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .permission-text {
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .invitation-details {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #d1d5db;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 0;
+        }
+
+        .detail-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .detail-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .detail-content {
+            flex-grow: 1;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .security-warning {
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 30px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .security-warning-icon {
+            width: 30px;
+            height: 30px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .security-warning-icon svg {
+            width: 16px;
+            height: 16px;
+            fill: white;
+        }
+
+        .security-warning-content h4 {
+            color: #92400e;
+            font-size: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .security-warning-content p {
+            color: #a16207;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .actions {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 18px 35px;
+            margin: 10px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-accept {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+        }
+
+        .btn-accept:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(220, 38, 38, 0.4);
+        }
+
+        .btn-decline {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #374151;
+            border: 2px solid #d1d5db;
+        }
+
+        .btn-decline:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .footer {
+            background: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .footer a {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .invitation-details {
+                padding: 20px;
+            }
+
+            .greeting {
+                font-size: 22px;
+            }
+
+            .btn {
+                display: block;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="admin-badge">System Admin</div>
+        <div class="logo">
+            <svg viewBox="0 0 24 24">
+                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.9 16,12.4 16,13V16C16,17.1 15.1,18 14,18H10C8.9,18 8,17.1 8,16V13C8,12.4 8.6,11.9 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,9.5V11.5H13.5V9.5C13.5,8.7 12.8,8.2 12,8.2Z"/>
+            </svg>
+        </div>
+        <h1>System Administrator Invitation</h1>
+        <p>Platform-wide administrative access</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="greeting">
+            Hello [[${recipientName}]]! 🛡️
+        </div>
+
+        <p style="color: #4b5563; font-size: 16px; margin-bottom: 20px;">
+            You have been selected to become a <strong>System Administrator</strong> for 
+            <strong>[[${companyName}]]</strong>. This is a high-privilege role that grants 
+            you platform-wide administrative access.
+        </p>
+
+        <!-- Privilege Highlight -->
+        <div class="privilege-highlight">
+            <h2>System Administrator Role</h2>
+            <p>
+                As a System Administrator, you will have complete control over the platform, 
+                including user management, organization oversight, and system configuration.
+            </p>
+        </div>
+
+        <!-- Admin Permissions -->
+        <div class="admin-permissions">
+            <h3>
+                <svg viewBox="0 0 24 24" style="width: 24px; height: 24px; fill: #b91c1c;">
+                    <path d="M9,12L11,14L15,10L13.5,8.5L11,11L9.5,9.5L9,12M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4Z"/>
+                </svg>
+                Administrator Privileges
+            </h3>
+            <div class="permission-list">
+                <div class="permission-item">
+                    <div class="permission-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                        </svg>
+                    </div>
+                    <div class="permission-text">Manage all users across all organizations</div>
+                </div>
+                <div class="permission-item">
+                    <div class="permission-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                        </svg>
+                    </div>
+                    <div class="permission-text">Oversee all organizations and training branches</div>
+                </div>
+                <div class="permission-item">
+                    <div class="permission-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                    </div>
+                    <div class="permission-text">Configure system-wide settings and preferences</div>
+                </div>
+                <div class="permission-item">
+                    <div class="permission-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M9,5V9H15V5M9,19H15V15H9M9,14H15V10H9M4,2H20A2,2 0 0,1 22,4V20A2,2 0 0,1 20,22H4A2,2 0 0,1 2,20V4A2,2 0 0,1 4,2Z"/>
+                        </svg>
+                    </div>
+                    <div class="permission-text">Access comprehensive system analytics and reports</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invitation Details -->
+        <div class="invitation-details">
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Role</div>
+                    <div class="detail-value">System Administrator</div>
+                </div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Access Level</div>
+                    <div class="detail-value">Platform-wide</div>
+                </div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Invited By</div>
+                    <div class="detail-value">[[${inviterName}]]</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Warning -->
+        <div class="security-warning">
+            <div class="security-warning-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12,2L13.09,8.26L22,9L17,14L18.18,23L12,19.77L5.82,23L7,14L2,9L10.91,8.26L12,2Z"/>
+                </svg>
+            </div>
+            <div class="security-warning-content">
+                <h4>Important Security Notice</h4>
+                <p>
+                    This role grants extensive privileges across the entire platform. Please ensure 
+                    you understand the responsibilities that come with system administration before 
+                    accepting this invitation.
+                </p>
+            </div>
+        </div>
+
+        <!-- Personal Message (if exists) -->
+        <div class="message-section" th:if="${notes}" style="background: #f8fafc; border-left: 4px solid #dc2626; padding: 20px; margin: 30px 0; border-radius: 0 10px 10px 0;">
+            <h3 style="color: #1f2937; margin-bottom: 10px; font-size: 18px;">Personal Message</h3>
+            <div style="color: #4b5563; font-style: italic; line-height: 1.6;">
+                "[[${notes}]]"
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="actions">
+            <a th:href="${acceptUrl}" class="btn btn-accept">
+                ✓ Accept Administrator Role
+            </a>
+            <a th:href="${declineUrl}" class="btn btn-decline">
+                ✗ Decline Invitation
+            </a>
+        </div>
+
+        <!-- Security Note -->
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 15px; margin: 20px 0;">
+            <p style="color: #b91c1c; font-size: 14px; margin: 0;">
+                🔒 This system administrator invitation is secure and was sent specifically to [[${recipientEmail}]].
+                If you did not expect this invitation, please contact support immediately.
+            </p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>This system administrator invitation was sent by [[${companyName}]]</p>
+        <p>
+            Need help? Contact us at
+            <a href="mailto:support@sarafrika.com">support@sarafrika.com</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 12px;">
+            © 2025 [[${companyName}]]. All rights reserved.
+        </p>
+    </div>
+</div>
+</body>
+</html>

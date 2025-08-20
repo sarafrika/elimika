@@ -40,4 +40,10 @@ public interface KeycloakUserService {
     // Session Management
     void logoutUser(String userId, String realm);
     void revokeAllSessions(String userId, String realm);
+
+    // User Existence and Invitation Operations
+    boolean userExistsByEmail(String email, String realm);
+    Optional<UserRepresentation> getUserByEmail(String email, String realm);
+    UserRepresentation createUserForInvitation(String email, String firstName, String lastName, String realm);
+    void sendInvitationEmail(String userId, String realm);
 }

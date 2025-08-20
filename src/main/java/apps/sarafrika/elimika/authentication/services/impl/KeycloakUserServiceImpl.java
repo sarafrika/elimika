@@ -313,4 +313,93 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         credential.setValue(password);
         return credential;
     }
+
+    // ================================
+    // USER EXISTENCE AND INVITATION OPERATIONS
+    // ================================
+
+    @Override
+    public boolean userExistsByEmail(String email, String realm) {
+        try {
+            return getUserByEmail(email, realm).isPresent();
+        } catch (Exception e) {
+            log.debug("Error checking user existence for email {}: {}", email, e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public Optional<UserRepresentation> getUserByEmail(String email, String realm) {
+        try {
+            UsersResource usersResource = getUsersResource(realm);
+            List<UserRepresentation> users = usersResource.search(null, null, null, email, 0, 1);
+            
+            return users.stream()
+                    .filter(user -> email.equalsIgnoreCase(user.getEmail()))
+                    .findFirst();
+        } catch (Exception e) {
+            log.error("Failed to get user by email: {}", email, e);
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    @Transactional
+    public UserRepresentation createUserForInvitation(String email, String firstName, String lastName, String realm) {
+        log.debug("Creating user for invitation: email={}, realm={}", email, realm);
+        
+        // Check if user already exists
+        Optional<UserRepresentation> existingUser = getUserByEmail(email, realm);
+        if (existingUser.isPresent()) {
+            log.info("User already exists with email: {}", email);
+            return existingUser.get();
+        }
+
+        try {
+            UserRepresentation userRepresentation = new UserRepresentation();
+            userRepresentation.setUsername(email); // Use email as username
+            userRepresentation.setEmail(email);
+            userRepresentation.setFirstName(firstName);
+            userRepresentation.setLastName(lastName);
+            userRepresentation.setEnabled(true);
+            userRepresentation.setEmailVerified(false); // Will be verified when they complete registration
+            
+            // Set required actions for invitation flow
+            userRepresentation.setRequiredActions(Arrays.asList("VERIFY_EMAIL", "UPDATE_PASSWORD"));
+
+            UsersResource usersResource = getUsersResource(realm);
+            try (Response response = usersResource.create(userRepresentation)) {
+                handleResponse(response, email);
+                String userId = extractCreatedUserId(response);
+                
+                log.info("Created user for invitation: userId={}, email={}", userId, email);
+                
+                // Send the Keycloak invitation email immediately
+                sendInvitationEmail(userId, realm);
+                
+                return getUserById(userId, realm)
+                        .orElseThrow(() -> new KeycloakException("User created but not found"));
+            }
+        } catch (Exception e) {
+            log.error("Failed to create user for invitation: email={}", email, e);
+            throw new KeycloakException("User invitation creation failed: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void sendInvitationEmail(String userId, String realm) {
+        log.debug("Sending Keycloak invitation email to userId={}, realm={}", userId, realm);
+        
+        try {
+            // Send required action emails for account setup
+            List<String> requiredActions = Arrays.asList("VERIFY_EMAIL", "UPDATE_PASSWORD");
+            getUsersResource(realm).get(userId).executeActionsEmail(requiredActions);
+            
+            log.info("Successfully sent Keycloak invitation email to userId={}", userId);
+        } catch (Exception e) {
+            log.error("Failed to send Keycloak invitation email to userId={}: {}", userId, e.getMessage());
+            throw new KeycloakException("Failed to send Keycloak invitation email: " + e.getMessage(), e);
+        }
+    }
 }

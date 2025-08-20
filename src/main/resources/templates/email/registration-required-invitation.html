@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to [[${companyName}]] - Registration Required</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .email-container {
+            max-width: 650px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="welcome-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="12" cy="8" r="1" fill="rgba(255,255,255,0.08)"/><circle cx="8" cy="18" r="1" fill="rgba(255,255,255,0.08)"/></pattern></defs><rect width="100" height="100" fill="url(%23welcome-pattern)"/></svg>');
+        }
+
+        .logo {
+            position: relative;
+            z-index: 1;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 25px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .logo svg {
+            width: 60px;
+            height: 60px;
+            fill: #667eea;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 20px;
+            position: relative;
+            z-index: 1;
+            font-weight: 500;
+        }
+
+        .invitation-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .content {
+            padding: 50px 40px;
+        }
+
+        .greeting {
+            font-size: 28px;
+            color: #1a202c;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .welcome-message {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid #0ea5e9;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .welcome-message::before {
+            content: '🎉';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 2px solid #0ea5e9;
+        }
+
+        .welcome-message h2 {
+            color: #0c4a6e;
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .welcome-message p {
+            color: #075985;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .steps-container {
+            background: #fefbf2;
+            border: 1px solid #fbbf24;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+
+        .steps-title {
+            color: #92400e;
+            font-size: 22px;
+            margin-bottom: 25px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .steps-list {
+            counter-reset: step-counter;
+        }
+
+        .step {
+            counter-increment: step-counter;
+            display: flex;
+            margin-bottom: 25px;
+            position: relative;
+            padding-left: 60px;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .step-content h3 {
+            color: #1f2937;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-content p {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .invitation-details {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+
+        .detail-icon {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .detail-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: white;
+        }
+
+        .detail-content {
+            flex-grow: 1;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 18px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .role-highlight {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .role-highlight h3 {
+            color: #92400e;
+            font-size: 20px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .role-highlight p {
+            color: #a16207;
+            font-size: 16px;
+        }
+
+        .actions {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 18px 40px;
+            margin: 15px 10px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #374151;
+            border: 2px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .keycloak-info {
+            background: #f0f9ff;
+            border: 2px solid #0ea5e9;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .keycloak-info-icon {
+            width: 40px;
+            height: 40px;
+            background: #0ea5e9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .keycloak-info-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .keycloak-info-content h4 {
+            color: #0c4a6e;
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .keycloak-info-content p {
+            color: #075985;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .footer {
+            background: #f8fafc;
+            padding: 40px 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        @media (max-width: 650px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .content {
+                padding: 30px 25px;
+            }
+
+            .greeting {
+                font-size: 24px;
+            }
+
+            .btn {
+                display: block;
+                margin: 15px 0;
+            }
+
+            .step {
+                padding-left: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="invitation-badge" th:text="${domainName == 'admin' ? 'Admin Invitation' : 'Team Invitation'}">Team Invitation</div>
+        <div class="logo">
+            <svg viewBox="0 0 24 24">
+                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,7H14V9H10V7M10,11H14V13H10V11M10,15H14V17H10V15Z"/>
+            </svg>
+        </div>
+        <h1>You're Invited!</h1>
+        <p>Join our platform and team</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="greeting">
+            Hello [[${recipientName}]]! 👋
+        </div>
+
+        <div class="welcome-message">
+            <h2>Welcome to [[${companyName}]]</h2>
+            <p>
+                <span th:text="${inviterName}">Inviter</span> has invited you to join 
+                <strong th:if="${organisationName}" th:text="${organisationName}">Organization</strong>
+                <span th:if="${organisationName}"> as a </span>
+                <strong th:text="${#strings.replace(domainName, '_', ' ')}">role</strong>
+                <span th:unless="${organisationName}"> as a system administrator</span>.
+            </p>
+        </div>
+
+        <!-- Registration Steps -->
+        <div class="steps-container">
+            <h3 class="steps-title">
+                <svg viewBox="0 0 24 24" style="width: 24px; height: 24px; fill: #92400e;">
+                    <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                </svg>
+                Getting Started - Just 2 Steps!
+            </h3>
+            <div class="steps-list">
+                <div class="step">
+                    <div class="step-content">
+                        <h3>Create Your Account</h3>
+                        <p>First, you'll need to register on our secure authentication system (Keycloak). This creates your account and ensures the security of your data.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-content">
+                        <h3>Accept Your Invitation</h3>
+                        <p>Once registered, return to this email and click "Accept Invitation" to join the team with your assigned role and permissions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invitation Details -->
+        <div class="invitation-details">
+            <div class="detail-item" th:if="${organisationName}">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Organization</div>
+                    <div class="detail-value" th:text="${organisationName}">Organization Name</div>
+                </div>
+            </div>
+
+            <div class="detail-item" th:if="${branchName}">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,2L13.09,8.26L22,9L17,14L18.18,23L12,19.77L5.82,23L7,14L2,9L10.91,8.26L12,2Z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Training Branch</div>
+                    <div class="detail-value" th:text="${branchName}">Branch Name</div>
+                </div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Your Role</div>
+                    <div class="detail-value" th:text="${#strings.replace(domainName, '_', ' ')}">Role</div>
+                </div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                    </svg>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-label">Invited By</div>
+                    <div class="detail-value" th:text="${inviterName}">Inviter Name</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Highlight -->
+        <div class="role-highlight">
+            <h3 th:text="'You\'ll have ' + ${#strings.replace(domainName, '_', ' ')} + ' privileges'">You'll have role privileges</h3>
+            <p th:if="${domainName == 'admin'}">Full system administration access across all organizations</p>
+            <p th:if="${domainName == 'organisation_user'}">Organization management and administrative capabilities</p>
+            <p th:if="${domainName == 'instructor'}">Teaching and course management permissions</p>
+            <p th:if="${domainName == 'student'}">Access to learning materials and course participation</p>
+        </div>
+
+        <!-- Personal Message (if exists) -->
+        <div class="message-section" th:if="${notes}" style="background: #fef7f0; border-left: 4px solid #f59e0b; padding: 25px; margin: 30px 0; border-radius: 0 15px 15px 0;">
+            <h3 style="color: #92400e; margin-bottom: 15px; font-size: 18px;">Personal Message from [[${inviterName}]]</h3>
+            <div style="color: #a16207; font-style: italic; line-height: 1.6; font-size: 16px;">
+                "[[${notes}]]"
+            </div>
+        </div>
+
+        <!-- Keycloak Information -->
+        <div class="keycloak-info">
+            <div class="keycloak-info-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.9 16,12.4 16,13V16C16,17.1 15.1,18 14,18H10C8.9,18 8,17.1 8,16V13C8,12.4 8.6,11.9 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,9.5V11.5H13.5V9.5C13.5,8.7 12.8,8.2 12,8.2Z"/>
+                </svg>
+            </div>
+            <div class="keycloak-info-content">
+                <h4>About Account Registration</h4>
+                <p>We use Keycloak, a secure identity and access management solution, to protect your account and data.</p>
+                <p>Your account will be secured with modern authentication standards and you can use it across all our services.</p>
+                <p><strong>Your email ([[${recipientEmail}]]) will be your username.</strong></p>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="actions">
+            <a th:href="${keycloakRegistrationUrl}" class="btn btn-primary">
+                🚀 Register Your Account First
+            </a>
+            <a th:href="${acceptUrl}" class="btn btn-secondary">
+                ✅ Accept Invitation (After Registration)
+            </a>
+        </div>
+
+        <!-- Important Note -->
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 15px; padding: 20px; margin: 30px 0;">
+            <p style="color: #b91c1c; font-size: 14px; margin: 0; text-align: center;">
+                <strong>Important:</strong> Please complete your account registration first, then return to accept your invitation. 
+                This invitation is valid for 7 days and was sent specifically to [[${recipientEmail}]].
+            </p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>This invitation was sent by [[${companyName}]]</p>
+        <p>
+            Need help? Contact us at
+            <a href="mailto:support@sarafrika.com">support@sarafrika.com</a>
+        </p>
+        <p style="margin-top: 25px; font-size: 12px;">
+            © 2025 [[${companyName}]]. All rights reserved.
+        </p>
+    </div>
+</div>
+</body>
+</html>
