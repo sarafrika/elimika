@@ -71,11 +71,8 @@ public record StudentDTO(
         @Schema(
                 description = "**[OPTIONAL]** Mobile phone number of the primary guardian. Used for emergency contacts and notifications. Should include country code.",
                 example = "+254712345678",
-                minLength = 1,
-                maxLength = 20,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @Size(max = 20, message = "First guardian mobile must not exceed 20 characters")
         @JsonProperty("first_guardian_mobile")
         @ValidPhoneNumber(mobileOnly = true)
         String firstGuardianMobile,
@@ -94,11 +91,9 @@ public record StudentDTO(
         @Schema(
                 description = "**[OPTIONAL]** Mobile phone number of the secondary guardian. Alternative contact for emergencies and notifications. Should include country code.",
                 example = "+254787654321",
-                maxLength = 20,
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @Size(max = 20, message = "Second guardian mobile must not exceed 20 characters")
         @JsonProperty("second_guardian_mobile")
         @ValidPhoneNumber(mobileOnly = true)
         String secondGuardianMobile,

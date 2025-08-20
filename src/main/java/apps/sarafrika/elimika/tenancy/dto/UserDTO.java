@@ -150,8 +150,6 @@ public record UserDTO(
                 maxLength = 20,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "Phone number is required")
-        @Size(max = 20, message = "Phone number must not exceed 20 characters")
         @JsonProperty("phone_number")
         @ValidPhoneNumber(mobileOnly = true)
         String phoneNumber,
