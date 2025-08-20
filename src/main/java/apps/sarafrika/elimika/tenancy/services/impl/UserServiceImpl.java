@@ -292,6 +292,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserDTO uploadProfileImage(UUID userUuid, MultipartFile profileImage) {
         log.debug("Uploading profile image for user: {}", userUuid);
 
@@ -302,8 +303,12 @@ public class UserServiceImpl implements UserService {
 
         try {
             user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
-            List<String> userDomains = getUserDomainsFromMappings(userUuid);
             User savedUser = userRepository.save(user);
+            
+            // Sync profile image URL to Keycloak
+            publishUserUpdateEvent(savedUser);
+            
+            List<String> userDomains = getUserDomainsFromMappings(userUuid);
             return UserFactory.toDTO(savedUser, userDomains);
         } catch (Exception ex) {
             log.error("Failed to upload User's profile image for UUID: {}", userUuid, ex);
@@ -494,11 +499,16 @@ public class UserServiceImpl implements UserService {
 
     private void publishUserUpdateEvent(User user) {
         applicationEventPublisher.publishEvent(
-                new UserUpdateEvent(
-                        user.getEmail(),
+                UserUpdateEvent.createFull(
+                        user.getUsername(),
                         user.getFirstName(),
                         user.getLastName(),
                         user.getEmail(),
+                        user.getMiddleName(),
+                        user.getPhoneNumber(),
+                        user.getDob(),
+                        user.getGender(),
+                        user.getProfileImageUrl(),
                         user.isActive(),
                         realm,
                         user.getUuid(),
