@@ -288,6 +288,9 @@ class OrganisationController {
                 trainingBranchDTO.branchName(),
                 trainingBranchDTO.address(),
                 trainingBranchDTO.pocUserUuid(),
+                trainingBranchDTO.pocName(),
+                trainingBranchDTO.pocEmail(),
+                trainingBranchDTO.pocTelephone(),
                 trainingBranchDTO.active(),
                 null, null
         );

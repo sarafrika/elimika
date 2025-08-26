@@ -15,6 +15,9 @@ public class TrainingBranchFactory {
                 trainingBranch.getBranchName(),
                 trainingBranch.getAddress(),
                 trainingBranch.getPocUserUuid(),
+                trainingBranch.getPocName(),
+                trainingBranch.getPocEmail(),
+                trainingBranch.getPocTelephone(),
                 trainingBranch.isActive(),
                 trainingBranch.getCreatedDate(),
                 trainingBranch.getLastModifiedDate()
@@ -28,6 +31,9 @@ public class TrainingBranchFactory {
         trainingBranch.setBranchName(trainingBranchDTO.branchName());
         trainingBranch.setAddress(trainingBranchDTO.address());
         trainingBranch.setPocUserUuid(trainingBranchDTO.pocUserUuid());
+        trainingBranch.setPocName(trainingBranchDTO.pocName());
+        trainingBranch.setPocEmail(trainingBranchDTO.pocEmail());
+        trainingBranch.setPocTelephone(trainingBranchDTO.pocTelephone());
         trainingBranch.setActive(trainingBranchDTO.active());
         return trainingBranch;
     }
