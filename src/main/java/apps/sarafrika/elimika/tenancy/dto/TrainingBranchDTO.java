@@ -1,7 +1,9 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.common.validation.ValidPhoneNumber;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -29,6 +31,9 @@ import java.util.UUID;
                     "branch_name": "Nairobi Main Campus",
                     "address": "123 University Way, Nairobi",
                     "poc_user_uuid": "d1e2f3g4-h5i6-j7k8-l9m0-nopqrstuvwx",
+                    "poc_name": "John Doe",
+                    "poc_email": "john.doe@example.com",
+                    "poc_telephone": "+254700000000",
                     "active": true,
                     "created_date": "2024-01-01T09:00:00",
                     "updated_date": "2024-04-15T14:30:00"
@@ -87,6 +92,40 @@ public record TrainingBranchDTO(
         )
         @JsonProperty("poc_user_uuid")
         UUID pocUserUuid,
+
+        @Schema(
+                description = "**[REQUIRED]** Name of the point of contact for this branch.",
+                example = "John Doe",
+                maxLength = 200,
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "POC name is required")
+        @NotBlank(message = "POC name cannot be blank")
+        @Size(max = 200, message = "POC name cannot exceed 200 characters")
+        @JsonProperty("poc_name")
+        String pocName,
+
+        @Schema(
+                description = "**[REQUIRED]** Email address of the point of contact for this branch.",
+                example = "john.doe@example.com",
+                maxLength = 320,
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "POC email is required")
+        @Email(message = "POC email must be a valid email address")
+        @JsonProperty("poc_email")
+        String pocEmail,
+
+        @Schema(
+                description = "**[REQUIRED]** Telephone number of the point of contact for this branch.",
+                example = "+254700000000",
+                maxLength = 20,
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "POC telephone is required")
+        @ValidPhoneNumber(message = "POC telephone must be a valid phone number")
+        @JsonProperty("poc_telephone")
+        String pocTelephone,
 
         @Schema(
                 description = "**[REQUIRED]** Indicates whether the training branch is active and operational.",
