@@ -279,29 +279,6 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
                 .anyMatch(mapping -> mapping.getUserUuid().equals(userUuid));
     }
 
-    @Override
-    @Transactional
-    public void updatePointOfContact(UUID branchUuid, UUID pocUserUuid) {
-        log.debug("Updating point of contact for branch {} to user {}", branchUuid, pocUserUuid);
-
-        TrainingBranch branch = findTrainingBranchOrThrow(branchUuid);
-        User pocUser = findUserOrThrow(pocUserUuid);
-
-        // Verify the user is assigned to this branch or organisation
-        boolean userInBranch = isUserInBranch(branchUuid, pocUserUuid);
-        boolean userInOrganisation = userOrganisationDomainMappingRepository
-                .findActiveByUserAndOrganisation(pocUserUuid, branch.getOrganisationUuid())
-                .isPresent();
-
-        if (!userInBranch && !userInOrganisation) {
-            throw new IllegalArgumentException("Point of contact must be assigned to the branch or organisation");
-        }
-
-        branch.setPocUserUuid(pocUserUuid);
-        trainingBranchRepository.save(branch);
-
-        log.info("Updated point of contact for branch {} to user {}", branchUuid, pocUserUuid);
-    }
 
     // Private helper methods
     private TrainingBranch findTrainingBranchOrThrow(UUID uuid) {
@@ -337,7 +314,9 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
         trainingBranch.setOrganisationUuid(dto.organisationUuid());
         trainingBranch.setBranchName(dto.branchName());
         trainingBranch.setAddress(dto.address());
-        trainingBranch.setPocUserUuid(dto.pocUserUuid());
+        trainingBranch.setPocName(dto.pocName());
+        trainingBranch.setPocEmail(dto.pocEmail());
+        trainingBranch.setPocTelephone(dto.pocTelephone());
         trainingBranch.setActive(dto.active());
     }
 }
