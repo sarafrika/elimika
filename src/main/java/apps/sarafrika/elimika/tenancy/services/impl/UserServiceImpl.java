@@ -223,10 +223,6 @@ public class UserServiceImpl implements UserService {
             addStandaloneDomainToUser(user, domain);
         }
 
-        // Publish organisation assignment event
-        if (user.getKeycloakId() != null && organisation.getKeycloakId() != null) {
-            publishAddUserToOrganisationEvent(user.getKeycloakId(), organisation.getKeycloakId());
-        }
 
         List<String> userDomains = getUserDomainsFromMappings(userUuid);
         return UserFactory.toDTO(user, userDomains);
@@ -517,15 +513,6 @@ public class UserServiceImpl implements UserService {
         );
     }
 
-    private void publishAddUserToOrganisationEvent(String userKeycloakId, String orgKeycloakId) {
-        applicationEventPublisher.publishEvent(
-                new AddUserToOrganisationEvent(
-                        userKeycloakId,
-                        orgKeycloakId,
-                        realm
-                )
-        );
-    }
 
     /**
      * Stores a profile image file and returns the full URL

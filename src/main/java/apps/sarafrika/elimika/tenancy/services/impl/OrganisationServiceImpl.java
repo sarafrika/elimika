@@ -1,7 +1,5 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.common.event.organisation.OrganisationCreationEvent;
-import apps.sarafrika.elimika.common.event.organisation.SuccessfulOrganisationCreationEvent;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
@@ -31,8 +29,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrganisationServiceImpl implements OrganisationService {
 
-    @Value("${app.keycloak.realm}")
-    private String realm;
 
     private final ApplicationEventPublisher eventPublisher;
     private final OrganisationRepository organisationRepository;
@@ -54,8 +50,6 @@ public class OrganisationServiceImpl implements OrganisationService {
             // Auto-generate slug from name
             organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
 
-            // Auto-generate a unique domain
-            organisation.setDomain(generateUniqueDomain(organisation.getName()));
 
             organisation = organisationRepository.save(organisation);
 
@@ -64,10 +58,9 @@ public class OrganisationServiceImpl implements OrganisationService {
                 assignCreatorAsOrganisationUser(organisationDTO.userUuid(), organisation.getUuid());
             }
 
-            publishOrganisationCreationEvent(organisation);
 
-            log.info("Successfully created organisation with UUID: {} and code: {}, creator assigned as organisation_user",
-                    organisation.getUuid(), organisation.getCode());
+            log.info("Successfully created organisation with UUID: {}, creator assigned as organisation_user",
+                    organisation.getUuid());
             return OrganisationFactory.toDTO(organisation);
         } catch (Exception e) {
             log.error("Failed to create organisation: {}", organisationDTO.name(), e);
@@ -349,20 +342,6 @@ public class OrganisationServiceImpl implements OrganisationService {
         return domain.getDomainName();
     }
 
-    @ApplicationModuleListener
-    void onOrganisationCreation(SuccessfulOrganisationCreationEvent event) {
-        log.debug("Processing successful organisation creation event for UUID: {}", event.sarafrikaCorrelationId());
-
-        try {
-            Organisation organisation = findOrganisationOrThrow(event.sarafrikaCorrelationId());
-            organisation.setKeycloakId(event.keycloakId());
-            organisationRepository.save(organisation);
-            log.info("Successfully processed organisation creation event for UUID: {}", event.sarafrikaCorrelationId());
-        } catch (Exception e) {
-            log.error("Failed to process organisation creation event for UUID: {}", event.sarafrikaCorrelationId(), e);
-            throw new RuntimeException("Failed to process organisation creation event: " + e.getMessage(), e);
-        }
-    }
 
     // ================================
     // PRIVATE HELPER METHODS
@@ -460,26 +439,5 @@ public class OrganisationServiceImpl implements OrganisationService {
         organisation.setCountry(dto.country());
     }
 
-    private void publishOrganisationCreationEvent(Organisation organisation) {
-        eventPublisher.publishEvent(new OrganisationCreationEvent(
-                organisation.getName(),
-                organisation.getSlug(),
-                organisation.getDescription(),
-                realm,
-                organisation.getDomain(),
-                organisation.getUuid(),
-                organisation.getUserUuid()
-        ));
-    }
 
-    private String generateUniqueDomain(String name) {
-        String baseDomain = name.toLowerCase().replaceAll("\\s+", "");
-        String uniqueDomain = baseDomain;
-        int counter = 1;
-        while (organisationRepository.existsByDomain(uniqueDomain)) {
-            uniqueDomain = baseDomain + counter;
-            counter++;
-        }
-        return uniqueDomain;
-    }
 }

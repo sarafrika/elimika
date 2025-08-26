@@ -1,8 +1,6 @@
 package apps.sarafrika.elimika.authentication.internal;
 
-import apps.sarafrika.elimika.authentication.services.KeycloakOrganisationService;
 import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
-import apps.sarafrika.elimika.common.event.user.AddUserToOrganisationEvent;
 import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.common.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
@@ -22,7 +20,6 @@ import java.util.Map;
 @Component @RequiredArgsConstructor @Slf4j
 class UserEventsListener {
     private final KeycloakUserService keycloakUserService;
-    private final KeycloakOrganisationService keycloakOrganisationService;
     private final ApplicationEventPublisher eventPublisher;
 
     @ApplicationModuleListener
@@ -66,10 +63,6 @@ class UserEventsListener {
         eventPublisher.publishEvent(new SuccessfulUserUpdateEvent(event.keyCloakId(), event.sarafrikaCorrelationId()));
     }
 
-    @ApplicationModuleListener
-    void onAddUserToOrganisation(AddUserToOrganisationEvent event) {
-        keycloakOrganisationService.addUserToOrganization(event.realm(), event.organisationId(), event.userId());
-    }
 
     /**
      * Updates a Keycloak attribute if the value is not null.

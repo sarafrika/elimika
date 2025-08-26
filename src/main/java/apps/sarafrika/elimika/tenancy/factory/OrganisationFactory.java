@@ -13,9 +13,7 @@ public class OrganisationFactory {
                 organisation.getName(),
                 organisation.getDescription(),
                 organisation.isActive(),
-                organisation.getCode(),
                 organisation.getLicenceNo(),
-                organisation.getDomain(),
                 organisation.getUserUuid(),
                 organisation.getLocation(),
                 organisation.getCountry(),
@@ -30,7 +28,6 @@ public class OrganisationFactory {
         organisation.setName(organisationDTO.name());
         organisation.setDescription(organisationDTO.description());
         organisation.setActive(organisationDTO.active());
-        organisation.setCode(organisationDTO.code());
         organisation.setLicenceNo(organisationDTO.licenceNo());
         organisation.setUserUuid(organisationDTO.userUuid());
         organisation.setLocation(organisationDTO.location());
