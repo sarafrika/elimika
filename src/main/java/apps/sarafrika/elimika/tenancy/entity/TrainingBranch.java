@@ -29,6 +29,15 @@ public class TrainingBranch extends BaseEntity {
     @Column(name = "poc_user_uuid")
     private UUID pocUserUuid;
 
+    @Column(name = "poc_name")
+    private String pocName;
+
+    @Column(name = "poc_email")
+    private String pocEmail;
+
+    @Column(name = "poc_telephone")
+    private String pocTelephone;
+
     @Column(name = "active")
     private boolean active = true;
 
