@@ -26,8 +26,6 @@ public class TrainingBranch extends BaseEntity {
     @Column(name = "address")
     private String address;
 
-    @Column(name = "poc_user_uuid")
-    private UUID pocUserUuid;
 
     @Column(name = "poc_name")
     private String pocName;

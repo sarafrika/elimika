@@ -287,7 +287,6 @@ class OrganisationController {
                 uuid,
                 trainingBranchDTO.branchName(),
                 trainingBranchDTO.address(),
-                trainingBranchDTO.pocUserUuid(),
                 trainingBranchDTO.pocName(),
                 trainingBranchDTO.pocEmail(),
                 trainingBranchDTO.pocTelephone(),
@@ -510,26 +509,4 @@ class OrganisationController {
         return ResponseEntity.ok(ApiResponse.success(invitations, "Branch invitations retrieved successfully"));
     }
 
-    @Operation(
-            summary = "Update point of contact for training branch",
-            description = "Updates the point of contact user for a training branch. " +
-                    "The POC must be either assigned to the branch or be a member of the parent organization."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Point of contact updated successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "User is not eligible to be POC")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch or user not found")
-    @PutMapping("/{uuid}/training-branches/{branchUuid}/poc/{pocUserUuid}")
-    public ResponseEntity<ApiResponse<Void>> updatePointOfContact(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to update the POC for. Must be a branch within the specified organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440002", required = true)
-            @PathVariable UUID branchUuid,
-            @Parameter(description = "UUID of the user to set as point of contact. Must be assigned to the branch or be a member of the organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440003", required = true)
-            @PathVariable UUID pocUserUuid) {
-        trainingBranchService.updatePointOfContact(branchUuid, pocUserUuid);
-        return ResponseEntity.ok(ApiResponse.success(null, "Point of contact updated successfully"));
-    }
 }

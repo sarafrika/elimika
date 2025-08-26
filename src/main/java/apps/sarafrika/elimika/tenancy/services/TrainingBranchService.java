@@ -157,17 +157,4 @@ public interface TrainingBranchService {
      */
     boolean isUserInBranch(UUID branchUuid, UUID userUuid);
 
-    // ================================
-    // POINT OF CONTACT MANAGEMENT
-    // ================================
-
-    /**
-     * Updates the point of contact for a training branch.
-     * The POC must be either assigned to the branch or be a member of the parent organization.
-     *
-     * @param branchUuid the training branch UUID
-     * @param pocUserUuid the UUID of the user to set as point of contact
-     * @throws IllegalArgumentException if user is not eligible to be POC
-     */
-    void updatePointOfContact(UUID branchUuid, UUID pocUserUuid);
 }

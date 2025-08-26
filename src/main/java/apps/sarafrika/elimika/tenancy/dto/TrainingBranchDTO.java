@@ -30,7 +30,6 @@ import java.util.UUID;
                     "organisation_uuid": "b1c2d3e4-f5g6-h7i8-j9k0-lmnopqrstuv",
                     "branch_name": "Nairobi Main Campus",
                     "address": "123 University Way, Nairobi",
-                    "poc_user_uuid": "d1e2f3g4-h5i6-j7k8-l9m0-nopqrstuvwx",
                     "poc_name": "John Doe",
                     "poc_email": "john.doe@example.com",
                     "poc_telephone": "+254700000000",
@@ -83,15 +82,6 @@ public record TrainingBranchDTO(
         @JsonProperty("address")
         String address,
 
-        @Schema(
-                description = "**[OPTIONAL]** UUID of the user who serves as point of contact for this branch.",
-                example = "d1e2f3g4-h5i6-j7k8-l9m0-nopqrstuvwx",
-                format = "uuid",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("poc_user_uuid")
-        UUID pocUserUuid,
 
         @Schema(
                 description = "**[REQUIRED]** Name of the point of contact for this branch.",
