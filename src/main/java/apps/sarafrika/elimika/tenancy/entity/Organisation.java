@@ -29,20 +29,13 @@ public class Organisation extends BaseEntity {
     @Column(name = "active")
     private boolean active = true;
 
-    @Column(name = "code")
-    private String code;
 
     @Column(name = "licence_no")
     private String licenceNo;
 
-    @Column(name = "domain")
-    private String domain;
 
     @Column(name = "slug")
     private String slug;
-
-    @Column(name = "keycloak_id")
-    private String keycloakId;
 
     @Column(name = "lat")
     private BigDecimal latitude;

@@ -12,11 +12,9 @@ import java.util.UUID;
 public interface OrganisationRepository extends JpaRepository<Organisation, Long>, JpaSpecificationExecutor<Organisation> {
     Optional<Organisation> findByUuid(UUID uuid);
 
-    Optional<Organisation> findByCode(String code);
 
     Optional<Organisation> findByName(String name);
 
-    boolean existsByDomain(String domain);
 
     boolean existsBySlug(String slug);
 
