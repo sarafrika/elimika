@@ -49,9 +49,6 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (assessmentRubric.getWeightUnit() == null) {
             assessmentRubric.setWeightUnit("percentage");
         }
-        if (assessmentRubric.getIsWeighted() == null) {
-            assessmentRubric.setIsWeighted(true);
-        }
         if (assessmentRubric.getUsesCustomLevels() == null) {
             assessmentRubric.setUsesCustomLevels(true);
         }
@@ -134,9 +131,6 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         }
         if (dto.weightUnit() != null) {
             existingAssessmentRubric.setWeightUnit(dto.weightUnit());
-        }
-        if (dto.isWeighted() != null) {
-            existingAssessmentRubric.setIsWeighted(dto.isWeighted());
         }
         if (dto.usesCustomLevels() != null) {
             existingAssessmentRubric.setUsesCustomLevels(dto.usesCustomLevels());

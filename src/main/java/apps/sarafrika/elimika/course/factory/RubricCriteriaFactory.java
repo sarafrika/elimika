@@ -19,7 +19,6 @@ public class RubricCriteriaFactory {
                 rubricCriteria.getComponentName(),
                 rubricCriteria.getDescription(),
                 rubricCriteria.getDisplayOrder(),
-                rubricCriteria.getWeight(),
                 rubricCriteria.getCreatedDate(),
                 rubricCriteria.getCreatedBy(),
                 rubricCriteria.getLastModifiedDate(),
@@ -38,7 +37,6 @@ public class RubricCriteriaFactory {
         rubricCriteria.setComponentName(dto.componentName());
         rubricCriteria.setDescription(dto.description());
         rubricCriteria.setDisplayOrder(dto.displayOrder());
-        rubricCriteria.setWeight(dto.weight());
         rubricCriteria.setCreatedDate(dto.createdDate());
         rubricCriteria.setCreatedBy(dto.createdBy());
         rubricCriteria.setLastModifiedDate(dto.updatedDate());

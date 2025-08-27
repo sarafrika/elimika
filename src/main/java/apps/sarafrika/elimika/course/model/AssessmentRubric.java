@@ -51,8 +51,6 @@ public class AssessmentRubric extends BaseEntity {
     @Column(name = "weight_unit", length = 20)
     private String weightUnit;
 
-    @Column(name = "is_weighted")
-    private Boolean isWeighted;
 
     @Column(name = "uses_custom_levels")
     private Boolean usesCustomLevels;

@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.course.factory.RubricCriteriaFactory;
 import apps.sarafrika.elimika.course.model.RubricCriteria;
 import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.service.RubricCriteriaService;
-import apps.sarafrika.elimika.course.util.validations.RubricWeightValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -93,9 +92,6 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
         }
         if (dto.displayOrder() != null) {
             existingRubricCriteria.setDisplayOrder(dto.displayOrder());
-        }
-        if (dto.weight() != null) {
-            existingRubricCriteria.setWeight(dto.weight());
         }
     }
 
