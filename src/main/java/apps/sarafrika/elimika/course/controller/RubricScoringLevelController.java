@@ -57,6 +57,21 @@ public class RubricScoringLevelController {
     }
 
     @Operation(
+            summary = "Create multiple scoring levels for a rubric (batch)",
+            description = "Creates multiple custom scoring levels at once for efficient rubric setup."
+    )
+    @PostMapping(value = "/batch", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<List<RubricScoringLevelDTO>>> createRubricScoringLevelsBatch(
+            @Parameter(description = "UUID of the rubric", required = true)
+            @PathVariable UUID rubricUuid,
+            @Valid @RequestBody List<RubricScoringLevelDTO> rubricScoringLevelDTOs) {
+        
+        List<RubricScoringLevelDTO> createdLevels = rubricScoringLevelService.createRubricScoringLevelsBatch(rubricUuid, rubricScoringLevelDTOs);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(createdLevels, "Rubric scoring levels created successfully"));
+    }
+
+    @Operation(
             summary = "Get all scoring levels for a rubric",
             description = "Retrieves all custom scoring levels for the specified rubric, ordered by level order."
     )
@@ -164,23 +179,4 @@ public class RubricScoringLevelController {
         return ResponseEntity.ok(ApiResponse.success(null, "Scoring levels reordered successfully"));
     }
 
-    @Operation(
-            summary = "Create default scoring levels",
-            description = "Creates a set of default scoring levels for the rubric based on the specified template (standard, simple, advanced)."
-    )
-    @PostMapping(value = "/defaults", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> createDefaultScoringLevels(
-            @Parameter(description = "UUID of the rubric", required = true)
-            @PathVariable UUID rubricUuid,
-            @Parameter(description = "Template to use: standard, simple, or advanced", required = true)
-            @RequestParam String template,
-            @Parameter(description = "User creating the levels", required = false)
-            @RequestParam(defaultValue = "SYSTEM") String createdBy,
-            Pageable pageable) {
-        
-        Page<RubricScoringLevelDTO> defaultLevelsPage = rubricScoringLevelService.createDefaultScoringLevels(rubricUuid, template, createdBy, pageable);
-        PagedDTO<RubricScoringLevelDTO> pagedResponse = PagedDTO.from(defaultLevelsPage, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(pagedResponse, String.format("Default '%s' scoring levels created successfully", template)));
-    }
 }

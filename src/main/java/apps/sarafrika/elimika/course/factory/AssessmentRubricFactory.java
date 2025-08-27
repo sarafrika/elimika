@@ -25,7 +25,6 @@ public class AssessmentRubricFactory {
                 assessmentRubric.getTotalWeight(),
                 assessmentRubric.getWeightUnit(),
                 assessmentRubric.getUsesCustomLevels(),
-                assessmentRubric.getMatrixTemplate(),
                 assessmentRubric.getMaxScore(),
                 assessmentRubric.getMinPassingScore(),
                 assessmentRubric.getCreatedDate(),
@@ -52,7 +51,6 @@ public class AssessmentRubricFactory {
         assessmentRubric.setTotalWeight(dto.totalWeight());
         assessmentRubric.setWeightUnit(dto.weightUnit());
         assessmentRubric.setUsesCustomLevels(dto.usesCustomLevels());
-        assessmentRubric.setMatrixTemplate(dto.matrixTemplate());
         assessmentRubric.setMaxScore(dto.maxScore());
         assessmentRubric.setMinPassingScore(dto.minPassingScore());
         assessmentRubric.setCreatedDate(dto.createdDate());

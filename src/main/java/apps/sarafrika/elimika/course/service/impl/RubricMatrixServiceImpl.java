@@ -73,22 +73,6 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         return new RubricMatrixDTO(rubric, scoringLevels, criteria, matrixCells, statistics);
     }
 
-    @Override
-    public RubricMatrixDTO initializeRubricMatrix(UUID rubricUuid, String template, String createdBy) {
-        // Get or create scoring levels if needed
-        AssessmentRubricDTO rubric = assessmentRubricService.getAssessmentRubricByUuid(rubricUuid);
-        
-        if (Boolean.TRUE.equals(rubric.usesCustomLevels())) {
-            List<RubricScoringLevelDTO> existingLevels = rubricScoringLevelService.getScoringLevelsByRubricUuid(rubricUuid);
-            
-            if (existingLevels.isEmpty()) {
-                // Create default scoring levels
-                rubricScoringLevelService.createDefaultScoringLevels(rubricUuid, template, createdBy);
-            }
-        }
-
-        return getRubricMatrix(rubricUuid);
-    }
 
     @Override
     public RubricMatrixDTO updateMatrixCell(UUID rubricUuid, UUID criteriaUuid, UUID scoringLevelUuid, String description) {
@@ -116,6 +100,51 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         }
 
         return getRubricMatrix(rubricUuid);
+    }
+
+    @Override
+    public void autoGenerateMatrixCells(UUID rubricUuid) {
+        // Get rubric details to ensure it exists
+        AssessmentRubricDTO rubric = assessmentRubricService.getAssessmentRubricByUuid(rubricUuid);
+        
+        // Get criteria for this rubric
+        List<RubricCriteriaDTO> criteria = rubricCriteriaService.getAllByRubricUuid(rubricUuid, null)
+                .getContent();
+        
+        // Get scoring levels for this rubric
+        List<RubricScoringLevelDTO> scoringLevels = rubricScoringLevelService.getScoringLevelsByRubricUuid(rubricUuid);
+        
+        if (criteria.isEmpty() || scoringLevels.isEmpty()) {
+            // Cannot generate matrix without both criteria and scoring levels
+            return;
+        }
+        
+        // Create empty matrix cells for all combinations that don't exist
+        createEmptyMatrixCells(criteria, scoringLevels);
+        
+        // Recalculate scores after matrix generation
+        recalculateScores(rubricUuid);
+    }
+    
+    private void createEmptyMatrixCells(List<RubricCriteriaDTO> criteria, List<RubricScoringLevelDTO> scoringLevels) {
+        for (RubricCriteriaDTO criterion : criteria) {
+            for (RubricScoringLevelDTO level : scoringLevels) {
+                // Check if cell already exists
+                boolean cellExists = rubricScoringRepository
+                        .findByCriteriaUuidAndRubricScoringLevelUuid(criterion.uuid(), level.uuid())
+                        .isPresent();
+                
+                if (!cellExists) {
+                    // Create empty matrix cell
+                    RubricScoringDTO emptyCellDTO = new RubricScoringDTO(
+                            null, criterion.uuid(), level.uuid(), 
+                            null, // description initially null - user will fill this
+                            null, null, null, null
+                    );
+                    rubricScoringService.createRubricScoring(criterion.uuid(), emptyCellDTO);
+                }
+            }
+        }
     }
 
     @Override
@@ -153,7 +182,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
                 rubric.uuid(), rubric.title(), rubric.description(),
                 rubric.rubricType(), rubric.instructorUuid(), rubric.isPublic(),
                 rubric.status(), rubric.active(), rubric.totalWeight(), rubric.weightUnit(),
-                rubric.usesCustomLevels(), rubric.matrixTemplate(),
+                rubric.usesCustomLevels(),
                 maxScore, minPassingScore, rubric.createdDate(), rubric.createdBy(),
                 rubric.updatedDate(), rubric.updatedBy()
         );
