@@ -1,3 +1,27 @@
+# [2.0.0](https://github.com/sarafrika/elimika/compare/v1.5.3...v2.0.0) (2025-08-27)
+
+
+### Bug Fixes
+
+* remove non-existent fields from findPopularPublicRubrics query ([8f71887](https://github.com/sarafrika/elimika/commit/8f7188731d71e683ec8708194d8225b9e00e6bb1))
+* update TrainingBranchDTO constructor calls for new POC fields ([a3c9fa1](https://github.com/sarafrika/elimika/commit/a3c9fa101789d8308f46f3cd99b7a0b46d3aeeea))
+
+
+### Code Refactoring
+
+* remove Keycloak organization integration and code generation ([6ebffff](https://github.com/sarafrika/elimika/commit/6ebffff5d3c6de5f7ba62bd31d90de29167f5181))
+
+
+### Features
+
+* add independent POC fields to training branches ([d6e2f0b](https://github.com/sarafrika/elimika/commit/d6e2f0bfaed97bbcf42909cd402080c0d29c865c))
+* implement bidirectional user synchronization with Keycloak ([d4c6bba](https://github.com/sarafrika/elimika/commit/d4c6bba15c9051e41387335877508b1593cbe6fa))
+
+
+### BREAKING CHANGES
+
+* Organisation entity no longer includes code, domain, or keycloakId fields. Keycloak organization integration has been completely removed.
+
 ## [1.5.3](https://github.com/sarafrika/elimika/compare/v1.5.2...v1.5.3) (2025-08-18)
 
 
