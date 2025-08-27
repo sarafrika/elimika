@@ -90,7 +90,7 @@ sequenceDiagram
 
     Note over I,DB: Step 5: Populate Cell Descriptions
     I->>API: PUT /api/v1/rubrics/{rubricUuid}/matrix/cells
-    Note right of I: {<br/>"criteriaUuid": "",<br/>"scoringLevelUuid": "",<br/>"description": "Speaker is clear and confident."<br/>}
+    Note right of I: {<br/>"criteriaUuid": "...",<br/>"scoringLevelUuid": "...",<br/>"description": "Speaker is clear and confident."<br/>}
     API->>DB: Update description in rubric_scoring record
     API-->>I: Returns updated RubricMatrixDTO
 
@@ -130,6 +130,69 @@ sequenceDiagram
 | `PUT` | `/api/v1/rubrics/{uuid}` | Update a rubric's general information. | Modified `AssessmentRubricDTO` |
 | `POST` | `/api/v1/rubrics/{uuid}/matrix/recalculate` | Recalculate max scores after changes. | Updated `RubricMatrixDTO` |
 
+## Editing the Matrix: A Dynamic Process
+
+Once a rubric matrix is created, it is not static. You can edit every part of it, from the names of your criteria to the points assigned to a scoring level.
+
+### Editing Criteria (Rows)
+
+To change the name, description, or display order of a criterion, you use the following endpoint:
+
+-   **Endpoint:** `PUT /api/v1/rubrics/{rubricUuid}/criteria/{criteriaUuid}`
+-   **Action:** Provide the full `RubricCriteriaDTO` with the updated fields.
+
+**Example:** Renaming a criterion from "Clarity and Pace" to "Vocal Clarity and Pacing".
+
+```bash
+curl -X PUT /api/v1/rubrics/{rubricUuid}/criteria/{criteriaUuid} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "componentName": "Vocal Clarity and Pacing",
+    "description": "The speaker's voice is clear and the pacing is effective.",
+    "displayOrder": 1
+  }'
+```
+
+### Editing Scoring Levels (Columns)
+
+Similarly, you can adjust the properties of a scoring level, such as its name, point value, or color code.
+
+-   **Endpoint:** `PUT /api/v1/rubrics/{rubricUuid}/scoring-levels/{levelUuid}`
+-   **Action:** Provide the full `RubricScoringLevelDTO` with the updated fields.
+
+**Example:** Changing the "Excellent" level to be worth 5 points instead of 4.
+
+```bash
+curl -X PUT /api/v1/rubrics/{rubricUuid}/scoring-levels/{levelUuid} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Excellent",
+    "points": 5.00,
+    "levelOrder": 1,
+    "isPassing": true,
+    "description": "Performance that goes above and beyond all requirements."
+  }'
+```
+
+### Editing Cell Descriptions (Intersections)
+
+As mentioned previously, you can update the description for any cell at the intersection of a criterion and a scoring level.
+
+-   **Endpoint:** `PUT /api/v1/rubrics/{rubricUuid}/matrix/cells`
+-   **Action:** Provide the `criteriaUuid`, `scoringLevelUuid`, and the new `description`.
+
+**Example:** Updating a cell description.
+
+```bash
+curl -X PUT /api/v1/rubrics/{rubricUuid}/matrix/cells \
+  -H "Content-Type: application/json" \
+  -d '{
+    "criteriaUuid": "uuid-for-vocal-clarity",
+    "scoringLevelUuid": "uuid-for-excellent-level",
+    "description": "Speaker is exceptionally clear and uses pacing to enhance the message."
+  }'
+```
+
 ## New Rubric Creation Workflow (Example)
 
 This example shows the new, streamlined process for creating a complete rubric from scratch.
@@ -138,7 +201,7 @@ This example shows the new, streamlined process for creating a complete rubric f
 # Step 1: Create the rubric foundation
 curl -X POST /api/v1/rubrics \
   -H "Content-Type: application/json" \
-  -d '{ 
+  -d '{
     "title": "Essay Writing Assessment",
     "rubricType": "WRITING",
     "isPublic": true,
@@ -170,7 +233,7 @@ curl -X POST /api/v1/rubrics/{rubricUuid}/scoring-levels/batch \
 # Example: Describe what "Exemplary" looks like for the "Thesis Statement"
 curl -X PUT /api/v1/rubrics/{rubricUuid}/matrix/cells \
   -H "Content-Type: application/json" \
-  -d '{ 
+  -d '{
     "criteriaUuid": "{thesis-statement-uuid}",
     "scoringLevelUuid": "{exemplary-level-uuid}",
     "description": "Thesis is exceptionally clear, arguable, and insightful."
