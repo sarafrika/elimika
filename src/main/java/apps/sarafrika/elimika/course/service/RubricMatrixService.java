@@ -24,15 +24,6 @@ public interface RubricMatrixService {
      */
     RubricMatrixDTO getRubricMatrix(UUID rubricUuid);
 
-    /**
-     * Initializes a rubric matrix with default structure.
-     *
-     * @param rubricUuid the UUID of the rubric
-     * @param template the template to use for scoring levels
-     * @param createdBy the user initializing the matrix
-     * @return initialized rubric matrix
-     */
-    RubricMatrixDTO initializeRubricMatrix(UUID rubricUuid, String template, String createdBy);
 
     /**
      * Updates a matrix cell description.
@@ -52,6 +43,14 @@ public interface RubricMatrixService {
      * @return updated rubric matrix with calculated scores
      */
     RubricMatrixDTO recalculateScores(UUID rubricUuid);
+
+    /**
+     * Auto-generates empty matrix cells when both criteria and scoring levels exist.
+     * This creates the matrix structure without descriptions for user to fill.
+     *
+     * @param rubricUuid the UUID of the rubric
+     */
+    void autoGenerateMatrixCells(UUID rubricUuid);
 
     /**
      * Validates the matrix completeness and consistency.

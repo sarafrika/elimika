@@ -5,9 +5,11 @@ import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.AssessmentRubricDTO;
 import apps.sarafrika.elimika.course.dto.RubricCriteriaDTO;
 import apps.sarafrika.elimika.course.dto.RubricScoringDTO;
+import apps.sarafrika.elimika.course.dto.RubricScoringLevelDTO;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
 import apps.sarafrika.elimika.course.service.RubricCriteriaService;
 import apps.sarafrika.elimika.course.service.RubricScoringService;
+import apps.sarafrika.elimika.course.service.RubricScoringLevelService;
 import apps.sarafrika.elimika.course.service.RubricMatrixService;
 import apps.sarafrika.elimika.course.dto.RubricMatrixDTO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +37,7 @@ public class AssessmentRubricController {
     private final AssessmentRubricService assessmentRubricService;
     private final RubricCriteriaService rubricCriteriaService;
     private final RubricScoringService rubricScoringService;
+    private final RubricScoringLevelService rubricScoringLevelService;
     private final RubricMatrixService rubricMatrixService;
 
     @Operation(summary = "Create a new assessment rubric", description = "Creates a new assessment rubric. The rubric can be associated with a specific course or be a general-purpose rubric.")
@@ -79,11 +82,11 @@ public class AssessmentRubricController {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(rubrics, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Assessment rubrics search completed successfully"));
     }
 
-    @Operation(summary = "Add a criterion to a rubric", description = "Adds a new criterion to an existing assessment rubric.")
+    @Operation(summary = "Add a criterion to a rubric", description = "Adds a new criterion to an existing assessment rubric. If scoring levels exist, the matrix will be auto-generated.")
     @PostMapping(value = "/{rubricUuid}/criteria", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<RubricCriteriaDTO>> addRubricCriterion(@PathVariable UUID rubricUuid, @Valid @RequestBody RubricCriteriaDTO rubricCriteriaDTO) {
-        RubricCriteriaDTO createdCriterion = rubricCriteriaService.createRubricCriteria(rubricUuid, rubricCriteriaDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(createdCriterion, "Rubric criterion added successfully"));
+    public ResponseEntity<ApiResponse<Object>> addRubricCriterion(@PathVariable UUID rubricUuid, @Valid @RequestBody RubricCriteriaDTO rubricCriteriaDTO) {
+        Object result = rubricCriteriaService.createRubricCriteriaWithMatrixCheck(rubricUuid, rubricCriteriaDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result, "Rubric criterion processed successfully"));
     }
 
     @Operation(summary = "Get all criteria for a rubric", description = "Retrieves a paginated list of all criteria for a specific assessment rubric.")
@@ -143,16 +146,6 @@ public class AssessmentRubricController {
         return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix retrieved successfully"));
     }
 
-    @Operation(summary = "Initialize rubric matrix", description = "Sets up the rubric matrix with default scoring levels and prepares it for use.")
-    @PostMapping(value = "/{rubricUuid}/initialize-matrix", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<RubricMatrixDTO>> initializeMatrix(
-            @PathVariable UUID rubricUuid,
-            @RequestParam(defaultValue = "standard") String template,
-            @RequestParam(defaultValue = "SYSTEM") String createdBy) {
-        
-        RubricMatrixDTO matrix = rubricMatrixService.initializeRubricMatrix(rubricUuid, template, createdBy);
-        return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix initialized successfully"));
-    }
 
     @Operation(summary = "Validate rubric matrix", description = "Validates the matrix for completeness and consistency before use in assessments.")
     @GetMapping(value = "/{rubricUuid}/validate-matrix", produces = MediaType.APPLICATION_JSON_VALUE)

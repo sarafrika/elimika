@@ -47,22 +47,6 @@ public class RubricMatrixController {
         return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix retrieved successfully"));
     }
 
-    @Operation(
-            summary = "Initialize rubric matrix",
-            description = "Initializes a rubric matrix with default scoring levels and structure. Creates default levels if none exist."
-    )
-    @PostMapping(value = "/initialize", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<RubricMatrixDTO>> initializeRubricMatrix(
-            @Parameter(description = "UUID of the rubric", required = true)
-            @PathVariable UUID rubricUuid,
-            @Parameter(description = "Template for default scoring levels", required = false)
-            @RequestParam(defaultValue = "standard") String template,
-            @Parameter(description = "User initializing the matrix", required = false)
-            @RequestParam(defaultValue = "SYSTEM") String createdBy) {
-        
-        RubricMatrixDTO matrix = rubricMatrixService.initializeRubricMatrix(rubricUuid, template, createdBy);
-        return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix initialized successfully"));
-    }
 
     @Operation(
             summary = "Update matrix cell",

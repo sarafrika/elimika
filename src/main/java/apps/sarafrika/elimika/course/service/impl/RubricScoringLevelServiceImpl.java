@@ -183,49 +183,26 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
     }
 
     @Override
-    public List<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy) {
-        List<RubricScoringLevel> defaultLevels = createDefaultScoringLevelsInternal(rubricUuid, template, createdBy);
-        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(defaultLevels);
+    public List<RubricScoringLevelDTO> createRubricScoringLevelsBatch(UUID rubricUuid, List<RubricScoringLevelDTO> rubricScoringLevelDTOs) {
+        List<RubricScoringLevel> scoringLevels = new ArrayList<>();
+        
+        for (RubricScoringLevelDTO dto : rubricScoringLevelDTOs) {
+            RubricScoringLevel scoringLevel = RubricScoringLevelFactory.toEntity(dto);
+            scoringLevel.setRubricUuid(rubricUuid);
+            
+            // Set next level order if not provided
+            if (scoringLevel.getLevelOrder() == null) {
+                Integer nextOrder = rubricScoringLevelRepository.findNextLevelOrderByRubricUuid(rubricUuid);
+                scoringLevel.setLevelOrder(nextOrder);
+            }
+            
+            scoringLevels.add(scoringLevel);
+        }
+        
+        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(scoringLevels);
         return savedLevels.stream()
                 .map(RubricScoringLevelFactory::toDTO)
                 .toList();
-    }
-
-    @Override
-    public Page<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy, Pageable pageable) {
-        List<RubricScoringLevel> defaultLevels = createDefaultScoringLevelsInternal(rubricUuid, template, createdBy);
-        List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(defaultLevels);
-        return getScoringLevelsByRubricUuidOrderByLevelOrder(rubricUuid, pageable);
-    }
-
-    private List<RubricScoringLevel> createDefaultScoringLevelsInternal(UUID rubricUuid, String template, String createdBy) {
-        List<RubricScoringLevel> defaultLevels = new ArrayList<>();
-
-        switch (template.toLowerCase()) {
-            case "standard" -> {
-                defaultLevels.add(createScoringLevel(rubricUuid, "Excellent", "Exceeds expectations in all areas", new BigDecimal("4.00"), 1, "#4CAF50", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Good", "Meets expectations with minor areas for improvement", new BigDecimal("3.00"), 2, "#8BC34A", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Fair", "Meets basic expectations with several areas needing improvement", new BigDecimal("2.00"), 3, "#FFC107", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Poor", "Below expectations, significant improvement needed", new BigDecimal("1.00"), 4, "#FF9800", false, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Unacceptable", "Does not meet minimum requirements", new BigDecimal("0.00"), 5, "#F44336", false, createdBy));
-            }
-            case "simple" -> {
-                defaultLevels.add(createScoringLevel(rubricUuid, "Proficient", "Demonstrates proficiency", new BigDecimal("3.00"), 1, "#4CAF50", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Developing", "Shows progress toward proficiency", new BigDecimal("2.00"), 2, "#FFC107", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Beginning", "Limited evidence of understanding", new BigDecimal("1.00"), 3, "#F44336", false, createdBy));
-            }
-            case "advanced" -> {
-                defaultLevels.add(createScoringLevel(rubricUuid, "Exemplary", "Exceptional performance", new BigDecimal("5.00"), 1, "#2E7D32", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Proficient", "Solid performance", new BigDecimal("4.00"), 2, "#4CAF50", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Developing", "Adequate performance", new BigDecimal("3.00"), 3, "#8BC34A", true, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Beginning", "Needs improvement", new BigDecimal("2.00"), 4, "#FFC107", false, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "Inadequate", "Significant deficiencies", new BigDecimal("1.00"), 5, "#FF5722", false, createdBy));
-                defaultLevels.add(createScoringLevel(rubricUuid, "No Evidence", "No evidence of understanding", new BigDecimal("0.00"), 6, "#F44336", false, createdBy));
-            }
-            default -> throw new IllegalArgumentException("Unsupported template: " + template);
-        }
-
-        return defaultLevels;
     }
 
     private RubricScoringLevel createScoringLevel(UUID rubricUuid, String name, String description, 

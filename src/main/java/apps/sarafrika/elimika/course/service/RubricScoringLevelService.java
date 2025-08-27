@@ -30,6 +30,15 @@ public interface RubricScoringLevelService {
     RubricScoringLevelDTO createRubricScoringLevel(UUID rubricUuid, RubricScoringLevelDTO rubricScoringLevelDTO);
 
     /**
+     * Creates multiple rubric scoring levels for the specified rubric at once.
+     *
+     * @param rubricUuid the UUID of the rubric
+     * @param rubricScoringLevelDTOs list of scoring level data
+     * @return list of created scoring level DTOs
+     */
+    List<RubricScoringLevelDTO> createRubricScoringLevelsBatch(UUID rubricUuid, List<RubricScoringLevelDTO> rubricScoringLevelDTOs);
+
+    /**
      * Retrieves a rubric scoring level by UUID.
      *
      * @param uuid the UUID of the scoring level
@@ -131,24 +140,4 @@ public interface RubricScoringLevelService {
      */
     void reorderScoringLevels(UUID rubricUuid, Map<UUID, Integer> levelOrderMap);
 
-    /**
-     * Creates default scoring levels for a rubric based on the specified template.
-     *
-     * @param rubricUuid the UUID of the rubric
-     * @param template the template to use (standard, simple, advanced)
-     * @param createdBy the user creating the levels
-     * @return list of created scoring level DTOs
-     */
-    List<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy);
-
-    /**
-     * Creates default scoring levels for a rubric based on the specified template with pagination.
-     *
-     * @param rubricUuid the UUID of the rubric
-     * @param template the template to use (standard, simple, advanced)
-     * @param createdBy the user creating the levels
-     * @param pageable pagination information
-     * @return page of created scoring level DTOs
-     */
-    Page<RubricScoringLevelDTO> createDefaultScoringLevels(UUID rubricUuid, String template, String createdBy, Pageable pageable);
 }

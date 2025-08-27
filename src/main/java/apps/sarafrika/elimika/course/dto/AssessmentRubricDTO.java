@@ -39,7 +39,6 @@ import java.util.UUID;
             "total_weight": 100.00,
             "weight_unit": "percentage",
             "uses_custom_levels": true,
-            "matrix_template": "standard",
             "max_score": 400.00,
             "min_passing_score": 240.00,
             "created_date": "2024-04-01T12:00:00",
@@ -161,14 +160,6 @@ public record AssessmentRubricDTO(
         @JsonProperty("uses_custom_levels")
         Boolean usesCustomLevels,
 
-        @Schema(
-                description = "**[OPTIONAL]** Template used for generating default scoring levels when using custom levels.",
-                example = "standard",
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
-                allowableValues = {"standard", "simple", "advanced"}
-        )
-        @JsonProperty("matrix_template")
-        String matrixTemplate,
 
         @Schema(
                 description = "**[OPTIONAL]** Maximum possible score for this rubric based on weighted criteria and highest scoring levels.",

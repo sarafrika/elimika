@@ -52,9 +52,6 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (assessmentRubric.getUsesCustomLevels() == null) {
             assessmentRubric.setUsesCustomLevels(true);
         }
-        if (assessmentRubric.getMatrixTemplate() == null) {
-            assessmentRubric.setMatrixTemplate("standard");
-        }
 
         AssessmentRubric savedAssessmentRubric = assessmentRubricRepository.save(assessmentRubric);
         return AssessmentRubricFactory.toDTO(savedAssessmentRubric);
@@ -134,9 +131,6 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         }
         if (dto.usesCustomLevels() != null) {
             existingAssessmentRubric.setUsesCustomLevels(dto.usesCustomLevels());
-        }
-        if (dto.matrixTemplate() != null) {
-            existingAssessmentRubric.setMatrixTemplate(dto.matrixTemplate());
         }
         if (dto.maxScore() != null) {
             existingAssessmentRubric.setMaxScore(dto.maxScore());
