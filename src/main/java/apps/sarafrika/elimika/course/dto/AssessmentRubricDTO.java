@@ -38,7 +38,6 @@ import java.util.UUID;
             "active": true,
             "total_weight": 100.00,
             "weight_unit": "percentage",
-            "is_weighted": true,
             "uses_custom_levels": true,
             "matrix_template": "standard",
             "max_score": 400.00,
@@ -153,14 +152,6 @@ public record AssessmentRubricDTO(
         )
         @JsonProperty("weight_unit")
         String weightUnit,
-
-        @Schema(
-                description = "**[OPTIONAL]** Indicates whether this rubric uses weighted evaluation or equal distribution.",
-                example = "true",
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("is_weighted")
-        Boolean isWeighted,
 
         @Schema(
                 description = "**[OPTIONAL]** Indicates whether this rubric uses custom scoring levels or global grading levels.",

@@ -28,7 +28,6 @@ import java.util.UUID;
             "component_name": "Technique",
             "description": "Technical proficiency and skill execution in performance",
             "display_order": 1,
-            "weight": 25.00,
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -92,18 +91,6 @@ public record RubricCriteriaDTO(
         @JsonProperty("display_order")
         Integer displayOrder,
 
-        @Schema(
-                description = "**[REQUIRED]** Weight/percentage for this criteria in the overall rubric assessment.",
-                example = "25.00",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                minimum = "0.00",
-                maximum = "100.00"
-        )
-        @NotNull(message = "Weight is required")
-        @DecimalMin(value = "0.00", message = "Weight must be at least 0.00")
-        @DecimalMax(value = "100.00", message = "Weight must not exceed 100.00")
-        @JsonProperty("weight")
-        BigDecimal weight,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the criteria was created. Automatically set by the system.",

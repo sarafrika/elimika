@@ -5,7 +5,6 @@ import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.model.RubricScoring;
 import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
 import apps.sarafrika.elimika.course.service.*;
-import apps.sarafrika.elimika.course.util.validations.RubricWeightValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -140,31 +139,12 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
                     .max((l1, l2) -> Integer.compare(l1.levelOrder(), l2.levelOrder()))
                     .orElse(null);
 
-            if (Boolean.TRUE.equals(rubric.isWeighted())) {
-                // Weighted calculation
-                for (RubricCriteriaDTO criteria : matrix.criteria()) {
-                    if (criteria.weight() != null && highestLevel != null) {
-                        BigDecimal weightedPoints = highestLevel.points()
-                                .multiply(criteria.weight())
-                                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-                        maxScore = maxScore.add(weightedPoints);
-                    }
-
-                    if (criteria.weight() != null && lowestPassingLevel != null) {
-                        BigDecimal weightedPassingPoints = lowestPassingLevel.points()
-                                .multiply(criteria.weight())
-                                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-                        minPassingScore = minPassingScore.add(weightedPassingPoints);
-                    }
-                }
-            } else {
-                // Equal weight calculation
-                if (highestLevel != null) {
-                    maxScore = highestLevel.points().multiply(new BigDecimal(matrix.criteria().size()));
-                }
-                if (lowestPassingLevel != null) {
-                    minPassingScore = lowestPassingLevel.points().multiply(new BigDecimal(matrix.criteria().size()));
-                }
+            // Equal weight calculation - all criteria are weighted equally
+            if (highestLevel != null) {
+                maxScore = highestLevel.points().multiply(new BigDecimal(matrix.criteria().size()));
+            }
+            if (lowestPassingLevel != null) {
+                minPassingScore = lowestPassingLevel.points().multiply(new BigDecimal(matrix.criteria().size()));
             }
         }
 
@@ -173,7 +153,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
                 rubric.uuid(), rubric.title(), rubric.description(),
                 rubric.rubricType(), rubric.instructorUuid(), rubric.isPublic(),
                 rubric.status(), rubric.active(), rubric.totalWeight(), rubric.weightUnit(),
-                rubric.isWeighted(), rubric.usesCustomLevels(), rubric.matrixTemplate(),
+                rubric.usesCustomLevels(), rubric.matrixTemplate(),
                 maxScore, minPassingScore, rubric.createdDate(), rubric.createdBy(),
                 rubric.updatedDate(), rubric.updatedBy()
         );
@@ -192,17 +172,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
             boolean isValid = true;
             StringBuilder messageBuilder = new StringBuilder();
 
-            // Check criteria weights if weighted
-            if (Boolean.TRUE.equals(matrix.rubric().isWeighted())) {
-                RubricWeightValidator.ValidationResult weightValidation = 
-                        RubricWeightValidator.validateRubricWeights(matrix.criteria(), 
-                        matrix.rubric().totalWeight() != null ? matrix.rubric().totalWeight() : new BigDecimal("100.00"));
-                
-                if (!weightValidation.isValid()) {
-                    isValid = false;
-                    messageBuilder.append("Weight validation failed: ").append(weightValidation.getMessage()).append("; ");
-                }
-            }
+            // No individual criteria weight validation needed - all criteria are equally weighted
 
             // Check matrix completion
             int totalCells = matrix.criteria().size() * matrix.scoringLevels().size();
@@ -265,19 +235,13 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
                 String cellKey = criterion.uuid() + "_" + level.uuid();
                 RubricScoring existingCell = existingCellMap.get(cellKey);
 
-                BigDecimal weightedPoints = null;
-                if (criterion.weight() != null && level.points() != null) {
-                    weightedPoints = level.points()
-                            .multiply(criterion.weight())
-                            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-                }
-
+                // All criteria are equally weighted, so weighted points equals raw points
                 RubricMatrixDTO.RubricMatrixCellDTO cellDTO = new RubricMatrixDTO.RubricMatrixCellDTO(
                         criterion.uuid(),
                         level.uuid(),
                         existingCell != null ? existingCell.getDescription() : null,
                         level.points(),
-                        weightedPoints,
+                        level.points(), // weightedPoints same as points since criteria are equally weighted
                         existingCell != null && existingCell.getDescription() != null && 
                                 !existingCell.getDescription().trim().isEmpty()
                 );
