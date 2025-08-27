@@ -96,7 +96,7 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
         WHERE ar.isPublic = true AND ar.isActive = true
         GROUP BY ar.id, ar.uuid, ar.title, ar.description, ar.rubricType, 
                  ar.instructorUuid, ar.isPublic, ar.status, ar.isActive, ar.totalWeight, 
-                 ar.weightUnit, ar.isWeighted, ar.usesCustomLevels, ar.matrixTemplate, 
+                 ar.weightUnit, ar.usesCustomLevels, 
                  ar.maxScore, ar.minPassingScore, ar.createdDate, ar.createdBy, 
                  ar.lastModifiedDate, ar.lastModifiedBy
         ORDER BY COUNT(cra.id) DESC, ar.createdDate DESC
