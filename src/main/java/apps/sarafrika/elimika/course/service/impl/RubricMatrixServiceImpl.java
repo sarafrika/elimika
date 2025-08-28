@@ -91,7 +91,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         } else {
             // Update existing cell
             RubricScoringDTO updatedCellDTO = new RubricScoringDTO(
-                    matrixCell.getUuid(), cellUpdate.criteriaUuid(), matrixCell.getGradingLevelUuid(), 
+                    matrixCell.getUuid(), cellUpdate.criteriaUuid(), cellUpdate.scoringLevelUuid(), 
                     cellUpdate.description(), matrixCell.getCreatedDate(), 
                     matrixCell.getCreatedBy(), matrixCell.getLastModifiedDate(), 
                     matrixCell.getLastModifiedBy()
