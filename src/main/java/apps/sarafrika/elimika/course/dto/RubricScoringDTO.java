@@ -57,6 +57,15 @@ public record RubricScoringDTO(
         @JsonProperty("criteria_uuid")
         UUID criteriaUuid,
 
+        @Schema(
+                description = "**[REQUIRED]** Reference to the rubric scoring level UUID this scoring represents.",
+                example = "s1c2o3r4-5i6n-7g8l-9v10-abcdefghijkl",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "Rubric scoring level UUID is required")
+        @JsonProperty("rubric_scoring_level_uuid")
+        UUID rubricScoringLevelUuid,
+
         
 
         @Schema(
