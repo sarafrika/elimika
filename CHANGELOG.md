@@ -1,3 +1,10 @@
+## [2.0.2](https://github.com/sarafrika/elimika/compare/v2.0.1...v2.0.2) (2025-08-28)
+
+
+### Bug Fixes
+
+* use correct scoring level UUID in matrix cell updates ([5dcdf4d](https://github.com/sarafrika/elimika/commit/5dcdf4d417e594d4bef6fa278992c280ea4aa0bd))
+
 ## [2.0.1](https://github.com/sarafrika/elimika/compare/v2.0.0...v2.0.1) (2025-08-27)
 
 
