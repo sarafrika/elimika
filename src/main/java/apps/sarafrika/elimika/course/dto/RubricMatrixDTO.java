@@ -111,43 +111,6 @@ public record RubricMatrixDTO(
         MatrixStatisticsDTO matrixStatistics
 
 ) {
-
-    /**
-     * Matrix Cell Data Transfer Object
-     * <p>
-     * Represents a single cell in the rubric matrix where a criteria intersects with a scoring level.
-     */
-    @Schema(
-            name = "RubricMatrixCell",
-            description = "Single cell in the rubric matrix representing criteria-scoring level intersection"
-    )
-    public record RubricMatrixCellDTO(
-            
-            @Schema(description = "UUID of the criteria (row)")
-            @JsonProperty("criteria_uuid")
-            UUID criteriaUuid,
-            
-            @Schema(description = "UUID of the scoring level (column)")
-            @JsonProperty("scoring_level_uuid")
-            UUID scoringLevelUuid,
-            
-            @Schema(description = "Description of performance at this intersection")
-            @JsonProperty("description")
-            String description,
-            
-            @Schema(description = "Point value for this cell (from scoring level)")
-            @JsonProperty("points")
-            BigDecimal points,
-            
-            @Schema(description = "Weighted points considering criteria weight")
-            @JsonProperty("weighted_points")
-            BigDecimal weightedPoints,
-            
-            @Schema(description = "Whether this cell is completed/has description")
-            @JsonProperty("is_completed")
-            boolean isCompleted
-    ) {}
-
     /**
      * Matrix Statistics Data Transfer Object
      * <p>

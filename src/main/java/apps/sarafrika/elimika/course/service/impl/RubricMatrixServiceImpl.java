@@ -65,7 +65,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         }
 
         // Build matrix cells
-        Map<String, RubricMatrixDTO.RubricMatrixCellDTO> matrixCells = buildMatrixCells(rubricUuid, criteria, scoringLevels);
+        Map<String, RubricMatrixCellDTO> matrixCells = buildMatrixCells(rubricUuid, criteria, scoringLevels);
 
         // Calculate statistics
         RubricMatrixDTO.MatrixStatisticsDTO statistics = calculateMatrixStatistics(criteria, scoringLevels, matrixCells, rubric);
@@ -75,28 +75,28 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
 
 
     @Override
-    public RubricMatrixDTO updateMatrixCell(UUID rubricUuid, UUID criteriaUuid, UUID scoringLevelUuid, String description) {
+    public RubricMatrixDTO updateMatrixCell(UUID rubricUuid, RubricMatrixCellDTO cellUpdate) {
         // Find or create the matrix cell (RubricScoring entry)
         RubricScoring matrixCell = rubricScoringRepository
-                .findByCriteriaUuidAndRubricScoringLevelUuid(criteriaUuid, scoringLevelUuid)
+                .findByCriteriaUuidAndRubricScoringLevelUuid(cellUpdate.criteriaUuid(), cellUpdate.scoringLevelUuid())
                 .orElse(null);
 
         if (matrixCell == null) {
             // Create new matrix cell
             RubricScoringDTO newCellDTO = new RubricScoringDTO(
-                    null, criteriaUuid, scoringLevelUuid, description,
+                    null, cellUpdate.criteriaUuid(), cellUpdate.scoringLevelUuid(), cellUpdate.description(),
                     null, null, null, null
             );
-            rubricScoringService.createRubricScoring(criteriaUuid, newCellDTO);
+            rubricScoringService.createRubricScoring(cellUpdate.criteriaUuid(), newCellDTO);
         } else {
             // Update existing cell
             RubricScoringDTO updatedCellDTO = new RubricScoringDTO(
-                    matrixCell.getUuid(), criteriaUuid, matrixCell.getGradingLevelUuid(), 
-                    description, matrixCell.getCreatedDate(), 
+                    matrixCell.getUuid(), cellUpdate.criteriaUuid(), matrixCell.getGradingLevelUuid(), 
+                    cellUpdate.description(), matrixCell.getCreatedDate(), 
                     matrixCell.getCreatedBy(), matrixCell.getLastModifiedDate(), 
                     matrixCell.getLastModifiedBy()
             );
-            rubricScoringService.updateRubricScoring(criteriaUuid, matrixCell.getUuid(), updatedCellDTO);
+            rubricScoringService.updateRubricScoring(cellUpdate.criteriaUuid(), matrixCell.getUuid(), updatedCellDTO);
         }
 
         return getRubricMatrix(rubricUuid);
@@ -206,7 +206,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
             // Check matrix completion
             int totalCells = matrix.criteria().size() * matrix.scoringLevels().size();
             int completedCells = (int) matrix.matrixCells().values().stream()
-                    .filter(RubricMatrixDTO.RubricMatrixCellDTO::isCompleted)
+                    .filter(cell -> cell.description() != null && !cell.description().trim().isEmpty())
                     .count();
             double completionPercentage = totalCells > 0 ? (completedCells * 100.0) / totalCells : 0.0;
 
@@ -241,12 +241,12 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         }
     }
 
-    private Map<String, RubricMatrixDTO.RubricMatrixCellDTO> buildMatrixCells(
+    private Map<String, RubricMatrixCellDTO> buildMatrixCells(
             UUID rubricUuid, 
             List<RubricCriteriaDTO> criteria, 
             List<RubricScoringLevelDTO> scoringLevels) {
         
-        Map<String, RubricMatrixDTO.RubricMatrixCellDTO> matrixCells = new HashMap<>();
+        Map<String, RubricMatrixCellDTO> matrixCells = new HashMap<>();
         List<RubricScoring> existingCells = rubricScoringRepository.findMatrixCellsByRubricUuid(rubricUuid);
 
         // Create map for quick lookup of existing cells
@@ -264,15 +264,11 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
                 String cellKey = criterion.uuid() + "_" + level.uuid();
                 RubricScoring existingCell = existingCellMap.get(cellKey);
 
-                // All criteria are equally weighted, so weighted points equals raw points
-                RubricMatrixDTO.RubricMatrixCellDTO cellDTO = new RubricMatrixDTO.RubricMatrixCellDTO(
+                RubricMatrixCellDTO cellDTO = new RubricMatrixCellDTO(
                         criterion.uuid(),
                         level.uuid(),
                         existingCell != null ? existingCell.getDescription() : null,
-                        level.points(),
-                        level.points(), // weightedPoints same as points since criteria are equally weighted
-                        existingCell != null && existingCell.getDescription() != null && 
-                                !existingCell.getDescription().trim().isEmpty()
+                        level.points()
                 );
 
                 matrixCells.put(cellKey, cellDTO);
@@ -285,12 +281,12 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
     private RubricMatrixDTO.MatrixStatisticsDTO calculateMatrixStatistics(
             List<RubricCriteriaDTO> criteria,
             List<RubricScoringLevelDTO> scoringLevels,
-            Map<String, RubricMatrixDTO.RubricMatrixCellDTO> matrixCells,
+            Map<String, RubricMatrixCellDTO> matrixCells,
             AssessmentRubricDTO rubric) {
 
         int totalCells = criteria.size() * scoringLevels.size();
         int completedCells = (int) matrixCells.values().stream()
-                .filter(RubricMatrixDTO.RubricMatrixCellDTO::isCompleted)
+                .filter(cell -> cell.description() != null && !cell.description().trim().isEmpty())
                 .count();
         double completionPercentage = totalCells > 0 ? (completedCells * 100.0) / totalCells : 0.0;
 

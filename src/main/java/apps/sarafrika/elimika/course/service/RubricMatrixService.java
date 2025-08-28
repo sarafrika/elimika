@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service;
 
+import apps.sarafrika.elimika.course.dto.RubricMatrixCellDTO;
 import apps.sarafrika.elimika.course.dto.RubricMatrixDTO;
 
 import java.util.UUID;
@@ -29,12 +30,10 @@ public interface RubricMatrixService {
      * Updates a matrix cell description.
      *
      * @param rubricUuid the UUID of the rubric
-     * @param criteriaUuid the UUID of the criteria
-     * @param scoringLevelUuid the UUID of the scoring level
-     * @param description the new description
+     * @param cellUpdate the matrix cell update data
      * @return updated rubric matrix
      */
-    RubricMatrixDTO updateMatrixCell(UUID rubricUuid, UUID criteriaUuid, UUID scoringLevelUuid, String description);
+    RubricMatrixDTO updateMatrixCell(UUID rubricUuid, RubricMatrixCellDTO cellUpdate);
 
     /**
      * Calculates and updates the maximum possible scores for the rubric.

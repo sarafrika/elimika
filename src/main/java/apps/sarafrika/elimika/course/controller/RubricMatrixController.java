@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.common.dto.ApiResponse;
+import apps.sarafrika.elimika.course.dto.RubricMatrixCellDTO;
 import apps.sarafrika.elimika.course.dto.RubricMatrixDTO;
 import apps.sarafrika.elimika.course.service.RubricMatrixService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.Map;
 import java.util.UUID;
@@ -56,13 +58,9 @@ public class RubricMatrixController {
     public ResponseEntity<ApiResponse<RubricMatrixDTO>> updateMatrixCell(
             @Parameter(description = "UUID of the rubric", required = true)
             @PathVariable UUID rubricUuid,
-            @RequestBody Map<String, Object> cellUpdate) {
+            @RequestBody @Valid RubricMatrixCellDTO cellUpdate) {
         
-        UUID criteriaUuid = UUID.fromString((String) cellUpdate.get("criteriaUuid"));
-        UUID scoringLevelUuid = UUID.fromString((String) cellUpdate.get("scoringLevelUuid"));
-        String description = (String) cellUpdate.get("description");
-        
-        RubricMatrixDTO matrix = rubricMatrixService.updateMatrixCell(rubricUuid, criteriaUuid, scoringLevelUuid, description);
+        RubricMatrixDTO matrix = rubricMatrixService.updateMatrixCell(rubricUuid, cellUpdate);
         return ResponseEntity.ok(ApiResponse.success(matrix, "Matrix cell updated successfully"));
     }
 
