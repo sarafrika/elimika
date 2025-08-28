@@ -16,7 +16,6 @@ public class RubricScoringFactory {
         return new RubricScoringDTO(
                 rubricScoring.getUuid(),
                 rubricScoring.getCriteriaUuid(),
-                rubricScoring.getGradingLevelUuid(),
                 rubricScoring.getDescription(),
                 rubricScoring.getCreatedDate(),
                 rubricScoring.getCreatedBy(),
@@ -33,7 +32,6 @@ public class RubricScoringFactory {
         RubricScoring rubricScoring = new RubricScoring();
         rubricScoring.setUuid(dto.uuid());
         rubricScoring.setCriteriaUuid(dto.criteriaUuid());
-        rubricScoring.setGradingLevelUuid(dto.gradingLevelUuid());
         rubricScoring.setDescription(dto.description());
         rubricScoring.setCreatedDate(dto.createdDate());
         rubricScoring.setCreatedBy(dto.createdBy());

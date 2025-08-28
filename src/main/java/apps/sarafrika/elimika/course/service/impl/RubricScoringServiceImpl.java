@@ -84,9 +84,6 @@ public class RubricScoringServiceImpl implements RubricScoringService {
         if (dto.criteriaUuid() != null) {
             existingRubricScoring.setCriteriaUuid(dto.criteriaUuid());
         }
-        if (dto.gradingLevelUuid() != null) {
-            existingRubricScoring.setGradingLevelUuid(dto.gradingLevelUuid());
-        }
         if (dto.description() != null) {
             existingRubricScoring.setDescription(dto.description());
         }

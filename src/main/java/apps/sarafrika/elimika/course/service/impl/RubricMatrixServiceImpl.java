@@ -252,9 +252,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         // Create map for quick lookup of existing cells
         Map<String, RubricScoring> existingCellMap = existingCells.stream()
                 .collect(Collectors.toMap(
-                        cell -> cell.getCriteriaUuid() + "_" + 
-                               (cell.getRubricScoringLevelUuid() != null ? 
-                                cell.getRubricScoringLevelUuid() : cell.getGradingLevelUuid()),
+                        cell -> cell.getCriteriaUuid() + "_" + cell.getRubricScoringLevelUuid(),
                         cell -> cell
                 ));
 
