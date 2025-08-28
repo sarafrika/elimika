@@ -1,3 +1,16 @@
+# [2.1.0](https://github.com/sarafrika/elimika/compare/v2.0.2...v2.1.0) (2025-08-28)
+
+
+### Bug Fixes
+
+* Correct DTO and factory for rubric scoring ([5c63ac1](https://github.com/sarafrika/elimika/commit/5c63ac1673f461a7d5b00be4ea94ee31cc9ef4be))
+* Resolve compilation errors after decoupling rubric scoring ([2a8109c](https://github.com/sarafrika/elimika/commit/2a8109c374b433784c1b13150b3d4fd12497c989))
+
+
+### Features
+
+* Decouple rubric scoring from grading levels ([146e4ec](https://github.com/sarafrika/elimika/commit/146e4ec582d91f11a0ba356a29eca20be0d5aa36))
+
 ## [2.0.2](https://github.com/sarafrika/elimika/compare/v2.0.1...v2.0.2) (2025-08-28)
 
 
