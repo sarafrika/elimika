@@ -29,15 +29,6 @@ public interface RubricScoringRepository extends JpaRepository<RubricScoring, Lo
     boolean existsByUuidAndCriteriaUuid(UUID uuid, UUID criteriaUuid);
 
     /**
-     * Finds rubric scoring by criteria UUID and grading level UUID (for global levels).
-     *
-     * @param criteriaUuid the UUID of the criteria
-     * @param gradingLevelUuid the UUID of the grading level
-     * @return optional containing the rubric scoring if found
-     */
-    Optional<RubricScoring> findByCriteriaUuidAndGradingLevelUuid(UUID criteriaUuid, UUID gradingLevelUuid);
-
-    /**
      * Finds rubric scoring by criteria UUID and rubric scoring level UUID (for custom levels).
      *
      * @param criteriaUuid the UUID of the criteria
@@ -65,9 +56,8 @@ public interface RubricScoringRepository extends JpaRepository<RubricScoring, Lo
         SELECT rs FROM RubricScoring rs 
         JOIN RubricCriteria rc ON rs.criteriaUuid = rc.uuid 
         LEFT JOIN RubricScoringLevel rsl ON rs.rubricScoringLevelUuid = rsl.uuid
-        LEFT JOIN GradingLevel gl ON rs.gradingLevelUuid = gl.uuid
         WHERE rc.rubricUuid = :rubricUuid 
-        ORDER BY rc.displayOrder ASC, COALESCE(rsl.levelOrder, gl.levelOrder) ASC
+        ORDER BY rc.displayOrder ASC, rsl.levelOrder ASC
         """)
     List<RubricScoring> findMatrixCellsByRubricUuid(@Param("rubricUuid") UUID rubricUuid);
 
@@ -93,12 +83,7 @@ public interface RubricScoringRepository extends JpaRepository<RubricScoring, Lo
     @Query("""
         SELECT 
             (SELECT COUNT(rc) FROM RubricCriteria rc WHERE rc.rubricUuid = :rubricUuid) *
-            (SELECT CASE 
-                WHEN ar.usesCustomLevels = true 
-                THEN (SELECT COUNT(rsl) FROM RubricScoringLevel rsl WHERE rsl.rubricUuid = :rubricUuid)
-                ELSE (SELECT COUNT(gl) FROM GradingLevel gl)
-                END
-            FROM AssessmentRubric ar WHERE ar.uuid = :rubricUuid)
+            (SELECT COUNT(rsl) FROM RubricScoringLevel rsl WHERE rsl.rubricUuid = :rubricUuid)
         """)
     long countExpectedCellsByRubricUuid(@Param("rubricUuid") UUID rubricUuid);
 
@@ -106,17 +91,14 @@ public interface RubricScoringRepository extends JpaRepository<RubricScoring, Lo
      * Checks if a matrix cell exists for given criteria and scoring level.
      *
      * @param criteriaUuid the UUID of the criteria
-     * @param gradingLevelUuid the UUID of the grading level (for global levels)
      * @param rubricScoringLevelUuid the UUID of the rubric scoring level (for custom levels)
      * @return true if the cell exists
      */
     @Query("""
         SELECT COUNT(rs) > 0 FROM RubricScoring rs 
         WHERE rs.criteriaUuid = :criteriaUuid 
-        AND (:gradingLevelUuid IS NULL OR rs.gradingLevelUuid = :gradingLevelUuid)
-        AND (:rubricScoringLevelUuid IS NULL OR rs.rubricScoringLevelUuid = :rubricScoringLevelUuid)
+        AND rs.rubricScoringLevelUuid = :rubricScoringLevelUuid
         """)
     boolean existsMatrixCell(@Param("criteriaUuid") UUID criteriaUuid,
-                           @Param("gradingLevelUuid") UUID gradingLevelUuid,
                            @Param("rubricScoringLevelUuid") UUID rubricScoringLevelUuid);
 }
