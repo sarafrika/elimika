@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/sarafrika/elimika/compare/v2.0.0...v2.0.1) (2025-08-27)
+
+
+### Bug Fixes
+
+* resolve circular dependency between RubricCriteriaService and RubricMatrixService ([dbba3c3](https://github.com/sarafrika/elimika/commit/dbba3c3f8adade2dfc8468442dce9c48a880d49e))
+
 # [2.0.0](https://github.com/sarafrika/elimika/compare/v1.5.3...v2.0.0) (2025-08-27)
 
 
