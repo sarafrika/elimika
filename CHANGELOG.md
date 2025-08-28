@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/sarafrika/elimika/compare/v2.1.0...v2.1.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* Remove obsolete grading level methods from repository ([12c02d3](https://github.com/sarafrika/elimika/commit/12c02d3dd86fcf8bed36cfbd6d252944d111abc7))
+
 # [2.1.0](https://github.com/sarafrika/elimika/compare/v2.0.2...v2.1.0) (2025-08-28)
 
 
