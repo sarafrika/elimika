@@ -1,3 +1,11 @@
+## [2.5.1](https://github.com/sarafrika/elimika/compare/v2.5.0...v2.5.1) (2025-08-29)
+
+
+### Bug Fixes
+
+* **tenancy:** Correct InvitationStatusConverter usage and @Builder.Default warning ([748ca51](https://github.com/sarafrika/elimika/commit/748ca516f5a689982a2c0903b52671cdf4964ce4))
+* **tenancy:** Resolve ClassCastException for InvitationStatus enum ([80f4db7](https://github.com/sarafrika/elimika/commit/80f4db7277b5be3a2993f58193bf9c7ae96d375e))
+
 # [2.5.0](https://github.com/sarafrika/elimika/compare/v2.4.0...v2.5.0) (2025-08-29)
 
 
