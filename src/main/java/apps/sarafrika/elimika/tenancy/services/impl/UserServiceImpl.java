@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
@@ -108,7 +109,8 @@ public class UserServiceImpl implements UserService {
     public UserDTO getUserByUuid(UUID uuid) {
         User user = findUserOrThrow(uuid);
         List<String> userDomains = getUserDomainsFromMappings(uuid);
-        return UserFactory.toDTO(user, userDomains);
+        List<UserOrganisationAffiliationDTO> orgAffiliations = getUserOrganisationAffiliations(uuid);
+        return UserFactory.toDTO(user, userDomains, orgAffiliations);
     }
 
     @Override
@@ -361,6 +363,41 @@ public class UserServiceImpl implements UserService {
     }
 
     // ================================
+    // ORGANIZATION AFFILIATION INFORMATION METHODS
+    // ================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserOrganisationAffiliationDTO> getUserOrganisationAffiliations(UUID userUuid) {
+        log.debug("Retrieving organization affiliations for user: {}", userUuid);
+        
+        List<UserOrganisationDomainMapping> orgMappings = 
+            userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+        
+        return orgMappings.stream()
+            .map(this::mapToUserOrganisationAffiliationDTO)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserOrganisationAffiliationDTO getUserAffiliationInOrganisation(UUID userUuid, UUID organisationUuid) {
+        log.debug("Retrieving user {} affiliation in organization: {}", userUuid, organisationUuid);
+        
+        Optional<UserOrganisationDomainMapping> mapping = 
+            userOrganisationDomainMappingRepository.findActiveByUserAndOrganisation(userUuid, organisationUuid);
+        
+        return mapping.map(this::mapToUserOrganisationAffiliationDTO).orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isUserAffiliatedWithOrganisation(UUID userUuid, UUID organisationUuid) {
+        return userOrganisationDomainMappingRepository
+            .existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(userUuid, organisationUuid);
+    }
+
+    // ================================
     // PRIVATE HELPER METHODS
     // ================================
 
@@ -511,6 +548,40 @@ public class UserServiceImpl implements UserService {
                         user.getKeycloakId()
                 )
         );
+    }
+
+    /**
+     * Maps UserOrganisationDomainMapping entity to UserOrganisationAffiliationDTO
+     */
+    private UserOrganisationAffiliationDTO mapToUserOrganisationAffiliationDTO(UserOrganisationDomainMapping mapping) {
+        // Get organization details
+        Organisation organisation = findOrganisationOrThrow(mapping.getOrganisationUuid());
+        
+        // Get domain name
+        UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
+                .orElseThrow(() -> new ResourceNotFoundException("Domain not found with UUID: " + mapping.getDomainUuid()));
+        
+        // Get branch details if assigned
+        TrainingBranch branch = null;
+        String branchName = null;
+        if (mapping.getBranchUuid() != null) {
+            branch = trainingBranchRepository.findByUuid(mapping.getBranchUuid()).orElse(null);
+            if (branch != null) {
+                branchName = branch.getName();
+            }
+        }
+        
+        return UserOrganisationAffiliationDTO.builder()
+            .organisationUuid(mapping.getOrganisationUuid())
+            .organisationName(organisation.getName())
+            .domainInOrganisation(domain.getDomainName())
+            .branchUuid(mapping.getBranchUuid())
+            .branchName(branchName)
+            .startDate(mapping.getStartDate())
+            .endDate(mapping.getEndDate())
+            .active(mapping.isActive())
+            .affiliatedDate(mapping.getCreatedDate())
+            .build();
     }
 
 

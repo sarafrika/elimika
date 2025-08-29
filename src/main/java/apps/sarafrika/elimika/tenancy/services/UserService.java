@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services;
 
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -180,4 +181,38 @@ public interface UserService {
      * @return list of domain names
      */
     List<String> getUserDomains(UUID userUuid);
+
+    // ================================
+    // ORGANIZATION AFFILIATION INFORMATION
+    // ================================
+
+    /**
+     * Retrieves all organization affiliations for a user.
+     * Returns detailed information about each organization the user belongs to,
+     * including their specific role, branch assignment, and temporal information.
+     *
+     * @param userUuid the user UUID
+     * @return list of organization affiliations with full details
+     */
+    List<UserOrganisationAffiliationDTO> getUserOrganisationAffiliations(UUID userUuid);
+
+    /**
+     * Retrieves a user's affiliation details for a specific organization.
+     * Returns null if the user is not affiliated with the organization.
+     *
+     * @param userUuid the user UUID
+     * @param organisationUuid the organization UUID
+     * @return user's affiliation details in the organization, or null if not affiliated
+     */
+    UserOrganisationAffiliationDTO getUserAffiliationInOrganisation(UUID userUuid, UUID organisationUuid);
+
+    /**
+     * Checks if a user is currently affiliated with a specific organization.
+     * This is a quick boolean check for membership validation.
+     *
+     * @param userUuid the user UUID
+     * @param organisationUuid the organization UUID
+     * @return true if user has active affiliation with the organization
+     */
+    boolean isUserAffiliatedWithOrganisation(UUID userUuid, UUID organisationUuid);
 }

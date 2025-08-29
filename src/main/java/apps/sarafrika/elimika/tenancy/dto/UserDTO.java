@@ -229,7 +229,16 @@ public record UserDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("user_domain")
-        List<String> userDomain
+        List<String> userDomain,
+
+        @Schema(
+                description = "**[READ-ONLY]** List of organization affiliations showing the user's specific roles within each organization they belong to. Includes organization details, branch assignments, and temporal information.",
+                example = "[{\"organisationUuid\": \"org-123\", \"organisationName\": \"University ABC\", \"domainInOrganisation\": \"instructor\", \"branchName\": \"Computer Science\", \"active\": true}]",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true
+        )
+        @JsonProperty(value = "organisation_affiliations", access = JsonProperty.Access.READ_ONLY)
+        List<UserOrganisationAffiliationDTO> organisationAffiliations
 
 ) {
         /**
