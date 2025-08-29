@@ -14,7 +14,6 @@ public class OrganisationFactory {
                 organisation.getDescription(),
                 organisation.isActive(),
                 organisation.getLicenceNo(),
-                organisation.getUserUuid(),
                 organisation.getLocation(),
                 organisation.getCountry(),
                 organisation.getCreatedDate(),
@@ -29,7 +28,6 @@ public class OrganisationFactory {
         organisation.setDescription(organisationDTO.description());
         organisation.setActive(organisationDTO.active());
         organisation.setLicenceNo(organisationDTO.licenceNo());
-        organisation.setUserUuid(organisationDTO.userUuid());
         organisation.setLocation(organisationDTO.location());
         organisation.setCountry(organisationDTO.country());
         return organisation;

@@ -35,6 +35,16 @@ public interface OrganisationService {
     OrganisationDTO createOrganisation(OrganisationDTO organisationDTO);
 
     /**
+     * Creates a new organization with a specified creator.
+     * The creator is automatically assigned as organisation_user.
+     *
+     * @param organisationDTO the organization data to create
+     * @param creatorUuid the UUID of the user creating the organization
+     * @return the created organization
+     */
+    OrganisationDTO createOrganisation(OrganisationDTO organisationDTO, UUID creatorUuid);
+
+    /**
      * Retrieves an organization by UUID.
      *
      * @param uuid the organization UUID

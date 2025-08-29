@@ -46,8 +46,6 @@ public class Organisation extends BaseEntity {
     @Column(name = "deleted")
     private boolean deleted = false;
 
-    @Column(name = "user_uuid")
-    private UUID userUuid;
 
     @Column(name = "location")
     private String location;

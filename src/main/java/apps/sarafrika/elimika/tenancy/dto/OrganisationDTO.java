@@ -28,7 +28,6 @@ import java.util.UUID;
                     "description": "Leading educational institution in Kenya",
                     "active": true,
                     "licence_no": "EDU-2024-001",
-                    "user_uuid": "a1b2c3d4-e5f6-g7h8-i9j0-klmnopqrstuv",
                     "location": "Nairobi, Kenya",
                     "country": "Kenya",
                     "created_date": "2024-01-01T09:00:00",
@@ -89,15 +88,6 @@ public record OrganisationDTO(
         String licenceNo,
 
 
-        @Schema(
-                description = "**[OPTIONAL]** Reference to the primary contact user for this organisation.",
-                example = "a1b2c3d4-e5f6-g7h8-i9j0-klmnopqrstuv",
-                format = "uuid",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("user_uuid")
-        UUID userUuid,
 
         @Schema(
                 description = "**[OPTIONAL]** Physical location or address of the organisation.",

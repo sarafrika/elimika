@@ -42,7 +42,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Override
     @Transactional
     public OrganisationDTO createOrganisation(OrganisationDTO organisationDTO) {
-        log.debug("Creating new organisation: {}", organisationDTO.name());
+        log.debug("Creating new organisation without creator assignment: {}", organisationDTO.name());
 
         try {
             Organisation organisation = OrganisationFactory.toEntity(organisationDTO);
@@ -50,17 +50,36 @@ public class OrganisationServiceImpl implements OrganisationService {
             // Auto-generate slug from name
             organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
 
+            organisation = organisationRepository.save(organisation);
+
+            log.info("Successfully created organisation with UUID: {}", organisation.getUuid());
+            return OrganisationFactory.toDTO(organisation);
+        } catch (Exception e) {
+            log.error("Failed to create organisation: {}", organisationDTO.name(), e);
+            throw new RuntimeException("Failed to create organisation.", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public OrganisationDTO createOrganisation(OrganisationDTO organisationDTO, UUID creatorUuid) {
+        log.debug("Creating new organisation with creator {}: {}", creatorUuid, organisationDTO.name());
+
+        try {
+            Organisation organisation = OrganisationFactory.toEntity(organisationDTO);
+
+            // Auto-generate slug from name
+            organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
 
             organisation = organisationRepository.save(organisation);
 
             // Automatically assign the creating user as organisation_user
-            if (organisationDTO.userUuid() != null) {
-                assignCreatorAsOrganisationUser(organisationDTO.userUuid(), organisation.getUuid());
+            if (creatorUuid != null) {
+                assignCreatorAsOrganisationUser(creatorUuid, organisation.getUuid());
             }
 
-
-            log.info("Successfully created organisation with UUID: {}, creator assigned as organisation_user",
-                    organisation.getUuid());
+            log.info("Successfully created organisation with UUID: {}, creator {} assigned as organisation_user",
+                    organisation.getUuid(), creatorUuid);
             return OrganisationFactory.toDTO(organisation);
         } catch (Exception e) {
             log.error("Failed to create organisation: {}", organisationDTO.name(), e);
@@ -434,7 +453,6 @@ public class OrganisationServiceImpl implements OrganisationService {
         organisation.setDescription(dto.description());
         organisation.setActive(dto.active());
         organisation.setLicenceNo(dto.licenceNo());
-        organisation.setUserUuid(dto.userUuid());
         organisation.setLocation(dto.location());
         organisation.setCountry(dto.country());
     }
