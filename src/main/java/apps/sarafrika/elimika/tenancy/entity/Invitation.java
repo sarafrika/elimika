@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
+import apps.sarafrika.elimika.tenancy.util.converter.InvitationStatusConverter;
 import apps.sarafrika.elimika.common.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -45,6 +46,7 @@ public class Invitation extends BaseEntity {
 
     @Column(name = "status")
     @Convert(converter = InvitationStatusConverter.class)
+    @Builder.Default
     private InvitationStatus status = InvitationStatus.PENDING;
 
     @Column(name = "expires_at")
