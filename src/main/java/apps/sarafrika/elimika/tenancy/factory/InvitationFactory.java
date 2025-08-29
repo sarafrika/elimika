@@ -54,7 +54,7 @@ public class InvitationFactory {
                 invitation.getRecipientEmail(),
                 invitation.getRecipientName(),
                 invitation.getOrganisationUuid(),
-                organisation != null ? organisation.getOrganisationName() : null,
+                organisation != null ? organisation.getName() : null,
                 invitation.getBranchUuid(),
                 branch != null ? branch.getBranchName() : null,
                 invitation.getDomainUuid(),
