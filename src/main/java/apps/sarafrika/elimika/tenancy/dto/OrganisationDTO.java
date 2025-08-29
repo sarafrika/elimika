@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -30,6 +31,9 @@ import java.util.UUID;
                     "licence_no": "EDU-2024-001",
                     "location": "Nairobi, Kenya",
                     "country": "Kenya",
+                    "slug": "sarafrika-university",
+                    "latitude": -1.2921,
+                    "longitude": 36.8219,
                     "created_date": "2024-01-01T09:00:00",
                     "updated_date": "2024-04-15T14:30:00"
                 }
@@ -108,6 +112,33 @@ public record OrganisationDTO(
         )
         @JsonProperty("country")
         String country,
+
+        @Schema(
+                description = "**[READ-ONLY]** URL-friendly slug for the organisation's public profile. Auto-generated from the organisation name.",
+                example = "sarafrika-university",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "slug", access = JsonProperty.Access.READ_ONLY)
+        String slug,
+
+        @Schema(
+                description = "**[OPTIONAL]** Latitude coordinate for the organisation's location.",
+                example = "-1.2921",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("latitude")
+        BigDecimal latitude,
+
+        @Schema(
+                description = "**[OPTIONAL]** Longitude coordinate for the organisation's location.",
+                example = "36.8219",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("longitude")
+        BigDecimal longitude,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the organisation was first created. Automatically set by the system and cannot be modified.",

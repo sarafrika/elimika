@@ -16,6 +16,9 @@ public class OrganisationFactory {
                 organisation.getLicenceNo(),
                 organisation.getLocation(),
                 organisation.getCountry(),
+                organisation.getSlug(),
+                organisation.getLatitude(),
+                organisation.getLongitude(),
                 organisation.getCreatedDate(),
                 organisation.getLastModifiedDate()
         );
@@ -30,6 +33,9 @@ public class OrganisationFactory {
         organisation.setLicenceNo(organisationDTO.licenceNo());
         organisation.setLocation(organisationDTO.location());
         organisation.setCountry(organisationDTO.country());
+        organisation.setSlug(organisationDTO.slug());
+        organisation.setLatitude(organisationDTO.latitude());
+        organisation.setLongitude(organisationDTO.longitude());
         return organisation;
     }
 }
