@@ -70,7 +70,8 @@ public class EmailUtility {
             String domainName,
             String branchName,
             String inviterName,
-            String invitationToken) throws MessagingException {
+            String invitationToken,
+            String notes) throws MessagingException {
 
         log.debug("Sending organization invitation to {} for organization {}", recipientEmail, organizationName);
 
@@ -85,6 +86,7 @@ public class EmailUtility {
         context.setVariable("acceptUrl", buildAcceptInvitationUrl(invitationToken));
         context.setVariable("declineUrl", buildDeclineInvitationUrl(invitationToken));
         context.setVariable("logoUrl", buildLogoUrl());
+        context.setVariable("notes", notes);
 
         String subject = String.format("Invitation to join %s on %s", organizationName, companyName);
         String htmlContent = templateEngine.process("emails/organization-invitation", context);
@@ -115,7 +117,8 @@ public class EmailUtility {
             String branchAddress,
             String domainName,
             String inviterName,
-            String invitationToken) throws MessagingException {
+            String invitationToken,
+            String notes) throws MessagingException {
 
         log.debug("Sending branch invitation to {} for branch {} in organization {}",
                 recipientEmail, branchName, organizationName);
@@ -131,6 +134,7 @@ public class EmailUtility {
         context.setVariable("acceptUrl", buildAcceptInvitationUrl(invitationToken));
         context.setVariable("declineUrl", buildDeclineInvitationUrl(invitationToken));
         context.setVariable("logoUrl", buildLogoUrl());
+        context.setVariable("notes", notes);
 
         String subject = String.format("Invitation to join %s - %s on %s", organizationName, branchName, companyName);
         String htmlContent = templateEngine.process("emails/branch-invitation", context);

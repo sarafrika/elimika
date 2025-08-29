@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 import apps.sarafrika.elimika.common.dto.ApiResponse;
 import apps.sarafrika.elimika.common.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
+import apps.sarafrika.elimika.tenancy.dto.InvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -181,26 +182,18 @@ class OrganisationController {
             @Parameter(description = "UUID of the organization the user is being invited to join. Must be an existing, active organization.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "Email address of the person being invited. Must be a valid email format.",
-                    example = "john.doe@example.com", required = true)
-            @RequestParam("recipient_email") String recipientEmail,
-            @Parameter(description = "Full name of the person being invited. Used in email templates and invitation records.",
-                    example = "John Doe", required = true)
-            @RequestParam("recipient_name") String recipientName,
-            @Parameter(description = "Role/domain name being offered to the recipient. Valid values: 'student', 'instructor', 'admin', 'organisation_user'",
-                    example = "instructor", required = true)
-            @RequestParam("domain_name") String domainName,
             @Parameter(description = "Optional UUID of a training branch within the organization. If provided, the invitation will be branch-specific. Must belong to the specified organization.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = false)
             @RequestParam(value = "branch_uuid", required = false) UUID branchUuid,
-            @Parameter(description = "UUID of the user who is sending this invitation. Must be an existing user with appropriate permissions in the organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440004", required = true)
-            @RequestParam("inviter_uuid") UUID inviterUuid,
-            @Parameter(description = "Optional personal message or notes to include with the invitation email. Maximum 500 characters.",
-                    example = "Welcome to our training program! We're excited to have you join our team.", required = false)
-            @RequestParam(value = "notes", required = false) String notes) {
+            @Valid @RequestBody InvitationRequestDTO invitationRequest) {
         InvitationDTO created = invitationService.createOrganisationInvitation(
-                recipientEmail, recipientName, uuid, domainName, branchUuid, inviterUuid, notes);
+                invitationRequest.recipientEmail(),
+                invitationRequest.recipientName(),
+                uuid,
+                invitationRequest.domainName(),
+                branchUuid,
+                invitationRequest.inviterUuid(),
+                invitationRequest.notes());
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Invitation created successfully"));
     }
 
@@ -469,23 +462,14 @@ class OrganisationController {
             @Parameter(description = "UUID of the training branch the user is being invited to join. Must be a branch within the specified organization.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid,
-            @Parameter(description = "Email address of the person being invited to the training branch. Must be a valid email format.",
-                    example = "jane.smith@example.com", required = true)
-            @RequestParam("recipient_email") String recipientEmail,
-            @Parameter(description = "Full name of the person being invited to the training branch. Used in email templates and records.",
-                    example = "Jane Smith", required = true)
-            @RequestParam("recipient_name") String recipientName,
-            @Parameter(description = "Role/domain name being offered to the recipient within the training branch. Valid values: 'student', 'instructor', 'admin', 'organisation_user'",
-                    example = "student", required = true)
-            @RequestParam("domain_name") String domainName,
-            @Parameter(description = "UUID of the user who is sending this branch invitation. Must be an existing user with appropriate permissions.",
-                    example = "550e8400-e29b-41d4-a716-446655440004", required = true)
-            @RequestParam("inviter_uuid") UUID inviterUuid,
-            @Parameter(description = "Optional personal message or notes to include with the branch invitation email. Maximum 500 characters.",
-                    example = "Join our downtown training center for hands-on learning!", required = false)
-            @RequestParam(value = "notes", required = false) String notes) {
+            @Valid @RequestBody InvitationRequestDTO invitationRequest) {
         InvitationDTO created = invitationService.createBranchInvitation(
-                recipientEmail, recipientName, branchUuid, domainName, inviterUuid, notes);
+                invitationRequest.recipientEmail(),
+                invitationRequest.recipientName(),
+                branchUuid,
+                invitationRequest.domainName(),
+                invitationRequest.inviterUuid(),
+                invitationRequest.notes());
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Branch invitation created successfully"));
     }
 

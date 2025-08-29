@@ -572,7 +572,8 @@ public class InvitationServiceImpl implements InvitationService {
                         branch.getAddress(),
                         domain.getDomainName(),
                         invitation.getInviterName(),
-                        invitation.getToken()
+                        invitation.getToken(),
+                        invitation.getNotes()
                 );
             } else {
                 emailUtility.sendOrganizationInvitation(
@@ -583,7 +584,8 @@ public class InvitationServiceImpl implements InvitationService {
                         domain.getDomainName(),
                         null, // branchName is null for org-level invitations
                         invitation.getInviterName(),
-                        invitation.getToken()
+                        invitation.getToken(),
+                        invitation.getNotes()
                 );
             }
             log.info("Successfully sent invitation email for invitation {}", invitation.getUuid());
