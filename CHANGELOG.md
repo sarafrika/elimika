@@ -1,3 +1,17 @@
+# [2.5.0](https://github.com/sarafrika/elimika/compare/v2.4.0...v2.5.0) (2025-08-29)
+
+
+### Bug Fixes
+
+* Load organization affiliations in getAllUsers ([ca131e5](https://github.com/sarafrika/elimika/commit/ca131e500b800a47ffd2c1570fc2cff33d88d6e3))
+
+
+### Features
+
+* Add slug and coordinates to OrganisationDTO ([17454e4](https://github.com/sarafrika/elimika/commit/17454e4342767bbbe595b5a7218bd31a4a2b157d))
+* Add slug and coordinates to OrganisationDTO ([307b765](https://github.com/sarafrika/elimika/commit/307b7657dc14209c5141438e675ffa5d4b364629))
+* **invitations:** Refactor invitation creation API and add documentation ([55ad177](https://github.com/sarafrika/elimika/commit/55ad1778a92b33026b6c8ff45bcac74c2a5b8898))
+
 # [2.4.0](https://github.com/sarafrika/elimika/compare/v2.3.0...v2.4.0) (2025-08-29)
 
 
