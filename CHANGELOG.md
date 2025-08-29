@@ -1,3 +1,16 @@
+# [2.6.0](https://github.com/sarafrika/elimika/compare/v2.5.2...v2.6.0) (2025-08-29)
+
+
+### Bug Fixes
+
+* **course:** Correct AttributeConverter usage in Quiz model ([209511a](https://github.com/sarafrika/elimika/commit/209511a72795140d7a88b317075c25de11b0fe83))
+* **tenancy:** Correct method name in InvitationFactory ([90269dc](https://github.com/sarafrika/elimika/commit/90269dc90461dd58f76bef39805e1fd51b327fe2))
+
+
+### Features
+
+* **invitations:** Add React frontend integration and enhanced invitation system ([2acf6d3](https://github.com/sarafrika/elimika/commit/2acf6d3a74f571cd4078ce53e2a6490bd1305e84))
+
 ## [2.5.2](https://github.com/sarafrika/elimika/compare/v2.5.1...v2.5.2) (2025-08-29)
 
 
