@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/sarafrika/elimika/compare/v2.2.0...v2.3.0) (2025-08-29)
+
+
+### Features
+
+* Add automatic creator assignment for organization creation ([a0794de](https://github.com/sarafrika/elimika/commit/a0794dedd8b5365478956a4290c8b38fcffc139a))
+
 # [2.2.0](https://github.com/sarafrika/elimika/compare/v2.1.1...v2.2.0) (2025-08-29)
 
 
