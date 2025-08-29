@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.common.model.BaseEntity;
-import apps.sarafrika.elimika.course.util.converter.EnrollmentStatusConverter;
+import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -48,7 +48,7 @@ public class Quiz extends BaseEntity {
     private UUID rubricUuid;
 
     @Column(name = "status")
-    @Convert(converter = EnrollmentStatusConverter.class)
+    @Convert(converter = ContentStatusConverter.class)
     private ContentStatus status;
 
     @Column(name = "active")
