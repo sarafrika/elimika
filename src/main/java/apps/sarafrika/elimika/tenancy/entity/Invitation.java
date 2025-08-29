@@ -43,9 +43,8 @@ public class Invitation extends BaseEntity {
     @Column(name = "inviter_name")
     private String inviterName;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    @Builder.Default
+    @Convert(converter = InvitationStatusConverter.class)
     private InvitationStatus status = InvitationStatus.PENDING;
 
     @Column(name = "expires_at")
@@ -67,11 +66,30 @@ public class Invitation extends BaseEntity {
      * Enumeration for invitation status.
      */
     public enum InvitationStatus {
-        PENDING,
-        ACCEPTED,
-        DECLINED,
-        EXPIRED,
-        CANCELLED
+        PENDING("pending"),
+        ACCEPTED("accepted"),
+        DECLINED("declined"),
+        EXPIRED("expired"),
+        CANCELLED("cancelled");
+
+        private final String value;
+
+        InvitationStatus(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public static InvitationStatus fromValue(String value) {
+            for (InvitationStatus status : InvitationStatus.values()) {
+                if (status.value.equalsIgnoreCase(value)) {
+                    return status;
+                }
+            }
+            throw new IllegalArgumentException("Unknown InvitationStatus value: " + value);
+        }
     }
 
     /**
