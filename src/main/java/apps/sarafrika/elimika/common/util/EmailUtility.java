@@ -89,7 +89,7 @@ public class EmailUtility {
         context.setVariable("notes", notes);
 
         String subject = String.format("Invitation to join %s on %s", organizationName, companyName);
-        String htmlContent = templateEngine.process("emails/organization-invitation", context);
+        String htmlContent = templateEngine.process("email/organization-invitation", context);
 
         sendHtmlEmail(recipientEmail, subject, htmlContent);
 
@@ -137,7 +137,7 @@ public class EmailUtility {
         context.setVariable("notes", notes);
 
         String subject = String.format("Invitation to join %s - %s on %s", organizationName, branchName, companyName);
-        String htmlContent = templateEngine.process("emails/branch-invitation", context);
+        String htmlContent = templateEngine.process("email/branch-invitation", context);
 
         sendHtmlEmail(recipientEmail, subject, htmlContent);
 
@@ -178,7 +178,7 @@ public class EmailUtility {
         context.setVariable("logoUrl", buildLogoUrl());
 
         String subject = String.format("Welcome to %s - Invitation Accepted", organizationName);
-        String htmlContent = templateEngine.process("emails/invitation-accepted", context);
+        String htmlContent = templateEngine.process("email/invitation-accepted", context);
 
         sendHtmlEmail(recipientEmail, subject, htmlContent);
 
@@ -216,7 +216,7 @@ public class EmailUtility {
         context.setVariable("logoUrl", buildLogoUrl());
 
         String subject = String.format("Invitation Declined - %s", organizationName);
-        String htmlContent = templateEngine.process("emails/invitation-declined", context);
+        String htmlContent = templateEngine.process("email/invitation-declined", context);
 
         sendHtmlEmail(adminEmail, subject, htmlContent);
 
@@ -264,7 +264,7 @@ public class EmailUtility {
         context.setVariable("hoursRemaining", hoursRemaining);
 
         String subject = String.format("Reminder: Invitation to %s expires in %d hours", organizationName, hoursRemaining);
-        String htmlContent = templateEngine.process("emails/invitation-expiry-reminder", context);
+        String htmlContent = templateEngine.process("email/invitation-expiry-reminder", context);
 
         sendHtmlEmail(recipientEmail, subject, htmlContent);
 
