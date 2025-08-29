@@ -252,26 +252,29 @@ flowchart TD
 |--------|----------|---------|---------------------------|
 | `GET` | `/api/v1/instructors/{uuid}` | Get complete instructor profile | `bio`, `specialization`, `yearsExperience` |
 | `PUT` | `/api/v1/instructors/{uuid}` | Update instructor info | Teaching philosophy, expertise areas |
-| `POST` | `/api/v1/instructors/{uuid}/experience` | Add work experience | Position history, achievements |
-| `POST` | `/api/v1/instructors/{uuid}/education` | Add education record | Degrees, certifications |
+| `POST` | `/api/v1/instructors` | Create new instructor | Complete instructor profile |
+| `GET` | `/api/v1/instructors` | Get all instructors (paginated) | `PagedDTO<InstructorDTO>` |
+| `GET` | `/api/v1/instructors/search` | Search instructors with filters | Advanced search capabilities |
 
-### Course and Content Management
+### Instructor Professional Information Management
 
 | Method | Endpoint | Purpose | Use Case |
 |--------|----------|---------|----------|
-| `POST` | `/api/v1/instructors/{uuid}/courses` | Create new course | Content development |
-| `GET` | `/api/v1/instructors/{uuid}/courses` | List instructor courses | Teaching portfolio |
-| `PUT` | `/api/v1/courses/{courseUuid}/content` | Update course content | Curriculum maintenance |
-| `POST` | `/api/v1/courses/{courseUuid}/assessments` | Create assessments | Student evaluation |
+| `POST` | `/api/v1/instructors/{uuid}/experience` | Add work experience | Professional history tracking |
+| `GET` | `/api/v1/instructors/{uuid}/experience` | Get instructor experience | Career progression view |
+| `POST` | `/api/v1/instructors/{uuid}/education` | Add education record | Academic qualifications |
+| `GET` | `/api/v1/instructors/{uuid}/education` | Get instructor education | Degree and certification info |
+| `POST` | `/api/v1/instructors/{uuid}/skills` | Add instructor skills | Technical competencies |
+| `GET` | `/api/v1/instructors/{uuid}/skills` | Get instructor skills | Expertise areas |
 
-### Student Management and Analytics
+### Instructor Document and Credential Management
 
 | Method | Endpoint | Purpose | Instructor Context |
 |--------|----------|---------|-------------------|
-| `GET` | `/api/v1/instructors/{uuid}/students` | List all students across courses | Class roster management |
-| `GET` | `/api/v1/courses/{courseUuid}/enrollments` | Get course enrollments | Specific course management |
-| `GET` | `/api/v1/instructors/{uuid}/analytics` | Teaching performance metrics | Professional development |
-| `POST` | `/api/v1/courses/{courseUuid}/grades` | Submit student grades | Assessment recording |
+| `POST` | `/api/v1/instructors/{uuid}/documents` | Add instructor documents | Upload credentials, certificates |
+| `GET` | `/api/v1/instructors/{uuid}/documents` | Get instructor documents | View uploaded documents |
+| `POST` | `/api/v1/instructors/{uuid}/memberships` | Add professional memberships | Industry affiliations |
+| `GET` | `/api/v1/instructors/{uuid}/memberships` | Get professional memberships | Professional body memberships |
 
 ## Organization-Specific Instructor Features
 
@@ -405,29 +408,24 @@ flowchart TD
     style J fill:#f44336
 ```
 
-### Continuous Professional Development
+### Instructor Search and Analytics
 
-Organizations can track and require ongoing instructor development:
+Advanced search capabilities for instructor management:
 
 ```bash
-# Example: Instructor certification tracking
+# Example: Instructor search and filtering
 
-# 1. Get instructor's current certifications
-curl -X GET /api/v1/instructors/{instructorUuid}/certifications
+# 1. Search instructors by experience level
+curl -X GET "/api/v1/instructors/search?yearsOfExperience_gte=5"
 
-# 2. Record new certification
-curl -X POST /api/v1/instructors/{instructorUuid}/certifications \
-  -H "Content-Type: application/json" \
-  -d '{
-    "certificationType": "Educational Technology",
-    "issuingOrganization": "International Society for Technology in Education",
-    "dateEarned": "2024-11-15",
-    "expirationDate": "2027-11-15",
-    "verificationUrl": "https://iste.org/verify/12345"
-  }'
+# 2. Search instructors by skills
+curl -X GET "/api/v1/instructors/skills/search?skillName_like=programming&proficiencyLevel=EXPERT"
 
-# 3. Check compliance with organization requirements
-curl -X GET /api/v1/organizations/{orgUuid}/instructors/{instructorUuid}/compliance
+# 3. Search instructor education records
+curl -X GET "/api/v1/instructors/education/search?qualification_like=PhD&yearCompleted_gte=2020"
+
+# 4. Search instructor experience
+curl -X GET "/api/v1/instructors/experience/search?isCurrentPosition=true&yearsOfExperience_gte=3"
 ```
 
 This instructor domain implementation provides comprehensive support for both independent educators and institutional faculty, enabling effective content creation, student management, and professional development while maintaining appropriate quality standards and accountability measures.

@@ -178,18 +178,28 @@ Beyond simple domain lists, the system provides rich organizational context thro
 
 | Method | Endpoint | Purpose | Returns |
 |--------|----------|---------|---------|
-| `GET` | `/api/v1/users/{uuid}` | Get user with all domains | `UserDTO` with combined domains |
-| `GET` | `/api/v1/users/{uuid}/domains` | Get user's domain list | `List<String>` of domain names |
-| `GET` | `/api/v1/users/{uuid}/affiliations` | Get organization memberships | `List<UserOrganisationAffiliationDTO>` |
+| `GET` | `/api/v1/users/{uuid}` | Get user with all domains and affiliations | `UserDTO` with combined domains and organization affiliations |
+| `GET` | `/api/v1/users` | Get all users (paginated) | `PagedDTO<UserDTO>` |
+| `PUT` | `/api/v1/users/{uuid}` | Update user profile | Updated `UserDTO` |
+| `GET` | `/api/v1/users/search` | Search users with filters | `PagedDTO<UserDTO>` matching criteria |
 
 ### Organization Management Endpoints
 
 | Method | Endpoint | Purpose | Use Case |
 |--------|----------|---------|----------|
-| `POST` | `/api/v1/users/{uuid}/organizations/{orgUuid}` | Add user to organization | Invite/enroll user |
-| `DELETE` | `/api/v1/users/{uuid}/organizations/{orgUuid}` | Remove from organization | Soft delete membership |
-| `GET` | `/api/v1/organizations/{uuid}/users` | Get organization members | List all affiliated users |
-| `GET` | `/api/v1/organizations/{uuid}/users?domain=instructor` | Filter by role | Get users with specific role |
+| `GET` | `/api/v1/organisations/{uuid}/users` | Get organization members | List all affiliated users (paginated) |
+| `GET` | `/api/v1/organisations/{uuid}/users/domain/{domainName}` | Filter by role | Get users with specific role in organization |
+| `POST` | `/api/v1/organisations/{uuid}/invitations` | Create organization invitation | Invite user to organization with role |
+| `GET` | `/api/v1/organisations/{uuid}/invitations` | Get organization invitations | List all invitations for organization |
+
+### User Invitation Management
+
+| Method | Endpoint | Purpose | Context |
+|--------|----------|---------|---------|
+| `GET` | `/api/v1/users/{uuid}/invitations/pending` | Get pending invitations for user | User sees all pending invites |
+| `GET` | `/api/v1/users/{uuid}/invitations/sent` | Get invitations sent by user | Track invitations created by user |
+| `POST` | `/api/v1/users/{uuid}/invitations/accept` | Accept invitation by token | User accepts organization/branch invite |
+| `POST` | `/api/v1/users/{uuid}/invitations/decline` | Decline invitation by token | User declines organization/branch invite |
 
 ## Repository Query Capabilities
 

@@ -203,24 +203,17 @@ graph TD
 # Example: Managing users within specific branches
 
 # 1. Get all users in Computer Science department
-curl -X GET "/api/v1/organizations/university-abc/branches/cs-dept/users" \
+curl -X GET "/api/v1/organisations/university-abc/training-branches/cs-dept/users" \
   -H "Authorization: Bearer {admin-token}"
 
 # 2. Get instructors only in CS department  
-curl -X GET "/api/v1/organizations/university-abc/branches/cs-dept/users?domain=instructor" \
+curl -X GET "/api/v1/organisations/university-abc/training-branches/cs-dept/users/domain/instructor" \
   -H "Authorization: Bearer {admin-token}"
 
 # 3. Assign user to specific branch with role
-curl -X POST "/api/v1/organizations/university-abc/users/prof-smith/assign" \
+curl -X POST "/api/v1/organisations/university-abc/training-branches/cs-dept/users/prof-smith" \
   -H "Authorization: Bearer {admin-token}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "domainName": "instructor",
-    "branchUuid": "cs-dept-456",
-    "startDate": "2024-01-15",
-    "academicRank": "Associate Professor",
-    "courseLoad": 6
-  }'
+  -d "domain_name=instructor"
 ```
 
 ## Organization Domain Repository Capabilities
@@ -269,27 +262,28 @@ List<UUID> findDistinctUserUuidsByOrganisation(UUID orgUuid);
 
 | Method | Endpoint | Purpose | Organization Context |
 |--------|----------|---------|----------------------|
-| `GET` | `/api/v1/organizations/{uuid}/users` | List organization users | All affiliated users |
-| `GET` | `/api/v1/organizations/{uuid}/users?domain={role}` | Filter by role | Role-specific listing |
-| `POST` | `/api/v1/organizations/{uuid}/users/{userUuid}` | Add user to organization | Direct assignment |
-| `DELETE` | `/api/v1/organizations/{uuid}/users/{userUuid}` | Remove from organization | Soft delete mapping |
+| `GET` | `/api/v1/organisations/{uuid}/users` | List organization users | All affiliated users (paginated) |
+| `GET` | `/api/v1/organisations/{uuid}/users/domain/{domainName}` | Filter by role | Role-specific listing |
+| `POST` | `/api/v1/organisations/{uuid}/invitations` | Invite user to organization | Create invitation with domain |
+| `GET` | `/api/v1/organisations/{uuid}/invitations` | Get organization invitations | List all invitations |
 
 ### Branch Management
 
 | Method | Endpoint | Purpose | Branch Context |
 |--------|----------|---------|----------------|
-| `GET` | `/api/v1/organizations/{uuid}/branches` | List organization branches | Department structure |
-| `POST` | `/api/v1/organizations/{uuid}/branches` | Create new branch | Department creation |
-| `GET` | `/api/v1/branches/{branchUuid}/users` | List branch users | Department roster |
-| `PUT` | `/api/v1/branches/{branchUuid}/users/{userUuid}` | Transfer user to branch | Departmental transfer |
+| `GET` | `/api/v1/organisations/{uuid}/training-branches` | List organization branches | Department structure (paginated) |
+| `POST` | `/api/v1/organisations/{uuid}/training-branches` | Create new branch | Department creation |
+| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users` | List branch users | Department roster |
+| `POST` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Assign user to branch | Departmental assignment |
+| `DELETE` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Remove user from branch | Departmental removal |
 
 ### Analytics and Reporting
 
-| Method | Endpoint | Purpose | Analytical Context |
-|--------|----------|---------|-------------------|
-| `GET` | `/api/v1/organizations/{uuid}/analytics/users` | User distribution analytics | Role breakdowns, trends |
-| `GET` | `/api/v1/organizations/{uuid}/analytics/branches` | Branch performance metrics | Department comparisons |
-| `GET` | `/api/v1/organizations/{uuid}/reports/affiliations` | Detailed affiliation report | Audit and compliance |
+| Method | Endpoint | Purpose | Branch Context |
+|--------|----------|---------|----------------|
+| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}` | Get users by domain in branch | Role-specific branch roster |
+| `POST` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/invitations` | Create branch invitation | Invite directly to branch |
+| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/invitations` | Get branch invitations | List branch-specific invites |
 
 ## Organization Domain Business Rules
 

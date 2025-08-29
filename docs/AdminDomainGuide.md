@@ -129,31 +129,33 @@ flowchart TD
 
 ### System Administration Endpoints
 
+**Note**: The current system does not have dedicated admin-only endpoints. Administrators use the standard user and organization management endpoints with elevated permissions based on their global admin domain assignment.
+
 | Method | Endpoint | Purpose | Access Level |
 |--------|----------|---------|--------------|
-| `GET` | `/api/v1/admin/system/health` | System health monitoring | System Admin+ |
-| `PUT` | `/api/v1/admin/system/config` | Update global settings | Super Admin |
-| `GET` | `/api/v1/admin/users` | List all platform users | System Admin+ |
-| `POST` | `/api/v1/admin/users/{uuid}/domains` | Assign user domains | System Admin+ |
-| `DELETE` | `/api/v1/admin/users/{uuid}` | Deactivate user account | Super Admin |
+| `GET` | `/api/v1/users` | List all platform users | Admin domain required |
+| `GET` | `/api/v1/users/search` | Search users across system | Admin domain required |
+| `PUT` | `/api/v1/users/{uuid}` | Update any user profile | Admin domain required |
+| `DELETE` | `/api/v1/users/{uuid}` | Delete user account | Admin domain required |
 
 ### Organization Management Endpoints
 
 | Method | Endpoint | Purpose | Admin Context |
 |--------|----------|---------|---------------|
-| `GET` | `/api/v1/admin/organizations` | List all organizations | System Admin+ |
-| `POST` | `/api/v1/admin/organizations/{uuid}/approve` | Approve org registration | System Admin+ |
-| `PUT` | `/api/v1/admin/organizations/{uuid}/suspend` | Suspend organization | System Admin+ |
-| `GET` | `/api/v1/admin/organizations/{uuid}/analytics` | Org performance metrics | System Admin+ |
+| `GET` | `/api/v1/organisations` | List all organizations | Admin domain required |
+| `GET` | `/api/v1/organisations/search` | Search organizations | Admin domain required |
+| `POST` | `/api/v1/organisations` | Create new organization | Admin domain required |
+| `PUT` | `/api/v1/organisations/{uuid}` | Update organization | Admin domain required |
+| `DELETE` | `/api/v1/organisations/{uuid}` | Delete organization | Admin domain required |
 
 ### Content Moderation Endpoints
 
-| Method | Endpoint | Purpose | Moderation Context |
-|--------|----------|---------|-------------------|
-| `GET` | `/api/v1/admin/content/pending` | Content awaiting review | System Admin+ |
-| `POST` | `/api/v1/admin/content/{uuid}/approve` | Approve content | System Admin+ |
-| `POST` | `/api/v1/admin/content/{uuid}/reject` | Reject content | System Admin+ |
-| `GET` | `/api/v1/admin/content/reports` | User-reported content | System Admin+ |
+| Method | Endpoint | Purpose | Admin Context |
+|--------|----------|---------|---------------|
+| `POST` | `/api/v1/organisations/{uuid}/training-branches` | Create training branch | Admin domain required |
+| `GET` | `/api/v1/organisations/{uuid}/training-branches` | List organization branches | Admin domain required |
+| `PUT` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}` | Update training branch | Admin domain required |
+| `DELETE` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}` | Delete training branch | Admin domain required |
 
 ## Admin Workflow Examples
 

@@ -143,22 +143,24 @@ erDiagram
 | `GET` | `/api/v1/users/{uuid}` | Get student profile | `organisationAffiliations[]` with student roles |
 | `PUT` | `/api/v1/users/{uuid}` | Update student info | Academic preferences, learning goals |
 | `GET` | `/api/v1/students/{uuid}` | Get extended student data | Course history, achievements |
+| `POST` | `/api/v1/students` | Create new student record | Student-specific academic information |
+| `GET` | `/api/v1/students` | Get all students (paginated) | `PagedDTO<StudentDTO>` |
 
-### Enrollment Management
+### Student Search and Management
 
 | Method | Endpoint | Purpose | Use Case |
 |--------|----------|---------|----------|
-| `POST` | `/api/v1/students/{uuid}/enroll/{courseUuid}` | Enroll in course | Self-enrollment or admin assignment |
-| `GET` | `/api/v1/students/{uuid}/enrollments` | List student enrollments | Progress dashboard |
-| `GET` | `/api/v1/students/{uuid}/progress` | Get learning progress | Completion tracking |
+| `GET` | `/api/v1/students/search` | Search students with filters | Find students by various criteria |
+| `PUT` | `/api/v1/students/{uuid}` | Update student information | Modify academic details |
+| `DELETE` | `/api/v1/students/{uuid}` | Delete student record | Remove student from system |
 
 ### Organization Student Management
 
 | Method | Endpoint | Purpose | Organization Context |
 |--------|----------|---------|----------------------|
-| `GET` | `/api/v1/organizations/{uuid}/students` | List org students | Roster management |
-| `POST` | `/api/v1/organizations/{uuid}/students/invite` | Invite student | Batch enrollment |
-| `GET` | `/api/v1/organizations/{uuid}/students/{studentUuid}/progress` | Track org student progress | Academic monitoring |
+| `GET` | `/api/v1/organisations/{uuid}/users/domain/student` | List org students | Get all students in organization |
+| `POST` | `/api/v1/organisations/{uuid}/invitations` | Invite student | Invite user with student domain |
+| `GET` | `/api/v1/organisations/{uuid}/users` | Get organization members | Filter for student roles |
 
 ## Student Domain in Organization Context
 
@@ -269,24 +271,24 @@ flowchart TD
 
 ## Integration with Learning Management
 
-### Course Enrollment Workflow
+### Student Invitation and Assignment Workflow
 
 ```bash
-# Typical student enrollment process
+# Typical student organization assignment process
 
-# 1. Student requests course access
-curl -X POST /api/v1/students/{studentUuid}/course-requests \
+# 1. Organization invites student
+curl -X POST "/api/v1/organisations/{orgUuid}/invitations" \
   -H "Content-Type: application/json" \
-  -d '{"courseUuid": "intro-programming-101", "reason": "Required for CS degree"}'
+  -d 'recipient_email=student@university.edu&recipient_name=John Doe&domain_name=student&inviter_uuid={inviterUuid}'
 
-# 2. Organization approves enrollment
-curl -X POST /api/v1/organizations/{orgUuid}/enrollments/approve \
+# 2. Student accepts invitation 
+curl -X POST "/api/v1/users/{userUuid}/invitations/accept" \
   -H "Content-Type: application/json" \
-  -d '{"studentUuid": "student-123", "courseUuid": "intro-programming-101"}'
+  -d 'token={invitationToken}'
 
-# 3. System creates enrollment record
-curl -X GET /api/v1/students/{studentUuid}/enrollments
-# Response includes new enrollment with access permissions
+# 3. Check student's organization affiliations
+curl -X GET "/api/v1/users/{userUuid}"
+# Response includes organisationAffiliations with student role
 ```
 
 ### Progress Reporting
