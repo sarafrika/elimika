@@ -1,3 +1,16 @@
+# [2.2.0](https://github.com/sarafrika/elimika/compare/v2.1.1...v2.2.0) (2025-08-29)
+
+
+### Bug Fixes
+
+* Resolve compilation errors in user service and invitation entity ([470e68f](https://github.com/sarafrika/elimika/commit/470e68febb1782603c152f3be2c0c1f23afb4505))
+
+
+### Features
+
+* Add organization affiliations to user profile ([dcd5db2](https://github.com/sarafrika/elimika/commit/dcd5db2ab8952912f3550cd8f60802996fc52b6d))
+* Configure Checkstyle with Google checks and add GitHub Actions workflow ([ca261b1](https://github.com/sarafrika/elimika/commit/ca261b1643640bd96c771789b0d0bc50f8690e8d))
+
 ## [2.1.1](https://github.com/sarafrika/elimika/compare/v2.1.0...v2.1.1) (2025-08-28)
 
 
