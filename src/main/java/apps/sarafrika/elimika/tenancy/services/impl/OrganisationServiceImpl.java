@@ -458,12 +458,28 @@ public class OrganisationServiceImpl implements OrganisationService {
     }
 
     private void updateOrganisationFields(Organisation organisation, OrganisationDTO dto) {
-        organisation.setName(dto.name());
-        organisation.setDescription(dto.description());
+        if (dto.name() != null) {
+            organisation.setName(dto.name());
+        }
+        if (dto.description() != null) {
+            organisation.setDescription(dto.description());
+        }
         organisation.setActive(dto.active());
-        organisation.setLicenceNo(dto.licenceNo());
-        organisation.setLocation(dto.location());
-        organisation.setCountry(dto.country());
+        if (dto.licenceNo() != null) {
+            organisation.setLicenceNo(dto.licenceNo());
+        }
+        if (dto.location() != null) {
+            organisation.setLocation(dto.location());
+        }
+        if (dto.country() != null) {
+            organisation.setCountry(dto.country());
+        }
+        if (dto.latitude() != null) {
+            organisation.setLatitude(dto.latitude());
+        }
+        if (dto.longitude() != null) {
+            organisation.setLongitude(dto.longitude());
+        }
     }
 
 
