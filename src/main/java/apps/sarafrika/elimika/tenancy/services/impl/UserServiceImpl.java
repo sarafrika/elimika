@@ -100,7 +100,8 @@ public class UserServiceImpl implements UserService {
         Page<User> users = userRepository.findAll(pageable);
         return users.map(user -> {
             List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
-            return UserFactory.toDTO(user, userDomains);
+            List<UserOrganisationAffiliationDTO> organisationAffiliations = getUserOrganisationAffiliations(user.getUuid());
+            return UserFactory.toDTO(user, userDomains, organisationAffiliations);
         });
     }
 
