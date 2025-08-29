@@ -1,3 +1,10 @@
+## [2.5.2](https://github.com/sarafrika/elimika/compare/v2.5.1...v2.5.2) (2025-08-29)
+
+
+### Bug Fixes
+
+* **email:** Correct email template paths for consistent template resolution ([ebb0520](https://github.com/sarafrika/elimika/commit/ebb05209036f2ba166e7021eefac058ed994dad8))
+
 ## [2.5.1](https://github.com/sarafrika/elimika/compare/v2.5.0...v2.5.1) (2025-08-29)
 
 
