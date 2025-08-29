@@ -203,17 +203,17 @@ graph TD
 # Example: Managing users within specific branches
 
 # 1. Get all users in Computer Science department
-curl -X GET "/api/v1/organisations/university-abc/training-branches/cs-dept/users" \
+curl -X GET "/api/v1/organisations/{orgUuid}/training-branches/{branchUuid}/users"
   -H "Authorization: Bearer {admin-token}"
 
 # 2. Get instructors only in CS department  
-curl -X GET "/api/v1/organisations/university-abc/training-branches/cs-dept/users/domain/instructor" \
+curl -X GET "/api/v1/organisations/{orgUuid}/training-branches/{branchUuid}/users/domain/instructor"
   -H "Authorization: Bearer {admin-token}"
 
 # 3. Assign user to specific branch with role
-curl -X POST "/api/v1/organisations/university-abc/training-branches/cs-dept/users/prof-smith" \
-  -H "Authorization: Bearer {admin-token}" \
-  -d "domain_name=instructor"
+curl -X POST "/api/v1/organisations/{orgUuid}/users/{userUuid}/assign-domain"
+  -H "Authorization: Bearer {admin-token}"
+  -d '{"domainName": "instructor", "branchUuid": "{branchUuid}"}'
 ```
 
 ## Organization Domain Repository Capabilities
