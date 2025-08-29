@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.common.service.UserContextService;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -38,11 +39,12 @@ public class OrganisationServiceImpl implements OrganisationService {
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final TrainingBranchRepository trainingBranchRepository;
     private final GenericSpecificationBuilder<Organisation> specificationBuilder;
+    private final UserContextService userContextService;
 
     @Override
     @Transactional
     public OrganisationDTO createOrganisation(OrganisationDTO organisationDTO) {
-        log.debug("Creating new organisation without creator assignment: {}", organisationDTO.name());
+        log.debug("Creating new organisation with automatic creator assignment: {}", organisationDTO.name());
 
         try {
             Organisation organisation = OrganisationFactory.toEntity(organisationDTO);
@@ -50,10 +52,16 @@ public class OrganisationServiceImpl implements OrganisationService {
             // Auto-generate slug from name
             organisation.setSlug(organisation.getName().replaceAll("\\s+", "-").toLowerCase());
 
-            organisation = organisationRepository.save(organisation);
+            final Organisation savedOrganisation = organisationRepository.save(organisation);
 
-            log.info("Successfully created organisation with UUID: {}", organisation.getUuid());
-            return OrganisationFactory.toDTO(organisation);
+            // Automatically assign the current authenticated user as organisation_user
+            userContextService.getCurrentUserUuidOptional().ifPresent(creatorUuid -> {
+                log.debug("Assigning current user {} as organisation_user for organisation {}", creatorUuid, savedOrganisation.getUuid());
+                assignCreatorAsOrganisationUser(creatorUuid, savedOrganisation.getUuid());
+            });
+
+            log.info("Successfully created organisation with UUID: {}", savedOrganisation.getUuid());
+            return OrganisationFactory.toDTO(savedOrganisation);
         } catch (Exception e) {
             log.error("Failed to create organisation: {}", organisationDTO.name(), e);
             throw new RuntimeException("Failed to create organisation.", e);
