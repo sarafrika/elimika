@@ -45,6 +45,7 @@ public class Invitation extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
+    @Builder.Default
     private InvitationStatus status = InvitationStatus.PENDING;
 
     @Column(name = "expires_at")

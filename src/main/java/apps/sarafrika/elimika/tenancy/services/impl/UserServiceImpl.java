@@ -567,7 +567,7 @@ public class UserServiceImpl implements UserService {
         if (mapping.getBranchUuid() != null) {
             branch = trainingBranchRepository.findByUuid(mapping.getBranchUuid()).orElse(null);
             if (branch != null) {
-                branchName = branch.getName();
+                branchName = branch.getBranchName();
             }
         }
         
