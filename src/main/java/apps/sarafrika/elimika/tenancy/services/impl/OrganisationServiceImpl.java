@@ -56,7 +56,7 @@ public class OrganisationServiceImpl implements OrganisationService {
 
             // Automatically assign the current authenticated user as organisation_user
             userContextService.getCurrentUserUuidOptional().ifPresent(creatorUuid -> {
-                log.debug("Assigning current user {} as organisation_user for organisation {}", creatorUuid, savedOrganisation.getUuid());
+                log.debug("Assigning current user {} as admin for organisation {}", creatorUuid, savedOrganisation.getUuid());
                 assignCreatorAsOrganisationUser(creatorUuid, savedOrganisation.getUuid());
             });
 
@@ -86,7 +86,7 @@ public class OrganisationServiceImpl implements OrganisationService {
                 assignCreatorAsOrganisationUser(creatorUuid, organisation.getUuid());
             }
 
-            log.info("Successfully created organisation with UUID: {}, creator {} assigned as organisation_user",
+            log.info("Successfully created organisation with UUID: {}, creator {} assigned as admin",
                     organisation.getUuid(), creatorUuid);
             return OrganisationFactory.toDTO(organisation);
         } catch (Exception e) {
@@ -378,19 +378,20 @@ public class OrganisationServiceImpl implements OrganisationService {
      * Automatically assigns the creating user as organisation_user
      */
     private void assignCreatorAsOrganisationUser(UUID creatorUuid, UUID organisationUuid) {
-        log.debug("Assigning creator {} as organisation_user for organisation {}", creatorUuid, organisationUuid);
+        log.debug("Assigning creator {} as admin for organisation {}", creatorUuid, organisationUuid);
 
         try {
             User creator = userRepository.findByUuid(creatorUuid)
                     .orElseThrow(() -> new ResourceNotFoundException("Creator user not found"));
 
+            UserDomain adminDomain = findDomainByNameOrThrow("admin");
             UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
 
             // Create organisation mapping
             UserOrganisationDomainMapping mapping = UserOrganisationDomainMapping.builder()
                     .userUuid(creatorUuid)
                     .organisationUuid(organisationUuid)
-                    .domainUuid(organisationUserDomain.getUuid())
+                    .domainUuid(adminDomain.getUuid())
                     .branchUuid(null) // Primary organisation user, not branch-specific
                     .active(true)
                     .startDate(LocalDate.now())
@@ -402,10 +403,10 @@ public class OrganisationServiceImpl implements OrganisationService {
             // Add organisation_user domain to standalone domains
             addStandaloneDomainToUser(creator, organisationUserDomain);
 
-            log.info("Successfully assigned creator {} as organisation_user for organisation {}", creatorUuid, organisationUuid);
+            log.info("Successfully assigned creator {} as admin for organisation {}", creatorUuid, organisationUuid);
         } catch (Exception e) {
-            log.error("Failed to assign creator as organisation_user", e);
-            throw new RuntimeException("Failed to assign creator as organisation_user: " + e.getMessage(), e);
+            log.error("Failed to assign creator as admin", e);
+            throw new RuntimeException("Failed to assign creator as admin: " + e.getMessage(), e);
         }
     }
 
