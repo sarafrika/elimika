@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/sarafrika/elimika/compare/v2.3.0...v2.4.0) (2025-08-29)
+
+
+### Features
+
+* Assign organization creator as admin instead of organisation_user ([6bdded6](https://github.com/sarafrika/elimika/commit/6bdded683cae2fce18042d91d1bf24b4c43a63fe))
+
 # [2.3.0](https://github.com/sarafrika/elimika/compare/v2.2.0...v2.3.0) (2025-08-29)
 
 
