@@ -2,6 +2,9 @@ package apps.sarafrika.elimika.tenancy.factory;
 
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.entity.Invitation;
+import apps.sarafrika.elimika.tenancy.entity.Organisation;
+import apps.sarafrika.elimika.tenancy.entity.TrainingBranch;
+import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -20,6 +23,42 @@ public class InvitationFactory {
                 null, // branchName - not populated in basic conversion
                 invitation.getDomainUuid(),
                 null, // domainName - not populated in basic conversion
+                invitation.getInviterUuid(),
+                invitation.getInviterName(),
+                invitation.getStatus(),
+                invitation.getExpiresAt(),
+                invitation.getAcceptedAt(),
+                invitation.getDeclinedAt(),
+                invitation.getUserUuid(),
+                invitation.getNotes(),
+                invitation.getCreatedDate(),
+                invitation.getLastModifiedDate(),
+                invitation.getCreatedBy(),
+                invitation.getLastModifiedBy()
+        );
+    }
+
+    /**
+     * Converts an Invitation entity to DTO with populated related entity names.
+     * 
+     * @param invitation the invitation entity
+     * @param organisation the organisation entity (can be null)
+     * @param branch the training branch entity (can be null)
+     * @param domain the user domain entity (can be null)
+     * @return the invitation DTO with populated names
+     */
+    public static InvitationDTO toDTO(Invitation invitation, Organisation organisation, TrainingBranch branch, UserDomain domain) {
+        return new InvitationDTO(
+                invitation.getUuid(),
+                invitation.getToken(),
+                invitation.getRecipientEmail(),
+                invitation.getRecipientName(),
+                invitation.getOrganisationUuid(),
+                organisation != null ? organisation.getOrganisationName() : null,
+                invitation.getBranchUuid(),
+                branch != null ? branch.getBranchName() : null,
+                invitation.getDomainUuid(),
+                domain != null ? domain.getDomainName() : null,
                 invitation.getInviterUuid(),
                 invitation.getInviterName(),
                 invitation.getStatus(),

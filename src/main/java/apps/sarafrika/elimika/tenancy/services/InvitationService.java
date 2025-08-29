@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services;
 
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
+import apps.sarafrika.elimika.tenancy.dto.InvitationPreviewDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 
 import java.util.List;
@@ -167,6 +168,54 @@ public interface InvitationService {
      * @return true if pending invitation exists
      */
     boolean hasPendingBranchInvitation(String recipientEmail, UUID organisationUuid, UUID branchUuid);
+
+    // ================================
+    // REACT FRONTEND INTEGRATION
+    // ================================
+
+    /**
+     * Gets public-safe invitation preview details by token (no authentication required).
+     * Used by React frontend to display invitation details before user login/registration.
+     *
+     * @param token the invitation token
+     * @return invitation preview with public-safe information
+     * @throws ResourceNotFoundException if token is invalid or invitation not found
+     */
+    InvitationPreviewDTO previewInvitation(String token);
+
+    /**
+     * Accepts an invitation for an authenticated user (Keycloak-authenticated).
+     * Used by React frontend after user authentication to process invitation acceptance.
+     * Automatically determines user UUID from authenticated context.
+     *
+     * @param token the invitation token
+     * @param authenticatedUserEmail the email of the authenticated user (from JWT/Keycloak)
+     * @return the user data with new organization relationship
+     * @throws IllegalArgumentException if token is invalid or user email doesn't match invitation
+     * @throws IllegalStateException if invitation is expired or already processed
+     */
+    UserDTO acceptInvitationAuthenticated(String token, String authenticatedUserEmail);
+
+    /**
+     * Declines an invitation for an authenticated user (Keycloak-authenticated).
+     * Used by React frontend after user authentication to process invitation decline.
+     *
+     * @param token the invitation token
+     * @param authenticatedUserEmail the email of the authenticated user (from JWT/Keycloak)
+     * @throws IllegalArgumentException if token is invalid or user email doesn't match invitation
+     * @throws IllegalStateException if invitation is expired or already processed
+     */
+    void declineInvitationAuthenticated(String token, String authenticatedUserEmail);
+
+    /**
+     * Processes all pending invitations for a newly authenticated user.
+     * Automatically accepts valid invitations that match the user's email.
+     * Called after successful Keycloak authentication/registration.
+     *
+     * @param userEmail the authenticated user's email
+     * @return list of accepted invitations
+     */
+    List<InvitationDTO> processPendingInvitationsForUser(String userEmail);
 
     // ================================
     // MAINTENANCE METHODS

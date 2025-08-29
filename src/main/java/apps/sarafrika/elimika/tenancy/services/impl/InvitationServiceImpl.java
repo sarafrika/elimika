@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.EmailUtility;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
+import apps.sarafrika.elimika.tenancy.dto.InvitationPreviewDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.factory.InvitationFactory;
@@ -103,7 +104,7 @@ public class InvitationServiceImpl implements InvitationService {
         log.info("Created organization invitation {} for {} to organization {}",
                 invitation.getUuid(), recipientEmail, organisationUuid);
 
-        return InvitationFactory.toDTO(invitation);
+        return InvitationFactory.toDTO(invitation, organisation, branch, domain);
     }
 
     @Override
@@ -262,7 +263,14 @@ public class InvitationServiceImpl implements InvitationService {
     @Transactional(readOnly = true)
     public InvitationDTO getInvitationByToken(String token) {
         Invitation invitation = findInvitationByTokenOrThrow(token);
-        return InvitationFactory.toDTO(invitation);
+        
+        // Fetch related entities for complete DTO
+        Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
+        TrainingBranch branch = invitation.getBranchUuid() != null ? 
+                findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
+        UserDomain domain = findDomainByUuidOrThrow(invitation.getDomainUuid());
+        
+        return InvitationFactory.toDTO(invitation, organisation, branch, domain);
     }
 
     @Override
@@ -697,6 +705,163 @@ public class InvitationServiceImpl implements InvitationService {
         } catch (Exception e) {
             log.error("Unexpected error sending expiry reminder email for invitation {}: {}",
                     invitation.getUuid(), e.getMessage());
+        }
+    }
+
+    // ================================
+    // REACT FRONTEND INTEGRATION METHODS  
+    // ================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public InvitationPreviewDTO previewInvitation(String token) {
+        log.debug("Previewing invitation with token {}", token);
+        
+        try {
+            Invitation invitation = findInvitationByTokenOrThrow(token);
+            
+            // Get related entities for complete preview
+            Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
+            TrainingBranch branch = invitation.getBranchUuid() != null ? 
+                    findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
+            UserDomain domain = findDomainByUuidOrThrow(invitation.getDomainUuid());
+            
+            // Convert to full DTO first
+            InvitationDTO fullDTO = InvitationFactory.toDTO(invitation, organisation, branch, domain);
+            
+            // Determine if user needs to register (student/instructor roles allow unregistered users)
+            boolean requiresRegistration = "student".equals(domain.getDomainName()) || 
+                                         "instructor".equals(domain.getDomainName());
+            
+            // Create preview DTO with public-safe information
+            InvitationPreviewDTO preview = InvitationPreviewDTO.fromInvitationDTO(fullDTO, requiresRegistration);
+            
+            log.debug("Generated invitation preview for token {}", token);
+            return preview;
+            
+        } catch (Exception e) {
+            log.error("Error previewing invitation with token {}: {}", token, e.getMessage());
+            throw e;
+        }
+    }
+
+    @Override
+    @Transactional
+    public UserDTO acceptInvitationAuthenticated(String token, String authenticatedUserEmail) {
+        log.debug("Processing authenticated invitation acceptance for token {} by user {}", token, authenticatedUserEmail);
+        
+        try {
+            // Find invitation
+            Invitation invitation = findInvitationByTokenOrThrow(token);
+            
+            // Validate invitation is still valid
+            if (!invitation.isValid()) {
+                throw new IllegalStateException("Invitation is no longer valid or has expired");
+            }
+            
+            // Validate email matches invitation
+            if (!authenticatedUserEmail.equalsIgnoreCase(invitation.getRecipientEmail())) {
+                throw new IllegalArgumentException("Authenticated user email does not match invitation recipient");
+            }
+            
+            // Find user by email (should exist since they're authenticated)
+            User user = userRepository.findByEmail(authenticatedUserEmail)
+                    .orElseThrow(() -> new IllegalStateException("Authenticated user not found in database: " + authenticatedUserEmail));
+            
+            // Use existing acceptance logic
+            return acceptInvitation(token, user.getUuid());
+            
+        } catch (Exception e) {
+            log.error("Error accepting invitation with token {} for user {}: {}", token, authenticatedUserEmail, e.getMessage());
+            throw e;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void declineInvitationAuthenticated(String token, String authenticatedUserEmail) {
+        log.debug("Processing authenticated invitation decline for token {} by user {}", token, authenticatedUserEmail);
+        
+        try {
+            // Find invitation
+            Invitation invitation = findInvitationByTokenOrThrow(token);
+            
+            // Validate invitation is still valid for decline (not expired, not already processed)
+            if (invitation.getStatus() != Invitation.InvitationStatus.PENDING) {
+                throw new IllegalStateException("Invitation has already been processed or is no longer valid");
+            }
+            
+            // Validate email matches invitation
+            if (!authenticatedUserEmail.equalsIgnoreCase(invitation.getRecipientEmail())) {
+                throw new IllegalArgumentException("Authenticated user email does not match invitation recipient");
+            }
+            
+            // Find user by email (should exist since they're authenticated)
+            User user = userRepository.findByEmail(authenticatedUserEmail)
+                    .orElseThrow(() -> new IllegalStateException("Authenticated user not found in database: " + authenticatedUserEmail));
+            
+            // Use existing decline logic
+            declineInvitation(token, user.getUuid());
+            
+        } catch (Exception e) {
+            log.error("Error declining invitation with token {} for user {}: {}", token, authenticatedUserEmail, e.getMessage());
+            throw e;
+        }
+    }
+
+    @Override
+    @Transactional
+    public List<InvitationDTO> processPendingInvitationsForUser(String userEmail) {
+        log.debug("Processing pending invitations for user {}", userEmail);
+        
+        try {
+            // Find all pending invitations for this email
+            List<Invitation> pendingInvitations = invitationRepository
+                    .findByRecipientEmailAndStatus(userEmail.toLowerCase().trim(), Invitation.InvitationStatus.PENDING);
+            
+            if (pendingInvitations.isEmpty()) {
+                log.debug("No pending invitations found for user {}", userEmail);
+                return List.of();
+            }
+            
+            // Find user (should exist since they just authenticated/registered)
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new IllegalStateException("User not found after authentication: " + userEmail));
+            
+            List<InvitationDTO> acceptedInvitations = new ArrayList<>();
+            
+            for (Invitation invitation : pendingInvitations) {
+                try {
+                    // Check if invitation is still valid
+                    if (!invitation.isValid()) {
+                        log.debug("Skipping expired invitation {} for user {}", invitation.getUuid(), userEmail);
+                        continue;
+                    }
+                    
+                    // Accept the invitation
+                    UserDTO updatedUser = acceptInvitation(invitation.getToken(), user.getUuid());
+                    
+                    // Get the accepted invitation details
+                    InvitationDTO acceptedInvitation = getInvitationByToken(invitation.getToken());
+                    acceptedInvitations.add(acceptedInvitation);
+                    
+                    log.info("Auto-accepted invitation {} for user {}", invitation.getUuid(), userEmail);
+                    
+                } catch (Exception e) {
+                    log.error("Failed to auto-accept invitation {} for user {}: {}", 
+                            invitation.getUuid(), userEmail, e.getMessage());
+                    // Continue processing other invitations
+                }
+            }
+            
+            log.info("Processed {} pending invitations for user {}, accepted {}", 
+                    pendingInvitations.size(), userEmail, acceptedInvitations.size());
+            
+            return acceptedInvitations;
+            
+        } catch (Exception e) {
+            log.error("Error processing pending invitations for user {}: {}", userEmail, e.getMessage());
+            throw new RuntimeException("Failed to process pending invitations: " + e.getMessage(), e);
         }
     }
 
