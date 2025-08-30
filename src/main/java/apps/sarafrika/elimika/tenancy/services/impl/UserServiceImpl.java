@@ -98,20 +98,14 @@ public class UserServiceImpl implements UserService {
     public Page<UserDTO> getAllUsers(Pageable pageable) {
         log.debug("Retrieving all users with pagination: {}", pageable);
         Page<User> users = userRepository.findAll(pageable);
-        return users.map(user -> {
-            List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
-            List<UserOrganisationAffiliationDTO> organisationAffiliations = getUserOrganisationAffiliations(user.getUuid());
-            return UserFactory.toDTO(user, userDomains, organisationAffiliations);
-        });
+        return users.map(this::toUserDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserDTO getUserByUuid(UUID uuid) {
         User user = findUserOrThrow(uuid);
-        List<String> userDomains = getUserDomainsFromMappings(uuid);
-        List<UserOrganisationAffiliationDTO> orgAffiliations = getUserOrganisationAffiliations(uuid);
-        return UserFactory.toDTO(user, userDomains, orgAffiliations);
+        return toUserDTO(user);
     }
 
     @Override
@@ -129,10 +123,7 @@ public class UserServiceImpl implements UserService {
 
         Page<User> users = userRepository.findByUuidIn(userUuids, pageable);
 
-        return users.map(user -> {
-            List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
-            return UserFactory.toDTO(user, userDomains);
-        });
+        return users.map(this::toUserDTO);
     }
 
     @Override
@@ -148,7 +139,7 @@ public class UserServiceImpl implements UserService {
 
             publishUserUpdateEvent(updatedUser);
 
-            return UserFactory.toDTO(updatedUser, getUserDomainsFromMappings(uuid));
+            return toUserDTO(updatedUser);
         } catch (Exception e) {
             log.error("Failed to update user with UUID: {}", uuid, e);
             throw new RuntimeException("Failed to update user: " + e.getMessage(), e);
@@ -227,8 +218,7 @@ public class UserServiceImpl implements UserService {
         }
 
 
-        List<String> userDomains = getUserDomainsFromMappings(userUuid);
-        return UserFactory.toDTO(user, userDomains);
+        return toUserDTO(user);
     }
 
     @Override
@@ -259,11 +249,8 @@ public class UserServiceImpl implements UserService {
                 userOrganisationDomainMappingRepository.findActiveByOrganisationAndDomain(organisationUuid, domain.getUuid());
 
         return mappings.stream()
-                .map(mapping -> {
-                    User user = findUserOrThrow(mapping.getUserUuid());
-                    List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
-                    return UserFactory.toDTO(user, userDomains);
-                })
+                .map(mapping -> findUserOrThrow(mapping.getUserUuid()))
+                .map(this::toUserDTO)
                 .collect(Collectors.toList());
     }
 
@@ -274,11 +261,8 @@ public class UserServiceImpl implements UserService {
                 userOrganisationDomainMappingRepository.findActiveByBranch(branchUuid);
 
         return mappings.stream()
-                .map(mapping -> {
-                    User user = findUserOrThrow(mapping.getUserUuid());
-                    List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
-                    return UserFactory.toDTO(user, userDomains);
-                })
+                .map(mapping -> findUserOrThrow(mapping.getUserUuid()))
+                .map(this::toUserDTO)
                 .collect(Collectors.toList());
     }
 
@@ -307,8 +291,7 @@ public class UserServiceImpl implements UserService {
             // Sync profile image URL to Keycloak
             publishUserUpdateEvent(savedUser);
             
-            List<String> userDomains = getUserDomainsFromMappings(userUuid);
-            return UserFactory.toDTO(savedUser, userDomains);
+            return toUserDTO(savedUser);
         } catch (Exception ex) {
             log.error("Failed to upload User's profile image for UUID: {}", userUuid, ex);
             throw new RuntimeException("Failed to upload user's profile image: " + ex.getMessage(), ex);
@@ -352,10 +335,7 @@ public class UserServiceImpl implements UserService {
     public Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable) {
         Specification<User> spec = specificationBuilder.buildSpecification(User.class, searchParams);
         Page<User> users = userRepository.findAll(spec, pageable);
-        return users.map(u -> {
-            List<String> userDomains = getUserDomainsFromMappings(u.getUuid());
-            return UserFactory.toDTO(u, userDomains);
-        });
+        return users.map(this::toUserDTO);
     }
 
     @Override
@@ -517,6 +497,18 @@ public class UserServiceImpl implements UserService {
     private UserDomain findDomainByNameOrThrow(String domainName) {
         return userDomainRepository.findByDomainName(domainName)
                 .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name: " + domainName));
+    }
+
+    /**
+     * Converts a User entity to a UserDTO, enriching it with domains and affiliations.
+     *
+     * @param user The User entity to convert.
+     * @return The fully populated UserDTO.
+     */
+    private UserDTO toUserDTO(User user) {
+        List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
+        List<UserOrganisationAffiliationDTO> organisationAffiliations = getUserOrganisationAffiliations(user.getUuid());
+        return UserFactory.toDTO(user, userDomains, organisationAffiliations);
     }
 
     private void updateUserFields(User user, UserDTO userDTO) {
