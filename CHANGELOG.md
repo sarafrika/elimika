@@ -1,3 +1,10 @@
+## [2.8.3](https://github.com/sarafrika/elimika/compare/v2.8.2...v2.8.3) (2025-09-01)
+
+
+### Bug Fixes
+
+* **notifications:** Update repository interfaces to match BaseEntity schema ([46180f2](https://github.com/sarafrika/elimika/commit/46180f2c35f64b3f87f5614e550e2c7d9ca0ee8c))
+
 ## [2.8.2](https://github.com/sarafrika/elimika/compare/v2.8.1...v2.8.2) (2025-09-01)
 
 
