@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.0'
+	id 'org.springframework.boot' version '3.5.5'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -30,7 +30,7 @@ ext {
 
 dependencies {
 	implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.9'
-	implementation 'org.keycloak:keycloak-admin-client:26.0.5'
+	implementation 'org.keycloak:keycloak-admin-client:26.0.6'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'

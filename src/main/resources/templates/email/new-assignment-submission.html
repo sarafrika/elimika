@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Assignment Submission - [[${companyName}]]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)"/></svg>');
+        }
+
+        .logo {
+            position: relative;
+            z-index: 1;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 24px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .submission-card {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .student-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .student-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .student-details h4 {
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .student-details p {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .assignment-details {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .detail-value {
+            color: #2d3748;
+        }
+
+        .submission-preview {
+            background: #f8f9fa;
+            border-left: 4px solid #4299e1;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .submission-preview h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .submission-text {
+            color: #4a5568;
+            font-style: italic;
+            line-height: 1.6;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .file-attachments {
+            margin-top: 15px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .file-icon {
+            width: 30px;
+            height: 30px;
+            background: #4299e1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            color: white;
+            font-size: 12px;
+        }
+
+        .grading-reminder {
+            background: #fffbf0;
+            border: 1px solid #fbb040;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .grading-reminder h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .actions {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.3);
+        }
+
+        .footer {
+            background: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header, .content {
+                padding: 30px 20px;
+            }
+
+            .submission-card, .assignment-details {
+                padding: 20px;
+            }
+
+            .greeting {
+                font-size: 20px;
+            }
+
+            .student-info {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .student-avatar {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <img th:src="${logoUrl}" alt="Logo" />
+        </div>
+        <h1>📝 New Submission!</h1>
+        <p>A student has submitted their assignment</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="greeting">
+            Hello [[${recipientName}]]! 👨‍🏫
+        </div>
+
+        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+            A student has submitted their work for the assignment <strong>[[${assignmentTitle}]]</strong> 
+            in your course <strong>[[${courseName}]]</strong>. The submission is ready for your review.
+        </p>
+
+        <!-- Submission Card -->
+        <div class="submission-card">
+            <!-- Student Information -->
+            <div class="student-info">
+                <div class="student-avatar" th:text="${studentName.substring(0,1).toUpperCase()}"></div>
+                <div class="student-details">
+                    <h4 th:text="${studentName}"></h4>
+                    <p th:text="${studentEmail}"></p>
+                </div>
+            </div>
+
+            <!-- Assignment Details -->
+            <div class="assignment-details">
+                <div class="detail-row">
+                    <span class="detail-label">Assignment:</span>
+                    <span class="detail-value" th:text="${assignmentTitle}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Course:</span>
+                    <span class="detail-value" th:text="${courseName}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Submitted:</span>
+                    <span class="detail-value" th:text="${#temporals.format(submittedAt, 'MMM dd, yyyy \'at\' h:mm a')}"></span>
+                </div>
+                <div class="detail-row" th:if="${dueDate != null}">
+                    <span class="detail-label">Due Date:</span>
+                    <span class="detail-value" th:text="${#temporals.format(dueDate, 'MMM dd, yyyy \'at\' h:mm a')}"></span>
+                </div>
+                <div class="detail-row" th:if="${isLate}">
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value" style="color: #e53e3e;">⚠️ Late Submission</span>
+                </div>
+                <div class="detail-row" th:unless="${isLate}">
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value" style="color: #38a169;">✅ On Time</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submission Preview -->
+        <div th:if="${submissionText != null and !submissionText.isEmpty()}" class="submission-preview">
+            <h4>📄 Submission Text</h4>
+            <div class="submission-text" th:text="${submissionText}"></div>
+        </div>
+
+        <!-- File Attachments -->
+        <div th:if="${hasAttachments}" class="submission-preview">
+            <h4>📎 Attached Files</h4>
+            <div class="file-attachments">
+                <div th:each="fileName : ${attachmentFileNames}" class="file-item">
+                    <div class="file-icon">📄</div>
+                    <span th:text="${fileName}"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grading Reminder -->
+        <div class="grading-reminder">
+            <h3>⏰ Ready for Grading</h3>
+            <p>This submission is waiting for your review and feedback. Students appreciate timely feedback to enhance their learning experience.</p>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="actions">
+            <a th:href="${frontendUrl + '/assignments/' + assignmentId + '/submissions/' + submissionId}" class="btn btn-primary">
+                🔍 Review & Grade
+            </a>
+        </div>
+
+        <p style="color: #718096; font-size: 14px; text-align: center; margin-top: 20px;">
+            Need help with grading? Check out our 
+            <a th:href="${frontendUrl + '/instructor-guide'}" style="color: #667eea;">instructor resources</a> 
+            or contact support.
+        </p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>This notification was sent by [[${companyName}]]</p>
+        <p>
+            Questions? Contact us at
+            <a href="mailto:support@sarafrika.com">support@sarafrika.com</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 12px;">
+            © [[${currentYear}]] [[${companyName}]]. All rights reserved.
+        </p>
+    </div>
+</div>
+</body>
+</html>

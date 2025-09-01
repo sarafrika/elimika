@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Your Course - [[${companyName}]]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)"/></svg>');
+        }
+
+        .logo {
+            position: relative;
+            z-index: 1;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 24px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .course-hero {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .course-image {
+            width: 120px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .course-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .course-description {
+            color: #4a5568;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .course-details {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .detail-value {
+            color: #2d3748;
+        }
+
+        .welcome-message {
+            background: #e6fffa;
+            border-left: 4px solid #38b2ac;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .welcome-message h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .welcome-message p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .getting-started {
+            background: #fffbf0;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            border: 1px solid #fbb040;
+        }
+
+        .getting-started h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .getting-started ul {
+            margin-left: 20px;
+            color: #4a5568;
+        }
+
+        .getting-started li {
+            margin-bottom: 8px;
+        }
+
+        .actions {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .footer {
+            background: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header, .content {
+                padding: 30px 20px;
+            }
+
+            .course-hero, .course-details, .getting-started {
+                padding: 20px;
+            }
+
+            .greeting {
+                font-size: 20px;
+            }
+
+            .course-title {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <img th:src="${logoUrl}" alt="Logo" />
+        </div>
+        <h1>🎉 Welcome to Your Course!</h1>
+        <p>Let's begin your learning journey</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="greeting">
+            Hello [[${recipientName}]]! 🚀
+        </div>
+
+        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+            Congratulations! You have successfully enrolled in <strong>[[${courseName}]]</strong>. 
+            We're excited to have you on this learning journey with us.
+        </p>
+
+        <!-- Course Hero Section -->
+        <div class="course-hero">
+            <div class="course-image" th:if="${courseImageUrl == null}">
+                📚
+            </div>
+            <img th:if="${courseImageUrl != null}" th:src="${courseImageUrl}" alt="Course Image" style="width: 120px; height: 80px; border-radius: 10px; object-fit: cover; margin-bottom: 20px;" />
+            
+            <div class="course-title" th:text="${courseName}"></div>
+            <div class="course-description" th:text="${courseDescription}"></div>
+            
+            <div class="course-details">
+                <div class="detail-row">
+                    <span class="detail-label">Instructor:</span>
+                    <span class="detail-value" th:text="${instructorName}"></span>
+                </div>
+                <div class="detail-row" th:if="${courseStartDate != null}">
+                    <span class="detail-label">Start Date:</span>
+                    <span class="detail-value" th:text="${#temporals.format(courseStartDate, 'MMM dd, yyyy')}"></span>
+                </div>
+                <div class="detail-row" th:if="${estimatedDurationWeeks != null}">
+                    <span class="detail-label">Duration:</span>
+                    <span class="detail-value" th:text="${estimatedDurationWeeks} + ' weeks'"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome Message -->
+        <div class="welcome-message">
+            <h3>🌟 Your Learning Adventure Begins</h3>
+            <p th:text="${welcomeMessage}">Welcome to your new course! You can start exploring the content right away.</p>
+        </div>
+
+        <!-- Getting Started Guide -->
+        <div class="getting-started">
+            <h3>🎯 Getting Started</h3>
+            <p style="margin-bottom: 15px;">Here's what you can do to make the most of your learning experience:</p>
+            <ul>
+                <li>Complete your profile to personalize your learning experience</li>
+                <li>Browse the course syllabus and learning objectives</li>
+                <li>Download the mobile app to learn on the go</li>
+                <li>Join the course discussion forum to connect with peers</li>
+                <li>Set up notifications to stay on track with assignments</li>
+            </ul>
+        </div>
+
+        <!-- Starting Soon Alert -->
+        <div th:if="${isStartingSoon}" style="background: #fff5f5; border: 1px solid #feb2b2; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
+            <h3 style="color: #e53e3e; margin-bottom: 10px;">⏰ Course Starting Soon!</h3>
+            <p style="color: #742a2a;">Your course begins soon. Make sure to bookmark the course page and prepare for an exciting learning journey!</p>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="actions">
+            <a th:href="${frontendUrl + '/courses/' + courseId}" class="btn btn-primary">
+                🚀 Start Learning
+            </a>
+            <a th:href="${frontendUrl + '/dashboard'}" class="btn btn-secondary">
+                📊 View Dashboard
+            </a>
+        </div>
+
+        <p style="color: #718096; font-size: 14px; text-align: center; margin-top: 20px;">
+            Questions about the course? Contact your instructor <strong>[[${instructorName}]]</strong> or visit our 
+            <a th:href="${frontendUrl + '/help'}" style="color: #667eea;">support center</a>.
+        </p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Welcome to [[${companyName}]] - Your Learning Partner</p>
+        <p>
+            Need help getting started? Contact us at
+            <a href="mailto:support@sarafrika.com">support@sarafrika.com</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 12px;">
+            © [[${currentYear}]] [[${companyName}]]. All rights reserved.
+        </p>
+    </div>
+</div>
+</body>
+</html>

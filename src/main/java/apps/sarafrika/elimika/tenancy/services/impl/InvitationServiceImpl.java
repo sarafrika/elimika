@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.common.util.EmailUtility;
+import apps.sarafrika.elimika.notifications.api.events.*;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationPreviewDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -10,10 +10,10 @@ import apps.sarafrika.elimika.tenancy.factory.InvitationFactory;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
-import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +35,8 @@ public class InvitationServiceImpl implements InvitationService {
     private final UserDomainMappingRepository userDomainMappingRepository;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
 
-    private final EmailUtility emailUtility;
     private final UserService userService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.invitation.expiry-days:7}")
     private int invitationExpiryDays;
@@ -82,7 +82,7 @@ public class InvitationServiceImpl implements InvitationService {
 
         // Create invitation
         Invitation invitation = Invitation.builder()
-                .token(emailUtility.generateInvitationToken())
+                .token(generateInvitationToken())
                 .recipientEmail(recipientEmail.toLowerCase().trim())
                 .recipientName(recipientName.trim())
                 .organisationUuid(organisationUuid)
@@ -98,8 +98,8 @@ public class InvitationServiceImpl implements InvitationService {
 
         invitation = invitationRepository.save(invitation);
 
-        // Send invitation email asynchronously
-        sendInvitationEmailAsync(invitation, organisation, branch, domain);
+        // Send invitation email using new notification system
+        publishInvitationEvent(invitation, organisation, branch, domain);
 
         log.info("Created organization invitation {} for {} to organization {}",
                 invitation.getUuid(), recipientEmail, organisationUuid);
@@ -177,8 +177,8 @@ public class InvitationServiceImpl implements InvitationService {
                 invitation.getBranchUuid()
         );
 
-        // Send confirmation email asynchronously
-        sendAcceptanceConfirmationEmailAsync(invitation, user);
+        // Send confirmation email using new notification system
+        publishAcceptanceConfirmationEvent(invitation, user);
 
         log.info("Accepted invitation {} by user {}", invitation.getUuid(), userUuid);
 
@@ -199,8 +199,8 @@ public class InvitationServiceImpl implements InvitationService {
         invitation.decline();
         invitationRepository.save(invitation);
 
-        // Send decline notification to inviter/admin asynchronously
-        sendDeclineNotificationEmailAsync(invitation, user);
+        // Send decline notification using new notification system
+        publishDeclineNotificationEvent(invitation, user);
 
         log.info("Declined invitation {} by user {}", invitation.getUuid(), userUuid);
     }
@@ -244,13 +244,13 @@ public class InvitationServiceImpl implements InvitationService {
         invitation.setExpiresAt(LocalDateTime.now().plusDays(invitationExpiryDays));
         invitationRepository.save(invitation);
 
-        // Resend email
+        // Resend email using new notification system
         Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
         TrainingBranch branch = invitation.getBranchUuid() != null ?
                 findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
         UserDomain domain = findDomainByUuidOrThrow(invitation.getDomainUuid());
 
-        sendInvitationEmailAsync(invitation, organisation, branch, domain);
+        publishInvitationEvent(invitation, organisation, branch, domain);
 
         log.info("Resent invitation {} by user {}", invitationUuid, resenderUuid);
     }
@@ -396,8 +396,8 @@ public class InvitationServiceImpl implements InvitationService {
 
             log.info("Sending expiry reminders to {} invitations", invitationsToRemind.size());
 
-            // Send reminders asynchronously
-            invitationsToRemind.forEach(this::sendExpiryReminderEmailAsync);
+            // Send reminders using new notification system
+            invitationsToRemind.forEach(this::publishExpiryReminderEvent);
 
             return invitationsToRemind.size();
 
@@ -464,7 +464,7 @@ public class InvitationServiceImpl implements InvitationService {
 
     private void validateInvitationInputs(String recipientEmail, String recipientName,
                                           UUID organisationUuid, String domainName, UUID inviterUuid) {
-        if (!emailUtility.isValidEmail(recipientEmail)) {
+        if (!isValidEmail(recipientEmail)) {
             throw new IllegalArgumentException("Invalid email address");
         }
         if (recipientName == null || recipientName.trim().isEmpty()) {
@@ -564,103 +564,37 @@ public class InvitationServiceImpl implements InvitationService {
     }
 
     // ================================
-    // EMAIL SENDING METHODS (ASYNC) - UPDATED WITH COMPLETE IMPLEMENTATIONS
+    // UTILITY METHODS
     // ================================
 
-    @Async
-    void sendInvitationEmailAsync(Invitation invitation, Organisation organisation,
-                                  TrainingBranch branch, UserDomain domain) {
-        try {
-            if (branch != null) {
-                emailUtility.sendBranchInvitation(
-                        invitation.getRecipientEmail(),
-                        invitation.getRecipientName(),
-                        organisation.getName(),
-                        branch.getBranchName(),
-                        branch.getAddress(),
-                        domain.getDomainName(),
-                        invitation.getInviterName(),
-                        invitation.getToken(),
-                        invitation.getNotes()
-                );
-            } else {
-                emailUtility.sendOrganizationInvitation(
-                        invitation.getRecipientEmail(),
-                        invitation.getRecipientName(),
-                        organisation.getName(),
-                        null, // domain field removed
-                        domain.getDomainName(),
-                        null, // branchName is null for org-level invitations
-                        invitation.getInviterName(),
-                        invitation.getToken(),
-                        invitation.getNotes()
-                );
-            }
-            log.info("Successfully sent invitation email for invitation {}", invitation.getUuid());
-        } catch (MessagingException e) {
-            log.error("Failed to send invitation email for invitation {}: {}", invitation.getUuid(), e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error sending invitation email for invitation {}: {}", invitation.getUuid(), e.getMessage());
-        }
+    /**
+     * Generates a secure invitation token
+     */
+    private String generateInvitationToken() {
+        return UUID.randomUUID().toString() + "-" + System.currentTimeMillis();
     }
 
-    @Async
-    void sendAcceptanceConfirmationEmailAsync(Invitation invitation, User user) {
-        try {
-            Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
-            TrainingBranch branch = invitation.getBranchUuid() != null ?
-                    findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
-            String domainName = getDomainNameByUuid(invitation.getDomainUuid());
-
-            emailUtility.sendInvitationAcceptedConfirmation(
-                    user.getEmail(),
-                    user.getFirstName() + " " + user.getLastName(),
-                    organisation.getName(),
-                    branch != null ? branch.getBranchName() : null,
-                    domainName
-            );
-            log.info("Successfully sent acceptance confirmation email for invitation {}", invitation.getUuid());
-        } catch (MessagingException e) {
-            log.error("Failed to send acceptance confirmation email for invitation {}: {}",
-                    invitation.getUuid(), e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error sending acceptance confirmation email for invitation {}: {}",
-                    invitation.getUuid(), e.getMessage());
+    /**
+     * Validates email address format
+     */
+    private boolean isValidEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
         }
+        
+        // Basic email validation
+        String emailPattern = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
+        return email.matches(emailPattern);
     }
 
-    @Async
-    void sendDeclineNotificationEmailAsync(Invitation invitation, User user) {
+    /**
+     * Publishes expiry reminder event using new notification system
+     */
+    private void publishExpiryReminderEvent(Invitation invitation) {
         try {
-            User inviter = findUserOrThrow(invitation.getInviterUuid());
-            Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
-            TrainingBranch branch = invitation.getBranchUuid() != null ?
-                    findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
+            log.debug("Publishing expiry reminder for invitation {}", invitation.getUuid());
 
-            emailUtility.sendInvitationDeclinedNotification(
-                    inviter.getEmail(),
-                    inviter.getFirstName() + " " + inviter.getLastName(),
-                    user.getFirstName() + " " + user.getLastName(),
-                    user.getEmail(),
-                    organisation.getName(),
-                    branch != null ? branch.getBranchName() : null
-            );
-            log.info("Successfully sent decline notification email for invitation {}", invitation.getUuid());
-        } catch (MessagingException e) {
-            log.error("Failed to send decline notification email for invitation {}: {}",
-                    invitation.getUuid(), e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error sending decline notification email for invitation {}: {}",
-                    invitation.getUuid(), e.getMessage());
-        }
-    }
-
-    @Async
-    void sendExpiryReminderEmailAsync(Invitation invitation) {
-        try {
-            log.debug("Sending expiry reminder for invitation {}", invitation.getUuid());
-
-            // Get related entities for email content
+            // Get related entities
             Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
             TrainingBranch branch = invitation.getBranchUuid() != null ?
                     findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
@@ -672,39 +606,43 @@ public class InvitationServiceImpl implements InvitationService {
                     invitation.getExpiresAt()
             ).toHours();
 
-            // Don't send reminder if already expired or expiring in less than 1 hour
-            if (hoursRemaining <= 0) {
-                log.debug("Skipping expiry reminder for invitation {} - already expired", invitation.getUuid());
-                return;
-            }
-
-            if (hoursRemaining > 48) {
-                log.debug("Skipping expiry reminder for invitation {} - too early ({}h remaining)",
+            // Skip if inappropriate timing
+            if (hoursRemaining <= 0 || hoursRemaining > 48) {
+                log.debug("Skipping expiry reminder for invitation {} - inappropriate timing ({}h remaining)",
                         invitation.getUuid(), hoursRemaining);
                 return;
             }
 
-            emailUtility.sendInvitationExpiryReminder(
+            // Check if user exists to determine recipient ID
+            UUID recipientId = userRepository.findByEmail(invitation.getRecipientEmail())
+                    .map(User::getUuid)
+                    .orElse(null);
+
+            // Create expiry reminder event (reusing invitation event with expiry context)
+            OrganizationInvitationEvent event = new OrganizationInvitationEvent(
+                    null, // Auto-generated notification ID  
+                    recipientId,
                     invitation.getRecipientEmail(),
                     invitation.getRecipientName(),
                     organisation.getName(),
-                    null, // domain field removed
+                    organisation.getSlug(), // organizationDomain
                     domain.getDomainName(),
                     branch != null ? branch.getBranchName() : null,
                     invitation.getInviterName(),
                     invitation.getToken(),
-                    hoursRemaining
+                    "EXPIRY_REMINDER:" + hoursRemaining + "h:" + invitation.getNotes(), // Special marker for expiry
+                    organisation.getUuid(),
+                    null
             );
 
-            log.info("Successfully sent expiry reminder email for invitation {} ({}h remaining)",
+            eventPublisher.publishEvent(event);
+            log.info("Published expiry reminder notification event for invitation {} ({}h remaining)",
                     invitation.getUuid(), hoursRemaining);
 
-        } catch (MessagingException e) {
-            log.error("Failed to send expiry reminder email for invitation {}: {}",
-                    invitation.getUuid(), e.getMessage());
         } catch (Exception e) {
-            log.error("Unexpected error sending expiry reminder email for invitation {}: {}",
+            log.error("Failed to publish expiry reminder notification event for invitation {}: {}",
                     invitation.getUuid(), e.getMessage());
+            log.error("New notification system failed for expiry reminder");
         }
     }
 
@@ -902,5 +840,114 @@ public class InvitationServiceImpl implements InvitationService {
     private UserDomain findDomainByUuidOrThrow(UUID uuid) {
         return userDomainRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Domain not found for UUID: " + uuid));
+    }
+
+    // ================================
+    // NEW NOTIFICATION SYSTEM METHODS
+    // ================================
+
+    /**
+     * Publishes invitation event using the new notification system
+     */
+    private void publishInvitationEvent(Invitation invitation, Organisation organisation,
+                                      TrainingBranch branch, UserDomain domain) {
+        try {
+            // Check if user exists to determine recipient ID
+            UUID recipientId = userRepository.findByEmail(invitation.getRecipientEmail())
+                    .map(User::getUuid)
+                    .orElse(null); // For new users who don't exist yet
+
+            OrganizationInvitationEvent event = new OrganizationInvitationEvent(
+                    null, // Auto-generated notification ID
+                    recipientId,
+                    invitation.getRecipientEmail(),
+                    invitation.getRecipientName(),
+                    organisation.getName(),
+                    organisation.getSlug(), // organizationDomain // organizationDomain
+                    domain.getDomainName(),  // domainName (role)
+                    branch != null ? branch.getBranchName() : null,
+                    invitation.getInviterName(),
+                    invitation.getToken(),
+                    invitation.getNotes(),
+                    organisation.getUuid(),
+                    null // Auto-generated timestamp
+            );
+
+            eventPublisher.publishEvent(event);
+            log.info("Published invitation notification event for invitation {}", invitation.getUuid());
+
+        } catch (Exception e) {
+            log.error("Failed to publish invitation notification event for invitation {}: {}", 
+                invitation.getUuid(), e.getMessage());
+            // Log failure - no fallback as we're migrating away from old system
+            log.error("New notification system failed, invitation may not be sent");
+        }
+    }
+
+    /**
+     * Updates acceptance confirmation to use new notification system
+     */
+    private void publishAcceptanceConfirmationEvent(Invitation invitation, User user) {
+        try {
+            Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
+            TrainingBranch branch = invitation.getBranchUuid() != null ?
+                    findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
+            String domainName = getDomainNameByUuid(invitation.getDomainUuid());
+
+            InvitationAcceptedEvent event = new InvitationAcceptedEvent(
+                    null, // Auto-generated notification ID
+                    user.getUuid(),
+                    user.getEmail(),
+                    user.getFirstName() + " " + user.getLastName(),
+                    organisation.getName(),
+                    branch != null ? branch.getBranchName() : null,
+                    domainName,
+                    organisation.getUuid(),
+                    null // Auto-generated timestamp
+            );
+
+            eventPublisher.publishEvent(event);
+            log.info("Published acceptance confirmation notification event for invitation {}", invitation.getUuid());
+
+        } catch (Exception e) {
+            log.error("Failed to publish acceptance confirmation notification event for invitation {}: {}", 
+                invitation.getUuid(), e.getMessage());
+            // Log failure - migrated to new system only
+            log.error("New notification system failed for acceptance confirmation");
+        }
+    }
+
+    /**
+     * Updates decline notification to use new notification system
+     */
+    private void publishDeclineNotificationEvent(Invitation invitation, User user) {
+        try {
+            User inviter = findUserOrThrow(invitation.getInviterUuid());
+            Organisation organisation = findOrganisationOrThrow(invitation.getOrganisationUuid());
+            TrainingBranch branch = invitation.getBranchUuid() != null ?
+                    findTrainingBranchOrThrow(invitation.getBranchUuid()) : null;
+
+            InvitationDeclinedEvent event = new InvitationDeclinedEvent(
+                    null, // Auto-generated notification ID
+                    inviter.getUuid(), // Admin who sent the invitation
+                    inviter.getEmail(),
+                    inviter.getFirstName() + " " + inviter.getLastName(),
+                    user.getFirstName() + " " + user.getLastName(),
+                    user.getEmail(),
+                    organisation.getName(),
+                    branch != null ? branch.getBranchName() : null,
+                    organisation.getUuid(),
+                    null // Auto-generated timestamp
+            );
+
+            eventPublisher.publishEvent(event);
+            log.info("Published decline notification event for invitation {}", invitation.getUuid());
+
+        } catch (Exception e) {
+            log.error("Failed to publish decline notification event for invitation {}: {}", 
+                invitation.getUuid(), e.getMessage());
+            // Log failure - migrated to new system only
+            log.error("New notification system failed for decline notification");
+        }
     }
 }
