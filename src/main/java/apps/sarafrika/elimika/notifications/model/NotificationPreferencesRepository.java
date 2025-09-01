@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface NotificationPreferencesRepository extends JpaRepository<UserNotificationPreferences, UUID> {
+public interface NotificationPreferencesRepository extends JpaRepository<UserNotificationPreferences, Long> {
     
     List<UserNotificationPreferences> findByUserUuid(UUID userUuid);
     

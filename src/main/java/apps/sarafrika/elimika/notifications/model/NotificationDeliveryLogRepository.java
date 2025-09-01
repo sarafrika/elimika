@@ -13,16 +13,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface NotificationDeliveryLogRepository extends JpaRepository<NotificationDeliveryLog, UUID> {
+public interface NotificationDeliveryLogRepository extends JpaRepository<NotificationDeliveryLog, Long> {
     
     Optional<NotificationDeliveryLog> findByNotificationId(UUID notificationId);
     
-    List<NotificationDeliveryLog> findByUserUuidOrderByCreatedAtDesc(UUID userUuid);
+    List<NotificationDeliveryLog> findByUserUuidOrderByCreatedDateDesc(UUID userUuid);
     
     List<NotificationDeliveryLog> findByDeliveryStatusAndRetryCountLessThan(DeliveryStatus status, int maxRetries);
     
     @Query("SELECT l FROM NotificationDeliveryLog l WHERE l.deliveryStatus = :status " +
-           "AND l.retryCount < :maxRetries AND l.createdAt > :after")
+           "AND l.retryCount < :maxRetries AND l.createdDate > :after")
     List<NotificationDeliveryLog> findFailedNotificationsForRetry(@Param("status") DeliveryStatus status,
                                                                  @Param("maxRetries") int maxRetries,
                                                                  @Param("after") LocalDateTime after);
