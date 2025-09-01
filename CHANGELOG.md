@@ -1,3 +1,10 @@
+## [2.8.1](https://github.com/sarafrika/elimika/compare/v2.8.0...v2.8.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* **notifications:** Fix database schema to match BaseEntity expectations ([ad4ee74](https://github.com/sarafrika/elimika/commit/ad4ee7489ef91c15a578c2cfc559c00e4fcf9b6d))
+
 # [2.8.0](https://github.com/sarafrika/elimika/compare/v2.7.0...v2.8.0) (2025-09-01)
 
 
