@@ -1,3 +1,15 @@
+# [2.7.0](https://github.com/sarafrika/elimika/compare/v2.6.0...v2.7.0) (2025-09-01)
+
+
+### Bug Fixes
+
+* **course:** Resolve compilation errors in course bundling system ([cdac5e6](https://github.com/sarafrika/elimika/commit/cdac5e6670ba0f522b789ff11b3d9fb241a8f96b))
+
+
+### Features
+
+* **course:** Add course bundling system with independent pricing ([08ef3a5](https://github.com/sarafrika/elimika/commit/08ef3a529a13e75a016630f0ec1a367e6912b3cd))
+
 # [2.6.0](https://github.com/sarafrika/elimika/compare/v2.5.2...v2.6.0) (2025-08-29)
 
 
