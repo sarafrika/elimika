@@ -1,3 +1,10 @@
+## [2.8.2](https://github.com/sarafrika/elimika/compare/v2.8.1...v2.8.2) (2025-09-01)
+
+
+### Bug Fixes
+
+* **migrations:** Rename notification schema fixes with correct timestamps ([38dd2eb](https://github.com/sarafrika/elimika/commit/38dd2eb4fda1884ca7fa2e11076e53926d92ce4b))
+
 ## [2.8.1](https://github.com/sarafrika/elimika/compare/v2.8.0...v2.8.1) (2025-09-01)
 
 
