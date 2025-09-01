@@ -33,8 +33,8 @@ public class CourseBundleFactory {
                 courseBundle.getBannerUrl(),
                 courseBundle.getCreatedDate(),
                 courseBundle.getCreatedBy(),
-                courseBundle.getUpdatedDate(),
-                courseBundle.getUpdatedBy()
+                courseBundle.getLastModifiedDate(),
+                courseBundle.getLastModifiedBy()
         );
     }
 
@@ -63,8 +63,8 @@ public class CourseBundleFactory {
         courseBundle.setBannerUrl(dto.bannerUrl());
         courseBundle.setCreatedDate(dto.createdDate());
         courseBundle.setCreatedBy(dto.createdBy());
-        courseBundle.setUpdatedDate(dto.updatedDate());
-        courseBundle.setUpdatedBy(dto.updatedBy());
+        courseBundle.setLastModifiedDate(dto.updatedDate());
+        courseBundle.setLastModifiedBy(dto.updatedBy());
 
         return courseBundle;
     }

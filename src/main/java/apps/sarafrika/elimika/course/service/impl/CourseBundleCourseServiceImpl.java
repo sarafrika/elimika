@@ -6,8 +6,7 @@ import apps.sarafrika.elimika.course.model.CourseBundleCourse;
 import apps.sarafrika.elimika.course.repository.CourseBundleCourseRepository;
 import apps.sarafrika.elimika.course.service.CourseBundleCourseService;
 import apps.sarafrika.elimika.course.service.CourseBundleSecurityService;
-import apps.sarafrika.elimika.common.exception.EntityNotFoundException;
-import apps.sarafrika.elimika.common.exception.ValidationException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -40,13 +39,13 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         // Validate permissions
         if (!securityService.canAddCourseToBundle(courseBundleCourseDTO.bundleUuid(), 
                 courseBundleCourseDTO.courseUuid())) {
-            throw new ValidationException("Access denied to create bundle-course association");
+            throw new IllegalArgumentException("Access denied to create bundle-course association");
         }
         
         // Check for existing association
         if (courseBundleCourseRepository.existsByBundleUuidAndCourseUuid(
                 courseBundleCourseDTO.bundleUuid(), courseBundleCourseDTO.courseUuid())) {
-            throw new ValidationException("Course is already associated with this bundle");
+            throw new IllegalArgumentException("Course is already associated with this bundle");
         }
         
         CourseBundleCourse association = CourseBundleCourseFactory.toEntity(courseBundleCourseDTO);
@@ -71,12 +70,12 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         log.debug("Fetching bundle-course association with UUID: {}", uuid);
         
         CourseBundleCourse association = courseBundleCourseRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSOCIATION_NOT_FOUND_TEMPLATE, uuid)));
         
         // Check view permissions
         if (!securityService.canViewBundle(association.getBundleUuid())) {
-            throw new ValidationException("Access denied to view bundle-course association: " + uuid);
+            throw new IllegalArgumentException("Access denied to view bundle-course association: " + uuid);
         }
         
         return CourseBundleCourseFactory.toDTO(association);
@@ -96,12 +95,12 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         log.info("Updating bundle-course association with UUID: {}", uuid);
         
         CourseBundleCourse existingAssociation = courseBundleCourseRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSOCIATION_NOT_FOUND_TEMPLATE, uuid)));
         
         // Check modification permissions
         if (!securityService.canModifyBundle(existingAssociation.getBundleUuid())) {
-            throw new ValidationException("Access denied to modify bundle-course association: " + uuid);
+            throw new IllegalArgumentException("Access denied to modify bundle-course association: " + uuid);
         }
         
         // Validate update
@@ -120,12 +119,12 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         log.info("Deleting bundle-course association with UUID: {}", uuid);
         
         CourseBundleCourse association = courseBundleCourseRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSOCIATION_NOT_FOUND_TEMPLATE, uuid)));
         
         // Check deletion permissions
         if (!securityService.canModifyBundle(association.getBundleUuid())) {
-            throw new ValidationException("Access denied to delete bundle-course association: " + uuid);
+            throw new IllegalArgumentException("Access denied to delete bundle-course association: " + uuid);
         }
         
         courseBundleCourseRepository.deleteByUuid(uuid);
@@ -149,7 +148,7 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         
         // Check view permissions
         if (!securityService.canViewBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to view bundle courses: " + bundleUuid);
+            throw new IllegalArgumentException("Access denied to view bundle courses: " + bundleUuid);
         }
         
         return courseBundleCourseRepository.findByBundleUuidOrderBySequenceOrderAsc(bundleUuid)
@@ -165,7 +164,7 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         
         // Check view permissions
         if (!securityService.canViewBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to view bundle courses: " + bundleUuid);
+            throw new IllegalArgumentException("Access denied to view bundle courses: " + bundleUuid);
         }
         
         return courseBundleCourseRepository.findByBundleUuidAndIsRequiredTrueOrderBySequenceOrderAsc(bundleUuid)
@@ -181,7 +180,7 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         
         // Check view permissions
         if (!securityService.canViewBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to view bundle courses: " + bundleUuid);
+            throw new IllegalArgumentException("Access denied to view bundle courses: " + bundleUuid);
         }
         
         return courseBundleCourseRepository.findByBundleUuidAndIsRequiredFalseOrderBySequenceOrderAsc(bundleUuid)
@@ -223,7 +222,7 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         
         // Check modification permissions
         if (!securityService.canModifyBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to reorder courses in bundle: " + bundleUuid);
+            throw new IllegalArgumentException("Access denied to reorder courses in bundle: " + bundleUuid);
         }
         
         // Validate all courses belong to the bundle
@@ -232,7 +231,7 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
             boolean found = associations.stream()
                     .anyMatch(assoc -> assoc.getCourseUuid().equals(courseUuid));
             if (!found) {
-                throw new ValidationException("Course " + courseUuid + " is not in bundle " + bundleUuid);
+                throw new IllegalArgumentException("Course " + courseUuid + " is not in bundle " + bundleUuid);
             }
         }
         
@@ -255,7 +254,7 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         
         // Check modification permissions
         if (!securityService.canModifyBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to modify bundle: " + bundleUuid);
+            throw new IllegalArgumentException("Access denied to modify bundle: " + bundleUuid);
         }
         
         long courseCount = courseBundleCourseRepository.countByBundleUuid(bundleUuid);
@@ -275,18 +274,18 @@ public class CourseBundleCourseServiceImpl implements CourseBundleCourseService 
         // Prevent changing bundle or course UUID
         if (updateDTO.bundleUuid() != null && 
             !updateDTO.bundleUuid().equals(existingAssociation.getBundleUuid())) {
-            throw new ValidationException("Cannot change bundle UUID in association");
+            throw new IllegalArgumentException("Cannot change bundle UUID in association");
         }
         
         if (updateDTO.courseUuid() != null && 
             !updateDTO.courseUuid().equals(existingAssociation.getCourseUuid())) {
-            throw new ValidationException("Cannot change course UUID in association");
+            throw new IllegalArgumentException("Cannot change course UUID in association");
         }
         
         // Validate sequence order if provided
         if (updateDTO.sequenceOrder() != null) {
             if (updateDTO.sequenceOrder() < 1) {
-                throw new ValidationException("Sequence order must be positive");
+                throw new IllegalArgumentException("Sequence order must be positive");
             }
             
             // Check for duplicate sequence orders

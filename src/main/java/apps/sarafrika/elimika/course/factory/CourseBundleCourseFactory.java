@@ -27,8 +27,8 @@ public class CourseBundleCourseFactory {
                 courseBundleCourse.getIsRequired(),
                 courseBundleCourse.getCreatedDate(),
                 courseBundleCourse.getCreatedBy(),
-                courseBundleCourse.getUpdatedDate(),
-                courseBundleCourse.getUpdatedBy()
+                courseBundleCourse.getLastModifiedDate(),
+                courseBundleCourse.getLastModifiedBy()
         );
     }
 
@@ -51,8 +51,8 @@ public class CourseBundleCourseFactory {
         courseBundleCourse.setIsRequired(dto.isRequired());
         courseBundleCourse.setCreatedDate(dto.createdDate());
         courseBundleCourse.setCreatedBy(dto.createdBy());
-        courseBundleCourse.setUpdatedDate(dto.updatedDate());
-        courseBundleCourse.setUpdatedBy(dto.updatedBy());
+        courseBundleCourse.setLastModifiedDate(dto.updatedDate());
+        courseBundleCourse.setLastModifiedBy(dto.updatedBy());
 
         return courseBundleCourse;
     }

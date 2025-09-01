@@ -4,7 +4,7 @@ import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseBundleRepository;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseBundle;
-import apps.sarafrika.elimika.common.exception.EntityNotFoundException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.service.UserContextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ public class CourseBundleSecurityService {
         return courseUuids.stream()
             .allMatch(courseUuid -> {
                 Course course = courseRepository.findByUuid(courseUuid)
-                    .orElseThrow(() -> new EntityNotFoundException("Course not found: " + courseUuid));
+                    .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + courseUuid));
                 boolean owns = course.getInstructorUuid().equals(currentInstructorUuid);
                 if (!owns) {
                     log.warn("User {} does not own course {}", currentInstructorUuid, courseUuid);
@@ -70,7 +70,7 @@ public class CourseBundleSecurityService {
         
         // Check bundle ownership
         CourseBundle bundle = courseBundleRepository.findByUuid(bundleUuid)
-            .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleUuid));
+            .orElseThrow(() -> new ResourceNotFoundException("Bundle not found: " + bundleUuid));
         
         if (!bundle.getInstructorUuid().equals(currentInstructorUuid)) {
             log.warn("User {} does not own bundle {}", currentInstructorUuid, bundleUuid);
@@ -79,7 +79,7 @@ public class CourseBundleSecurityService {
         
         // Check course ownership
         Course course = courseRepository.findByUuid(courseUuid)
-            .orElseThrow(() -> new EntityNotFoundException("Course not found: " + courseUuid));
+            .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + courseUuid));
         
         if (!course.getInstructorUuid().equals(currentInstructorUuid)) {
             log.warn("User {} does not own course {}", currentInstructorUuid, courseUuid);
@@ -102,7 +102,7 @@ public class CourseBundleSecurityService {
         }
         
         CourseBundle bundle = courseBundleRepository.findByUuid(bundleUuid)
-            .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleUuid));
+            .orElseThrow(() -> new ResourceNotFoundException("Bundle not found: " + bundleUuid));
         
         boolean owns = bundle.getInstructorUuid().equals(currentInstructorUuid);
         if (!owns) {
@@ -122,7 +122,7 @@ public class CourseBundleSecurityService {
         UUID currentInstructorUuid = userContextService.getCurrentUserUuid();
         
         CourseBundle bundle = courseBundleRepository.findByUuid(bundleUuid)
-            .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleUuid));
+            .orElseThrow(() -> new ResourceNotFoundException("Bundle not found: " + bundleUuid));
         
         // Owner can always view their bundles
         if (currentInstructorUuid != null && bundle.getInstructorUuid().equals(currentInstructorUuid)) {
@@ -146,7 +146,7 @@ public class CourseBundleSecurityService {
         }
         
         CourseBundle bundle = courseBundleRepository.findByUuid(bundleUuid)
-            .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleUuid));
+            .orElseThrow(() -> new ResourceNotFoundException("Bundle not found: " + bundleUuid));
         
         // Must own the bundle
         if (!bundle.getInstructorUuid().equals(currentInstructorUuid)) {

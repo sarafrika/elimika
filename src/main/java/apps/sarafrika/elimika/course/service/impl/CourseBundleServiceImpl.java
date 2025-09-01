@@ -13,8 +13,7 @@ import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseBundleSecurityService;
 import apps.sarafrika.elimika.course.service.CourseBundleService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
-import apps.sarafrika.elimika.common.exception.EntityNotFoundException;
-import apps.sarafrika.elimika.common.exception.ValidationException;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.service.UserContextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,12 +80,12 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.debug("Fetching course bundle with UUID: {}", uuid);
         
         CourseBundle courseBundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         // Check view permissions
         if (!securityService.canViewBundle(uuid)) {
-            throw new ValidationException("Access denied to course bundle: " + uuid);
+            throw new IllegalArgumentException("Access denied to course bundle: " + uuid);
         }
         
         return CourseBundleFactory.toDTO(courseBundle);
@@ -106,12 +105,12 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.info("Updating course bundle with UUID: {}", uuid);
         
         CourseBundle existingBundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         // Check modification permissions
         if (!securityService.canModifyBundle(uuid)) {
-            throw new ValidationException("Access denied to modify course bundle: " + uuid);
+            throw new IllegalArgumentException("Access denied to modify course bundle: " + uuid);
         }
         
         // Validate business rules for updates
@@ -130,12 +129,12 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.info("Deleting course bundle with UUID: {}", uuid);
         
         if (!courseBundleRepository.findByUuid(uuid).isPresent()) {
-            throw new EntityNotFoundException(String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid));
+            throw new ResourceNotFoundException(String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid));
         }
         
         // Check deletion permissions
         if (!securityService.canDeleteBundle(uuid)) {
-            throw new ValidationException("Cannot delete course bundle: " + uuid);
+            throw new IllegalArgumentException("Cannot delete course bundle: " + uuid);
         }
         
         // Remove all course associations first
@@ -179,7 +178,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         
         // Check view permissions
         if (!securityService.canViewBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to view bundle courses: " + bundleUuid);
+            throw new IllegalArgumentException("Access denied to view bundle courses: " + bundleUuid);
         }
         
         return courseBundleCourseRepository.findByBundleUuidOrderBySequenceOrderAsc(bundleUuid)
@@ -198,17 +197,17 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         
         // Check permissions
         if (!securityService.canAddCourseToBundle(bundleUuid, courseUuid)) {
-            throw new ValidationException("Access denied to add course to bundle");
+            throw new IllegalArgumentException("Access denied to add course to bundle");
         }
         
         // Check if course already in bundle
         if (courseBundleCourseRepository.existsByBundleUuidAndCourseUuid(bundleUuid, courseUuid)) {
-            throw new ValidationException("Course is already in the bundle");
+            throw new IllegalArgumentException("Course is already in the bundle");
         }
         
         // Validate course exists and is eligible
         Course course = courseRepository.findByUuid(courseUuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
         
         // Create association
@@ -231,7 +230,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         
         // Check permissions
         if (!securityService.canModifyBundle(bundleUuid)) {
-            throw new ValidationException("Access denied to modify bundle");
+            throw new IllegalArgumentException("Access denied to modify bundle");
         }
         
         courseBundleCourseRepository.deleteByBundleUuidAndCourseUuid(bundleUuid, courseUuid);
@@ -248,7 +247,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.debug("Checking if bundle is ready for publishing: {}", uuid);
         
         CourseBundle bundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         // Must be in draft status
@@ -272,15 +271,15 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.info("Publishing course bundle: {}", uuid);
         
         if (!securityService.canModifyBundle(uuid)) {
-            throw new ValidationException("Access denied to publish bundle");
+            throw new IllegalArgumentException("Access denied to publish bundle");
         }
         
         if (!isBundleReadyForPublishing(uuid)) {
-            throw new ValidationException("Bundle is not ready for publishing");
+            throw new IllegalArgumentException("Bundle is not ready for publishing");
         }
         
         CourseBundle bundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         bundle.setStatus(ContentStatus.PUBLISHED);
@@ -298,11 +297,11 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.info("Unpublishing course bundle: {}", uuid);
         
         if (!canUnpublishBundle(uuid)) {
-            throw new ValidationException("Bundle cannot be unpublished");
+            throw new IllegalArgumentException("Bundle cannot be unpublished");
         }
         
         CourseBundle bundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         bundle.setStatus(ContentStatus.DRAFT);
@@ -320,11 +319,11 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         log.info("Archiving course bundle: {}", uuid);
         
         if (!securityService.canModifyBundle(uuid)) {
-            throw new ValidationException("Access denied to archive bundle");
+            throw new IllegalArgumentException("Access denied to archive bundle");
         }
         
         CourseBundle bundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         bundle.setStatus(ContentStatus.ARCHIVED);
@@ -344,7 +343,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         }
         
         CourseBundle bundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         // Can only unpublish if currently published
@@ -361,7 +360,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
     @Transactional(readOnly = true)
     public List<ContentStatus> getAvailableStatusTransitions(UUID uuid) {
         CourseBundle bundle = courseBundleRepository.findByUuid(uuid)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(BUNDLE_NOT_FOUND_TEMPLATE, uuid)));
         
         return switch (bundle.getStatus()) {
@@ -387,7 +386,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         // Implementation depends on your file upload service
         // For now, returning the bundle as-is
         log.info("Thumbnail upload requested for bundle: {}", bundleUuid);
-        throw new ValidationException("Thumbnail upload not implemented yet");
+        throw new IllegalArgumentException("Thumbnail upload not implemented yet");
     }
 
     @Override
@@ -396,7 +395,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         // Implementation depends on your file upload service
         // For now, returning the bundle as-is
         log.info("Banner upload requested for bundle: {}", bundleUuid);
-        throw new ValidationException("Banner upload not implemented yet");
+        throw new IllegalArgumentException("Banner upload not implemented yet");
     }
 
     // Private helper methods
@@ -407,13 +406,13 @@ public class CourseBundleServiceImpl implements CourseBundleService {
             boolean exists = courseBundleRepository.existsByInstructorUuidAndNameIgnoreCase(
                     courseBundleDTO.instructorUuid(), courseBundleDTO.name());
             if (exists) {
-                throw new ValidationException("Bundle name already exists for this instructor");
+                throw new IllegalArgumentException("Bundle name already exists for this instructor");
             }
         }
         
         // Validate price
         if (courseBundleDTO.price() != null && courseBundleDTO.price().compareTo(BigDecimal.ZERO) < 0) {
-            throw new ValidationException("Bundle price cannot be negative");
+            throw new IllegalArgumentException("Bundle price cannot be negative");
         }
     }
     
@@ -423,7 +422,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
             boolean exists = courseBundleRepository.existsByInstructorUuidAndNameIgnoreCaseAndUuidNot(
                     existingBundle.getInstructorUuid(), updateDTO.name(), existingBundle.getUuid());
             if (exists) {
-                throw new ValidationException("Bundle name already exists for this instructor");
+                throw new IllegalArgumentException("Bundle name already exists for this instructor");
             }
         }
         
@@ -431,7 +430,7 @@ public class CourseBundleServiceImpl implements CourseBundleService {
         if (existingBundle.getStatus().equals(ContentStatus.PUBLISHED)) {
             if (updateDTO.price() != null && 
                 updateDTO.price().compareTo(existingBundle.getPrice()) < 0) {
-                throw new ValidationException("Cannot decrease price of published bundle");
+                throw new IllegalArgumentException("Cannot decrease price of published bundle");
             }
         }
     }

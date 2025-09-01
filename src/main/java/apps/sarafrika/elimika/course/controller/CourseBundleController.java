@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -105,7 +106,7 @@ public class CourseBundleController {
         log.debug("Fetching all course bundles");
         Page<CourseBundleDTO> bundles = courseBundleService.getAllCourseBundles(pageable);
         return ResponseEntity.ok(ApiResponse.success(
-                PagedDTO.fromPage(bundles), "Course bundles retrieved successfully"));
+                PagedDTO.from(bundles, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Course bundles retrieved successfully"));
     }
 
     @Operation(
@@ -148,7 +149,7 @@ public class CourseBundleController {
         log.debug("Searching course bundles with params: {}", searchParams);
         Page<CourseBundleDTO> bundles = courseBundleService.search(searchParams, pageable);
         return ResponseEntity.ok(ApiResponse.success(
-                PagedDTO.fromPage(bundles), "Course bundles search completed"));
+                PagedDTO.from(bundles, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Course bundles search completed"));
     }
 
     @Operation(
@@ -161,7 +162,7 @@ public class CourseBundleController {
         log.debug("Fetching published course bundles");
         Page<CourseBundleDTO> bundles = courseBundleService.getPublishedCourseBundles(pageable);
         return ResponseEntity.ok(ApiResponse.success(
-                PagedDTO.fromPage(bundles), "Published course bundles retrieved successfully"));
+                PagedDTO.from(bundles, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Published course bundles retrieved successfully"));
     }
 
     @Operation(
@@ -175,7 +176,7 @@ public class CourseBundleController {
         log.debug("Fetching course bundles for instructor: {}", instructorUuid);
         Page<CourseBundleDTO> bundles = courseBundleService.getCourseBundlesByInstructor(instructorUuid, pageable);
         return ResponseEntity.ok(ApiResponse.success(
-                PagedDTO.fromPage(bundles), "Instructor course bundles retrieved successfully"));
+                PagedDTO.from(bundles, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Instructor course bundles retrieved successfully"));
     }
 
     // Course Management within Bundles
