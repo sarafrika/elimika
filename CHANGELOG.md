@@ -1,3 +1,11 @@
+# [2.8.0](https://github.com/sarafrika/elimika/compare/v2.7.0...v2.8.0) (2025-09-01)
+
+
+### Features
+
+* **course:** Remove course bundling system completely ([1b22096](https://github.com/sarafrika/elimika/commit/1b22096f6418d5394fdbe15ce40c61ad8e766882))
+* **notifications:** Implement Spring Modulith notification system ([8d29d3c](https://github.com/sarafrika/elimika/commit/8d29d3ce7e5b59722bdeebfb3ebff25de25cd43f))
+
 # [2.7.0](https://github.com/sarafrika/elimika/compare/v2.6.0...v2.7.0) (2025-09-01)
 
 
