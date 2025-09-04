@@ -48,55 +48,66 @@ Following Spring Modulith patterns, the class scheduling system will be implemen
 src/main/java/apps/sarafrika/elimika/
 ├── scheduling/                                    # Main scheduling module
 │   ├── ClassSchedulingModule.java                # Module configuration
-│   ├── api/                                       # Public API (SPI)
-│   │   ├── ClassSchedulingService.java           # Public service interface
-│   │   ├── events/                                # Published events
+│   ├── controller/                                # REST Controllers
+│   │   ├── ClassSessionController.java
+│   │   ├── ClassEnrollmentController.java
+│   │   └── SchedulingAdminController.java
+│   ├── dto/                                       # Data Transfer Objects
+│   │   ├── ClassSessionDTO.java
+│   │   ├── ClassEnrollmentDTO.java
+│   │   ├── SchedulingStatisticsDTO.java
+│   │   ├── CreateClassSessionDTO.java
+│   │   ├── UpdateClassSessionDTO.java
+│   │   └── EnrollmentRequestDTO.java
+│   ├── entity/                                    # JPA Entities
+│   │   ├── ClassSession.java
+│   │   ├── ClassEnrollment.java
+│   │   ├── ClassRecurrencePattern.java
+│   │   ├── InstructorAvailability.java
+│   │   └── ClassWaitlist.java
+│   ├── enums/                                     # Enumerations
+│   │   ├── ClassType.java
+│   │   ├── ClassStatus.java
+│   │   ├── EnrollmentStatus.java
+│   │   ├── RecurrenceType.java
+│   │   └── AttendanceStatus.java
+│   ├── factory/                                   # Entity/DTO Factories
+│   │   ├── ClassSessionFactory.java
+│   │   ├── ClassEnrollmentFactory.java
+│   │   └── SchedulingStatisticsFactory.java
+│   ├── internal/                                  # Internal/Event handling
+│   │   ├── events/                                # Domain events
 │   │   │   ├── ClassCreatedEvent.java
 │   │   │   ├── ClassCancelledEvent.java
 │   │   │   ├── StudentEnrolledEvent.java
 │   │   │   ├── StudentUnenrolledEvent.java
 │   │   │   ├── ClassCompletedEvent.java
 │   │   │   └── AttendanceMarkedEvent.java
-│   │   └── dto/                                   # Public DTOs
-│   │       ├── ClassSessionDTO.java
-│   │       ├── ClassEnrollmentDTO.java
-│   │       └── SchedulingStatisticsDTO.java
-│   │
-│   ├── internal/                                  # Internal implementation
-│   │   ├── domain/                                # Domain layer
-│   │   │   ├── model/
-│   │   │   │   ├── ClassSession.java
-│   │   │   │   ├── ClassEnrollment.java
-│   │   │   │   ├── ClassRecurrencePattern.java
-│   │   │   │   ├── InstructorAvailability.java
-│   │   │   │   └── ClassWaitlist.java
-│   │   │   ├── repository/
-│   │   │   │   ├── ClassSessionRepository.java
-│   │   │   │   ├── ClassEnrollmentRepository.java
-│   │   │   │   └── InstructorAvailabilityRepository.java
-│   │   │   └── service/
-│   │   │       ├── ClassSessionServiceImpl.java
-│   │   │       ├── EnrollmentServiceImpl.java
-│   │   │       ├── AvailabilityServiceImpl.java
-│   │   │       └── ConflictDetectionService.java
-│   │   │
-│   │   ├── web/                                   # Web layer
-│   │   │   ├── ClassSessionController.java
-│   │   │   ├── EnrollmentController.java
-│   │   │   └── AvailabilityController.java
-│   │   │
-│   │   └── infrastructure/                        # Infrastructure layer
-│   │       ├── events/
-│   │       │   └── SchedulingEventHandler.java
-│   │       ├── integration/
-│   │       │   ├── CourseModuleEventHandler.java
-│   │       │   └── NotificationModuleEventHandler.java
-│   │       └── security/
-│   │           └── SchedulingSecurityConfig.java
-│   │
-│   └── config/                                    # Module configuration
-│       ├── SchedulingModuleConfig.java
-│       └── SchedulingProperties.java
+│   │   └── listeners/                             # Event listeners
+│   │       ├── ClassSchedulingEventListener.java
+│   │       └── NotificationEventListener.java
+│   ├── repository/                                # JPA Repositories
+│   │   ├── ClassSessionRepository.java
+│   │   ├── ClassEnrollmentRepository.java
+│   │   ├── InstructorAvailabilityRepository.java
+│   │   └── ClassWaitlistRepository.java
+│   ├── services/                                  # Service Layer
+│   │   ├── ClassSchedulingService.java            # Service interface
+│   │   └── impl/                                  # Service implementations
+│   │       ├── ClassSchedulingServiceImpl.java
+│   │       ├── ConflictDetectionService.java
+│   │       ├── RecurrencePatternService.java
+│   │       ├── TimetableService.java
+│   │       └── SchedulingAnalyticsService.java
+│   └── util/                                      # Utilities
+│       ├── converter/                             # Entity/DTO converters
+│       │   ├── ClassSessionConverter.java
+│       │   └── EnrollmentConverter.java
+│       ├── enums/                                 # Additional utility enums
+│       │   └── TimeSlotType.java
+│       └── validator/                             # Validation utilities
+│           ├── SchedulingValidator.java
+│           └── ConflictValidator.java
 ```
 
 ### Module Configuration
