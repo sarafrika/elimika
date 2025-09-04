@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.notifications.internal;
 import apps.sarafrika.elimika.notifications.api.*;
 import apps.sarafrika.elimika.notifications.model.NotificationPreferencesRepository;
 import apps.sarafrika.elimika.notifications.model.UserNotificationPreferences;
+import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
 import apps.sarafrika.elimika.notifications.service.EmailNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -100,7 +101,16 @@ public class NotificationServiceImpl implements NotificationService {
      */
     private boolean isInQuietHours(UUID userId) {
         try {
-            return preferencesService.isInQuietHours(userId, LocalTime.now());
+            // For now, we'll directly query the repository for quiet hours
+            // This could be moved to the SPI interface in the future
+            var preferences = preferencesRepository.findByUserUuid(userId);
+            if (preferences.isEmpty()) {
+                return false;
+            }
+            
+            LocalTime currentTime = LocalTime.now();
+            return preferences.stream()
+                .anyMatch(pref -> pref.isInQuietHours(currentTime));
         } catch (Exception e) {
             log.warn("Failed to check quiet hours for user {}: {}", userId, e.getMessage());
             return false; // Default to allowing notifications if we can't check preferences

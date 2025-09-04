@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 import apps.sarafrika.elimika.common.event.user.*;
 import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -50,6 +51,7 @@ public class UserServiceImpl implements UserService {
     private final GenericSpecificationBuilder<User> specificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final UserMediaValidationService validationService;
+    private final NotificationPreferencesService notificationPreferencesService;
 
     @Override
     @Transactional
@@ -90,7 +92,16 @@ public class UserServiceImpl implements UserService {
         user.setGender(genderEnum);
         
         log.info("User created: {}", user);
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        
+        // Initialize default notification preferences for the new user
+        try {
+            notificationPreferencesService.initializeUserPreferences(savedUser.getUuid());
+            log.info("Initialized notification preferences for new user: {}", savedUser.getUuid());
+        } catch (Exception e) {
+            log.warn("Failed to initialize notification preferences for user {}: {}", 
+                savedUser.getUuid(), e.getMessage());
+        }
     }
 
     @Override
@@ -210,6 +221,18 @@ public class UserServiceImpl implements UserService {
             userOrganisationDomainMappingRepository.save(mapping);
             log.info("Created new organisation mapping for user {} in organisation {} with domain {}",
                     userUuid, organisationUuid, domainName);
+                    
+            // Initialize default notification preferences if user doesn't have any
+            try {
+                // Only initialize if user has no preferences at all
+                if (!notificationPreferencesService.existsByUserUuid(userUuid)) {
+                    notificationPreferencesService.initializeUserPreferences(userUuid);
+                    log.info("Initialized notification preferences for user {} joining organization", userUuid);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to initialize notification preferences for user {}: {}", 
+                    userUuid, e.getMessage());
+            }
         }
 
         // For invitation-only roles (admin, organisation_user), add the domain to user's standalone domains
