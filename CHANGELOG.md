@@ -1,3 +1,10 @@
+# [2.9.0](https://github.com/sarafrika/elimika/compare/v2.8.3...v2.9.0) (2025-09-04)
+
+
+### Features
+
+* **docs:** create admin dashboard development guide ([fdb6a87](https://github.com/sarafrika/elimika/commit/fdb6a87817974c9168b38fa76075df71a73f8793))
+
 ## [2.8.3](https://github.com/sarafrika/elimika/compare/v2.8.2...v2.8.3) (2025-09-01)
 
 
