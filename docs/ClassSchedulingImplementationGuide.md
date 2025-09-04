@@ -531,22 +531,368 @@ public class StudentModuleEventHandler {
 
 ## Database Design
 
-### Core Entities
+### Flyway Migration Structure
 
-#### ClassSession Entity
+The class scheduling module follows the established Flyway migration patterns used throughout the Elimika project. All migrations must:
+
+1. Follow the naming convention: `V{YYYYMMDDHHMI}__{Description}.sql`
+2. Include all BaseEntity fields (id, uuid, created_date, updated_date, created_by, updated_by)
+3. Use proper UUID generation: `UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()`
+4. Include comprehensive indexing for performance
+5. Add proper constraints and foreign key relationships
+
+### Migration Files
+
+#### 1. Class Sessions Table Migration
+**File**: `V202509041325__create_class_sessions_table.sql`
+
 ```sql
+-- 202509041325__create_class_sessions_table.sql
+-- Create class_sessions table for calendar-based scheduling
+
 CREATE TABLE class_sessions (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    uuid VARCHAR(36) UNIQUE NOT NULL,
+    id               BIGSERIAL PRIMARY KEY,
+    uuid             UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     
     -- Basic Information
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
+    title            VARCHAR(255)             NOT NULL,
+    description      TEXT,
     
-    -- Ownership
-    instructor_uuid VARCHAR(36),
-    organisation_uuid VARCHAR(36),
-    training_branch_uuid VARCHAR(36),
+    -- Ownership & Organization  
+    instructor_uuid  UUID                     NOT NULL,
+    organisation_uuid UUID,
+    training_branch_uuid UUID,
+    
+    -- Associated Content
+    course_uuid      UUID,
+    training_program_uuid UUID,
+    
+    -- Scheduling Information
+    start_time       TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time         TIMESTAMP WITH TIME ZONE NOT NULL,
+    timezone         VARCHAR(50)              NOT NULL DEFAULT 'UTC',
+    
+    -- Location & Format
+    location_type    VARCHAR(20)              NOT NULL DEFAULT 'online' 
+                     CHECK (location_type IN ('online', 'in_person', 'hybrid')),
+    physical_location VARCHAR(500),
+    meeting_url      VARCHAR(500),
+    meeting_password VARCHAR(100),
+    
+    -- Capacity & Enrollment
+    max_participants INTEGER                  NOT NULL DEFAULT 50,
+    min_participants INTEGER                  NOT NULL DEFAULT 1,
+    allow_waitlist   BOOLEAN                  NOT NULL DEFAULT true,
+    
+    -- Recurrence Pattern
+    is_recurring     BOOLEAN                  NOT NULL DEFAULT false,
+    recurrence_pattern VARCHAR(20)            CHECK (recurrence_pattern IN ('daily', 'weekly', 'monthly', 'custom')),
+    recurrence_end_date TIMESTAMP WITH TIME ZONE,
+    recurrence_count INTEGER,
+    custom_recurrence_rule TEXT,
+    
+    -- Status Management
+    status           VARCHAR(20)              NOT NULL DEFAULT 'scheduled' 
+                     CHECK (status IN ('scheduled', 'ongoing', 'completed', 'cancelled')),
+    cancellation_reason TEXT,
+    cancelled_by     VARCHAR(255),
+    
+    -- Audit Fields (BaseEntity pattern)
+    created_date     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    updated_date     TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    created_by       VARCHAR(255)             NOT NULL,
+    updated_by       VARCHAR(255),
+    
+    -- Constraints
+    CONSTRAINT check_time_validity CHECK (start_time < end_time),
+    CONSTRAINT check_capacity CHECK (min_participants <= max_participants),
+    CONSTRAINT check_recurrence_data CHECK (
+        (is_recurring = false AND recurrence_pattern IS NULL) OR
+        (is_recurring = true AND recurrence_pattern IS NOT NULL)
+    )
+);
+
+-- Performance Indexes
+CREATE INDEX idx_class_sessions_uuid ON class_sessions (uuid);
+CREATE INDEX idx_class_sessions_instructor_uuid ON class_sessions (instructor_uuid);
+CREATE INDEX idx_class_sessions_organisation_uuid ON class_sessions (organisation_uuid);
+CREATE INDEX idx_class_sessions_training_branch_uuid ON class_sessions (training_branch_uuid);
+CREATE INDEX idx_class_sessions_course_uuid ON class_sessions (course_uuid);
+CREATE INDEX idx_class_sessions_training_program_uuid ON class_sessions (training_program_uuid);
+CREATE INDEX idx_class_sessions_start_time ON class_sessions (start_time);
+CREATE INDEX idx_class_sessions_end_time ON class_sessions (end_time);
+CREATE INDEX idx_class_sessions_status ON class_sessions (status);
+CREATE INDEX idx_class_sessions_location_type ON class_sessions (location_type);
+CREATE INDEX idx_class_sessions_is_recurring ON class_sessions (is_recurring);
+CREATE INDEX idx_class_sessions_created_date ON class_sessions (created_date);
+
+-- Composite indexes for common queries
+CREATE INDEX idx_class_sessions_instructor_time ON class_sessions (instructor_uuid, start_time, end_time);
+CREATE INDEX idx_class_sessions_org_time ON class_sessions (organisation_uuid, start_time, end_time);
+CREATE INDEX idx_class_sessions_status_time ON class_sessions (status, start_time);
+```
+
+#### 2. Class Enrollments Table Migration
+**File**: `V202509041326__create_class_enrollments_table.sql`
+
+```sql
+-- 202509041326__create_class_enrollments_table.sql
+-- Create class_enrollments table for student enrollment in scheduled classes
+
+CREATE TABLE class_enrollments (
+    id                    BIGSERIAL PRIMARY KEY,
+    uuid                  UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    
+    -- Relationships
+    class_session_uuid    UUID                     NOT NULL,
+    student_uuid          UUID                     NOT NULL,
+    
+    -- Enrollment Information
+    enrollment_date       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    enrollment_method     VARCHAR(20)              NOT NULL DEFAULT 'self_service'
+                          CHECK (enrollment_method IN ('self_service', 'admin_enrolled', 'waitlist_promoted')),
+    
+    -- Status Management
+    status                VARCHAR(20)              NOT NULL DEFAULT 'enrolled' 
+                          CHECK (status IN ('enrolled', 'attended', 'absent', 'cancelled', 'transferred')),
+    
+    -- Cancellation Information
+    cancellation_date     TIMESTAMP WITH TIME ZONE,
+    cancellation_reason   TEXT,
+    cancelled_by          VARCHAR(255),
+    
+    -- Transfer Information
+    transferred_to_uuid   UUID,
+    transfer_date         TIMESTAMP WITH TIME ZONE,
+    transfer_reason       TEXT,
+    
+    -- Attendance Tracking
+    attendance_status     VARCHAR(20)              CHECK (attendance_status IN ('present', 'absent', 'late', 'excused')),
+    attendance_marked_at  TIMESTAMP WITH TIME ZONE,
+    attendance_marked_by  VARCHAR(255),
+    attendance_notes      TEXT,
+    
+    -- Audit Fields (BaseEntity pattern)
+    created_date          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    updated_date          TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    created_by            VARCHAR(255)             NOT NULL,
+    updated_by            VARCHAR(255),
+    
+    -- Constraints
+    CONSTRAINT unique_student_class_enrollment UNIQUE (class_session_uuid, student_uuid),
+    CONSTRAINT check_cancellation_data CHECK (
+        (status != 'cancelled') OR 
+        (status = 'cancelled' AND cancellation_date IS NOT NULL AND cancelled_by IS NOT NULL)
+    ),
+    CONSTRAINT check_transfer_data CHECK (
+        (status != 'transferred') OR 
+        (status = 'transferred' AND transferred_to_uuid IS NOT NULL AND transfer_date IS NOT NULL)
+    )
+);
+
+-- Performance Indexes  
+CREATE INDEX idx_class_enrollments_uuid ON class_enrollments (uuid);
+CREATE INDEX idx_class_enrollments_class_session_uuid ON class_enrollments (class_session_uuid);
+CREATE INDEX idx_class_enrollments_student_uuid ON class_enrollments (student_uuid);
+CREATE INDEX idx_class_enrollments_status ON class_enrollments (status);
+CREATE INDEX idx_class_enrollments_enrollment_date ON class_enrollments (enrollment_date);
+CREATE INDEX idx_class_enrollments_attendance_status ON class_enrollments (attendance_status);
+CREATE INDEX idx_class_enrollments_created_date ON class_enrollments (created_date);
+
+-- Composite indexes for common queries
+CREATE INDEX idx_class_enrollments_student_status ON class_enrollments (student_uuid, status);
+CREATE INDEX idx_class_enrollments_class_status ON class_enrollments (class_session_uuid, status);
+CREATE INDEX idx_class_enrollments_attendance ON class_enrollments (class_session_uuid, attendance_status);
+```
+
+#### 3. Instructor Availability Table Migration  
+**File**: `V202509041327__create_instructor_availability_table.sql`
+
+```sql
+-- 202509041327__create_instructor_availability_table.sql
+-- Create instructor_availability table for managing instructor schedule availability
+
+CREATE TABLE instructor_availability (
+    id                BIGSERIAL PRIMARY KEY,
+    uuid              UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    
+    -- Relationships
+    instructor_uuid   UUID                     NOT NULL,
+    
+    -- Availability Type
+    availability_type VARCHAR(20)              NOT NULL DEFAULT 'weekly'
+                      CHECK (availability_type IN ('weekly', 'specific_date', 'date_range')),
+    
+    -- Time Information
+    day_of_week       INTEGER                  CHECK (day_of_week >= 1 AND day_of_week <= 7),
+    specific_date     DATE,
+    start_date        DATE,
+    end_date          DATE,
+    start_time        TIME                     NOT NULL,
+    end_time          TIME                     NOT NULL,
+    timezone          VARCHAR(50)              NOT NULL DEFAULT 'UTC',
+    
+    -- Status
+    is_active         BOOLEAN                  NOT NULL DEFAULT true,
+    notes             TEXT,
+    
+    -- Audit Fields (BaseEntity pattern)
+    created_date      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    updated_date      TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    created_by        VARCHAR(255)             NOT NULL,
+    updated_by        VARCHAR(255),
+    
+    -- Constraints
+    CONSTRAINT check_time_validity CHECK (start_time < end_time),
+    CONSTRAINT check_weekly_availability CHECK (
+        (availability_type != 'weekly') OR 
+        (availability_type = 'weekly' AND day_of_week IS NOT NULL)
+    ),
+    CONSTRAINT check_specific_date_availability CHECK (
+        (availability_type != 'specific_date') OR 
+        (availability_type = 'specific_date' AND specific_date IS NOT NULL)
+    ),
+    CONSTRAINT check_date_range_availability CHECK (
+        (availability_type != 'date_range') OR 
+        (availability_type = 'date_range' AND start_date IS NOT NULL AND end_date IS NOT NULL AND start_date <= end_date)
+    )
+);
+
+-- Performance Indexes
+CREATE INDEX idx_instructor_availability_uuid ON instructor_availability (uuid);
+CREATE INDEX idx_instructor_availability_instructor_uuid ON instructor_availability (instructor_uuid);
+CREATE INDEX idx_instructor_availability_type ON instructor_availability (availability_type);
+CREATE INDEX idx_instructor_availability_day_of_week ON instructor_availability (day_of_week);
+CREATE INDEX idx_instructor_availability_specific_date ON instructor_availability (specific_date);
+CREATE INDEX idx_instructor_availability_start_date ON instructor_availability (start_date);
+CREATE INDEX idx_instructor_availability_end_date ON instructor_availability (end_date);
+CREATE INDEX idx_instructor_availability_active ON instructor_availability (is_active);
+CREATE INDEX idx_instructor_availability_created_date ON instructor_availability (created_date);
+
+-- Composite indexes for common queries  
+CREATE INDEX idx_instructor_availability_instructor_active ON instructor_availability (instructor_uuid, is_active);
+CREATE INDEX idx_instructor_availability_instructor_type ON instructor_availability (instructor_uuid, availability_type);
+```
+
+#### 4. Class Waitlist Table Migration
+**File**: `V202509041328__create_class_waitlist_table.sql`
+
+```sql
+-- 202509041328__create_class_waitlist_table.sql  
+-- Create class_waitlist table for managing waiting lists when classes are full
+
+CREATE TABLE class_waitlist (
+    id                  BIGSERIAL PRIMARY KEY,
+    uuid                UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    
+    -- Relationships
+    class_session_uuid  UUID                     NOT NULL,
+    student_uuid        UUID                     NOT NULL,
+    
+    -- Waitlist Information
+    joined_at           TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    position            INTEGER                  NOT NULL,
+    
+    -- Status Management
+    status              VARCHAR(20)              NOT NULL DEFAULT 'waiting'
+                        CHECK (status IN ('waiting', 'promoted', 'expired', 'cancelled')),
+    
+    -- Promotion Information  
+    promoted_at         TIMESTAMP WITH TIME ZONE,
+    promotion_expires_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Cancellation Information
+    cancelled_at        TIMESTAMP WITH TIME ZONE,
+    cancellation_reason TEXT,
+    
+    -- Notification Preferences
+    notify_on_availability BOOLEAN              NOT NULL DEFAULT true,
+    notification_method VARCHAR(20)              NOT NULL DEFAULT 'email'
+                        CHECK (notification_method IN ('email', 'sms', 'push', 'none')),
+    
+    -- Audit Fields (BaseEntity pattern)
+    created_date        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    updated_date        TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    created_by          VARCHAR(255)             NOT NULL,
+    updated_by          VARCHAR(255),
+    
+    -- Constraints
+    CONSTRAINT unique_student_class_waitlist UNIQUE (class_session_uuid, student_uuid),
+    CONSTRAINT check_position_positive CHECK (position > 0),
+    CONSTRAINT check_promotion_data CHECK (
+        (status != 'promoted') OR 
+        (status = 'promoted' AND promoted_at IS NOT NULL)
+    )
+);
+
+-- Performance Indexes
+CREATE INDEX idx_class_waitlist_uuid ON class_waitlist (uuid);
+CREATE INDEX idx_class_waitlist_class_session_uuid ON class_waitlist (class_session_uuid);
+CREATE INDEX idx_class_waitlist_student_uuid ON class_waitlist (student_uuid);
+CREATE INDEX idx_class_waitlist_status ON class_waitlist (status);
+CREATE INDEX idx_class_waitlist_position ON class_waitlist (position);
+CREATE INDEX idx_class_waitlist_joined_at ON class_waitlist (joined_at);
+CREATE INDEX idx_class_waitlist_promoted_at ON class_waitlist (promoted_at);
+CREATE INDEX idx_class_waitlist_created_date ON class_waitlist (created_date);
+
+-- Composite indexes for common queries
+CREATE INDEX idx_class_waitlist_class_status_position ON class_waitlist (class_session_uuid, status, position);
+CREATE INDEX idx_class_waitlist_student_status ON class_waitlist (student_uuid, status);
+```
+
+#### 5. Class Resources Table Migration
+**File**: `V202509041329__create_class_resources_table.sql`
+
+```sql
+-- 202509041329__create_class_resources_table.sql
+-- Create class_resources table for managing resources and materials associated with classes
+
+CREATE TABLE class_resources (
+    id                 BIGSERIAL PRIMARY KEY,
+    uuid               UUID                     NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    
+    -- Relationships
+    class_session_uuid UUID                     NOT NULL,
+    
+    -- Resource Information
+    resource_name      VARCHAR(255)             NOT NULL,
+    resource_type      VARCHAR(50)              NOT NULL 
+                       CHECK (resource_type IN ('document', 'video', 'audio', 'image', 'link', 'file')),
+    resource_url       VARCHAR(1000)            NOT NULL,
+    file_size_bytes    BIGINT,
+    mime_type          VARCHAR(100),
+    
+    -- Access Control
+    is_public          BOOLEAN                  NOT NULL DEFAULT false,
+    requires_enrollment BOOLEAN                 NOT NULL DEFAULT true,
+    
+    -- Organization
+    display_order      INTEGER                  NOT NULL DEFAULT 0,
+    description        TEXT,
+    
+    -- Audit Fields (BaseEntity pattern)
+    created_date       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    updated_date       TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' + INTERVAL '3 hours'),
+    created_by         VARCHAR(255)             NOT NULL,
+    updated_by         VARCHAR(255)
+);
+
+-- Performance Indexes
+CREATE INDEX idx_class_resources_uuid ON class_resources (uuid);
+CREATE INDEX idx_class_resources_class_session_uuid ON class_resources (class_session_uuid);
+CREATE INDEX idx_class_resources_resource_type ON class_resources (resource_type);
+CREATE INDEX idx_class_resources_is_public ON class_resources (is_public);
+CREATE INDEX idx_class_resources_display_order ON class_resources (display_order);
+CREATE INDEX idx_class_resources_created_date ON class_resources (created_date);
+
+-- Composite indexes for common queries
+CREATE INDEX idx_class_resources_class_order ON class_resources (class_session_uuid, display_order);
+CREATE INDEX idx_class_resources_class_public ON class_resources (class_session_uuid, is_public);
+```
+
+### Core Entities
+
+After running the migrations above, the following entities will be created following the established BaseEntity pattern:
     
     -- Content Association (Optional)
     course_uuid VARCHAR(36),
