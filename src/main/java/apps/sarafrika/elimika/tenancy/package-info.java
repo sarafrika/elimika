@@ -1,5 +1,5 @@
 @ApplicationModule(
-        allowedDependencies = {}
+        allowedDependencies = {"notifications :: preferences-spi", "shared"}
 )
 package apps.sarafrika.elimika.tenancy;
 
