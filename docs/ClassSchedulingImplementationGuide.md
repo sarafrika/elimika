@@ -2165,18 +2165,49 @@ CREATE TABLE class_sessions (
 - Advanced class management features
 - Comprehensive reporting available
 
-### Phase 6: Integration & Enhancement (Weeks 12-13)
-**Priority**: Low
+### Phase 6: Timetable Views & Calendar Interface (Weeks 12-14) ⭐
+**Priority**: High  
 **Dependencies**: Phase 5
 
-#### Week 12: Course/Program Integration
+#### Week 12: Calendar Grid Components
+- [ ] Create weekly timetable grid component
+- [ ] Implement daily schedule view
+- [ ] Add monthly calendar overview
+- [ ] Build time slot grid system
+- [ ] Create responsive calendar layouts
+
+#### Week 13: Interactive Timetable Features
+- [ ] Add drag-and-drop scheduling interface
+- [ ] Implement click-to-schedule functionality
+- [ ] Create color-coded class type visualization
+- [ ] Add conflict highlighting in calendar views
+- [ ] Build quick scheduling modals
+
+#### Week 14: Advanced Timetable Operations
+- [ ] Implement bulk scheduling operations
+- [ ] Add template-based scheduling (copy schedules)
+- [ ] Create auto-scheduling suggestions
+- [ ] Add resource allocation views (rooms/equipment)
+- [ ] Implement academic calendar integration
+
+**Deliverables**:
+- Full interactive timetable interface
+- Visual calendar-based scheduling
+- Drag-and-drop class management
+- Bulk scheduling capabilities
+
+### Phase 7: Integration & Enhancement (Weeks 15-16)
+**Priority**: Medium
+**Dependencies**: Phase 6
+
+#### Week 15: Course/Program Integration
 - [ ] Link classes to existing courses
 - [ ] Add program-based scheduling
 - [ ] Implement hybrid completion tracking
 - [ ] Add class-based progress tracking
 - [ ] Create integrated reporting
 
-#### Week 13: Notifications & Polish
+#### Week 16: Notifications & Polish
 - [ ] Implement email notification system
 - [ ] Add class reminder notifications
 - [ ] Create scheduling digest emails
@@ -2494,3 +2525,594 @@ The phased implementation approach ensures gradual rollout with early value deli
 ✅ **Comprehensive Coverage**: Online, in-person, and recurring class support
 
 This plan extends your current educational platform with interactive, scheduled learning sessions while maintaining the existing self-paced course structure.
+
+## Timetable Implementation Details
+
+### Calendar Views & Components
+
+#### Weekly Timetable Grid
+```java
+@Component
+public class WeeklyTimetableComponent {
+    
+    @GetMapping("/api/v1/timetable/weekly")
+    public ResponseEntity<WeeklyTimetableDTO> getWeeklyTimetable(
+        @RequestParam(required = false) UUID instructorUuid,
+        @RequestParam(required = false) UUID organisationUuid,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
+        @RequestParam(defaultValue = "UTC") String timezone
+    ) {
+        WeeklyTimetableDTO timetable = timetableService.getWeeklyTimetable(
+            instructorUuid, organisationUuid, weekStart, timezone);
+        return ResponseEntity.ok(timetable);
+    }
+}
+
+public record WeeklyTimetableDTO(
+    LocalDate weekStartDate,
+    LocalDate weekEndDate,
+    String timezone,
+    List<DayScheduleDTO> days,
+    List<TimeSlotDTO> timeSlots,
+    Map<String, List<ClassSessionDTO>> classSchedule // "MONDAY_09:00" -> List<ClassSessionDTO>
+) {}
+
+public record DayScheduleDTO(
+    DayOfWeek dayOfWeek,
+    LocalDate date,
+    List<ClassSessionDTO> classes,
+    Map<String, Integer> timeSlotOccupancy // "09:00" -> count of classes
+) {}
+
+public record TimeSlotDTO(
+    LocalTime startTime,
+    LocalTime endTime,
+    String displayLabel, // "09:00 - 10:00"
+    Boolean isStandardSlot,
+    Integer durationMinutes
+) {}
+```
+
+#### Monthly Calendar View
+```java
+@Component
+public class MonthlyCalendarComponent {
+    
+    @GetMapping("/api/v1/timetable/monthly")
+    public ResponseEntity<MonthlyCalendarDTO> getMonthlyCalendar(
+        @RequestParam(required = false) UUID instructorUuid,
+        @RequestParam(required = false) UUID organisationUuid,
+        @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth month,
+        @RequestParam(defaultValue = "UTC") String timezone
+    ) {
+        MonthlyCalendarDTO calendar = timetableService.getMonthlyCalendar(
+            instructorUuid, organisationUuid, month, timezone);
+        return ResponseEntity.ok(calendar);
+    }
+}
+
+public record MonthlyCalendarDTO(
+    YearMonth month,
+    String timezone,
+    List<CalendarDayDTO> days,
+    CalendarStatisticsDTO statistics
+) {}
+
+public record CalendarDayDTO(
+    LocalDate date,
+    List<ClassSessionDTO> classes,
+    Integer totalClasses,
+    Integer totalEnrollments,
+    Boolean hasConflicts,
+    DayType dayType // WEEKDAY, WEEKEND, HOLIDAY
+) {}
+```
+
+#### Interactive Scheduling Interface
+```java
+@Component
+public class InteractiveSchedulingComponent {
+    
+    // Drag and drop scheduling
+    @PostMapping("/api/v1/timetable/move-class")
+    @PreAuthorize("@classAuthorizationService.canManageClass(#request.classSessionUuid(), authentication)")
+    public ResponseEntity<ClassSchedulingResultDTO> moveClass(
+        @Valid @RequestBody MoveClassRequest request
+    ) {
+        ClassSchedulingResultDTO result = timetableService.moveClass(request);
+        return ResponseEntity.ok(result);
+    }
+    
+    // Quick scheduling modal
+    @PostMapping("/api/v1/timetable/quick-schedule")
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ClassSchedulingResultDTO> quickScheduleClass(
+        @Valid @RequestBody QuickScheduleRequest request
+    ) {
+        ClassSchedulingResultDTO result = timetableService.quickScheduleClass(request);
+        return ResponseEntity.ok(result);
+    }
+    
+    // Bulk scheduling
+    @PostMapping("/api/v1/timetable/bulk-schedule")
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<List<ClassSchedulingResultDTO>> bulkScheduleClasses(
+        @Valid @RequestBody BulkScheduleRequest request
+    ) {
+        List<ClassSchedulingResultDTO> results = timetableService.bulkScheduleClasses(request);
+        return ResponseEntity.ok(results);
+    }
+}
+
+public record MoveClassRequest(
+    @NotNull UUID classSessionUuid,
+    @NotNull LocalDateTime newStartTime,
+    @NotNull LocalDateTime newEndTime,
+    String reason
+) {}
+
+public record QuickScheduleRequest(
+    @NotBlank String title,
+    @NotNull UUID instructorUuid,
+    UUID courseUuid,
+    @NotNull LocalDateTime startTime,
+    @NotNull Integer durationMinutes,
+    @NotNull SessionType sessionType,
+    @Min(1) Integer maxCapacity
+) {}
+
+public record ClassSchedulingResultDTO(
+    Boolean success,
+    UUID classSessionUuid,
+    List<ConflictDTO> conflicts,
+    List<String> warnings,
+    String message,
+    ClassSessionDTO scheduledClass
+) {}
+```
+
+### Time Slot Management System
+
+#### Standard Time Slots Configuration
+```java
+@Service
+public class TimeSlotManagementService {
+    
+    private final TimeSlotRepository timeSlotRepository;
+    private final SchedulingProperties schedulingProperties;
+    
+    // Create standard institutional time slots
+    @PostConstruct
+    public void initializeStandardTimeSlots() {
+        if (timeSlotRepository.count() == 0) {
+            createStandardTimeSlots();
+        }
+    }
+    
+    private void createStandardTimeSlots() {
+        // Standard academic time slots
+        List<TimeSlot> standardSlots = Arrays.asList(
+            createTimeSlot("08:00", "09:00", "Morning Slot 1"),
+            createTimeSlot("09:00", "10:00", "Morning Slot 2"),
+            createTimeSlot("10:00", "11:00", "Morning Slot 3"),
+            createTimeSlot("11:00", "12:00", "Morning Slot 4"),
+            createTimeSlot("13:00", "14:00", "Afternoon Slot 1"),
+            createTimeSlot("14:00", "15:00", "Afternoon Slot 2"),
+            createTimeSlot("15:00", "16:00", "Afternoon Slot 3"),
+            createTimeSlot("16:00", "17:00", "Afternoon Slot 4"),
+            createTimeSlot("18:00", "19:00", "Evening Slot 1"),
+            createTimeSlot("19:00", "20:00", "Evening Slot 2")
+        );
+        
+        timeSlotRepository.saveAll(standardSlots);
+    }
+    
+    public List<AvailableTimeSlotDTO> getAvailableTimeSlots(
+        UUID instructorUuid, LocalDate date, Integer durationMinutes
+    ) {
+        List<TimeSlot> allSlots = timeSlotRepository.findAllActiveSlots();
+        List<ClassSession> existingClasses = classSessionRepository
+            .findByInstructorUuidAndDate(instructorUuid, date);
+            
+        return allSlots.stream()
+            .filter(slot -> isSlotAvailable(slot, existingClasses, date, durationMinutes))
+            .map(this::toAvailableTimeSlotDTO)
+            .collect(Collectors.toList());
+    }
+}
+
+// Time slot entity
+@Entity
+@Table(name = "time_slots")
+public class TimeSlot extends BaseEntity {
+    
+    @Column(name = "start_time")
+    private LocalTime startTime;
+    
+    @Column(name = "end_time")
+    private LocalTime endTime;
+    
+    @Column(name = "display_label")
+    private String displayLabel;
+    
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+    
+    @Column(name = "is_standard_slot")
+    private Boolean isStandardSlot;
+    
+    @Column(name = "is_active")
+    private Boolean isActive;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "slot_type")
+    private SlotType slotType; // MORNING, AFTERNOON, EVENING
+}
+```
+
+### Resource Allocation & Room Management
+
+#### Room Scheduling Integration
+```java
+@Service
+public class ResourceSchedulingService {
+    
+    // Check room/resource availability
+    public boolean isResourceAvailable(String resourceId, LocalDateTime start, LocalDateTime end) {
+        return !classSessionRepository.existsByResourceAndTimeOverlap(resourceId, start, end);
+    }
+    
+    // Get available rooms for a time slot
+    public List<RoomDTO> getAvailableRooms(LocalDateTime start, LocalDateTime end, Integer capacity) {
+        List<Room> allRooms = roomRepository.findByCapacityGreaterThanEqual(capacity);
+        List<String> occupiedRoomIds = classSessionRepository
+            .findOccupiedResourcesByTimeRange(start, end);
+            
+        return allRooms.stream()
+            .filter(room -> !occupiedRoomIds.contains(room.getId()))
+            .map(RoomFactory::toDTO)
+            .collect(Collectors.toList());
+    }
+    
+    // Resource allocation for classes
+    @PostMapping("/api/v1/timetable/allocate-resource")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ResourceAllocationDTO> allocateResource(
+        @Valid @RequestBody ResourceAllocationRequest request
+    ) {
+        ResourceAllocationDTO allocation = resourceSchedulingService.allocateResource(request);
+        return ResponseEntity.ok(allocation);
+    }
+}
+
+public record ResourceAllocationRequest(
+    @NotNull UUID classSessionUuid,
+    @NotNull String resourceType, // "ROOM", "EQUIPMENT", "VEHICLE"
+    @NotNull String resourceId,
+    String notes
+) {}
+
+public record RoomDTO(
+    String id,
+    String name,
+    String building,
+    String floor,
+    Integer capacity,
+    List<String> amenities,
+    Boolean hasProjector,
+    Boolean hasWhiteboard,
+    String location
+) {}
+```
+
+### Template-Based Scheduling
+
+#### Schedule Templates
+```java
+@Service
+public class ScheduleTemplateService {
+    
+    // Create schedule template from existing classes
+    @PostMapping("/api/v1/timetable/templates")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ScheduleTemplateDTO> createTemplate(
+        @Valid @RequestBody CreateTemplateRequest request
+    ) {
+        ScheduleTemplateDTO template = scheduleTemplateService.createTemplate(request);
+        return ResponseEntity.ok(template);
+    }
+    
+    // Apply template to create new schedule
+    @PostMapping("/api/v1/timetable/templates/{templateId}/apply")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<BulkSchedulingResultDTO> applyTemplate(
+        @PathVariable UUID templateId,
+        @Valid @RequestBody ApplyTemplateRequest request
+    ) {
+        BulkSchedulingResultDTO result = scheduleTemplateService.applyTemplate(templateId, request);
+        return ResponseEntity.ok(result);
+    }
+    
+    // Copy schedule from previous period
+    @PostMapping("/api/v1/timetable/copy-schedule")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<BulkSchedulingResultDTO> copyScheduleFromPeriod(
+        @Valid @RequestBody CopyScheduleRequest request
+    ) {
+        BulkSchedulingResultDTO result = scheduleTemplateService.copySchedule(request);
+        return ResponseEntity.ok(result);
+    }
+}
+
+public record CreateTemplateRequest(
+    @NotBlank String templateName,
+    String description,
+    @NotNull LocalDate startDate,
+    @NotNull LocalDate endDate,
+    UUID instructorUuid,
+    UUID organisationUuid,
+    List<UUID> classSessionUuids
+) {}
+
+public record ApplyTemplateRequest(
+    @NotNull LocalDate targetStartDate,
+    @NotNull LocalDate targetEndDate,
+    UUID targetInstructorUuid,
+    Map<UUID, UUID> courseMapping, // Old course UUID -> New course UUID
+    Boolean adjustForConflicts
+) {}
+
+@Entity
+@Table(name = "schedule_templates")
+public class ScheduleTemplate extends BaseEntity {
+    
+    @Column(name = "template_name")
+    private String templateName;
+    
+    @Column(name = "description")
+    private String description;
+    
+    @Column(name = "created_by_uuid")
+    private UUID createdByUuid;
+    
+    @Column(name = "organisation_uuid")
+    private UUID organisationUuid;
+    
+    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL)
+    private List<TemplateClassSession> classSessions;
+}
+
+@Entity
+@Table(name = "template_class_sessions")
+public class TemplateClassSession extends BaseEntity {
+    
+    @ManyToOne
+    @JoinColumn(name = "template_id")
+    private ScheduleTemplate template;
+    
+    @Column(name = "day_of_week")
+    private DayOfWeek dayOfWeek;
+    
+    @Column(name = "start_time")
+    private LocalTime startTime;
+    
+    @Column(name = "end_time")
+    private LocalTime endTime;
+    
+    @Column(name = "title")
+    private String title;
+    
+    @Column(name = "course_uuid")
+    private UUID courseUuid;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "session_type")
+    private SessionType sessionType;
+}
+```
+
+### Auto-Scheduling Intelligence
+
+#### Smart Scheduling Suggestions
+```java
+@Service
+public class SmartSchedulingService {
+    
+    // AI-powered scheduling suggestions
+    @GetMapping("/api/v1/timetable/suggest-schedule")
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<List<SchedulingSuggestionDTO>> getSchedulingSuggestions(
+        @RequestParam UUID instructorUuid,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam Integer classCount,
+        @RequestParam Integer classLengthMinutes
+    ) {
+        List<SchedulingSuggestionDTO> suggestions = smartSchedulingService
+            .generateSchedulingSuggestions(instructorUuid, startDate, endDate, classCount, classLengthMinutes);
+        return ResponseEntity.ok(suggestions);
+    }
+    
+    // Optimize existing schedule
+    @PostMapping("/api/v1/timetable/optimize")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ScheduleOptimizationResultDTO> optimizeSchedule(
+        @Valid @RequestBody OptimizeScheduleRequest request
+    ) {
+        ScheduleOptimizationResultDTO result = smartSchedulingService.optimizeSchedule(request);
+        return ResponseEntity.ok(result);
+    }
+    
+    // Auto-schedule based on preferences
+    @PostMapping("/api/v1/timetable/auto-schedule")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<AutoScheduleResultDTO> autoScheduleClasses(
+        @Valid @RequestBody AutoScheduleRequest request
+    ) {
+        AutoScheduleResultDTO result = smartSchedulingService.autoSchedule(request);
+        return ResponseEntity.ok(result);
+    }
+}
+
+public record SchedulingSuggestionDTO(
+    LocalDateTime suggestedStartTime,
+    LocalDateTime suggestedEndTime,
+    String rationale,
+    Double confidenceScore,
+    List<String> pros,
+    List<String> cons,
+    Boolean hasConflicts
+) {}
+
+public record AutoScheduleRequest(
+    List<UUID> courseUuids,
+    List<UUID> instructorUuids,
+    @NotNull LocalDate startDate,
+    @NotNull LocalDate endDate,
+    SchedulingPreferencesDTO preferences
+) {}
+
+public record SchedulingPreferencesDTO(
+    List<DayOfWeek> preferredDays,
+    LocalTime earliestStartTime,
+    LocalTime latestEndTime,
+    Integer minimumBreakMinutes,
+    Integer maxClassesPerDay,
+    Boolean avoidBackToBackClasses,
+    List<String> preferredRooms
+) {}
+```
+
+### Academic Calendar Integration
+
+#### Term and Holiday Management
+```java
+@Service
+public class AcademicCalendarService {
+    
+    // Get academic calendar for scheduling
+    @GetMapping("/api/v1/timetable/academic-calendar")
+    public ResponseEntity<AcademicCalendarDTO> getAcademicCalendar(
+        @RequestParam @DateTimeFormat(pattern = "yyyy") Integer year,
+        @RequestParam(required = false) UUID organisationUuid
+    ) {
+        AcademicCalendarDTO calendar = academicCalendarService.getCalendar(year, organisationUuid);
+        return ResponseEntity.ok(calendar);
+    }
+    
+    // Check if date is a teaching day
+    public boolean isTeachingDay(LocalDate date, UUID organisationUuid) {
+        return !holidayRepository.existsByDateAndOrganisation(date, organisationUuid) &&
+               !date.getDayOfWeek().equals(DayOfWeek.SATURDAY) &&
+               !date.getDayOfWeek().equals(DayOfWeek.SUNDAY);
+    }
+    
+    // Get available teaching dates in range
+    public List<LocalDate> getAvailableTeachingDates(
+        LocalDate startDate, LocalDate endDate, UUID organisationUuid
+    ) {
+        return startDate.datesUntil(endDate.plusDays(1))
+            .filter(date -> isTeachingDay(date, organisationUuid))
+            .collect(Collectors.toList());
+    }
+}
+
+public record AcademicCalendarDTO(
+    Integer year,
+    UUID organisationUuid,
+    List<AcademicTermDTO> terms,
+    List<HolidayDTO> holidays,
+    List<ImportantDateDTO> importantDates
+) {}
+
+public record AcademicTermDTO(
+    String termName,
+    LocalDate startDate,
+    LocalDate endDate,
+    Integer teachingWeeks,
+    List<LocalDate> breakPeriods
+) {}
+
+@Entity
+@Table(name = "academic_holidays")
+public class AcademicHoliday extends BaseEntity {
+    
+    @Column(name = "holiday_name")
+    private String holidayName;
+    
+    @Column(name = "holiday_date")
+    private LocalDate holidayDate;
+    
+    @Column(name = "organisation_uuid")
+    private UUID organisationUuid;
+    
+    @Column(name = "is_recurring")
+    private Boolean isRecurring;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "holiday_type")
+    private HolidayType holidayType; // PUBLIC, INSTITUTIONAL, RELIGIOUS
+}
+```
+
+### Timetable Analytics & Reporting
+
+#### Comprehensive Timetable Analytics
+```java
+@Service
+public class TimetableAnalyticsService {
+    
+    @GetMapping("/api/v1/timetable/analytics/utilization")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<UtilizationAnalyticsDTO> getUtilizationAnalytics(
+        @RequestParam UUID organisationUuid,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        UtilizationAnalyticsDTO analytics = timetableAnalyticsService
+            .getUtilizationAnalytics(organisationUuid, startDate, endDate);
+        return ResponseEntity.ok(analytics);
+    }
+    
+    @GetMapping("/api/v1/timetable/analytics/conflicts")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ConflictAnalyticsDTO> getConflictAnalytics(
+        @RequestParam UUID organisationUuid,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        ConflictAnalyticsDTO analytics = timetableAnalyticsService
+            .getConflictAnalytics(organisationUuid, startDate, endDate);
+        return ResponseEntity.ok(analytics);
+    }
+}
+
+public record UtilizationAnalyticsDTO(
+    Double overallUtilization,
+    Map<DayOfWeek, Double> dailyUtilization,
+    Map<String, Double> timeSlotUtilization, // "09:00-10:00" -> 0.75
+    List<InstructorUtilizationDTO> instructorUtilization,
+    List<RoomUtilizationDTO> roomUtilization,
+    List<PeakHoursDTO> peakHours
+) {}
+
+public record ConflictAnalyticsDTO(
+    Integer totalConflicts,
+    Integer resolvedConflicts,
+    Map<String, Integer> conflictsByType,
+    List<ConflictTrendDTO> conflictTrends,
+    List<String> commonConflictCauses
+) {}
+```
+
+This comprehensive timetable implementation provides:
+
+✅ **Visual Calendar Interface**: Weekly, monthly, and daily views  
+✅ **Interactive Scheduling**: Drag-and-drop and click-to-schedule  
+✅ **Smart Time Management**: Standard time slots and resource allocation  
+✅ **Template System**: Copy schedules and create reusable templates  
+✅ **Auto-Scheduling**: AI-powered suggestions and optimization  
+✅ **Academic Integration**: Term management and holiday handling  
+✅ **Advanced Analytics**: Utilization reports and conflict analysis  
+
+The timetable system integrates seamlessly with the existing class scheduling foundation, providing a complete calendar-based educational management solution.
