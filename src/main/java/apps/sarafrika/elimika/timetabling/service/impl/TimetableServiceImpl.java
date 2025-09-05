@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
-import apps.sarafrika.elimika.common.exceptions.DuplicateResourceException;
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.timetabling.dto.*;
 import apps.sarafrika.elimika.timetabling.factory.EnrollmentFactory;
 import apps.sarafrika.elimika.timetabling.factory.ScheduledInstanceFactory;

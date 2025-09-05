@@ -30,7 +30,7 @@ public interface CertificateService {
      *
      * @param uuid the certificate UUID
      * @return the certificate DTO
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if certificate not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if certificate not found
      */
     CertificateDTO getCertificateByUuid(UUID uuid);
 
@@ -48,7 +48,7 @@ public interface CertificateService {
      * @param uuid the certificate UUID to update
      * @param certificateDTO the updated certificate data
      * @return the updated certificate DTO
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if certificate not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if certificate not found
      */
     CertificateDTO updateCertificate(UUID uuid, CertificateDTO certificateDTO);
 
@@ -56,7 +56,7 @@ public interface CertificateService {
      * Deletes a certificate by UUID.
      *
      * @param uuid the certificate UUID to delete
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if certificate not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if certificate not found
      */
     void deleteCertificate(UUID uuid);
 
@@ -138,7 +138,7 @@ public interface CertificateService {
      *
      * @param certificateUuid the certificate UUID to revoke
      * @param reason the reason for revocation
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if certificate not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if certificate not found
      */
     void revokeCertificate(UUID certificateUuid, String reason);
 
@@ -148,7 +148,7 @@ public interface CertificateService {
      * @param certificateUuid the certificate UUID
      * @param certificateUrl the generated certificate URL
      * @return the updated certificate DTO
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if certificate not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if certificate not found
      */
     CertificateDTO generateCertificateUrl(UUID certificateUuid, String certificateUrl);
 

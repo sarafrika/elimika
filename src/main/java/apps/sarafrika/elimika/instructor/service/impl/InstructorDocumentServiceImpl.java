@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.common.enums.DocumentStatus;
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorDocumentDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorDocumentFactory;
 import apps.sarafrika.elimika.instructor.model.InstructorDocument;

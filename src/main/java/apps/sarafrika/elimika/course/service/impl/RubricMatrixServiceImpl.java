@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.model.RubricScoring;
 import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

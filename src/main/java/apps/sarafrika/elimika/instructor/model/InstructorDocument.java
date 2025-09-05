@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.instructor.model;
 
-import apps.sarafrika.elimika.common.enums.DocumentStatus;
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;

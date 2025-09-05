@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.internal;
 
-import apps.sarafrika.elimika.common.event.instructor.RegisterInstructor;
+import apps.sarafrika.elimika.shared.event.instructor.RegisterInstructor;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import lombok.RequiredArgsConstructor;

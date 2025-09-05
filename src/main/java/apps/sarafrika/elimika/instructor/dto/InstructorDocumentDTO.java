@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.dto;
 
-import apps.sarafrika.elimika.common.enums.DocumentStatus;
+import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;

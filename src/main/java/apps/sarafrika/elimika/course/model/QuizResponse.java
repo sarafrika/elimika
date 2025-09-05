@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.model;
 
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;

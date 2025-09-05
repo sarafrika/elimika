@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorProfessionalMembershipDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorProfessionalMembershipFactory;
 import apps.sarafrika.elimika.instructor.model.InstructorProfessionalMembership;

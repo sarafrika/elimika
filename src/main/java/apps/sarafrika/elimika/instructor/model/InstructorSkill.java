@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.model;
 
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.instructor.util.converter.ProficiencyLevelConverter;
 import apps.sarafrika.elimika.instructor.util.enums.ProficiencyLevel;
 import jakarta.persistence.Column;

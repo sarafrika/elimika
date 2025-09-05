@@ -2,9 +2,9 @@ package apps.sarafrika.elimika.authentication.internal;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakRoleService;
 import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
-import apps.sarafrika.elimika.common.event.role.AssignRoleToUserEvent;
-import apps.sarafrika.elimika.common.event.role.CreateRoleOnKeyCloakEvent;
-import apps.sarafrika.elimika.common.event.role.SuccessfulRoleCreationOnKeycloakEvent;
+import apps.sarafrika.elimika.shared.event.role.AssignRoleToUserEvent;
+import apps.sarafrika.elimika.shared.event.role.CreateRoleOnKeyCloakEvent;
+import apps.sarafrika.elimika.shared.event.role.SuccessfulRoleCreationOnKeycloakEvent;
 import lombok.RequiredArgsConstructor;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.springframework.context.ApplicationEventPublisher;

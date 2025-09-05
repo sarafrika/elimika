@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.model;
 
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.RequirementTypeConverter;
 import apps.sarafrika.elimika.course.util.enums.RequirementType;
 import jakarta.persistence.Column;

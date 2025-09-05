@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.controller;
 
-import apps.sarafrika.elimika.common.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.service.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,10 +53,10 @@ public class InstructorController {
             }
     )
     @PostMapping
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDTO>> createInstructor(@Valid @RequestBody InstructorDTO instructorDTO) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDTO>> createInstructor(@Valid @RequestBody InstructorDTO instructorDTO) {
         InstructorDTO createdInstructor = instructorService.createInstructor(instructorDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdInstructor, "Instructor created successfully"));
     }
 
@@ -70,9 +70,9 @@ public class InstructorController {
             }
     )
     @GetMapping("/{uuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDTO>> getInstructorByUuid(@PathVariable UUID uuid) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDTO>> getInstructorByUuid(@PathVariable UUID uuid) {
         InstructorDTO instructorDTO = instructorService.getInstructorByUuid(uuid);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(instructorDTO, "Instructor record fetched successfully"));
     }
 
@@ -81,9 +81,9 @@ public class InstructorController {
             description = "Fetches a paginated list of instructors."
     )
     @GetMapping
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDTO>>> getAllInstructors(Pageable pageable) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorDTO>>> getAllInstructors(Pageable pageable) {
         Page<InstructorDTO> instructors = instructorService.getAllInstructors(pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(instructors, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Instructors fetched successfully"));
@@ -99,11 +99,11 @@ public class InstructorController {
             }
     )
     @PutMapping("/{uuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDTO>> updateInstructor(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDTO>> updateInstructor(
             @PathVariable UUID uuid,
             @Valid @RequestBody InstructorDTO instructorDTO) {
         InstructorDTO updatedInstructor = instructorService.updateInstructor(uuid, instructorDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedInstructor, "Instructor updated successfully"));
     }
 
@@ -177,7 +177,7 @@ public class InstructorController {
             }
     )
     @GetMapping("/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDTO>>> searchInstructors(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorDTO>>> searchInstructors(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -186,7 +186,7 @@ public class InstructorController {
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorDTO> instructors = instructorService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(instructors, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Instructor search successful"));
@@ -196,33 +196,33 @@ public class InstructorController {
 
     @Operation(summary = "Add document to instructor", description = "Uploads and associates a document with an instructor")
     @PostMapping("/{instructorUuid}/documents")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDocumentDTO>> addInstructorDocument(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> addInstructorDocument(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorDocumentDTO documentDTO) {
 
         InstructorDocumentDTO createdDocument = instructorDocumentService.createInstructorDocument(documentDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdDocument, "Document added successfully"));
     }
 
     @Operation(summary = "Get instructor documents", description = "Retrieves all documents for a specific instructor")
     @GetMapping("/{instructorUuid}/documents")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<InstructorDocumentDTO>>> getInstructorDocuments(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<InstructorDocumentDTO>>> getInstructorDocuments(
             @PathVariable UUID instructorUuid) {
         List<InstructorDocumentDTO> documents = instructorDocumentService.getDocumentsByInstructorUuid(instructorUuid);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(documents, "Documents fetched successfully"));
     }
 
     @Operation(summary = "Update instructor document", description = "Updates a specific document")
     @PutMapping("/{instructorUuid}/documents/{documentUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDocumentDTO>> updateInstructorDocument(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> updateInstructorDocument(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID documentUuid,
             @Valid @RequestBody InstructorDocumentDTO documentDTO) {
         InstructorDocumentDTO updatedDocument = instructorDocumentService.updateInstructorDocument(documentUuid, documentDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedDocument, "Document updated successfully"));
     }
 
@@ -237,13 +237,13 @@ public class InstructorController {
 
     @Operation(summary = "Verify instructor document", description = "Marks a document as verified")
     @PostMapping("/{instructorUuid}/documents/{documentUuid}/verify")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorDocumentDTO>> verifyDocument(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> verifyDocument(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID documentUuid,
             @RequestParam String verifiedBy,
             @RequestParam(required = false) String verificationNotes) {
         InstructorDocumentDTO verifiedDocument = instructorDocumentService.verifyDocument(documentUuid, verifiedBy, verificationNotes);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(verifiedDocument, "Document verified successfully"));
     }
 
@@ -251,33 +251,33 @@ public class InstructorController {
 
     @Operation(summary = "Add education to instructor", description = "Adds educational qualification to an instructor")
     @PostMapping("/{instructorUuid}/education")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorEducationDTO>> addInstructorEducation(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorEducationDTO>> addInstructorEducation(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorEducationDTO educationDTO) {
 
         InstructorEducationDTO createdEducation = instructorEducationService.createInstructorEducation(educationDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdEducation, "Education record added successfully"));
     }
 
     @Operation(summary = "Get instructor education", description = "Retrieves all education records for a specific instructor")
     @GetMapping("/{instructorUuid}/education")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<List<InstructorEducationDTO>>> getInstructorEducation(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<InstructorEducationDTO>>> getInstructorEducation(
             @PathVariable UUID instructorUuid) {
         List<InstructorEducationDTO> education = instructorEducationService.getEducationByInstructorUuid(instructorUuid);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(education, "Education records fetched successfully"));
     }
 
     @Operation(summary = "Update instructor education", description = "Updates a specific education record")
     @PutMapping("/{instructorUuid}/education/{educationUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorEducationDTO>> updateInstructorEducation(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorEducationDTO>> updateInstructorEducation(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID educationUuid,
             @Valid @RequestBody InstructorEducationDTO educationDTO) {
         InstructorEducationDTO updatedEducation = instructorEducationService.updateInstructorEducation(educationUuid, educationDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedEducation, "Education record updated successfully"));
     }
 
@@ -294,24 +294,24 @@ public class InstructorController {
 
     @Operation(summary = "Add experience to instructor", description = "Adds work experience to an instructor")
     @PostMapping("/{instructorUuid}/experience")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorExperienceDTO>> addInstructorExperience(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorExperienceDTO>> addInstructorExperience(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorExperienceDTO experienceDTO) {
 
         InstructorExperienceDTO createdExperience = instructorExperienceService.createInstructorExperience(experienceDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdExperience, "Experience record added successfully"));
     }
 
     @Operation(summary = "Get instructor experience", description = "Retrieves all experience records for a specific instructor")
     @GetMapping("/{instructorUuid}/experience")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> getInstructorExperience(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> getInstructorExperience(
             @PathVariable UUID instructorUuid,
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
         Page<InstructorExperienceDTO> experience = instructorExperienceService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(experience, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Experience records fetched successfully"));
@@ -319,12 +319,12 @@ public class InstructorController {
 
     @Operation(summary = "Update instructor experience", description = "Updates a specific experience record")
     @PutMapping("/{instructorUuid}/experience/{experienceUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorExperienceDTO>> updateInstructorExperience(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorExperienceDTO>> updateInstructorExperience(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID experienceUuid,
             @Valid @RequestBody InstructorExperienceDTO experienceDTO) {
         InstructorExperienceDTO updatedExperience = instructorExperienceService.updateInstructorExperience(experienceUuid, experienceDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedExperience, "Experience record updated successfully"));
     }
 
@@ -341,25 +341,25 @@ public class InstructorController {
 
     @Operation(summary = "Add membership to instructor", description = "Adds professional membership to an instructor")
     @PostMapping("/{instructorUuid}/memberships")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorProfessionalMembershipDTO>> addInstructorMembership(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorProfessionalMembershipDTO>> addInstructorMembership(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorProfessionalMembershipDTO membershipDTO) {
 
         InstructorProfessionalMembershipDTO createdMembership = instructorProfessionalMembershipService
                 .createInstructorProfessionalMembership(membershipDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdMembership, "Membership record added successfully"));
     }
 
     @Operation(summary = "Get instructor memberships", description = "Retrieves all membership records for a specific instructor")
     @GetMapping("/{instructorUuid}/memberships")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> getInstructorMemberships(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> getInstructorMemberships(
             @PathVariable UUID instructorUuid,
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
         Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(memberships, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Membership records fetched successfully"));
@@ -367,12 +367,12 @@ public class InstructorController {
 
     @Operation(summary = "Update instructor membership", description = "Updates a specific membership record")
     @PutMapping("/{instructorUuid}/memberships/{membershipUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorProfessionalMembershipDTO>> updateInstructorMembership(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorProfessionalMembershipDTO>> updateInstructorMembership(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID membershipUuid,
             @Valid @RequestBody InstructorProfessionalMembershipDTO membershipDTO) {
         InstructorProfessionalMembershipDTO updatedMembership = instructorProfessionalMembershipService.updateInstructorProfessionalMembership(membershipUuid, membershipDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedMembership, "Membership record updated successfully"));
     }
 
@@ -389,24 +389,24 @@ public class InstructorController {
 
     @Operation(summary = "Add skill to instructor", description = "Adds a skill to an instructor")
     @PostMapping("/{instructorUuid}/skills")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorSkillDTO>> addInstructorSkill(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorSkillDTO>> addInstructorSkill(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorSkillDTO skillDTO) {
 
         InstructorSkillDTO createdSkill = instructorSkillService.createInstructorSkill(skillDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.common.dto.ApiResponse
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdSkill, "Skill added successfully"));
     }
 
     @Operation(summary = "Get instructor skills", description = "Retrieves all skills for a specific instructor")
     @GetMapping("/{instructorUuid}/skills")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> getInstructorSkills(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> getInstructorSkills(
             @PathVariable UUID instructorUuid,
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
         Page<InstructorSkillDTO> skills = instructorSkillService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(skills, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Skills fetched successfully"));
@@ -414,12 +414,12 @@ public class InstructorController {
 
     @Operation(summary = "Update instructor skill", description = "Updates a specific skill record")
     @PutMapping("/{instructorUuid}/skills/{skillUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<InstructorSkillDTO>> updateInstructorSkill(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorSkillDTO>> updateInstructorSkill(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID skillUuid,
             @Valid @RequestBody InstructorSkillDTO skillDTO) {
         InstructorSkillDTO updatedSkill = instructorSkillService.updateInstructorSkill(skillUuid, skillDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedSkill, "Skill updated successfully"));
     }
 
@@ -458,7 +458,7 @@ public class InstructorController {
                     """
     )
     @GetMapping("/documents/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorDocumentDTO>>> searchDocuments(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorDocumentDTO>>> searchDocuments(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -467,7 +467,7 @@ public class InstructorController {
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorDocumentDTO> documents = instructorDocumentService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(documents, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Document search completed successfully"));
@@ -490,7 +490,7 @@ public class InstructorController {
                     """
     )
     @GetMapping("/education/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorEducationDTO>>> searchEducation(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorEducationDTO>>> searchEducation(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -499,7 +499,7 @@ public class InstructorController {
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorEducationDTO> education = instructorEducationService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(education, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Education search completed successfully"));
@@ -528,7 +528,7 @@ public class InstructorController {
                     """
     )
     @GetMapping("/experience/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> searchExperience(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorExperienceDTO>>> searchExperience(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -537,7 +537,7 @@ public class InstructorController {
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorExperienceDTO> experience = instructorExperienceService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(experience, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Experience search completed successfully"));
@@ -565,7 +565,7 @@ public class InstructorController {
                     """
     )
     @GetMapping("/memberships/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> searchMemberships(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> searchMemberships(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -574,7 +574,7 @@ public class InstructorController {
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(memberships, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Membership search completed successfully"));
@@ -603,7 +603,7 @@ public class InstructorController {
                     """
     )
     @GetMapping("/skills/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> searchSkills(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorSkillDTO>>> searchSkills(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -612,7 +612,7 @@ public class InstructorController {
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         Page<InstructorSkillDTO> skills = instructorSkillService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(skills, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Skills search completed successfully"));

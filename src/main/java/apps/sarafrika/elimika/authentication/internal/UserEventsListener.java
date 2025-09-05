@@ -1,10 +1,10 @@
 package apps.sarafrika.elimika.authentication.internal;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
-import apps.sarafrika.elimika.common.event.user.SuccessfulUserUpdateEvent;
-import apps.sarafrika.elimika.common.event.user.UserCreationEvent;
-import apps.sarafrika.elimika.common.event.user.UserUpdateEvent;
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.event.user.SuccessfulUserUpdateEvent;
+import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
+import apps.sarafrika.elimika.shared.event.user.UserUpdateEvent;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;

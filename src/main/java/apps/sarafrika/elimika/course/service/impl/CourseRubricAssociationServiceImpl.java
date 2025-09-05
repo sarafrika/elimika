@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.common.exceptions.DuplicateResourceException;
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseRubricAssociationDTO;
 import apps.sarafrika.elimika.course.factory.CourseRubricAssociationFactory;
 import apps.sarafrika.elimika.course.model.CourseRubricAssociation;
@@ -16,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;

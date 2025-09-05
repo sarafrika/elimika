@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.availability.controller;
 
 import apps.sarafrika.elimika.availability.dto.*;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
-import apps.sarafrika.elimika.common.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

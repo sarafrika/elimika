@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.student.controller;
 
-import apps.sarafrika.elimika.common.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,9 +39,9 @@ public class StudentController {
      */
     @Operation(summary = "Create a new student", description = "Saves a new student record in the system.", responses = {@ApiResponse(responseCode = "201", description = "Student created successfully", content = @Content(schema = @Schema(implementation = StudentDTO.class))), @ApiResponse(responseCode = "400", description = "Invalid request data")})
     @PostMapping
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<StudentDTO>> createStudent(@Valid @RequestBody StudentDTO studentDTO) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentDTO>> createStudent(@Valid @RequestBody StudentDTO studentDTO) {
         StudentDTO createdStudent = studentService.createStudent(studentDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(apps.sarafrika.elimika.common.dto.ApiResponse.success(createdStudent, "Student created successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(createdStudent, "Student created successfully"));
     }
 
 
@@ -53,9 +53,9 @@ public class StudentController {
      */
     @Operation(summary = "Get student by ID", description = "Fetches a student by their UUID.", responses = {@ApiResponse(responseCode = "200", description = "Student found", content = @Content(schema = @Schema(implementation = StudentDTO.class))), @ApiResponse(responseCode = "404", description = "Student not found")})
     @GetMapping("/{uuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<StudentDTO>> getStudentById(@PathVariable UUID uuid) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentDTO>> getStudentById(@PathVariable UUID uuid) {
         StudentDTO studentDTO = studentService.getStudentByUuId(uuid);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse.success(studentDTO, "Student retrieved successfully"));
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(studentDTO, "Student retrieved successfully"));
     }
 
     /**
@@ -66,9 +66,9 @@ public class StudentController {
      */
     @Operation(summary = "Get all students", description = "Fetches a paginated list of students.")
     @GetMapping
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<StudentDTO>>> getAllStudents(Pageable pageable) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<StudentDTO>>> getAllStudents(Pageable pageable) {
         Page<StudentDTO> students = studentService.getAllStudents(pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse.success(PagedDTO.from(students, ServletUriComponentsBuilder.fromCurrentRequest().build().toString()), "Students retrieved successfully"));
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(PagedDTO.from(students, ServletUriComponentsBuilder.fromCurrentRequest().build().toString()), "Students retrieved successfully"));
     }
 
     /**
@@ -80,9 +80,9 @@ public class StudentController {
      */
     @Operation(summary = "Update a student", description = "Updates an existing student record.", responses = {@ApiResponse(responseCode = "200", description = "Student updated successfully", content = @Content(schema = @Schema(implementation = StudentDTO.class))), @ApiResponse(responseCode = "404", description = "Student not found")})
     @PutMapping("/{uuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<StudentDTO>> updateStudent(@PathVariable UUID uuid, @Valid @RequestBody StudentDTO studentDTO) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentDTO>> updateStudent(@PathVariable UUID uuid, @Valid @RequestBody StudentDTO studentDTO) {
         StudentDTO updatedStudent = studentService.updateStudent(uuid, studentDTO);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse.success(updatedStudent, "Information updated successfully"));
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(updatedStudent, "Information updated successfully"));
     }
 
     /**
@@ -93,9 +93,9 @@ public class StudentController {
      */
     @Operation(summary = "Delete a student", description = "Removes a student record from the system.", responses = {@ApiResponse(responseCode = "204", description = "Student deleted successfully"), @ApiResponse(responseCode = "404", description = "Student not found")})
     @DeleteMapping("/{uuid}")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<Void>> deleteStudent(@PathVariable UUID uuid) {
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<Void>> deleteStudent(@PathVariable UUID uuid) {
         studentService.deleteStudent(uuid);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apps.sarafrika.elimika.common.dto.ApiResponse.success(null, "Student deleted successfully"));
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(null, "Student deleted successfully"));
     }
 
     /**
@@ -107,7 +107,7 @@ public class StudentController {
      */
     @Operation(summary = "Search students", description = "Search for students based on criteria.", responses = {@ApiResponse(responseCode = "200", description = "Search results returned successfully", content = @Content(schema = @Schema(implementation = Page.class)))})
     @GetMapping("/search")
-    public ResponseEntity<apps.sarafrika.elimika.common.dto.ApiResponse<PagedDTO<StudentDTO>>> searchStudents(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<StudentDTO>>> searchStudents(
             @Parameter(
                     description = "Optional search parameters for filtering",
                     schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
@@ -115,6 +115,6 @@ public class StudentController {
             )
             @RequestParam Map<String, String> searchParams, Pageable pageable) {
         Page<StudentDTO> students = studentService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.common.dto.ApiResponse.success(PagedDTO.from(students, ServletUriComponentsBuilder.fromCurrentRequest().build().toString()), "Search successful"));
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(PagedDTO.from(students, ServletUriComponentsBuilder.fromCurrentRequest().build().toString()), "Search successful"));
     }
 }

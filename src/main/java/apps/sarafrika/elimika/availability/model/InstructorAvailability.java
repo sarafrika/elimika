@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.availability.model;
 
 import apps.sarafrika.elimika.availability.util.converter.AvailabilityTypeConverter;
 import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

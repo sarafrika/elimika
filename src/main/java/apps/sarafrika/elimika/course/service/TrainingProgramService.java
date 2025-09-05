@@ -34,7 +34,7 @@ public interface TrainingProgramService {
      *
      * @param uuid the program UUID
      * @return the program DTO with computed properties
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if program not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if program not found
      */
     TrainingProgramDTO getTrainingProgramByUuid(UUID uuid);
 
@@ -52,7 +52,7 @@ public interface TrainingProgramService {
      * @param uuid the program UUID to update
      * @param trainingProgramDTO the updated program data
      * @return the updated program DTO
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if program not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if program not found
      */
     TrainingProgramDTO updateTrainingProgram(UUID uuid, TrainingProgramDTO trainingProgramDTO);
 
@@ -60,7 +60,7 @@ public interface TrainingProgramService {
      * Permanently deletes a training program and its associated data.
      *
      * @param uuid the program UUID to delete
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if program not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if program not found
      */
     void deleteTrainingProgram(UUID uuid);
 
@@ -81,7 +81,7 @@ public interface TrainingProgramService {
      *
      * @param programUuid the program UUID to publish
      * @return the published program DTO
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if program not found
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if program not found
      */
     TrainingProgramDTO publishProgram(UUID programUuid);
 

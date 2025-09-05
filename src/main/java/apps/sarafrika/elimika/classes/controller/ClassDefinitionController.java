@@ -3,7 +3,7 @@ package apps.sarafrika.elimika.classes.controller;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
-import apps.sarafrika.elimika.common.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

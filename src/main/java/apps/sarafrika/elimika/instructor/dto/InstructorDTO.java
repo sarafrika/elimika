@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.dto;
 
-import apps.sarafrika.elimika.common.validation.ValidUrl;
+import apps.sarafrika.elimika.shared.utils.validation.ValidUrl;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;

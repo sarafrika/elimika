@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services;
 
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import org.springframework.data.domain.Page;

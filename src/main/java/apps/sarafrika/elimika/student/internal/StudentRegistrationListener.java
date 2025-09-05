@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.student.internal;
 
-import apps.sarafrika.elimika.common.event.student.RegisterStudent;
+import apps.sarafrika.elimika.shared.event.student.RegisterStudent;
 import apps.sarafrika.elimika.student.model.Student;
 import apps.sarafrika.elimika.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;

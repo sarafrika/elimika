@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.repository;
 
-import apps.sarafrika.elimika.common.enums.DocumentStatus;
+import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.instructor.model.InstructorDocument;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

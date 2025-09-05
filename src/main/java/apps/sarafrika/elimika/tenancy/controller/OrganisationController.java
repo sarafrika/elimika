@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.controller;
 
-import apps.sarafrika.elimika.common.dto.ApiResponse;
-import apps.sarafrika.elimika.common.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;

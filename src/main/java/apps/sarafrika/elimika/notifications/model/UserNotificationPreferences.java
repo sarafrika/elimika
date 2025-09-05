@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.notifications.model;
 
-import apps.sarafrika.elimika.common.model.BaseEntity;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.notifications.api.NotificationCategory;
 import jakarta.persistence.*;
 import lombok.*;

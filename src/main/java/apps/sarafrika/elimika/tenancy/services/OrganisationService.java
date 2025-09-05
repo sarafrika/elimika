@@ -168,7 +168,7 @@ public interface OrganisationService {
      * @param organisationUuid the organization UUID
      * @param userUuid the user UUID
      * @return the user's role/domain name in the organization
-     * @throws apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException if user is not associated with organization
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if user is not associated with organization
      */
     String getUserRoleInOrganisation(UUID organisationUuid, UUID userUuid);
 }

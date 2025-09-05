@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.controller;
 
-import apps.sarafrika.elimika.common.dto.ApiResponse;
-import apps.sarafrika.elimika.common.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
 import io.swagger.v3.oas.annotations.Operation;

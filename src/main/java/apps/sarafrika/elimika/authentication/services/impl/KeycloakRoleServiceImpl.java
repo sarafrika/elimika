@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.authentication.services.impl;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakRoleService;
-import apps.sarafrika.elimika.common.exceptions.KeycloakException;
+import apps.sarafrika.elimika.shared.exceptions.KeycloakException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;

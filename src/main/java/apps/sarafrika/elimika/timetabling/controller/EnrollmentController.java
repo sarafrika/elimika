@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.timetabling.controller;
 
-import apps.sarafrika.elimika.common.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.timetabling.dto.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.dto.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentScheduleDTO;

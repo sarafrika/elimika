@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.student.service.impl;
 
-import apps.sarafrika.elimika.common.enums.UserDomain;
-import apps.sarafrika.elimika.common.event.user.UserDomainMappingEvent;
-import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.common.util.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.factory.StudentFactory;
 import apps.sarafrika.elimika.student.model.Student;
