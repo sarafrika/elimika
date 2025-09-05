@@ -1,0 +1,266 @@
+package apps.sarafrika.elimika.classes.service.impl;
+
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinedEventDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdatedEventDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionDeactivatedEventDTO;
+import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
+import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
+import apps.sarafrika.elimika.classes.factory.RecurrencePatternFactory;
+import apps.sarafrika.elimika.classes.model.ClassDefinition;
+import apps.sarafrika.elimika.classes.model.RecurrencePattern;
+import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
+import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
+import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
+import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
+import apps.sarafrika.elimika.common.exceptions.ResourceNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+@Slf4j
+public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterface, ClassDefinitionService {
+
+    private final ClassDefinitionRepository classDefinitionRepository;
+    private final RecurrencePatternRepository recurrencePatternRepository;
+    private final ApplicationEventPublisher eventPublisher;
+
+    private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
+    private static final String RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE = "Recurrence pattern with UUID %s not found";
+
+    @Override
+    public ClassDefinitionDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
+        log.debug("Creating class definition with title: {}", classDefinitionDTO.title());
+        
+        ClassDefinition entity = ClassDefinitionFactory.toEntity(classDefinitionDTO);
+        
+        // Set defaults
+        if (entity.getMaxParticipants() == null) {
+            entity.setMaxParticipants(50);
+        }
+        if (entity.getAllowWaitlist() == null) {
+            entity.setAllowWaitlist(true);
+        }
+        if (entity.getIsActive() == null) {
+            entity.setIsActive(true);
+        }
+        
+        ClassDefinition savedEntity = classDefinitionRepository.save(entity);
+        ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
+        
+        // Publish domain event
+        ClassDefinedEventDTO event = new ClassDefinedEventDTO(
+                result.uuid(),
+                result.title(),
+                result.durationMinutes(),
+                result.defaultInstructorUuid(),
+                result.courseUuid(),
+                result.organisationUuid(),
+                result.locationType(),
+                result.maxParticipants(),
+                result.allowWaitlist(),
+                result.recurrencePatternUuid()
+        );
+        eventPublisher.publishEvent(event);
+        
+        log.info("Created class definition with UUID: {} and published ClassDefinedEvent", result.uuid());
+        return result;
+    }
+
+    @Override
+    public ClassDefinitionDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinitionDTO) {
+        log.debug("Updating class definition with UUID: {}", definitionUuid);
+        
+        ClassDefinition existingEntity = classDefinitionRepository.findByUuid(definitionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
+        
+        ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
+        
+        ClassDefinition savedEntity = classDefinitionRepository.save(existingEntity);
+        ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
+        
+        // Publish domain event
+        ClassDefinitionUpdatedEventDTO event = new ClassDefinitionUpdatedEventDTO(
+                result.uuid(),
+                result.title()
+        );
+        eventPublisher.publishEvent(event);
+        
+        log.info("Updated class definition with UUID: {} and published ClassDefinitionUpdatedEvent", definitionUuid);
+        return result;
+    }
+
+    @Override
+    public void deactivateClassDefinition(UUID definitionUuid) {
+        log.debug("Deactivating class definition with UUID: {}", definitionUuid);
+        
+        ClassDefinition entity = classDefinitionRepository.findByUuid(definitionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
+        
+        String title = entity.getTitle();
+        entity.setIsActive(false);
+        classDefinitionRepository.save(entity);
+        
+        // Publish domain event
+        ClassDefinitionDeactivatedEventDTO event = new ClassDefinitionDeactivatedEventDTO(
+                definitionUuid,
+                title
+        );
+        eventPublisher.publishEvent(event);
+        
+        log.info("Deactivated class definition with UUID: {} and published ClassDefinitionDeactivatedEvent", definitionUuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ClassDefinitionDTO getClassDefinition(UUID definitionUuid) {
+        log.debug("Retrieving class definition with UUID: {}", definitionUuid);
+        
+        return classDefinitionRepository.findByUuid(definitionUuid)
+                .map(ClassDefinitionFactory::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionDTO> findClassesForCourse(UUID courseUuid) {
+        log.debug("Finding classes for course UUID: {}", courseUuid);
+        
+        return classDefinitionRepository.findByCourseUuid(courseUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionDTO> findActiveClassesForCourse(UUID courseUuid) {
+        log.debug("Finding active classes for course UUID: {}", courseUuid);
+        
+        return classDefinitionRepository.findActiveClassesForCourse(courseUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionDTO> findClassesForInstructor(UUID instructorUuid) {
+        log.debug("Finding classes for instructor UUID: {}", instructorUuid);
+        
+        return classDefinitionRepository.findByDefaultInstructorUuid(instructorUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionDTO> findActiveClassesForInstructor(UUID instructorUuid) {
+        log.debug("Finding active classes for instructor UUID: {}", instructorUuid);
+        
+        return classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionDTO> findClassesForOrganisation(UUID organisationUuid) {
+        log.debug("Finding classes for organisation UUID: {}", organisationUuid);
+        
+        return classDefinitionRepository.findByOrganisationUuid(organisationUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionDTO> findAllActiveClasses() {
+        log.debug("Finding all active classes");
+        
+        return classDefinitionRepository.findByIsActiveTrue()
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public RecurrencePatternDTO createRecurrencePattern(RecurrencePatternDTO recurrencePatternDTO) {
+        log.debug("Creating recurrence pattern with type: {}", recurrencePatternDTO.recurrenceType());
+        
+        RecurrencePattern entity = RecurrencePatternFactory.toEntity(recurrencePatternDTO);
+        
+        // Set defaults
+        if (entity.getIntervalValue() == null) {
+            entity.setIntervalValue(1);
+        }
+        
+        RecurrencePattern savedEntity = recurrencePatternRepository.save(entity);
+        RecurrencePatternDTO result = RecurrencePatternFactory.toDTO(savedEntity);
+        
+        log.info("Created recurrence pattern with UUID: {}", result.uuid());
+        return result;
+    }
+
+    @Override
+    public RecurrencePatternDTO updateRecurrencePattern(UUID patternUuid, RecurrencePatternDTO recurrencePatternDTO) {
+        log.debug("Updating recurrence pattern with UUID: {}", patternUuid);
+        
+        RecurrencePattern existingEntity = recurrencePatternRepository.findByUuid(patternUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
+        
+        RecurrencePatternFactory.updateEntityFromDTO(existingEntity, recurrencePatternDTO);
+        
+        RecurrencePattern savedEntity = recurrencePatternRepository.save(existingEntity);
+        RecurrencePatternDTO result = RecurrencePatternFactory.toDTO(savedEntity);
+        
+        log.info("Updated recurrence pattern with UUID: {}", patternUuid);
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RecurrencePatternDTO getRecurrencePattern(UUID patternUuid) {
+        log.debug("Retrieving recurrence pattern with UUID: {}", patternUuid);
+        
+        return recurrencePatternRepository.findByUuid(patternUuid)
+                .map(RecurrencePatternFactory::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
+    }
+
+    @Override
+    public void deleteRecurrencePattern(UUID patternUuid) {
+        log.debug("Deleting recurrence pattern with UUID: {}", patternUuid);
+        
+        RecurrencePattern entity = recurrencePatternRepository.findByUuid(patternUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
+        
+        // Check if pattern is still in use by any class definitions
+        List<ClassDefinition> dependentClasses = classDefinitionRepository.findAll()
+                .stream()
+                .filter(cd -> patternUuid.equals(cd.getRecurrencePatternUuid()))
+                .toList();
+        
+        if (!dependentClasses.isEmpty()) {
+            throw new IllegalStateException(
+                String.format("Cannot delete recurrence pattern %s - it is still in use by %d class definition(s)", 
+                    patternUuid, dependentClasses.size())
+            );
+        }
+        
+        recurrencePatternRepository.delete(entity);
+        log.info("Deleted recurrence pattern with UUID: {}", patternUuid);
+    }
+}
