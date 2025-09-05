@@ -169,29 +169,25 @@ class OrganisationController {
     // ================================
 
     @Operation(
-            summary = "Create organization invitation",
-            description = "Creates and sends an email invitation for a user to join this specific organization with a defined role. " +
-                    "If a training branch UUID is provided, the invitation will be branch-specific within the organization. " +
-                    "The invitation email will be sent to the recipient with acceptance and decline links containing the unique token."
+            summary = "Create an invitation to the top-level organization",
+            description = "Creates and sends an email invitation for a user to join the organization itself, without assignment to a specific branch. " +
+                    "The user will have the specified role at the organization level. " +
+                    "Use the '/{uuid}/training-branches/{branchUuid}/invitations' endpoint to invite a user directly to a branch."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Invitation created and email sent successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data: duplicate invitation, invalid domain, or branch doesn't belong to organization")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization, inviter user, or training branch not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organization-level invitation created and sent successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data: duplicate invitation or invalid domain")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization or inviter user not found")
     @PostMapping("/{uuid}/invitations")
     public ResponseEntity<ApiResponse<InvitationDTO>> createOrganizationInvitation(
-            @Parameter(description = "UUID of the organization the user is being invited to join. Must be an existing, active organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @Parameter(description = "UUID of the organization the user is being invited to join.", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "Optional UUID of a training branch within the organization. If provided, the invitation will be branch-specific. Must belong to the specified organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440002", required = false)
-            @RequestParam(value = "branch_uuid", required = false) UUID branchUuid,
             @Valid @RequestBody InvitationRequestDTO invitationRequest) {
         InvitationDTO created = invitationService.createOrganisationInvitation(
                 invitationRequest.recipientEmail(),
                 invitationRequest.recipientName(),
                 uuid,
                 invitationRequest.domainName(),
-                branchUuid,
+                null, // Explicitly null for branchUuid, as this is an org-level invitation
                 invitationRequest.inviterUuid(),
                 invitationRequest.notes());
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Invitation created successfully"));
@@ -446,10 +442,9 @@ class OrganisationController {
     }
 
     @Operation(
-            summary = "Create training branch invitation",
+            summary = "Create an invitation to a specific training branch",
             description = "Creates and sends an email invitation for a user to join a specific training branch with a defined role. " +
-                    "This is a specialized invitation that automatically determines the parent organization from the branch. " +
-                    "The invitation email will include branch-specific information and location details."
+                    "This is the sole endpoint for creating branch-specific invitations. The parent organization is inferred from the branch."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Branch invitation created and email sent successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data: duplicate invitation, invalid domain, or invalid branch")
