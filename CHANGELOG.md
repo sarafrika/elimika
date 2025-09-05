@@ -1,3 +1,14 @@
+# [2.10.0](https://github.com/sarafrika/elimika/compare/v2.9.1...v2.10.0) (2025-09-05)
+
+
+### Features
+
+* **assets:** organize and clean up logo files ([cf05285](https://github.com/sarafrika/elimika/commit/cf0528591e45844f267f47ccffa890db266228cf))
+* **classes:** implement comprehensive class definition module ([5802438](https://github.com/sarafrika/elimika/commit/5802438533d7759c8154f03cde5a78d68085c76c))
+* **docs:** update notification guide for developers ([6ae897c](https://github.com/sarafrika/elimika/commit/6ae897c119d8829ed104a3ca7eae3a1c9e4c88c2))
+* **email:** add Elimika logo and Sarafrika branding to email templates ([1464327](https://github.com/sarafrika/elimika/commit/1464327d51734ae3a0cdb39f9a6a3042c947d861))
+* **notifications:** attach full-color logos to all email templates ([2c22704](https://github.com/sarafrika/elimika/commit/2c22704644f1b5e7f75793c376c5b2abd8023057))
+
 ## [2.9.1](https://github.com/sarafrika/elimika/compare/v2.9.0...v2.9.1) (2025-09-05)
 
 
