@@ -1,3 +1,10 @@
+## [2.9.1](https://github.com/sarafrika/elimika/compare/v2.9.0...v2.9.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* **notifications:** resolve DeliveryStatus enum mapping ClassCastException ([5f4fefa](https://github.com/sarafrika/elimika/commit/5f4fefac572aabd3120e3a1f7e47fe2904e74d78))
+
 # [2.9.0](https://github.com/sarafrika/elimika/compare/v2.8.3...v2.9.0) (2025-09-04)
 
 
