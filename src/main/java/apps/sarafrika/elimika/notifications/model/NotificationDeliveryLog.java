@@ -43,7 +43,7 @@ public class NotificationDeliveryLog extends BaseEntity {
     private String deliveryChannel;
     
     @Column(name = "delivery_status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = apps.sarafrika.elimika.notifications.util.converter.DeliveryStatusConverter.class)
     private DeliveryStatus deliveryStatus;
     
     @Column(name = "sent_at")
