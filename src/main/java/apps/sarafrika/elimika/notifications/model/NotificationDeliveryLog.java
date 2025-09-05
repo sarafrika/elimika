@@ -32,11 +32,11 @@ public class NotificationDeliveryLog extends BaseEntity {
     private String recipientEmail;
     
     @Column(name = "notification_type", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = apps.sarafrika.elimika.notifications.util.converter.NotificationTypeConverter.class)
     private NotificationType notificationType;
     
     @Column(name = "priority", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = apps.sarafrika.elimika.notifications.util.converter.NotificationPriorityConverter.class)
     private NotificationPriority priority;
     
     @Column(name = "delivery_channel", nullable = false)

@@ -24,7 +24,7 @@ public class UserNotificationPreferences extends BaseEntity {
     private UUID userUuid;
     
     @Column(name = "category", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = apps.sarafrika.elimika.notifications.util.converter.NotificationCategoryConverter.class)
     private NotificationCategory category;
     
     @Column(name = "email_enabled", nullable = false)
@@ -44,7 +44,7 @@ public class UserNotificationPreferences extends BaseEntity {
     private Boolean pushEnabled = true;
     
     @Column(name = "digest_mode", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = apps.sarafrika.elimika.notifications.util.converter.DigestModeConverter.class)
     @Builder.Default
     private DigestMode digestMode = DigestMode.IMMEDIATE;
     
@@ -56,13 +56,65 @@ public class UserNotificationPreferences extends BaseEntity {
     
     /**
      * How frequently notifications should be delivered
+     * Must match the database constraint: CHECK (digest_mode IN ('IMMEDIATE', 'HOURLY', 'DAILY', 'WEEKLY', 'DISABLED'))
      */
     public enum DigestMode {
-        IMMEDIATE,      // Send notifications immediately
-        HOURLY,         // Batch notifications into hourly summaries
-        DAILY,          // Send daily digest emails
-        WEEKLY,         // Send weekly digest emails
-        DISABLED        // Don't send notifications for this category
+        IMMEDIATE("IMMEDIATE"),      // Send notifications immediately
+        HOURLY("HOURLY"),            // Batch notifications into hourly summaries
+        DAILY("DAILY"),              // Send daily digest emails
+        WEEKLY("WEEKLY"),            // Send weekly digest emails
+        DISABLED("DISABLED");        // Don't send notifications for this category
+        
+        private final String value;
+        private static final java.util.Map<String, DigestMode> VALUE_MAP = new java.util.HashMap<>();
+        
+        static {
+            for (DigestMode mode : DigestMode.values()) {
+                VALUE_MAP.put(mode.value, mode);
+                VALUE_MAP.put(mode.value.toLowerCase(), mode);
+            }
+        }
+        
+        DigestMode(String value) {
+            this.value = value;
+        }
+        
+        @com.fasterxml.jackson.annotation.JsonValue
+        public String getValue() {
+            return value;
+        }
+        
+        @Override
+        public String toString() {
+            return value;
+        }
+        
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public static DigestMode fromValue(String value) {
+            DigestMode mode = VALUE_MAP.get(value);
+            if (mode == null) {
+                throw new IllegalArgumentException("Unknown DigestMode: " + value);
+            }
+            return mode;
+        }
+        
+        public static DigestMode fromString(String value) {
+            return fromValue(value);
+        }
+        
+        /**
+         * Get the database value (same as getValue())
+         */
+        public String getDatabaseValue() {
+            return this.value;
+        }
+        
+        /**
+         * Create enum from database value (same as fromValue())
+         */
+        public static DigestMode fromDatabaseValue(String value) {
+            return fromValue(value);
+        }
     }
     
     /**
