@@ -1,3 +1,11 @@
+# [2.12.0](https://github.com/sarafrika/elimika/compare/v2.11.0...v2.12.0) (2025-09-05)
+
+
+### Features
+
+* **availability:** add instructor availability management module ([398373e](https://github.com/sarafrika/elimika/commit/398373ea6c3d6fe2d84ca83398fc1afc3d8e903d))
+* **timetabling:** add complete timetabling and scheduling module ([f8e5e7b](https://github.com/sarafrika/elimika/commit/f8e5e7b91d5257e14ab94de74fdaf42f094275ba))
+
 # [2.11.0](https://github.com/sarafrika/elimika/compare/v2.10.0...v2.11.0) (2025-09-05)
 
 
