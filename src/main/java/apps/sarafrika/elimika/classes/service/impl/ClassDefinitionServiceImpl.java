@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.service.impl;
 
+import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdatedEventDTO;
@@ -32,6 +33,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     private final ClassDefinitionRepository classDefinitionRepository;
     private final RecurrencePatternRepository recurrencePatternRepository;
+    private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
@@ -42,6 +44,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Creating class definition with title: {}", classDefinitionDTO.title());
         
         ClassDefinition entity = ClassDefinitionFactory.toEntity(classDefinitionDTO);
+        
+        // Validate instructor availability
+        validateInstructorAvailability(entity.getDefaultInstructorUuid());
         
         // Set defaults
         if (entity.getMaxParticipants() == null) {
@@ -262,5 +267,44 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         
         recurrencePatternRepository.delete(entity);
         log.info("Deleted recurrence pattern with UUID: {}", patternUuid);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasInstructorAvailability(UUID instructorUuid) {
+        log.debug("Checking if instructor {} has availability defined", instructorUuid);
+        
+        if (instructorUuid == null) {
+            throw new IllegalArgumentException("Instructor UUID cannot be null");
+        }
+
+        try {
+            var availability = availabilityService.getAvailabilityForInstructor(instructorUuid);
+            boolean hasAvailability = !availability.isEmpty();
+            log.debug("Instructor {} availability check: {}", instructorUuid, hasAvailability ? "HAS availability" : "NO availability");
+            return hasAvailability;
+        } catch (Exception e) {
+            log.warn("Error checking availability for instructor {}: {}", instructorUuid, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Validates that an instructor has availability defined before creating a class.
+     * Logs a warning if no availability is found but doesn't prevent class creation.
+     *
+     * @param instructorUuid The UUID of the instructor to validate
+     */
+    private void validateInstructorAvailability(UUID instructorUuid) {
+        try {
+            var availability = availabilityService.getAvailabilityForInstructor(instructorUuid);
+            if (availability.isEmpty()) {
+                log.warn("Instructor {} has no availability defined. Consider setting availability patterns before scheduling classes.", instructorUuid);
+            } else {
+                log.debug("Instructor {} has {} availability slots defined", instructorUuid, availability.size());
+            }
+        } catch (Exception e) {
+            log.warn("Could not validate availability for instructor {}: {}", instructorUuid, e.getMessage());
+        }
     }
 }

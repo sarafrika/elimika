@@ -25,7 +25,7 @@
  * @since 2.9.2
  */
 @ApplicationModule(
-    allowedDependencies = {"shared"}
+    allowedDependencies = {"shared", "availability"}
 )
 package apps.sarafrika.elimika.classes;
 

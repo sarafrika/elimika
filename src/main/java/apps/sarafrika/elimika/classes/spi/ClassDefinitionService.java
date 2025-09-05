@@ -153,4 +153,14 @@ public interface ClassDefinitionService {
      * @throws RuntimeException if recurrence pattern is not found or still in use
      */
     void deleteRecurrencePattern(UUID patternUuid);
+
+    /**
+     * Checks if an instructor has availability defined for their classes.
+     * This is a utility method for other modules to validate scheduling feasibility.
+     *
+     * @param instructorUuid The UUID of the instructor to check
+     * @return true if the instructor has any availability patterns defined, false otherwise
+     * @throws IllegalArgumentException if the UUID is null or invalid
+     */
+    boolean hasInstructorAvailability(UUID instructorUuid);
 }
