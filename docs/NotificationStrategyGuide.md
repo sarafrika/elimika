@@ -273,6 +273,132 @@ New users receive intelligently configured default settings:
 - **Consent Management**: Detailed tracking of user permissions
 - **Privacy by Design**: Default settings prioritize user privacy
 
+---
+
+## Developer Guide: Implementing and Triggering Notifications
+
+This section provides a technical guide for developers on how to work with the notification system.
+
+### Core Concepts
+
+The notification system is built on an event-driven architecture. To send a notification, you publish a `NotificationEvent`. The system listens for these events and handles the delivery through the appropriate channels (Email, In-App, SMS, Push) based on user preferences and notification type.
+
+- **`NotificationEvent`**: The base interface for all notification events. It defines the common data required for any notification, such as recipient, priority, and template variables.
+- **`NotificationService`**: The service responsible for sending notifications. It's an abstraction layer that decouples the event producers from the notification delivery logic.
+- **Event Listeners**: The system uses event listeners to subscribe to `NotificationEvent`s and trigger the `NotificationService`.
+
+### Available Notification Events
+
+Here is a list of the currently available `NotificationEvent`s, their purpose, and the template variables they expect.
+
+#### 1. `AssignmentDueReminderEvent`
+- **Description**: Sent to students to remind them of an upcoming assignment deadline.
+- **Trigger**: A scheduled job that runs periodically to check for upcoming assignment due dates.
+- **Template Variables**:
+  - `recipientName` (String): The name of the student.
+  - `assignmentTitle` (String): The title of the assignment.
+  - `courseName` (String): The name of the course.
+  - `dueDate` (LocalDateTime): The due date of the assignment.
+  - `daysUntilDue` (int): The number of days until the assignment is due.
+  - `isUrgent` (boolean): `true` if the assignment is due within one day.
+  - `assignmentId` (UUID): The ID of the assignment.
+
+#### 2. `AssignmentGradedEvent`
+- **Description**: Sent to a student when their assignment has been graded.
+- **Trigger**: An instructor grades an assignment.
+- **Template Variables**:
+  - `recipientName` (String): The name of the student.
+  - `assignmentTitle` (String): The title of the assignment.
+  - `courseName` (String): The name of the course.
+  - `score` (BigDecimal): The score the student received.
+  - `maxScore` (BigDecimal): The maximum possible score.
+  - `percentage` (BigDecimal): The calculated percentage score.
+  - `instructorName` (String): The name of the instructor who graded the assignment.
+  - `instructorComments` (String): Any comments left by the instructor.
+  - `hasFeedback` (boolean): `true` if the instructor left comments.
+  - `assignmentId` (UUID): The ID of the assignment.
+  - `gradeLevel` (String): A descriptive grade level (e.g., "excellent", "good").
+
+#### 3. `CourseEnrollmentWelcomeEvent`
+- **Description**: Sent to a student when they enroll in a course.
+- **Trigger**: A student enrolls in a course.
+- **Template Variables**:
+  - `recipientName` (String): The name of the student.
+  - `courseName` (String): The name of the course.
+  - `courseDescription` (String): A brief description of the course.
+  - `instructorName` (String): The name of the course instructor.
+  - `courseStartDate` (LocalDateTime): The start date of the course.
+  - `estimatedDurationWeeks` (int): The estimated duration of the course in weeks.
+  - `courseImageUrl` (String): A URL for the course image.
+  - `courseId` (UUID): The ID of the course.
+  - `isStartingSoon` (boolean): `true` if the course starts within 7 days.
+  - `welcomeMessage` (String): A personalized welcome message.
+
+#### 4. `InvitationAcceptedEvent`
+- **Description**: Sent to a user when they accept an invitation to join an organization.
+- **Trigger**: A user clicks the "accept" link in an invitation email.
+- **Template Variables**:
+  - `recipientName` (String): The name of the user who accepted the invitation.
+  - `organizationName` (String): The name of the organization they joined.
+  - `branchName` (String): The name of the branch they joined.
+  - `roleName` (String): The role they were assigned.
+  - `loginUrl` (String): The URL to the login page.
+
+#### 5. `InvitationDeclinedEvent`
+- **Description**: Sent to an organization admin when a user declines an invitation.
+- **Trigger**: A user clicks the "decline" link in an invitation email.
+- **Template Variables**:
+  - `adminName` (String): The name of the organization admin who sent the invitation.
+  - `declinedUserName` (String): The name of the user who declined.
+  - `declinedUserEmail` (String): The email of the user who declined.
+  - `organizationName` (String): The name of the organization.
+  - `branchName` (String): The name of the branch.
+
+#### 6. `NewAssignmentSubmissionEvent`
+- **Description**: Sent to an instructor when a student submits an assignment.
+- **Trigger**: A student submits an assignment.
+- **Template Variables**:
+  - `recipientName` (String): The name of the instructor.
+  - `assignmentTitle` (String): The title of the submitted assignment.
+  - `courseName` (String): The name of the course.
+  - `assignmentId` (UUID): The ID of the assignment.
+  - `submissionId` (UUID): The ID of the submission.
+  - `studentName` (String): The name of the student who submitted.
+  - `studentEmail` (String): The email of the student.
+  - `submittedAt` (LocalDateTime): The timestamp of the submission.
+  - `dueDate` (LocalDateTime): The due date of the assignment.
+  - `submissionText` (String): The text content of the submission.
+  - `attachmentFileNames` (List<String>): A list of file names for any attachments.
+  - `hasAttachments` (boolean): `true` if there are attachments.
+  - `isLate` (boolean): `true` if the submission was after the due date.
+
+#### 7. `OrganizationInvitationEvent`
+- **Description**: Sent to a user when they are invited to join an organization.
+- **Trigger**: An organization admin invites a user to the platform.
+- **Template Variables**:
+  - `recipientName` (String): The name of the invited user.
+  - `organizationName` (String): The name of the organization.
+  - `organizationDomain` (String): The domain of the organization.
+  - `roleName` (String): The role the user is being invited to.
+  - `branchName` (String): The branch the user is being invited to.
+  - `inviterName` (String): The name of the person who sent the invitation.
+  - `notes` (String): Any notes included with the invitation.
+  - `acceptUrl` (String): The URL to accept the invitation.
+  - `declineUrl` (String): The URL to decline the invitation.
+
+#### 8. `OrganizationRegistrationSuccessEvent`
+- **Description**: Sent to an organization admin when their organization is successfully registered.
+- **Trigger**: A new organization is successfully created.
+- **Template Variables**:
+  - `userName` (String): The name of the admin who registered the organization.
+  - `organisationName` (String): The name of the newly registered organization.
+
+### How to Trigger a Notification
+
+As a front-end developer, you won't directly trigger notifications. Instead, your actions in the UI will trigger API calls to the back-end, which will then publish the appropriate `NotificationEvent`. For example, when a user fills out the "Invite User" form and clicks "Send Invitation," the front-end will make a `POST` request to the `/api/invitations` endpoint. The back-end will then handle the logic of creating and sending the invitation, and it will publish an `OrganizationInvitationEvent`.
+
+Your primary responsibility is to ensure that the UI provides all the necessary data for the back-end to create these events. This guide should help you understand what data is needed for each notification type.
+
 ## Conclusion
 
 This notification strategy transforms Elimika from a basic learning platform into an intelligent, engaging educational ecosystem. By focusing on user needs, respecting preferences, and delivering value through every communication, we create a notification system that genuinely enhances the learning experience rather than interrupting it.
