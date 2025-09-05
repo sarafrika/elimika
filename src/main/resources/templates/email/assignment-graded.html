@@ -245,7 +245,7 @@
     <!-- Header -->
     <div class="header">
         <div class="logo">
-            <img th:src="${logoUrl}" alt="Logo" />
+            <img src="cid:elimikaLogo" alt="Elimika Logo" />
         </div>
         <h1>🎉 Assignment Graded!</h1>
         <p>Your work on [[${assignmentTitle}]] has been reviewed</p>
@@ -333,6 +333,12 @@
         <p style="margin-top: 20px; font-size: 12px;">
             © [[${currentYear}]] [[${companyName}]]. All rights reserved.
         </p>
+        <div style="margin-top: 20px;">
+            <p style="font-size: 12px; color: #718096;">Powered by</p>
+            <a href="https://sarafrika.com" target="_blank">
+                <img src="cid:sarafrikaLogo" alt="Sarafrika Logo" style="width: 100px; height: auto;" />
+            </a>
+        </div>
     </div>
 </div>
 </body>
