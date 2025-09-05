@@ -1,3 +1,10 @@
+# [2.11.0](https://github.com/sarafrika/elimika/compare/v2.10.0...v2.11.0) (2025-09-05)
+
+
+### Features
+
+* **db:** add audit fields to recurrence patterns table ([19a7e92](https://github.com/sarafrika/elimika/commit/19a7e92e6ba7c1c6f6148c3c9695ab8b1eb44e93))
+
 # [2.10.0](https://github.com/sarafrika/elimika/compare/v2.9.1...v2.10.0) (2025-09-05)
 
 
