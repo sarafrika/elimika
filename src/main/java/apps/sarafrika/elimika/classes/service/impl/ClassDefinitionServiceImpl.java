@@ -66,7 +66,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         ClassDefinedEventDTO event = new ClassDefinedEventDTO(
                 result.uuid(),
                 result.title(),
-                result.durationMinutes(),
+                (int) result.getDurationMinutes(),
                 result.defaultInstructorUuid(),
                 result.courseUuid(),
                 result.organisationUuid(),

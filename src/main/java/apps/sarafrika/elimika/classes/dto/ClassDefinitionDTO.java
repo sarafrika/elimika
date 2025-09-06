@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -107,16 +108,24 @@ public record ClassDefinitionDTO(
         UUID courseUuid,
 
         @Schema(
-                description = "**[REQUIRED]** Default duration of the class in minutes.",
-                example = "90",
-                minimum = "1",
-                maximum = "480",
+                description = "**[REQUIRED]** Default start time for class sessions.",
+                example = "09:00:00",
+                format = "time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotNull(message = "Duration in minutes is required")
-        @Positive(message = "Duration must be positive")
-        @JsonProperty("duration_minutes")
-        Integer durationMinutes,
+        @NotNull(message = "Default start time is required")
+        @JsonProperty("default_start_time")
+        LocalTime defaultStartTime,
+
+        @Schema(
+                description = "**[REQUIRED]** Default end time for class sessions.",
+                example = "10:30:00",
+                format = "time",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "Default end time is required")
+        @JsonProperty("default_end_time")
+        LocalTime defaultEndTime,
 
         @Schema(
                 description = "**[REQUIRED]** Default delivery format for the class.",
@@ -208,6 +217,24 @@ public record ClassDefinitionDTO(
 ) {
 
     /**
+     * Returns the computed duration in minutes based on start and end times.
+     *
+     * @return Duration in minutes
+     */
+    @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Computed duration of the class in minutes based on start and end times.",
+            example = "90",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public long getDurationMinutes() {
+        if (defaultStartTime == null || defaultEndTime == null) {
+            return 0;
+        }
+        return java.time.Duration.between(defaultStartTime, defaultEndTime).toMinutes();
+    }
+
+    /**
      * Returns a formatted duration string.
      *
      * @return Human-readable duration format (e.g., "1h 30m", "45m")
@@ -219,12 +246,13 @@ public record ClassDefinitionDTO(
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public String getDurationFormatted() {
-        if (durationMinutes == null || durationMinutes <= 0) {
+        long durationMinutes = getDurationMinutes();
+        if (durationMinutes <= 0) {
             return "0m";
         }
 
-        int hours = durationMinutes / 60;
-        int minutes = durationMinutes % 60;
+        long hours = durationMinutes / 60;
+        long minutes = durationMinutes % 60;
 
         if (hours > 0 && minutes > 0) {
             return hours + "h " + minutes + "m";

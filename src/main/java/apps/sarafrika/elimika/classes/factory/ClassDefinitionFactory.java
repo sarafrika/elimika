@@ -19,7 +19,8 @@ public class ClassDefinitionFactory {
                 entity.getDefaultInstructorUuid(),
                 entity.getOrganisationUuid(),
                 entity.getCourseUuid(),
-                entity.getDurationMinutes(),
+                entity.getDefaultStartTime(),
+                entity.getDefaultEndTime(),
                 entity.getLocationType(),
                 entity.getMaxParticipants(),
                 entity.getAllowWaitlist(),
@@ -43,7 +44,8 @@ public class ClassDefinitionFactory {
         entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
         entity.setOrganisationUuid(dto.organisationUuid());
         entity.setCourseUuid(dto.courseUuid());
-        entity.setDurationMinutes(dto.durationMinutes());
+        entity.setDefaultStartTime(dto.defaultStartTime());
+        entity.setDefaultEndTime(dto.defaultEndTime());
         entity.setLocationType(dto.locationType());
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setAllowWaitlist(dto.allowWaitlist());
@@ -72,8 +74,11 @@ public class ClassDefinitionFactory {
         if (dto.courseUuid() != null) {
             entity.setCourseUuid(dto.courseUuid());
         }
-        if (dto.durationMinutes() != null) {
-            entity.setDurationMinutes(dto.durationMinutes());
+        if (dto.defaultStartTime() != null) {
+            entity.setDefaultStartTime(dto.defaultStartTime());
+        }
+        if (dto.defaultEndTime() != null) {
+            entity.setDefaultEndTime(dto.defaultEndTime());
         }
         if (dto.locationType() != null) {
             entity.setLocationType(dto.locationType());

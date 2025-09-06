@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
@@ -33,8 +34,11 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "course_uuid")
     private UUID courseUuid;
 
-    @Column(name = "duration_minutes")
-    private Integer durationMinutes;
+    @Column(name = "default_start_time")
+    private LocalTime defaultStartTime;
+
+    @Column(name = "default_end_time")
+    private LocalTime defaultEndTime;
 
     @Column(name = "location_type")
     private LocationType locationType;
