@@ -39,7 +39,42 @@ graph TD
 
 ---
 
-## 3. Core Task: Building the Availability Calendar
+## 3. API Call Sequences
+
+The following diagram illustrates the sequence of API calls for setting and checking instructor availability:
+
+```mermaid
+sequenceDiagram
+    participant I as Instructor
+    participant A as Admin
+    participant UI as Frontend UI
+    participant AvailAPI as Availability API
+    participant ClassAPI as Class API
+
+    I->>UI: 1. Sets weekly availability (e.g., Mon 9-5)
+    UI->>AvailAPI: POST /instructors/{id}/weekly
+    AvailAPI-->>UI: Success
+
+    A->>UI: 2. Tries to schedule a new class for Instructor
+    UI->>ClassAPI: GET /classes/{id}/schedule/conflicts
+    ClassAPI->>AvailAPI: checkInstructorAvailability(time)
+    AvailAPI-->>ClassAPI: Returns 'true' or 'false'
+    ClassAPI-->>UI: Returns conflicts (if any)
+
+    alt No Conflicts
+        UI->>A: Shows success message
+        A->>UI: Confirms schedule
+        UI->>ClassAPI: POST /classes/{id}/schedule
+        ClassAPI-->>UI: Schedule created
+    else Conflicts Found
+        UI->>A: Displays conflict details
+        A->>UI: Adjusts schedule and retries
+    end
+```
+
+---
+
+## 4. Core Task: Building the Availability Calendar
 
 The primary UI is a weekly calendar where instructors can manage their availability.
 
@@ -92,7 +127,7 @@ The response will be a list of `AvailabilitySlotDTO` objects. Your UI should ren
 
 ---
 
-## 4. Managing Availability Patterns
+## 5. Managing Availability Patterns
 
 Instructors can define their availability in several ways.
 
@@ -146,7 +181,7 @@ This will create a new `AvailabilitySlot` with `is_available` set to `false`.
 
 ---
 
-## 5. Checking Availability
+## 6. Checking Availability
 
 This is a crucial integration point for other modules, like **Class Definition Management**. Before scheduling a class, you must check if the instructor is available.
 
@@ -191,7 +226,7 @@ GET /api/v1/availability/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/check?
 
 ---
 
-## 6. Data Structures for Frontend
+## 7. Data Structures for Frontend
 
 ### `AvailabilitySlotDTO`
 

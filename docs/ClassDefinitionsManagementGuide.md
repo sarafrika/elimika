@@ -37,7 +37,60 @@ graph TB
 
 ---
 
-## 3. Core Concepts for Frontend Developers
+## 3. API Call Sequences
+
+### Workflow 1: Standalone Class with Fixed Schedule
+
+```mermaid
+sequenceDiagram
+    participant I as Instructor
+    participant API as Classes API
+    participant DB as Database
+    participant T as Timetabling
+
+    I->>API: 1. POST /classes (basic info + times)
+    API->>DB: Save class definition
+    API->>I: Return class UUID
+
+    I->>API: 2. POST /classes/recurrence-patterns
+    API->>DB: Save pattern (WEEKLY: Mon,Wed,Fri)
+    API->>I: Return pattern UUID
+
+    I->>API: 3. PUT /classes/{uuid} (link pattern)
+    API->>DB: Update class with pattern UUID
+
+    I->>API: 4. POST /classes/{uuid}/schedule
+    API->>API: Generate schedule instances
+    API->>T: Create scheduled instances
+    API->>I: Return 48 scheduled instances
+```
+
+### Workflow 2: Course-Based Class Series
+
+```mermaid
+sequenceDiagram
+    participant A as Admin
+    participant API as Classes API
+    participant C as Course API
+    participant DB as Database
+
+    A->>C: 1. Create course structure
+    C->>DB: Save course
+
+    A->>API: 2. POST /classes (with course_uuid)
+    API->>DB: Save class linked to course
+
+    A->>API: 3. Create weekly pattern
+    API->>DB: Save recurrence pattern
+
+    A->>API: 4. Schedule semester classes
+    API->>API: Generate 16-week schedule
+    API->>A: Return full semester schedule
+```
+
+---
+
+## 4. Core Concepts for Frontend Developers
 
 ### Class Definition vs. Scheduled Instance
 
@@ -54,7 +107,7 @@ graph TB
 
 ---
 
-## 4. Frontend Integration Quick Start
+## 5. Frontend Integration Quick Start
 
 This section provides a task-oriented guide to implementing the frontend UI.
 
@@ -237,7 +290,7 @@ POST /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule?startDate=202
 
 ---
 
-## 5. Managing Existing Classes
+## 6. Managing Existing Classes
 
 ### Listing and Filtering
 
@@ -256,7 +309,7 @@ You can use the `activeOnly=true` query parameter to filter for active classes.
 
 ---
 
-## 6. Advanced UI Considerations
+## 7. Advanced UI Considerations
 
 ### Handling Scheduling Conflicts
 
