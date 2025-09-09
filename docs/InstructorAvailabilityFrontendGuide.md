@@ -9,7 +9,37 @@ This guide provides frontend engineers with a comprehensive walkthrough for inte
 
 ---
 
-## 2. Core Task: Building the Availability Calendar
+## 2. Data Flow
+
+The following diagram illustrates the data flow for instructor availability:
+
+```mermaid
+graph TD
+    subgraph "Instructor Availability Data Flow"
+        A[Instructor] -- Manages --> B(Availability Slots)
+        B -- Can be part of --> C{Availability Pattern}
+        C -- Defines --> D[Weekly Schedule]
+        C -- Defines --> E[Date-specific Overrides]
+
+        F[Scheduling Engine] -- Checks against --> B
+        F -- Is triggered by --> G(New Class Schedule)
+        G -- Requires --> H[Instructor]
+
+        B -- Determines --> I{Is Available?}
+        I -- Yes --> J[Class Scheduled]
+        I -- No --> K[Conflict Detected]
+    end
+
+    style A fill:#e3f2fd
+    style B fill:#c8e6c9
+    style C fill:#fff3e0
+    style F fill:#4caf50
+    style K fill:#ffcdd2
+```
+
+---
+
+## 3. Core Task: Building the Availability Calendar
 
 The primary UI is a weekly calendar where instructors can manage their availability.
 
@@ -62,7 +92,7 @@ The response will be a list of `AvailabilitySlotDTO` objects. Your UI should ren
 
 ---
 
-## 3. Managing Availability Patterns
+## 4. Managing Availability Patterns
 
 Instructors can define their availability in several ways.
 
@@ -116,7 +146,7 @@ This will create a new `AvailabilitySlot` with `is_available` set to `false`.
 
 ---
 
-## 4. Checking Availability
+## 5. Checking Availability
 
 This is a crucial integration point for other modules, like **Class Definition Management**. Before scheduling a class, you must check if the instructor is available.
 
@@ -161,7 +191,7 @@ GET /api/v1/availability/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/check?
 
 ---
 
-## 5. Data Structures for Frontend
+## 6. Data Structures for Frontend
 
 ### `AvailabilitySlotDTO`
 

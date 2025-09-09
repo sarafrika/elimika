@@ -8,7 +8,36 @@ This guide provides frontend engineers with the necessary information to integra
 
 ---
 
-## 2. Core Concepts for Frontend Developers
+## 2. Data Flow
+
+The following diagram illustrates the data flow for class definition and scheduling:
+
+```mermaid
+graph TB
+    subgraph "Class Management Architecture"
+        A[Class Definition] --> B[Recurrence Pattern]
+        B --> C[Recurring Schedule Engine]
+        C --> D[Scheduled Instances]
+
+        E[Instructor Availability] --> C
+        F[Conflict Detection] --> C
+
+        A -.-> G[Course Association]
+        A -.-> H[Organization Context]
+        A -.-> I[Instructor Assignment]
+
+        D --> J[Student Enrollments]
+        D --> K[Timetable Integration]
+    end
+
+    style A fill:#e3f2fd
+    style C fill:#4caf50
+    style D fill:#fff3e0
+```
+
+---
+
+## 3. Core Concepts for Frontend Developers
 
 ### Class Definition vs. Scheduled Instance
 
@@ -25,7 +54,7 @@ This guide provides frontend engineers with the necessary information to integra
 
 ---
 
-## 3. Frontend Integration Quick Start
+## 4. Frontend Integration Quick Start
 
 This section provides a task-oriented guide to implementing the frontend UI.
 
@@ -208,7 +237,7 @@ POST /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule?startDate=202
 
 ---
 
-## 4. Managing Existing Classes
+## 5. Managing Existing Classes
 
 ### Listing and Filtering
 
@@ -227,7 +256,7 @@ You can use the `activeOnly=true` query parameter to filter for active classes.
 
 ---
 
-## 5. Advanced UI Considerations
+## 6. Advanced UI Considerations
 
 ### Handling Scheduling Conflicts
 
