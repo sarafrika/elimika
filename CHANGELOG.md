@@ -1,3 +1,10 @@
+# [2.14.0](https://github.com/sarafrika/elimika/compare/v2.13.0...v2.14.0) (2025-09-09)
+
+
+### Features
+
+* **api:** Improve API clarity and documentation ([1feac42](https://github.com/sarafrika/elimika/commit/1feac429941dc0294b0ae4f3abbf730a0f327527))
+
 # [2.13.0](https://github.com/sarafrika/elimika/compare/v2.12.0...v2.13.0) (2025-09-06)
 
 
