@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/classes")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Class Definitions API", description = "Complete class definition management including templates, recurrence patterns, and scheduling rules")
+@Tag(name = "Class Definition Management", description = "APIs for creating and managing class definitions, recurrence patterns, and scheduling.")
 @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
 public class ClassDefinitionController {
 
@@ -39,7 +39,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassDefinition(
             @Valid @RequestBody ClassDefinitionDTO request) {
         log.debug("REST request to create class definition: {}", request.title());
         
@@ -51,7 +51,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definition retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> getDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> getClassDefinition(
             @Parameter(description = "UUID of the class definition to retrieve", required = true)
             @PathVariable UUID uuid) {
         log.debug("REST request to get class definition: {}", uuid);
@@ -65,7 +65,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> updateDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> updateClassDefinition(
             @Parameter(description = "UUID of the class definition to update", required = true)
             @PathVariable UUID uuid,
             @Valid @RequestBody ClassDefinitionDTO request) {
@@ -79,7 +79,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definition deactivated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @DeleteMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<Void>> deactivateDefinition(
+    public ResponseEntity<ApiResponse<Void>> deactivateClassDefinition(
             @Parameter(description = "UUID of the class definition to deactivate", required = true)
             @PathVariable UUID uuid) {
         log.debug("REST request to deactivate class definition: {}", uuid);
@@ -95,7 +95,7 @@ public class ClassDefinitionController {
     @Operation(summary = "Get class definitions for a course")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/course/{courseUuid}")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassesForCourse(
+    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassDefinitionsForCourse(
             @Parameter(description = "UUID of the course", required = true)
             @PathVariable UUID courseUuid,
             @Parameter(description = "Whether to include only active class definitions")
@@ -111,7 +111,7 @@ public class ClassDefinitionController {
     @Operation(summary = "Get class definitions for an instructor")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/instructor/{instructorUuid}")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassesForInstructor(
+    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassDefinitionsForInstructor(
             @Parameter(description = "UUID of the instructor", required = true)
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Whether to include only active class definitions")
@@ -127,7 +127,7 @@ public class ClassDefinitionController {
     @Operation(summary = "Get class definitions for an organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassesForOrganisation(
+    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassDefinitionsForOrganisation(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid) {
         log.debug("REST request to get classes for organisation: {}", organisationUuid);
@@ -139,7 +139,7 @@ public class ClassDefinitionController {
     @Operation(summary = "Get all active class definitions")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active class definitions retrieved successfully")
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getAllActiveClasses() {
+    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getAllActiveClassDefinitions() {
         log.debug("REST request to get all active classes");
         
         List<ClassDefinitionDTO> result = classDefinitionService.findAllActiveClasses();
@@ -154,7 +154,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Recurrence pattern created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/recurrence-patterns")
-    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> createRecurrencePattern(
+    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> createClassRecurrencePattern(
             @Valid @RequestBody RecurrencePatternDTO request) {
         log.debug("REST request to create recurrence pattern: {}", request.recurrenceType());
         
@@ -166,7 +166,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurrence pattern retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Recurrence pattern not found")
     @GetMapping("/recurrence-patterns/{uuid}")
-    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> getRecurrencePattern(
+    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> getClassRecurrencePattern(
             @Parameter(description = "UUID of the recurrence pattern to retrieve", required = true)
             @PathVariable UUID uuid) {
         log.debug("REST request to get recurrence pattern: {}", uuid);
@@ -180,7 +180,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Recurrence pattern not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/recurrence-patterns/{uuid}")
-    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> updateRecurrencePattern(
+    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> updateClassRecurrencePattern(
             @Parameter(description = "UUID of the recurrence pattern to update", required = true)
             @PathVariable UUID uuid,
             @Valid @RequestBody RecurrencePatternDTO request) {
@@ -195,7 +195,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Recurrence pattern is still in use")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Recurrence pattern not found")
     @DeleteMapping("/recurrence-patterns/{uuid}")
-    public ResponseEntity<ApiResponse<Void>> deleteRecurrencePattern(
+    public ResponseEntity<ApiResponse<Void>> deleteClassRecurrencePattern(
             @Parameter(description = "UUID of the recurrence pattern to delete", required = true)
             @PathVariable UUID uuid) {
         log.debug("REST request to delete recurrence pattern: {}", uuid);
@@ -213,7 +213,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data or class definition has no recurrence pattern")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @PostMapping("/{uuid}/schedule")
-    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> scheduleRecurringClass(
+    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> scheduleRecurringClassFromDefinition(
             @Parameter(description = "UUID of the class definition to schedule", required = true)
             @PathVariable UUID uuid,
             @Parameter(description = "Date to start scheduling from (YYYY-MM-DD)", required = true)
@@ -232,7 +232,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurring schedule updated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @PutMapping("/{uuid}/schedule")
-    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> updateRecurringSchedule(
+    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> updateRecurringClassSchedule(
             @Parameter(description = "UUID of the class definition to update schedule for", required = true)
             @PathVariable UUID uuid) {
         
@@ -247,7 +247,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurring schedule cancelled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @DeleteMapping("/{uuid}/schedule")
-    public ResponseEntity<ApiResponse<Void>> cancelRecurringSchedule(
+    public ResponseEntity<ApiResponse<Void>> cancelRecurringClassSchedule(
             @Parameter(description = "UUID of the class definition to cancel schedule for", required = true)
             @PathVariable UUID uuid,
             @Parameter(description = "Reason for cancellation", required = true)
@@ -265,7 +265,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data or class definition has no recurrence pattern")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @GetMapping("/{uuid}/schedule/preview")
-    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> previewRecurringSchedule(
+    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> previewRecurringClassSchedule(
             @Parameter(description = "UUID of the class definition to preview", required = true)
             @PathVariable UUID uuid,
             @Parameter(description = "Date to start preview from (YYYY-MM-DD)", required = true)
@@ -286,7 +286,7 @@ public class ClassDefinitionController {
     @Operation(summary = "Check for scheduling conflicts")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Conflict check completed")
     @GetMapping("/{uuid}/schedule/conflicts")
-    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> checkSchedulingConflicts(
+    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> checkClassSchedulingConflicts(
             @Parameter(description = "UUID of the class definition to check", required = true)
             @PathVariable UUID uuid,
             @Parameter(description = "Date to start checking from (YYYY-MM-DD)", required = true)

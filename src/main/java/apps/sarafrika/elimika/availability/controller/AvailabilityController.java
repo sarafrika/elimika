@@ -23,7 +23,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/availability")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Instructor Availability API", description = "Complete instructor availability management including daily, weekly, monthly, and custom patterns")
+@Tag(name = "Instructor Availability Management", description = "APIs for managing instructor availability, including recurring patterns, blocked time, and availability checks.")
 @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
 public class AvailabilityController {
 
@@ -37,7 +37,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Availability slot created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
-    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> createAvailabilitySlot(
+    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> createInstructorAvailabilitySlot(
             @Valid @RequestBody AvailabilitySlotDTO request) {
         log.debug("REST request to create availability slot for instructor: {}", request.instructorUuid());
         
@@ -49,7 +49,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slot retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Availability slot not found")
     @GetMapping("/slots/{uuid}")
-    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> getAvailabilitySlot(
+    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> getInstructorAvailabilitySlot(
             @Parameter(description = "UUID of the availability slot to retrieve")
             @PathVariable UUID uuid) {
         log.debug("REST request to get availability slot: {}", uuid);
@@ -63,7 +63,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Availability slot not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/slots/{uuid}")
-    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> updateAvailabilitySlot(
+    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> updateInstructorAvailabilitySlot(
             @Parameter(description = "UUID of the availability slot to update")
             @PathVariable UUID uuid,
             @Valid @RequestBody AvailabilitySlotDTO request) {
@@ -77,7 +77,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Availability slot deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Availability slot not found")
     @DeleteMapping("/slots/{uuid}")
-    public ResponseEntity<ApiResponse<Void>> deleteAvailabilitySlot(
+    public ResponseEntity<ApiResponse<Void>> deleteInstructorAvailabilitySlot(
             @Parameter(description = "UUID of the availability slot to delete")
             @PathVariable UUID uuid) {
         log.debug("REST request to delete availability slot: {}", uuid);
@@ -93,7 +93,7 @@ public class AvailabilityController {
     @Operation(summary = "Get all availability for an instructor")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor availability retrieved successfully")
     @GetMapping("/instructors/{instructorUuid}")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getAvailabilityForInstructor(
+    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getInstructorAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid) {
         log.debug("REST request to get availability for instructor: {}", instructorUuid);
@@ -105,7 +105,7 @@ public class AvailabilityController {
     @Operation(summary = "Get availability for an instructor on a specific date")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability for date retrieved successfully")
     @GetMapping("/instructors/{instructorUuid}/date/{date}")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getAvailabilityForDate(
+    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getInstructorAvailabilityForDate(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Date to check availability for (YYYY-MM-DD)")
@@ -119,7 +119,7 @@ public class AvailabilityController {
     @Operation(summary = "Get available slots for an instructor on a specific date")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Available slots retrieved successfully")
     @GetMapping("/instructors/{instructorUuid}/available/{date}")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getAvailableSlots(
+    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getInstructorAvailableSlots(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Date to check for available slots (YYYY-MM-DD)")
@@ -133,7 +133,7 @@ public class AvailabilityController {
     @Operation(summary = "Get blocked slots for an instructor on a specific date")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Blocked slots retrieved successfully")
     @GetMapping("/instructors/{instructorUuid}/blocked/{date}")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getBlockedSlots(
+    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getInstructorBlockedSlots(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Date to check for blocked slots (YYYY-MM-DD)")
@@ -152,7 +152,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Weekly availability set successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/instructors/{instructorUuid}/weekly")
-    public ResponseEntity<ApiResponse<Void>> setWeeklyAvailability(
+    public ResponseEntity<ApiResponse<Void>> setInstructorWeeklyAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody List<WeeklyAvailabilitySlotDTO> slots) {
@@ -166,7 +166,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Daily availability set successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/instructors/{instructorUuid}/daily")
-    public ResponseEntity<ApiResponse<Void>> setDailyAvailability(
+    public ResponseEntity<ApiResponse<Void>> setInstructorDailyAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody List<DailyAvailabilitySlotDTO> slots) {
@@ -180,7 +180,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Monthly availability set successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/instructors/{instructorUuid}/monthly")
-    public ResponseEntity<ApiResponse<Void>> setMonthlyAvailability(
+    public ResponseEntity<ApiResponse<Void>> setInstructorMonthlyAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody List<MonthlyAvailabilitySlotDTO> slots) {
@@ -194,7 +194,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Custom availability set successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/instructors/{instructorUuid}/custom")
-    public ResponseEntity<ApiResponse<Void>> setCustomAvailability(
+    public ResponseEntity<ApiResponse<Void>> setInstructorCustomAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody List<CustomAvailabilitySlotDTO> slots) {
@@ -211,7 +211,7 @@ public class AvailabilityController {
     @Operation(summary = "Check if an instructor is available during a time period")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability check completed")
     @GetMapping("/instructors/{instructorUuid}/check")
-    public ResponseEntity<ApiResponse<Boolean>> checkAvailability(
+    public ResponseEntity<ApiResponse<Boolean>> checkInstructorAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Start date and time (ISO format: YYYY-MM-DDTHH:mm:ss)")
@@ -228,7 +228,7 @@ public class AvailabilityController {
     @Operation(summary = "Find available slots for an instructor within a date range")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Available slots found successfully")
     @GetMapping("/instructors/{instructorUuid}/find-available")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> findAvailableSlots(
+    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> findInstructorAvailableSlots(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Start date of the search range (YYYY-MM-DD)")
@@ -244,7 +244,7 @@ public class AvailabilityController {
     @Operation(summary = "Clear all availability for an instructor")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Availability cleared successfully")
     @DeleteMapping("/instructors/{instructorUuid}")
-    public ResponseEntity<ApiResponse<Void>> clearAvailability(
+    public ResponseEntity<ApiResponse<Void>> clearInstructorAvailability(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid) {
         log.debug("REST request to clear availability for instructor: {}", instructorUuid);
@@ -257,7 +257,7 @@ public class AvailabilityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Time blocked successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/instructors/{instructorUuid}/block")
-    public ResponseEntity<ApiResponse<Void>> blockTime(
+    public ResponseEntity<ApiResponse<Void>> blockInstructorTime(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Start date and time to block (ISO format: YYYY-MM-DDTHH:mm:ss)")

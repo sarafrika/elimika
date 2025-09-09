@@ -1,164 +1,107 @@
-# Class Definitions Management Guide
+# Class Definition Management: Frontend Integration Guide
 
-## Overview
+## 1. Overview
 
-The **Class Definitions** module provides comprehensive management of educational class templates and recurring scheduling functionality. It enables instructors and administrators to define class structures, set up recurring schedules, and automatically generate class instances with Google Calendar-like functionality.
+This guide provides frontend engineers with the necessary information to integrate with the **Class Definition Management** APIs. It covers creating class templates, managing recurrence patterns, and scheduling class instances.
 
-## Core Concepts
+**Key Objective:** Build a UI that allows instructors and administrators to define a class once and schedule it to run multiple times, like in Google Calendar.
 
-### Class Definitions vs Scheduled Instances
+---
 
-The system separates **what** a class is (definition) from **when** it occurs (scheduled instances):
+## 2. Core Concepts for Frontend Developers
 
-```mermaid
-graph TB
-    subgraph "Class Management Architecture"
-        A[Class Definition] --> B[Recurrence Pattern]
-        B --> C[Recurring Schedule Engine]
-        C --> D[Scheduled Instances]
-        
-        E[Instructor Availability] --> C
-        F[Conflict Detection] --> C
-        
-        A -.-> G[Course Association]
-        A -.-> H[Organization Context]
-        A -.-> I[Instructor Assignment]
-        
-        D --> J[Student Enrollments]
-        D --> K[Timetable Integration]
-    end
-    
-    style A fill:#e3f2fd
-    style C fill:#4caf50
-    style D fill:#fff3e0
-```
+### Class Definition vs. Scheduled Instance
 
-## Class Definition Structure
+-   **`ClassDefinition`**: This is the **template** for a class. It defines *what* the class is about (e.g., "Introduction to Java"), its duration (e.g., 90 minutes), the instructor, and the maximum number of students. It does **not** have a specific date.
+-   **`RecurrencePattern`**: This is the **rule** for scheduling. It defines *how often* a class should occur (e.g., every Monday and Wednesday at 10:00 AM).
+-   **`ScheduledInstance`**: This is the **actual calendar event**. It's a concrete occurrence of a class on a specific date and time (e.g., "Introduction to Java on 2024-09-09 from 10:00 to 11:30").
 
-### Core Entity: ClassDefinition
+**Typical Workflow:**
 
-```mermaid
-erDiagram
-    CLASS_DEFINITION {
-        uuid uuid PK
-        string title "Class Name"
-        text description "Class Details (nullable)"
-        uuid default_instructor_uuid FK "Assigned Instructor"
-        uuid organisation_uuid FK "Organization Context (nullable)"
-        uuid course_uuid FK "Parent Course (nullable)"
-        time default_start_time "Daily Start Time"
-        time default_end_time "Daily End Time"
-        enum location_type "ONLINE|IN_PERSON|HYBRID"
-        int max_participants "Capacity Limit"
-        boolean allow_waitlist "Waitlist Enabled"
-        uuid recurrence_pattern_uuid FK "Scheduling Pattern (nullable)"
-        boolean is_active "Active Status"
-        timestamp created_date "Record Creation"
-        timestamp last_modified_date "Record Updates"
-        string created_by "Audit: Creator"
-        string last_modified_by "Audit: Modifier"
-    }
-    
-    RECURRENCE_PATTERN {
-        uuid uuid PK
-        enum recurrence_type "DAILY|WEEKLY|MONTHLY"
-        string days_of_week "Monday,Wednesday,Friday"
-        int day_of_month "1-31"
-        int interval_value "Every N periods"
-        date end_date "Pattern End Date (nullable)"
-        int occurrence_count "Max Occurrences (nullable)"
-        timestamp created_date "Record Creation"
-        timestamp last_modified_date "Record Updates"
-    }
-    
-    CLASS_DEFINITION ||--o| RECURRENCE_PATTERN : defines_schedule
-```
+1.  Create a `ClassDefinition`.
+2.  Create a `RecurrencePattern`.
+3.  Associate the pattern with the definition.
+4.  Trigger the scheduling process to generate the `ScheduledInstance` objects.
 
-## API Usage Guide
+---
 
-### 1. Basic Class Definition Management
+## 3. Frontend Integration Quick Start
 
-#### Create a Class Definition
+This section provides a task-oriented guide to implementing the frontend UI.
 
-```http
-POST /api/v1/classes
-Content-Type: application/json
+### Task 1: Create the "Define a New Class" Form
 
+This form should capture the details for a `ClassDefinition`.
+
+-   **API Endpoint:** `POST /api/v1/classes`
+-   **Method:** `POST`
+-   **Controller Method:** `createClassDefinition`
+
+**Example Request Body:**
+
+```json
 {
-  "title": "Introduction to Java Programming",
-  "description": "Comprehensive Java programming course covering OOP concepts",
-  "default_instructor_uuid": "inst1234-5678-90ab-cdef-123456789abc",
-  "organisation_uuid": "org12345-6789-abcd-ef01-234567890abc",
-  "course_uuid": "course123-4567-89ab-cdef-123456789abc",
-  "default_start_time": "09:00:00",
-  "default_end_time": "10:30:00",
-  "location_type": "HYBRID",
-  "max_participants": 25,
+  "title": "Advanced React Patterns",
+  "description": "A deep dive into modern React design patterns.",
+  "default_instructor_uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "course_uuid": "c1d2e3f4-g5h6-7890-1234-567890abcdef",
+  "default_start_time": "14:00:00",
+  "default_end_time": "15:30:00",
+  "location_type": "ONLINE",
+  "max_participants": 30,
   "allow_waitlist": true,
   "is_active": true
 }
 ```
 
-**Response:**
+**Handling the Response:**
+
+The API will return the newly created `ClassDefinitionDTO`. Your UI should store the `uuid` from the response, as it's needed for all subsequent operations.
+
+**Example Success Response:**
+
 ```json
 {
   "success": true,
   "message": "Class definition created successfully",
   "data": {
     "uuid": "cd123456-7890-abcd-ef01-234567890abc",
-    "title": "Introduction to Java Programming",
-    "default_start_time": "09:00:00",
-    "default_end_time": "10:30:00",
+    "title": "Advanced React Patterns",
+    "default_start_time": "14:00:00",
+    "default_end_time": "15:30:00",
     "duration_minutes": 90,
     "duration_formatted": "1h 30m",
     "has_recurrence": false,
     "is_standalone": false,
-    "capacity_info": "Max 25 participants (waitlist enabled)"
+    "capacity_info": "Max 30 participants (waitlist enabled)"
   }
 }
 ```
 
-#### Retrieve Class Definition
+---
 
-```http
-GET /api/v1/classes/{uuid}
-```
+### Task 2: Build the "Set Recurrence" UI
 
-#### Update Class Definition
+This UI allows users to define how often the class should repeat.
 
-```http
-PUT /api/v1/classes/{uuid}
-Content-Type: application/json
+-   **API Endpoint:** `POST /api/v1/classes/recurrence-patterns`
+-   **Method:** `POST`
+-   **Controller Method:** `createClassRecurrencePattern`
 
-{
-  "title": "Advanced Java Programming",
-  "default_start_time": "10:00:00",
-  "default_end_time": "11:30:00"
-}
-```
+**Example: Weekly on Monday, Wednesday, Friday**
 
-### 2. Recurrence Pattern Management
-
-#### Create Recurrence Pattern
-
-**Weekly Pattern Example:**
-```http
-POST /api/v1/classes/recurrence-patterns
-Content-Type: application/json
-
+```json
 {
   "recurrence_type": "WEEKLY",
   "days_of_week": "MONDAY,WEDNESDAY,FRIDAY",
   "interval_value": 1,
-  "end_date": "2024-12-31"
+  "end_date": "2025-12-31"
 }
 ```
 
-**Monthly Pattern Example:**
-```http
-POST /api/v1/classes/recurrence-patterns
-Content-Type: application/json
+**Example: Monthly on the 15th**
 
+```json
 {
   "recurrence_type": "MONTHLY",
   "day_of_month": 15,
@@ -167,288 +110,147 @@ Content-Type: application/json
 }
 ```
 
-#### Associate Pattern with Class Definition
+**After creating the pattern, associate it with the class definition:**
 
-```http
-PUT /api/v1/classes/{uuid}
-Content-Type: application/json
+-   **API Endpoint:** `PUT /api/v1/classes/{uuid}`
+-   **Method:** `PUT`
+-   **Controller Method:** `updateClassDefinition`
 
+**Request Body:**
+
+```json
 {
   "recurrence_pattern_uuid": "rp123456-7890-abcd-ef01-234567890abc"
 }
 ```
 
-### 3. Recurring Schedule Management (Google Calendar-like)
+---
 
-#### Schedule Recurring Classes
+### Task 3: Implement the "Generate Schedule" Action
+
+This is typically a button that, when clicked, generates the actual class instances on the calendar.
+
+#### Step 3.1: Preview the Schedule (Highly Recommended)
+
+Before creating the instances, show the user a preview of what will be scheduled.
+
+-   **API Endpoint:** `GET /api/v1/classes/{uuid}/schedule/preview`
+-   **Method:** `GET`
+-   **Controller Method:** `previewRecurringClassSchedule`
+-   **Query Parameters:**
+    -   `startDate`: The date to start the preview from (e.g., `2024-09-01`).
+    -   `endDate`: The date to end the preview (e.g., `2024-12-31`).
+
+**Example Request:**
 
 ```http
-POST /api/v1/classes/{uuid}/schedule?startDate=2024-09-09&endDate=2024-12-31
+GET /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule/preview?startDate=2024-09-01&endDate=2024-09-30
 ```
 
-**Response:**
+**The response will be an array of `ScheduledInstanceDTO` objects that you can display in a list or on a calendar UI.**
+
+#### Step 3.2: Check for Conflicts
+
+It's crucial to check for scheduling conflicts *before* generating the schedule.
+
+-   **API Endpoint:** `GET /api/v1/classes/{uuid}/schedule/conflicts`
+-   **Method:** `GET`
+-   **Controller Method:** `checkClassSchedulingConflicts`
+-   **Query Parameters:** `startDate` and `endDate`.
+
+**Example Request:**
+
+```http
+GET /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule/conflicts?startDate=2024-09-01&endDate=2024-12-31
+```
+
+**Handling the Response:**
+
+The API will return a list of instances that conflict with the instructor's availability or other existing classes. Your UI should clearly display these conflicts to the user and ask them how to proceed.
+
+**Example Conflict Response:**
+
 ```json
 {
   "success": true,
-  "message": "Created 48 recurring class instances",
+  "message": "Found 2 scheduling conflicts out of 48 potential instances",
   "data": [
     {
-      "uuid": "si123456-7890-abcd-ef01-234567890abc",
-      "class_definition_uuid": "cd123456-7890-abcd-ef01-234567890abc",
-      "start_time": "2024-09-09T09:00:00",
-      "end_time": "2024-09-09T10:30:00",
-      "status": "SCHEDULED"
+      "start_time": "2024-10-14T14:00:00",
+      "end_time": "2024-10-14T15:30:00",
+      "conflict_reason": "Instructor not available"
+    },
+    {
+      "start_time": "2024-11-05T14:00:00",
+      "end_time": "2024-11-05T15:30:00",
+      "conflict_reason": "Conflicts with another class: 'Advanced Python'"
     }
   ]
 }
 ```
 
-#### Preview Schedule Before Creation
+#### Step 3.3: Create the Schedule
+
+Once the user confirms, you can create the actual schedule.
+
+-   **API Endpoint:** `POST /api/v1/classes/{uuid}/schedule`
+-   **Method:** `POST`
+-   **Controller Method:** `scheduleRecurringClassFromDefinition`
+-   **Query Parameters:** `startDate` and `endDate`.
+
+**Example Request:**
 
 ```http
-GET /api/v1/classes/{uuid}/schedule/preview?startDate=2024-09-09&endDate=2024-12-31
+POST /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule?startDate=2024-09-01&endDate=2024-12-31
 ```
 
-#### Update Recurring Schedule
+**The response will contain the list of `ScheduledInstanceDTO`s that were successfully created.**
 
-```http
-PUT /api/v1/classes/{uuid}/schedule
-```
+---
 
-This cancels all future instances and regenerates them based on the current recurrence pattern.
+## 4. Managing Existing Classes
 
-#### Cancel Recurring Schedule
+### Listing and Filtering
 
-```http
-DELETE /api/v1/classes/{uuid}/schedule?reason=Course%20cancelled
-```
+Provide UIs to view class definitions based on different criteria.
 
-#### Check for Scheduling Conflicts
+-   **For a specific course:** `GET /api/v1/classes/course/{courseUuid}` -> `getClassDefinitionsForCourse`
+-   **For a specific instructor:** `GET /api/v1/classes/instructor/{instructorUuid}` -> `getClassDefinitionsForInstructor`
+-   **For an organization:** `GET /api/v1/classes/organisation/{organisationUuid}` -> `getClassDefinitionsForOrganisation`
 
-```http
-GET /api/v1/classes/{uuid}/schedule/conflicts?startDate=2024-09-09&endDate=2024-12-31
-```
+You can use the `activeOnly=true` query parameter to filter for active classes.
 
-## Class Definition Initialization Workflows
+### Updating and Deactivating
 
-### Workflow 1: Standalone Class with Fixed Schedule
+-   **Update:** `PUT /api/v1/classes/{uuid}` -> `updateClassDefinition`
+-   **Deactivate:** `DELETE /api/v1/classes/{uuid}` -> `deactivateClassDefinition`
 
-```mermaid
-sequenceDiagram
-    participant I as Instructor
-    participant API as Classes API
-    participant DB as Database
-    participant T as Timetabling
-    
-    I->>API: 1. POST /classes (basic info + times)
-    API->>DB: Save class definition
-    API->>I: Return class UUID
-    
-    I->>API: 2. POST /classes/recurrence-patterns
-    API->>DB: Save pattern (WEEKLY: Mon,Wed,Fri)
-    API->>I: Return pattern UUID
-    
-    I->>API: 3. PUT /classes/{uuid} (link pattern)
-    API->>DB: Update class with pattern UUID
-    
-    I->>API: 4. POST /classes/{uuid}/schedule
-    API->>API: Generate schedule instances
-    API->>T: Create scheduled instances
-    API->>I: Return 48 scheduled instances
-```
+---
 
-### Workflow 2: Course-Based Class Series
+## 5. Advanced UI Considerations
 
-```mermaid
-sequenceDiagram
-    participant A as Admin
-    participant API as Classes API
-    participant C as Course API
-    participant DB as Database
-    
-    A->>C: 1. Create course structure
-    C->>DB: Save course
-    
-    A->>API: 2. POST /classes (with course_uuid)
-    API->>DB: Save class linked to course
-    
-    A->>API: 3. Create weekly pattern
-    API->>DB: Save recurrence pattern
-    
-    A->>API: 4. Schedule semester classes
-    API->>API: Generate 16-week schedule
-    API->>A: Return full semester schedule
-```
+### Handling Scheduling Conflicts
 
-### Workflow 3: Organization-Wide Class Management
+When the `conflicts` endpoint returns conflicts, your UI should:
 
-```mermaid
-sequenceDiagram
-    participant OA as Org Admin
-    participant API as Classes API
-    participant AV as Availability API
-    participant TT as Timetabling
-    
-    OA->>AV: 1. Set instructor availability
-    AV->>AV: Define weekly availability slots
-    
-    OA->>API: 2. Create multiple class definitions
-    API->>API: Validate instructor availability
-    
-    OA->>API: 3. Create recurrence patterns
-    API->>API: Validate pattern compatibility
-    
-    OA->>API: 4. Schedule all classes
-    API->>AV: Check availability conflicts
-    API->>TT: Generate conflict-free schedules
-    API->>OA: Return scheduling results
-```
+1.  **Clearly list the conflicting dates and times.**
+2.  **Explain the reason for each conflict** (e.g., "Instructor is unavailable," "Another class is already scheduled").
+3.  **Provide options to the user:**
+    -   "Schedule anyway and ignore conflicts."
+    -   "Skip the conflicting instances and schedule the rest."
+    -   "Cancel and adjust the schedule."
 
-## Advanced Configuration
+### Real-time Updates
 
-### Time-Based Validation Rules
+For a more dynamic experience, consider using WebSockets to:
 
-```typescript
-interface TimeValidationRules {
-  startTime: {
-    required: true;
-    format: "HH:mm:ss";
-    businessHours: "06:00:00" to "22:00:00";
-  };
-  endTime: {
-    required: true;
-    format: "HH:mm:ss";
-    afterStartTime: true;
-    maximumDuration: 480; // 8 hours in minutes
-    minimumDuration: 15;  // 15 minutes
-  };
-  recurrencePattern: {
-    daysOfWeek: "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY";
-    dayOfMonth: 1 to 31;
-    intervalValue: 1 to 52; // Max yearly interval
-  };
-}
-```
+-   Notify the user when a schedule generation is complete.
+-   Update the calendar in real-time if another admin modifies the schedule.
 
-### Conflict Resolution Strategies
+### Optimistic UI Updates
 
-```mermaid
-graph TD
-    A[Schedule Request] --> B{Instructor Available?}
-    B -->|No| C[Skip Instance]
-    B -->|Yes| D{Existing Class Conflict?}
-    D -->|Yes| E[Skip Instance]
-    D -->|No| F[Create Scheduled Instance]
-    
-    C --> G[Log Conflict]
-    E --> G
-    G --> H[Include in Conflicts Report]
-    
-    F --> I[Success]
-    
-    style C fill:#ffcdd2
-    style E fill:#ffcdd2
-    style F fill:#c8e6c9
-```
+When a user creates or updates a class definition, you can update the UI immediately, before the API call completes. This makes the application feel faster and more responsive.
 
-## Query Operations
+---
 
-### Find Classes by Different Criteria
-
-```http
-# Classes for a specific course
-GET /api/v1/classes/course/{courseUuid}?activeOnly=true
-
-# Classes for an instructor
-GET /api/v1/classes/instructor/{instructorUuid}?activeOnly=true
-
-# Classes for an organization
-GET /api/v1/classes/organisation/{organisationUuid}
-
-# All active classes
-GET /api/v1/classes/active
-```
-
-### Filtering and Pagination
-
-Query parameters support:
-- `activeOnly=true` - Only active class definitions
-- Standard pagination if implemented
-
-## Integration Points
-
-### With Availability Module
-
-```http
-# Check instructor availability before scheduling
-GET /api/v1/availability/instructors/{instructorUuid}/check
-  ?start=2024-09-09T09:00:00
-  &end=2024-09-09T10:30:00
-```
-
-### With Timetabling Module
-
-```http
-# Get instructor's existing schedule
-GET /api/v1/timetable/instructors/{instructorUuid}/schedule
-  ?startDate=2024-09-01&endDate=2024-12-31
-```
-
-## Common Use Cases
-
-### 1. University Semester Planning
-
-1. Create course definitions for the semester
-2. Define class templates with standard times
-3. Set up weekly recurrence patterns
-4. Generate full semester schedules
-5. Handle holiday breaks and special schedules
-
-### 2. Corporate Training Programs
-
-1. Create modular training class definitions
-2. Set flexible recurrence patterns
-3. Account for instructor availability constraints
-4. Generate training calendars across multiple locations
-
-### 3. Language School Operations
-
-1. Create class levels (Beginner, Intermediate, Advanced)
-2. Set daily or multiple-times-per-week schedules
-3. Handle rolling enrollment with ongoing classes
-4. Manage instructor rotations and substitutions
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| "No recurrence pattern" error | Class definition missing pattern UUID | Create and link recurrence pattern |
-| "Instructor not available" conflicts | Instructor availability not set | Configure availability in Availability module |
-| "Start time after end time" error | Invalid time configuration | Ensure start_time < end_time |
-| "Pattern end date in past" error | End date before current date | Update pattern end date |
-
-### Validation Errors
-
-- **Time Validation**: Start time must be before end time
-- **Duration Limits**: Classes must be 15 minutes to 8 hours
-- **Pattern Validation**: Weekly patterns need valid days of week
-- **Instructor Validation**: Assigned instructor must exist and be active
-- **Capacity Validation**: Max participants must be positive number
-
-## Performance Considerations
-
-- **Bulk Scheduling**: Large recurring schedules (>100 instances) may take several seconds
-- **Conflict Checking**: Extensive availability checking can impact performance
-- **Database Indexing**: Ensure proper indexing on frequently queried fields
-- **Caching**: Consider caching frequently accessed class definitions
-
-## Security and Authorization
-
-- **Instructor Access**: Can only manage their own class definitions
-- **Organization Admin**: Can manage classes within their organization
-- **System Admin**: Full access to all class definitions
-- **Student Access**: Read-only access to enrolled classes
-
-This guide provides the foundation for implementing comprehensive class definition management with modern recurring scheduling capabilities similar to popular calendar applications.
+This guide provides the core API interactions needed to build a robust frontend for class definition and scheduling management. By following these guidelines, you can create an intuitive and powerful interface for your users.
