@@ -25,7 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Class Definition Management", description = "APIs for creating and managing class definitions, recurrence patterns, and scheduling.")
-@PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+
 public class ClassDefinitionController {
 
     private final ClassDefinitionServiceInterface classDefinitionService;

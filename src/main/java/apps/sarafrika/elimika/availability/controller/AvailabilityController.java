@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Instructor Availability Management", description = "APIs for managing instructor availability, including recurring patterns, blocked time, and availability checks.")
-@PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+
 public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
