@@ -1,3 +1,10 @@
+# [2.13.0](https://github.com/sarafrika/elimika/compare/v2.12.0...v2.13.0) (2025-09-06)
+
+
+### Features
+
+* **classes:** implement Google Calendar-like recurring class scheduling ([9247070](https://github.com/sarafrika/elimika/commit/9247070be621ef5bdca2acdf98a52beb94e4103d))
+
 # [2.12.0](https://github.com/sarafrika/elimika/compare/v2.11.0...v2.12.0) (2025-09-05)
 
 
