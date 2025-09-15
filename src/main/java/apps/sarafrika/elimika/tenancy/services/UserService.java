@@ -182,6 +182,16 @@ public interface UserService {
      */
     List<String> getUserDomains(UUID userUuid);
 
+    /**
+     * Converts a User entity to UserDTO with all domains and affiliations.
+     * This method is exposed for use by other services that need to convert
+     * User entities to DTOs with full context.
+     *
+     * @param user the User entity to convert
+     * @return UserDTO with complete user information
+     */
+    UserDTO toUserDTO(apps.sarafrika.elimika.tenancy.entity.User user);
+
     // ================================
     // ORGANIZATION AFFILIATION INFORMATION
     // ================================

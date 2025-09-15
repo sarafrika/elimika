@@ -364,4 +364,36 @@ public interface UserOrganisationDomainMappingRepository extends JpaRepository<U
     List<UserOrganisationDomainMapping> findByCreatedDateBetween(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    // ================================
+    // DOMAIN-BASED QUERIES FOR ADMIN SERVICE
+    // ================================
+
+    /**
+     * Find active mappings by domain name across all organizations.
+     * Used to get all users with a specific role globally.
+     *
+     * @param domainName the domain name (e.g., "organisation_user", "admin")
+     * @return list of active mappings with the specified domain
+     */
+    @Query("SELECT uodm FROM UserOrganisationDomainMapping uodm " +
+            "JOIN UserDomain ud ON ud.uuid = uodm.domainUuid " +
+            "WHERE ud.domainName = :domainName " +
+            "AND uodm.active = true " +
+            "AND uodm.deleted = false")
+    List<UserOrganisationDomainMapping> findActiveByDomainName(@Param("domainName") String domainName);
+
+    /**
+     * Count active mappings by domain name across all organizations.
+     * Used for admin statistics and reporting.
+     *
+     * @param domainName the domain name
+     * @return count of active mappings with the specified domain
+     */
+    @Query("SELECT COUNT(uodm) FROM UserOrganisationDomainMapping uodm " +
+            "JOIN UserDomain ud ON ud.uuid = uodm.domainUuid " +
+            "WHERE ud.domainName = :domainName " +
+            "AND uodm.active = true " +
+            "AND uodm.deleted = false")
+    long countActiveByDomainName(@Param("domainName") String domainName);
 }

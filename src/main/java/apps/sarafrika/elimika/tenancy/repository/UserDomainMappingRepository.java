@@ -12,4 +12,10 @@ public interface UserDomainMappingRepository extends JpaRepository<UserDomainMap
     List<UserDomainMapping> findByUserUuid(UUID useruuid);
 
     boolean existsByUserUuidAndUserDomainUuid(UUID useruuid, UUID domainuuid);
+
+    List<UserDomainMapping> findByUserDomainUuid(UUID domainUuid);
+
+    List<UserDomainMapping> findByUserUuidAndUserDomainUuid(UUID userUuid, UUID domainUuid);
+
+    long countByUserDomainUuid(UUID domainUuid);
 }

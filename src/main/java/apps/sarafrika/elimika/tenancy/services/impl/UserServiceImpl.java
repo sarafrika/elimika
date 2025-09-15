@@ -528,7 +528,8 @@ public class UserServiceImpl implements UserService {
      * @param user The User entity to convert.
      * @return The fully populated UserDTO.
      */
-    private UserDTO toUserDTO(User user) {
+    @Override
+    public UserDTO toUserDTO(User user) {
         List<String> userDomains = getUserDomainsFromMappings(user.getUuid());
         List<UserOrganisationAffiliationDTO> organisationAffiliations = getUserOrganisationAffiliations(user.getUuid());
         return UserFactory.toDTO(user, userDomains, organisationAffiliations);

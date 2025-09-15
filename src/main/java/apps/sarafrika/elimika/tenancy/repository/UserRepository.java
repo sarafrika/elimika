@@ -28,6 +28,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     List<User> findAllByUuidIn(List<UUID> uuids);
 
+    List<User> findByUuidIn(List<UUID> uuids);
+
     @Query(value = """
             SELECT u.*
             FROM users u
