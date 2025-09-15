@@ -1,3 +1,10 @@
+# [2.15.0](https://github.com/sarafrika/elimika/compare/v2.14.0...v2.15.0) (2025-09-15)
+
+
+### Features
+
+* **admin:** Add comprehensive system admin management ([02591de](https://github.com/sarafrika/elimika/commit/02591de22bea7b2ff91418c159aab99cb55d3852))
+
 # [2.14.0](https://github.com/sarafrika/elimika/compare/v2.13.0...v2.14.0) (2025-09-09)
 
 
