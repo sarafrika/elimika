@@ -1,12 +1,98 @@
-# Organization-Specific User Domains Guide
+# User and Organization Domains Guide
 
-## Overview
+## System Architecture Overview
+
+The Elimika platform implements a flexible dual-tier user domain system that manages user roles and permissions across both global system access and organization-specific contexts. This architecture supports complex multi-tenancy scenarios while maintaining clear role-based access control.
+
+### Core Domain Types
+
+The system supports four primary user domains:
+
+- **Student**: Learners who enroll in courses and training programs
+- **Instructor**: Educators who create and deliver content
+- **Admin**: System administrators with platform-wide privileges
+- **Organisation User**: Users affiliated with specific organizations
+
+```mermaid
+graph TB
+    subgraph "Global Domain System"
+        GD[Global User Domains<br/>🌐 System-Wide Roles]
+        UDM[User Domain Mapping<br/>🔗 Direct User Assignment]
+        UD[User Domain<br/>📋 Domain Definitions]
+    end
+
+    subgraph "Organization-Specific System"
+        OD[Organization Domains<br/>🏢 Context-Aware Roles]
+        UODM[User Organisation Domain Mapping<br/>🎯 Multi-Dimensional Assignment]
+        ORG[Organisation<br/>🏛️ Institution Context]
+        BRANCH[Training Branch<br/>🌿 Department/Division]
+    end
+
+    subgraph "User Profile Integration"
+        USER[User Profile<br/>👤 Combined View]
+        AFFIL[Organisation Affiliations<br/>📊 Detailed Membership Info]
+    end
+
+    GD --> UDM
+    UDM --> UD
+    OD --> UODM
+    UODM --> ORG
+    UODM --> BRANCH
+    UODM --> UD
+    USER --> GD
+    USER --> OD
+    USER --> AFFIL
+
+    style GD fill:#e1f5fe
+    style OD fill:#f3e5f5
+    style USER fill:#e8f5e9
+    style AFFIL fill:#fffde7
+```
+
+## Domain Architecture: Global vs Organization-Specific
+
+### 1. Global User Domains
+
+**Purpose**: System-wide role assignment independent of organizational context.
+
+**Entities**:
+- `UserDomain`: Master domain definitions (student, instructor, admin, organisation_user)
+- `UserDomainMapping`: Direct user-to-domain assignments
+
+**Use Cases**:
+- Platform administrators (`admin`)
+- Independent instructors not tied to specific organizations
+- Users with system-wide privileges
+
+```mermaid
+erDiagram
+    USER ||--o{ USER_DOMAIN_MAPPING : has
+    USER_DOMAIN_MAPPING }o--|| USER_DOMAIN : references
+
+    USER {
+        uuid user_uuid PK
+        string first_name
+        string last_name
+        string email
+    }
+
+    USER_DOMAIN_MAPPING {
+        uuid user_uuid FK
+        uuid domain_uuid FK
+        timestamp created_at
+    }
+
+    USER_DOMAIN {
+        uuid uuid PK
+        string domain_name
+    }
+```
+
+### 2. Organization-Specific User Domains
 
 Organization-specific domains enable contextual role-based access control within educational institutions. Unlike global domains that apply platform-wide, organization domains provide granular control over user permissions, responsibilities, and access rights within specific institutional contexts.
 
-## Organization Domain Architecture
-
-### Multi-Dimensional Mapping System
+#### Organization Domain Architecture
 
 Organization domains use a sophisticated mapping system that considers multiple contextual factors:
 
@@ -45,9 +131,9 @@ graph TB
     style G fill:#4caf50
 ```
 
-## Organization Domain Entity Structure
+#### Organization Domain Entity Structure
 
-### Core Entity: UserOrganisationDomainMapping
+##### Core Entity: UserOrganisationDomainMapping
 
 ```mermaid
 erDiagram
@@ -93,7 +179,7 @@ erDiagram
     }
 ```
 
-### Organization Affiliation DTO
+##### Organization Affiliation DTO
 
 The system provides rich contextual information through the `UserOrganisationAffiliationDTO`:
 
@@ -113,9 +199,9 @@ The system provides rich contextual information through the `UserOrganisationAff
 }
 ```
 
-## Organization Domain Lifecycle Management
+#### Organization Domain Lifecycle Management
 
-### User Invitation and Enrollment
+##### User Invitation and Enrollment
 
 ```mermaid
 sequenceDiagram
@@ -142,7 +228,7 @@ sequenceDiagram
     API-->>USER: Organization access granted
 ```
 
-### Branch Transfer Within Organization
+##### Branch Transfer Within Organization
 
 ```mermaid
 sequenceDiagram
@@ -163,9 +249,9 @@ sequenceDiagram
     Note over USER,DB: User maintains same role (domain)<br/>but in different department context
 ```
 
-## Branch-Level Organization Management
+#### Branch-Level Organization Management
 
-### Hierarchical Structure
+##### Hierarchical Structure
 
 Organizations can have multiple training branches (departments/divisions) with specific management:
 
@@ -197,7 +283,7 @@ graph TD
     style E fill:#ff5722
 ```
 
-### Branch-Specific User Management
+##### Branch-Specific User Management
 
 ```bash
 # Example: Managing users within specific branches
@@ -216,9 +302,9 @@ curl -X POST "/api/v1/organisations/{orgUuid}/users/{userUuid}/assign-domain"
   -d '{"domainName": "instructor", "branchUuid": "{branchUuid}"}'
 ```
 
-## Organization Domain Repository Capabilities
+#### Organization Domain Repository Capabilities
 
-### Advanced Query Methods
+##### Advanced Query Methods
 
 The `UserOrganisationDomainMappingRepository` provides comprehensive querying:
 
@@ -244,7 +330,7 @@ List<UserOrganisationDomainMapping> findActiveByUserUuidsAndOrganisation(
     List<UUID> userUuids, UUID orgUuid);
 ```
 
-### Analytics and Reporting Queries
+##### Analytics and Reporting Queries
 
 ```java
 // Organization analytics
@@ -256,101 +342,9 @@ List<UUID> findDistinctOrganisationUuidsByUser(UUID userUuid);
 List<UUID> findDistinctUserUuidsByOrganisation(UUID orgUuid);
 ```
 
-## Organization API Reference
+#### Multi-Organization Scenarios
 
-### Organization User Management
-
-| Method | Endpoint | Purpose | Organization Context |
-|--------|----------|---------|----------------------|
-| `GET` | `/api/v1/organisations/{uuid}/users` | List organization users | All affiliated users (paginated) |
-| `GET` | `/api/v1/organisations/{uuid}/users/domain/{domainName}` | Filter by role | Role-specific listing |
-| `POST` | `/api/v1/organisations/{uuid}/invitations` | Invite user to organization | Create invitation with domain |
-| `GET` | `/api/v1/organisations/{uuid}/invitations` | Get organization invitations | List all invitations |
-
-### Branch Management
-
-| Method | Endpoint | Purpose | Branch Context |
-|--------|----------|---------|----------------|
-| `GET` | `/api/v1/organisations/{uuid}/training-branches` | List organization branches | Department structure (paginated) |
-| `POST` | `/api/v1/organisations/{uuid}/training-branches` | Create new branch | Department creation |
-| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users` | List branch users | Department roster |
-| `POST` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Assign user to branch | Departmental assignment |
-| `DELETE` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Remove user from branch | Departmental removal |
-
-### Analytics and Reporting
-
-| Method | Endpoint | Purpose | Branch Context |
-|--------|----------|---------|----------------|
-| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}` | Get users by domain in branch | Role-specific branch roster |
-| `POST` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/invitations` | Create branch invitation | Invite directly to branch |
-| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/invitations` | Get branch invitations | List branch-specific invites |
-
-## Organization Domain Business Rules
-
-### Temporal Management Rules
-
-```mermaid
-flowchart TD
-    A[User Organization Assignment] --> B{Start Date Validation}
-    B -->|Future Date| C[Scheduled Assignment]
-    B -->|Current Date| D[Immediate Activation]
-    B -->|Past Date| E[Historical Record]
-    
-    C --> F[active=false, until start_date]
-    D --> G[active=true, immediate access]
-    E --> H[active=true, backdated record]
-    
-    G --> I{End Date Set?}
-    H --> I
-    
-    I -->|Yes| J[Temporary Assignment]
-    I -->|No| K[Ongoing Assignment]
-    
-    J --> L[Auto-deactivate on end_date]
-    K --> M[Manual deactivation required]
-    
-    style D fill:#4caf50
-    style G fill:#4caf50
-    style L fill:#ff9800
-```
-
-### Assignment Validation Logic
-
-```java
-// Example organization domain assignment validation
-public void validateOrganizationDomainAssignment(
-    UUID userUuid, UUID orgUuid, String domainName, UUID branchUuid) {
-    
-    // 1. Validate organization is active
-    Organisation org = findOrganisationOrThrow(orgUuid);
-    if (!org.isActive()) {
-        throw new IllegalStateException("Cannot assign users to inactive organization");
-    }
-    
-    // 2. Validate branch belongs to organization (if specified)
-    if (branchUuid != null) {
-        TrainingBranch branch = findBranchOrThrow(branchUuid);
-        if (!branch.getOrganisationUuid().equals(orgUuid)) {
-            throw new IllegalArgumentException("Branch does not belong to specified organization");
-        }
-    }
-    
-    // 3. Check for existing active assignment
-    Optional<UserOrganisationDomainMapping> existing = 
-        repository.findActiveByUserAndOrganisation(userUuid, orgUuid);
-    if (existing.isPresent()) {
-        // Handle existing assignment (transfer, update, or reject)
-        handleExistingAssignment(existing.get(), domainName, branchUuid);
-    }
-    
-    // 4. Validate domain assignment rules
-    validateDomainAssignmentRules(userUuid, domainName, orgUuid);
-}
-```
-
-## Multi-Organization Scenarios
-
-### Users with Multiple Organization Affiliations
+##### Users with Multiple Organization Affiliations
 
 ```json
 {
@@ -394,7 +388,7 @@ public void validateOrganizationDomainAssignment(
 }
 ```
 
-### Cross-Organization Collaboration
+##### Cross-Organization Collaboration
 
 ```mermaid
 sequenceDiagram
@@ -419,9 +413,9 @@ sequenceDiagram
     API-->>ORG1: Confirmation of cross-org instructor
 ```
 
-## Organization Domain Analytics
+#### Organization Domain Analytics
 
-### Membership Analytics Dashboard
+##### Membership Analytics Dashboard
 
 ```json
 {
@@ -465,4 +459,147 @@ sequenceDiagram
 }
 ```
 
-This organization-specific domain system provides sophisticated multi-tenant capabilities with granular control over user roles, responsibilities, and access within institutional contexts while maintaining clear audit trails and temporal management of affiliations.
+## Domain Resolution and User Profile Integration
+
+### Combined Domain Resolution
+
+The system aggregates domains from both global and organizational contexts to provide a unified user profile:
+
+```java
+// Method: getUserDomainsFromMappings() in UserServiceImpl
+private List<String> getUserDomainsFromMappings(UUID userUuid) {
+    Set<String> allDomains = new HashSet<>();
+
+    // 1. Get global/standalone domains
+    List<UserDomainMapping> standaloneMappings = userDomainMappingRepository.findByUserUuid(userUuid);
+    // Add to allDomains set...
+
+    // 2. Get domains from active organization memberships
+    List<UserOrganisationDomainMapping> orgMappings =
+        userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+    // Add to allDomains set...
+
+    return new ArrayList<>(allDomains); // Deduplicated list
+}
+```
+
+### Organization Affiliation Details
+
+Beyond simple domain lists, the system provides rich organizational context through the `UserOrganisationAffiliationDTO` as detailed in the section above.
+
+## API Integration Points
+
+### User Profile Endpoints
+
+| Method | Endpoint | Purpose | Returns |
+|--------|----------|---------|---------|
+| `GET` | `/api/v1/users/{uuid}` | Get user with all domains and affiliations | `UserDTO` with combined domains and organization affiliations |
+| `GET` | `/api/v1/users` | Get all users (paginated) | `PagedDTO<UserDTO>` |
+| `PUT` | `/api/v1/users/{uuid}` | Update user profile | Updated `UserDTO` |
+| `GET` | `/api/v1/users/search` | Search users with filters | `PagedDTO<UserDTO>` matching criteria |
+
+### Organization Management Endpoints
+
+| Method | Endpoint | Purpose | Use Case |
+|--------|----------|---------|----------|
+| `GET` | `/api/v1/organisations/{uuid}/users` | Get organization members | List all affiliated users (paginated) |
+| `GET` | `/api/v1/organisations/{uuid}/users/domain/{domainName}` | Filter by role | Get users with specific role in organization |
+| `POST` | `/api/v1/organisations/{uuid}/invitations` | Create organization invitation | Invite user to organization with role |
+| `GET` | `/api/v1/organisations/{uuid}/invitations` | Get organization invitations | List all invitations for organization |
+
+### Branch Management Endpoints
+
+| Method | Endpoint | Purpose | Branch Context |
+|--------|----------|---------|----------------|
+| `GET` | `/api/v1/organisations/{uuid}/training-branches` | List organization branches | Department structure (paginated) |
+| `POST` | `/api/v1/organisations/{uuid}/training-branches` | Create new branch | Department creation |
+| `GET` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users` | List branch users | Department roster |
+| `POST` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Assign user to branch | Departmental assignment |
+| `DELETE` | `/api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Remove user from branch | Departmental removal |
+
+## Business Rules and Validation
+
+### Domain Assignment Rules
+
+1. **Admin and Organisation User**: Can be assigned as global domains.
+2. **Student and Instructor**: Can be both global and organization-specific.
+3. **Temporal Validity**: Organization memberships respect start/end date constraints.
+4. **Active Status**: Only active mappings contribute to user permissions.
+5. **Soft Deletion**: Deactivated memberships preserved for audit trails.
+
+### Permission Resolution
+
+```mermaid
+flowchart TD
+    A[User Access Request] --> B{Check Global Domains}
+    B -->|Has Global Admin| C[Grant System-Wide Access]
+    B -->|No Global Admin| D{Check Organization Context}
+    D -->|No Org Context| E[Use Global Domains Only]
+    D -->|Has Org Context| F{Check Active Org Membership}
+    F -->|Active Member| G[Combine Global + Org Domains]
+    F -->|Not Active Member| H[Deny Org-Specific Access]
+
+    G --> I[Apply Role-Based Permissions]
+    E --> I
+    C --> I
+    H --> J[Access Denied]
+
+    style C fill:#4caf50
+    style I fill:#2196f3
+    style J fill:#f44336
+```
+
+### Temporal Management Rules for Organizations
+
+```mermaid
+flowchart TD
+    A[User Organization Assignment] --> B{Start Date Validation}
+    B -->|Future Date| C[Scheduled Assignment]
+    B -->|Current Date| D[Immediate Activation]
+    B -->|Past Date| E[Historical Record]
+
+    C --> F[active=false, until start_date]
+    D --> G[active=true, immediate access]
+    E --> H[active=true, backdated record]
+
+    G --> I{End Date Set?}
+    H --> I
+
+    I -->|Yes| J[Temporary Assignment]
+    I -->|No| K[Ongoing Assignment]
+
+    J --> L[Auto-deactivate on end_date]
+    K --> M[Manual deactivation required]
+
+    style D fill:#4caf50
+    style G fill:#4caf50
+    style L fill:#ff9800
+```
+
+## Membership Lifecycle Management
+
+```mermaid
+stateDiagram-v2
+    [*] --> Invited : Send Invitation
+    Invited --> Active : Accept Invitation
+    Invited --> Expired : Timeout
+    Active --> Suspended : Temporary Deactivation
+    Suspended --> Active : Reactivate
+    Active --> Ended : Set End Date
+    Ended --> [*]
+    Expired --> [*]
+
+    note right of Active
+        active = true
+        deleted = false
+        endDate = null
+    end note
+
+    note right of Ended
+        active = false
+        deleted = true
+        endDate = set
+    end note
+```
+
+This architecture provides a robust foundation for managing user roles across both system-wide and organization-specific contexts, enabling complex multi-tenant scenarios while maintaining clear separation of concerns and audit capabilities.
