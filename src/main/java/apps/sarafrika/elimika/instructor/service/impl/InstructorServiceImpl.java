@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class InstructorServiceImpl implements InstructorService {
 
     private final InstructorRepository instructorRepository;
@@ -87,6 +89,73 @@ public class InstructorServiceImpl implements InstructorService {
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, searchParams);
         return instructorRepository.findAll(spec, pageable).map(InstructorFactory::toDTO);
     }
+
+    // ================================
+    // INSTRUCTOR VERIFICATION
+    // ================================
+
+    @Override
+    public InstructorDTO verifyInstructor(UUID instructorUuid, String reason) {
+        log.info("Verifying instructor {} for reason: {}", instructorUuid, reason);
+
+        Instructor instructor = instructorRepository.findByUuid(instructorUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, instructorUuid)));
+
+        instructor.setAdminVerified(true);
+        Instructor verifiedInstructor = instructorRepository.save(instructor);
+
+        log.info("Successfully verified instructor {}", instructorUuid);
+        return InstructorFactory.toDTO(verifiedInstructor);
+    }
+
+    @Override
+    public InstructorDTO unverifyInstructor(UUID instructorUuid, String reason) {
+        log.info("Removing verification from instructor {} for reason: {}", instructorUuid, reason);
+
+        Instructor instructor = instructorRepository.findByUuid(instructorUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, instructorUuid)));
+
+        instructor.setAdminVerified(false);
+        Instructor unverifiedInstructor = instructorRepository.save(instructor);
+
+        log.info("Successfully removed verification from instructor {}", instructorUuid);
+        return InstructorFactory.toDTO(unverifiedInstructor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isInstructorVerified(UUID instructorUuid) {
+        Instructor instructor = instructorRepository.findByUuid(instructorUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, instructorUuid)));
+
+        return Boolean.TRUE.equals(instructor.getAdminVerified());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<InstructorDTO> getVerifiedInstructors(Pageable pageable) {
+        log.debug("Getting verified instructors with pagination: {}", pageable);
+        return instructorRepository.findByAdminVerified(true, pageable)
+                .map(InstructorFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<InstructorDTO> getUnverifiedInstructors(Pageable pageable) {
+        log.debug("Getting unverified instructors with pagination: {}", pageable);
+        return instructorRepository.findByAdminVerified(false, pageable)
+                .map(InstructorFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countInstructorsByVerificationStatus(boolean verified) {
+        return instructorRepository.countByAdminVerified(verified);
+    }
+
+    // ================================
+    // PRIVATE HELPER METHODS
+    // ================================
 
     /**
      * Updates the fields of the existing instructor entity with values from the DTO.

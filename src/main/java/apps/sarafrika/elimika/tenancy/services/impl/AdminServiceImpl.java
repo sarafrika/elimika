@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRe
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.instructor.service.InstructorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,6 +48,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final OrganisationRepository organisationRepository;
     private final UserService userService;
+    private final InstructorService instructorService;
 
     @Override
     @Transactional
@@ -227,6 +229,10 @@ public class AdminServiceImpl implements AdminService {
         long totalOrganizations = organisationRepository.count();
         long pendingApprovals = 0; // Would need approval status implementation
 
+        // Instructor metrics
+        long verifiedInstructors = instructorService.countInstructorsByVerificationStatus(true);
+        long pendingInstructorApprovals = instructorService.countInstructorsByVerificationStatus(false);
+
         // Admin metrics
         UserDomain adminDomain = userDomainRepository.findByDomainName("admin").orElse(null);
         long systemAdmins = adminDomain != null ?
@@ -252,9 +258,9 @@ public class AdminServiceImpl implements AdminService {
                 ),
                 new AdminDashboardStatsDTO.ContentMetrics(
                         0, // totalCourses - would need course repository
-                        0, // pendingModeration
+                        pendingInstructorApprovals, // Use pending instructor approvals for moderation queue
                         0, // reportedContent
-                        0.0 // averageQualityScore
+                        verifiedInstructors > 0 ? (double) verifiedInstructors / (verifiedInstructors + pendingInstructorApprovals) * 100.0 : 0.0 // instructor verification rate as quality score
                 ),
                 new AdminDashboardStatsDTO.SystemPerformance(
                         "99.9%", // serverUptime - would need monitoring integration

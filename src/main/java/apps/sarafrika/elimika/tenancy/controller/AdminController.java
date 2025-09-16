@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
+import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
+import apps.sarafrika.elimika.instructor.service.InstructorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -41,6 +43,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final OrganisationService organisationService;
+    private final InstructorService instructorService;
 
     // ================================
     // ADMIN DOMAIN MANAGEMENT
@@ -320,5 +323,71 @@ public class AdminController {
         boolean isVerified = organisationService.isOrganisationVerified(uuid);
         return ResponseEntity.ok(ApiResponse.success(isVerified,
                 isVerified ? "Organization is verified" : "Organization is not verified"));
+    }
+
+    // ================================
+    // INSTRUCTOR VERIFICATION MANAGEMENT
+    // ================================
+
+    @Operation(
+            summary = "Verify an instructor",
+            description = "Verifies/approves an instructor by setting the admin_verified flag to true. " +
+                    "Only system administrators can perform this operation. Verified instructors gain access to " +
+                    "additional platform features and display verification badges."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor verified successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Instructor not found")
+    @PostMapping("/instructors/{uuid}/verify")
+    public ResponseEntity<ApiResponse<InstructorDTO>> verifyInstructor(
+            @Parameter(description = "UUID of the instructor to verify. Must be an existing instructor identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Optional reason for verification")
+            @RequestParam(required = false) String reason) {
+
+        log.info("Admin verifying instructor {} for reason: {}", uuid, reason);
+        InstructorDTO verified = instructorService.verifyInstructor(uuid, reason);
+        return ResponseEntity.ok(ApiResponse.success(verified, "Instructor verified successfully"));
+    }
+
+    @Operation(
+            summary = "Remove verification from an instructor",
+            description = "Removes verification from an instructor by setting the admin_verified flag to false. " +
+                    "Only system administrators can perform this operation. This may revoke access to certain platform features."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor verification removed successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Instructor not found")
+    @PostMapping("/instructors/{uuid}/unverify")
+    public ResponseEntity<ApiResponse<InstructorDTO>> unverifyInstructor(
+            @Parameter(description = "UUID of the instructor to remove verification from. Must be an existing instructor identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Optional reason for removing verification")
+            @RequestParam(required = false) String reason) {
+
+        log.info("Admin removing verification from instructor {} for reason: {}", uuid, reason);
+        InstructorDTO unverified = instructorService.unverifyInstructor(uuid, reason);
+        return ResponseEntity.ok(ApiResponse.success(unverified, "Instructor verification removed successfully"));
+    }
+
+    @Operation(
+            summary = "Check if instructor is verified",
+            description = "Checks whether a specific instructor has been verified by an admin. " +
+                    "Returns true if the instructor has admin verification status."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification status check completed")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Instructor not found")
+    @GetMapping("/instructors/{uuid}/verification-status")
+    public ResponseEntity<ApiResponse<Boolean>> isInstructorVerified(
+            @Parameter(description = "UUID of the instructor to check verification status for.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
+
+        log.debug("Checking verification status for instructor: {}", uuid);
+        boolean isVerified = instructorService.isInstructorVerified(uuid);
+        return ResponseEntity.ok(ApiResponse.success(isVerified,
+                isVerified ? "Instructor is verified" : "Instructor is not verified"));
     }
 }
