@@ -1,3 +1,10 @@
+# [2.16.0](https://github.com/sarafrika/elimika/compare/v2.15.0...v2.16.0) (2025-09-16)
+
+
+### Features
+
+* Add @JsonProperty annotations to admin DTOs for snake_case API documentation ([d24d7f7](https://github.com/sarafrika/elimika/commit/d24d7f7223af9260e0d23fa3f0b4576507147786))
+
 # [2.15.0](https://github.com/sarafrika/elimika/compare/v2.14.0...v2.15.0) (2025-09-15)
 
 
