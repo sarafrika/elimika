@@ -171,4 +171,55 @@ public interface OrganisationService {
      * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if user is not associated with organization
      */
     String getUserRoleInOrganisation(UUID organisationUuid, UUID userUuid);
+
+    // ================================
+    // ORGANIZATION VERIFICATION
+    // ================================
+
+    /**
+     * Verifies/approves an organization. Only system admins can perform this operation.
+     * Sets the admin_verified flag to true for the organization.
+     *
+     * @param organisationUuid the organization UUID to verify
+     * @param reason optional reason for verification
+     * @return the updated organization
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if organization not found
+     */
+    OrganisationDTO verifyOrganisation(UUID organisationUuid, String reason);
+
+    /**
+     * Removes verification from an organization. Only system admins can perform this operation.
+     * Sets the admin_verified flag to false for the organization.
+     *
+     * @param organisationUuid the organization UUID to unverify
+     * @param reason optional reason for removing verification
+     * @return the updated organization
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if organization not found
+     */
+    OrganisationDTO unverifyOrganisation(UUID organisationUuid, String reason);
+
+    /**
+     * Checks if an organization is verified by an admin.
+     *
+     * @param organisationUuid the organization UUID
+     * @return true if the organization is admin verified
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if organization not found
+     */
+    boolean isOrganisationVerified(UUID organisationUuid);
+
+    /**
+     * Gets all verified organizations with pagination.
+     *
+     * @param pageable pagination information
+     * @return paginated list of verified organizations
+     */
+    Page<OrganisationDTO> getVerifiedOrganisations(Pageable pageable);
+
+    /**
+     * Gets all unverified organizations with pagination.
+     *
+     * @param pageable pagination information
+     * @return paginated list of unverified organizations
+     */
+    Page<OrganisationDTO> getUnverifiedOrganisations(Pageable pageable);
 }

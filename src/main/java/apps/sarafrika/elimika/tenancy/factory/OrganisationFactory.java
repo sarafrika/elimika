@@ -19,6 +19,7 @@ public class OrganisationFactory {
                 organisation.getSlug(),
                 organisation.getLatitude(),
                 organisation.getLongitude(),
+                organisation.getAdminVerified(),
                 organisation.getCreatedDate(),
                 organisation.getLastModifiedDate()
         );

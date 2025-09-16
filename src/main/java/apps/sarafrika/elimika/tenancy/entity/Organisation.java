@@ -51,4 +51,7 @@ public class Organisation extends BaseEntity {
 
     @Column(name = "country")
     private String country;
+
+    @Column(name = "admin_verified")
+    private Boolean adminVerified = false;
 }

@@ -480,5 +480,78 @@ public class OrganisationServiceImpl implements OrganisationService {
         }
     }
 
+    // ================================
+    // ORGANIZATION VERIFICATION METHODS
+    // ================================
+
+    @Override
+    @Transactional
+    public OrganisationDTO verifyOrganisation(UUID organisationUuid, String reason) {
+        log.debug("Verifying organisation: {} with reason: {}", organisationUuid, reason);
+
+        Organisation organisation = findOrganisationOrThrow(organisationUuid);
+
+        if (Boolean.TRUE.equals(organisation.getAdminVerified())) {
+            log.warn("Organisation {} is already verified", organisationUuid);
+        } else {
+            organisation.setAdminVerified(true);
+            organisation = organisationRepository.save(organisation);
+            log.info("Successfully verified organisation: {} for reason: {}", organisationUuid, reason);
+        }
+
+        return OrganisationFactory.toDTO(organisation);
+    }
+
+    @Override
+    @Transactional
+    public OrganisationDTO unverifyOrganisation(UUID organisationUuid, String reason) {
+        log.debug("Removing verification from organisation: {} with reason: {}", organisationUuid, reason);
+
+        Organisation organisation = findOrganisationOrThrow(organisationUuid);
+
+        if (Boolean.FALSE.equals(organisation.getAdminVerified()) || organisation.getAdminVerified() == null) {
+            log.warn("Organisation {} is already unverified", organisationUuid);
+        } else {
+            organisation.setAdminVerified(false);
+            organisation = organisationRepository.save(organisation);
+            log.info("Successfully removed verification from organisation: {} for reason: {}", organisationUuid, reason);
+        }
+
+        return OrganisationFactory.toDTO(organisation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isOrganisationVerified(UUID organisationUuid) {
+        log.debug("Checking verification status for organisation: {}", organisationUuid);
+
+        Organisation organisation = findOrganisationOrThrow(organisationUuid);
+        boolean isVerified = Boolean.TRUE.equals(organisation.getAdminVerified());
+
+        log.debug("Organisation {} verification status: {}", organisationUuid, isVerified);
+        return isVerified;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrganisationDTO> getVerifiedOrganisations(Pageable pageable) {
+        log.debug("Fetching verified organisations with pagination: {}", pageable);
+
+        Page<Organisation> organisations = organisationRepository.findByAdminVerifiedTrueAndDeletedFalse(pageable);
+
+        log.debug("Found {} verified organisations", organisations.getTotalElements());
+        return organisations.map(OrganisationFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrganisationDTO> getUnverifiedOrganisations(Pageable pageable) {
+        log.debug("Fetching unverified organisations with pagination: {}", pageable);
+
+        Page<Organisation> organisations = organisationRepository.findByAdminVerifiedFalseOrNullAndDeletedFalse(pageable);
+
+        log.debug("Found {} unverified organisations", organisations.getTotalElements());
+        return organisations.map(OrganisationFactory::toDTO);
+    }
 
 }

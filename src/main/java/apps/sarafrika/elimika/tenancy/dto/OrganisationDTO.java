@@ -34,6 +34,7 @@ import java.util.UUID;
                     "slug": "sarafrika-university",
                     "latitude": -1.2921,
                     "longitude": 36.8219,
+                    "admin_verified": true,
                     "created_date": "2024-01-01T09:00:00",
                     "updated_date": "2024-04-15T14:30:00"
                 }
@@ -139,6 +140,16 @@ public record OrganisationDTO(
         )
         @JsonProperty("longitude")
         BigDecimal longitude,
+
+        @Schema(
+                description = "**[READ-ONLY]** Indicates whether the organisation has been verified/approved by an admin. " +
+                        "Only verified organisations can access certain platform features and are displayed with verification badges.",
+                example = "true",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "admin_verified", access = JsonProperty.Access.READ_ONLY)
+        Boolean adminVerified,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the organisation was first created. Automatically set by the system and cannot be modified.",

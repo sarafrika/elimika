@@ -4,8 +4,10 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
+import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -38,6 +40,7 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService adminService;
+    private final OrganisationService organisationService;
 
     // ================================
     // ADMIN DOMAIN MANAGEMENT
@@ -251,5 +254,71 @@ public class AdminController {
         boolean isSystemAdmin = adminService.isSystemAdmin(uuid);
         return ResponseEntity.ok(ApiResponse.success(isSystemAdmin,
                 isSystemAdmin ? "User is a system admin" : "User is not a system admin"));
+    }
+
+    // ================================
+    // ORGANIZATION VERIFICATION MANAGEMENT
+    // ================================
+
+    @Operation(
+            summary = "Verify an organization",
+            description = "Verifies/approves an organization by setting the admin_verified flag to true. " +
+                    "Only system administrators can perform this operation. Verified organizations gain access to " +
+                    "additional platform features and display verification badges."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization verified successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
+    @PostMapping("/organizations/{uuid}/verify")
+    public ResponseEntity<ApiResponse<OrganisationDTO>> verifyOrganisation(
+            @Parameter(description = "UUID of the organization to verify. Must be an existing organization identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Optional reason for verification")
+            @RequestParam(required = false) String reason) {
+
+        log.info("Admin verifying organization {} for reason: {}", uuid, reason);
+        OrganisationDTO verified = organisationService.verifyOrganisation(uuid, reason);
+        return ResponseEntity.ok(ApiResponse.success(verified, "Organization verified successfully"));
+    }
+
+    @Operation(
+            summary = "Remove verification from an organization",
+            description = "Removes verification from an organization by setting the admin_verified flag to false. " +
+                    "Only system administrators can perform this operation. This may revoke access to certain platform features."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization verification removed successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
+    @PostMapping("/organizations/{uuid}/unverify")
+    public ResponseEntity<ApiResponse<OrganisationDTO>> unverifyOrganisation(
+            @Parameter(description = "UUID of the organization to remove verification from. Must be an existing organization identifier.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Optional reason for removing verification")
+            @RequestParam(required = false) String reason) {
+
+        log.info("Admin removing verification from organization {} for reason: {}", uuid, reason);
+        OrganisationDTO unverified = organisationService.unverifyOrganisation(uuid, reason);
+        return ResponseEntity.ok(ApiResponse.success(unverified, "Organization verification removed successfully"));
+    }
+
+    @Operation(
+            summary = "Check if organization is verified",
+            description = "Checks whether a specific organization has been verified by an admin. " +
+                    "Returns true if the organization has admin verification status."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification status check completed")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
+    @GetMapping("/organizations/{uuid}/verification-status")
+    public ResponseEntity<ApiResponse<Boolean>> isOrganisationVerified(
+            @Parameter(description = "UUID of the organization to check verification status for.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
+
+        log.debug("Checking verification status for organization: {}", uuid);
+        boolean isVerified = organisationService.isOrganisationVerified(uuid);
+        return ResponseEntity.ok(ApiResponse.success(isVerified,
+                isVerified ? "Organization is verified" : "Organization is not verified"));
     }
 }

@@ -105,7 +105,16 @@ class OrganisationController {
 
     @Operation(summary = "Search organisations",
             description = "Fetches a paginated list of organisations based on optional filters. " +
-                    "Supports pagination and sorting.")
+                    "Supports pagination and sorting. Available filters include:\n" +
+                    "- `name` - Filter by organisation name (partial match)\n" +
+                    "- `active` - Filter by active status (true/false)\n" +
+                    "- `admin_verified` - Filter by verification status (true/false)\n" +
+                    "- `country` - Filter by country\n" +
+                    "- `location` - Filter by location\n\n" +
+                    "Examples:\n" +
+                    "- `/search?admin_verified=true` - Get verified organisations\n" +
+                    "- `/search?admin_verified=false` - Get unverified organisations\n" +
+                    "- `/search?active=true&admin_verified=true` - Get active verified organisations")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
             description = "Paginated list of organisations matching the search criteria")
     @GetMapping("search")
