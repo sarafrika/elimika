@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -25,6 +26,7 @@ public record AdminDomainAssignmentRequestDTO(
         allowableValues = {"admin", "organisation_user"}
     )
     @NotBlank(message = "Domain name is required")
+    @JsonProperty("domain_name")
     String domainName,
 
     @Schema(
@@ -33,6 +35,7 @@ public record AdminDomainAssignmentRequestDTO(
         allowableValues = {"global", "organization"}
     )
     @NotBlank(message = "Assignment type is required")
+    @JsonProperty("assignment_type")
     String assignmentType,
 
     @Schema(
@@ -40,12 +43,14 @@ public record AdminDomainAssignmentRequestDTO(
         example = "Promoted to system administrator role"
     )
     @Size(max = 500, message = "Reason cannot exceed 500 characters")
+    @JsonProperty("reason")
     String reason,
 
     @Schema(
         description = "Effective date for the admin assignment",
         example = "2024-12-01"
     )
+    @JsonProperty("effective_date")
     LocalDate effectiveDate
 ) {
 

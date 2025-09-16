@@ -36,7 +36,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Admin Management API", description = "System administrator management operations including domain assignment, user management, and dashboard statistics")
-@SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
     private final AdminService adminService;
