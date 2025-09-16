@@ -48,11 +48,7 @@ graph TD
 - Self-enrolled users
 - Open course participation
 
-```sql
--- Example: Global student domain assignment
-INSERT INTO user_domain_mapping (user_uuid, domain_uuid)
-VALUES ('user-123', 'student-domain-uuid');
-```
+Assignment is done by adding an entry to the `user_domain_mapping` table linking the user's UUID with the student domain's UUID.
 
 ### Organization Student Domain
 
@@ -63,16 +59,7 @@ VALUES ('user-123', 'student-domain-uuid');
 - Enrollment periods (start/end dates)
 - Organization-specific policies
 
-```sql
--- Example: Organization student domain assignment
-INSERT INTO user_organisation_domain_mapping (
-    user_uuid, organisation_uuid, domain_uuid, branch_uuid,
-    start_date, active, deleted
-) VALUES (
-    'user-123', 'university-abc', 'student-domain-uuid', 'cs-department',
-    '2024-01-15', true, false
-);
-```
+Assignment is done by adding a detailed entry to the `user_organisation_domain_mapping` table that links the user to the organization, the student domain, and optionally a specific branch, along with start dates and status.
 
 ## Student Lifecycle Management
 
@@ -216,25 +203,7 @@ gantt
 
 ### Permission Validation
 
-```java
-// Example permission check for student content access
-public boolean canAccessCourse(UUID studentUuid, UUID courseUuid) {
-    // Check global student access
-    List<String> globalDomains = getUserDomainsFromMappings(studentUuid);
-    if (globalDomains.contains("student")) {
-        return courseService.isPublicCourse(courseUuid);
-    }
-    
-    // Check organization-specific access
-    List<UserOrganisationAffiliationDTO> affiliations = 
-        getUserOrganisationAffiliations(studentUuid);
-    
-    return affiliations.stream()
-        .filter(aff -> "student".equals(aff.getDomainInOrganisation()))
-        .filter(UserOrganisationAffiliationDTO::isActive)
-        .anyMatch(aff -> courseService.isAvailableToOrganization(courseUuid, aff.getOrganisationUuid()));
-}
-```
+The system validates a student's access to a course by first checking if the user has the global 'student' domain, which grants access to all public courses. If not, it then checks all of the user's active organization affiliations. If the user is an active student in an organization that offers the course, access is granted.
 
 ## Student Data and Privacy Considerations
 
@@ -273,23 +242,10 @@ flowchart TD
 
 ### Student Invitation and Assignment Workflow
 
-```bash
-# Typical student organization assignment process
-
-# 1. Organization invites student
-curl -X POST "/api/v1/organisations/{orgUuid}/invitations" \
-  -H "Content-Type: application/json" \
-  -d 'recipient_email=student@university.edu&recipient_name=John Doe&domain_name=student&inviter_uuid={inviterUuid}'
-
-# 2. Student accepts invitation 
-curl -X POST "/api/v1/users/{userUuid}/invitations/accept" \
-  -H "Content-Type: application/json" \
-  -d 'token={invitationToken}'
-
-# 3. Check student's organization affiliations
-curl -X GET "/api/v1/users/{userUuid}"
-# Response includes organisationAffiliations with student role
-```
+The typical workflow for assigning a student to an organization via invitation involves several API calls:
+1.  **Invite Student**: An administrator sends a `POST` request to `/api/v1/organisations/{orgUuid}/invitations` with the student's details and the `student` domain name.
+2.  **Accept Invitation**: The student accepts the invitation, which triggers a `POST` request to `/api/v1/users/{userUuid}/invitations/accept` with the invitation token.
+3.  **Verify Affiliation**: The student's affiliation can be verified by fetching their user profile via `GET /api/v1/users/{userUuid}`, which will now include their new role in the `organisationAffiliations` array.
 
 ### Progress Reporting
 

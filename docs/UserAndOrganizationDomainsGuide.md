@@ -285,62 +285,24 @@ graph TD
 
 ##### Branch-Specific User Management
 
-```bash
-# Example: Managing users within specific branches
-
-# 1. Get all users in Computer Science department
-curl -X GET "/api/v1/organisations/{orgUuid}/training-branches/{branchUuid}/users"
-  -H "Authorization: Bearer {admin-token}"
-
-# 2. Get instructors only in CS department  
-curl -X GET "/api/v1/organisations/{orgUuid}/training-branches/{branchUuid}/users/domain/instructor"
-  -H "Authorization: Bearer {admin-token}"
-
-# 3. Assign user to specific branch with role
-curl -X POST "/api/v1/organisations/{orgUuid}/users/{userUuid}/assign-domain"
-  -H "Authorization: Bearer {admin-token}"
-  -d '{"domainName": "instructor", "branchUuid": "{branchUuid}"}'
-```
+Administrators can manage users at the branch level using a set of dedicated API endpoints. These endpoints allow for listing all users within a branch, filtering those users by their domain (e.g., listing only instructors), and assigning a new user to a specific branch with a designated role. The API endpoints for these actions are detailed in the "API Integration Points" section.
 
 #### Organization Domain Repository Capabilities
 
 ##### Advanced Query Methods
 
-The `UserOrganisationDomainMappingRepository` provides comprehensive querying:
-
-```java
-// Active relationship queries with organization context
-List<UserOrganisationDomainMapping> findActiveByUser(UUID userUuid);
-List<UserOrganisationDomainMapping> findActiveByOrganisation(UUID orgUuid);
-Optional<UserOrganisationDomainMapping> findActiveByUserAndOrganisation(UUID userUuid, UUID orgUuid);
-
-// Role-based filtering within organizations
-List<UserOrganisationDomainMapping> findActiveByOrganisationAndDomain(UUID orgUuid, UUID domainUuid);
-
-// Branch-specific queries
-List<UserOrganisationDomainMapping> findActiveByBranch(UUID branchUuid);
-long countDistinctActiveUsersByBranch(UUID branchUuid);
-
-// Temporal and lifecycle queries
-List<UserOrganisationDomainMapping> findMappingsEndingBetween(LocalDate start, LocalDate end);
-List<UserOrganisationDomainMapping> findCurrentActiveMapping(UUID userUuid, UUID orgUuid);
-
-// Bulk operations for organization management
-List<UserOrganisationDomainMapping> findActiveByUserUuidsAndOrganisation(
-    List<UUID> userUuids, UUID orgUuid);
-```
+The `UserOrganisationDomainMappingRepository` provides a comprehensive set of query methods to retrieve data based on various criteria. These methods support:
+-   **Active Relationship Queries**: Finding active mappings by user, by organization, or by a combination of both.
+-   **Role-based Filtering**: Searching for active mappings within an organization for a specific domain (e.g., all students in University X).
+-   **Branch-specific Queries**: Finding all active mappings for a specific training branch or counting the number of active users in that branch.
+-   **Temporal Queries**: Finding mappings that are scheduled to end within a specific date range.
+-   **Bulk Operations**: Retrieving mappings for a list of users within a single organization.
 
 ##### Analytics and Reporting Queries
 
-```java
-// Organization analytics
-long countDistinctActiveUsersByOrganisation(UUID orgUuid);
-long countDistinctActiveUsersByOrganisationAndDomain(UUID orgUuid, UUID domainUuid);
-
-// Cross-organization user analysis
-List<UUID> findDistinctOrganisationUuidsByUser(UUID userUuid);
-List<UUID> findDistinctUserUuidsByOrganisation(UUID orgUuid);
-```
+For analytics and reporting purposes, the repository provides methods to:
+-   Count the number of distinct active users in an organization, optionally filtered by domain.
+-   Analyze cross-organization affiliations by finding all organizations a single user belongs to, or all users belonging to a single organization.
 
 #### Multi-Organization Scenarios
 
@@ -463,25 +425,7 @@ sequenceDiagram
 
 ### Combined Domain Resolution
 
-The system aggregates domains from both global and organizational contexts to provide a unified user profile:
-
-```java
-// Method: getUserDomainsFromMappings() in UserServiceImpl
-private List<String> getUserDomainsFromMappings(UUID userUuid) {
-    Set<String> allDomains = new HashSet<>();
-
-    // 1. Get global/standalone domains
-    List<UserDomainMapping> standaloneMappings = userDomainMappingRepository.findByUserUuid(userUuid);
-    // Add to allDomains set...
-
-    // 2. Get domains from active organization memberships
-    List<UserOrganisationDomainMapping> orgMappings =
-        userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
-    // Add to allDomains set...
-
-    return new ArrayList<>(allDomains); // Deduplicated list
-}
-```
+The system aggregates domains from both global and organizational contexts to provide a unified user profile. The backend logic, typically within a `UserService`, fetches all global domain mappings for a user and combines them with all of their active organization-specific domain mappings. This produces a complete, deduplicated list of all roles the user holds across the entire platform, which is then used for permission checking.
 
 ### Organization Affiliation Details
 

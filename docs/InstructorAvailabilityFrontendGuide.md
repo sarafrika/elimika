@@ -230,36 +230,16 @@ GET /api/v1/availability/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/check?
 
 ### `AvailabilitySlotDTO`
 
-This is the primary data structure you'll work with.
-
-```typescript
-interface AvailabilitySlotDTO {
-  uuid?: string;
-  instructor_uuid: string;
-  availability_type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM' | 'SPECIFIC_DATE';
-  day_of_week?: number; // 1=Monday, 7=Sunday
-  specific_date?: string; // YYYY-MM-DD
-  start_time: string; // HH:mm:ss
-  end_time: string; // HH:mm:ss
-  is_available: boolean;
-  // Computed properties from the backend
-  duration_formatted?: string; // e.g., "1h 30m"
-  description?: string; // e.g., "Weekly on Mondays"
-}
-```
+This is the primary data structure you'll work with. It represents a single block of time in an instructor's schedule. Key fields include:
+-   `instructor_uuid`: The ID of the instructor.
+-   `availability_type`: The type of slot (e.g., `WEEKLY`, `SPECIFIC_DATE`).
+-   `day_of_week` or `specific_date`: Defines when the slot occurs.
+-   `start_time` and `end_time`: The time range for the slot.
+-   `is_available`: A boolean indicating if the instructor is available or blocked during this time.
 
 ### `WeeklyAvailabilitySlotDTO`
 
-Used when creating weekly patterns.
-
-```typescript
-interface WeeklyAvailabilitySlotDTO {
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_available?: boolean; // Defaults to true
-}
-```
+This is a simpler data structure used when creating recurring weekly availability patterns. It includes the `day_of_week`, `start_time`, and `end_time`.
 
 ---
 

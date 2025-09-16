@@ -139,17 +139,15 @@ The following endpoints are **NOT IMPLEMENTED** and are required for full functi
 
 #### **Component Structure**
 
-```jsx
-// Main container component hierarchy for this feature
-UserManagementPage/
-├── AdminUserManagement/
-│   ├── AdminUserTable/          // Paginated admin list
-│   ├── AdminInviteModal/        // Invite new admin flow
-│   ├── AdminDetailsModal/       // View/edit admin details
-│   └── AdminBulkActions/        // Batch operations
-```
+The frontend implementation for this feature should be organized into a clear component hierarchy. A `UserManagementPage` component will act as the main container. This page will house an `AdminUserManagement` component, which in turn contains child components for specific functionalities:
+-   **`AdminUserTable`**: A component to display a paginated list of administrators.
+-   **`AdminInviteModal`**: A modal dialog for the admin invitation flow.
+-   **`AdminDetailsModal`**: A modal for viewing and editing the details of an administrator.
+-   **`AdminBulkActions`**: A component to handle batch operations like suspending or deleting multiple admins.
 
 #### **Admin Invitation Workflow**
+
+The process for inviting a new system administrator involves the frontend, the API, the email service, and the authentication system (Keycloak).
 
 **Current Implementation Status:** ⚠️ **Partially Available**
 **Workaround:** Use the general organization invitation and manually assign the admin domain via database.
@@ -188,170 +186,21 @@ sequenceDiagram
     UI->>ADMIN: 12. Confirmation: New admin added
 ```
 
-#### **Example Component: `AdminInviteModal.jsx`**
+#### **Component-Level Logic**
 
-```jsx
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { adminApi } from '../services/api';
+-   **`AdminInviteModal`**: This component should render a form with fields for the new admin's email, name, admin level (system or organization), and an optional welcome message. On submission, it should handle the API call to invite the user. Because the direct admin invitation endpoint is missing, the current workaround is to use the organization invitation endpoint. The UI should clearly message that a manual step is required after the user accepts the invitation.
 
-const AdminInviteModal = ({ isOpen, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    email: '',
-    name: '',
-    adminLevel: 'system', // system | organization
-    notes: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      // ⚠️ MISSING API ENDPOINT - Using workaround
-      // Intended: await adminApi.inviteAdmin(formData);
-
-      // CURRENT WORKAROUND: Use organization invitation
-      const response = await adminApi.inviteToOrganization({
-        recipientEmail: formData.email,
-        recipientName: formData.name,
-        domainName: 'admin', // Will need manual domain assignment
-        notes: formData.notes
-      });
-
-      // ⚠️ MISSING: Automatic admin domain assignment
-      // Manual step required after invitation acceptance
-
-      onSuccess(response.data);
-      onClose();
-    } catch (err) {
-      setError('Failed to send admin invitation. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Invite New System Admin">
-      <form onSubmit={handleSubmit}>
-        {/* Form fields for email, name, adminLevel, notes */}
-      </form>
-
-      {/* ⚠️ Missing Functionality Warning */}
-      <div className="implementation-warning">
-        <h4>⚠️ Implementation Status</h4>
-        <ul>
-          <li>❌ Direct admin invitation endpoint missing</li>
-          <li>❌ Automatic admin domain assignment unavailable</li>
-          <li>✅ Basic invitation system working</li>
-          <li>✅ Email delivery functional</li>
-        </ul>
-        <p><strong>Current Limitation:</strong> Admin role must be manually assigned after invitation acceptance.</p>
-      </div>
-    </Modal>
-  );
-};
-```
-
-#### **Example Component: `AdminUserTable.jsx`**
-
-```jsx
-const AdminUserTable = () => {
-  const [admins, setAdmins] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadAdmins = async () => {
-      try {
-        setLoading(true);
-        // ⚠️ MISSING: Dedicated admin list endpoint. Using workaround.
-        const response = await userApi.searchUsers({ domain: 'admin' });
-        setAdmins(response.data.items);
-      } catch (error) {
-        console.error('Failed to load admin users:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadAdmins();
-  }, []);
-
-  const handleRemoveAdmin = async (userUuid) => {
-    if (!confirm('Remove admin privileges from this user?')) return;
-    try {
-      // ⚠️ MISSING API ENDPOINT
-      // await adminApi.removeAdminDomain(userUuid, 'admin');
-      alert('⚠️ Admin removal endpoint not implemented. Contact backend team.');
-    } catch (error) {
-      alert('Failed to remove admin privileges.');
-    }
-  };
-
-  return (
-    <div className="admin-table-container">
-      {/* Table structure to display admins */}
-    </div>
-  );
-};
-```
+-   **`AdminUserTable`**: This component is responsible for fetching and displaying a list of users with the admin domain. It will use the `/api/v1/users/search` endpoint with a filter for the 'admin' domain as a workaround for the missing dedicated admin list endpoint. The component should also provide actions for each admin, such as viewing details or removing admin privileges. The removal action should be disabled or show a warning, as the required API endpoint is not yet implemented.
 
 ### 2.5 API Service Layer and Security
 
-#### **API Service (`services/adminApi.js`)**
+#### **API Service**
 
-```javascript
-// services/adminApi.js
-import { apiClient } from './apiClient';
+A dedicated API service or client should be created in the frontend codebase to manage all interactions with the admin-related endpoints. This service will encapsulate the logic for making API calls, including handling workarounds for missing endpoints. For instance, the `getAdminUsers` function would call the `searchUsers` endpoint with the appropriate filter, while the `inviteAdmin` function would throw a "not implemented" error to alert developers that the backend functionality is missing.
 
-export const adminApi = {
-  // Methods for available endpoints...
+#### **Security**
 
-  // ❌ MISSING ENDPOINTS - Need backend implementation
-  inviteAdmin: (adminInviteData) => {
-    throw new Error('Admin invitation endpoint not implemented. Expected: POST /api/v1/admin/users/invite-admin');
-  },
-  addAdminDomain: (userUuid, domainData) => {
-    throw new Error('Admin domain assignment endpoint not implemented. Expected: POST /api/v1/admin/users/{uuid}/domains');
-  },
-  removeAdminDomain: (userUuid, domain) => {
-    throw new Error('Admin domain removal endpoint not implemented. Expected: DELETE /api/v1/admin/users/{uuid}/domains/{domain}');
-  },
-  getAdminUsers: (filters = {}) => {
-    // WORKAROUND: Use search with admin domain filter
-    return this.searchUsers({ ...filters, domain: 'admin' });
-  }
-};
-```
-
-#### **Security (`hooks/useAdminAccess.js`)**
-
-```jsx
-// hooks/useAdminAccess.js
-import { useAuth } from './useAuth';
-import { useMemo } from 'react';
-
-export const useAdminAccess = () => {
-  const { user, isAuthenticated } = useAuth();
-
-  const adminAccess = useMemo(() => {
-    if (!isAuthenticated || !user) {
-      return { isAdmin: false, isSystemAdmin: false };
-    }
-    const isSystemAdmin = user.domains.includes('admin');
-    return {
-      isAdmin: isSystemAdmin || user.domains.includes('organisation_user'),
-      isSystemAdmin,
-      canManageUsers: isSystemAdmin,
-      canViewAuditLogs: isSystemAdmin,
-    };
-  }, [user, isAuthenticated]);
-
-  return adminAccess;
-};
-```
+Frontend security should be handled using a custom React hook, such as `useAdminAccess`. This hook will check the authenticated user's JWT for their domain information (e.g., the presence of the 'admin' domain). The hook should return boolean flags like `isSystemAdmin` or `canManageUsers`. These flags can then be used to implement protected routes and conditionally render UI elements, ensuring that only authorized administrators can access sensitive management features.
 
 ### 2.6 Critical Implementation Gaps
 
