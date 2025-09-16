@@ -9,6 +9,55 @@ This document outlines the features, requirements, and technical specifications 
 
 ---
 
+## 2. System Admin Domain Architecture
+
+This architecture provides the foundation for role-based access control within the admin dashboard.
+
+### Admin Hierarchy and Permissions
+
+```mermaid
+graph TB
+    subgraph "Admin Domain Structure"
+        SA[Super Admin<br/>🔧 Platform Owner]
+        GA[Global Admin<br/>⚙️ System Operations]
+        OA[Organization Admin<br/>🏢 Institution Management]
+
+        SA --> GA
+        GA --> OA
+    end
+
+    subgraph "Domain Assignment Methods"
+        INV[Invitation Process<br/>📧 Email-based Assignment]
+        DIRECT[Direct Assignment<br/>🔗 API-based Addition]
+        BOOTSTRAP[Bootstrap Process<br/>⚡ Platform Initialization]
+    end
+
+    subgraph "Database Mapping"
+        UDM[user_domain_mapping<br/>🗃️ Global Admin Assignment]
+        UODM[user_organisation_domain_mapping<br/>🎯 Organization Admin Assignment]
+    end
+
+    SA -.-> BOOTSTRAP
+    GA -.-> INV
+    GA -.-> DIRECT
+    OA -.-> UODM
+    GA -.-> UDM
+
+    style SA fill:#d32f2f
+    style GA fill:#ff5722
+    style OA fill:#ff9800
+    style INV fill:#4caf50
+```
+
+### Admin Domain Types
+
+| Domain Type | Scope | Assignment Method | Database Table | Use Case |
+|-------------|-------|------------------|----------------|----------|
+| **System Admin** | Platform-wide | `user_domain_mapping` | Global domain assignment | Complete platform control |
+| **Organization Admin** | Institution-specific | `user_organisation_domain_mapping` | Contextual domain assignment | Organization management only |
+
+---
+
 ## Feature 1.0: At-a-Glance Dashboard & Analytics
 
 ### 1.1 Objective
@@ -50,34 +99,137 @@ To provide a high-level, real-time overview of the platform's status, key metric
 
 ---
 
-## Feature 2.0: Comprehensive User Management
+## Feature 2.0: Comprehensive Admin User Management
 
 ### 2.1 Objective
-To provide admins with the tools to search, view, and manage every user account on the platform.
+To provide admins with the tools to search, view, and manage every user account on the platform, with a focus on securely managing system administrator roles.
 
 ### 2.2 User Stories
 - As an admin, I want to search for users by name or email.
 - As an admin, I want to filter the user list by role, organization, or status.
 - As an admin, I want to view a user's detailed profile.
 - As an admin, I want to suspend, delete, or change the roles of a user.
+- As a super admin, I want to securely invite new system administrators.
+- As a super admin, I want to revoke system administrator privileges from a user.
 
-### 2.3 Required API Endpoints
-- `GET /api/v1/users`
-- `GET /api/v1/users/search`
-- `GET /api/v1/users/{uuid}`
-- `PUT /api/v1/users/{uuid}`
-- `DELETE /api/v1/users/{uuid}`
-- `POST /api/v1/admin/users/{userUuid}/domains`
+### 2.3 Core API Endpoints & Status
 
-### 2.4 Frontend Engineer Task Breakdown
+#### **Available Endpoints (for general user management)**
 
-| Component | Description | Key Props / State | Interactions |
-| :--- | :--- | :--- | :--- |
-| `UserManagementPage` | Main container for user management. | `users`, `filters`, `searchTerm`, `pagination` | Handles fetching and filtering logic. |
-| `UserDataTable` | Displays users in a paginated table. | `users: Array<UserDTO>` | Sorting by columns. |
-| `UserFilterPanel` | Provides filtering options. | `allOrgs`, `allDomains` | Emits filter change events. |
-| `UserDetailsModal` | Shows full user profile and allows actions. | `user: UserDTO` | Editing user status, assigning roles. |
-| `ConfirmationDialog` | A generic modal for confirming actions. | `title`, `message` | `onConfirm`, `onCancel` callbacks. |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/api/v1/users` | List all platform users |
+| `GET` | `/api/v1/users/search` | Search users with filters |
+| `GET` | `/api/v1/users/{uuid}` | Get user details |
+| `PUT` | `/api/v1/users/{uuid}` | Update user profile |
+| `DELETE` | `/api/v1/users/{uuid}` | Delete user account |
+
+#### **Missing Critical Endpoints for Admin Management** ⚠️
+
+The following endpoints are **NOT IMPLEMENTED** and are required for full functionality.
+
+| Priority | Method | Missing Endpoint | Purpose | Impact |
+|----------|--------|------------------|---------|---------|
+| **HIGH** | `POST` | `/api/v1/admin/users/{uuid}/domains` | Add admin domain to user | **Core functionality blocked** |
+| **HIGH** | `DELETE` | `/api/v1/admin/users/{uuid}/domains/{domain}` | Remove admin domain | **Admin removal impossible** |
+| **HIGH** | `GET` | `/api/v1/admin/users/admins` | List all system admins | **Admin dashboard empty** |
+| **MEDIUM** | `POST` | `/api/v1/admin/users/invite-admin` | Direct admin invitation | **Streamlined admin creation blocked** |
+
+### 2.4 Frontend Implementation Guide
+
+#### **Component Structure**
+
+The frontend implementation for this feature should be organized into a clear component hierarchy. A `UserManagementPage` component will act as the main container. This page will house an `AdminUserManagement` component, which in turn contains child components for specific functionalities:
+-   **`AdminUserTable`**: A component to display a paginated list of administrators.
+-   **`AdminInviteModal`**: A modal dialog for the admin invitation flow.
+-   **`AdminDetailsModal`**: A modal for viewing and editing the details of an administrator.
+-   **`AdminBulkActions`**: A component to handle batch operations like suspending or deleting multiple admins.
+
+#### **Admin Invitation Workflow**
+
+The process for inviting a new system administrator involves the frontend, the API, the email service, and the authentication system (Keycloak).
+
+**Current Implementation Status:** ⚠️ **Partially Available**
+**Workaround:** Use the general organization invitation and manually assign the admin domain via database.
+
+```mermaid
+sequenceDiagram
+    participant ADMIN as Super Admin
+    participant UI as React Frontend
+    participant API as Elimika API
+    participant EMAIL as Email Service
+    participant TARGET as Target User
+    participant KC as Keycloak
+
+    Note over ADMIN,KC: Phase 1: Admin Invitation Creation
+    ADMIN->>UI: 1. Access Admin Management
+    UI->>ADMIN: 2. Show Admin Invite Form
+    ADMIN->>UI: 3. Submit Admin Invite
+    Note right of ADMIN: {<br/>"email": "newadmin@company.com",<br/>"name": "Jane Admin",<br/>"role": "admin"<br/>}
+
+    Note over UI,EMAIL: Phase 2: API Processing (MISSING IMPLEMENTATION)
+    UI->>API: 4. POST /api/v1/admin/users/invite-admin ❌
+    Note over API: MISSING: Direct admin invitation endpoint
+    Note over API: WORKAROUND: Use organization invitation
+
+    API->>EMAIL: 5. Send Admin Invitation Email
+    EMAIL->>TARGET: 6. Invitation email with accept link
+
+    Note over TARGET,KC: Phase 3: Admin Assignment
+    TARGET->>UI: 7. Click Accept Link
+    UI->>KC: 8. Authenticate via Keycloak
+    KC->>UI: 9. Return JWT + user info
+    UI->>API: 10. POST /api/v1/admin/users/{uuid}/domains ❌
+    Note over API: MISSING: Admin domain assignment endpoint
+
+    API->>UI: 11. Return success + admin permissions
+    UI->>ADMIN: 12. Confirmation: New admin added
+```
+
+#### **Component-Level Logic**
+
+-   **`AdminInviteModal`**: This component should render a form with fields for the new admin's email, name, admin level (system or organization), and an optional welcome message. On submission, it should handle the API call to invite the user. Because the direct admin invitation endpoint is missing, the current workaround is to use the organization invitation endpoint. The UI should clearly message that a manual step is required after the user accepts the invitation.
+
+-   **`AdminUserTable`**: This component is responsible for fetching and displaying a list of users with the admin domain. It will use the `/api/v1/users/search` endpoint with a filter for the 'admin' domain as a workaround for the missing dedicated admin list endpoint. The component should also provide actions for each admin, such as viewing details or removing admin privileges. The removal action should be disabled or show a warning, as the required API endpoint is not yet implemented.
+
+### 2.5 API Service Layer and Security
+
+#### **API Service**
+
+A dedicated API service or client should be created in the frontend codebase to manage all interactions with the admin-related endpoints. This service will encapsulate the logic for making API calls, including handling workarounds for missing endpoints. For instance, the `getAdminUsers` function would call the `searchUsers` endpoint with the appropriate filter, while the `inviteAdmin` function would throw a "not implemented" error to alert developers that the backend functionality is missing.
+
+#### **Security**
+
+Frontend security should be handled using a custom React hook, such as `useAdminAccess`. This hook will check the authenticated user's JWT for their domain information (e.g., the presence of the 'admin' domain). The hook should return boolean flags like `isSystemAdmin` or `canManageUsers`. These flags can then be used to implement protected routes and conditionally render UI elements, ensuring that only authorized administrators can access sensitive management features.
+
+### 2.6 Critical Implementation Gaps
+
+This section details the required backend implementation for the missing endpoints.
+
+#### **Admin Domain Management Endpoints** ⚠️ **CRITICAL**
+
+```javascript
+// REQUIRED BACKEND IMPLEMENTATION
+/**
+ * Add admin domain to existing user
+ * POST /api/v1/admin/users/{userUuid}/domains
+ *
+ * Request Body:
+ * {
+ *   "domainName": "admin",
+ *   "assignmentType": "global",
+ *   "reason": "Promoted to system administrator"
+ * }
+ */
+
+/**
+ * Remove admin domain from user
+ * DELETE /api/v1/admin/users/{userUuid}/domains/{domainName}
+ *
+ * Query Parameters:
+ * - reason: "Role change" | "Security concern"
+ */
+```
 
 ---
 

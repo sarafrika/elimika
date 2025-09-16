@@ -93,19 +93,7 @@ Invite users to join an organization with a specific role.
 
 ### Example Request
 
-```bash
-curl -X POST \
-  'https://api.sarafrika.com/api/v1/organisations/f47ac10b-58cc-4372-a567-0e02b2c3d479/invitations' \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer {your-jwt-token}' \
-  -d '{
-    "recipient_email": "jane.doe@example.com",
-    "recipient_name": "Jane Doe",
-    "domain_name": "instructor",
-    "inviter_uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-    "notes": "Looking forward to having you on the instructor team!"
-  }'
-```
+An administrator would make a `POST` request to the relevant endpoint with a JSON body containing the recipient's details, the domain to assign, and the inviter's UUID.
 
 ## Training Branch Invitations
 
@@ -126,19 +114,7 @@ Same format as organization invitations (InvitationRequestDTO).
 
 ### Example Request
 
-```bash
-curl -X POST \
-  'https://api.sarafrika.com/api/v1/organisations/f47ac10b-58cc-4372-a567-0e02b2c3d479/training-branches/123e4567-e89b-12d3-a456-426614174000/invitations' \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer {your-jwt-token}' \
-  -d '{
-    "recipient_email": "sam.smith@example.com",
-    "recipient_name": "Sam Smith",
-    "domain_name": "student",
-    "inviter_uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-    "notes": "Welcome to the downtown campus!"
-  }'
-```
+Similar to the organization invitation, a `POST` request is made to the branch-specific endpoint with the same JSON payload.
 
 # Frontend Integration - React Implementation
 
@@ -205,124 +181,21 @@ https://elimika.sarafrika.com/invitations/decline?token={64-character-token}
 
 **Response:** Array of accepted invitations
 
-## React Component Example
+## Frontend Component Logic
 
-```jsx
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { invitationApi } from '../services/api';
+A frontend component, such as an `InvitationPage`, is responsible for handling the user-facing invitation flow. Its logic can be broken down as follows:
 
-const InvitationPage = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
-  const { user, isAuthenticated, login, register } = useAuth();
-  
-  const [invitation, setInvitation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    loadInvitationPreview();
-  }, [token]);
-
-  useEffect(() => {
-    if (isAuthenticated && invitation) {
-      processPendingInvitations();
-    }
-  }, [isAuthenticated]);
-
-  const loadInvitationPreview = async () => {
-    try {
-      const response = await invitationApi.previewInvitation(token);
-      if (response.data.is_expired) {
-        setError('This invitation has expired.');
-        return;
-      }
-      setInvitation(response.data);
-    } catch (err) {
-      setError('Invalid or expired invitation link.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processPendingInvitations = async () => {
-    try {
-      const response = await invitationApi.processPendingInvitations();
-      if (response.data.length > 0) {
-        navigate('/dashboard', { 
-          state: { 
-            message: `Welcome! You've been added to ${invitation.organisation_name}.`
-          }
-        });
-      }
-    } catch (err) {
-      console.error('Failed to process pending invitations:', err);
-    }
-  };
-
-  const handleAccept = async () => {
-    try {
-      await invitationApi.acceptInvitation(token);
-      navigate('/dashboard', {
-        state: { message: `Welcome to ${invitation.organisation_name}!` }
-      });
-    } catch (err) {
-      setError('Failed to accept invitation.');
-    }
-  };
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div className="error">{error}</div>;
-
-  return (
-    <div className="invitation-page">
-      <div className="invitation-preview">
-        <h1>You're Invited!</h1>
-        <p><strong>{invitation.inviter_name}</strong> has invited you to join:</p>
-        <h2>{invitation.organisation_name}</h2>
-        {invitation.branch_name && <p>{invitation.branch_name}</p>}
-        <div className="role-info">
-          <h3>Role: {invitation.role_name}</h3>
-          <p>{invitation.role_description}</p>
-        </div>
-        {invitation.notes && (
-          <div className="invitation-notes">
-            <h4>Message:</h4>
-            <p>{invitation.notes}</p>
-          </div>
-        )}
-      </div>
-      
-      {!isAuthenticated ? (
-        <div className="auth-options">
-          <h3>To accept this invitation:</h3>
-          {invitation.requires_registration && (
-            <button onClick={() => register()} className="btn-primary">
-              Create New Account
-            </button>
-          )}
-          <button onClick={() => login()} className="btn-secondary">
-            Sign In to Existing Account
-          </button>
-        </div>
-      ) : (
-        <div className="invitation-actions">
-          <button onClick={handleAccept} className="btn-success">
-            Accept Invitation
-          </button>
-          <button onClick={() => invitationApi.declineInvitation(token)} className="btn-outline-danger">
-            Decline
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default InvitationPage;
-```
+1.  **Token Parsing**: On page load, the component extracts the invitation token from the URL parameters.
+2.  **Preview Fetching**: It makes an unauthenticated call to the `GET /api/v1/invitations/preview` endpoint using the token.
+    -   If the invitation is invalid or expired, it displays an error message.
+    -   Otherwise, it stores the preview data (organization name, role, notes, etc.) in its state and renders a preview of the invitation to the user.
+3.  **Authentication Check**:
+    -   If the user is not authenticated, the component displays buttons to either "Create New Account" or "Sign In". These actions should trigger the Keycloak authentication flow.
+    -   If the user is already authenticated, the component displays "Accept" and "Decline" buttons.
+4.  **Acceptance/Decline**:
+    -   Clicking "Accept" makes an authenticated `POST` request to `/api/v1/invitations/accept`. On success, it should redirect the user to their dashboard with a welcome message.
+    -   Clicking "Decline" makes an authenticated `POST` request to `/api/v1/invitations/decline`.
+5.  **Auto-Processing for New Logins**: To provide a seamless experience, after a user logs in or registers, the component should check if there are any pending invitations and, if so, automatically process them by calling the `POST /api/v1/invitations/process-pending` endpoint.
 
 ## Authentication Integration
 

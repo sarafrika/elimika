@@ -50,13 +50,7 @@ graph TD
 ### Assignment Pattern
 **Domain**: `admin` assigned via `user_domain_mapping`
 **Scope**: Complete platform administrative control
-**Assignment Method**: Direct assignment by existing super admin or during platform initialization
-
-```sql
--- Example: Global admin domain assignment
-INSERT INTO user_domain_mapping (user_uuid, domain_uuid)
-VALUES ('super-admin-001', 'admin-domain-uuid');
-```
+**Assignment Method**: Direct assignment by existing super admin or during platform initialization. This is done by creating a new entry in the `user_domain_mapping` table that links a user's UUID to the admin domain's UUID.
 
 ### Super Admin vs System Admin
 
@@ -190,28 +184,10 @@ sequenceDiagram
 
 ### User Domain Assignment Workflow
 
-```bash
-# Example: Admin assigning domains to users
-
-# 1. System admin reviews user application
-curl -X GET /api/v1/admin/users/{userUuid} \
-  -H "Authorization: Bearer {admin-token}"
-
-# 2. Assign instructor domain to qualified user
-curl -X POST /api/v1/admin/users/{userUuid}/domains \
-  -H "Authorization: Bearer {admin-token}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "domainName": "instructor",
-    "assignmentType": "global",
-    "reason": "Verified PhD in Computer Science, 10+ years teaching experience",
-    "effectiveDate": "2024-12-01"
-  }'
-
-# 3. Verify assignment
-curl -X GET /api/v1/admin/users/{userUuid}/domains \
-  -H "Authorization: Bearer {admin-token}"
-```
+The workflow for an administrator to assign a new domain to a user typically involves these API calls:
+1.  **Review User**: The admin fetches the user's details with a `GET` request to `/api/v1/admin/users/{userUuid}`.
+2.  **Assign Domain**: The admin assigns the new role with a `POST` request to `/api/v1/admin/users/{userUuid}/domains`, providing the new domain name and reason in the request body.
+3.  **Verify Assignment**: The admin can verify the change by fetching the user's domains again.
 
 ## Security and Audit Controls
 
@@ -349,37 +325,7 @@ dashboard
 
 ### Permission Validation Logic
 
-```java
-// Example admin permission validation
-public boolean hasAdminPermission(UUID userUuid, String operation, String resource) {
-    // Check for global admin domain
-    List<String> userDomains = getUserDomainsFromMappings(userUuid);
-    if (userDomains.contains("admin")) {
-        return validateGlobalAdminOperation(userUuid, operation, resource);
-    }
-    
-    // Check for organization admin context
-    if (resource.startsWith("organization:")) {
-        String orgUuid = extractOrgUuidFromResource(resource);
-        return hasOrganizationAdminRights(userUuid, orgUuid, operation);
-    }
-    
-    return false; // No admin permissions found
-}
-
-private boolean validateGlobalAdminOperation(UUID adminUuid, String operation, String resource) {
-    // Log admin action for audit
-    auditService.logAdminAction(adminUuid, operation, resource);
-    
-    // Check for super admin operations
-    if (SUPER_ADMIN_OPERATIONS.contains(operation)) {
-        return isSuperAdmin(adminUuid);
-    }
-    
-    // Regular system admin operations
-    return true;
-}
-```
+The system validates an administrator's permissions by first checking if the user has the global 'admin' domain. If so, it validates the action against global admin rules, including special checks for super admin operations. If the user does not have the global admin domain, the system then checks if they have administrative rights within the specific organization related to the resource being accessed. All administrative actions are logged for auditing purposes.
 
 ## Emergency Admin Procedures
 

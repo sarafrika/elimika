@@ -62,11 +62,7 @@ graph TD
 - Subject matter experts
 - Community contributors
 
-```sql
--- Example: Global instructor domain assignment
-INSERT INTO user_domain_mapping (user_uuid, domain_uuid)
-VALUES ('instructor-456', 'instructor-domain-uuid');
-```
+Assignment is done by adding an entry to the `user_domain_mapping` table linking the user's UUID with the instructor domain's UUID.
 
 **Capabilities**:
 - Create public courses accessible to all students
@@ -84,16 +80,7 @@ VALUES ('instructor-456', 'instructor-domain-uuid');
 - Semester/term associations
 - Institution-specific policies and curricula
 
-```sql
--- Example: Organization instructor domain assignment
-INSERT INTO user_organisation_domain_mapping (
-    user_uuid, organisation_uuid, domain_uuid, branch_uuid,
-    start_date, active, deleted
-) VALUES (
-    'instructor-456', 'university-xyz', 'instructor-domain-uuid', 'engineering-faculty',
-    '2024-08-01', true, false
-);
-```
+Assignment is done by adding a detailed entry to the `user_organisation_domain_mapping` table that links the user to the organization, the instructor domain, and optionally a specific branch, along with start dates and status.
 
 ## Extended Instructor Profile System
 
@@ -309,16 +296,7 @@ flowchart TD
 
 ### Multi-Branch Teaching Assignments
 
-Instructors can teach across multiple departments within an organization:
-
-```sql
--- Example: Instructor teaching in multiple departments
-INSERT INTO user_organisation_domain_mapping 
-(user_uuid, organisation_uuid, domain_uuid, branch_uuid, start_date, active, deleted)
-VALUES 
-('prof-interdisciplinary', 'university-abc', 'instructor-domain', 'cs-dept', '2024-01-01', true, false),
-('prof-interdisciplinary', 'university-abc', 'instructor-domain', 'math-dept', '2024-01-01', true, false);
-```
+Instructors can teach across multiple departments within an organization. This is achieved by creating multiple `user_organisation_domain_mapping` entries for the same user and organization, each with a different `branch_uuid`.
 
 ## Performance Analytics and Reporting
 
@@ -410,22 +388,10 @@ flowchart TD
 
 ### Instructor Search and Analytics
 
-Advanced search capabilities for instructor management:
-
-```bash
-# Example: Instructor search and filtering
-
-# 1. Search instructors by experience level
-curl -X GET "/api/v1/instructors/search?yearsOfExperience_gte=5"
-
-# 2. Search instructors by skills
-curl -X GET "/api/v1/instructors/skills/search?skillName_like=programming&proficiencyLevel=EXPERT"
-
-# 3. Search instructor education records
-curl -X GET "/api/v1/instructors/education/search?qualification_like=PhD&yearCompleted_gte=2020"
-
-# 4. Search instructor experience
-curl -X GET "/api/v1/instructors/experience/search?isCurrentPosition=true&yearsOfExperience_gte=3"
-```
+The system provides advanced search capabilities for instructor management. A series of API endpoints allows searching for instructors based on various criteria:
+-   **By Experience**: Find instructors with a minimum number of years of experience using the `/api/v1/instructors/search` endpoint.
+-   **By Skills**: Search for instructors possessing specific skills at a certain proficiency level via the `/api/v1/instructors/skills/search` endpoint.
+-   **By Education**: Filter instructors by their qualifications, such as having a PhD, using the `/api/v1/instructors/education/search` endpoint.
+-   **By Current Position**: Find instructors who are currently active in a position via the `/api/v1/instructors/experience/search` endpoint.
 
 This instructor domain implementation provides comprehensive support for both independent educators and institutional faculty, enabling effective content creation, student management, and professional development while maintaining appropriate quality standards and accountability measures.
