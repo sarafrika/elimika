@@ -1,3 +1,10 @@
+## [2.18.2](https://github.com/sarafrika/elimika/compare/v2.18.1...v2.18.2) (2025-09-30)
+
+
+### Bug Fixes
+
+* Drop chk_course_owner constraint before updating courses ([f67f8b8](https://github.com/sarafrika/elimika/commit/f67f8b89b1a3816d416f7cc525183f1bd8121cf6))
+
 ## [2.18.1](https://github.com/sarafrika/elimika/compare/v2.18.0...v2.18.1) (2025-09-30)
 
 
