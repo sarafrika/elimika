@@ -1,3 +1,10 @@
+# [2.18.0](https://github.com/sarafrika/elimika/compare/v2.17.0...v2.18.0) (2025-09-30)
+
+
+### Features
+
+* Add course creator domain and refactor course ownership ([682c252](https://github.com/sarafrika/elimika/commit/682c25222957ba4b6549b446011048bba1a41c71))
+
 # [2.17.0](https://github.com/sarafrika/elimika/compare/v2.16.0...v2.17.0) (2025-09-16)
 
 
