@@ -1,4 +1,8 @@
--- Step 1: Create course_creator records for all instructors who have courses
+-- Step 1: Remove the mutual exclusivity check constraint first (to allow UPDATE)
+ALTER TABLE courses
+DROP CONSTRAINT IF EXISTS chk_course_owner;
+
+-- Step 2: Create course_creator records for all instructors who have courses
 INSERT INTO course_creators (user_uuid, full_name, bio, professional_headline, admin_verified, created_date, updated_date, created_by, updated_by)
 SELECT DISTINCT
     i.user_uuid,
@@ -15,17 +19,13 @@ WHERE i.uuid IN (SELECT DISTINCT instructor_uuid FROM courses WHERE instructor_u
 AND i.user_uuid NOT IN (SELECT user_uuid FROM course_creators)
 ON CONFLICT (user_uuid) DO NOTHING;
 
--- Step 2: Update courses to reference the new course_creator_uuid
+-- Step 3: Update courses to reference the new course_creator_uuid
 UPDATE courses c
 SET course_creator_uuid = cc.uuid
 FROM instructors i
 JOIN course_creators cc ON cc.user_uuid = i.user_uuid
 WHERE c.instructor_uuid = i.uuid
 AND c.course_creator_uuid IS NULL;
-
--- Step 3: Remove the mutual exclusivity check constraint
-ALTER TABLE courses
-DROP CONSTRAINT IF EXISTS chk_course_owner;
 
 -- Step 4: Drop the index on instructor_uuid
 DROP INDEX IF EXISTS idx_courses_instructor_uuid;
