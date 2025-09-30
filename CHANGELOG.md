@@ -1,3 +1,10 @@
+## [2.18.1](https://github.com/sarafrika/elimika/compare/v2.18.0...v2.18.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* Migrate existing course data before removing instructor_uuid column ([2773936](https://github.com/sarafrika/elimika/commit/2773936261cf0fecc33c4c232ca3d8acc4088467))
+
 # [2.18.0](https://github.com/sarafrika/elimika/compare/v2.17.0...v2.18.0) (2025-09-30)
 
 
