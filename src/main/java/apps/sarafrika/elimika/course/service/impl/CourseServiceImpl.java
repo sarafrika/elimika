@@ -375,8 +375,8 @@ public class CourseServiceImpl implements CourseService {
         if (dto.name() != null) {
             existingCourse.setName(dto.name());
         }
-        if (dto.instructorUuid() != null) {
-            existingCourse.setInstructorUuid(dto.instructorUuid());
+        if (dto.courseCreatorUuid() != null) {
+            existingCourse.setCourseCreatorUuid(dto.courseCreatorUuid());
         }
         if (dto.difficultyUuid() != null) {
             existingCourse.setDifficultyUuid(dto.difficultyUuid());

@@ -39,7 +39,7 @@ public class CourseFactory {
         return new CourseDTO(
                 course.getUuid(),
                 course.getName(),
-                course.getInstructorUuid(),
+                course.getCourseCreatorUuid(),
                 categoryUuids.isEmpty() ? null : categoryUuids,
                 course.getDifficultyUuid(),
                 course.getDescription(),
@@ -82,7 +82,7 @@ public class CourseFactory {
         return new CourseDTO(
                 course.getUuid(),
                 course.getName(),
-                course.getInstructorUuid(),
+                course.getCourseCreatorUuid(),
                 categoryUuids.isEmpty() ? null : categoryUuids,
                 course.getDifficultyUuid(),
                 course.getDescription(),
@@ -118,7 +118,7 @@ public class CourseFactory {
         Course course = new Course();
         course.setUuid(dto.uuid());
         course.setName(dto.name());
-        course.setInstructorUuid(dto.instructorUuid());
+        course.setCourseCreatorUuid(dto.courseCreatorUuid());
         course.setDifficultyUuid(dto.difficultyUuid());
         course.setDescription(dto.description());
         course.setObjectives(dto.objectives());
@@ -161,7 +161,7 @@ public class CourseFactory {
         return new CourseDTO(
                 course.getUuid(),
                 course.getName(),
-                course.getInstructorUuid(),
+                course.getCourseCreatorUuid(),
                 categoryUuids.isEmpty() ? null : categoryUuids,
                 course.getDifficultyUuid(),
                 course.getDescription(),

@@ -28,7 +28,7 @@ import java.util.UUID;
         {
             "uuid": "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
             "name": "Advanced Java Programming",
-            "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
+            "course_creator_uuid": "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
             "category_uuids": [
                 "c1a2t3e4-5g6o-7r8y-9a10-abcdefghijkl",
                 "p1r2o3g4-5r6a-7m8m-9i10-abcdefghijkl"
@@ -83,13 +83,13 @@ public record CourseDTO(
         String name,
 
         @Schema(
-                description = "**[REQUIRED]** Reference to the instructor's UUID who created and owns this course.",
-                example = "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
+                description = "**[REQUIRED]** Reference to the course creator's UUID who created and owns this course.",
+                example = "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotNull(message = "Instructor UUID is required")
-        @JsonProperty("instructor_uuid")
-        UUID instructorUuid,
+        @NotNull(message = "Course creator UUID is required")
+        @JsonProperty("course_creator_uuid")
+        UUID courseCreatorUuid,
 
         @Schema(
                 description = "**[OPTIONAL]** List of category UUIDs for organizing the course. A course can belong to multiple categories.",

@@ -25,8 +25,8 @@ public class Course extends BaseEntity {
     @Column(name = "name")
     private String name;
 
-    @Column(name = "instructor_uuid")
-    private UUID instructorUuid;
+    @Column(name = "course_creator_uuid")
+    private UUID courseCreatorUuid;
 
     @Column(name = "difficulty_uuid")
     private UUID difficultyUuid;
