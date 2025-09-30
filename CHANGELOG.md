@@ -1,3 +1,11 @@
+# [2.17.0](https://github.com/sarafrika/elimika/compare/v2.16.0...v2.17.0) (2025-09-16)
+
+
+### Features
+
+* Add instructor verification system with admin approval workflow ([9541d09](https://github.com/sarafrika/elimika/commit/9541d094497c7699b9b7e85f0b48566429aecf69))
+* Add organization verification system with admin approval workflow ([cb7f89a](https://github.com/sarafrika/elimika/commit/cb7f89a9722d235f5001ff7f97a0f6c8a4cd4a41))
+
 # [2.16.0](https://github.com/sarafrika/elimika/compare/v2.15.0...v2.16.0) (2025-09-16)
 
 
