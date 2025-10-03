@@ -1,3 +1,10 @@
+# [2.20.0](https://github.com/sarafrika/elimika/compare/v2.19.0...v2.20.0) (2025-10-03)
+
+
+### Features
+
+* Implement course ownership authorization for updateCourse endpoint ([7603537](https://github.com/sarafrika/elimika/commit/7603537b1e3c3e31798c2f5955b0f6cbba79f8c5))
+
 # [2.19.0](https://github.com/sarafrika/elimika/compare/v2.18.2...v2.19.0) (2025-10-03)
 
 
