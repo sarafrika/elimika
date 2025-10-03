@@ -3,19 +3,28 @@ package apps.sarafrika.elimika.availability.controller;
 import apps.sarafrika.elimika.availability.dto.*;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -61,6 +70,66 @@ public class AvailabilityController {
 
         List<AvailabilitySlotDTO> result = availabilityService.getAvailabilityForInstructor(instructorUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Instructor availability retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Search availability slots with flexible filtering",
+            description = """
+                    Search and filter availability slots using dynamic query parameters.
+
+                    **Supported filter operators:**
+                    - `_eq` - equals (e.g., `is_available=true`)
+                    - `_ne` or `_noteq` - not equals (e.g., `availability_type_ne=DAILY`)
+                    - `_like` - contains (for strings, e.g., `custom_pattern_like=BLOCK`)
+                    - `_gt` - greater than (e.g., `day_of_week_gt=3`)
+                    - `_gte` - greater than or equal (e.g., `start_time_gte=09:00:00`)
+                    - `_lt` - less than (e.g., `day_of_month_lt=15`)
+                    - `_lte` - less than or equal (e.g., `end_time_lte=17:00:00`)
+                    - `_in` - in list (comma-separated, e.g., `availability_type_in=WEEKLY,MONTHLY`)
+
+                    **Example queries:**
+                    - Get all available slots: `?is_available=true`
+                    - Get blocked times: `?is_available=false`
+                    - Get weekly patterns for Monday: `?availability_type=WEEKLY&day_of_week=1`
+                    - Get slots with specific color: `?color_code=#FF6B6B`
+                    - Get slots by date range: `?specific_date_gte=2024-01-01&specific_date_lte=2024-12-31`
+                    - Combined: `?is_available=false&color_code_like=FF6B`
+
+                    **Pagination:** Use standard Spring pagination parameters:
+                    - `page` - page number (0-indexed)
+                    - `size` - page size
+                    - `sort` - sorting (e.g., `start_time,asc` or `specific_date,desc`)
+
+                    **Examples:**
+                    - `/search?is_available=true&page=0&size=20&sort=start_time,asc`
+                    - `/search?availability_type_in=WEEKLY,MONTHLY&day_of_week_gte=1&day_of_week_lte=5`
+                    - `/search?is_available=false&specific_date_gte=2024-10-01`
+                   \s""",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Search results returned successfully",
+                            content = @Content(schema = @Schema(implementation = Page.class)))
+            }
+    )
+    @GetMapping("/search")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<AvailabilitySlotDTO>>> searchAvailability(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Parameter(
+                    description = "Optional search parameters for filtering",
+                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
+                    explode = Explode.TRUE
+            )
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        log.debug("REST request to search availability for instructor: {} with params: {}", instructorUuid, searchParams);
+
+        // Add instructor filter to search params
+        searchParams.put("instructor_uuid", instructorUuid.toString());
+
+        Page<AvailabilitySlotDTO> results = availabilityService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(results, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Availability search successful"));
     }
 
     @Operation(

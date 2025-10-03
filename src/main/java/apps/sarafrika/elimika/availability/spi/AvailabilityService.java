@@ -1,10 +1,13 @@
 package apps.sarafrika.elimika.availability.spi;
 
 import apps.sarafrika.elimika.availability.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -101,6 +104,24 @@ public interface AvailabilityService {
      * @throws RuntimeException if availability slot is not found
      */
     AvailabilitySlotDTO getAvailabilitySlot(UUID slotUuid);
+
+    /**
+     * Searches availability slots using dynamic filtering.
+     * Supports flexible query parameters with operators like _eq, _ne, _gt, _gte, _lt, _lte, _like, _in.
+     *
+     * Example search parameters:
+     * - is_available=true
+     * - availability_type_in=WEEKLY,MONTHLY
+     * - day_of_week_gte=1
+     * - specific_date_lte=2024-12-31
+     * - color_code_like=FF6B
+     *
+     * @param searchParams Map of search parameters with optional operators
+     * @param pageable Pagination and sorting information
+     * @return Page of availability slots matching the search criteria
+     * @throws IllegalArgumentException if search parameters are invalid
+     */
+    Page<AvailabilitySlotDTO> search(Map<String, String> searchParams, Pageable pageable);
 
     /**
      * Retrieves all availability slots for a specific instructor.

@@ -7,9 +7,13 @@ import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.helpers.SpecificationHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -197,7 +202,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     @Override
     public AvailabilitySlotDTO getAvailabilitySlot(UUID slotUuid) {
         log.debug("Getting availability slot: {}", slotUuid);
-        
+
         if (slotUuid == null) {
             throw new IllegalArgumentException("Slot UUID cannot be null");
         }
@@ -207,6 +212,16 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                 String.format(AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE, slotUuid)));
 
         return AvailabilityFactory.toDTO(entity);
+    }
+
+    @Override
+    public Page<AvailabilitySlotDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        log.debug("Searching availability with params: {}", searchParams);
+
+        Specification<InstructorAvailability> spec = SpecificationHelper.buildSpecification(searchParams);
+        Page<InstructorAvailability> entities = availabilityRepository.findAll(spec, pageable);
+
+        return entities.map(AvailabilityFactory::toDTO);
     }
 
     @Override
