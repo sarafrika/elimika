@@ -33,7 +33,8 @@ public class AvailabilityFactory {
                 entity.getCreatedDate(),
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),
-                entity.getLastModifiedBy()
+                entity.getLastModifiedBy(),
+                entity.getColorCode()
         );
     }
 
@@ -164,6 +165,9 @@ public class AvailabilityFactory {
         }
         if (dto.effectiveEndDate() != null) {
             entity.setEffectiveEndDate(dto.effectiveEndDate());
+        }
+        if (dto.colorCode() != null) {
+            entity.setColorCode(dto.colorCode());
         }
     }
 

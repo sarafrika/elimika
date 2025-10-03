@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -106,7 +105,7 @@ public class AvailabilityController {
                     - `/search?is_available=false&specific_date_gte=2024-10-01`
                    \s""",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Search results returned successfully",
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Search results returned successfully",
                             content = @Content(schema = @Schema(implementation = Page.class)))
             }
     )

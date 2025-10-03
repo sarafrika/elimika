@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.availability.repository;
 import apps.sarafrika.elimika.availability.model.InstructorAvailability;
 import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -14,7 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface AvailabilityRepository extends JpaRepository<InstructorAvailability, Long> {
+public interface AvailabilityRepository extends JpaRepository<InstructorAvailability, Long>, JpaSpecificationExecutor<InstructorAvailability> {
 
     Optional<InstructorAvailability> findByUuid(UUID uuid);
 

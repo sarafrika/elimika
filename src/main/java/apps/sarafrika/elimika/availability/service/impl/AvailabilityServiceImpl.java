@@ -7,7 +7,7 @@ import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.helpers.SpecificationHelper;
+import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,6 +34,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     private final AvailabilityRepository availabilityRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final GenericSpecificationBuilder<InstructorAvailability> specificationBuilder;
 
     private static final String AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE = "Availability slot with UUID %s not found";
 
@@ -218,7 +219,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     public Page<AvailabilitySlotDTO> search(Map<String, String> searchParams, Pageable pageable) {
         log.debug("Searching availability with params: {}", searchParams);
 
-        Specification<InstructorAvailability> spec = SpecificationHelper.buildSpecification(searchParams);
+        Specification<InstructorAvailability> spec = specificationBuilder.buildSpecification(InstructorAvailability.class, searchParams);
         Page<InstructorAvailability> entities = availabilityRepository.findAll(spec, pageable);
 
         return entities.map(AvailabilityFactory::toDTO);
