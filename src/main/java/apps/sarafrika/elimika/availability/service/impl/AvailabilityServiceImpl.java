@@ -280,29 +280,9 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    public List<AvailabilitySlotDTO> getAvailableSlots(UUID instructorUuid, LocalDate date) {
-        log.debug("Getting available slots for instructor: {} on date: {}", instructorUuid, date);
-        
-        List<AvailabilitySlotDTO> allSlots = getAvailabilityForDate(instructorUuid, date);
-        return allSlots.stream()
-            .filter(slot -> Boolean.TRUE.equals(slot.isAvailable()))
-            .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<AvailabilitySlotDTO> getBlockedSlots(UUID instructorUuid, LocalDate date) {
-        log.debug("Getting blocked slots for instructor: {} on date: {}", instructorUuid, date);
-        
-        List<AvailabilitySlotDTO> allSlots = getAvailabilityForDate(instructorUuid, date);
-        return allSlots.stream()
-            .filter(slot -> Boolean.FALSE.equals(slot.isAvailable()))
-            .collect(Collectors.toList());
-    }
-
-    @Override
     public List<AvailabilitySlotDTO> findAvailableSlots(UUID instructorUuid, LocalDate startDate, LocalDate endDate) {
         log.debug("Finding available slots for instructor: {} from {} to {}", instructorUuid, startDate, endDate);
-        
+
         if (instructorUuid == null) {
             throw new IllegalArgumentException("Instructor UUID cannot be null");
         }
@@ -316,10 +296,10 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             throw new IllegalArgumentException("Start date must be before or equal to end date");
         }
 
-        // For now, we'll iterate through each date in the range
-        // This could be optimized with a more complex query in the future
+        // Iterate through each date in the range and collect available slots
         return startDate.datesUntil(endDate.plusDays(1))
-            .flatMap(date -> getAvailableSlots(instructorUuid, date).stream())
+            .flatMap(date -> getAvailabilityForDate(instructorUuid, date).stream())
+            .filter(slot -> Boolean.TRUE.equals(slot.isAvailable()))
             .collect(Collectors.toList());
     }
 
@@ -338,9 +318,10 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    public void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end) {
-        log.debug("Blocking time for instructor: {} from {} to {}", instructorUuid, start, end);
-        
+    public void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode) {
+        log.debug("Blocking time for instructor: {} from {} to {} with color: {}",
+                instructorUuid, start, end, colorCode);
+
         if (instructorUuid == null) {
             throw new IllegalArgumentException("Instructor UUID cannot be null");
         }
@@ -362,9 +343,10 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         blockSlot.setEndTime(end.toLocalTime());
         blockSlot.setIsAvailable(false);
         blockSlot.setCustomPattern("BLOCKED_TIME_SLOT");
+        blockSlot.setColorCode(colorCode);
 
         availabilityRepository.save(blockSlot);
-        log.debug("Created blocked time slot for instructor: {}", instructorUuid);
+        log.debug("Created blocked time slot for instructor: {} with color: {}", instructorUuid, colorCode);
     }
 
     private boolean matchesDate(InstructorAvailability slot, LocalDate date) {

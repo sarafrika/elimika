@@ -136,31 +136,9 @@ public interface AvailabilityService {
     boolean isInstructorAvailable(UUID instructorUuid, LocalDateTime start, LocalDateTime end);
 
     /**
-     * Retrieves all available time slots for an instructor on a specific date.
-     * This returns only slots where isAvailable = true.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param date The date to check for available slots
-     * @return List of available slots for the date (empty list if none found)
-     * @throws IllegalArgumentException if instructorUuid or date is null
-     */
-    List<AvailabilitySlotDTO> getAvailableSlots(UUID instructorUuid, LocalDate date);
-
-    /**
-     * Retrieves all blocked time slots for an instructor on a specific date.
-     * This returns only slots where isAvailable = false.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param date The date to check for blocked slots
-     * @return List of blocked slots for the date (empty list if none found)
-     * @throws IllegalArgumentException if instructorUuid or date is null
-     */
-    List<AvailabilitySlotDTO> getBlockedSlots(UUID instructorUuid, LocalDate date);
-
-    /**
      * Finds available time slots for an instructor within a date range.
-     * This method is useful for scheduling systems that need to find
-     * available periods for booking classes.
+     * Returns only slots where isAvailable = true.
+     * Useful for scheduling systems that need to find available periods for booking classes.
      *
      * @param instructorUuid The UUID of the instructor
      * @param startDate The start date of the range to search
@@ -182,11 +160,13 @@ public interface AvailabilityService {
     /**
      * Blocks time for an instructor during a specific period.
      * This creates availability slots with isAvailable = false.
+     * Optionally accepts a color code for visual categorization.
      *
      * @param instructorUuid The UUID of the instructor
      * @param start The start date/time to block
      * @param end The end date/time to block
+     * @param colorCode Optional hex color code for UI visualization (e.g., "#FF6B6B")
      * @throws IllegalArgumentException if any parameter is null or if start is after end
      */
-    void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end);
+    void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode);
 }
