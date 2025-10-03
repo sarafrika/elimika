@@ -1,3 +1,15 @@
+# [2.19.0](https://github.com/sarafrika/elimika/compare/v2.18.2...v2.19.0) (2025-10-03)
+
+
+### Bug Fixes
+
+* resolve compilation errors in availability module ([78f4faa](https://github.com/sarafrika/elimika/commit/78f4faacd403bd32ab3a5eaa01d50db0ddcc7365))
+
+
+### Features
+
+* Add flexible search endpoint for availability queries ([e5dcb5b](https://github.com/sarafrika/elimika/commit/e5dcb5b5b780f357934660e19327ec07c1b61918))
+
 ## [2.18.2](https://github.com/sarafrika/elimika/compare/v2.18.1...v2.18.2) (2025-09-30)
 
 
