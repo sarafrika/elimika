@@ -223,7 +223,17 @@ public record AvailabilitySlotDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(
+                description = "**[OPTIONAL]** Hex color code for blocked time visualization (e.g., for categorizing different types of blocked times).",
+                example = "#FF6B6B",
+                pattern = "^#[0-9A-Fa-f]{6}$",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("color_code")
+        String colorCode
 
 ) {
 

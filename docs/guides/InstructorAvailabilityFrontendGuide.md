@@ -4,8 +4,10 @@
 
 This guide provides frontend engineers with a comprehensive walkthrough for integrating with the **Instructor Availability Management** APIs. It focuses on building a calendar-based UI for managing instructor schedules.
 
-**API Endpoint Root:** `/api/v1/availability`
+**API Endpoint Root:** `/api/v1/instructors/{instructorUuid}/availability`
 **OpenAPI Tag:** `Instructor Availability Management`
+
+**Note:** All availability endpoints are now nested under the instructor resource for better RESTful design and consistency with other modules.
 
 ---
 
@@ -52,7 +54,7 @@ sequenceDiagram
     participant ClassAPI as Class API
 
     I->>UI: 1. Sets weekly availability (e.g., Mon 9-5)
-    UI->>AvailAPI: POST /instructors/{id}/weekly
+    UI->>AvailAPI: POST /instructors/{id}/availability/patterns?patternType=weekly
     AvailAPI-->>UI: Success
 
     A->>UI: 2. Tries to schedule a new class for Instructor
@@ -82,14 +84,14 @@ The primary UI is a weekly calendar where instructors can manage their availabil
 
 To populate the calendar, fetch all availability slots for an instructor.
 
--   **API Endpoint:** `GET /api/v1/availability/instructors/{instructorUuid}`
+-   **API Endpoint:** `GET /api/v1/instructors/{instructorUuid}/availability`
 -   **Method:** `GET`
 -   **Controller Method:** `getInstructorAvailability`
 
 **Example Request:**
 
 ```http
-GET /api/v1/availability/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef
+GET /api/v1/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/availability
 ```
 
 **Example Response:**
@@ -135,9 +137,9 @@ Instructors can define their availability in several ways.
 
 This is the most common scenario. The user selects time slots that repeat every week.
 
--   **API Endpoint:** `POST /api/v1/availability/instructors/{instructorUuid}/weekly`
+-   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/patterns?patternType=weekly`
 -   **Method:** `POST`
--   **Controller Method:** `setInstructorWeeklyAvailability`
+-   **Controller Method:** `setAvailabilityPatterns`
 
 **Example Request Body:**
 
@@ -162,22 +164,37 @@ This request sets the instructor to be available every Monday from 9 AM to 5 PM 
 
 ### Blocking Specific Times
 
-Users may need to block time for appointments or other commitments.
+Users may need to block time for appointments or other commitments. You can optionally provide a color code to visually categorize different types of blocked times.
 
--   **API Endpoint:** `POST /api/v1/availability/instructors/{instructorUuid}/block`
+-   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/block`
 -   **Method:** `POST`
--   **Controller Method:** `blockInstructorTime`
+-   **Controller Method:** `blockTime`
 -   **Query Parameters:**
     -   `start`: The start time in `YYYY-MM-DDTHH:mm:ss` format.
     -   `end`: The end time in `YYYY-MM-DDTHH:mm:ss` format.
+    -   `color_code` (optional): Hex color code for UI visualization (e.g., `#FF6B6B`).
 
-**Example Request:**
+**Example Request (without color):**
 
 ```http
-POST /api/v1/availability/instructors/{instructorUuid}/block?start=2024-09-12T11:00:00&end=2024-09-12T12:30:00
+POST /api/v1/instructors/{instructorUuid}/availability/block?start=2024-09-12T11:00:00&end=2024-09-12T12:30:00
 ```
 
-This will create a new `AvailabilitySlot` with `is_available` set to `false`.
+**Example Request (with color code):**
+
+```http
+POST /api/v1/instructors/{instructorUuid}/availability/block?start=2024-09-12T11:00:00&end=2024-09-12T12:30:00&color_code=%23FF6B6B
+```
+
+**Common Color Codes:**
+
+-   **Vacation**: `#FF6B6B` (Red)
+-   **Meeting**: `#FFD93D` (Yellow)
+-   **Sick Leave**: `#FFA07A` (Orange)
+-   **Personal**: `#95E1D3` (Teal)
+-   **Professional Development**: `#A8E6CF` (Mint Green)
+
+This will create a new `AvailabilitySlot` with `is_available` set to `false` and the specified `color_code`.
 
 ---
 
@@ -185,9 +202,9 @@ This will create a new `AvailabilitySlot` with `is_available` set to `false`.
 
 This is a crucial integration point for other modules, like **Class Definition Management**. Before scheduling a class, you must check if the instructor is available.
 
--   **API Endpoint:** `GET /api/v1/availability/instructors/{instructorUuid}/check`
+-   **API Endpoint:** `GET /api/v1/instructors/{instructorUuid}/availability/check`
 -   **Method:** `GET`
--   **Controller Method:** `checkInstructorAvailability`
+-   **Controller Method:** `checkAvailability`
 -   **Query Parameters:**
     -   `start`: The start time in `YYYY-MM-DDTHH:mm:ss` format.
     -   `end`: The end time in `YYYY-MM-DDTHH:mm:ss` format.
@@ -195,7 +212,7 @@ This is a crucial integration point for other modules, like **Class Definition M
 **Example Request:**
 
 ```http
-GET /api/v1/availability/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/check?start=2024-09-10T10:00:00&end=2024-09-10T11:30:00
+GET /api/v1/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/availability/check?start=2024-09-10T10:00:00&end=2024-09-10T11:30:00
 ```
 
 **Example Response (Instructor is Available):**
@@ -236,6 +253,7 @@ This is the primary data structure you'll work with. It represents a single bloc
 -   `day_of_week` or `specific_date`: Defines when the slot occurs.
 -   `start_time` and `end_time`: The time range for the slot.
 -   `is_available`: A boolean indicating if the instructor is available or blocked during this time.
+-   `color_code`: Optional hex color code for blocked times (e.g., `#FF6B6B` for vacation).
 
 ### `WeeklyAvailabilitySlotDTO`
 

@@ -54,4 +54,7 @@ public class InstructorAvailability extends BaseEntity {
     
     @Column(name = "effective_end_date")
     private LocalDate effectiveEndDate;
+
+    @Column(name = "color_code")
+    private String colorCode;
 }
