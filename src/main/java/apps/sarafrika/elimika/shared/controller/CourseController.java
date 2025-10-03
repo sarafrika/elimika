@@ -136,20 +136,24 @@ public class CourseController {
             summary = "Update course",
             description = """
                 Updates an existing course with selective field updates including category management.
-                
+
                 **Category Updates:**
                 - Provide `category_uuids` to completely replace existing categories
                 - To add categories, include existing + new category UUIDs
                 - To remove all categories, provide an empty array
                 - Changes to categories are applied atomically
+
+                **Authorization:** Only the course owner can update the course.
                 """,
             responses = {
                     @ApiResponse(responseCode = "200", description = "Course updated successfully"),
                     @ApiResponse(responseCode = "404", description = "Course not found"),
-                    @ApiResponse(responseCode = "400", description = "Invalid category UUIDs provided")
+                    @ApiResponse(responseCode = "400", description = "Invalid category UUIDs provided"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized - only course owner can update")
             }
     )
     @PutMapping("/{uuid}")
+    @org.springframework.security.access.prepost.PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> updateCourse(
             @PathVariable UUID uuid,
             @Valid @RequestBody CourseDTO courseDTO) {
