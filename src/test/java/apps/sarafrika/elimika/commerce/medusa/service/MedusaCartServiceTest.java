@@ -26,6 +26,8 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import apps.sarafrika.elimika.commerce.medusa.service.impl.MedusaCartServiceImpl;
+
 class MedusaCartServiceTest {
 
     private static final String BASE_URL = "https://medusa.example.com";
@@ -35,7 +37,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         MedusaCartRequest request = MedusaCartRequest.builder()
                 .regionId("reg_1")
@@ -86,7 +88,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         MedusaCartRequest request = MedusaCartRequest.builder()
                 .regionId("reg_1")
@@ -111,7 +113,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts"))
                 .andRespond(withSuccess("""
@@ -132,7 +134,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts"))
                 .andRespond(withBadRequest().body("{\"error\":true}"));
@@ -151,7 +153,7 @@ class MedusaCartServiceTest {
         RestClient restClient = mock(RestClient.class);
         when(restClient.post()).thenThrow(new RestClientException("network error"));
 
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         assertThatThrownBy(() -> service.createCart(MedusaCartRequest.builder()
                         .regionId("reg")
@@ -165,7 +167,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1/line-items"))
                 .andExpect(method(HttpMethod.POST))
@@ -190,7 +192,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1"))
                 .andExpect(method(HttpMethod.GET))
@@ -208,7 +210,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1"))
                 .andExpect(method(HttpMethod.POST))
@@ -229,7 +231,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1/payment-session"))
                 .andExpect(method(HttpMethod.POST))
@@ -250,7 +252,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1/complete"))
                 .andExpect(method(HttpMethod.POST))
@@ -268,7 +270,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1/complete"))
                 .andRespond(withSuccess("""
@@ -287,7 +289,7 @@ class MedusaCartServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/store/carts/cart_1/complete"))
                 .andRespond(withBadRequest().body("{\"error\":true}"));
@@ -304,7 +306,7 @@ class MedusaCartServiceTest {
         RestClient restClient = mock(RestClient.class);
         when(restClient.post()).thenThrow(new RestClientException("network error"));
 
-        MedusaCartService service = new MedusaCartService(restClient);
+        MedusaCartService service = new MedusaCartServiceImpl(restClient);
 
         assertThatThrownBy(() -> service.completeCart("cart_1"))
                 .isInstanceOf(MedusaIntegrationException.class)

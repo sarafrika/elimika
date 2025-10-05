@@ -23,6 +23,8 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import apps.sarafrika.elimika.commerce.medusa.service.impl.MedusaProductServiceImpl;
+
 class MedusaProductServiceTest {
 
     private static final String BASE_URL = "https://medusa.example.com";
@@ -32,7 +34,7 @@ class MedusaProductServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaProductService service = new MedusaProductService(restClient);
+        MedusaProductService service = new MedusaProductServiceImpl(restClient);
 
         MedusaDigitalProductRequest request = MedusaDigitalProductRequest.builder()
                 .title("Pro Course")
@@ -120,7 +122,7 @@ class MedusaProductServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaProductService service = new MedusaProductService(restClient);
+        MedusaProductService service = new MedusaProductServiceImpl(restClient);
 
         MedusaDigitalProductRequest request = MedusaDigitalProductRequest.builder()
                 .title("Starter Course")
@@ -174,7 +176,7 @@ class MedusaProductServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaProductService service = new MedusaProductService(restClient);
+        MedusaProductService service = new MedusaProductServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/admin/products"))
                 .andRespond(withSuccess("""
@@ -198,7 +200,7 @@ class MedusaProductServiceTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RestClient restClient = builder.baseUrl(BASE_URL).build();
-        MedusaProductService service = new MedusaProductService(restClient);
+        MedusaProductService service = new MedusaProductServiceImpl(restClient);
 
         server.expect(requestTo(BASE_URL + "/admin/products"))
                 .andRespond(withBadRequest().body("{\"error\":\"invalid\"}"));
@@ -220,7 +222,7 @@ class MedusaProductServiceTest {
         RestClient restClient = org.mockito.Mockito.mock(RestClient.class);
         org.mockito.Mockito.when(restClient.post()).thenThrow(new RestClientException("connection error"));
 
-        MedusaProductService service = new MedusaProductService(restClient);
+        MedusaProductService service = new MedusaProductServiceImpl(restClient);
 
         assertThatThrownBy(() -> service.createDigitalProduct(MedusaDigitalProductRequest.builder()
                         .title("Fail")
