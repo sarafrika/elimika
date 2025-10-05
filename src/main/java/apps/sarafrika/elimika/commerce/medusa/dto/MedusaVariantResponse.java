@@ -17,10 +17,13 @@ import lombok.Setter;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class MedusaVariantResponse {
 
+    @JsonProperty("id")
     private String id;
 
+    @JsonProperty("title")
     private String title;
 
+    @JsonProperty("sku")
     private String sku;
 
     @JsonProperty("manage_inventory")

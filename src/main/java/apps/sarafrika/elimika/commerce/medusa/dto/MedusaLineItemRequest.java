@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.medusa.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -24,9 +25,11 @@ import lombok.Setter;
 public class MedusaLineItemRequest {
 
     @NotBlank
+    @JsonProperty("variant_id")
     private String variantId;
 
     @Builder.Default
     @Min(1)
+    @JsonProperty("quantity")
     private int quantity = 1;
 }

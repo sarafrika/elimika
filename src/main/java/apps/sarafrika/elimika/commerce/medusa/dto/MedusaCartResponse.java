@@ -20,6 +20,7 @@ import lombok.Setter;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class MedusaCartResponse {
 
+    @JsonProperty("id")
     private String id;
 
     @JsonProperty("region_id")
@@ -34,6 +35,7 @@ public class MedusaCartResponse {
     @JsonProperty("updated_at")
     private OffsetDateTime updatedAt;
 
+    @JsonProperty("items")
     private List<MedusaLineItemResponse> items;
 
     @Getter
@@ -42,10 +44,13 @@ public class MedusaCartResponse {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class MedusaLineItemResponse {
 
+        @JsonProperty("id")
         private String id;
 
+        @JsonProperty("title")
         private String title;
 
+        @JsonProperty("quantity")
         private int quantity;
 
         @JsonProperty("variant_id")

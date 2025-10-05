@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.commerce.medusa.dto;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -27,16 +28,21 @@ import lombok.Setter;
 public class MedusaCartRequest {
 
     @NotBlank
+    @JsonProperty("region_id")
     private String regionId;
 
+    @JsonProperty("customer_id")
     private String customerId;
 
+    @JsonProperty("sales_channel_id")
     private String salesChannelId;
 
     @Builder.Default
+    @JsonProperty("metadata")
     private Map<String, Object> metadata = Map.of();
 
     @Valid
     @Builder.Default
+    @JsonProperty("items")
     private List<MedusaLineItemRequest> items = List.of();
 }

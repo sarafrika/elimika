@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.medusa.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -24,16 +25,21 @@ import lombok.Setter;
 public class MedusaCheckoutRequest {
 
     @NotBlank
+    @JsonProperty("cart_id")
     private String cartId;
 
     @Email
     @NotBlank
+    @JsonProperty("customer_email")
     private String customerEmail;
 
+    @JsonProperty("shipping_address_id")
     private String shippingAddressId;
 
+    @JsonProperty("billing_address_id")
     private String billingAddressId;
 
     @NotBlank
+    @JsonProperty("payment_provider_id")
     private String paymentProviderId;
 }

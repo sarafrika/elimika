@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.commerce.medusa.dto;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -27,38 +28,50 @@ import lombok.Setter;
 public class MedusaDigitalProductRequest {
 
     @NotBlank
+    @JsonProperty("title")
     private String title;
 
+    @JsonProperty("subtitle")
     private String subtitle;
 
+    @JsonProperty("description")
     private String description;
 
     @NotBlank
+    @JsonProperty("sku")
     private String sku;
 
     @NotBlank
+    @JsonProperty("currency_code")
     private String currencyCode;
 
     @Positive
+    @JsonProperty("amount")
     private long amount;
 
     @Builder.Default
+    @JsonProperty("requires_shipping")
     private boolean requiresShipping = false;
 
     /**
      * Optional override for the variant title. Defaults to the product title when left blank.
      */
+    @JsonProperty("variant_title")
     private String variantTitle;
 
     @Builder.Default
+    @JsonProperty("option_title")
     private String optionTitle = "Format";
 
     @Builder.Default
+    @JsonProperty("option_value")
     private String optionValue = "Digital";
 
     @Builder.Default
+    @JsonProperty("metadata")
     private Map<String, Object> metadata = Map.of();
 
     @Builder.Default
+    @JsonProperty("collection_ids")
     private List<String> collectionIds = List.of();
 }
