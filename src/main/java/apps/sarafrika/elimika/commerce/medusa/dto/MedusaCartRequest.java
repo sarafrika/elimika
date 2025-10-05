@@ -3,6 +3,9 @@ package apps.sarafrika.elimika.commerce.medusa.dto;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
@@ -20,6 +23,7 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class MedusaCartRequest {
 
     @NotBlank
