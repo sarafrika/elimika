@@ -16,4 +16,12 @@ public interface MedusaOrderService {
      * @return the resulting Medusa order representation
      */
     MedusaOrderResponse completeCheckout(MedusaCheckoutRequest request);
+
+    /**
+     * Retrieves a previously created order from Medusa using its identifier.
+     *
+     * @param orderId the Medusa order identifier
+     * @return the Medusa order details
+     */
+    MedusaOrderResponse retrieveOrder(String orderId);
 }
