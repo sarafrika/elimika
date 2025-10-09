@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaCheckoutRequest;
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaOrderResponse;
@@ -18,6 +19,7 @@ import apps.sarafrika.elimika.commerce.medusa.service.impl.MedusaOrderServiceImp
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 class MedusaOrderServiceTest {
 
@@ -31,7 +33,7 @@ class MedusaOrderServiceTest {
         when(customerService.ensureCustomer(any(MedusaCustomerRequest.class)))
                 .thenReturn(buildCustomer());
 
-        MedusaOrderService service = new MedusaOrderServiceImpl(cartService, customerService);
+        MedusaOrderService service = new MedusaOrderServiceImpl(cartService, customerService, mock(RestClient.class));
 
         MedusaCheckoutRequest request = MedusaCheckoutRequest.builder()
                 .cartId("cart_1")
@@ -63,7 +65,7 @@ class MedusaOrderServiceTest {
         when(customerService.ensureCustomer(any(MedusaCustomerRequest.class)))
                 .thenReturn(buildCustomer());
 
-        MedusaOrderService service = new MedusaOrderServiceImpl(cartService, customerService);
+        MedusaOrderService service = new MedusaOrderServiceImpl(cartService, customerService, mock(RestClient.class));
 
         MedusaCheckoutRequest request = MedusaCheckoutRequest.builder()
                 .cartId("cart_2")
@@ -85,11 +87,44 @@ class MedusaOrderServiceTest {
     @Test
     void completeCheckout_whenRequestMissing_throws() {
         MedusaOrderService service =
-                new MedusaOrderServiceImpl(mock(MedusaCartService.class), mock(MedusaCustomerService.class));
+                new MedusaOrderServiceImpl(
+                        mock(MedusaCartService.class),
+                        mock(MedusaCustomerService.class),
+                        mock(RestClient.class));
 
         assertThatThrownBy(() -> service.completeCheckout(null))
                 .isInstanceOf(MedusaIntegrationException.class)
                 .hasMessageContaining("Checkout request must be provided");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void retrieveOrder_fetchesOrderFromMedusa() throws Exception {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestHeadersUriSpec uriSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        RestClient.RequestHeadersSpec headersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec responseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(restClient.get()).thenReturn(uriSpec);
+        when(uriSpec.uri(eq("/store/orders/{id}"), eq("order_1"))).thenReturn(headersSpec);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+
+        MedusaOrderServiceImpl.OrderEnvelope envelope = new MedusaOrderServiceImpl.OrderEnvelope();
+        MedusaOrderResponse medusaOrder = new MedusaOrderResponse();
+        medusaOrder.setId("order_1");
+        envelope.setOrder(medusaOrder);
+
+        when(responseSpec.body(any(Class.class))).thenReturn(envelope);
+
+        MedusaOrderService service = new MedusaOrderServiceImpl(
+                mock(MedusaCartService.class),
+                mock(MedusaCustomerService.class),
+                restClient);
+
+        MedusaOrderResponse result = service.retrieveOrder("order_1");
+
+        assertThat(result.getId()).isEqualTo("order_1");
+        verify(uriSpec).uri("/store/orders/{id}", "order_1");
     }
 
     private MedusaCustomerResponse buildCustomer() {
