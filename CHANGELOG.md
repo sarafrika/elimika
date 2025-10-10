@@ -1,3 +1,16 @@
+# [2.21.0](https://github.com/sarafrika/elimika/compare/v2.20.0...v2.21.0) (2025-10-10)
+
+
+### Bug Fixes
+
+* normalize commerce DTO JSON mapping and domain checks ([7e9c1e8](https://github.com/sarafrika/elimika/commit/7e9c1e8e03f85da2354ec4b1c69f18548da39096))
+* Replace role-based authorization with domain-based security services ([067790f](https://github.com/sarafrika/elimika/commit/067790f245fc6b4650a9e7e90e6a2f8352925a6f))
+
+
+### Features
+
+* add commerce cart and order APIs backed by Medusa ([8012945](https://github.com/sarafrika/elimika/commit/80129453f48e5ccfb74d25ee5a1a10b2a9ff4e86))
+
 # [2.20.0](https://github.com/sarafrika/elimika/compare/v2.19.0...v2.20.0) (2025-10-03)
 
 
