@@ -21,19 +21,19 @@ import lombok.Setter;
 @Table(name = "commerce_purchase")
 public class CommercePurchase extends BaseEntity {
 
-    @Column(name = "medusa_order_id", nullable = false, unique = true, length = 64)
+    @Column(name = "medusa_order_id")
     private String medusaOrderId;
 
-    @Column(name = "medusa_display_id", length = 64)
+    @Column(name = "medusa_display_id")
     private String medusaDisplayId;
 
-    @Column(name = "customer_email", length = 255)
+    @Column(name = "customer_email")
     private String customerEmail;
 
     @Column(name = "user_uuid")
     private java.util.UUID userUuid;
 
-    @Column(name = "payment_status", length = 64)
+    @Column(name = "payment_status")
     private String paymentStatus;
 
     @Column(name = "medusa_created_at")

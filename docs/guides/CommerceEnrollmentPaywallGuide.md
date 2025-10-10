@@ -23,8 +23,8 @@ graph TD
     CO --> |Payment Confirmed| OR[Order Recorded]
     OR --> |Attempt Enrollment| EN[POST /enrollment]
     EN -->|Paywall Check| PW{{Commerce Paywall}}
-    PW -->|Paid| OK[Enrollment Confirmed]
-    PW -->|Unpaid (402)| ERR[Display Payment Required State]
+    PW -->|Payment Settled| OK[Enrollment Confirmed]
+    PW -->|Unpaid 402| ERR[Display Payment Required State]
 ```
 
 ---
@@ -56,12 +56,11 @@ sequenceDiagram
     OrderAPI-->>UI: OrderResponse (payment_status = captured/paid)
 
     UI->>EnrollAPI: POST /enrollment (scheduled_instance_uuid, student_uuid)
-    EnrollAPI-->>UI: 
-        alt payment settled
-            EnrollmentDTO
-        else unpaid
-            402 Payment Required (+ message)
-        end
+    alt Payment settled
+        EnrollAPI-->>UI: EnrollmentDTO
+    else Payment required
+        EnrollAPI-->>UI: 402 Payment Required (+ message)
+    end
 ```
 
 ---
@@ -97,6 +96,15 @@ Each cart line item represents a prepaid entitlement for a specific learner to a
 - **Class Definition UUID** – Identifier for a scheduled class template (`class_definitions` table). It maps to cohorts or recurring sessions that the student will attend.
 - **Student UUID** – Primary key for the learner in the `students` table (not the user UUID). Supports scenarios where a guardian purchases on behalf of a dependent.
 - **Medusa Variant ID** – SKU in the Medusa commerce engine representing the digital product for this course/class access. Backoffice tooling (or the catalog sync endpoint) exposes these IDs.
+
+### Fetching Catalog Metadata
+
+Use the dedicated catalog API to retrieve the Medusa product/variant for a course or class before building the cart payload:
+
+- `GET /api/v1/commerce/catalog/by-course/{courseUuid}` – returns the Medusa identifiers for a course-level purchase.
+- `GET /api/v1/commerce/catalog/by-class/{classDefinitionUuid}` – returns the variant tied to a specific class definition.
+
+Catalog items are managed via `POST/PUT /api/v1/commerce/catalog` by operations/admin tooling, ensuring the storefront can simply query and reuse the stored mapping.
 
 Every cart line item must include metadata so the backend can tie a payment to course/class access. Missing keys will cause the paywall to block enrollment even after checkout.
 

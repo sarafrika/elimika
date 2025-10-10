@@ -23,13 +23,13 @@ import lombok.Setter;
 public class CommercePurchaseItem extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "purchase_id", nullable = false)
+    @JoinColumn(name = "purchase_id")
     private CommercePurchase purchase;
 
-    @Column(name = "medusa_line_item_id", nullable = false, length = 64)
+    @Column(name = "medusa_line_item_id")
     private String medusaLineItemId;
 
-    @Column(name = "variant_id", length = 64)
+    @Column(name = "variant_id")
     private String variantId;
 
     @Column(name = "title")
@@ -48,9 +48,9 @@ public class CommercePurchaseItem extends BaseEntity {
     private UUID classDefinitionUuid;
 
     @Convert(converter = PurchaseScopeConverter.class)
-    @Column(name = "scope", length = 16)
+    @Column(name = "scope")
     private PurchaseScope scope;
 
-    @Column(name = "metadata_json", columnDefinition = "text")
+    @Column(name = "metadata_json")
     private String metadataJson;
 }
