@@ -37,8 +37,6 @@ public class MedusaCommerceMapper {
         return OrderResponse.builder()
                 .id(medusaOrder.getId())
                 .displayId(medusaOrder.getDisplayId())
-                .status(medusaOrder.getStatus())
-                .fulfillmentStatus(medusaOrder.getFulfillmentStatus())
                 .paymentStatus(medusaOrder.getPaymentStatus())
                 .createdAt(medusaOrder.getCreatedAt())
                 .items(toCartItems(medusaOrder.getItems()))
@@ -55,6 +53,7 @@ public class MedusaCommerceMapper {
                         .title(item.getTitle())
                         .quantity(item.getQuantity())
                         .variantId(item.getVariantId())
+                        .metadata(item.getMetadata())
                         .build())
                 .toList();
     }

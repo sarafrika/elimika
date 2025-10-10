@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
+import apps.sarafrika.elimika.commerce.purchase.service.CommercePaywallService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
@@ -36,6 +37,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final ApplicationEventPublisher eventPublisher;
     private final GenericSpecificationBuilder<ScheduledInstance> scheduledInstanceSpecBuilder;
     private final GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
+    private final CommercePaywallService commercePaywallService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -165,6 +167,8 @@ public class TimetableServiceImpl implements TimetableService {
         ScheduledInstance instance = scheduledInstanceRepository.findByUuid(request.scheduledInstanceUuid())
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, request.scheduledInstanceUuid())));
+
+        commercePaywallService.verifyClassEnrollmentAccess(request.studentUuid(), instance.getClassDefinitionUuid());
 
         ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
             instance.getClassDefinitionUuid(),

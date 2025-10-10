@@ -56,6 +56,9 @@ public class MedusaCartServiceImpl implements MedusaCartService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("variant_id", request.getVariantId());
         payload.put("quantity", request.getQuantity());
+        if (request.getMetadata() != null && !request.getMetadata().isEmpty()) {
+            payload.put("metadata", request.getMetadata());
+        }
 
         return executeCartCall(() -> medusaRestClient
                 .post()
@@ -119,9 +122,15 @@ public class MedusaCartServiceImpl implements MedusaCartService {
 
     private List<Map<String, Object>> toLineItems(List<MedusaLineItemRequest> items) {
         return items.stream()
-                .map(item -> Map.<String, Object>of(
-                        "variant_id", item.getVariantId(),
-                        "quantity", item.getQuantity()))
+                .map(item -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("variant_id", item.getVariantId());
+                    map.put("quantity", item.getQuantity());
+                    if (item.getMetadata() != null && !item.getMetadata().isEmpty()) {
+                        map.put("metadata", item.getMetadata());
+                    }
+                    return map;
+                })
                 .toList();
     }
 

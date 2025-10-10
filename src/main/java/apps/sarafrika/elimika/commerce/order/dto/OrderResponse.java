@@ -30,14 +30,6 @@ public class OrderResponse {
     @JsonProperty("display_id")
     private final String displayId;
 
-    @Schema(description = "Overall order status", example = "completed")
-    @JsonProperty("status")
-    private final String status;
-
-    @Schema(description = "Fulfilment status reported by Medusa", example = "fulfilled")
-    @JsonProperty("fulfillment_status")
-    private final String fulfillmentStatus;
-
     @Schema(description = "Payment status reported by Medusa", example = "captured")
     @JsonProperty("payment_status")
     private final String paymentStatus;

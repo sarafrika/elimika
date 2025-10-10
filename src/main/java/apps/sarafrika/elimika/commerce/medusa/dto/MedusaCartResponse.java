@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.commerce.medusa.dto;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -55,5 +56,8 @@ public class MedusaCartResponse {
 
         @JsonProperty("variant_id")
         private String variantId;
+
+        @JsonProperty("metadata")
+        private Map<String, Object> metadata;
     }
 }

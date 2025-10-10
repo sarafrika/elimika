@@ -1,10 +1,12 @@
 package apps.sarafrika.elimika.commerce.order.service.impl;
 
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaCheckoutRequest;
+import apps.sarafrika.elimika.commerce.medusa.dto.MedusaOrderResponse;
 import apps.sarafrika.elimika.commerce.medusa.service.MedusaOrderService;
 import apps.sarafrika.elimika.commerce.order.dto.CheckoutRequest;
 import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
 import apps.sarafrika.elimika.commerce.order.service.OrderService;
+import apps.sarafrika.elimika.commerce.purchase.service.CommercePurchaseService;
 import apps.sarafrika.elimika.commerce.shared.mapper.MedusaCommerceMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final MedusaOrderService medusaOrderService;
     private final MedusaCommerceMapper mapper;
+    private final CommercePurchaseService commercePurchaseService;
 
     @Override
     public OrderResponse completeCheckout(CheckoutRequest request) {
@@ -28,7 +31,10 @@ public class OrderServiceImpl implements OrderService {
                 .billingAddressId(request.getBillingAddressId())
                 .paymentProviderId(request.getPaymentProviderId())
                 .build();
-        return mapper.toOrderResponse(medusaOrderService.completeCheckout(medusaRequest));
+        MedusaOrderResponse medusaOrder = medusaOrderService.completeCheckout(medusaRequest);
+        OrderResponse response = mapper.toOrderResponse(medusaOrder);
+        commercePurchaseService.recordOrder(response, request);
+        return response;
     }
 
     @Override

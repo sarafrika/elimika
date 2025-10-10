@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,4 +34,8 @@ public class CartItemResponse {
     @Schema(description = "Medusa variant identifier", example = "variant_01HZX1Y4K8R0HVWZ4Q6CF6M1AP")
     @JsonProperty("variant_id")
     private final String variantId;
+
+    @Schema(description = "Custom metadata captured for the line item")
+    @JsonProperty("metadata")
+    private final Map<String, Object> metadata;
 }

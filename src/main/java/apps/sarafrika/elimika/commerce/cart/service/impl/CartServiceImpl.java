@@ -47,6 +47,7 @@ public class CartServiceImpl implements CartService {
         return mapper.toCartResponse(medusaCartService.addItemToCart(cartId, MedusaLineItemRequest.builder()
                 .variantId(request.getVariantId())
                 .quantity(request.getQuantity())
+                .metadata(sanitizeMetadata(request.getMetadata()))
                 .build()));
     }
 
@@ -83,8 +84,16 @@ public class CartServiceImpl implements CartService {
                 .map(item -> MedusaLineItemRequest.builder()
                         .variantId(item.getVariantId())
                         .quantity(item.getQuantity())
+                        .metadata(sanitizeMetadata(item.getMetadata()))
                         .build())
                 .toList();
+    }
+
+    private Map<String, Object> sanitizeMetadata(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return Map.of();
+        }
+        return metadata;
     }
 
     private Map<String, Object> buildUpdatePayload(UpdateCartRequest request) {
