@@ -1,5 +1,8 @@
 package apps.sarafrika.elimika.commerce.cart.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -20,6 +23,7 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Schema(name = "CreateCartRequest", description = "Request body for creating a new cart that synchronises with Medusa")
 public class CreateCartRequest {
 
@@ -29,6 +33,7 @@ public class CreateCartRequest {
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "Region identifier is required")
+    @JsonProperty("region_id")
     private String regionId;
 
     @Schema(
@@ -36,6 +41,7 @@ public class CreateCartRequest {
             example = "cus_01HZX1X6QAQCCYT11S3R6G9KVN",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
+    @JsonProperty("customer_id")
     private String customerId;
 
     @Schema(
@@ -43,6 +49,7 @@ public class CreateCartRequest {
             example = "sc_01HZX20Y4D9CK3R6RHY9PRF20C",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
+    @JsonProperty("sales_channel_id")
     private String salesChannelId;
 
     @Builder.Default
@@ -51,6 +58,7 @@ public class CreateCartRequest {
             example = "{\"campaign\":\"back-to-school\"}",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
+    @JsonProperty("metadata")
     private Map<String, Object> metadata = Map.of();
 
     @Valid
@@ -62,5 +70,6 @@ public class CreateCartRequest {
                     requiredMode = Schema.RequiredMode.NOT_REQUIRED
             )
     )
+    @JsonProperty("items")
     private List<CartLineItemRequest> items = List.of();
 }

@@ -1,5 +1,8 @@
 package apps.sarafrika.elimika.commerce.cart.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +20,7 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Schema(name = "CartLineItemRequest", description = "Line item definition used when creating or updating a cart")
 public class CartLineItemRequest {
 
@@ -26,6 +30,7 @@ public class CartLineItemRequest {
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "Variant identifier is required")
+    @JsonProperty("variant_id")
     private String variantId;
 
     @Schema(
@@ -35,5 +40,6 @@ public class CartLineItemRequest {
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @Min(value = 1, message = "Quantity must be at least 1")
+    @JsonProperty("quantity")
     private int quantity;
 }

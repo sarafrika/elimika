@@ -6,6 +6,9 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.model.Student;
 import apps.sarafrika.elimika.student.repository.StudentRepository;
 import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
+import apps.sarafrika.elimika.tenancy.repository.UserDomainMappingRepository;
+import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,33 +32,35 @@ public class DomainSecurityService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final InstructorRepository instructorRepository;
+    private final UserDomainMappingRepository userDomainMappingRepository;
+    private final UserDomainRepository userDomainRepository;
 
     /**
      * Checks if the currently authenticated user is a student.
      */
     public boolean isStudent() {
-        return hasUserDomain(UserDomain.STUDENT);
+        return hasUserDomain(UserDomain.student);
     }
 
     /**
      * Checks if the currently authenticated user is an instructor.
      */
     public boolean isInstructor() {
-        return hasUserDomain(UserDomain.INSTRUCTOR);
+        return hasUserDomain(UserDomain.instructor);
     }
 
     /**
      * Checks if the currently authenticated user is an organization admin.
      */
     public boolean isOrganizationAdmin() {
-        return hasUserDomain(UserDomain.ADMIN);
+        return hasUserDomain(UserDomain.admin);
     }
 
     /**
      * Checks if the currently authenticated user is a course creator.
      */
     public boolean isCourseCreator() {
-        return hasUserDomain(UserDomain.COURSE_CREATOR);
+        return hasUserDomain(UserDomain.course_creator);
     }
 
     /**
@@ -75,7 +80,7 @@ public class DomainSecurityService {
      * This is a common permission pattern in the system.
      */
     public boolean isStudentOrInstructorOrAdmin() {
-        return hasAnyDomain(UserDomain.STUDENT, UserDomain.INSTRUCTOR, UserDomain.ADMIN);
+        return hasAnyDomain(UserDomain.student, UserDomain.instructor, UserDomain.admin);
     }
 
     /**
@@ -83,7 +88,7 @@ public class DomainSecurityService {
      * This is a common permission pattern in the system.
      */
     public boolean isInstructorOrAdmin() {
-        return hasAnyDomain(UserDomain.INSTRUCTOR, UserDomain.ADMIN);
+        return hasAnyDomain(UserDomain.instructor, UserDomain.admin);
     }
 
     /**
@@ -171,14 +176,28 @@ public class DomainSecurityService {
                 return false;
             }
 
-            // Get user domains from user entity
-            List<UserDomain> userDomains = currentUser.getUserDomains();
-            if (userDomains == null || userDomains.isEmpty()) {
-                log.debug("User {} has no domains", currentUser.getUuid());
+            // Get the domain entity from the database by domain name (enum value)
+            apps.sarafrika.elimika.tenancy.entity.UserDomain domainEntity = userDomainRepository
+                    .findByDomainName(domain.name())
+                    .orElse(null);
+
+            if (domainEntity == null) {
+                log.warn("Domain {} not found in database", domain.name());
                 return false;
             }
 
-            boolean hasDomain = userDomains.contains(domain);
+            // Get user domain mappings from repository
+            List<UserDomainMapping> userDomainMappings = userDomainMappingRepository.findByUserUuid(currentUser.getUuid());
+            if (userDomainMappings == null || userDomainMappings.isEmpty()) {
+                log.debug("User {} has no domain mappings", currentUser.getUuid());
+                return false;
+            }
+
+            // Check if the user has the specific domain by comparing UUIDs
+            UUID domainUuid = domainEntity.getUuid();
+            boolean hasDomain = userDomainMappings.stream()
+                    .anyMatch(mapping -> domainUuid.equals(mapping.getUserDomainUuid()));
+
             log.debug("User {} domain check for {}: {}", currentUser.getUuid(), domain, hasDomain);
             return hasDomain;
 
