@@ -5,8 +5,6 @@ import apps.sarafrika.elimika.commerce.catalog.dto.UpsertCommerceCatalogItemRequ
 import apps.sarafrika.elimika.commerce.catalog.service.CommerceCatalogService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -16,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -59,23 +56,6 @@ public class CommerceCatalogController {
                 .map(item -> ResponseEntity.ok(ApiResponse.success(item, "Catalog item retrieved successfully")))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("Catalog item not found for class definition")));
-    }
-
-    @Operation(
-            summary = "Create catalog mapping",
-            description = "Assigns a Medusa product/variant to a course or class definition",
-            responses = @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "201",
-                    description = "Catalog item created",
-                    content = @Content(schema = @Schema(implementation = CommerceCatalogItemDTO.class))
-            )
-    )
-    @PostMapping
-    public ResponseEntity<ApiResponse<CommerceCatalogItemDTO>> createCatalogItem(
-            @Valid @RequestBody UpsertCommerceCatalogItemRequest request) {
-        CommerceCatalogItemDTO dto = catalogService.createItem(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(dto, "Catalog item created successfully"));
     }
 
     @Operation(summary = "Update catalog mapping", description = "Updates Medusa identifiers or status for an existing mapping")

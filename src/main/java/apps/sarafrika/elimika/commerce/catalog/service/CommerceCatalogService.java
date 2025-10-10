@@ -8,8 +8,6 @@ import java.util.UUID;
 
 public interface CommerceCatalogService {
 
-    CommerceCatalogItemDTO createItem(UpsertCommerceCatalogItemRequest request);
-
     CommerceCatalogItemDTO updateItem(UUID catalogUuid, UpsertCommerceCatalogItemRequest request);
 
     Optional<CommerceCatalogItemDTO> getByCourse(UUID courseUuid);
