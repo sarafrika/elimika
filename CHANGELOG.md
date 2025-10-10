@@ -1,3 +1,12 @@
+# [2.23.0](https://github.com/sarafrika/elimika/compare/v2.22.0...v2.23.0) (2025-10-10)
+
+
+### Features
+
+* enforce commerce paywall before class enrollment ([cae1223](https://github.com/sarafrika/elimika/commit/cae122395eea72fcf265375e4aad15c07172d262))
+* enforce commerce paywall before class enrollment ([2d6da05](https://github.com/sarafrika/elimika/commit/2d6da05e01eec582d830df35e6441dce60bac160))
+* enforce commerce paywall before class enrollment ([2a791f8](https://github.com/sarafrika/elimika/commit/2a791f8d7b19e8758fce6fb3037ffe21096811f5))
+
 # [2.22.0](https://github.com/sarafrika/elimika/compare/v2.21.0...v2.22.0) (2025-10-10)
 
 
