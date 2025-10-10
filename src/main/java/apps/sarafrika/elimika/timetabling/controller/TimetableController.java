@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Timetable API", description = "Class scheduling and timetable management")
-@PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+@PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
 public class TimetableController {
 
     private final TimetableService timetableService;
@@ -133,15 +133,15 @@ public class TimetableController {
     @Operation(summary = "Check if a student has enrollment conflicts")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Conflict check completed")
     @PostMapping("/student/{studentUuid}/check-conflict")
-    @PreAuthorize("hasRole('STUDENT') or hasRole('INSTRUCTOR') or hasRole('ORGANIZATION_ADMIN')")
+    @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")
     public ResponseEntity<ApiResponse<Boolean>> checkStudentConflict(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,
             @Valid @RequestBody ScheduleRequestDTO request) {
         log.debug("REST request to check conflicts for student: {}", studentUuid);
-        
+
         boolean hasConflict = timetableService.hasStudentConflict(studentUuid, request);
-        return ResponseEntity.ok(ApiResponse.success(hasConflict, 
+        return ResponseEntity.ok(ApiResponse.success(hasConflict,
             hasConflict ? "Student has enrollment conflicts" : "No conflicts found"));
     }
 }

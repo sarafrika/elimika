@@ -22,6 +22,8 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
 
     boolean existsByUserUuid(UUID userUuid);
 
+    Optional<Instructor> findByUserUuid(UUID userUuid);
+
     /**
      * Find instructors by their verification status with pagination.
      *

@@ -17,4 +17,6 @@ public interface StudentRepository extends JpaRepository<Student, Long>, JpaSpec
     Optional<Student> findByUuid(UUID uuid);
 
     boolean existsByUserUuid(UUID userUuid);
+
+    Optional<Student> findByUserUuid(UUID userUuid);
 }
