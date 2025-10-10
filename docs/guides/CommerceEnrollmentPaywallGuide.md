@@ -17,8 +17,8 @@ This guide walks frontend engineers and designers through the end-to-end experie
 graph TD
     M[Marketing / Course Catalog] --> |Select Course/Class| C[Cart Builder]
     C --> |Create Cart| CA[POST /commerce/carts]
-    CA --> |Add Items with metadata| AI[POST /commerce/carts/{id}/items]
-    AI --> |Select Payment Provider| SP[POST /commerce/carts/{id}/payment-session]
+    CA --> |Add Items with metadata| AI[POST /commerce/carts/&#123;id&#125;/items]
+    AI --> |Select Payment Provider| SP[POST /commerce/carts/&#123;id&#125;/payment-session]
     SP --> |Checkout| CO[POST /commerce/orders/checkout]
     CO --> |Payment Confirmed| OR[Order Recorded]
     OR --> |Attempt Enrollment| EN[POST /enrollment]
@@ -91,15 +91,29 @@ Use the following ordered steps in your UI to ensure cart and checkout interacti
 
 ## 5. Cart Line Item Metadata Contract
 
+Each cart line item represents a prepaid entitlement for a specific learner to access a course (and optionally a scheduled class). The identifiers you pass tell the backend exactly which records should be unlocked:
+
+- **Course UUID** – Primary key from the Elimika course catalog (`courses` table). One course may have multiple classes; paying it typically unlocks all course resources.
+- **Class Definition UUID** – Identifier for a scheduled class template (`class_definitions` table). It maps to cohorts or recurring sessions that the student will attend.
+- **Student UUID** – Primary key for the learner in the `students` table (not the user UUID). Supports scenarios where a guardian purchases on behalf of a dependent.
+- **Medusa Variant ID** – SKU in the Medusa commerce engine representing the digital product for this course/class access. Backoffice tooling (or the catalog sync endpoint) exposes these IDs.
+
 Every cart line item must include metadata so the backend can tie a payment to course/class access. Missing keys will cause the paywall to block enrollment even after checkout.
 
-| Key                     | Type    | Required | Description                                                                                     |
-|-------------------------|---------|----------|-------------------------------------------------------------------------------------------------|
-| `course_uuid`           | UUID    | Yes      | Course granting access. Needed for course-level paywall.                                        |
-| `class_definition_uuid` | UUID    | Yes      | Class instance definition the learner plans to attend.                                          |
-| `student_uuid`          | UUID    | Yes      | Student who will consume the access (supports parents / admins purchasing for others).          |
+| Key                     | Type    | Required | Description                                                                                                                                                 |
+|-------------------------|---------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `course_uuid`           | UUID    | Yes      | Course granting access. Obtain this from the Course Catalogue API / course detail view that powers the storefront.                                         |
+| `class_definition_uuid` | UUID    | Yes      | Class definition selected during scheduling. Fetch via the Class Definitions API (`GET /api/v1/classes/…`) when rendering available cohorts/sessions.       |
+| `student_uuid`          | UUID    | Yes      | Student who will consume the access (supports parents/admins purchasing for others). Read from the learner profile context or student selection UI.        |
+| Medusa `variant_id`     | String  | Yes      | Variant identifier for the digital product in Medusa. Retrieve it when showing the product detail page (via `/admin/products` sync) or a preloaded catalog. |
 
 **Example Payload When Adding A Line Item**
+
+Before calling this endpoint you should already have:
+
+1. Looked up the Medusa product/variant that represents the course seat. The variant ID is stored when commerce content is provisioned (via the admin tooling) and exposed to the storefront either through a cached catalog or a product lookup endpoint.
+2. Pulled the `course_uuid` and `class_definition_uuid` from the course/class APIs as the learner chooses an offering.
+3. Selected the `student_uuid` (current user or dependent) from the tenant’s student directory.
 
 ```json
 {
