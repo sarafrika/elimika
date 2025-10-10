@@ -1,3 +1,10 @@
+# [2.22.0](https://github.com/sarafrika/elimika/compare/v2.21.0...v2.22.0) (2025-10-10)
+
+
+### Features
+
+* add request audit logging ([972cbbb](https://github.com/sarafrika/elimika/commit/972cbbbd7b8522f89d7a83d6148f0d8c57d7695a))
+
 # [2.21.0](https://github.com/sarafrika/elimika/compare/v2.20.0...v2.21.0) (2025-10-10)
 
 
