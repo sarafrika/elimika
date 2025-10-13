@@ -1,3 +1,10 @@
+## [2.23.1](https://github.com/sarafrika/elimika/compare/v2.23.0...v2.23.1) (2025-10-10)
+
+
+### Bug Fixes
+
+* remove manual catalog creation endpoint ([c571465](https://github.com/sarafrika/elimika/commit/c5714654ac14a9b40f56515b27aedbb916f1002d))
+
 # [2.23.0](https://github.com/sarafrika/elimika/compare/v2.22.0...v2.23.0) (2025-10-10)
 
 
