@@ -1,3 +1,15 @@
+# [2.25.0](https://github.com/sarafrika/elimika/compare/v2.24.0...v2.25.0) (2025-10-16)
+
+
+### Bug Fixes
+
+* add missing Keycloak configuration to application.yaml ([df61a7a](https://github.com/sarafrika/elimika/commit/df61a7af54eb628cd373190616481d6fb4252e69))
+
+
+### Features
+
+* add enhanced search functionality for course module ([86beace](https://github.com/sarafrika/elimika/commit/86beace8480932b95a61f105477c979c73a1b8ec))
+
 # [2.24.0](https://github.com/sarafrika/elimika/compare/v2.23.1...v2.24.0) (2025-10-16)
 
 
