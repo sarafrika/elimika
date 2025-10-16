@@ -78,6 +78,24 @@ public class Course extends BaseEntity {
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<CourseCategoryMapping> categoryMappings = new HashSet<>();
 
+    /**
+     * Relationship to difficulty level for querying purposes.
+     * Read-only relationship (insertable=false, updatable=false).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "difficulty_uuid", referencedColumnName = "uuid",
+            insertable = false, updatable = false)
+    private DifficultyLevel difficulty;
+
+    /**
+     * Relationship to course enrollments for querying purposes.
+     * Read-only relationship fetched lazily.
+     */
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_uuid", referencedColumnName = "uuid",
+            insertable = false, updatable = false)
+    private java.util.List<CourseEnrollment> enrollments;
+
     // Helper methods for managing categories
     public void addCategory(UUID categoryUuid) {
         CourseCategoryMapping mapping = CourseCategoryMapping.builder()

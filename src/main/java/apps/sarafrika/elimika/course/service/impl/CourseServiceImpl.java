@@ -1,7 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.internal.CourseMediaValidationService;
@@ -12,6 +11,7 @@ import apps.sarafrika.elimika.course.service.CourseCategoryService;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.LessonService;
+import apps.sarafrika.elimika.course.util.CourseSpecificationBuilder;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
@@ -39,7 +39,7 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final CourseCategoryMappingRepository mappingRepository;
-    private final GenericSpecificationBuilder<Course> specificationBuilder;
+    private final CourseSpecificationBuilder courseSpecificationBuilder;
     private final LessonService lessonService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
@@ -137,8 +137,8 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        Specification<Course> spec = specificationBuilder.buildSpecification(
-                Course.class, searchParams);
+        log.debug("Searching courses with params: {}", searchParams);
+        Specification<Course> spec = courseSpecificationBuilder.buildCourseSpecification(searchParams);
 
         Page<Course> coursePage = courseRepository.findAll(spec, pageable);
 
