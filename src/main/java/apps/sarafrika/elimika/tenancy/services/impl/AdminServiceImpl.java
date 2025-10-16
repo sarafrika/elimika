@@ -70,13 +70,9 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // Add domain mapping for global admin access
-        UserDomainMapping mapping = new UserDomainMapping(
-                null,
-                userUuid,
-                adminDomain.getUuid(),
-                LocalDateTime.now(),
-                null
-        );
+        UserDomainMapping mapping = new UserDomainMapping();
+        mapping.setUserUuid(userUuid);
+        mapping.setUserDomainUuid(adminDomain.getUuid());
         userDomainMappingRepository.save(mapping);
 
         log.info("Successfully assigned {} domain to user {} for reason: {}",

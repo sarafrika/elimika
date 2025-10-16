@@ -29,6 +29,11 @@ public class UserDomainMapping {
     @Column(name = "domain_uuid")
     private UUID userDomainUuid;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_uuid", referencedColumnName = "uuid",
+            insertable = false, updatable = false)
+    private UserDomain userDomain;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;

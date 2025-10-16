@@ -48,4 +48,24 @@ public class User extends BaseEntity {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
     private Gender gender;
+
+    /**
+     * User's domain mappings (standalone domains not tied to organizations).
+     * This is a read-only relationship used for querying.
+     * Fetched lazily to avoid performance issues.
+     */
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_uuid", referencedColumnName = "uuid",
+            insertable = false, updatable = false)
+    private java.util.List<UserDomainMapping> domainMappings;
+
+    /**
+     * User's organization domain mappings (organization-specific roles).
+     * This is a read-only relationship used for querying.
+     * Fetched lazily to avoid performance issues.
+     */
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_uuid", referencedColumnName = "uuid",
+            insertable = false, updatable = false)
+    private java.util.List<UserOrganisationDomainMapping> organisationDomainMappings;
 }

@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.internal.UserMediaValidationService;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -49,6 +50,7 @@ public class UserServiceImpl implements UserService {
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final GenericSpecificationBuilder<User> specificationBuilder;
+    private final UserSpecificationBuilder userSpecificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final UserMediaValidationService validationService;
     private final NotificationPreferencesService notificationPreferencesService;
@@ -356,7 +358,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        Specification<User> spec = specificationBuilder.buildSpecification(User.class, searchParams);
+        log.debug("Searching users with params: {}", searchParams);
+        Specification<User> spec = userSpecificationBuilder.buildUserSpecification(searchParams);
         Page<User> users = userRepository.findAll(spec, pageable);
         return users.map(this::toUserDTO);
     }
@@ -473,7 +476,9 @@ public class UserServiceImpl implements UserService {
     private void addStandaloneDomainToUser(User user, UserDomain domain) {
         // Check if mapping already exists
         if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domain.getUuid())) {
-            UserDomainMapping mapping = new UserDomainMapping(null, user.getUuid(), domain.getUuid(), null, null);
+            UserDomainMapping mapping = new UserDomainMapping();
+            mapping.setUserUuid(user.getUuid());
+            mapping.setUserDomainUuid(domain.getUuid());
             userDomainMappingRepository.save(mapping);
             log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
         }
@@ -647,7 +652,9 @@ public class UserServiceImpl implements UserService {
                 .getUuid();
 
         if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(event.userUuid(), domainUuid)) {
-            UserDomainMapping userDomainMapping = new UserDomainMapping(null, event.userUuid(), domainUuid, null, null);
+            UserDomainMapping userDomainMapping = new UserDomainMapping();
+            userDomainMapping.setUserUuid(event.userUuid());
+            userDomainMapping.setUserDomainUuid(domainUuid);
             userDomainMappingRepository.save(userDomainMapping);
         }
     }

@@ -24,6 +24,11 @@ public class UserOrganisationDomainMapping extends BaseEntity {
     @Column(name = "domain_uuid")
     private UUID domainUuid;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_uuid", referencedColumnName = "uuid",
+            insertable = false, updatable = false)
+    private UserDomain domain;
+
     @Column(name = "branch_uuid")
     private UUID branchUuid;
 

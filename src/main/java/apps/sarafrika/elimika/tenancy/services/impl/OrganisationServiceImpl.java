@@ -414,7 +414,9 @@ public class OrganisationServiceImpl implements OrganisationService {
     private void addStandaloneDomainToUser(User user, UserDomain domain) {
         // Check if mapping already exists
         if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domain.getUuid())) {
-            UserDomainMapping mapping = new UserDomainMapping(null, user.getUuid(), domain.getUuid(), null, null);
+            UserDomainMapping mapping = new UserDomainMapping();
+            mapping.setUserUuid(user.getUuid());
+            mapping.setUserDomainUuid(domain.getUuid());
             userDomainMappingRepository.save(mapping);
             log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
         }
