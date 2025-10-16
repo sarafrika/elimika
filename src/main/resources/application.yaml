@@ -43,9 +43,21 @@ spring:
     mapper:
       accept-case-insensitive-enums: true
 
+  # Security OAuth2 configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:${app.keycloak.serverUrl}/realms/${app.keycloak.realm}}
+          jwk-set-uri: ${JWT_JWK_SET_URI:${app.keycloak.serverUrl}/realms/${app.keycloak.realm}/protocol/openid-connect/certs}
+
 # Application-specific configuration
 app:
   keycloak:
+    serverUrl: ${APP_KEYCLOAK_SERVERURL:http://localhost:8080}
+    realm: ${APP_KEYCLOAK_REALM:elimika}
+    clientId: ${APP_KEYCLOAK_CLIENTID:elimika-backend}
+    clientSecret: ${APP_KEYCLOAK_CLIENTSECRET:}
     user:
       attributes:
         - user_domain
