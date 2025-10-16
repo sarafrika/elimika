@@ -593,17 +593,17 @@ public class UserServiceImpl implements UserService {
             }
         }
         
-        return UserOrganisationAffiliationDTO.builder()
-            .organisationUuid(mapping.getOrganisationUuid())
-            .organisationName(organisation.getName())
-            .domainInOrganisation(domain.getDomainName())
-            .branchUuid(mapping.getBranchUuid())
-            .branchName(branchName)
-            .startDate(mapping.getStartDate())
-            .endDate(mapping.getEndDate())
-            .active(mapping.isActive())
-            .affiliatedDate(mapping.getCreatedDate())
-            .build();
+        return new UserOrganisationAffiliationDTO(
+            mapping.getOrganisationUuid(),
+            organisation.getName(),
+            domain.getDomainName(),
+            mapping.getBranchUuid(),
+            branchName,
+            mapping.getStartDate(),
+            mapping.getEndDate(),
+            mapping.isActive(),
+            mapping.getCreatedDate()
+        );
     }
 
 
