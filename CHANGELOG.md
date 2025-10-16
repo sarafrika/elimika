@@ -1,3 +1,10 @@
+# [2.24.0](https://github.com/sarafrika/elimika/compare/v2.23.1...v2.24.0) (2025-10-16)
+
+
+### Features
+
+* enhance user search with domain filtering and JPA relationships ([c39d1fd](https://github.com/sarafrika/elimika/commit/c39d1fd842789b2b421fc6503a856685610a3433))
+
 ## [2.23.1](https://github.com/sarafrika/elimika/compare/v2.23.0...v2.23.1) (2025-10-10)
 
 
