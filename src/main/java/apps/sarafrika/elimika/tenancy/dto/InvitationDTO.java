@@ -152,7 +152,7 @@ public record InvitationDTO(
         @Schema(
                 description = "**[READ-ONLY]** Name of the user domain/role for display purposes. Populated by the system based on the domain_uuid and indicates the role being offered.",
                 example = "instructor",
-                allowableValues = {"student", "instructor", "admin", "organisation_user"},
+                allowableValues = {"student", "instructor", "admin", "organisation_user", "course_creator"},
                 nullable = true,
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

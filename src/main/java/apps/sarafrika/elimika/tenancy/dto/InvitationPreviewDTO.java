@@ -121,7 +121,7 @@ public record InvitationPreviewDTO(
         boolean isExpired,
 
         @Schema(
-                description = "Indicates whether the recipient needs to register an account before accepting. True for student/instructor roles, false for admin/organisation_user roles.",
+                description = "Indicates whether the recipient needs to register an account before accepting. True for student/instructor/course_creator roles, false for admin/organisation_user roles.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
@@ -161,7 +161,8 @@ public record InvitationPreviewDTO(
                 
                 return switch (domainName.toLowerCase()) {
                         case "student" -> "Student";
-                        case "instructor" -> "Instructor"; 
+                        case "instructor" -> "Instructor";
+                        case "course_creator" -> "Course Creator";
                         case "admin" -> "Administrator";
                         case "organisation_user" -> "Organization Member";
                         default -> "Member";
@@ -177,6 +178,7 @@ public record InvitationPreviewDTO(
                 return switch (domainName.toLowerCase()) {
                         case "student" -> "A learner enrolled in courses with access to learning materials and assessments";
                         case "instructor" -> "A teacher or facilitator with course creation and management capabilities";
+                        case "course_creator" -> "A content specialist responsible for designing and maintaining course materials";
                         case "admin" -> "An administrator with full control over the organization and its users";
                         case "organisation_user" -> "A general user within the organization with basic permissions";
                         default -> "A general member of the organization";

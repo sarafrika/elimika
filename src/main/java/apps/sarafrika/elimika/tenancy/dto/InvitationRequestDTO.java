@@ -74,7 +74,7 @@ public record InvitationRequestDTO(
         @Schema(
                 description = "**[REQUIRED]** Role/domain name being offered to the recipient. Determines the permissions and access level the user will have upon accepting the invitation.",
                 example = "instructor",
-                allowableValues = {"student", "instructor", "admin", "organisation_user"},
+                allowableValues = {"student", "instructor", "admin", "organisation_user", "course_creator"},
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 implementation = String.class,
                 externalDocs = @io.swagger.v3.oas.annotations.ExternalDocumentation(
@@ -117,6 +117,7 @@ public record InvitationRequestDTO(
                 public static final String INSTRUCTOR = "instructor";  
                 public static final String ADMIN = "admin";
                 public static final String ORGANISATION_USER = "organisation_user";
+                public static final String COURSE_CREATOR = "course_creator";
                 
                 /**
                  * Provides human-readable descriptions for each domain role.
@@ -128,6 +129,7 @@ public record InvitationRequestDTO(
                         return switch (domainName) {
                                 case STUDENT -> "A learner enrolled in courses with access to learning materials and assessments";
                                 case INSTRUCTOR -> "A teacher or facilitator with course creation and management capabilities";
+                                case COURSE_CREATOR -> "A content specialist responsible for creating and managing course materials across organisations";
                                 case ADMIN -> "An administrator with full control over the organization and its users";
                                 case ORGANISATION_USER -> "A general user within the organization with basic permissions";
                                 default -> "Unknown role";

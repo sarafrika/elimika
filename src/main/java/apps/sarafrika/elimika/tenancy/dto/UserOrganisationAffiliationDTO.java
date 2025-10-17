@@ -13,7 +13,7 @@ import java.util.UUID;
  *
  * @param organisationUuid UUID of the organization the user is affiliated with
  * @param organisationName Name of the organization
- * @param domainInOrganisation User's domain/role within this specific organization (student, instructor, admin, organisation_user)
+ * @param domainInOrganisation User's domain/role within this specific organization (student, instructor, admin, organisation_user, course_creator)
  * @param branchUuid UUID of the training branch within the organization (optional, null if not assigned)
  * @param branchName Name of the training branch (if assigned)
  * @param startDate Date when the user's affiliation with this organization started

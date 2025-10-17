@@ -45,7 +45,7 @@ import java.util.UUID;
                     "created_by": "system",
                     "updated_by": "admin",
                     "gender": "FEMALE",
-                    "user_domain": ["Student", "Instructor"]
+                    "user_domain": ["Student", "Instructor", "Course Creator"]
                 }
                 """
 )
@@ -225,7 +225,8 @@ public record UserDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** List of domain roles that define the user's functional areas within the system. Determines available features and workflows. Can contain multiple values.",
-                example = "[\"student\", \"instructor\"]",
+                example = "[\"student\", \"instructor\", \"course_creator\"]",
+                allowableValues = {"student", "instructor", "admin", "organisation_user", "course_creator"},
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("user_domain")
