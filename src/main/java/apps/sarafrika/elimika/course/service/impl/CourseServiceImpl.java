@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
+import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.internal.CourseMediaValidationService;
 import apps.sarafrika.elimika.course.model.Course;
@@ -10,6 +11,7 @@ import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseCategoryService;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
+import apps.sarafrika.elimika.course.service.CourseTrainingRequirementService;
 import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.CourseSpecificationBuilder;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +46,7 @@ public class CourseServiceImpl implements CourseService {
     private final LessonService lessonService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
+    private final CourseTrainingRequirementService courseTrainingRequirementService;
     private final StorageService storageService;
     private final CourseMediaValidationService validationService;
     private final StorageProperties storageProperties;
@@ -66,6 +70,11 @@ public class CourseServiceImpl implements CourseService {
         if (course.getActive() == null) {
             course.setActive(false); // Only published courses can be active
         }
+        if (course.getMinimumTrainingFee() == null) {
+            course.setMinimumTrainingFee(course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO);
+        }
+
+        validateRevenueShare(course);
 
         Course savedCourse = courseRepository.save(course);
 
@@ -85,8 +94,9 @@ public class CourseServiceImpl implements CourseService {
 
         // Fetch category names
         List<String> categoryNames = mappingRepository.findCategoryNamesByCourseUuid(uuid);
+        List<CourseTrainingRequirementDTO> trainingRequirements = courseTrainingRequirementService.findByCourseUuid(uuid);
 
-        return CourseFactory.toDTO(course, categoryNames);
+        return CourseFactory.toDTO(course, categoryNames, trainingRequirements.isEmpty() ? null : trainingRequirements);
     }
 
     @Override
@@ -109,6 +119,7 @@ public class CourseServiceImpl implements CourseService {
                         String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
 
         updateCourseFields(existingCourse, courseDTO);
+        validateRevenueShare(existingCourse);
         Course updatedCourse = courseRepository.save(existingCourse);
 
         // Handle category assignments if provided
@@ -358,6 +369,28 @@ public class CourseServiceImpl implements CourseService {
         };
     }
 
+    private void validateRevenueShare(Course course) {
+        BigDecimal creatorShare = course.getCreatorSharePercentage();
+        BigDecimal instructorShare = course.getInstructorSharePercentage();
+
+        if (creatorShare == null || instructorShare == null) {
+            throw new IllegalArgumentException("Creator and instructor share percentages are required for a course");
+        }
+
+        if (creatorShare.compareTo(BigDecimal.ZERO) < 0 || instructorShare.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Revenue share percentages cannot be negative");
+        }
+
+        BigDecimal hundred = new BigDecimal("100.00");
+        if (creatorShare.compareTo(hundred) > 0 || instructorShare.compareTo(hundred) > 0) {
+            throw new IllegalArgumentException("Revenue share percentages cannot exceed 100%");
+        }
+
+        if (creatorShare.add(instructorShare).compareTo(hundred) != 0) {
+            throw new IllegalArgumentException("Creator and instructor share percentages must add up to 100%");
+        }
+    }
+
     /**
      * Handle category assignments for a course
      */
@@ -401,6 +434,18 @@ public class CourseServiceImpl implements CourseService {
         }
         if (dto.price() != null) {
             existingCourse.setPrice(dto.price());
+        }
+        if (dto.minimumTrainingFee() != null) {
+            existingCourse.setMinimumTrainingFee(dto.minimumTrainingFee());
+        }
+        if (dto.creatorSharePercentage() != null) {
+            existingCourse.setCreatorSharePercentage(dto.creatorSharePercentage());
+        }
+        if (dto.instructorSharePercentage() != null) {
+            existingCourse.setInstructorSharePercentage(dto.instructorSharePercentage());
+        }
+        if (dto.revenueShareNotes() != null) {
+            existingCourse.setRevenueShareNotes(dto.revenueShareNotes());
         }
         if (dto.ageLowerLimit() != null) {
             existingCourse.setAgeLowerLimit(dto.ageLowerLimit());

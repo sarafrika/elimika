@@ -59,6 +59,8 @@ public class CourseSpecificationBuilder {
         String isInReview = searchParams.get("is_in_review");
         String minPrice = searchParams.get("min_price");
         String maxPrice = searchParams.get("max_price");
+        String minTrainingFee = searchParams.get("min_training_fee");
+        String maxTrainingFee = searchParams.get("max_training_fee");
         String hasEnrollments = searchParams.get("has_enrollments");
         String acceptsNewEnrollments = searchParams.get("accepts_new_enrollments");
         String courseCreatorUuid = searchParams.get("course_creator_uuid");
@@ -117,6 +119,24 @@ public class CourseSpecificationBuilder {
             }
         }
 
+        if (minTrainingFee != null) {
+            try {
+                BigDecimal minFee = new BigDecimal(minTrainingFee);
+                specifications.add(minimumTrainingFeeGreaterThanOrEqual(minFee));
+            } catch (NumberFormatException e) {
+                log.warn("Invalid min_training_fee value: {}", minTrainingFee);
+            }
+        }
+
+        if (maxTrainingFee != null) {
+            try {
+                BigDecimal maxFee = new BigDecimal(maxTrainingFee);
+                specifications.add(minimumTrainingFeeLessThanOrEqual(maxFee));
+            } catch (NumberFormatException e) {
+                log.warn("Invalid max_training_fee value: {}", maxTrainingFee);
+            }
+        }
+
         // Handle enrollment-based searches
         if (hasEnrollments != null) {
             boolean withEnrollments = Boolean.parseBoolean(hasEnrollments);
@@ -157,6 +177,8 @@ public class CourseSpecificationBuilder {
         remainingParams.remove("is_in_review");
         remainingParams.remove("min_price");
         remainingParams.remove("max_price");
+        remainingParams.remove("min_training_fee");
+        remainingParams.remove("max_training_fee");
         remainingParams.remove("has_enrollments");
         remainingParams.remove("accepts_new_enrollments");
         remainingParams.remove("course_creator_uuid");
@@ -276,6 +298,16 @@ public class CourseSpecificationBuilder {
     public Specification<Course> priceLessThanOrEqual(BigDecimal maxPrice) {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.lessThanOrEqualTo(root.get("price"), maxPrice);
+    }
+
+    public Specification<Course> minimumTrainingFeeGreaterThanOrEqual(BigDecimal minFee) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.greaterThanOrEqualTo(root.get("minimumTrainingFee"), minFee);
+    }
+
+    public Specification<Course> minimumTrainingFeeLessThanOrEqual(BigDecimal maxFee) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.lessThanOrEqualTo(root.get("minimumTrainingFee"), maxFee);
     }
 
     /**

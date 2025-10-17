@@ -207,6 +207,34 @@ flowchart TD
     style L fill:#ff9800
 ```
 
+## Training Delivery Requirements & Pricing Controls
+
+Course creators now define operational expectations alongside minimum financial terms for any instructor delivering their curriculum.
+
+### Configuring Delivery Requirements
+
+- `POST /api/v1/courses/{courseUuid}/training-requirements` records each required material, piece of equipment, or facility.
+- Fields captured per requirement:
+  - `requirement_type`: `material`, `equipment`, `facility`, or `other`.
+  - `name`, optional `description`, and optional `quantity` + `unit` metadata.
+  - `provided_by`: responsibility assignment (`course_creator`, `instructor`, `organisation`, or `student`).
+  - `is_mandatory`: flag resources that must be confirmed before scheduling training.
+- Responses from `GET /api/v1/courses/{courseUuid}` include a read-only `training_requirements` array summarising the configured items.
+
+### Minimum Training Fee
+
+- `CourseDTO.minimum_training_fee` defines the price floor for any instructor-led delivery.
+- If omitted at creation time the platform defaults the value to the course list price.
+- Courses can be filtered via `min_training_fee` / `max_training_fee` query parameters to surface offerings that match budget constraints.
+- Class definitions linked to the course must provide a `training_fee` that meets or exceeds the configured minimum; otherwise the service raises an `IllegalArgumentException`.
+
+### Instructor Revenue Share
+
+- `CourseDTO` now owns `creator_share_percentage`, `instructor_share_percentage`, and `revenue_share_notes` so that every instructor inherits the same split.
+- Revenue percentages are required when creating or updating a course, must be between 0 and 100, and together must equal 100%.
+- The course service enforces those constraints during create/update; violations raise `IllegalArgumentException` with clear messaging.
+- Class definitions only specify the session `training_fee` and must stay at or above the course minimum—no additional revenue split data is stored per class.
+
 ## API Reference for Course Creator Management
 
 ### Course Creator Profile Management

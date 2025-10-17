@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.CourseDTO;
+import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
 import lombok.AccessLevel;
@@ -23,45 +24,8 @@ public class CourseFactory {
             return null;
         }
 
-        Set<UUID> categoryUuids = course.getCategoryMappings() != null ?
-                course.getCategoryMappings().stream()
-                        .map(CourseCategoryMapping::getCategoryUuid)
-                        .collect(Collectors.toSet()) : new HashSet<>();
-
-        List<String> categoryNames = course.getCategoryMappings() != null ?
-                course.getCategoryMappings().stream()
-                        .map(CourseCategoryMapping::getCategory)
-                        .filter(category -> category != null)
-                        .map(apps.sarafrika.elimika.course.model.Category::getName)
-                        .sorted()
-                        .collect(Collectors.toList()) : List.of();
-
-        return new CourseDTO(
-                course.getUuid(),
-                course.getName(),
-                course.getCourseCreatorUuid(),
-                categoryUuids.isEmpty() ? null : categoryUuids,
-                course.getDifficultyUuid(),
-                course.getDescription(),
-                course.getObjectives(),
-                course.getPrerequisites(),
-                course.getDurationHours(),
-                course.getDurationMinutes(),
-                course.getClassLimit(),
-                course.getPrice(),
-                course.getAgeLowerLimit(),
-                course.getAgeUpperLimit(),
-                course.getThumbnailUrl(),
-                course.getIntroVideoUrl(),
-                course.getBannerUrl(),
-                course.getStatus(),
-                course.getActive(),
-                categoryNames.isEmpty() ? null : categoryNames,
-                course.getCreatedDate(),
-                course.getCreatedBy(),
-                course.getLastModifiedDate(),
-                course.getLastModifiedBy()
-        );
+        List<String> categoryNames = extractCategoryNames(course);
+        return toDTO(course, categoryNames.isEmpty() ? null : categoryNames, null);
     }
 
     /**
@@ -69,15 +33,17 @@ public class CourseFactory {
      * This method is useful when category names are fetched separately
      */
     public static CourseDTO toDTO(Course course, List<String> categoryNames) {
+        return toDTO(course, categoryNames, null);
+    }
+
+    public static CourseDTO toDTO(Course course,
+                                  List<String> categoryNames,
+                                  List<CourseTrainingRequirementDTO> trainingRequirements) {
         if (course == null) {
             return null;
         }
 
-        // Extract category UUIDs from mappings
-        Set<UUID> categoryUuids = course.getCategoryMappings() != null ?
-                course.getCategoryMappings().stream()
-                        .map(CourseCategoryMapping::getCategoryUuid)
-                        .collect(Collectors.toSet()) : new HashSet<>();
+        Set<UUID> categoryUuids = extractCategoryUuids(course);
 
         return new CourseDTO(
                 course.getUuid(),
@@ -92,6 +58,10 @@ public class CourseFactory {
                 course.getDurationMinutes(),
                 course.getClassLimit(),
                 course.getPrice(),
+                course.getMinimumTrainingFee(),
+                course.getCreatorSharePercentage(),
+                course.getInstructorSharePercentage(),
+                course.getRevenueShareNotes(),
                 course.getAgeLowerLimit(),
                 course.getAgeUpperLimit(),
                 course.getThumbnailUrl(),
@@ -99,6 +69,7 @@ public class CourseFactory {
                 course.getBannerUrl(),
                 course.getStatus(),
                 course.getActive(),
+                trainingRequirements,
                 categoryNames,
                 course.getCreatedDate(),
                 course.getCreatedBy(),
@@ -127,6 +98,10 @@ public class CourseFactory {
         course.setDurationMinutes(dto.durationMinutes());
         course.setClassLimit(dto.classLimit());
         course.setPrice(dto.price());
+        course.setMinimumTrainingFee(dto.minimumTrainingFee());
+        course.setCreatorSharePercentage(dto.creatorSharePercentage());
+        course.setInstructorSharePercentage(dto.instructorSharePercentage());
+        course.setRevenueShareNotes(dto.revenueShareNotes());
         course.setThumbnailUrl(dto.thumbnailUrl());
         course.setIntroVideoUrl(dto.introVideoUrl());
         course.setBannerUrl(dto.bannerUrl());
@@ -153,36 +128,23 @@ public class CourseFactory {
             return null;
         }
 
-        Set<UUID> categoryUuids = course.getCategoryMappings() != null ?
+        return toDTO(course, categoryNames, null);
+    }
+
+    private static Set<UUID> extractCategoryUuids(Course course) {
+        return course.getCategoryMappings() != null ?
                 course.getCategoryMappings().stream()
                         .map(CourseCategoryMapping::getCategoryUuid)
                         .collect(Collectors.toSet()) : new HashSet<>();
+    }
 
-        return new CourseDTO(
-                course.getUuid(),
-                course.getName(),
-                course.getCourseCreatorUuid(),
-                categoryUuids.isEmpty() ? null : categoryUuids,
-                course.getDifficultyUuid(),
-                course.getDescription(),
-                null, // objectives not needed for listing
-                null, // prerequisites not needed for listing
-                course.getDurationHours(),
-                course.getDurationMinutes(),
-                course.getClassLimit(),
-                course.getPrice(),
-                course.getAgeLowerLimit(),
-                course.getAgeUpperLimit(),
-                course.getThumbnailUrl(),
-                null, // intro video not needed for listing
-                course.getBannerUrl(),
-                course.getStatus(),
-                course.getActive(),
-                categoryNames,
-                course.getCreatedDate(),
-                course.getCreatedBy(),
-                course.getLastModifiedDate(),
-                course.getLastModifiedBy()
-        );
+    private static List<String> extractCategoryNames(Course course) {
+        return course.getCategoryMappings() != null ?
+                course.getCategoryMappings().stream()
+                        .map(CourseCategoryMapping::getCategory)
+                        .filter(category -> category != null)
+                        .map(apps.sarafrika.elimika.course.model.Category::getName)
+                        .sorted()
+                        .collect(Collectors.toList()) : List.of();
     }
 }

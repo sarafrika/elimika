@@ -49,6 +49,7 @@ public class CourseController {
     private final LessonContentService lessonContentService;
     private final CourseAssessmentService courseAssessmentService;
     private final CourseRequirementService courseRequirementService;
+    private final CourseTrainingRequirementService courseTrainingRequirementService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
     private final StorageService storageService;
@@ -922,6 +923,64 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid) {
         courseRequirementService.deleteCourseRequirement(requirementUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== COURSE TRAINING REQUIREMENTS =====
+
+    @Operation(
+            summary = "Add training delivery requirement",
+            description = "Adds a new material, equipment, or facility requirement necessary to deliver the course."
+    )
+    @PostMapping("/{courseUuid}/training-requirements")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingRequirementDTO>> addCourseTrainingRequirement(
+            @PathVariable UUID courseUuid,
+            @Valid @RequestBody CourseTrainingRequirementDTO requirementDTO) {
+        CourseTrainingRequirementDTO createdRequirement = courseTrainingRequirementService.create(courseUuid, requirementDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(createdRequirement, "Training requirement added successfully"));
+    }
+
+    @Operation(
+            summary = "Get training delivery requirements",
+            description = "Retrieves all operational training requirements for a specific course."
+    )
+    @GetMapping("/{courseUuid}/training-requirements")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseTrainingRequirementDTO>>> getCourseTrainingRequirements(
+            @PathVariable UUID courseUuid,
+            Pageable pageable) {
+        Map<String, String> searchParams = Map.of("courseUuid", courseUuid.toString());
+        Page<CourseTrainingRequirementDTO> requirements = courseTrainingRequirementService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(requirements, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Course training requirements retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Update training delivery requirement",
+            description = "Updates a specific training delivery requirement for a course."
+    )
+    @PutMapping("/{courseUuid}/training-requirements/{requirementUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingRequirementDTO>> updateCourseTrainingRequirement(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID requirementUuid,
+            @Valid @RequestBody CourseTrainingRequirementDTO requirementDTO) {
+        CourseTrainingRequirementDTO updatedRequirement = courseTrainingRequirementService.update(courseUuid, requirementUuid, requirementDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(updatedRequirement, "Training requirement updated successfully"));
+    }
+
+    @Operation(
+            summary = "Delete training delivery requirement",
+            description = "Removes a training delivery requirement from a course."
+    )
+    @DeleteMapping("/{courseUuid}/training-requirements/{requirementUuid}")
+    public ResponseEntity<Void> deleteCourseTrainingRequirement(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID requirementUuid) {
+        courseTrainingRequirementService.delete(courseUuid, requirementUuid);
         return ResponseEntity.noContent().build();
     }
 

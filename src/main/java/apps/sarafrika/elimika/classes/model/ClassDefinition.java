@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -54,4 +55,8 @@ public class ClassDefinition extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive = true;
+
+    @Column(name = "training_fee")
+    private BigDecimal trainingFee;
+
 }

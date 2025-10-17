@@ -52,6 +52,18 @@ public class Course extends BaseEntity {
     @Column(name = "price")
     private BigDecimal price;
 
+    @Column(name = "minimum_training_fee")
+    private BigDecimal minimumTrainingFee;
+
+    @Column(name = "creator_share_percentage")
+    private BigDecimal creatorSharePercentage;
+
+    @Column(name = "instructor_share_percentage")
+    private BigDecimal instructorSharePercentage;
+
+    @Column(name = "revenue_share_notes")
+    private String revenueShareNotes;
+
     @Column(name = "age_lower_limit")
     private Integer ageLowerLimit;
 

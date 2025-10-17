@@ -19,6 +19,7 @@ public class ClassDefinitionFactory {
                 entity.getDefaultInstructorUuid(),
                 entity.getOrganisationUuid(),
                 entity.getCourseUuid(),
+                entity.getTrainingFee(),
                 entity.getDefaultStartTime(),
                 entity.getDefaultEndTime(),
                 entity.getLocationType(),
@@ -44,6 +45,7 @@ public class ClassDefinitionFactory {
         entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
         entity.setOrganisationUuid(dto.organisationUuid());
         entity.setCourseUuid(dto.courseUuid());
+        entity.setTrainingFee(dto.trainingFee());
         entity.setDefaultStartTime(dto.defaultStartTime());
         entity.setDefaultEndTime(dto.defaultEndTime());
         entity.setLocationType(dto.locationType());
@@ -73,6 +75,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.courseUuid() != null) {
             entity.setCourseUuid(dto.courseUuid());
+        }
+        if (dto.trainingFee() != null) {
+            entity.setTrainingFee(dto.trainingFee());
         }
         if (dto.defaultStartTime() != null) {
             entity.setDefaultStartTime(dto.defaultStartTime());

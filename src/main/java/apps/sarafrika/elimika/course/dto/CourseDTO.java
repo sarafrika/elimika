@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.dto;
 
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -40,7 +41,10 @@ import java.util.UUID;
             "duration_hours": 40,
             "duration_minutes": 30,
             "class_limit": 25,
-            "price": 299.99,
+            "minimum_training_fee": 180.00,
+            "creator_share_percentage": 60.0,
+            "instructor_share_percentage": 40.0,
+            "revenue_share_notes": "Creator retains 60% to cover tooling; instructors earn 40% net.",
             "age_lower_limit": 18,
             "age_upper_limit": 65,
             "thumbnail_url": "https://cdn.sarafrika.com/courses/java-advanced-thumb.jpg",
@@ -48,6 +52,16 @@ import java.util.UUID;
             "banner_url": "https://cdn.sarafrika.com/courses/java-advanced-banner.jpg",
             "status": "PUBLISHED",
             "active": true,
+            "training_requirements": [
+                {
+                    "uuid": "5a8074cc-8893-497b-8d58-4b151c994a80",
+                    "requirement_type": "equipment",
+                    "name": "Dual-screen instructor workstation",
+                    "quantity": 1,
+                    "unit": "workstation",
+                    "is_mandatory": true
+                }
+            ],
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -174,15 +188,62 @@ public record CourseDTO(
         Integer classLimit,
 
         @Schema(
-                description = "**[OPTIONAL]** Course price in the system currency. Set to null or 0 for free courses.",
-                example = "299.99",
-                minimum = "0",
+                description = "**[OPTIONAL]** Legacy course list price. Leave blank while pricing workflows are under review.",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @DecimalMin(value = "0.00", message = "Price cannot be negative")
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty("price")
         BigDecimal price,
+
+        @Schema(
+                description = "**[OPTIONAL]** Minimum training fee that any instructor-led class for this course must meet or exceed.",
+                example = "180.00",
+                minimum = "0",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Minimum training fee cannot be negative")
+        @JsonProperty("minimum_training_fee")
+        BigDecimal minimumTrainingFee,
+
+        @Schema(
+                description = "**[REQUIRED]** Percentage of training revenue allocated to the course creator. Must work with instructor share to total 100%.",
+                example = "60.0",
+                minimum = "0",
+                maximum = "100",
+                nullable = false,
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Creator share cannot be negative")
+        @DecimalMax(value = "100.00", message = "Creator share cannot exceed 100")
+        @JsonProperty("creator_share_percentage")
+        BigDecimal creatorSharePercentage,
+
+        @Schema(
+                description = "**[REQUIRED]** Percentage of training revenue allocated to instructors. Must work with creator share to total 100%.",
+                example = "40.0",
+                minimum = "0",
+                maximum = "100",
+                nullable = false,
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Instructor share cannot be negative")
+        @DecimalMax(value = "100.00", message = "Instructor share cannot exceed 100")
+        @JsonProperty("instructor_share_percentage")
+        BigDecimal instructorSharePercentage,
+
+        @Schema(
+                description = "**[OPTIONAL]** Additional context explaining how revenue is allocated between course creator and instructors.",
+                example = "Creator retains 60% to cover tooling; instructors earn 40% net.",
+                maxLength = 1000,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 1000, message = "Revenue share notes must not exceed 1000 characters")
+        @JsonProperty("revenue_share_notes")
+        String revenueShareNotes,
 
         @Schema(
                 description = "**[OPTIONAL]** Minimum age requirement for course enrollment.",
@@ -263,6 +324,15 @@ public record CourseDTO(
         )
         @JsonProperty("active")
         Boolean active,
+
+        @Schema(
+                description = "**[READ-ONLY]** Structured resources required to deliver this course during instructor-led training sessions.",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true
+        )
+        @JsonProperty(value = "training_requirements", access = JsonProperty.Access.READ_ONLY)
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
+        List<CourseTrainingRequirementDTO> trainingRequirements,
 
         @Schema(
                 description = "**[READ-ONLY]** List of category names this course belongs to. Computed from category mappings.",

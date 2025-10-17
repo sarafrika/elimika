@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
@@ -35,6 +36,7 @@ import java.util.UUID;
             "default_instructor_uuid": "inst1234-5678-90ab-cdef-123456789abc",
             "organisation_uuid": "org12345-6789-abcd-ef01-234567890abc",
             "course_uuid": "course123-4567-89ab-cdef-123456789abc",
+            "training_fee": 240.00,
             "duration_minutes": 90,
             "location_type": "HYBRID",
             "max_participants": 25,
@@ -112,6 +114,17 @@ public record ClassDefinitionDTO(
         )
         @JsonProperty("course_uuid")
         UUID courseUuid,
+
+        @Schema(
+                description = "**[OPTIONAL]** Training fee charged for sessions created from this class definition. Must meet the course minimum training fee when a course is linked.",
+                example = "220.00",
+                minimum = "0",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Training fee cannot be negative")
+        @JsonProperty("training_fee")
+        BigDecimal trainingFee,
 
         @Schema(
                 description = "**[REQUIRED]** Default start time for class sessions.",

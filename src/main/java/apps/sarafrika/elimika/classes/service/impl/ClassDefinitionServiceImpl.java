@@ -14,6 +14,8 @@ import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
+import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,6 +38,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final RecurrencePatternRepository recurrencePatternRepository;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CourseRepository courseRepository;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE = "Recurrence pattern with UUID %s not found";
@@ -59,6 +63,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             entity.setIsActive(true);
         }
         
+        validateTrainingFee(entity);
+
         ClassDefinition savedEntity = classDefinitionRepository.save(entity);
         ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
         
@@ -89,6 +95,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
         
         ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
+        validateTrainingFee(existingEntity);
         
         ClassDefinition savedEntity = classDefinitionRepository.save(existingEntity);
         ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
@@ -305,6 +312,31 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             }
         } catch (Exception e) {
             log.warn("Could not validate availability for instructor {}: {}", instructorUuid, e.getMessage());
+        }
+    }
+
+    private void validateTrainingFee(ClassDefinition entity) {
+        if (entity.getCourseUuid() == null) {
+            return;
+        }
+
+        Course course = courseRepository.findByUuid(entity.getCourseUuid())
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("Course with UUID %s not found", entity.getCourseUuid())));
+
+        BigDecimal minimumTrainingFee = course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
+
+        if (entity.getTrainingFee() == null) {
+            throw new IllegalArgumentException("Training fee is required when linking a class definition to a course");
+        }
+
+        if (entity.getTrainingFee().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Training fee cannot be negative");
+        }
+
+        if (entity.getTrainingFee().compareTo(minimumTrainingFee) < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "Training fee %.2f cannot be less than the course minimum training fee %.2f",
+                    entity.getTrainingFee(), minimumTrainingFee));
         }
     }
 }
