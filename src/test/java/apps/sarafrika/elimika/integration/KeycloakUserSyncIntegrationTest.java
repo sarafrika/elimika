@@ -4,11 +4,12 @@ import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.UserService;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,9 +29,10 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest
 @ActiveProfiles("dev")
-@Slf4j
 @DisplayName("Keycloak User Synchronization Integration Test")
 class KeycloakUserSyncIntegrationTest {
+
+    private static final Logger log = LoggerFactory.getLogger(KeycloakUserSyncIntegrationTest.class);
 
     @Autowired
     private KeycloakUserService keycloakUserService;
@@ -147,7 +149,7 @@ class KeycloakUserSyncIntegrationTest {
                     log.info("Database User Keycloak ID: {}", user.getKeycloakId());
                     log.info("Database User Username: {}", user.getUsername());
                     log.info("Database User Email: {}", user.getEmail());
-                    log.info("Database User Active: {}", user.getActive());
+                    log.info("Database User Active: {}", user.isActive());
 
                     // Assert the user was properly created
                     assertEquals(TEST_KEYCLOAK_USER_ID, user.getKeycloakId());
