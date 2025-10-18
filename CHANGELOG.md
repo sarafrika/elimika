@@ -1,3 +1,10 @@
+## [2.26.1](https://github.com/sarafrika/elimika/compare/v2.26.0...v2.26.1) (2025-10-18)
+
+
+### Bug Fixes
+
+* properly serialize UserRepresentation in getUserById logging ([663e6aa](https://github.com/sarafrika/elimika/commit/663e6aa4ac2bfe85f93d02acbb6b6a57884603d9))
+
 # [2.26.0](https://github.com/sarafrika/elimika/compare/v2.25.0...v2.26.0) (2025-10-18)
 
 
