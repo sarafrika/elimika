@@ -1,3 +1,15 @@
+# [2.26.0](https://github.com/sarafrika/elimika/compare/v2.25.0...v2.26.0) (2025-10-18)
+
+
+### Bug Fixes
+
+* expose course creator user domain ([eee246f](https://github.com/sarafrika/elimika/commit/eee246f96957b89d6208b265ead28bbaf46d7e2c))
+
+
+### Features
+
+* add course training requirements and pricing governance ([de09e8b](https://github.com/sarafrika/elimika/commit/de09e8b34455e83b14a263ac0504d59b8fc0aa59))
+
 # [2.25.0](https://github.com/sarafrika/elimika/compare/v2.24.0...v2.25.0) (2025-10-16)
 
 
