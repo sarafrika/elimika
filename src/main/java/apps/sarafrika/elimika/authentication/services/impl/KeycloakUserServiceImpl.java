@@ -68,12 +68,29 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
     @Override
     public Optional<UserRepresentation> getUserById(String userId, String realm) {
+        log.debug("Attempting to fetch user from Keycloak - userId: {}, realm: {}", userId, realm);
         try {
             UserResource userResource = getUsersResource(realm).get(userId);
-            log.info(" User Rep {}", userResource.toRepresentation().toString());
-            return Optional.of(userResource.toRepresentation());
+            UserRepresentation userRep = userResource.toRepresentation();
+
+            log.info("Successfully retrieved user from Keycloak - userId: {}, username: {}, email: {}",
+                    userId, userRep.getUsername(), userRep.getEmail());
+            log.debug("Full user representation: {}", userRep.toString());
+
+            return Optional.of(userRep);
+        } catch (javax.ws.rs.NotFoundException e) {
+            log.warn("User not found in Keycloak - userId: {}, realm: {}", userId, realm);
+            return Optional.empty();
+        } catch (javax.ws.rs.ForbiddenException e) {
+            log.error("Forbidden: Insufficient permissions to fetch user from Keycloak - userId: {}, realm: {}", userId, realm, e);
+            return Optional.empty();
+        } catch (javax.ws.rs.ProcessingException e) {
+            log.error("Connection error: Unable to connect to Keycloak server - userId: {}, realm: {}, error: {}",
+                    userId, realm, e.getMessage(), e);
+            return Optional.empty();
         } catch (Exception e) {
-            log.debug("User not found: {}", userId);
+            log.error("Unexpected error fetching user from Keycloak - userId: {}, realm: {}, error type: {}, message: {}",
+                    userId, realm, e.getClass().getName(), e.getMessage(), e);
             return Optional.empty();
         }
     }
