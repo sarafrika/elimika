@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.shared.security;
 
-import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.UserService;

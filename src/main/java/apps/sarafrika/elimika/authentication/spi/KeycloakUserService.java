@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.authentication.services;
+package apps.sarafrika.elimika.authentication.spi;
 
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import org.keycloak.representations.idm.GroupRepresentation;

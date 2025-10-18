@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.authentication.services.impl;
 
-import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.shared.exceptions.KeycloakException;

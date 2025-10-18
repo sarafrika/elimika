@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.authentication.internal;
 
 import apps.sarafrika.elimika.authentication.services.KeycloakRoleService;
-import apps.sarafrika.elimika.authentication.services.KeycloakUserService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.role.AssignRoleToUserEvent;
 import apps.sarafrika.elimika.shared.event.role.CreateRoleOnKeyCloakEvent;
 import apps.sarafrika.elimika.shared.event.role.SuccessfulRoleCreationOnKeycloakEvent;
