@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.classes.util.enums.LocationType;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
