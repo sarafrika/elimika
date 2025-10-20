@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.classes.dto;
+package apps.sarafrika.elimika.shared.event.classes;
 
 import jakarta.validation.constraints.NotNull;
 

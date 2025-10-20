@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.shared.event.user;
 
-import apps.sarafrika.elimika.tenancy.enums.Gender;
+import apps.sarafrika.elimika.shared.enums.Gender;
 
 import java.time.LocalDate;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.classes.util.enums;
+package apps.sarafrika.elimika.shared.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

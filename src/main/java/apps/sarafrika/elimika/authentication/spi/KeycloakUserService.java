@@ -1,43 +1,74 @@
 package apps.sarafrika.elimika.authentication.spi;
 
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
-import org.keycloak.representations.idm.GroupRepresentation;
-import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Service Provider Interface for Keycloak user management operations.
+ * This interface is exposed via Spring Modulith's named interface pattern (spi)
+ * to allow other modules to interact with Keycloak user operations.
+ *
+ * <p>Only essential operations used across the application are included.
+ * Unused operations have been removed to maintain a clean API surface.</p>
+ *
+ * @author Wilfred Njuguna
+ * @version 2.0
+ * @since 2025-10-20
+ */
 public interface KeycloakUserService {
-    // Core CRUD Operations
+
+    /**
+     * Creates a new user in Keycloak from a user creation event.
+     *
+     * @param newUserRecord the user creation event containing user details
+     * @return the created user representation
+     */
     UserRepresentation createUser(UserCreationEvent newUserRecord);
+
+    /**
+     * Retrieves a user from Keycloak by their ID.
+     *
+     * @param userId the Keycloak user ID
+     * @param realm the Keycloak realm
+     * @return Optional containing the user if found, empty otherwise
+     */
     Optional<UserRepresentation> getUserById(String userId, String realm);
+
+    /**
+     * Retrieves a user from Keycloak by their username.
+     *
+     * @param username the username to search for
+     * @param realm the Keycloak realm
+     * @return Optional containing the user if found, empty otherwise
+     */
     Optional<UserRepresentation> getUserByUsername(String username, String realm);
-    List<UserRepresentation> getAllUsers(String realm);
+
+    /**
+     * Updates an existing user in Keycloak.
+     *
+     * @param userId the Keycloak user ID
+     * @param userRepresentation the updated user representation
+     * @param realm the Keycloak realm
+     */
     void updateUser(String userId, UserRepresentation userRepresentation, String realm);
-    void deleteUser(String userId, String realm);
 
-    // User Management Operations
-    void enableUser(String userId, String realm);
-    void disableUser(String userId, String realm);
-    void resetPassword(String userId, String newPassword, String realm);
-
-    // Email Operations
-    void sendVerificationEmail(String userId, String realm);
-    void sendPasswordResetEmail(String userId, String realm);
+    /**
+     * Sends required action emails to a user (e.g., VERIFY_EMAIL, UPDATE_PASSWORD).
+     *
+     * @param userId the Keycloak user ID
+     * @param actions list of required actions to send
+     * @param realm the Keycloak realm
+     */
     void sendRequiredActionEmail(String userId, List<String> actions, String realm);
 
-    // Role Operations
-    List<RoleRepresentation> getUserRoles(String userId, String realm);
-    void assignRole(String userId, String roleName, String realm);
-    void removeRole(String userId, String roleName, String realm);
-
-    // Group Operations
-    List<GroupRepresentation> getUserGroups(String userId, String realm);
-    void addUserToGroup(String userId, String groupId, String realm);
-    void removeUserFromGroup(String userId, String groupId, String realm);
-
-    // Session Management
+    /**
+     * Logs out a user from Keycloak, invalidating all their sessions.
+     *
+     * @param userId the Keycloak user ID
+     * @param realm the Keycloak realm
+     */
     void logoutUser(String userId, String realm);
-    void revokeAllSessions(String userId, String realm);
 }

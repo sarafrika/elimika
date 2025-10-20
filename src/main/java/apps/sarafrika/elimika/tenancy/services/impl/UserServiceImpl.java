@@ -9,7 +9,7 @@ import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
-import apps.sarafrika.elimika.tenancy.enums.Gender;
+import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.internal.UserMediaValidationService;
 import apps.sarafrika.elimika.tenancy.repository.*;

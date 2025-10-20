@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.tenancy.enums;
+package apps.sarafrika.elimika.shared.enums;
 
 public enum Gender {
     MALE("MALE"),

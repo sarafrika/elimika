@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.availability.dto;
+package apps.sarafrika.elimika.shared.event.availability;
 
-import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;

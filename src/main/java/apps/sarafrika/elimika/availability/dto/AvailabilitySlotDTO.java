@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.availability.dto;
 
-import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

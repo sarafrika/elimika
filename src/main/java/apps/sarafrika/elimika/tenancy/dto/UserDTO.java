@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
 import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
-import apps.sarafrika.elimika.tenancy.enums.Gender;
+import apps.sarafrika.elimika.shared.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;

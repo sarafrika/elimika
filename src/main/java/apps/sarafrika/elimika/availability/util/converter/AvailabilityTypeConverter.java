@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.availability.util.converter;
 
-import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

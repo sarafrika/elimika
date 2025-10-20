@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
-import apps.sarafrika.elimika.classes.util.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import org.junit.jupiter.api.Test;

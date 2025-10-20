@@ -2,9 +2,9 @@ package apps.sarafrika.elimika.classes.service.impl;
 
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinedEventDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdatedEventDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionDeactivatedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
 import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.RecurrencePatternFactory;

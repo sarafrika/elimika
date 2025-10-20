@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
-import apps.sarafrika.elimika.tenancy.enums.Gender;
+import apps.sarafrika.elimika.shared.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;

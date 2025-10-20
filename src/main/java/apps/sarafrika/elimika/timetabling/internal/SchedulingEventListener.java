@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.timetabling.internal;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinedEventDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionDeactivatedEventDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdatedEventDTO;
-import apps.sarafrika.elimika.availability.dto.InstructorAvailabilityChangedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
+import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;

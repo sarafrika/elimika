@@ -56,6 +56,6 @@
  */
 @org.springframework.modulith.ApplicationModule(
     displayName = "Timetabling",
-    allowedDependencies = {"classes", "availability", "student", "tenancy", "common"}
+    allowedDependencies = {"shared", "availability :: availability-spi", "student", "tenancy"}
 )
 package apps.sarafrika.elimika.timetabling;

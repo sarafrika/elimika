@@ -10,16 +10,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.GroupRepresentation;
-import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -104,12 +105,6 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<UserRepresentation> getAllUsers(String realm) {
-        return getUsersResource(realm).list();
-    }
-
-    @Override
     @Transactional
     public void updateUser(String userId, UserRepresentation userRepresentation, String realm) {
         try {
@@ -119,54 +114,6 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             log.error("Failed to update user", e);
             throw new KeycloakException("User update failed: " + e.getMessage());
         }
-    }
-
-    @Override
-    @Transactional
-    public void deleteUser(String userId, String realm) {
-        try {
-            getUsersResource(realm).get(userId).remove();
-            log.info("Deleted user: {}", userId);
-        } catch (Exception e) {
-            log.error("User deletion failed", e);
-            throw new KeycloakException("Deletion failed", e);
-        }
-    }
-
-    @Override
-    @Transactional
-    public void enableUser(String userId, String realm) {
-        updateUserEnabled(userId, realm, true);
-    }
-
-    @Override
-    @Transactional
-    public void disableUser(String userId, String realm) {
-        updateUserEnabled(userId, realm, false);
-    }
-
-    @Override
-    @Transactional
-    public void resetPassword(String userId, String newPassword, String realm) {
-        try {
-            CredentialRepresentation credential = createPasswordCredential(newPassword);
-            getUsersResource(realm).get(userId).resetPassword(credential);
-        } catch (Exception e) {
-            log.error("Password reset failed", e);
-            throw new KeycloakException("Password reset failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void sendVerificationEmail(String userId, String realm) {
-        sendRequiredActionEmail(userId, Collections.singletonList("VERIFY_EMAIL"), realm);
-    }
-
-    @Override
-    @Transactional
-    public void sendPasswordResetEmail(String userId, String realm) {
-        sendRequiredActionEmail(userId, Collections.singletonList("UPDATE_PASSWORD"), realm);
     }
 
     @Override
@@ -181,76 +128,6 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
     @Override
     @Transactional
-    public List<RoleRepresentation> getUserRoles(String userId, String realm) {
-        try {
-            return getUsersResource(realm).get(userId).roles().realmLevel().listAll();
-        } catch (Exception e) {
-            log.error("Failed to get user roles", e);
-            throw new KeycloakException("Role fetch failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void assignRole(String userId, String roleName, String realm) {
-        try {
-            RoleRepresentation role = keycloak.realm(realm).roles().get(roleName).toRepresentation();
-            getUsersResource(realm).get(userId).roles().realmLevel()
-                    .add(Collections.singletonList(role));
-        } catch (Exception e) {
-            log.error("Failed to assign role", e);
-            throw new KeycloakException("Role assignment failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void removeRole(String userId, String roleName, String realm) {
-        try {
-            RoleRepresentation role = keycloak.realm(realm).roles().get(roleName).toRepresentation();
-            getUsersResource(realm).get(userId).roles().realmLevel()
-                    .remove(Collections.singletonList(role));
-        } catch (Exception e) {
-            log.error("Failed to remove role", e);
-            throw new KeycloakException("Role removal failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<GroupRepresentation> getUserGroups(String userId, String realm) {
-        try {
-            return getUsersResource(realm).get(userId).groups();
-        } catch (Exception e) {
-            log.error("Failed to get user groups", e);
-            throw new KeycloakException("Group fetch failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void addUserToGroup(String userId, String groupId, String realm) {
-        try {
-            getUsersResource(realm).get(userId).joinGroup(groupId);
-        } catch (Exception e) {
-            log.error("Failed to add user to group", e);
-            throw new KeycloakException("Group assignment failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void removeUserFromGroup(String userId, String groupId, String realm) {
-        try {
-            getUsersResource(realm).get(userId).leaveGroup(groupId);
-        } catch (Exception e) {
-            log.error("Failed to remove user from group", e);
-            throw new KeycloakException("Group removal failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
     public void logoutUser(String userId, String realm) {
         try {
             getUsersResource(realm).get(userId).logout();
@@ -260,30 +137,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         }
     }
 
-    @Override
-    @Transactional
-    public void revokeAllSessions(String userId, String realm) {
-        try {
-            getUsersResource(realm).get(userId).logout();
-        } catch (Exception e) {
-            log.error("Failed to revoke sessions", e);
-            throw new KeycloakException("Session revocation failed: " + e.getMessage());
-        }
-    }
-
     // Private helper methods
-    private void updateUserEnabled(String userId, String realm, boolean enabled) {
-        try {
-            UserResource userResource = getUsersResource(realm).get(userId);
-            UserRepresentation user = userResource.toRepresentation();
-            user.setEnabled(enabled);
-            userResource.update(user);
-        } catch (Exception e) {
-            String action = enabled ? "enable" : "disable";
-            log.error("Failed to {} user", action, e);
-            throw new KeycloakException("Failed to " + action + " user: " + e.getMessage());
-        }
-    }
 
     private UsersResource getUsersResource(String realm) {
         return keycloak.realm(realm).users();
@@ -322,13 +176,5 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
                 default -> new KeycloakException("Creation failed: " + error);
             };
         }
-    }
-
-    private CredentialRepresentation createPasswordCredential(String password) {
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setTemporary(false);
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(password);
-        return credential;
     }
 }

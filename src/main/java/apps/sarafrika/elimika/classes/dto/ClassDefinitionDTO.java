@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.classes.dto;
 
-import apps.sarafrika.elimika.classes.util.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

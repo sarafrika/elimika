@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.ClientsResource;
-import org.keycloak.admin.client.resource.RoleResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -85,39 +82,6 @@ public class KeycloakRoleServiceImpl implements KeycloakRoleService {
         return clientResource.roles().list();
     }
 
-    @Override
-    @Transactional
-    public void updateRole(String roleId, RoleRepresentation roleRepresentation, String realm) {
-        try {
-            ClientResource clientResource = getClientResource(realm);
-            if (clientResource == null) {
-                throw new KeycloakException("Client not found with ID: " + clientId);
-            }
-
-            RoleResource roleResource = clientResource.roles().get(roleId);
-            roleResource.update(roleRepresentation);
-        } catch (Exception e) {
-            log.error("Failed to update role", e);
-            throw new KeycloakException("Role update failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void deleteRole(String roleId, String realm) {
-        try {
-            ClientResource clientResource = getClientResource(realm);
-            if (clientResource == null) {
-                throw new KeycloakException("Client not found with ID: " + clientId);
-            }
-
-            clientResource.roles().deleteRole(roleId);
-            log.info("Deleted role: {}", roleId);
-        } catch (Exception e) {
-            log.error("Role deletion failed", e);
-            throw new KeycloakException("Deletion failed", e);
-        }
-    }
 
     @Override
     @Transactional
@@ -153,30 +117,6 @@ public class KeycloakRoleServiceImpl implements KeycloakRoleService {
     }
 
     @Override
-    @Transactional
-    public void removeRoleFromUser(String userId, String roleId, String realm) {
-        try {
-            ClientResource clientResource = getClientResource(realm);
-            if (clientResource == null) {
-                throw new KeycloakException("Client not found with ID: " + clientId);
-            }
-
-            RoleRepresentation role = getRoleByName(roleId, realm)
-                    .orElseThrow(() -> new KeycloakException("Role not found: " + roleId));
-
-            keycloak.realm(realm)
-                    .users()
-                    .get(userId)
-                    .roles()
-                    .clientLevel(clientResource.toRepresentation().getId())
-                    .remove(Collections.singletonList(role));
-        } catch (Exception e) {
-            log.error("Failed to remove role from user", e);
-            throw new KeycloakException("Role removal failed: " + e.getMessage());
-        }
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public List<RoleRepresentation> getUserRoles(String userId, String realm) {
         try {
@@ -194,89 +134,6 @@ public class KeycloakRoleServiceImpl implements KeycloakRoleService {
         } catch (Exception e) {
             log.error("Failed to get user roles", e);
             throw new KeycloakException("Failed to retrieve user roles: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void addCompositeRole(String parentRoleId, String childRoleId, String realm) {
-        try {
-            ClientResource clientResource = getClientResource(realm);
-            if (clientResource == null) {
-                throw new KeycloakException("Client not found with ID: " + clientId);
-            }
-
-            RoleRepresentation childRole = getRoleByName(childRoleId, realm)
-                    .orElseThrow(() -> new KeycloakException("Child role not found: " + childRoleId));
-
-            clientResource.roles()
-                    .get(parentRoleId)
-                    .addComposites(Collections.singletonList(childRole));
-        } catch (Exception e) {
-            log.error("Failed to add composite role", e);
-            throw new KeycloakException("Composite role addition failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void removeCompositeRole(String parentRoleId, String childRoleId, String realm) {
-        try {
-            ClientResource clientResource = getClientResource(realm);
-            if (clientResource == null) {
-                throw new KeycloakException("Client not found with ID: " + clientId);
-            }
-
-            RoleRepresentation childRole = getRoleByName(childRoleId, realm)
-                    .orElseThrow(() -> new KeycloakException("Child role not found: " + childRoleId));
-
-            clientResource.roles()
-                    .get(parentRoleId)
-                    .getRoleComposites()
-                    .removeAll(Collections.singletonList(childRole));
-        } catch (Exception e) {
-            log.error("Failed to remove composite role", e);
-            throw new KeycloakException("Composite role removal failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Set<RoleRepresentation> getCompositeRoles(String roleId, String realm) {
-        try {
-            ClientResource clientResource = getClientResource(realm);
-            if (clientResource == null) {
-                throw new KeycloakException("Client not found with ID: " + clientId);
-            }
-
-            return clientResource.roles()
-                    .get(roleId)
-                    .getRoleComposites();
-        } catch (Exception e) {
-            log.error("Failed to get composite roles", e);
-            throw new KeycloakException("Failed to retrieve composite roles: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<RoleRepresentation> searchRoles(String searchText, String realm) {
-        return getAllRoles(realm).stream()
-                .filter(role -> role.getName().toLowerCase().contains(searchText.toLowerCase()) ||
-                        (role.getDescription() != null &&
-                                role.getDescription().toLowerCase().contains(searchText.toLowerCase())))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean hasRole(String userId, String roleName, String realm) {
-        try {
-            return getUserRoles(userId, realm).stream()
-                    .anyMatch(role -> role.getName().equals(roleName));
-        } catch (Exception e) {
-            log.error("Failed to check user role", e);
-            throw new KeycloakException("Role check failed: " + e.getMessage());
         }
     }
 

@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.availability.dto;
+package apps.sarafrika.elimika.shared.event.availability;
 
 import jakarta.validation.constraints.NotNull;
 

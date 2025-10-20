@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.classes.util.converter;
 
-import apps.sarafrika.elimika.classes.util.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

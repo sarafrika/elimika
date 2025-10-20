@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.classes.dto;
+package apps.sarafrika.elimika.shared.event.classes;
 
-import apps.sarafrika.elimika.classes.util.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.UUID;

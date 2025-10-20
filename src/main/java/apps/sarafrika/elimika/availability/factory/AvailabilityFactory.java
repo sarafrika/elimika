@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.availability.factory;
 
 import apps.sarafrika.elimika.availability.dto.*;
 import apps.sarafrika.elimika.availability.model.InstructorAvailability;
-import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 

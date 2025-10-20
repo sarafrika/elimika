@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.availability.service;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinedEventDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdatedEventDTO;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionDeactivatedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.availability.factory.AvailabilityFactory;
 import apps.sarafrika.elimika.availability.model.InstructorAvailability;
 import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
-import apps.sarafrika.elimika.availability.util.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
