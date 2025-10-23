@@ -1,3 +1,10 @@
+## [2.26.3](https://github.com/sarafrika/elimika/compare/v2.26.2...v2.26.3) (2025-10-23)
+
+
+### Bug Fixes
+
+* correct keycloak server url sample env ([12c8101](https://github.com/sarafrika/elimika/commit/12c81018324adce335ec6b9890c406d640835bb8))
+
 ## [2.26.2](https://github.com/sarafrika/elimika/compare/v2.26.1...v2.26.2) (2025-10-20)
 
 
