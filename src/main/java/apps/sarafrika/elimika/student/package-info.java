@@ -34,7 +34,7 @@
  * @since 1.0.0
  */
 @ApplicationModule(
-    allowedDependencies = {"shared", "tenancy"}
+    allowedDependencies = {"shared", "tenancy :: tenancy-spi"}
 )
 package apps.sarafrika.elimika.student;
 

@@ -1,15 +1,9 @@
 package apps.sarafrika.elimika.shared.security;
 
-import apps.sarafrika.elimika.instructor.model.Instructor;
-import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
-import apps.sarafrika.elimika.student.model.Student;
-import apps.sarafrika.elimika.student.repository.StudentRepository;
-import apps.sarafrika.elimika.tenancy.entity.User;
-import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
-import apps.sarafrika.elimika.tenancy.repository.UserDomainMappingRepository;
-import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -23,17 +17,17 @@ import java.util.UUID;
 /**
  * Unified security service for domain-based authorization checks.
  * Replaces role-based authorization with domain-based checks.
+ * <p>
+ * Refactored to use Spring Modulith SPIs instead of direct repository access.
  */
 @Service("domainSecurityService")
 @RequiredArgsConstructor
 @Slf4j
 public class DomainSecurityService {
 
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
-    private final InstructorRepository instructorRepository;
-    private final UserDomainMappingRepository userDomainMappingRepository;
-    private final UserDomainRepository userDomainRepository;
+    private final UserLookupService userLookupService;
+    private final StudentLookupService studentLookupService;
+    private final InstructorLookupService instructorLookupService;
 
     /**
      * Checks if the currently authenticated user is a student.
@@ -96,17 +90,17 @@ public class DomainSecurityService {
      */
     public boolean isInstructorWithUuid(UUID instructorUuid) {
         try {
-            User currentUser = getCurrentUser();
-            if (currentUser == null) {
+            UUID currentUserUuid = getCurrentUserUuid();
+            if (currentUserUuid == null) {
                 return false;
             }
 
-            Instructor instructor = instructorRepository.findByUserUuid(currentUser.getUuid()).orElse(null);
-            if (instructor == null) {
+            UUID instructorUserUuid = instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid).orElse(null);
+            if (instructorUserUuid == null) {
                 return false;
             }
 
-            return instructor.getUuid().equals(instructorUuid);
+            return instructorUserUuid.equals(instructorUuid);
         } catch (Exception e) {
             log.error("Error checking instructor identity for instructorUuid: {}", instructorUuid, e);
             return false;
@@ -118,17 +112,17 @@ public class DomainSecurityService {
      */
     public boolean isStudentWithUuid(UUID studentUuid) {
         try {
-            User currentUser = getCurrentUser();
-            if (currentUser == null) {
+            UUID currentUserUuid = getCurrentUserUuid();
+            if (currentUserUuid == null) {
                 return false;
             }
 
-            Student student = studentRepository.findByUserUuid(currentUser.getUuid()).orElse(null);
-            if (student == null) {
+            UUID studentUserUuid = studentLookupService.findStudentUuidByUserUuid(currentUserUuid).orElse(null);
+            if (studentUserUuid == null) {
                 return false;
             }
 
-            return student.getUuid().equals(studentUuid);
+            return studentUserUuid.equals(studentUuid);
         } catch (Exception e) {
             log.error("Error checking student identity for studentUuid: {}", studentUuid, e);
             return false;
@@ -136,9 +130,10 @@ public class DomainSecurityService {
     }
 
     /**
-     * Gets the current authenticated user.
+     * Gets the UUID of the current authenticated user.
+     * Returns null if no user is authenticated.
      */
-    public User getCurrentUser() {
+    public UUID getCurrentUserUuid() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication == null || !authentication.isAuthenticated()) {
@@ -150,19 +145,11 @@ public class DomainSecurityService {
                 return null;
             }
 
-            return userRepository.findByKeycloakId(keycloakId).orElse(null);
+            return userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
         } catch (Exception e) {
-            log.error("Error getting current user", e);
+            log.error("Error getting current user UUID", e);
             return null;
         }
-    }
-
-    /**
-     * Gets the UUID of the current authenticated user.
-     */
-    public UUID getCurrentUserUuid() {
-        User user = getCurrentUser();
-        return user != null ? user.getUuid() : null;
     }
 
     /**
@@ -170,35 +157,14 @@ public class DomainSecurityService {
      */
     private boolean hasUserDomain(UserDomain domain) {
         try {
-            User currentUser = getCurrentUser();
-            if (currentUser == null) {
+            UUID currentUserUuid = getCurrentUserUuid();
+            if (currentUserUuid == null) {
                 log.debug("No authenticated user found");
                 return false;
             }
 
-            // Get the domain entity from the database by domain name (enum value)
-            apps.sarafrika.elimika.tenancy.entity.UserDomain domainEntity = userDomainRepository
-                    .findByDomainName(domain.name())
-                    .orElse(null);
-
-            if (domainEntity == null) {
-                log.warn("Domain {} not found in database", domain.name());
-                return false;
-            }
-
-            // Get user domain mappings from repository
-            List<UserDomainMapping> userDomainMappings = userDomainMappingRepository.findByUserUuid(currentUser.getUuid());
-            if (userDomainMappings == null || userDomainMappings.isEmpty()) {
-                log.debug("User {} has no domain mappings", currentUser.getUuid());
-                return false;
-            }
-
-            // Check if the user has the specific domain by comparing UUIDs
-            UUID domainUuid = domainEntity.getUuid();
-            boolean hasDomain = userDomainMappings.stream()
-                    .anyMatch(mapping -> domainUuid.equals(mapping.getUserDomainUuid()));
-
-            log.debug("User {} domain check for {}: {}", currentUser.getUuid(), domain, hasDomain);
+            boolean hasDomain = userLookupService.userHasDomain(currentUserUuid, domain);
+            log.debug("User {} domain check for {}: {}", currentUserUuid, domain, hasDomain);
             return hasDomain;
 
         } catch (Exception e) {

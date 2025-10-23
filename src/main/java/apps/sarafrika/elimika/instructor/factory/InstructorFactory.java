@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.factory;
 
-import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
+import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

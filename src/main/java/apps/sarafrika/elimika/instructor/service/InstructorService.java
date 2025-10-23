@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.service;
 
-import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
+import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

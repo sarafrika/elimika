@@ -15,7 +15,7 @@ import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRe
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
-import apps.sarafrika.elimika.instructor.service.InstructorService;
+import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -48,7 +48,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final OrganisationRepository organisationRepository;
     private final UserService userService;
-    private final InstructorService instructorService;
+    private final InstructorManagementService instructorManagementService;
 
     @Override
     @Transactional
@@ -226,8 +226,8 @@ public class AdminServiceImpl implements AdminService {
         long pendingApprovals = 0; // Would need approval status implementation
 
         // Instructor metrics
-        long verifiedInstructors = instructorService.countInstructorsByVerificationStatus(true);
-        long pendingInstructorApprovals = instructorService.countInstructorsByVerificationStatus(false);
+        long verifiedInstructors = instructorManagementService.countInstructorsByVerificationStatus(true);
+        long pendingInstructorApprovals = instructorManagementService.countInstructorsByVerificationStatus(false);
 
         // Admin metrics
         UserDomain adminDomain = userDomainRepository.findByDomainName("admin").orElse(null);

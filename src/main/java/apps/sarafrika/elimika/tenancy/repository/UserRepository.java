@@ -26,6 +26,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     boolean existsByKeycloakId(String keycloakId);
 
+    boolean existsByUuid(UUID uuid);
+
     List<User> findAllByUuidIn(List<UUID> uuids);
 
     List<User> findByUuidIn(List<UUID> uuids);

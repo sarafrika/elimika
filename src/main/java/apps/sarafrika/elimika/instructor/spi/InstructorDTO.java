@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.instructor.dto;
+package apps.sarafrika.elimika.instructor.spi;
 
 import apps.sarafrika.elimika.shared.utils.validation.ValidUrl;
 import com.fasterxml.jackson.annotation.JsonProperty;

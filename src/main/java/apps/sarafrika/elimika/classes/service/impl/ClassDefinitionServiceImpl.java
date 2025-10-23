@@ -14,8 +14,7 @@ import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
-import apps.sarafrika.elimika.course.model.Course;
-import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +37,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final RecurrencePatternRepository recurrencePatternRepository;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
-    private final CourseRepository courseRepository;
+    private final CourseInfoService courseInfoService;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE = "Recurrence pattern with UUID %s not found";
@@ -320,10 +319,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             return;
         }
 
-        Course course = courseRepository.findByUuid(entity.getCourseUuid())
+        // Verify course exists and get minimum training fee via SPI
+        BigDecimal minimumTrainingFee = courseInfoService.getMinimumTrainingFee(entity.getCourseUuid())
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Course with UUID %s not found", entity.getCourseUuid())));
-
-        BigDecimal minimumTrainingFee = course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
 
         if (entity.getTrainingFee() == null) {
             throw new IllegalArgumentException("Training fee is required when linking a class definition to a course");

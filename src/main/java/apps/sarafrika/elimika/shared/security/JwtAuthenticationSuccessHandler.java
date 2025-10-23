@@ -2,8 +2,8 @@ package apps.sarafrika.elimika.shared.security;
 
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
-import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -21,9 +21,9 @@ public class JwtAuthenticationSuccessHandler {
     @Value("${app.keycloak.realm}")
     private String realm;
 
-    private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final KeycloakUserService keycloakUserService;
-    private final UserService userService;
+    private final UserManagementService userManagementService;
 
     @EventListener
     public void handleAuthenticationSuccess(AuthenticationSuccessEvent event) {
@@ -38,14 +38,14 @@ public class JwtAuthenticationSuccessHandler {
 
     private void ensureUserExists(String keycloakUserId) {
         try {
-            boolean userExists = userRepository.existsByKeycloakId(keycloakUserId);
+            boolean userExists = userLookupService.existsByKeycloakId(keycloakUserId);
 
             if (!userExists) {
                 UserRepresentation userRepresentation = keycloakUserService
                         .getUserById(keycloakUserId, realm)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found in Keycloak"));
 
-                userService.createUser(userRepresentation);
+                userManagementService.createUser(userRepresentation);
             }
         } catch (Exception e) {
             log.error("Failed to ensure user exists for Keycloak ID: {}", keycloakUserId, e);

@@ -8,8 +8,8 @@ import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
-import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
-import apps.sarafrika.elimika.instructor.service.InstructorService;
+import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
+import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -43,7 +43,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final OrganisationService organisationService;
-    private final InstructorService instructorService;
+    private final InstructorManagementService instructorManagementService;
 
     // ================================
     // ADMIN DOMAIN MANAGEMENT
@@ -347,7 +347,7 @@ public class AdminController {
             @RequestParam(required = false) String reason) {
 
         log.info("Admin verifying instructor {} for reason: {}", uuid, reason);
-        InstructorDTO verified = instructorService.verifyInstructor(uuid, reason);
+        InstructorDTO verified = instructorManagementService.verifyInstructor(uuid, reason);
         return ResponseEntity.ok(ApiResponse.success(verified, "Instructor verified successfully"));
     }
 
@@ -368,7 +368,7 @@ public class AdminController {
             @RequestParam(required = false) String reason) {
 
         log.info("Admin removing verification from instructor {} for reason: {}", uuid, reason);
-        InstructorDTO unverified = instructorService.unverifyInstructor(uuid, reason);
+        InstructorDTO unverified = instructorManagementService.unverifyInstructor(uuid, reason);
         return ResponseEntity.ok(ApiResponse.success(unverified, "Instructor verification removed successfully"));
     }
 
@@ -386,7 +386,7 @@ public class AdminController {
             @PathVariable UUID uuid) {
 
         log.debug("Checking verification status for instructor: {}", uuid);
-        boolean isVerified = instructorService.isInstructorVerified(uuid);
+        boolean isVerified = instructorManagementService.isInstructorVerified(uuid);
         return ResponseEntity.ok(ApiResponse.success(isVerified,
                 isVerified ? "Instructor is verified" : "Instructor is not verified"));
     }

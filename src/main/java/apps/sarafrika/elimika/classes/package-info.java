@@ -25,7 +25,7 @@
  * @since 2.9.2
  */
 @ApplicationModule(
-    allowedDependencies = {"shared", "availability :: availability-spi", "timetabling :: timetabling-spi"}
+    allowedDependencies = {"shared", "availability :: availability-spi", "timetabling :: timetabling-spi", "course :: course-spi"}
 )
 package apps.sarafrika.elimika.classes;
 

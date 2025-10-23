@@ -1,11 +1,8 @@
 package apps.sarafrika.elimika.shared.security;
 
-import apps.sarafrika.elimika.student.model.Student;
-import apps.sarafrika.elimika.student.repository.StudentRepository;
-import apps.sarafrika.elimika.tenancy.entity.User;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
-import apps.sarafrika.elimika.timetabling.model.Enrollment;
-import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -18,15 +15,17 @@ import java.util.UUID;
 /**
  * Security service for enrollment-related authorization checks.
  * Provides methods to verify enrollment ownership and student identity.
+ * <p>
+ * Refactored to use Spring Modulith SPIs instead of direct repository access.
  */
 @Service("enrollmentSecurityService")
 @RequiredArgsConstructor
 @Slf4j
 public class EnrollmentSecurityService {
 
-    private final EnrollmentRepository enrollmentRepository;
-    private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
+    private final EnrollmentLookupService enrollmentLookupService;
+    private final StudentLookupService studentLookupService;
+    private final UserLookupService userLookupService;
 
     /**
      * Checks if the currently authenticated user owns the specified enrollment.
@@ -53,31 +52,30 @@ public class EnrollmentSecurityService {
             }
 
             // Find User by Keycloak ID
-            User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
-            if (user == null) {
+            UUID userUuid = userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
+            if (userUuid == null) {
                 log.debug("User not found for Keycloak ID: {}", keycloakId);
                 return false;
             }
 
             // Find Student by User UUID
-            Student student = studentRepository.findByUserUuid(user.getUuid()).orElse(null);
-            if (student == null) {
-                log.debug("Student not found for user UUID: {}", user.getUuid());
+            UUID studentUuid = studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+            if (studentUuid == null) {
+                log.debug("Student not found for user UUID: {}", userUuid);
                 return false;
             }
 
-            // Get enrollment and check ownership
-            Enrollment enrollment = enrollmentRepository.findByUuid(enrollmentUuid).orElse(null);
-            if (enrollment == null) {
+            // Get enrollment student UUID and check ownership
+            UUID enrollmentStudentUuid = enrollmentLookupService.getEnrollmentStudentUuid(enrollmentUuid).orElse(null);
+            if (enrollmentStudentUuid == null) {
                 log.debug("Enrollment not found: {}", enrollmentUuid);
                 return false;
             }
 
-            boolean isOwner = enrollment.getStudentUuid() != null &&
-                             enrollment.getStudentUuid().equals(student.getUuid());
+            boolean isOwner = enrollmentStudentUuid.equals(studentUuid);
 
             log.debug("Enrollment ownership check for user {} (student {}) on enrollment {}: {}",
-                     user.getUuid(), student.getUuid(), enrollmentUuid, isOwner);
+                     userUuid, studentUuid, enrollmentUuid, isOwner);
 
             return isOwner;
 
@@ -116,22 +114,22 @@ public class EnrollmentSecurityService {
             }
 
             // Find User by Keycloak ID
-            User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
-            if (user == null) {
+            UUID userUuid = userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
+            if (userUuid == null) {
                 log.debug("User not found for Keycloak ID: {}", keycloakId);
                 return false;
             }
 
             // Find Student by User UUID
-            Student student = studentRepository.findByUserUuid(user.getUuid()).orElse(null);
-            if (student == null) {
-                log.debug("Student not found for user UUID: {}", user.getUuid());
+            UUID currentStudentUuid = studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+            if (currentStudentUuid == null) {
+                log.debug("Student not found for user UUID: {}", userUuid);
                 return false;
             }
 
-            boolean isOwner = student.getUuid().equals(studentUuid);
+            boolean isOwner = currentStudentUuid.equals(studentUuid);
             log.debug("Student identity check for user {} (student {}) against studentUuid {}: {}",
-                     user.getUuid(), student.getUuid(), studentUuid, isOwner);
+                     userUuid, currentStudentUuid, studentUuid, isOwner);
 
             return isOwner;
 

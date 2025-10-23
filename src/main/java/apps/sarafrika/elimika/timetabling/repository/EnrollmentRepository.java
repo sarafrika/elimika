@@ -18,6 +18,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
 
     Optional<Enrollment> findByUuid(UUID uuid);
 
+    boolean existsByUuid(UUID uuid);
+
     List<Enrollment> findByStudentUuid(UUID studentUuid);
 
     List<Enrollment> findByScheduledInstanceUuid(UUID scheduledInstanceUuid);

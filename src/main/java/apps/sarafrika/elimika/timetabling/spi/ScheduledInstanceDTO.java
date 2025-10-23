@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.timetabling.dto;
+package apps.sarafrika.elimika.timetabling.spi;
 
 import apps.sarafrika.elimika.timetabling.util.enums.SchedulingStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;

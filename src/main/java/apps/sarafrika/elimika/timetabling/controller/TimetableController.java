@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
-import apps.sarafrika.elimika.timetabling.dto.ScheduleRequestDTO;
-import apps.sarafrika.elimika.timetabling.dto.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

@@ -16,4 +16,6 @@ public interface CourseCreatorRepository extends JpaRepository<CourseCreator, Lo
     Optional<CourseCreator> findByUserUuid(UUID userUuid);
 
     boolean existsByUserUuid(UUID userUuid);
+
+    boolean existsByUuid(UUID uuid);
 }

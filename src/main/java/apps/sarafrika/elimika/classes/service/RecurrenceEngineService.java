@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.classes.service;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
-import apps.sarafrika.elimika.timetabling.dto.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 
 import java.time.LocalDate;
 import java.util.List;

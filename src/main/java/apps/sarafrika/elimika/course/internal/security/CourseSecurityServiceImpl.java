@@ -3,10 +3,8 @@ package apps.sarafrika.elimika.course.internal.security;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
-import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
-import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
-import apps.sarafrika.elimika.tenancy.entity.User;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -19,6 +17,8 @@ import java.util.UUID;
 /**
  * Internal implementation of course security operations.
  * Provides authorization checks for course ownership.
+ * <p>
+ * Refactored to use Spring Modulith SPIs instead of direct repository access.
  *
  * @author Wilfred Njuguna
  * @version 1.0
@@ -30,8 +30,8 @@ import java.util.UUID;
 public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private final CourseRepository courseRepository;
-    private final CourseCreatorRepository courseCreatorRepository;
-    private final UserRepository userRepository;
+    private final CourseCreatorLookupService courseCreatorLookupService;
+    private final UserLookupService userLookupService;
 
     /**
      * Checks if the currently authenticated user is the owner of the specified course.
@@ -57,17 +57,17 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
                 return false;
             }
 
-            // Find User by Keycloak ID
-            User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
-            if (user == null) {
+            // Find User by Keycloak ID via SPI
+            UUID userUuid = userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
+            if (userUuid == null) {
                 log.debug("User not found for Keycloak ID: {}", keycloakId);
                 return false;
             }
 
-            // Find CourseCreator by User UUID
-            CourseCreator courseCreator = courseCreatorRepository.findByUserUuid(user.getUuid()).orElse(null);
-            if (courseCreator == null) {
-                log.debug("CourseCreator not found for user UUID: {}", user.getUuid());
+            // Find CourseCreator by User UUID via SPI
+            UUID courseCreatorUuid = courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid).orElse(null);
+            if (courseCreatorUuid == null) {
+                log.debug("CourseCreator not found for user UUID: {}", userUuid);
                 return false;
             }
 
@@ -79,10 +79,10 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             }
 
             boolean isOwner = course.getCourseCreatorUuid() != null &&
-                             course.getCourseCreatorUuid().equals(courseCreator.getUuid());
+                             course.getCourseCreatorUuid().equals(courseCreatorUuid);
 
             log.debug("Course ownership check for user {} (courseCreator {}) on course {}: {}",
-                     user.getUuid(), courseCreator.getUuid(), courseUuid, isOwner);
+                     userUuid, courseCreatorUuid, courseUuid, isOwner);
 
             return isOwner;
 

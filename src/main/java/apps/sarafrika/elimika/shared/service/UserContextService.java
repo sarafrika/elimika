@@ -1,8 +1,7 @@
 package apps.sarafrika.elimika.shared.service;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.tenancy.entity.User;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -19,7 +18,7 @@ import java.util.UUID;
  * Handles the conversion from JWT token subject (Keycloak ID) to internal User UUID.
  *
  * @author System
- * @version 1.0
+ * @version 1.1
  * @since 2025-08-29
  */
 @Service
@@ -27,7 +26,7 @@ import java.util.UUID;
 @Slf4j
 public class UserContextService {
 
-    private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
 
     /**
      * Gets the current authenticated user's UUID from the security context.
@@ -90,24 +89,7 @@ public class UserContextService {
      * @throws ResourceNotFoundException if user not found
      */
     public UUID getUserUuidByKeycloakId(String keycloakId) {
-        User user = userRepository.findByKeycloakId(keycloakId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User not found for Keycloak ID: " + keycloakId));
-        
-        return user.getUuid();
-    }
-
-    /**
-     * Gets the current authenticated user entity.
-     *
-     * @return the current authenticated User entity
-     * @throws ResourceNotFoundException if no authenticated user or user not found
-     */
-    public User getCurrentUser() {
-        String keycloakId = getCurrentKeycloakId()
-                .orElseThrow(() -> new ResourceNotFoundException("No authenticated user found"));
-
-        return userRepository.findByKeycloakId(keycloakId)
+        return userLookupService.findUserUuidByKeycloakId(keycloakId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found for Keycloak ID: " + keycloakId));
     }

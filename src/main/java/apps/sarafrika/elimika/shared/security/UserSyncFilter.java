@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.shared.security;
 
-import apps.sarafrika.elimika.tenancy.services.UserSyncService;
+import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -25,11 +25,11 @@ import java.io.IOException;
  * <p>The filter skips processing for certain paths like actuator endpoints, health checks,
  * API documentation, and error pages to avoid unnecessary overhead.</p>
  *
- * <p>Spring Modulith Compliance: This filter uses UserSyncService from the tenancy module
- * instead of directly accessing repositories, maintaining proper module boundaries.</p>
+ * <p>Spring Modulith Compliance: This filter uses UserManagementService SPI from the tenancy module
+ * instead of directly accessing repositories or internal services, maintaining proper module boundaries.</p>
  *
  * @author Wilfred Njuguna
- * @version 2.0
+ * @version 2.1
  * @since 2025-10-20
  */
 @Component
@@ -40,7 +40,7 @@ public class UserSyncFilter implements Filter {
     @Value("${app.keycloak.realm}")
     private String realm;
 
-    private final UserSyncService userSyncService;
+    private final UserManagementService userManagementService;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -67,7 +67,7 @@ public class UserSyncFilter implements Filter {
 
             if (keycloakUserId != null && !keycloakUserId.trim().isEmpty()) {
                 try {
-                    userSyncService.ensureUserExists(keycloakUserId, realm);
+                    userManagementService.ensureUserExists(keycloakUserId, realm);
                 } catch (Exception e) {
                     log.error("Critical error in user sync filter for user ID: {}", keycloakUserId, e);
                     // Continue to avoid blocking legitimate requests

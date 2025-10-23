@@ -4,7 +4,7 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.instructor.dto.InstructorDTO;
+import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;

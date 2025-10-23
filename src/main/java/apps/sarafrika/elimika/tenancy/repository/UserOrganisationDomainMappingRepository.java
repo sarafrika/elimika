@@ -181,6 +181,25 @@ public interface UserOrganisationDomainMappingRepository extends JpaRepository<U
     boolean existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(UUID userUuid, UUID organisationUuid);
 
     /**
+     * Check if any mapping exists between user and organisation (active or inactive).
+     * Used for general association checks.
+     *
+     * @param userUuid the user UUID
+     * @param organisationUuid the organisation UUID
+     * @return true if any mapping exists
+     */
+    boolean existsByUserUuidAndOrganisationUuid(UUID userUuid, UUID organisationUuid);
+
+    /**
+     * Find all mappings for a user (including inactive, excluding deleted).
+     * Used by UserLookupService SPI.
+     *
+     * @param userUuid the user UUID
+     * @return list of mappings for the user
+     */
+    List<UserOrganisationDomainMapping> findByUserUuid(UUID userUuid);
+
+    /**
      * Check if active mapping exists for user, organisation and specific domain.
      * Used for role-based authorization checks.
      * Called as: existsActiveByUserOrganisationAndDomain() in services

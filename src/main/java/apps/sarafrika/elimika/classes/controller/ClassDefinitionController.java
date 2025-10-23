@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.RecurrenceEngineService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
-import apps.sarafrika.elimika.timetabling.dto.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
