@@ -1,7 +1,8 @@
-package apps.sarafrika.elimika.shared.security;
+package apps.sarafrika.elimika.course.internal.security;
 
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.tenancy.entity.User;
@@ -16,13 +17,17 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 
 /**
- * Security service for course-related authorization checks.
- * Provides methods to verify course ownership.
+ * Internal implementation of course security operations.
+ * Provides authorization checks for course ownership.
+ *
+ * @author Wilfred Njuguna
+ * @version 1.0
+ * @since 2025-10-20
  */
 @Service("courseSecurityService")
 @RequiredArgsConstructor
 @Slf4j
-public class CourseSecurityService {
+public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private final CourseRepository courseRepository;
     private final CourseCreatorRepository courseCreatorRepository;
@@ -36,6 +41,7 @@ public class CourseSecurityService {
      * @param courseUuid UUID of the course to check
      * @return true if the current user owns the course, false otherwise
      */
+    @Override
     public boolean isCourseOwner(UUID courseUuid) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
