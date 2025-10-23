@@ -179,7 +179,7 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         // Update rubric with calculated scores
         AssessmentRubricDTO updatedRubric = new AssessmentRubricDTO(
                 rubric.uuid(), rubric.title(), rubric.description(),
-                rubric.rubricType(), rubric.instructorUuid(), rubric.isPublic(),
+                rubric.rubricType(), rubric.courseCreatorUuid(), rubric.isPublic(),
                 rubric.status(), rubric.active(), rubric.totalWeight(), rubric.weightUnit(),
                 rubric.usesCustomLevels(),
                 maxScore, minPassingScore, rubric.createdDate(), rubric.createdBy(),

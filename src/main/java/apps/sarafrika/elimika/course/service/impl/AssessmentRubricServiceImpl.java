@@ -111,8 +111,8 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         if (dto.rubricType() != null) {
             existingAssessmentRubric.setRubricType(dto.rubricType());
         }
-        if (dto.instructorUuid() != null) {
-            existingAssessmentRubric.setInstructorUuid(dto.instructorUuid());
+        if (dto.courseCreatorUuid() != null) {
+            existingAssessmentRubric.setCourseCreatorUuid(dto.courseCreatorUuid());
         }
         if (dto.isPublic() != null) {
             existingAssessmentRubric.setIsPublic(dto.isPublic());
@@ -167,8 +167,8 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     }
 
     @Override
-    public Page<AssessmentRubricDTO> getInstructorRubrics(UUID instructorUuid, boolean includePrivate, Pageable pageable) {
-        return assessmentRubricRepository.findInstructorShareableRubrics(instructorUuid, includePrivate, pageable)
+    public Page<AssessmentRubricDTO> getCourseCreatorRubrics(UUID courseCreatorUuid, boolean includePrivate, Pageable pageable) {
+        return assessmentRubricRepository.findCourseCreatorShareableRubrics(courseCreatorUuid, includePrivate, pageable)
                 .map(AssessmentRubricFactory::toDTO);
     }
 
@@ -200,10 +200,10 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     }
 
     @Override
-    public Map<String, Long> getInstructorRubricStatistics(UUID instructorUuid) {
+    public Map<String, Long> getCourseCreatorRubricStatistics(UUID courseCreatorUuid) {
         Map<String, Long> stats = new HashMap<>();
-        stats.put("totalRubrics", assessmentRubricRepository.countByInstructorUuidAndIsActiveTrue(instructorUuid));
-        // Add more instructor-specific statistics as needed
+        stats.put("totalRubrics", assessmentRubricRepository.countByCourseCreatorUuidAndIsActiveTrue(courseCreatorUuid));
+        // Add more course creator-specific statistics as needed
         return stats;
     }
 }

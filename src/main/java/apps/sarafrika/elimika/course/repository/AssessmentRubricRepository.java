@@ -57,30 +57,30 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
     Page<AssessmentRubric> findPublicRubricsBySearchTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     /**
-     * Finds rubrics created by a specific instructor.
+     * Finds rubrics created by a specific course creator.
      *
-     * @param instructorUuid the UUID of the instructor
+     * @param courseCreatorUuid the UUID of the course creator
      * @param pageable pagination parameters
-     * @return page of rubrics created by the instructor
+     * @return page of rubrics created by the course creator
      */
-    Page<AssessmentRubric> findByInstructorUuidAndIsActiveTrueOrderByCreatedDateDesc(UUID instructorUuid, Pageable pageable);
+    Page<AssessmentRubric> findByCourseCreatorUuidAndIsActiveTrueOrderByCreatedDateDesc(UUID courseCreatorUuid, Pageable pageable);
 
     /**
-     * Finds rubrics created by an instructor that are available for sharing.
+     * Finds rubrics created by a course creator that are available for sharing.
      *
-     * @param instructorUuid the UUID of the instructor
+     * @param courseCreatorUuid the UUID of the course creator
      * @param includePrivate whether to include private rubrics
      * @param pageable pagination parameters
-     * @return page of instructor's shareable rubrics
+     * @return page of the course creator's shareable rubrics
      */
     @Query("""
         SELECT ar FROM AssessmentRubric ar 
-        WHERE ar.instructorUuid = :instructorUuid AND ar.isActive = true
+        WHERE ar.courseCreatorUuid = :courseCreatorUuid AND ar.isActive = true
         AND (:includePrivate = true OR ar.isPublic = true)
         ORDER BY ar.createdDate DESC
         """)
-    Page<AssessmentRubric> findInstructorShareableRubrics(
-            @Param("instructorUuid") UUID instructorUuid, 
+    Page<AssessmentRubric> findCourseCreatorShareableRubrics(
+            @Param("courseCreatorUuid") UUID courseCreatorUuid, 
             @Param("includePrivate") boolean includePrivate, 
             Pageable pageable);
 
@@ -95,7 +95,7 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
         LEFT JOIN CourseRubricAssociation cra ON ar.uuid = cra.rubricUuid
         WHERE ar.isPublic = true AND ar.isActive = true
         GROUP BY ar.id, ar.uuid, ar.title, ar.description, ar.rubricType, 
-                 ar.instructorUuid, ar.isPublic, ar.status, ar.isActive, ar.totalWeight, 
+                 ar.courseCreatorUuid, ar.isPublic, ar.status, ar.isActive, ar.totalWeight, 
                  ar.weightUnit, ar.usesCustomLevels, 
                  ar.maxScore, ar.minPassingScore, ar.createdDate, ar.createdBy, 
                  ar.lastModifiedDate, ar.lastModifiedBy
@@ -120,10 +120,10 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
     long countByIsPublicTrueAndIsActiveTrue();
 
     /**
-     * Counts rubrics created by a specific instructor.
+     * Counts rubrics created by a specific course creator.
      *
-     * @param instructorUuid the UUID of the instructor
-     * @return count of instructor's rubrics
+     * @param courseCreatorUuid the UUID of the course creator
+     * @return count of the course creator's rubrics
      */
-    long countByInstructorUuidAndIsActiveTrue(UUID instructorUuid);
+    long countByCourseCreatorUuidAndIsActiveTrue(UUID courseCreatorUuid);
 }

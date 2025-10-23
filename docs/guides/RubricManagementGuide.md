@@ -2,7 +2,7 @@
 
 ## System Architecture Overview
 
-The rubric system is designed for flexibility, allowing instructors to create detailed, custom assessment tools. The core components are:
+The rubric system is designed for flexibility, allowing course creators to create detailed, custom assessment tools. The core components are:
 
 - **Assessment Rubric**: The main container for a rubric, holding its title, description, and overall settings.
 - **Rubric Criteria**: The rows of the matrix, defining *what* is being assessed (e.g., "Technical Skill," "Clarity").

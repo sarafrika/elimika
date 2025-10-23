@@ -40,14 +40,14 @@ public interface AssessmentRubricService {
     Page<AssessmentRubricDTO> searchPublicRubrics(String searchTerm, String rubricType, Pageable pageable);
 
     /**
-     * Gets rubrics created by a specific instructor.
+     * Gets rubrics created by a specific course creator.
      *
-     * @param instructorUuid the UUID of the instructor
+     * @param courseCreatorUuid the UUID of the course creator
      * @param includePrivate whether to include private rubrics
      * @param pageable pagination parameters
-     * @return page of instructor's rubrics
+     * @return page of the course creator's rubrics
      */
-    Page<AssessmentRubricDTO> getInstructorRubrics(UUID instructorUuid, boolean includePrivate, Pageable pageable);
+    Page<AssessmentRubricDTO> getCourseCreatorRubrics(UUID courseCreatorUuid, boolean includePrivate, Pageable pageable);
 
     /**
      * Gets general rubrics not tied to any specific course.
@@ -82,14 +82,13 @@ public interface AssessmentRubricService {
     Map<String, Long> getRubricStatistics();
 
     /**
-     * Gets usage statistics for an instructor's rubrics.
+     * Gets usage statistics for a course creator's rubrics.
      *
-     * @param instructorUuid the UUID of the instructor
-     * @return map containing counts of the instructor's rubrics
+     * @param courseCreatorUuid the UUID of the course creator
+     * @return map containing counts of the course creator's rubrics
      */
-    Map<String, Long> getInstructorRubricStatistics(UUID instructorUuid);
+    Map<String, Long> getCourseCreatorRubricStatistics(UUID courseCreatorUuid);
 }
-
 
 
 

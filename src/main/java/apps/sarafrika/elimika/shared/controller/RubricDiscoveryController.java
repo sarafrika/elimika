@@ -21,7 +21,7 @@ import java.util.UUID;
 /**
  * REST Controller for rubric discovery and search functionality
  * <p>
- * Provides endpoints for instructors to discover, search, and browse
+ * Provides endpoints for course creators to discover, search, and browse
  * available rubrics for reuse across multiple courses.
  *
  * @author Wilfred Njuguna
@@ -105,20 +105,20 @@ public class RubricDiscoveryController {
     }
 
     @Operation(
-            summary = "Get instructor's rubrics",
-            description = "Retrieves rubrics created by a specific instructor, with option to include private rubrics."
+            summary = "Get course creator's rubrics",
+            description = "Retrieves rubrics defined by a specific course creator, with option to include private rubrics."
     )
-    @GetMapping(value = "/instructor/{instructorUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> getInstructorRubrics(
-            @Parameter(description = "UUID of the instructor", required = true)
-            @PathVariable UUID instructorUuid,
+    @GetMapping(value = "/course-creator/{courseCreatorUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> getCourseCreatorRubrics(
+            @Parameter(description = "UUID of the course creator", required = true)
+            @PathVariable UUID courseCreatorUuid,
             @Parameter(description = "Include private rubrics (default: false)", required = false)
             @RequestParam(defaultValue = "false") boolean includePrivate,
             Pageable pageable) {
         
-        Page<AssessmentRubricDTO> rubrics = assessmentRubricService.getInstructorRubrics(instructorUuid, includePrivate, pageable);
-        PagedDTO<AssessmentRubricDTO> pagedResponse = PagedDTO.from(rubrics, "/api/v1/rubrics/discovery/instructor/" + instructorUuid);
-        return ResponseEntity.ok(ApiResponse.success(pagedResponse, "Instructor's rubrics retrieved successfully"));
+        Page<AssessmentRubricDTO> rubrics = assessmentRubricService.getCourseCreatorRubrics(courseCreatorUuid, includePrivate, pageable);
+        PagedDTO<AssessmentRubricDTO> pagedResponse = PagedDTO.from(rubrics, "/api/v1/rubrics/discovery/course-creator/" + courseCreatorUuid);
+        return ResponseEntity.ok(ApiResponse.success(pagedResponse, "Course creator rubrics retrieved successfully"));
     }
 
     @Operation(
@@ -132,16 +132,16 @@ public class RubricDiscoveryController {
     }
 
     @Operation(
-            summary = "Get instructor's rubric statistics",
-            description = "Retrieves statistics about a specific instructor's rubrics, including counts by visibility and status."
+            summary = "Get course creator rubric statistics",
+            description = "Retrieves statistics about a specific course creator's rubrics, including counts by visibility and status."
     )
-    @GetMapping(value = "/statistics/instructor/{instructorUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<Map<String, Long>>> getInstructorRubricStatistics(
-            @Parameter(description = "UUID of the instructor", required = true)
-            @PathVariable UUID instructorUuid) {
+    @GetMapping(value = "/statistics/course-creator/{courseCreatorUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getCourseCreatorRubricStatistics(
+            @Parameter(description = "UUID of the course creator", required = true)
+            @PathVariable UUID courseCreatorUuid) {
         
-        Map<String, Long> statistics = assessmentRubricService.getInstructorRubricStatistics(instructorUuid);
-        return ResponseEntity.ok(ApiResponse.success(statistics, "Instructor's rubric statistics retrieved successfully"));
+        Map<String, Long> statistics = assessmentRubricService.getCourseCreatorRubricStatistics(courseCreatorUuid);
+        return ResponseEntity.ok(ApiResponse.success(statistics, "Course creator rubric statistics retrieved successfully"));
     }
 
     @Operation(

@@ -32,8 +32,8 @@ public class AssessmentRubric extends BaseEntity {
     @Column(name = "rubric_type")
     private String rubricType;
 
-    @Column(name = "instructor_uuid")
-    private UUID instructorUuid;
+    @Column(name = "course_creator_uuid")
+    private UUID courseCreatorUuid;
 
     @Column(name = "is_public")
     private Boolean isPublic;

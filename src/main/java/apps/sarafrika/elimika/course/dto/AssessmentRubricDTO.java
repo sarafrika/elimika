@@ -32,7 +32,7 @@ import java.util.UUID;
             "title": "Music Performance Assessment Rubric",
             "description": "Comprehensive rubric for evaluating music performance across multiple criteria",
             "rubric_type": "Performance",
-            "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
+            "course_creator_uuid": "c1r2e3a4-5t6o-7r8u-9i10-abcdefghijkl",
             "is_public": true,
             "status": "PUBLISHED",
             "active": true,
@@ -42,9 +42,9 @@ import java.util.UUID;
             "max_score": 400.00,
             "min_passing_score": 240.00,
             "created_date": "2024-04-01T12:00:00",
-            "created_by": "instructor@sarafrika.com",
+            "created_by": "creator@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
-            "updated_by": "instructor@sarafrika.com",
+            "updated_by": "creator@sarafrika.com",
             "rubric_category": "Performance Assessment",
             "is_published": true,
             "assessment_scope": "General Use",
@@ -97,16 +97,16 @@ public record AssessmentRubricDTO(
         String rubricType,
 
         @Schema(
-                description = "**[REQUIRED]** Reference to the instructor UUID who created this rubric.",
-                example = "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
+                description = "**[REQUIRED]** Reference to the course creator UUID who defined this rubric.",
+                example = "c1r2e3a4-5t6o-7r8u-9i10-abcdefghijkl",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotNull(message = "Instructor UUID is required")
-        @JsonProperty("instructor_uuid")
-        UUID instructorUuid,
+        @NotNull(message = "Course creator UUID is required")
+        @JsonProperty("course_creator_uuid")
+        UUID courseCreatorUuid,
 
         @Schema(
-                description = "**[OPTIONAL]** Indicates if this rubric is publicly available for other instructors to use.",
+                description = "**[OPTIONAL]** Indicates if this rubric is publicly available for other course creators to use.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -193,7 +193,7 @@ public record AssessmentRubricDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Email or username of the user who created this rubric. Used for audit trails.",
-                example = "instructor@sarafrika.com",
+                example = "creator@sarafrika.com",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -212,7 +212,7 @@ public record AssessmentRubricDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Email or username of the user who last modified this rubric. Used for audit trails.",
-                example = "instructor@sarafrika.com",
+                example = "creator@sarafrika.com",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
