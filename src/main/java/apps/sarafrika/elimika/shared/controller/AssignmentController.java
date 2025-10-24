@@ -248,6 +248,9 @@ public class AssignmentController {
                     - `active=true` - Only active assignments
                     - `dueDate_gte=2024-12-01T00:00:00` - Assignments due from Dec 1, 2024
                     - `maxPoints_gte=50` - Assignments worth 50+ points
+                    
+                    **Course-Aware Filters:**
+                    - `courseUuid=uuid` - Assignments linked to lessons under the specified course
                     """
     )
     @GetMapping("/search")
