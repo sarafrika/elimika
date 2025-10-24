@@ -23,7 +23,7 @@ import java.util.UUID;
  * @since 2024-09-05
  */
 @Entity
-@Table(name = "enrollments")
+@Table(name = "class_enrollments")
 @Getter
 @Setter
 @NoArgsConstructor
