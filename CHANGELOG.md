@@ -1,3 +1,10 @@
+# [2.28.0](https://github.com/sarafrika/elimika/compare/v2.27.0...v2.28.0) (2025-10-24)
+
+
+### Features
+
+* add course training application approvals ([5b7596f](https://github.com/sarafrika/elimika/commit/5b7596f729e48649bc848d60cd5946b1a14f9fc2))
+
 # [2.27.0](https://github.com/sarafrika/elimika/compare/v2.26.4...v2.27.0) (2025-10-24)
 
 
