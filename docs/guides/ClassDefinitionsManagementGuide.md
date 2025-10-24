@@ -105,6 +105,8 @@ sequenceDiagram
 3.  Associate the pattern with the definition.
 4.  Trigger the scheduling process to generate the `ScheduledInstance` objects.
 
+> **Important:** When linking a class definition to a course (`course_uuid`), the specified instructor and/or organisation must already have an approved training application for that course. Attempting to create or update a class definition without the necessary approvals— or after an approval has been revoked— will fail with a clear validation error.
+
 ---
 
 ## 5. Frontend Integration Quick Start

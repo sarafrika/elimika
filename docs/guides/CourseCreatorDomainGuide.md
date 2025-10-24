@@ -235,6 +235,14 @@ Course creators now define operational expectations alongside minimum financial 
 - The course service enforces those constraints during create/update; violations raise `IllegalArgumentException` with clear messaging.
 - Class definitions only specify the session `training_fee` and must stay at or above the course minimum—no additional revenue split data is stored per class.
 
+### Training Application Approvals
+
+- Use `GET /api/v1/courses/{courseUuid}/training-applications?status=pending` to review incoming instructor and organisation requests.
+- Approve, reject, or revoke access with `POST /api/v1/courses/{courseUuid}/training-applications/{applicationUuid}?action=approve|reject|revoke`. Optional notes are stored alongside the decision.
+- Search across applications with `GET /api/v1/courses/training-applications/search` and rich query operators (e.g. `status=approved`, `applicantType=instructor`, `createdDate_between=2025-01-01T00:00:00,2025-12-31T23:59:59`).
+- Revoking moves the application to a `revoked` state; instructors or organisations must resubmit before they can regain teaching rights.
+- Class definitions cannot be created or updated for a course unless the referenced instructor and/or organisation has an approved application, giving course creators full control over who can access their curriculum.
+
 ## API Reference for Course Creator Management
 
 ### Course Creator Profile Management

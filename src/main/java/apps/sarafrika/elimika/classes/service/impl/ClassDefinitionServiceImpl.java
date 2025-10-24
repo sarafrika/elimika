@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
+    private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE = "Recurrence pattern with UUID %s not found";
@@ -62,6 +64,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             entity.setIsActive(true);
         }
         
+        validateTrainingApprovals(entity);
         validateTrainingFee(entity);
 
         ClassDefinition savedEntity = classDefinitionRepository.save(entity);
@@ -94,6 +97,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
         
         ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
+        validateTrainingApprovals(existingEntity);
         validateTrainingFee(existingEntity);
         
         ClassDefinition savedEntity = classDefinitionRepository.save(existingEntity);
@@ -335,6 +339,27 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             throw new IllegalArgumentException(String.format(
                     "Training fee %.2f cannot be less than the course minimum training fee %.2f",
                     entity.getTrainingFee(), minimumTrainingFee));
+        }
+    }
+
+    private void validateTrainingApprovals(ClassDefinition entity) {
+        UUID courseUuid = entity.getCourseUuid();
+        if (courseUuid == null) {
+            return;
+        }
+
+        UUID instructorUuid = entity.getDefaultInstructorUuid();
+        if (instructorUuid != null && !courseTrainingApprovalSpi.isInstructorApproved(courseUuid, instructorUuid)) {
+            throw new IllegalStateException(String.format(
+                    "Instructor %s is not approved to deliver course %s. Submit a training application and wait for approval before scheduling classes.",
+                    instructorUuid, courseUuid));
+        }
+
+        UUID organisationUuid = entity.getOrganisationUuid();
+        if (organisationUuid != null && !courseTrainingApprovalSpi.isOrganisationApproved(courseUuid, organisationUuid)) {
+            throw new IllegalStateException(String.format(
+                    "Organisation %s is not approved to deliver course %s. Submit a training application and wait for approval before scheduling classes.",
+                    organisationUuid, courseUuid));
         }
     }
 }

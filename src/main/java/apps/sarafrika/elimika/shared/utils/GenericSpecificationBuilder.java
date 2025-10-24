@@ -7,6 +7,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -407,10 +409,32 @@ public class GenericSpecificationBuilder<T> {
         if (fieldType.equals(BigDecimal.class)) return new BigDecimal(stringValue);
         if (fieldType.equals(Date.class)) return Date.valueOf(stringValue);
         if (fieldType.equals(Timestamp.class)) return Timestamp.valueOf(stringValue);
+        if (fieldType.equals(LocalDateTime.class)) return LocalDateTime.parse(stringValue);
+        if (Enum.class.isAssignableFrom(fieldType)) return convertEnumValue(stringValue, fieldType);
         if (fieldType.equals(String.class)) return stringValue;
 
         log.warn("Unhandled field type: {}", fieldType);
         return stringValue;
+    }
+
+    private Object convertEnumValue(String value, Class<?> fieldType) {
+        Class<? extends Enum> enumClass = ((Class<?>) fieldType).asSubclass(Enum.class);
+        String normalizedValue = value.trim();
+
+        for (Enum<?> constant : enumClass.getEnumConstants()) {
+            if (constant.name().equalsIgnoreCase(normalizedValue)) {
+                return constant;
+            }
+        }
+
+        try {
+            Method fromValueMethod = fieldType.getDeclaredMethod("fromValue", String.class);
+            return fromValueMethod.invoke(null, normalizedValue);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException reflectionException) {
+            log.error("Unable to convert '{}' to enum {}: {}", normalizedValue, fieldType.getSimpleName(), reflectionException.getMessage());
+            throw new IllegalArgumentException(
+                    "Invalid enum value '" + normalizedValue + "' for " + fieldType.getSimpleName());
+        }
     }
 
     private boolean convertToBoolean(String value) {

@@ -386,6 +386,10 @@ flowchart TD
     style J fill:#f44336
 ```
 
+### Course Training Applications
+
+Instructors must request access to each course they intend to deliver. Submit an application using `POST /api/v1/courses/{courseUuid}/training-applications` with your instructor UUID and supporting notes. Course creators review applications via `POST /api/v1/courses/{courseUuid}/training-applications/{applicationUuid}?action=approve|reject|revoke`. Only **approved** instructors can be assigned to class definitions tied to that course; attempts to schedule classes without an approved application are rejected automatically. If access is revoked, submit a new application to regain approval. You can check the status of your submissions via `GET /api/v1/courses/training-applications/search?applicantUuid={yourUuid}&applicantType=instructor`.
+
 ### Instructor Search and Analytics
 
 The system provides advanced search capabilities for instructor management. A series of API endpoints allows searching for instructors based on various criteria:
