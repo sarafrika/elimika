@@ -1,3 +1,10 @@
+## [2.26.4](https://github.com/sarafrika/elimika/compare/v2.26.3...v2.26.4) (2025-10-24)
+
+
+### Bug Fixes
+
+* achieve full Spring Modulith compliance ([fa26822](https://github.com/sarafrika/elimika/commit/fa26822af332541e1ac9e4b64d06bbeb34987ce1))
+
 ## [2.26.3](https://github.com/sarafrika/elimika/compare/v2.26.2...v2.26.3) (2025-10-23)
 
 
