@@ -1,3 +1,10 @@
+# [2.27.0](https://github.com/sarafrika/elimika/compare/v2.26.4...v2.27.0) (2025-10-24)
+
+
+### Features
+
+* rename class enrollment persistence to class_enrollments and document utc workflow ([3456fc9](https://github.com/sarafrika/elimika/commit/3456fc995237d5996a49345c3b2750fef02062cf))
+
 ## [2.26.4](https://github.com/sarafrika/elimika/compare/v2.26.3...v2.26.4) (2025-10-24)
 
 
