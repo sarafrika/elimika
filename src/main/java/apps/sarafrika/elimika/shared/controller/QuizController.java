@@ -307,9 +307,6 @@ public class QuizController {
                     - `timeLimitMinutes_gte=30` - Quizzes with 30+ minute time limit
                     - `attemptsAllowed_lte=3` - Quizzes with 3 or fewer attempts allowed
                     - `passingScore_gte=70` - Quizzes with passing score 70%+
-                    
-                    **Course-Aware Filters:**
-                    - `courseUuid=uuid` - Quizzes attached to any lesson within the specified course
                     """
     )
     @GetMapping("/search")

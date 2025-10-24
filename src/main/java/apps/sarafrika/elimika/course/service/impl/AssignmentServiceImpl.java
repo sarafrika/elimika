@@ -5,9 +5,7 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentDTO;
 import apps.sarafrika.elimika.course.factory.AssignmentFactory;
 import apps.sarafrika.elimika.course.model.Assignment;
-import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
-import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.service.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,12 +14,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +24,6 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final GenericSpecificationBuilder<Assignment> specificationBuilder;
-    private final LessonRepository lessonRepository;
 
     private static final String ASSIGNMENT_NOT_FOUND_TEMPLATE = "Assignment with ID %s not found";
 
@@ -85,28 +78,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        Map<String, String> effectiveParams = new HashMap<>(searchParams);
-
-        if (effectiveParams.containsKey("courseUuid")) {
-            UUID courseUuid = UUID.fromString(effectiveParams.remove("courseUuid"));
-            List<UUID> lessonUuids = lessonRepository.findByCourseUuid(courseUuid)
-                    .stream()
-                    .map(Lesson::getUuid)
-                    .filter(Objects::nonNull)
-                    .toList();
-
-            if (lessonUuids.isEmpty()) {
-                return Page.empty(pageable);
-            }
-
-            String lessonUuidFilter = lessonUuids.stream()
-                    .map(UUID::toString)
-                    .collect(Collectors.joining(","));
-            effectiveParams.put("lessonUuid_in", lessonUuidFilter);
-        }
-
         Specification<Assignment> spec = specificationBuilder.buildSpecification(
-                Assignment.class, effectiveParams);
+                Assignment.class, searchParams);
         return assignmentRepository.findAll(spec, pageable).map(AssignmentFactory::toDTO);
     }
 
