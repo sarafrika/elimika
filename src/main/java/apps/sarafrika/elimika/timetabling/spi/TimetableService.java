@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentDTO;
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentRequestDTO;
-import apps.sarafrika.elimika.timetabling.dto.StudentScheduleDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 
 import java.time.LocalDate;
 import java.util.List;

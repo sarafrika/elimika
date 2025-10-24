@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.commerce.order.controller;
 
-import apps.sarafrika.elimika.commerce.order.dto.CheckoutRequest;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.commerce.order.service.OrderService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

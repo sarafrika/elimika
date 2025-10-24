@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.timetabling.factory;
 
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentDTO;
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 

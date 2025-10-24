@@ -34,4 +34,10 @@ public interface NotificationDeliveryLogRepository extends JpaRepository<Notific
                                    @Param("type") NotificationType type,
                                    @Param("start") LocalDateTime start,
                                    @Param("end") LocalDateTime end);
+
+    long countByCreatedDateAfter(LocalDateTime createdAfter);
+
+    long countByDeliveryStatus(DeliveryStatus deliveryStatus);
+
+    long countByDeliveryStatusAndCreatedDateAfter(DeliveryStatus deliveryStatus, LocalDateTime createdAfter);
 }

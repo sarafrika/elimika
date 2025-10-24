@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.commerce.cart.dto.CartResponse;
 import apps.sarafrika.elimika.commerce.cart.dto.CreateCartRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.SelectPaymentSessionRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.UpdateCartRequest;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 
 /**
  * High level cart operations exposed to the rest of the Elimika application.

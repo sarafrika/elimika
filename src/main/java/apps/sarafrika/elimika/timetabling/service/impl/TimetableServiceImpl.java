@@ -1,15 +1,14 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
-import apps.sarafrika.elimika.commerce.purchase.service.CommercePaywallService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentDTO;
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
-import apps.sarafrika.elimika.timetabling.dto.StudentScheduleDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.factory.EnrollmentFactory;
@@ -20,8 +19,8 @@ import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
-import apps.sarafrika.elimika.timetabling.util.enums.SchedulingStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -44,7 +43,6 @@ public class TimetableServiceImpl implements TimetableService {
     private final ApplicationEventPublisher eventPublisher;
     private final GenericSpecificationBuilder<ScheduledInstance> scheduledInstanceSpecBuilder;
     private final GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
-    private final CommercePaywallService commercePaywallService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -175,7 +173,8 @@ public class TimetableServiceImpl implements TimetableService {
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, request.scheduledInstanceUuid())));
 
-        commercePaywallService.verifyClassEnrollmentAccess(request.studentUuid(), instance.getClassDefinitionUuid());
+        // TODO: Implement commerce paywall verification via events to maintain module boundaries
+        // See: CommerceEnrollmentPaywallGuide.md for implementation details
 
         ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
             instance.getClassDefinitionUuid(),

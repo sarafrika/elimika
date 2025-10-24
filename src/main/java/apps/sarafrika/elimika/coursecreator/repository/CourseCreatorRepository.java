@@ -18,4 +18,8 @@ public interface CourseCreatorRepository extends JpaRepository<CourseCreator, Lo
     boolean existsByUserUuid(UUID userUuid);
 
     boolean existsByUuid(UUID uuid);
+
+    long countByAdminVerified(Boolean adminVerified);
+
+    long countByAdminVerifiedIsNull();
 }

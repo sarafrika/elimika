@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.timetabling.repository;
 
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
-import apps.sarafrika.elimika.timetabling.util.enums.SchedulingStatus;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -71,4 +71,10 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
     Long countInstancesForClassDefinitionInPeriod(@Param("classDefinitionUuid") UUID classDefinitionUuid,
                                                 @Param("startDate") LocalDateTime startDate,
                                                 @Param("endDate") LocalDateTime endDate);
+
+    long countByStartTimeBetween(LocalDateTime start, LocalDateTime end);
+
+    long countByStatusAndStartTimeBetween(SchedulingStatus status, LocalDateTime start, LocalDateTime end);
+
+    long countByStatusAndEndTimeBetween(SchedulingStatus status, LocalDateTime start, LocalDateTime end);
 }

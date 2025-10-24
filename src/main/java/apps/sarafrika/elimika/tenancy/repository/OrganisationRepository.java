@@ -27,4 +27,13 @@ public interface OrganisationRepository extends JpaRepository<Organisation, Long
 
     @Query("SELECT o FROM Organisation o WHERE (o.adminVerified = false OR o.adminVerified IS NULL) AND o.deleted = false")
     Page<Organisation> findByAdminVerifiedFalseOrNullAndDeletedFalse(Pageable pageable);
+
+    long countByDeletedFalse();
+
+    long countByActiveTrueAndDeletedFalse();
+
+    long countByActiveFalseAndDeletedFalse();
+
+    @Query("SELECT COUNT(o) FROM Organisation o WHERE (o.adminVerified = false OR o.adminVerified IS NULL) AND o.deleted = false")
+    long countPendingApproval();
 }

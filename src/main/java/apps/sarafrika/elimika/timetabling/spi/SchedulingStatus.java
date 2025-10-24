@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.timetabling.util.enums;
+package apps.sarafrika.elimika.timetabling.spi;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

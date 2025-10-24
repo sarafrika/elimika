@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.instructor.model.InstructorDocument;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -27,4 +29,12 @@ public interface InstructorDocumentRepository extends JpaRepository<InstructorDo
     List<InstructorDocument> findByExpiryDateBeforeAndStatusNot(LocalDate cutoffDate, DocumentStatus status);
 
     List<InstructorDocument> findByIsVerifiedFalse();
+
+    long countByIsVerifiedFalse();
+
+    @Query("SELECT COUNT(id) FROM InstructorDocument id WHERE id.expiryDate BETWEEN :start AND :end " +
+            "AND (id.status IS NULL OR id.status <> :excludedStatus)")
+    long countExpiringBetweenExcludingStatus(@Param("start") LocalDate start,
+                                             @Param("end") LocalDate end,
+                                             @Param("excludedStatus") DocumentStatus excludedStatus);
 }

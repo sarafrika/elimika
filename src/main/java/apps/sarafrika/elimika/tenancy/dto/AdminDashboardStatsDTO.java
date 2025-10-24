@@ -46,6 +46,28 @@ public record AdminDashboardStatsDTO(
     @JsonProperty("admin_metrics")
     AdminMetrics adminMetrics
 
+    ,
+
+    @Schema(description = "Learning performance metrics")
+    @JsonProperty("learning_metrics")
+    LearningMetrics learningMetrics,
+
+    @Schema(description = "Timetabling utilisation metrics")
+    @JsonProperty("timetabling_metrics")
+    TimetablingMetrics timetablingMetrics,
+
+    @Schema(description = "Commerce performance metrics")
+    @JsonProperty("commerce_metrics")
+    CommerceMetrics commerceMetrics,
+
+    @Schema(description = "Notification delivery metrics")
+    @JsonProperty("communication_metrics")
+    CommunicationMetrics communicationMetrics,
+
+    @Schema(description = "Compliance and verification metrics")
+    @JsonProperty("compliance_metrics")
+    ComplianceMetrics complianceMetrics
+
 ) {
 
     @Schema(description = "User metrics for dashboard")
@@ -108,6 +130,104 @@ public record AdminDashboardStatsDTO(
         long systemAdmins,
         @JsonProperty("organization_admins")
         long organizationAdmins
+    ) {}
+
+    @Schema(description = "Detailed learning analytics")
+    public record LearningMetrics(
+        @JsonProperty("total_courses")
+        long totalCourses,
+        @JsonProperty("published_courses")
+        long publishedCourses,
+        @JsonProperty("in_review_courses")
+        long inReviewCourses,
+        @JsonProperty("draft_courses")
+        long draftCourses,
+        @JsonProperty("archived_courses")
+        long archivedCourses,
+        @JsonProperty("total_course_enrollments")
+        long totalCourseEnrollments,
+        @JsonProperty("active_course_enrollments")
+        long activeCourseEnrollments,
+        @JsonProperty("new_course_enrollments_7d")
+        long newCourseEnrollments7d,
+        @JsonProperty("completed_course_enrollments_30d")
+        long completedCourseEnrollments30d,
+        @JsonProperty("average_course_progress")
+        double averageCourseProgress,
+        @JsonProperty("total_training_programs")
+        long totalTrainingPrograms,
+        @JsonProperty("published_training_programs")
+        long publishedTrainingPrograms,
+        @JsonProperty("active_training_programs")
+        long activeTrainingPrograms,
+        @JsonProperty("program_enrollments")
+        long programEnrollments,
+        @JsonProperty("completed_program_enrollments_30d")
+        long completedProgramEnrollments30d
+    ) {}
+
+    @Schema(description = "Timetabling and attendance analytics")
+    public record TimetablingMetrics(
+        @JsonProperty("sessions_next_7d")
+        long sessionsNext7Days,
+        @JsonProperty("sessions_last_30d")
+        long sessionsLast30Days,
+        @JsonProperty("sessions_completed_last_30d")
+        long sessionsCompletedLast30Days,
+        @JsonProperty("sessions_cancelled_last_30d")
+        long sessionsCancelledLast30Days,
+        @JsonProperty("attended_enrollments_last_30d")
+        long attendedEnrollmentsLast30Days,
+        @JsonProperty("absent_enrollments_last_30d")
+        long absentEnrollmentsLast30Days
+    ) {}
+
+    @Schema(description = "Commerce analytics")
+    public record CommerceMetrics(
+        @JsonProperty("total_orders")
+        long totalOrders,
+        @JsonProperty("orders_last_30d")
+        long ordersLast30Days,
+        @JsonProperty("captured_orders")
+        long capturedOrders,
+        @JsonProperty("unique_customers")
+        long uniqueCustomers,
+        @JsonProperty("new_customers_last_30d")
+        long newCustomersLast30Days,
+        @JsonProperty("course_purchases_last_30d")
+        long coursePurchasesLast30Days,
+        @JsonProperty("class_purchases_last_30d")
+        long classPurchasesLast30Days
+    ) {}
+
+    @Schema(description = "Notification delivery analytics")
+    public record CommunicationMetrics(
+        @JsonProperty("notifications_created_7d")
+        long notificationsCreated7d,
+        @JsonProperty("notifications_delivered_7d")
+        long notificationsDelivered7d,
+        @JsonProperty("notifications_failed_7d")
+        long notificationsFailed7d,
+        @JsonProperty("pending_notifications")
+        long pendingNotifications
+    ) {}
+
+    @Schema(description = "Compliance and verification analytics")
+    public record ComplianceMetrics(
+        @JsonProperty("verified_instructors")
+        long verifiedInstructors,
+        @JsonProperty("pending_instructor_verifications")
+        long pendingInstructorVerifications,
+        @JsonProperty("pending_instructor_documents")
+        long pendingInstructorDocuments,
+        @JsonProperty("expiring_instructor_documents_30d")
+        long expiringInstructorDocuments30d,
+        @JsonProperty("total_course_creators")
+        long totalCourseCreators,
+        @JsonProperty("verified_course_creators")
+        long verifiedCourseCreators,
+        @JsonProperty("pending_course_creator_verifications")
+        long pendingCourseCreatorVerifications
     ) {}
 
     public AdminDashboardStatsDTO {

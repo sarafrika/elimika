@@ -1,7 +1,7 @@
-package apps.sarafrika.elimika.timetabling.dto;
+package apps.sarafrika.elimika.timetabling.spi;
 
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
-import apps.sarafrika.elimika.timetabling.util.enums.SchedulingStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 

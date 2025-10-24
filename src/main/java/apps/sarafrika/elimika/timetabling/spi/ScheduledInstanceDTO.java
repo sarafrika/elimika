@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
-import apps.sarafrika.elimika.timetabling.util.enums.SchedulingStatus;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.timetabling.dto;
+package apps.sarafrika.elimika.timetabling.spi;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.timetabling.util.converter;
 
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

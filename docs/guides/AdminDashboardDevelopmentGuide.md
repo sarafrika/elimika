@@ -80,12 +80,71 @@ To provide a high-level, real-time overview of the platform's status, key metric
 - **Organization Growth:** A line chart showing new organization sign-ups over the last 6 months.
 
 ### 1.5 Required API Endpoints & Data
-- **Statistics:** `GET /api/v1/admin/dashboard/statistics` (Returns `SystemHealthDashboard` DTO).
+- **Statistics:** `GET /api/v1/admin/dashboard/statistics` (Returns `AdminDashboardStatsDTO` with aggregated analytics).
 - **Activity Feed:** `GET /api/v1/admin/dashboard/activity-feed` (Returns `List<ActivityEventDTO>`).
-- **Analytics (New Endpoints Required):**
-    - `GET /api/v1/admin/analytics/user-growth?period=30d` (Returns time-series data).
-    - `GET /api/v1/admin/analytics/domain-distribution` (Returns counts for each domain).
-    - `GET /api/v1/admin/analytics/organization-growth?period=6m` (Returns time-series data).
+- **Analytics:** All analytics are provided via the consolidated `/api/v1/admin/dashboard/statistics` endpoint which aggregates data from multiple modules.
+
+### 1.6 Analytics Architecture
+
+The admin dashboard statistics endpoint aggregates analytics from multiple domain modules using Service Provider Interfaces (SPIs). This decoupled architecture ensures module independence while providing comprehensive platform-wide analytics.
+
+#### Module Analytics SPIs
+
+Each domain module exposes analytics through an SPI interface in `apps.sarafrika.elimika.shared.spi.analytics`:
+
+| Module | Analytics Service | Snapshot Type | Key Metrics |
+|--------|------------------|---------------|-------------|
+| **Course** | `CourseAnalyticsService` | `CourseAnalyticsSnapshot` | Total courses, enrollments, completion rates, programs |
+| **Timetabling** | `TimetablingAnalyticsService` | `TimetablingAnalyticsSnapshot` | Scheduled sessions, attendance, completion rates |
+| **Commerce** | `CommerceAnalyticsService` | `CommerceAnalyticsSnapshot` | Orders, customers, purchases by type |
+| **Notifications** | `NotificationAnalyticsService` | `NotificationAnalyticsSnapshot` | Delivery rates, pending notifications |
+| **Instructor** | `InstructorAnalyticsService` | `InstructorAnalyticsSnapshot` | Verified instructors, pending verifications, document status |
+| **Course Creator** | `CourseCreatorAnalyticsService` | `CourseCreatorAnalyticsSnapshot` | Total creators, verification status |
+
+#### Analytics Data Flow
+
+```mermaid
+graph LR
+    A[Admin Dashboard UI] -->|GET /api/v1/admin/dashboard/statistics| B[AdminServiceImpl]
+    B -->|captureSnapshot| C1[CourseAnalyticsService]
+    B -->|captureSnapshot| C2[TimetablingAnalyticsService]
+    B -->|captureSnapshot| C3[CommerceAnalyticsService]
+    B -->|captureSnapshot| C4[NotificationAnalyticsService]
+    B -->|captureSnapshot| C5[InstructorAnalyticsService]
+    B -->|captureSnapshot| C6[CourseCreatorAnalyticsService]
+    C1 & C2 & C3 & C4 & C5 & C6 --> D[AdminDashboardStatsDTO]
+    D --> A
+```
+
+#### Implementation Location
+
+- **SPI Interfaces**: `src/main/java/apps/sarafrika/elimika/shared/spi/analytics/`
+- **Service Implementations**: Each module's `service/impl/` package (e.g., `CourseAnalyticsServiceImpl`)
+- **Admin Aggregation**: `src/main/java/apps/sarafrika/elimika/tenancy/services/impl/AdminServiceImpl.java`
+
+#### Example Analytics Snapshot
+
+```json
+{
+  "course_analytics": {
+    "total_courses": 150,
+    "published_courses": 120,
+    "total_course_enrollments": 5000,
+    "active_course_enrollments": 3200,
+    "average_course_progress": 67.5
+  },
+  "commerce_analytics": {
+    "total_orders": 800,
+    "orders_last_30_days": 120,
+    "unique_customers": 450
+  },
+  "instructor_analytics": {
+    "verified_instructors": 45,
+    "pending_instructors": 5,
+    "documents_expiring_30d": 8
+  }
+}
+```
 
 ### 1.6 Frontend Engineer Task Breakdown
 

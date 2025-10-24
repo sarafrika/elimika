@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.timetabling.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.timetabling.util.converter.EnrollmentStatusConverter;
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 

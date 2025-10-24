@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.commerce.order.service;
 
-import apps.sarafrika.elimika.commerce.order.dto.CheckoutRequest;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 
 /**
  * High level orchestration of order workflows for the commerce module.

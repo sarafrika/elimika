@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.timetabling.factory;
 
-import apps.sarafrika.elimika.timetabling.dto.StudentScheduleDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import lombok.AccessLevel;

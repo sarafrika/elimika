@@ -33,4 +33,10 @@ public interface TrainingProgramRepository extends JpaRepository<TrainingProgram
     List<TrainingProgram> findByTotalDurationHoursGreaterThanEqual(long totalDurationHours);
 
     List<TrainingProgram> findByTotalDurationHoursBetween(long startHours, long endHours);
+
+    long countByActiveTrue();
+
+    long countByIsPublishedTrue();
+
+    long countByStatus(ContentStatus status);
 }

@@ -1,17 +1,15 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
-import apps.sarafrika.elimika.commerce.cart.dto.CartItemResponse;
-import apps.sarafrika.elimika.commerce.order.dto.CheckoutRequest;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
-import apps.sarafrika.elimika.commerce.purchase.service.CommercePurchaseService;
-import apps.sarafrika.elimika.tenancy.entity.User;
-import apps.sarafrika.elimika.tenancy.repository.UserRepository;
-import apps.sarafrika.elimika.student.model.Student;
-import apps.sarafrika.elimika.student.repository.StudentRepository;
+import apps.sarafrika.elimika.commerce.purchase.spi.CommercePurchaseService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -32,8 +30,8 @@ import org.springframework.util.StringUtils;
 public class CommercePurchaseServiceImpl implements CommercePurchaseService {
 
     private final CommercePurchaseRepository purchaseRepository;
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
+    private final UserLookupService userLookupService;
+    private final StudentLookupService studentLookupService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -53,7 +51,8 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
 
         if (checkoutRequest != null) {
             purchase.setCustomerEmail(checkoutRequest.getCustomerEmail());
-            resolveUser(checkoutRequest.getCustomerEmail()).ifPresent(user -> purchase.setUserUuid(user.getUuid()));
+            userLookupService.findUserUuidByEmail(checkoutRequest.getCustomerEmail())
+                    .ifPresent(purchase::setUserUuid);
         }
 
         List<CartItemResponse> items = order.getItems();
@@ -97,12 +96,6 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         return entity;
     }
 
-    private Optional<User> resolveUser(String email) {
-        if (!StringUtils.hasText(email)) {
-            return Optional.empty();
-        }
-        return userRepository.findByEmail(email);
-    }
 
     private UUID resolveStudentUuid(Map<String, Object> metadata, CheckoutRequest checkoutRequest) {
         UUID metadataStudent = parseUuid(metadata.get("student_uuid"));
@@ -114,9 +107,8 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         if (!StringUtils.hasText(email)) {
             return null;
         }
-        return resolveUser(email)
-                .flatMap(user -> studentRepository.findByUserUuid(user.getUuid()))
-                .map(Student::getUuid)
+        return userLookupService.findUserUuidByEmail(email)
+                .flatMap(studentLookupService::findStudentUuidByUserUuid)
                 .orElse(null);
     }
 

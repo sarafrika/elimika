@@ -9,7 +9,7 @@ import apps.sarafrika.elimika.commerce.cart.service.CartService;
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaCartRequest;
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaLineItemRequest;
 import apps.sarafrika.elimika.commerce.medusa.service.MedusaCartService;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.commerce.shared.mapper.MedusaCommerceMapper;
 import java.util.LinkedHashMap;
 import java.util.List;

@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.timetabling.repository;
 
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -81,4 +81,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     List<Enrollment> findOverlappingEnrollmentsForStudent(@Param("studentUuid") UUID studentUuid,
                                                         @Param("startTime") LocalDateTime startTime,
                                                         @Param("endTime") LocalDateTime endTime);
+
+    long countByStatusAndAttendanceMarkedAtBetween(EnrollmentStatus status, LocalDateTime start, LocalDateTime end);
+
+    long countByStatusAndCreatedDateBetween(EnrollmentStatus status, LocalDateTime start, LocalDateTime end);
 }

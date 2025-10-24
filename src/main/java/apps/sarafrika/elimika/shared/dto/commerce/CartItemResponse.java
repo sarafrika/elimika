@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.commerce.cart.dto;
+package apps.sarafrika.elimika.shared.dto.commerce;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;

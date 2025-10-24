@@ -20,5 +20,5 @@
  * 
  * @since 2.7.0
  */
-@org.springframework.modulith.ApplicationModule
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"shared"})
 package apps.sarafrika.elimika.notifications;

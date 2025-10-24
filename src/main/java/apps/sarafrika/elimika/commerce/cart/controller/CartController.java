@@ -6,7 +6,7 @@ import apps.sarafrika.elimika.commerce.cart.dto.CreateCartRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.SelectPaymentSessionRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.UpdateCartRequest;
 import apps.sarafrika.elimika.commerce.cart.service.CartService;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

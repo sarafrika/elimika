@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,4 +24,9 @@ public interface ProgramEnrollmentRepository extends JpaRepository<ProgramEnroll
 
     boolean existsByUuid(UUID uuid);
 
+    long countByStatus(EnrollmentStatus status);
+
+    long countByEnrollmentDateAfter(LocalDateTime enrollmentDate);
+
+    long countByStatusAndCompletionDateAfter(EnrollmentStatus status, LocalDateTime completionDate);
 }

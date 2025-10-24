@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.commerce.shared.mapper;
 
-import apps.sarafrika.elimika.commerce.cart.dto.CartItemResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
 import apps.sarafrika.elimika.commerce.cart.dto.CartResponse;
-import apps.sarafrika.elimika.commerce.order.dto.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaCartResponse;
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaOrderResponse;
 import java.util.Collections;

@@ -1,6 +1,19 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsService;
+import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsSnapshot;
+import apps.sarafrika.elimika.shared.spi.analytics.CourseAnalyticsService;
+import apps.sarafrika.elimika.shared.spi.analytics.CourseAnalyticsSnapshot;
+import apps.sarafrika.elimika.shared.spi.analytics.CourseCreatorAnalyticsService;
+import apps.sarafrika.elimika.shared.spi.analytics.CourseCreatorAnalyticsSnapshot;
+import apps.sarafrika.elimika.shared.spi.analytics.InstructorAnalyticsService;
+import apps.sarafrika.elimika.shared.spi.analytics.InstructorAnalyticsSnapshot;
+import apps.sarafrika.elimika.shared.spi.analytics.NotificationAnalyticsService;
+import apps.sarafrika.elimika.shared.spi.analytics.NotificationAnalyticsSnapshot;
+import apps.sarafrika.elimika.shared.spi.analytics.TimetablingAnalyticsService;
+import apps.sarafrika.elimika.shared.spi.analytics.TimetablingAnalyticsSnapshot;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -15,7 +28,6 @@ import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRe
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
-import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -49,6 +61,12 @@ public class AdminServiceImpl implements AdminService {
     private final OrganisationRepository organisationRepository;
     private final UserService userService;
     private final InstructorManagementService instructorManagementService;
+    private final CourseAnalyticsService courseAnalyticsService;
+    private final TimetablingAnalyticsService timetablingAnalyticsService;
+    private final CommerceAnalyticsService commerceAnalyticsService;
+    private final NotificationAnalyticsService notificationAnalyticsService;
+    private final InstructorAnalyticsService instructorAnalyticsService;
+    private final CourseCreatorAnalyticsService courseCreatorAnalyticsService;
 
     @Override
     @Transactional
@@ -217,17 +235,29 @@ public class AdminServiceImpl implements AdminService {
     public AdminDashboardStatsDTO getDashboardStatistics() {
         log.debug("Generating admin dashboard statistics");
 
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime twentyFourHoursAgo = now.minusHours(24);
+        LocalDateTime sevenDaysAgo = now.minusDays(7);
+
+        // Cross-module snapshots
+        CourseAnalyticsSnapshot courseAnalytics = courseAnalyticsService.captureSnapshot();
+        TimetablingAnalyticsSnapshot timetablingAnalytics = timetablingAnalyticsService.captureSnapshot();
+        CommerceAnalyticsSnapshot commerceAnalytics = commerceAnalyticsService.captureSnapshot();
+        NotificationAnalyticsSnapshot notificationAnalytics = notificationAnalyticsService.captureSnapshot();
+        InstructorAnalyticsSnapshot instructorAnalytics = instructorAnalyticsService.captureSnapshot();
+        CourseCreatorAnalyticsSnapshot courseCreatorAnalytics = courseCreatorAnalyticsService.captureSnapshot();
+
         // User metrics
         long totalUsers = userRepository.count();
-        long suspendedUsers = 0; // Would need status field implementation
+        long suspendedUsers = userRepository.countByActiveFalse();
+        long activeUsers24h = userRepository.countByLastModifiedDateAfter(twentyFourHoursAgo);
+        long newRegistrations7d = userRepository.countByCreatedDateAfter(sevenDaysAgo);
 
         // Organization metrics
-        long totalOrganizations = organisationRepository.count();
-        long pendingApprovals = 0; // Would need approval status implementation
-
-        // Instructor metrics
-        long verifiedInstructors = instructorManagementService.countInstructorsByVerificationStatus(true);
-        long pendingInstructorApprovals = instructorManagementService.countInstructorsByVerificationStatus(false);
+        long totalOrganizations = organisationRepository.countByDeletedFalse();
+        long pendingApprovals = organisationRepository.countPendingApproval();
+        long activeOrganizations = organisationRepository.countByActiveTrueAndDeletedFalse();
+        long suspendedOrganizations = organisationRepository.countByActiveFalseAndDeletedFalse();
 
         // Admin metrics
         UserDomain adminDomain = userDomainRepository.findByDomainName("admin").orElse(null);
@@ -237,26 +267,28 @@ public class AdminServiceImpl implements AdminService {
         long organizationAdmins = userOrganisationDomainMappingRepository
                 .countActiveByDomainName("organisation_user");
 
+        long totalAdmins = systemAdmins + organizationAdmins;
+
         return new AdminDashboardStatsDTO(
-                LocalDateTime.now(),
+                now,
                 "HEALTHY",
                 new AdminDashboardStatsDTO.UserMetrics(
                         totalUsers,
-                        0, // activeUsers24h - would need login tracking
-                        0, // newRegistrations7d - would need creation date filtering
+                        activeUsers24h,
+                        newRegistrations7d,
                         suspendedUsers
                 ),
                 new AdminDashboardStatsDTO.OrganizationMetrics(
                         totalOrganizations,
                         pendingApprovals,
-                        totalOrganizations, // assuming all are active
-                        0 // suspendedOrganizations
+                        activeOrganizations,
+                        suspendedOrganizations
                 ),
                 new AdminDashboardStatsDTO.ContentMetrics(
-                        0, // totalCourses - would need course repository
-                        pendingInstructorApprovals, // Use pending instructor approvals for moderation queue
-                        0, // reportedContent
-                        verifiedInstructors > 0 ? (double) verifiedInstructors / (verifiedInstructors + pendingInstructorApprovals) * 100.0 : 0.0 // instructor verification rate as quality score
+                        courseAnalytics.totalCourses(),
+                        courseAnalytics.inReviewCourses(),
+                        0,
+                        courseAnalytics.averageCourseProgress()
                 ),
                 new AdminDashboardStatsDTO.SystemPerformance(
                         "99.9%", // serverUptime - would need monitoring integration
@@ -265,11 +297,60 @@ public class AdminServiceImpl implements AdminService {
                         "65%" // storageUsage
                 ),
                 new AdminDashboardStatsDTO.AdminMetrics(
-                        systemAdmins + organizationAdmins,
+                        totalAdmins,
                         0, // activeAdminSessions - would need session tracking
                         0, // adminActionsToday - would need audit log
                         systemAdmins,
                         organizationAdmins
+                ),
+                new AdminDashboardStatsDTO.LearningMetrics(
+                        courseAnalytics.totalCourses(),
+                        courseAnalytics.publishedCourses(),
+                        courseAnalytics.inReviewCourses(),
+                        courseAnalytics.draftCourses(),
+                        courseAnalytics.archivedCourses(),
+                        courseAnalytics.totalCourseEnrollments(),
+                        courseAnalytics.activeCourseEnrollments(),
+                        courseAnalytics.newCourseEnrollments7d(),
+                        courseAnalytics.completedCourseEnrollments30d(),
+                        courseAnalytics.averageCourseProgress(),
+                        courseAnalytics.totalTrainingPrograms(),
+                        courseAnalytics.publishedTrainingPrograms(),
+                        courseAnalytics.activeTrainingPrograms(),
+                        courseAnalytics.programEnrollments(),
+                        courseAnalytics.completedProgramEnrollments30d()
+                ),
+                new AdminDashboardStatsDTO.TimetablingMetrics(
+                        timetablingAnalytics.sessionsNext7Days(),
+                        timetablingAnalytics.sessionsLast30Days(),
+                        timetablingAnalytics.sessionsCompletedLast30Days(),
+                        timetablingAnalytics.sessionsCancelledLast30Days(),
+                        timetablingAnalytics.attendedEnrollmentsLast30Days(),
+                        timetablingAnalytics.absentEnrollmentsLast30Days()
+                ),
+                new AdminDashboardStatsDTO.CommerceMetrics(
+                        commerceAnalytics.totalOrders(),
+                        commerceAnalytics.ordersLast30Days(),
+                        commerceAnalytics.capturedOrders(),
+                        commerceAnalytics.uniqueCustomers(),
+                        commerceAnalytics.newCustomersLast30Days(),
+                        commerceAnalytics.coursePurchasesLast30Days(),
+                        commerceAnalytics.classPurchasesLast30Days()
+                ),
+                new AdminDashboardStatsDTO.CommunicationMetrics(
+                        notificationAnalytics.notificationsCreated7d(),
+                        notificationAnalytics.notificationsDelivered7d(),
+                        notificationAnalytics.notificationsFailed7d(),
+                        notificationAnalytics.pendingNotifications()
+                ),
+                new AdminDashboardStatsDTO.ComplianceMetrics(
+                        instructorAnalytics.verifiedInstructors(),
+                        instructorAnalytics.pendingInstructors(),
+                        instructorAnalytics.documentsPendingVerification(),
+                        instructorAnalytics.documentsExpiring30d(),
+                        courseCreatorAnalytics.totalCourseCreators(),
+                        courseCreatorAnalytics.verifiedCourseCreators(),
+                        courseCreatorAnalytics.pendingCourseCreators()
                 )
         );
     }

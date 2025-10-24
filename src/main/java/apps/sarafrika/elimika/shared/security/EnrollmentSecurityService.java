@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.shared.security;
 
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
-import apps.sarafrika.elimika.timetabling.spi.EnrollmentLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;

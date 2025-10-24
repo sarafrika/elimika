@@ -47,12 +47,17 @@
  */
 @ApplicationModule(
         allowedDependencies = {
-                "notifications :: preferences-spi",
-                "notifications :: events-api",
-                "instructor :: instructor-spi",
-                "shared",
-                "authentication :: keycloak-integration"
-        }
+        "notifications :: preferences-spi",
+        "notifications :: events-api",
+        "notifications :: notifications-spi",
+        "instructor :: instructor-spi",
+        "course :: course-spi",
+        "coursecreator :: coursecreator-spi",
+        "timetabling :: timetabling-spi",
+        "commerce :: commerce-purchase-spi",
+        "shared",
+        "authentication :: keycloak-integration"
+}
 )
 package apps.sarafrika.elimika.tenancy;
 

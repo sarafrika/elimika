@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.timetabling.dto;
 
-import apps.sarafrika.elimika.timetabling.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
