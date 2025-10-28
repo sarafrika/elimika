@@ -1,3 +1,10 @@
+## [2.28.1](https://github.com/sarafrika/elimika/compare/v2.28.0...v2.28.1) (2025-10-28)
+
+
+### Bug Fixes
+
+* make course training application constraints case-insensitive ([95cf511](https://github.com/sarafrika/elimika/commit/95cf511f20fc58c6d1b931d67dd34c6a3ea42176))
+
 # [2.28.0](https://github.com/sarafrika/elimika/compare/v2.27.0...v2.28.0) (2025-10-24)
 
 
