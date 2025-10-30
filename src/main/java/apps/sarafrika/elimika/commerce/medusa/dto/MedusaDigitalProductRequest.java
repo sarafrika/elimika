@@ -8,7 +8,9 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -41,8 +43,9 @@ public class MedusaDigitalProductRequest {
     @JsonProperty("sku")
     private String sku;
 
-    @NotBlank
     @JsonProperty("currency_code")
+    @Size(min = 3, max = 3, message = "Currency code must be a 3-letter ISO value")
+    @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency code must be alphabetic")
     private String currencyCode;
 
     @Positive

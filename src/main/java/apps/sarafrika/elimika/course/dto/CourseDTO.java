@@ -198,7 +198,7 @@ public record CourseDTO(
         BigDecimal price,
 
         @Schema(
-                description = "**[OPTIONAL]** Minimum training fee that any instructor-led class for this course must meet or exceed.",
+                description = "**[OPTIONAL]** Minimum rate per trainee per hour that any instructor-led class for this course must meet or exceed.",
                 example = "180.00",
                 minimum = "0",
                 nullable = true,

@@ -4,10 +4,13 @@ import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -20,6 +23,8 @@ import java.util.UUID;
         {
           "applicant_type": "instructor",
           "applicant_uuid": "inst-1234-5678-90ab-cdef12345678",
+          "rate_per_hour_per_head": 2500.0000,
+          "rate_currency": "KES",
           "application_notes": "I hold the vendor certification required for this course."
         }
         """
@@ -42,6 +47,29 @@ public record CourseTrainingApplicationRequest(
         @JsonProperty("applicant_uuid")
         @NotNull(message = "Applicant UUID is required")
         UUID applicantUuid,
+
+        @Schema(
+                description = "**[REQUIRED]** Proposed compensation per trainee per hour for delivering this course.",
+                example = "2500.0000",
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                minimum = "0"
+        )
+        @JsonProperty("rate_per_hour_per_head")
+        @NotNull(message = "Rate per hour per head is required")
+        @DecimalMin(value = "0.0000", message = "Rate per hour per head cannot be negative")
+        @Digits(integer = 8, fraction = 4, message = "Rate per hour per head must have at most 8 digits and 4 decimals")
+        BigDecimal ratePerHourPerHead,
+
+        @Schema(
+                description = "**[OPTIONAL]** ISO 4217 currency code drawn from the platform approved list. Defaults to the platform currency when omitted.",
+                example = "KES",
+                nullable = true,
+                maxLength = 3
+        )
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("rate_currency")
+        @Pattern(regexp = "^[A-Za-z]{3}$", message = "Rate currency must be a 3-letter ISO code")
+        String rateCurrency,
 
         @Schema(
                 description = "Optional notes to help the course creator evaluate the request.",

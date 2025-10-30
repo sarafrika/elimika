@@ -28,7 +28,7 @@ public class CommerceCatalogItem extends BaseEntity {
     @Column(name = "medusa_variant_id")
     private String medusaVariantId;
 
-    @Column(name = "currency_code")
+    @Column(name = "currency_code", length = 3, nullable = false)
     private String currencyCode;
 
     @Column(name = "active")

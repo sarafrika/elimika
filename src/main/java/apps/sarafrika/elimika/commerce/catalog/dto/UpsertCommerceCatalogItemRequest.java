@@ -30,7 +30,7 @@ public record UpsertCommerceCatalogItemRequest(
         @JsonProperty("medusa_variant_id")
         String medusaVariantId,
 
-        @Schema(description = "Currency code for the variant", example = "USD")
+        @Schema(description = "Currency code for the variant. Defaults to the platform currency when omitted.", example = "USD")
         @JsonProperty("currency_code")
         String currencyCode,
 

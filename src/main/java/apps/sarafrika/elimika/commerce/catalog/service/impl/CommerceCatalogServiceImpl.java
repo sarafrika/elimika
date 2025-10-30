@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.commerce.catalog.dto.UpsertCommerceCatalogItemRequ
 import apps.sarafrika.elimika.commerce.catalog.entity.CommerceCatalogItem;
 import apps.sarafrika.elimika.commerce.catalog.repository.CommerceCatalogItemRepository;
 import apps.sarafrika.elimika.commerce.catalog.service.CommerceCatalogService;
+import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class CommerceCatalogServiceImpl implements CommerceCatalogService {
 
     private final CommerceCatalogItemRepository catalogItemRepository;
+    private final CurrencyService currencyService;
 
     @Override
     @Transactional
@@ -69,7 +71,8 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
         entity.setClassDefinitionUuid(request.classDefinitionUuid());
         entity.setMedusaProductId(request.medusaProductId());
         entity.setMedusaVariantId(request.medusaVariantId());
-        entity.setCurrencyCode(request.currencyCode());
+        String currencyCode = currencyService.resolveCurrencyOrDefault(request.currencyCode()).getCode();
+        entity.setCurrencyCode(currencyCode);
         if (request.active() != null) {
             entity.setActive(request.active());
         }

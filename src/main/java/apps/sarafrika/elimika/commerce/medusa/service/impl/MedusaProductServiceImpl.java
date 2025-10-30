@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.commerce.medusa.dto.MedusaDigitalProductRequest;
 import apps.sarafrika.elimika.commerce.medusa.dto.MedusaDigitalProductResponse;
 import apps.sarafrika.elimika.commerce.medusa.exception.MedusaIntegrationException;
 import apps.sarafrika.elimika.commerce.medusa.service.MedusaProductService;
+import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
+import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,9 +24,11 @@ import org.springframework.web.client.RestClientResponseException;
 public class MedusaProductServiceImpl implements MedusaProductService {
 
     private final RestClient medusaRestClient;
+    private final CurrencyService currencyService;
 
-    public MedusaProductServiceImpl(RestClient medusaRestClient) {
+    public MedusaProductServiceImpl(RestClient medusaRestClient, CurrencyService currencyService) {
         this.medusaRestClient = medusaRestClient;
+        this.currencyService = currencyService;
     }
 
     @Override
@@ -81,9 +85,10 @@ public class MedusaProductServiceImpl implements MedusaProductService {
         variant.put("manage_inventory", false);
         variant.put("allow_backorder", true);
         variant.put("inventory_quantity", 0);
+        PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(request.getCurrencyCode());
         variant.put(
                 "prices",
-                List.of(Map.of("amount", request.getAmount(), "currency_code", request.getCurrencyCode())));
+                List.of(Map.of("amount", request.getAmount(), "currency_code", resolvedCurrency.getCode())));
         variant.put("options", List.of(Map.of("value", request.getOptionValue())));
 
         payload.put("variants", List.of(variant));

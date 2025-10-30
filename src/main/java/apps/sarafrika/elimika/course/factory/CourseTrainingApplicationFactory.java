@@ -18,6 +18,8 @@ public final class CourseTrainingApplicationFactory {
                 entity.getApplicantType(),
                 entity.getApplicantUuid(),
                 entity.getStatus(),
+                entity.getRatePerHourPerHead(),
+                entity.getRateCurrency(),
                 entity.getApplicationNotes(),
                 entity.getReviewNotes(),
                 entity.getReviewedBy(),

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -22,6 +23,8 @@ import java.util.UUID;
             "applicant_type": "instructor",
             "applicant_uuid": "inst-1234-5678-90ab-cdef12345678",
             "status": "pending",
+            "rate_per_hour_per_head": 2500.0000,
+            "rate_currency": "KES",
             "application_notes": "I have delivered similar courses for 5 years.",
             "review_notes": null,
             "reviewed_by": null,
@@ -71,6 +74,22 @@ public record CourseTrainingApplicationDTO(
         )
         @JsonProperty(value = "status", access = JsonProperty.Access.READ_ONLY)
         CourseTrainingApplicationStatus status,
+
+        @Schema(
+                description = "**[READ-ONLY]** Instructor or organisation rate charged per trainee per hour.",
+                example = "2500.00",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "rate_per_hour_per_head", access = JsonProperty.Access.READ_ONLY)
+        BigDecimal ratePerHourPerHead,
+
+        @Schema(
+                description = "**[READ-ONLY]** ISO 4217 currency code for the proposed rate (managed by platform configuration).",
+                example = "KES",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "rate_currency", access = JsonProperty.Access.READ_ONLY)
+        String rateCurrency,
 
         @Schema(
                 description = "Submission notes provided by the applicant.",

@@ -4,12 +4,15 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
+import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.service.CourseTrainingApplicationService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
+import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -43,17 +47,29 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository applicationRepository;
     private final GenericSpecificationBuilder<CourseTrainingApplication> specificationBuilder;
+    private final CurrencyService currencyService;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
         log.debug("Submitting training application for course {} by {} {}", courseUuid, request.applicantType(), request.applicantUuid());
 
-        ensureCourseExists(courseUuid);
+        Course course = courseRepository.findByUuid(courseUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
+
+        BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(course);
+        BigDecimal proposedRate = request.ratePerHourPerHead();
+        if (proposedRate == null) {
+            throw new IllegalArgumentException("Rate per hour per head is required");
+        }
+        validateRateAgainstMinimum(proposedRate, minimumTrainingFee);
+
+        PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(request.rateCurrency());
+        String rateCurrency = resolvedCurrency.getCode();
 
         CourseTrainingApplication application = applicationRepository
                 .findByCourseUuidAndApplicantTypeAndApplicantUuid(courseUuid, request.applicantType(), request.applicantUuid())
-                .map(existing -> updateExistingApplication(existing, request))
-                .orElseGet(() -> createNewApplication(courseUuid, request));
+                .map(existing -> updateExistingApplication(existing, request, proposedRate, rateCurrency))
+                .orElseGet(() -> createNewApplication(courseUuid, request, proposedRate, rateCurrency));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
         return CourseTrainingApplicationFactory.toDTO(saved);
@@ -176,7 +192,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     }
 
     private CourseTrainingApplication updateExistingApplication(CourseTrainingApplication existing,
-                                                                CourseTrainingApplicationRequest request) {
+                                                                CourseTrainingApplicationRequest request,
+                                                                BigDecimal ratePerHourPerHead,
+                                                                String rateCurrency) {
         if (existing.getStatus() == CourseTrainingApplicationStatus.APPROVED) {
             throw new IllegalStateException("Applicant is already approved to deliver this course.");
         }
@@ -189,16 +207,23 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         existing.setReviewNotes(null);
         existing.setReviewedBy(null);
         existing.setReviewedAt(null);
+        existing.setRatePerHourPerHead(ratePerHourPerHead);
+        existing.setRateCurrency(rateCurrency);
         return existing;
     }
 
-    private CourseTrainingApplication createNewApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
+    private CourseTrainingApplication createNewApplication(UUID courseUuid,
+                                                           CourseTrainingApplicationRequest request,
+                                                           BigDecimal ratePerHourPerHead,
+                                                           String rateCurrency) {
         CourseTrainingApplication application = new CourseTrainingApplication();
         application.setCourseUuid(courseUuid);
         application.setApplicantType(request.applicantType());
         application.setApplicantUuid(request.applicantUuid());
         application.setStatus(CourseTrainingApplicationStatus.PENDING);
         application.setApplicationNotes(request.applicationNotes());
+        application.setRatePerHourPerHead(ratePerHourPerHead);
+        application.setRateCurrency(rateCurrency);
         return application;
     }
 
@@ -208,6 +233,19 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, courseUuid)
                 ));
+    }
+
+    private BigDecimal resolveMinimumTrainingFee(Course course) {
+        return course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
+    }
+
+    private void validateRateAgainstMinimum(BigDecimal proposedRate, BigDecimal minimumTrainingFee) {
+        if (proposedRate.compareTo(minimumTrainingFee) < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "Rate %s cannot be less than the course minimum training fee %s",
+                    proposedRate,
+                    minimumTrainingFee));
+        }
     }
 
     private void ensureCourseExists(UUID courseUuid) {
