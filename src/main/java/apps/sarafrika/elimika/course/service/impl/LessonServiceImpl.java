@@ -100,12 +100,6 @@ public class LessonServiceImpl implements LessonService {
         if (dto.title() != null) {
             existingLesson.setTitle(dto.title());
         }
-        if (dto.durationHours() != null) {
-            existingLesson.setDurationHours(dto.durationHours());
-        }
-        if (dto.durationMinutes() != null) {
-            existingLesson.setDurationMinutes(dto.durationMinutes());
-        }
         if (dto.description() != null) {
             existingLesson.setDescription(dto.description());
         }

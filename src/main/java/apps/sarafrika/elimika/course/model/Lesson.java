@@ -22,6 +22,7 @@ import java.util.UUID;
 @Table(name = "lessons")
 public class Lesson extends BaseEntity {
 
+    // Lesson duration is defined when classes are scheduled; no time estimates are persisted here.
     @Column(name = "course_uuid")
     private UUID courseUuid;
 
@@ -30,12 +31,6 @@ public class Lesson extends BaseEntity {
 
     @Column(name = "title")
     private String title;
-
-    @Column(name = "duration_hours")
-    private Integer durationHours;
-
-    @Column(name = "duration_minutes")
-    private Integer durationMinutes;
 
     @Column(name = "description")
     private String description;

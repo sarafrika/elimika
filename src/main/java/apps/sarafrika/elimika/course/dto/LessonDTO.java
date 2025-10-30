@@ -20,15 +20,13 @@ import java.util.UUID;
  */
 @Schema(
         name = "Lesson",
-        description = "Individual lesson within a course containing structured learning content",
+        description = "Individual lesson within a course containing structured learning content. Lesson timing is now defined during class scheduling by instructors.",
         example = """
         {
             "uuid": "l1e2s3s4-5o6n-7d8a-9t10-abcdefghijkl",
             "course_uuid": "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
             "lesson_number": 3,
             "title": "Object-Oriented Programming Fundamentals",
-            "duration_hours": 2,
-            "duration_minutes": 30,
             "description": "Introduction to OOP concepts including classes, objects, inheritance, and polymorphism",
             "learning_objectives": "Understand OOP principles, implement classes and objects, apply inheritance concepts",
             "status": "PUBLISHED",
@@ -37,7 +35,6 @@ import java.util.UUID;
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
             "updated_by": "instructor@sarafrika.com",
-            "duration_display": "2 hours 30 minutes",
             "is_published": true,
             "lesson_sequence": "Lesson 3"
         }
@@ -84,30 +81,6 @@ public record LessonDTO(
         @Size(max = 255, message = "Title must not exceed 255 characters")
         @JsonProperty("title")
         String title,
-
-        @Schema(
-                description = "**[REQUIRED]** Estimated lesson duration in hours.",
-                example = "2",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                minimum = "0"
-        )
-        @NotNull(message = "Duration hours is required")
-        @Min(value = 0, message = "Duration hours cannot be negative")
-        @JsonProperty("duration_hours")
-        Integer durationHours,
-
-        @Schema(
-                description = "**[REQUIRED]** Additional lesson duration in minutes (0-59).",
-                example = "30",
-                requiredMode = Schema.RequiredMode.REQUIRED,
-                minimum = "0",
-                maximum = "59"
-        )
-        @NotNull(message = "Duration minutes is required")
-        @Min(value = 0, message = "Duration minutes cannot be negative")
-        @Max(value = 59, message = "Duration minutes cannot exceed 59")
-        @JsonProperty("duration_minutes")
-        Integer durationMinutes,
 
         @Schema(
                 description = "**[OPTIONAL]** Detailed description of the lesson content and what students will learn.",
@@ -186,42 +159,6 @@ public record LessonDTO(
         String updatedBy
 
 ) {
-
-    /**
-     * Returns a formatted display string for lesson duration.
-     *
-     * @return Formatted duration string
-     */
-    @JsonProperty(value = "duration_display", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Human-readable format of lesson duration.",
-            example = "2 hours 30 minutes",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public String getDurationDisplay() {
-        if (durationHours == null && durationMinutes == null) {
-            return "Duration not specified";
-        }
-
-        int hours = durationHours != null ? durationHours : 0;
-        int minutes = durationMinutes != null ? durationMinutes : 0;
-
-        if (hours == 0 && minutes == 0) {
-            return "Duration not specified";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        if (hours > 0) {
-            sb.append(hours).append(" hour").append(hours != 1 ? "s" : "");
-        }
-        if (minutes > 0) {
-            if (sb.length() > 0) sb.append(" ");
-            sb.append(minutes).append(" minute").append(minutes != 1 ? "s" : "");
-        }
-
-        return sb.toString();
-    }
-
     /**
      * Checks if the lesson is published and available to students.
      *
