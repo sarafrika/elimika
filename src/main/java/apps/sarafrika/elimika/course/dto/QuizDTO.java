@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.dto;
 
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.course.util.enums.QuizScope;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -26,6 +27,9 @@ import java.util.UUID;
         {
             "uuid": "q1u2i3z4-5a6s-7s8e-9s10-abcdefghijkl",
             "lesson_uuid": "l1e2s3s4-5o6n-7d8a-9t10-abcdefghijkl",
+            "scope": "COURSE_TEMPLATE",
+            "class_definition_uuid": "cd123456-7890-abcd-ef01-234567890abc",
+            "source_quiz_uuid": "q1u2i3z4-5a6s-sourcequiz-abcdefghijkl",
             "title": "OOP Concepts Quiz",
             "description": "Test your understanding of object-oriented programming fundamentals",
             "instructions": "Answer all questions. You have 30 minutes to complete this quiz.",
@@ -65,6 +69,34 @@ public record QuizDTO(
         @NotNull(message = "Lesson UUID is required")
         @JsonProperty("lesson_uuid")
         UUID lessonUuid,
+
+        @Schema(
+                description = "**[OPTIONAL]** Scope of the quiz definition. Course templates act as blueprints, while class clones belong to a single class.",
+                example = "COURSE_TEMPLATE",
+                allowableValues = {"COURSE_TEMPLATE", "CLASS_CLONE"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("scope")
+        QuizScope scope,
+
+        @Schema(
+                description = "**[OPTIONAL]** Reference to the class definition that owns this quiz when scope is CLASS_CLONE.",
+                example = "cd123456-7890-abcd-ef01-234567890abc",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("class_definition_uuid")
+        UUID classDefinitionUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** UUID of the course-level quiz that served as the template for this class clone.",
+                example = "q1u2i3z4-5a6s-sourcequiz-abcdefghijkl",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "source_quiz_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID sourceQuizUuid,
 
         @Schema(
                 description = "**[REQUIRED]** Quiz title that clearly describes the assessment content.",

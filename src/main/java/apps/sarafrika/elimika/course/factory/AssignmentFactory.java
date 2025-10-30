@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.AssignmentDTO;
 import apps.sarafrika.elimika.course.model.Assignment;
+import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -16,6 +17,9 @@ public class AssignmentFactory {
         return new AssignmentDTO(
                 assignment.getUuid(),
                 assignment.getLessonUuid(),
+                assignment.getScope(),
+                assignment.getClassDefinitionUuid(),
+                assignment.getSourceAssignmentUuid(),
                 assignment.getTitle(),
                 assignment.getDescription(),
                 assignment.getInstructions(),
@@ -39,6 +43,9 @@ public class AssignmentFactory {
         Assignment assignment = new Assignment();
         assignment.setUuid(dto.uuid());
         assignment.setLessonUuid(dto.lessonUuid());
+        assignment.setScope(dto.scope() != null ? dto.scope() : AssignmentScope.COURSE_TEMPLATE);
+        assignment.setClassDefinitionUuid(dto.classDefinitionUuid());
+        assignment.setSourceAssignmentUuid(dto.sourceAssignmentUuid());
         assignment.setTitle(dto.title());
         assignment.setDescription(dto.description());
         assignment.setInstructions(dto.instructions());

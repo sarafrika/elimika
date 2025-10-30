@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Schedule Updated - [[${companyName}]]</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f7fafc;
+            margin: 0;
+            padding: 30px;
+            color: #2d3748;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3182ce 0%, #6a62d2 100%);
+            padding: 36px 32px;
+            color: #ffffff;
+        }
+
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .greeting {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            background: linear-gradient(180deg, rgba(237,242,247,0.6) 0%, rgba(255,255,255,0.8) 100%);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            color: #2b6cb0;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .detail {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #718096;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .notes {
+            margin-top: 16px;
+            padding: 16px;
+            border-left: 4px solid #667eea;
+            background: #f8fafc;
+            border-radius: 0 12px 12px 0;
+        }
+
+        .footer {
+            padding: 24px 32px 32px 32px;
+            font-size: 13px;
+            color: #718096;
+            border-top: 1px solid #edf2f7;
+            background: #fafbff;
+        }
+
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3182ce 0%, #6a62d2 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 999px;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Class schedule [[${changeTypeLabel}]]</h1>
+        <p>The [[${assessmentType}]] "<strong>[[${assessmentTitle}]]</strong>" has been [[${changeTypeLabel}]].</p>
+    </div>
+    <div class="content">
+        <p class="greeting">Hi [[${recipientName}]],</p>
+        <p>
+            A class assessment schedule was [[${changeTypeLabel}]] for your cohort. Review the details below to keep
+            your students aligned and your teaching plan up to date.
+        </p>
+
+        <div class="card">
+            <h2>Schedule details</h2>
+            <div class="details">
+                <div class="detail">
+                    <div class="detail-label">Assessment</div>
+                    <div class="detail-value">[[${assessmentTitle}]]</div>
+                </div>
+                <div class="detail">
+                    <div class="detail-label">Assessment type</div>
+                    <div class="detail-value">[[${assessmentType}]]</div>
+                </div>
+                <div class="detail" th:if="${visibleAt != null}">
+                    <div class="detail-label">Visible to learners</div>
+                    <div class="detail-value">[[${#temporals.format(visibleAt, 'dd MMM yyyy HH:mm')}]] [[${timezone}]]</div>
+                </div>
+                <div class="detail" th:if="${dueAt != null}">
+                    <div class="detail-label">Due date</div>
+                    <div class="detail-value">[[${#temporals.format(dueAt, 'dd MMM yyyy HH:mm')}]] [[${timezone}]]</div>
+                </div>
+                <div class="detail" th:if="${releaseStrategy != null}">
+                    <div class="detail-label">Release strategy</div>
+                    <div class="detail-value">[[${releaseStrategy}]]</div>
+                </div>
+                <div class="detail" th:if="${changedBy != null}">
+                    <div class="detail-label">Updated by</div>
+                    <div class="detail-value">[[${changedBy}]]</div>
+                </div>
+                <div class="detail" th:if="${changedAt != null}">
+                    <div class="detail-label">Updated at</div>
+                    <div class="detail-value">[[${#temporals.format(changedAt, 'dd MMM yyyy HH:mm')}]]</div>
+                </div>
+            </div>
+
+            <div class="notes" th:if="${notes != null}">
+                <strong>Instructor notes:</strong>
+                <p>[[${notes}]]</p>
+            </div>
+        </div>
+
+        <p>
+            You can review or adjust the schedule from the instructor dashboard. Keeping your schedule up to date helps
+            students stay on track and ensures reminders trigger at the right time.
+        </p>
+
+        <a th:href="${frontendUrl}" class="button">Open Instructor Dashboard</a>
+    </div>
+
+    <div class="footer">
+        <p>
+            You're receiving this email because you're assigned as the instructor for this class in [[${applicationName}]].
+            If you believe this is an error, please contact support.
+        </p>
+        <p>&copy; [[${currentYear}]] [[${companyName}]]. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

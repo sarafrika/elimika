@@ -63,21 +63,6 @@ class CourseTrainingApplicationServiceImplTest {
         course.setMinimumTrainingFee(new BigDecimal("2500.00"));
 
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
-        when(applicationRepository.findByCourseUuidAndApplicantTypeAndApplicantUuid(courseUuid,
-                CourseTrainingApplicantType.INSTRUCTOR,
-                applicantUuid)).thenReturn(Optional.empty());
-
-        PlatformCurrency kes = new PlatformCurrency(
-                "KES",
-                404,
-                "Kenyan Shilling",
-                "KES",
-                2,
-                true,
-                true
-        );
-        lenient().when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(kes);
-
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,

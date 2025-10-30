@@ -292,7 +292,7 @@ POST /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule?startDate=202
 
 ---
 
-## 6. Managing Existing Classes
+## 6. Managing Existing Classes & Assessments
 
 ### Listing and Filtering
 
@@ -308,6 +308,8 @@ You can use the `activeOnly=true` query parameter to filter for active classes.
 
 -   **Update:** `PUT /api/v1/classes/{uuid}` -> `updateClassDefinition`
 -   **Deactivate:** `DELETE /api/v1/classes/{uuid}` -> `deactivateClassDefinition`
+
+> **Next Steps:** Instructors often need to control lesson ordering and assessment deadlines after the class definition exists. Pair this guide with **[Class & Assessment Scheduling: Frontend Integration Guide](./ClassAssessmentsFrontendGuide.md)** to implement the lesson plan UI and class-specific assignment/quiz scheduling workflows.
 
 ---
 

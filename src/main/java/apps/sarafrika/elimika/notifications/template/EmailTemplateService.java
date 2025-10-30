@@ -44,6 +44,10 @@ public class EmailTemplateService {
             case "new-assignment-submission" ->
                 String.format("New Assignment Submission: %s",
                     event.getTemplateVariables().getOrDefault("assignmentTitle", "Assignment"));
+            case "class-schedule-updated" ->
+                String.format("Class schedule %s: %s",
+                        event.getTemplateVariables().getOrDefault("changeTypeLabel", "updated"),
+                        event.getTemplateVariables().getOrDefault("assessmentTitle", "Assessment"));
             default -> 
                 String.format("[%s] %s", applicationName, event.getNotificationType().getDisplayName());
         };

@@ -94,6 +94,15 @@ public class QuizServiceImpl implements QuizService {
         if (dto.lessonUuid() != null) {
             existingQuiz.setLessonUuid(dto.lessonUuid());
         }
+        if (dto.scope() != null) {
+            existingQuiz.setScope(dto.scope());
+        }
+        if (dto.classDefinitionUuid() != null) {
+            existingQuiz.setClassDefinitionUuid(dto.classDefinitionUuid());
+        }
+        if (dto.sourceQuizUuid() != null) {
+            existingQuiz.setSourceQuizUuid(dto.sourceQuizUuid());
+        }
         if (dto.title() != null) {
             existingQuiz.setTitle(dto.title());
         }

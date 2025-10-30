@@ -2,11 +2,12 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.QuizDTO;
 import apps.sarafrika.elimika.course.model.Quiz;
+import apps.sarafrika.elimika.course.util.enums.QuizScope;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class QuizFactory {
+public final class QuizFactory {
 
     // Convert Quiz entity to QuizDTO
     public static QuizDTO toDTO(Quiz quiz) {
@@ -16,6 +17,9 @@ public class QuizFactory {
         return new QuizDTO(
                 quiz.getUuid(),
                 quiz.getLessonUuid(),
+                quiz.getScope(),
+                quiz.getClassDefinitionUuid(),
+                quiz.getSourceQuizUuid(),
                 quiz.getTitle(),
                 quiz.getDescription(),
                 quiz.getInstructions(),
@@ -40,6 +44,9 @@ public class QuizFactory {
         Quiz quiz = new Quiz();
         quiz.setUuid(dto.uuid());
         quiz.setLessonUuid(dto.lessonUuid());
+        quiz.setScope(dto.scope() != null ? dto.scope() : QuizScope.COURSE_TEMPLATE);
+        quiz.setClassDefinitionUuid(dto.classDefinitionUuid());
+        quiz.setSourceQuizUuid(dto.sourceQuizUuid());
         quiz.setTitle(dto.title());
         quiz.setDescription(dto.description());
         quiz.setInstructions(dto.instructions());

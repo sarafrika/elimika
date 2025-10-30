@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.dto;
 
+import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
@@ -28,6 +29,9 @@ import java.util.UUID;
         {
             "uuid": "a1s2s3g4-5n6m-7e8n-9t10-abcdefghijkl",
             "lesson_uuid": "l1e2s3s4-5o6n-7u8u-9i10-abcdefghijkl",
+            "scope": "COURSE_TEMPLATE",
+            "class_definition_uuid": "cd123456-7890-abcd-ef01-234567890abc",
+            "source_assignment_uuid": "a1s2s3g4-5n6m-7e8n-9t10-sourceassign",
             "title": "Music Theory Fundamentals Assignment",
             "description": "Comprehensive assignment covering basic music theory concepts including scales, intervals, and chord progressions",
             "instructions": "Complete all sections of the assignment. Submit your answers in PDF format along with any audio recordings as requested.",
@@ -68,6 +72,34 @@ public record AssignmentDTO(
         @NotNull(message = "Lesson UUID is required")
         @JsonProperty("lesson_uuid")
         UUID lessonUuid,
+
+        @Schema(
+                description = "**[OPTIONAL]** Scope of the assignment definition. Course templates act as blueprints, while class clones are class-specific copies.",
+                example = "COURSE_TEMPLATE",
+                allowableValues = {"COURSE_TEMPLATE", "CLASS_CLONE"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("scope")
+        AssignmentScope scope,
+
+        @Schema(
+                description = "**[OPTIONAL]** Reference to the class definition that owns this assignment when scope is CLASS_CLONE.",
+                example = "cd123456-7890-abcd-ef01-234567890abc",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("class_definition_uuid")
+        UUID classDefinitionUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** UUID of the course-level assignment this class clone originates from.",
+                example = "a1s2s3g4-5n6m-7e8n-9t10-sourceassign",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "source_assignment_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID sourceAssignmentUuid,
 
         @Schema(
                 description = "**[REQUIRED]** Title of the assignment that clearly describes its purpose.",

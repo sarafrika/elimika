@@ -29,6 +29,7 @@ public enum NotificationType {
     // Instructor Notifications
     NEW_STUDENT_ENROLLMENT("NEW_STUDENT_ENROLLMENT", "new-student-enrollment", "New Student", NotificationCategory.COURSE_MANAGEMENT),
     NEW_ASSIGNMENT_SUBMISSION("NEW_ASSIGNMENT_SUBMISSION", "new-assignment-submission", "New Submission", NotificationCategory.ASSIGNMENTS_GRADING),
+    CLASS_SCHEDULE_UPDATED("CLASS_SCHEDULE_UPDATED", "class-schedule-updated", "Class Schedule Update", NotificationCategory.COURSE_MANAGEMENT),
     GRADING_REMINDER("GRADING_REMINDER", "grading-reminder", "Grading Reminder", NotificationCategory.ASSIGNMENTS_GRADING),
     
     // Administrative Notifications

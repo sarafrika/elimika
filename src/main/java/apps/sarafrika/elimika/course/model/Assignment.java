@@ -1,8 +1,11 @@
 package apps.sarafrika.elimika.course.model;
 
+import apps.sarafrika.elimika.course.util.converter.AssignmentScopeConverter;
+import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,6 +26,16 @@ public class Assignment extends BaseEntity {
 
     @Column(name = "lesson_uuid")
     private UUID lessonUuid;
+
+    @Convert(converter = AssignmentScopeConverter.class)
+    @Column(name = "scope")
+    private AssignmentScope scope = AssignmentScope.COURSE_TEMPLATE;
+
+    @Column(name = "class_definition_uuid")
+    private UUID classDefinitionUuid;
+
+    @Column(name = "source_assignment_uuid")
+    private UUID sourceAssignmentUuid;
 
     @Column(name = "title")
     private String title;

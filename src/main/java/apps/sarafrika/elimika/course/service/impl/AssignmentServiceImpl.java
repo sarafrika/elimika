@@ -87,6 +87,15 @@ public class AssignmentServiceImpl implements AssignmentService {
         if (dto.lessonUuid() != null) {
             existingAssignment.setLessonUuid(dto.lessonUuid());
         }
+        if (dto.scope() != null) {
+            existingAssignment.setScope(dto.scope());
+        }
+        if (dto.classDefinitionUuid() != null) {
+            existingAssignment.setClassDefinitionUuid(dto.classDefinitionUuid());
+        }
+        if (dto.sourceAssignmentUuid() != null) {
+            existingAssignment.setSourceAssignmentUuid(dto.sourceAssignmentUuid());
+        }
         if (dto.title() != null) {
             existingAssignment.setTitle(dto.title());
         }
