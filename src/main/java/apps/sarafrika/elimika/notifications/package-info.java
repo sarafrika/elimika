@@ -20,11 +20,5 @@
  * 
  * @since 2.7.0
  */
-@org.springframework.modulith.ApplicationModule(
-        allowedDependencies = {
-                "shared",
-                "instructor :: instructor-spi",
-                "tenancy :: tenancy-spi"
-        }
-)
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"shared"})
 package apps.sarafrika.elimika.notifications;

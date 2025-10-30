@@ -285,6 +285,7 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
     private void publishAssignmentScheduleEvent(ClassAssessmentScheduleChangeType changeType,
                                                 ClassAssignmentSchedule schedule,
                                                 String assignmentTitle) {
+        InstructorContactInfo contactInfo = resolveInstructorContactInfo(schedule.getInstructorUuid());
         ClassAssignmentScheduleChangedEventDTO event = new ClassAssignmentScheduleChangedEventDTO(
                 changeType,
                 schedule.getUuid(),
@@ -300,6 +301,8 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
                 schedule.getReleaseStrategy() != null ? schedule.getReleaseStrategy().getValue() : null,
                 schedule.getMaxAttempts(),
                 schedule.getInstructorUuid(),
+                contactInfo.email(),
+                contactInfo.name(),
                 schedule.getNotes(),
                 resolveChangedBy(schedule.getLastModifiedBy(), schedule.getCreatedBy()),
                 resolveChangedAt(schedule.getLastModifiedDate(), schedule.getCreatedDate())
@@ -310,6 +313,7 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
     private void publishQuizScheduleEvent(ClassAssessmentScheduleChangeType changeType,
                                           ClassQuizSchedule schedule,
                                           String quizTitle) {
+        InstructorContactInfo contactInfo = resolveInstructorContactInfo(schedule.getInstructorUuid());
         ClassQuizScheduleChangedEventDTO event = new ClassQuizScheduleChangedEventDTO(
                 changeType,
                 schedule.getUuid(),
@@ -326,11 +330,34 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
                 schedule.getAttemptLimitOverride(),
                 schedule.getPassingScoreOverride(),
                 schedule.getInstructorUuid(),
+                contactInfo.email(),
+                contactInfo.name(),
                 schedule.getNotes(),
                 resolveChangedBy(schedule.getLastModifiedBy(), schedule.getCreatedBy()),
                 resolveChangedAt(schedule.getLastModifiedDate(), schedule.getCreatedDate())
         );
         eventPublisher.publishEvent(event);
+    }
+
+    private InstructorContactInfo resolveInstructorContactInfo(UUID instructorUuid) {
+        if (instructorUuid == null) {
+            return new InstructorContactInfo(null, null);
+        }
+
+        Optional<UUID> userUuidOpt = instructorLookupService.getInstructorUserUuid(instructorUuid);
+        if (userUuidOpt.isEmpty()) {
+            log.warn("No user mapping found for instructor {}", instructorUuid);
+            return new InstructorContactInfo(null, null);
+        }
+
+        UUID userUuid = userUuidOpt.get();
+        String email = userLookupService.getUserEmail(userUuid).orElse(null);
+        String name = userLookupService.getUserFullName(userUuid).orElse(null);
+
+        return new InstructorContactInfo(email, name);
+    }
+
+    private record InstructorContactInfo(String email, String name) {
     }
 
     private String resolveChangedBy(String lastModifiedBy, String createdBy) {

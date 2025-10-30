@@ -5,8 +5,6 @@ import apps.sarafrika.elimika.notifications.api.events.ClassScheduleUpdatedNotif
 import apps.sarafrika.elimika.shared.event.classes.ClassAssessmentScheduleChangeType;
 import apps.sarafrika.elimika.shared.event.classes.ClassAssignmentScheduleChangedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassQuizScheduleChangedEventDTO;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
-import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -14,7 +12,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -26,14 +23,14 @@ import java.util.UUID;
 public class ClassScheduleNotificationListener {
 
     private final NotificationService notificationService;
-    private final InstructorLookupService instructorLookupService;
-    private final UserLookupService userLookupService;
 
     @ApplicationModuleListener
     @Async
     public void handleAssignmentScheduleChanged(ClassAssignmentScheduleChangedEventDTO event) {
         sendInstructorNotification(
                 event.instructorUuid(),
+                event.instructorEmail(),
+                event.instructorName(),
                 "Assignment",
                 event.assignmentTitle(),
                 event.changeType(),
@@ -56,6 +53,8 @@ public class ClassScheduleNotificationListener {
     public void handleQuizScheduleChanged(ClassQuizScheduleChangedEventDTO event) {
         sendInstructorNotification(
                 event.instructorUuid(),
+                event.instructorEmail(),
+                event.instructorName(),
                 "Quiz",
                 event.quizTitle(),
                 event.changeType(),
@@ -75,6 +74,8 @@ public class ClassScheduleNotificationListener {
 
     private void sendInstructorNotification(
             UUID instructorUuid,
+            String instructorEmail,
+            String instructorName,
             String assessmentType,
             String assessmentTitle,
             ClassAssessmentScheduleChangeType changeType,
@@ -84,36 +85,23 @@ public class ClassScheduleNotificationListener {
             UUID assessmentUuid,
             LocalDateTime visibleAt,
             LocalDateTime dueAt,
-        String releaseStrategy,
+            String releaseStrategy,
             String timezone,
             String notes,
             String changedBy,
             LocalDateTime changedAt
     ) {
-        if (instructorUuid == null) {
-            log.warn("Skipping schedule notification: instructor UUID missing for schedule {}", scheduleUuid);
+        if (instructorEmail == null) {
+            log.warn("Skipping schedule notification: instructor email missing for schedule {}", scheduleUuid);
             return;
         }
 
-        Optional<UUID> instructorUserUuid = instructorLookupService.getInstructorUserUuid(instructorUuid);
-        if (instructorUserUuid.isEmpty()) {
-            log.warn("Skipping schedule notification: no user mapping for instructor {}", instructorUuid);
-            return;
-        }
-
-        UUID userUuid = instructorUserUuid.get();
-        String email = userLookupService.getUserEmail(userUuid).orElse(null);
-        if (email == null) {
-            log.warn("Skipping schedule notification: no email for instructor user {}", userUuid);
-            return;
-        }
-
-        String recipientName = userLookupService.getUserFullName(userUuid).orElse("Instructor");
+        String recipientName = instructorName != null ? instructorName : "Instructor";
 
         ClassScheduleUpdatedNotificationEvent notificationEvent = new ClassScheduleUpdatedNotificationEvent(
                 UUID.randomUUID(),
-                userUuid,
-                email,
+                instructorUuid,
+                instructorEmail,
                 recipientName,
                 classDefinitionUuid,
                 scheduleUuid,
