@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.shared.config;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.exceptions.DatabaseAuditException;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpAuthenticationException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
@@ -28,6 +29,13 @@ public class GlobalExceptionHandler {
         log.debug("Record not found", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Record not found", ex.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateResourceException(DuplicateResourceException ex) {
+        log.debug("Duplicate resource", ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Duplicate resource", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

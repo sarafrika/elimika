@@ -13,10 +13,12 @@ import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -71,8 +73,16 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 .map(existing -> updateExistingApplication(existing, request, proposedRate, rateCurrency))
                 .orElseGet(() -> createNewApplication(courseUuid, request, proposedRate, rateCurrency));
 
-        CourseTrainingApplication saved = applicationRepository.save(application);
-        return CourseTrainingApplicationFactory.toDTO(saved);
+        try {
+            CourseTrainingApplication saved = applicationRepository.save(application);
+            return CourseTrainingApplicationFactory.toDTO(saved);
+        } catch (DataIntegrityViolationException ex) {
+            String exceptionMessage = ex.getMessage();
+            if (exceptionMessage != null && exceptionMessage.contains("uq_course_training_application")) {
+                throw new DuplicateResourceException("You have already submitted an application to deliver this course.");
+            }
+            throw ex;
+        }
     }
 
     @Override
