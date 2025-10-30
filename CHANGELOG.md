@@ -1,3 +1,18 @@
+# [2.29.0](https://github.com/sarafrika/elimika/compare/v2.28.1...v2.29.0) (2025-10-30)
+
+
+### Bug Fixes
+
+* improve error message for duplicate course training applications ([d723391](https://github.com/sarafrika/elimika/commit/d72339104d3ad2ee16cfeb275c2797c50c3dcd63))
+* resolve circular dependency between notifications and tenancy modules ([8d6e538](https://github.com/sarafrika/elimika/commit/8d6e5389c1ecd7631af735a771e583d3962d2c52))
+
+
+### Features
+
+* add class-level assessment scheduling with notifications ([f2d5674](https://github.com/sarafrika/elimika/commit/f2d5674b21cd25b4eaacfaffba3268a6baf7da50))
+* centralize currency management and enforce platform defaults ([e04a2c9](https://github.com/sarafrika/elimika/commit/e04a2c972926258907c4bf01fd7a07ca75251be1))
+* remove lesson duration estimates from lessons ([a5f687d](https://github.com/sarafrika/elimika/commit/a5f687d315fc0d2e4fc5b00dea76c73e3a119940))
+
 ## [2.28.1](https://github.com/sarafrika/elimika/compare/v2.28.0...v2.28.1) (2025-10-28)
 
 
