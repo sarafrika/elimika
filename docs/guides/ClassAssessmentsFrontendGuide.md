@@ -13,9 +13,9 @@ This guide explains how frontend teams should integrate with the **class lesson 
 ```mermaid
 flowchart LR
     subgraph "Class Experience"
-        UI[Instructor UI] -->|GET/PUT| LessonPlanAPI[/GET & PUT /api/v1/classes/{classUuid}/lesson-plan/]
-        UI -->|GET/POST/PATCH| AssignmentAPI[/.../assignments/]
-        UI -->|GET/POST/PATCH| QuizAPI[/.../quizzes/]
+        UI[Instructor UI] -->|GET/PUT| LessonPlanAPI["Lesson Plan API"]
+        UI -->|GET/POST/PATCH| AssignmentAPI["Assignments API"]
+        UI -->|GET/POST/PATCH| QuizAPI["Quizzes API"]
     end
 
     LessonPlanAPI --> ClassesService[(ClassLessonPlanService)]
