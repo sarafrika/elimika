@@ -1,3 +1,10 @@
+## [2.30.2](https://github.com/sarafrika/elimika/compare/v2.30.1...v2.30.2) (2025-10-31)
+
+
+### Bug Fixes
+
+* add missing spring-boot-starter-actuator dependency ([7946519](https://github.com/sarafrika/elimika/commit/7946519623c3c0ab69d9a07479fbc0cdcac56bef))
+
 ## [2.30.1](https://github.com/sarafrika/elimika/compare/v2.30.0...v2.30.1) (2025-10-31)
 
 
