@@ -15,7 +15,7 @@ CREATE TABLE currencies
     created_by      VARCHAR(255)             NOT NULL DEFAULT 'SYSTEM',
     updated_by      VARCHAR(255),
     CONSTRAINT uq_currencies_code UNIQUE (code),
-    CONSTRAINT chk_currencies_decimal_places CHECK (decimal_places >= 0)
+    CONSTRAINT chk_currencies_decimal_places CHECK (decimal_places >= -1)
 );
 
 CREATE UNIQUE INDEX uq_currencies_default_true ON currencies (is_default) WHERE is_default;

@@ -1,3 +1,11 @@
+## [2.29.1](https://github.com/sarafrika/elimika/compare/v2.29.0...v2.29.1) (2025-10-31)
+
+
+### Bug Fixes
+
+* correct Mermaid diagram syntax in ClassAssessmentsFrontendGuide ([b68083f](https://github.com/sarafrika/elimika/commit/b68083f6d78df8ff61c9a483a7cf6c16c1b79926))
+* escape single quote in Tongan Pa'anga currency name ([3f08879](https://github.com/sarafrika/elimika/commit/3f0887996172e7f02ce9592b3f6a9577a4cd3882))
+
 # [2.29.0](https://github.com/sarafrika/elimika/compare/v2.28.1...v2.29.0) (2025-10-30)
 
 
