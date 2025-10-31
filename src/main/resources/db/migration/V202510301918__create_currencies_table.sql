@@ -203,7 +203,7 @@ WITH seed_data(code, numeric_code, currency_name, decimal_places) AS (
 ('TMM', 795, 'Turkmenistani Manat', 2),
 ('TMT', 934, 'Turkmenistani Manat', 2),
 ('TND', 788, 'Tunisian Dinar', 3),
-('TOP', 776, 'Tongan Pa'anga', 2),
+('TOP', 776, 'Tongan Pa''anga', 2),
 ('TPE', 626, 'Timorese Escudo', 0),
 ('TRL', 792, 'Turkish Lira', 0),
 ('TRY', 949, 'Turkish Lira', 2),
@@ -255,7 +255,7 @@ WITH seed_data(code, numeric_code, currency_name, decimal_places) AS (
 ('ZWG', 924, 'Zimbabwe Gold', 2),
 ('ZWL', 932, 'Zimbabwean Dollar', 2),
 ('ZWN', 942, 'ZWN', 2),
-('ZWR', 935, 'Zimbabwean Dollar', 2),
+('ZWR', 935, 'Zimbabwean Dollar', 2)
 
 )
 INSERT INTO currencies (code, numeric_code, currency_name, decimal_places, active, is_default, created_by)
