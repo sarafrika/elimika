@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class GenericSpecificationBuilder<T> {
     private static final List<String> EXCLUDED_PARAMS = List.of("page", "size", "sort");
-    private final Map<Class<?>, Map<String, String>> fieldColumnCache = new HashMap<>();
+    private final Map<Class<?>, Map<String, String>> fieldColumnCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Map<String, Class<?>>> relationshipCache = new ConcurrentHashMap<>();
     private final Map<RelationshipKey, String> inverseRelationshipCache = new ConcurrentHashMap<>();
 
