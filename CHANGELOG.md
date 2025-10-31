@@ -1,3 +1,10 @@
+# [2.30.0](https://github.com/sarafrika/elimika/compare/v2.29.3...v2.30.0) (2025-10-31)
+
+
+### Features
+
+* configure Spring Boot Actuator endpoints ([0eb25be](https://github.com/sarafrika/elimika/commit/0eb25be3094f0fd0ecdb2cb43ca8b18eb6b58ca6))
+
 ## [2.29.3](https://github.com/sarafrika/elimika/compare/v2.29.2...v2.29.3) (2025-10-31)
 
 
