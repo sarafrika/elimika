@@ -1,3 +1,10 @@
+## [2.29.3](https://github.com/sarafrika/elimika/compare/v2.29.2...v2.29.3) (2025-10-31)
+
+
+### Bug Fixes
+
+* correct SQL errors in currencies migration ([3388504](https://github.com/sarafrika/elimika/commit/338850469dd60178b8742cd88bd77a04a0169a8c))
+
 ## [2.29.2](https://github.com/sarafrika/elimika/compare/v2.29.1...v2.29.2) (2025-10-31)
 
 
