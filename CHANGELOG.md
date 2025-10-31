@@ -1,3 +1,10 @@
+## [2.30.1](https://github.com/sarafrika/elimika/compare/v2.30.0...v2.30.1) (2025-10-31)
+
+
+### Bug Fixes
+
+* resolve thread-safety issue in GenericSpecificationBuilder ([bd6e543](https://github.com/sarafrika/elimika/commit/bd6e54338b2aca4236cc603e530baff80077af2d))
+
 # [2.30.0](https://github.com/sarafrika/elimika/compare/v2.29.3...v2.30.0) (2025-10-31)
 
 
