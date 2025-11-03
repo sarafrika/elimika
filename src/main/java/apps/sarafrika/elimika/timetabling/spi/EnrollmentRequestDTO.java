@@ -21,7 +21,7 @@ import java.util.UUID;
         description = "Request to enroll a student in a scheduled class instance",
         example = """
         {
-            "scheduled_instance_uuid": "si123456-7890-abcd-ef01-234567890abc",
+            "class_definition_uuid": "cd123456-7890-abcd-ef01-234567890abc",
             "student_uuid": "st123456-7890-abcd-ef01-234567890abc"
         }
         """
@@ -29,13 +29,13 @@ import java.util.UUID;
 public record EnrollmentRequestDTO(
 
         @Schema(
-                description = "**[REQUIRED]** Reference to the scheduled instance UUID to enroll in.",
-                example = "si123456-7890-abcd-ef01-234567890abc",
+                description = "**[REQUIRED]** Reference to the class definition UUID to enroll into.",
+                example = "cd123456-7890-abcd-ef01-234567890abc",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotNull(message = "Scheduled instance UUID is required")
-        @JsonProperty("scheduled_instance_uuid")
-        UUID scheduledInstanceUuid,
+        @NotNull(message = "Class definition UUID is required")
+        @JsonProperty("class_definition_uuid")
+        UUID classDefinitionUuid,
 
         @Schema(
                 description = "**[REQUIRED]** Reference to the student UUID who is enrolling.",

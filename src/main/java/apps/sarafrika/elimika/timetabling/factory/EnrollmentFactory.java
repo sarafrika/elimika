@@ -1,13 +1,13 @@
 package apps.sarafrika.elimika.timetabling.factory;
 
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
-import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -30,13 +30,13 @@ public class EnrollmentFactory {
         );
     }
 
-    public static Enrollment toEntity(EnrollmentRequestDTO dto) {
-        if (dto == null) {
+    public static Enrollment toEntity(UUID scheduledInstanceUuid, UUID studentUuid) {
+        if (scheduledInstanceUuid == null || studentUuid == null) {
             return null;
         }
         Enrollment entity = new Enrollment();
-        entity.setScheduledInstanceUuid(dto.scheduledInstanceUuid());
-        entity.setStudentUuid(dto.studentUuid());
+        entity.setScheduledInstanceUuid(scheduledInstanceUuid);
+        entity.setStudentUuid(studentUuid);
         entity.setStatus(EnrollmentStatus.ENROLLED);
         return entity;
     }

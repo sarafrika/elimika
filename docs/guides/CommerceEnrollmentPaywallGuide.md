@@ -55,9 +55,9 @@ sequenceDiagram
     Payment-->>OrderAPI: Payment confirmation
     OrderAPI-->>UI: OrderResponse (payment_status = captured/paid)
 
-    UI->>EnrollAPI: POST /enrollment (scheduled_instance_uuid, student_uuid)
+    UI->>EnrollAPI: POST /enrollment (class_definition_uuid, student_uuid)
     alt Payment settled
-        EnrollAPI-->>UI: EnrollmentDTO
+        EnrollAPI-->>UI: EnrollmentDTO[]
     else Payment required
         EnrollAPI-->>UI: 402 Payment Required (+ message)
     end
@@ -84,7 +84,7 @@ Use the following ordered steps in your UI to ensure cart and checkout interacti
 7. **Display Order Summary**  
    Show the order identifier/number from the response and surface a “Continue to enrollment” CTA.
 8. **Attempt Enrollment**  
-   Call `POST /api/v1/enrollment` only after confirming payment. Handle `402` responses as described later in this guide.
+   Call `POST /api/v1/enrollment` with `class_definition_uuid` and `student_uuid` only after confirming payment. The backend will enroll the learner into every scheduled instance for that class. Handle `402` responses as described later in this guide.
 
 ---
 
@@ -215,7 +215,7 @@ Content-Type: application/json
 POST /api/v1/enrollment
 Content-Type: application/json
 {
-  "scheduled_instance_uuid": "0a39e4fa-0e97-4fd2-94ab-09bd4a67c676",
+  "class_definition_uuid": "0a39e4fa-0e97-4fd2-94ab-09bd4a67c676",
   "student_uuid": "8f4544d3-1741-47ba-aacc-5c9e0fbcd410"
 }
 ```

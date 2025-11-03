@@ -63,15 +63,16 @@ public interface TimetableService {
     // ===== Enrollment Operations =====
 
     /**
-     * Enrolls a student in a scheduled instance.
-     * This method performs capacity checks and conflict detection.
+     * Enrolls a student into a class definition.
+     * This method performs capacity checks and conflict detection for each scheduled instance and
+     * creates enrollments across all sessions tied to the class.
      *
-     * @param request The enrollment request containing student and scheduled instance details
-     * @return The created enrollment with generated UUID and audit fields
+     * @param request The enrollment request containing student and class definition details
+     * @return The created enrollments with generated UUID and audit fields
      * @throws IllegalArgumentException if request is null or contains invalid data
-     * @throws RuntimeException if scheduled instance is full or student has conflicts
+     * @throws RuntimeException if any scheduled instance is full or student has conflicts
      */
-    EnrollmentDTO enrollStudent(EnrollmentRequestDTO request);
+    List<EnrollmentDTO> enrollStudent(EnrollmentRequestDTO request);
 
     /**
      * Cancels a student enrollment.

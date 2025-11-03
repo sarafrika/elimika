@@ -54,7 +54,7 @@
         "course :: course-spi",
         "coursecreator :: coursecreator-spi",
         "timetabling :: timetabling-spi",
-        "commerce :: commerce-purchase-spi",
+        "commerce.purchase :: commerce-purchase-spi",
         "shared",
         "authentication :: keycloak-integration"
 }

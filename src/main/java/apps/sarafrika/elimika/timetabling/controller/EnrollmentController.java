@@ -33,20 +33,20 @@ public class EnrollmentController {
     // ENROLLMENT OPERATIONS
     // ================================
 
-    @Operation(summary = "Enroll a student in a scheduled class instance")
+    @Operation(summary = "Enroll a student into a class across all scheduled instances")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Student enrolled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid enrollment request or conflicts")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition or scheduled instances not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Student already enrolled")
     @PostMapping
     @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")
-    public ResponseEntity<ApiResponse<EnrollmentDTO>> enrollStudent(
+    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> enrollStudent(
             @Valid @RequestBody EnrollmentRequestDTO request) {
-        log.debug("REST request to enroll student: {} in scheduled instance: {}",
-            request.studentUuid(), request.scheduledInstanceUuid());
+        log.debug("REST request to enroll student: {} into class definition: {}",
+            request.studentUuid(), request.classDefinitionUuid());
 
-        EnrollmentDTO result = timetableService.enrollStudent(request);
-        return ResponseEntity.status(201).body(ApiResponse.success(result, "Student enrolled successfully"));
+        List<EnrollmentDTO> result = timetableService.enrollStudent(request);
+        return ResponseEntity.status(201).body(ApiResponse.success(result, "Student enrolled into all scheduled class instances"));
     }
 
     @Operation(summary = "Cancel a student enrollment")

@@ -30,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -152,59 +154,76 @@ public class TimetableServiceImpl implements TimetableService {
     // ===== Enrollment Operations =====
 
     @Override
-    public EnrollmentDTO enrollStudent(EnrollmentRequestDTO request) {
-        log.debug("Enrolling student: {} in scheduled instance: {}", request.studentUuid(), request.scheduledInstanceUuid());
-        
+    public List<EnrollmentDTO> enrollStudent(EnrollmentRequestDTO request) {
+        log.debug("Enrolling student: {} into class definition: {}", request.studentUuid(), request.classDefinitionUuid());
+
         validateEnrollmentRequest(request);
 
-        // Check if student is already enrolled
-        if (enrollmentRepository.existsByScheduledInstanceUuidAndStudentUuid(
-                request.scheduledInstanceUuid(), request.studentUuid())) {
-            throw new DuplicateResourceException("Student is already enrolled in this scheduled instance");
+        UUID classDefinitionUuid = request.classDefinitionUuid();
+        UUID studentUuid = request.studentUuid();
+
+        List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+
+        if (scheduledInstances.isEmpty()) {
+            throw new ResourceNotFoundException(String.format("No scheduled instances found for class definition with UUID %s", classDefinitionUuid));
         }
 
-        // Check capacity
-        if (!hasCapacityForEnrollment(request.scheduledInstanceUuid())) {
-            throw new IllegalArgumentException("Scheduled instance has reached maximum capacity");
+        Set<UUID> alreadyEnrolledInstanceUuids = enrollmentRepository.findByStudentUuid(studentUuid).stream()
+                .map(Enrollment::getScheduledInstanceUuid)
+                .collect(Collectors.toSet());
+
+        List<ScheduledInstance> instancesToEnroll = scheduledInstances.stream()
+                .filter(instance -> !alreadyEnrolledInstanceUuids.contains(instance.getUuid()))
+                .toList();
+
+        if (instancesToEnroll.isEmpty()) {
+            throw new DuplicateResourceException("Student is already enrolled in all scheduled instances for this class");
         }
 
-        // Check for student conflicts
-        ScheduledInstance instance = scheduledInstanceRepository.findByUuid(request.scheduledInstanceUuid())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, request.scheduledInstanceUuid())));
+        // Validate constraints before persisting any enrollment
+        for (ScheduledInstance instance : instancesToEnroll) {
+            if (!hasCapacityForEnrollment(instance.getUuid())) {
+                throw new IllegalArgumentException(
+                        String.format("Scheduled instance %s has reached maximum capacity", instance.getUuid()));
+            }
 
-        // TODO: Implement commerce paywall verification via events to maintain module boundaries
-        // See: CommerceEnrollmentPaywallGuide.md for implementation details
-
-        ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
-            instance.getClassDefinitionUuid(),
-            instance.getInstructorUuid(),
-            instance.getStartTime(),
-            instance.getEndTime(),
-            instance.getTimezone()
-        );
-
-        if (hasStudentConflict(request.studentUuid(), scheduleRequest)) {
-            throw new IllegalArgumentException("Student has conflicting enrollment at the requested time");
-        }
-
-        Enrollment entity = EnrollmentFactory.toEntity(request);
-        Enrollment savedEntity = enrollmentRepository.save(entity);
-        
-        // Publish StudentEnrolled event
-        StudentEnrolledEventDTO event = new StudentEnrolledEventDTO(
-                savedEntity.getUuid(),
-                savedEntity.getScheduledInstanceUuid(),
-                savedEntity.getStudentUuid(),
+            ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
                 instance.getClassDefinitionUuid(),
                 instance.getInstructorUuid(),
                 instance.getStartTime(),
-                instance.getTitle()
-        );
-        eventPublisher.publishEvent(event);
-        
-        log.debug("Enrolled student with enrollment UUID: {}", savedEntity.getUuid());
-        return EnrollmentFactory.toDTO(savedEntity);
+                instance.getEndTime(),
+                instance.getTimezone()
+            );
+
+            if (hasStudentConflict(studentUuid, scheduleRequest)) {
+                throw new IllegalArgumentException(
+                        String.format("Student has a scheduling conflict with instance %s starting at %s",
+                                instance.getUuid(), instance.getStartTime()));
+            }
+        }
+
+        List<Enrollment> createdEnrollments = new java.util.ArrayList<>();
+
+        for (ScheduledInstance instance : instancesToEnroll) {
+            Enrollment entity = EnrollmentFactory.toEntity(instance.getUuid(), studentUuid);
+            Enrollment savedEntity = enrollmentRepository.save(entity);
+
+            StudentEnrolledEventDTO event = new StudentEnrolledEventDTO(
+                    savedEntity.getUuid(),
+                    savedEntity.getScheduledInstanceUuid(),
+                    savedEntity.getStudentUuid(),
+                    instance.getClassDefinitionUuid(),
+                    instance.getInstructorUuid(),
+                    instance.getStartTime(),
+                    instance.getTitle()
+            );
+            eventPublisher.publishEvent(event);
+
+            createdEnrollments.add(savedEntity);
+        }
+
+        log.debug("Enrolled student into {} scheduled instances for class definition: {}", createdEnrollments.size(), classDefinitionUuid);
+        return EnrollmentFactory.toDTOList(createdEnrollments);
     }
 
     @Override
@@ -434,8 +453,8 @@ public class TimetableServiceImpl implements TimetableService {
         if (request == null) {
             throw new IllegalArgumentException("Enrollment request cannot be null");
         }
-        if (request.scheduledInstanceUuid() == null) {
-            throw new IllegalArgumentException("Scheduled instance UUID cannot be null");
+        if (request.classDefinitionUuid() == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
         }
         if (request.studentUuid() == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
