@@ -84,7 +84,7 @@ public class InstructorDocument extends BaseEntity {
     // Status
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "document_status_enum")
-    @JdbcTypeCode(SqlTypes.ENUM)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private DocumentStatus status;
 
     @Column(name = "expiry_date")
