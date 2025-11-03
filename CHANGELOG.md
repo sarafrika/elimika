@@ -1,3 +1,15 @@
+# [2.31.0](https://github.com/sarafrika/elimika/compare/v2.30.2...v2.31.0) (2025-11-03)
+
+
+### Bug Fixes
+
+* block instructor impersonation and hide cancelled schedules ([6da62ea](https://github.com/sarafrika/elimika/commit/6da62ea818d56b2f3feb2c5e51a5332b6f52a2c1))
+
+
+### Features
+
+* enroll students across all scheduled class sessions ([2be0742](https://github.com/sarafrika/elimika/commit/2be07429e83c063a92f3b6dba21051b734ac0fdc))
+
 ## [2.30.2](https://github.com/sarafrika/elimika/compare/v2.30.1...v2.30.2) (2025-10-31)
 
 
