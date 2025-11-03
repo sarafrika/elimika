@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.security.access.AccessDeniedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +45,9 @@ class CourseTrainingApplicationServiceImplTest {
     @Mock
     private CurrencyService currencyService;
 
+    @Mock
+    private DomainSecurityService domainSecurityService;
+
     private CourseTrainingApplicationServiceImpl service;
 
     @BeforeEach
@@ -50,7 +56,8 @@ class CourseTrainingApplicationServiceImplTest {
                 courseRepository,
                 applicationRepository,
                 specificationBuilder,
-                currencyService
+                currencyService,
+                domainSecurityService
         );
     }
 
@@ -63,6 +70,7 @@ class CourseTrainingApplicationServiceImplTest {
         course.setMinimumTrainingFee(new BigDecimal("2500.00"));
 
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
@@ -92,6 +100,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         lenient().when(applicationRepository.save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
 
         PlatformCurrency usd = new PlatformCurrency(
                 "USD",
@@ -121,5 +130,25 @@ class CourseTrainingApplicationServiceImplTest {
         assertThat(saved.getRatePerHourPerHead()).isEqualByComparingTo("2800.1254");
         assertThat(saved.getRateCurrency()).isEqualTo("USD");
         assertThat(saved.getStatus()).isEqualTo(CourseTrainingApplicationStatus.PENDING);
+    }
+
+    @Test
+    void submitApplicationRejectsInstructorImpersonation() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(false);
+
+        CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
+                CourseTrainingApplicantType.INSTRUCTOR,
+                applicantUuid,
+                new BigDecimal("2500.00"),
+                "KES",
+                null
+        );
+
+        assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Instructors may only submit training applications for themselves");
     }
 }

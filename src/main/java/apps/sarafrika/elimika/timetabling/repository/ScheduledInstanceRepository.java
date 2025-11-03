@@ -28,6 +28,7 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
 
     @Query("SELECT si FROM ScheduledInstance si WHERE si.instructorUuid = :instructorUuid " +
            "AND si.startTime >= :startTime AND si.endTime <= :endTime " +
+           "AND si.status <> 'CANCELLED' " +
            "ORDER BY si.startTime")
     List<ScheduledInstance> findByInstructorAndTimeRange(@Param("instructorUuid") UUID instructorUuid,
                                                         @Param("startTime") LocalDateTime startTime,

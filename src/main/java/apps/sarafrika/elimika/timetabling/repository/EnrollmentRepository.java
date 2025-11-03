@@ -37,6 +37,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     @Query("SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
            "WHERE e.studentUuid = :studentUuid " +
            "AND si.startTime >= :startTime AND si.endTime <= :endTime " +
+           "AND si.status <> 'CANCELLED' " +
+           "AND e.status <> 'CANCELLED' " +
            "ORDER BY si.startTime")
     List<Enrollment> findByStudentAndTimeRange(@Param("studentUuid") UUID studentUuid,
                                              @Param("startTime") LocalDateTime startTime,
@@ -45,6 +47,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     @Query("SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
            "WHERE e.studentUuid = :studentUuid " +
            "AND si.startTime >= :startTime AND si.endTime <= :endTime " +
+           "AND si.status <> 'CANCELLED' " +
            "AND e.status = :status " +
            "ORDER BY si.startTime")
     List<Enrollment> findByStudentTimeRangeAndStatus(@Param("studentUuid") UUID studentUuid,

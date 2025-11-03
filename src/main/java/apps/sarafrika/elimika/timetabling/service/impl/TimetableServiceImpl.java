@@ -305,7 +305,10 @@ public class TimetableServiceImpl implements TimetableService {
         List<ScheduledInstance> instances = scheduledInstanceRepository.findByInstructorAndTimeRange(
             instructorUuid, startDateTime, endDateTime);
 
-        return ScheduledInstanceFactory.toDTOList(instances);
+        return instances.stream()
+            .filter(instance -> !SchedulingStatus.CANCELLED.equals(instance.getStatus()))
+            .map(ScheduledInstanceFactory::toDTO)
+            .toList();
     }
 
     @Override
@@ -321,11 +324,11 @@ public class TimetableServiceImpl implements TimetableService {
             studentUuid, startDateTime, endDateTime);
 
         return enrollments.stream()
-            .map(enrollment -> {
-                ScheduledInstance instance = scheduledInstanceRepository.findByUuid(enrollment.getScheduledInstanceUuid())
-                    .orElse(null);
-                return instance != null ? StudentScheduleFactory.toDTO(instance, enrollment) : null;
-            })
+            .filter(enrollment -> !EnrollmentStatus.CANCELLED.equals(enrollment.getStatus()))
+            .map(enrollment -> scheduledInstanceRepository.findByUuid(enrollment.getScheduledInstanceUuid())
+                    .filter(instance -> !SchedulingStatus.CANCELLED.equals(instance.getStatus()))
+                    .map(instance -> StudentScheduleFactory.toDTO(instance, enrollment))
+                    .orElse(null))
             .filter(dto -> dto != null)
             .toList();
     }

@@ -15,9 +15,11 @@ import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,10 +52,16 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final CourseTrainingApplicationRepository applicationRepository;
     private final GenericSpecificationBuilder<CourseTrainingApplication> specificationBuilder;
     private final CurrencyService currencyService;
+    private final DomainSecurityService domainSecurityService;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
         log.debug("Submitting training application for course {} by {} {}", courseUuid, request.applicantType(), request.applicantUuid());
+
+        if (CourseTrainingApplicantType.INSTRUCTOR.equals(request.applicantType())
+                && !domainSecurityService.isInstructorWithUuid(request.applicantUuid())) {
+            throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
+        }
 
         Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
