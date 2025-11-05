@@ -1,3 +1,10 @@
+# [2.32.0](https://github.com/sarafrika/elimika/compare/v2.31.1...v2.32.0) (2025-11-05)
+
+
+### Features
+
+* add admin dashboard activity feed ([040932f](https://github.com/sarafrika/elimika/commit/040932fe02e65f4eb3d0365b421cb50a96c6a8f1))
+
 ## [2.31.1](https://github.com/sarafrika/elimika/compare/v2.31.0...v2.31.1) (2025-11-03)
 
 
