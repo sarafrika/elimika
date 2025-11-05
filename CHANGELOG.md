@@ -1,3 +1,10 @@
+## [2.31.1](https://github.com/sarafrika/elimika/compare/v2.31.0...v2.31.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* align instructor document status enum mapping ([cffe068](https://github.com/sarafrika/elimika/commit/cffe06898c6911b680b2cfb805c5bf2fa2dd280e))
+
 # [2.31.0](https://github.com/sarafrika/elimika/compare/v2.30.2...v2.31.0) (2025-11-03)
 
 
