@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
@@ -18,11 +19,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 import java.util.UUID;
@@ -217,6 +221,26 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(stats, "Dashboard statistics retrieved successfully"));
     }
 
+    @Operation(
+            summary = "Get admin dashboard activity feed",
+            description = "Retrieves a paginated list of recent administrative actions captured by the request audit trail."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Dashboard activity retrieved successfully")
+    @GetMapping("/dashboard/activity-feed")
+    public ResponseEntity<ApiResponse<PagedDTO<AdminActivityEventDTO>>> getDashboardActivity(
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        log.debug("Getting admin dashboard activity feed with pagination: {}", pageable);
+        Page<AdminActivityEventDTO> activity = adminService.getDashboardActivity(pageable);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(activity, ServletUriComponentsBuilder
+                        .fromCurrentRequestUri()
+                        .build()
+                        .toUriString()),
+                "Dashboard activity retrieved successfully"
+        ));
+    }
+
     // ================================
     // ADMIN USER VALIDATION
     // ================================
@@ -264,46 +288,72 @@ public class AdminController {
     // ================================
 
     @Operation(
-            summary = "Verify an organization",
-            description = "Verifies/approves an organization by setting the admin_verified flag to true. " +
-                    "Only system administrators can perform this operation. Verified organizations gain access to " +
-                    "additional platform features and display verification badges."
+            summary = "Get pending organization approvals",
+            description = "Retrieves a paginated list of organizations that are awaiting admin verification. " +
+                    "Results include organisations where the admin_verified flag is false or not yet set."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization verified successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
-    @PostMapping("/organizations/{uuid}/verify")
-    public ResponseEntity<ApiResponse<OrganisationDTO>> verifyOrganisation(
-            @Parameter(description = "UUID of the organization to verify. Must be an existing organization identifier.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "Optional reason for verification")
-            @RequestParam(required = false) String reason) {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending organizations retrieved successfully")
+    @GetMapping("/organizations/pending")
+    public ResponseEntity<ApiResponse<PagedDTO<OrganisationDTO>>> getPendingOrganisations(
+            @PageableDefault(size = 20) Pageable pageable) {
 
-        log.info("Admin verifying organization {} for reason: {}", uuid, reason);
-        OrganisationDTO verified = organisationService.verifyOrganisation(uuid, reason);
-        return ResponseEntity.ok(ApiResponse.success(verified, "Organization verified successfully"));
+        log.debug("Fetching pending organisations for approval with pagination: {}", pageable);
+        Page<OrganisationDTO> pendingOrganisations = organisationService.getUnverifiedOrganisations(pageable);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(pendingOrganisations, ServletUriComponentsBuilder
+                        .fromCurrentRequestUri()
+                        .build()
+                        .toUriString()),
+                "Pending organizations retrieved successfully"
+        ));
     }
 
     @Operation(
-            summary = "Remove verification from an organization",
-            description = "Removes verification from an organization by setting the admin_verified flag to false. " +
-                    "Only system administrators can perform this operation. This may revoke access to certain platform features."
+            summary = "Moderate organization verification",
+            description = "Handles organization approval workflows using a single endpoint. " +
+                    "Supports approving, rejecting, or revoking admin verification status."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization verification removed successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization moderation completed successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid moderation action supplied")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
-    @PostMapping("/organizations/{uuid}/unverify")
-    public ResponseEntity<ApiResponse<OrganisationDTO>> unverifyOrganisation(
-            @Parameter(description = "UUID of the organization to remove verification from. Must be an existing organization identifier.",
+    @PostMapping("/organizations/{uuid}/moderate")
+    public ResponseEntity<ApiResponse<OrganisationDTO>> moderateOrganisation(
+            @Parameter(description = "UUID of the organization to moderate. Must be an existing organization identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "Optional reason for removing verification")
+            @Parameter(description = "Moderation action to perform",
+                    schema = @Schema(allowableValues = {"approve", "reject", "revoke"}), required = true)
+            @RequestParam("action") String action,
+            @Parameter(description = "Optional reason for the chosen moderation action")
             @RequestParam(required = false) String reason) {
 
-        log.info("Admin removing verification from organization {} for reason: {}", uuid, reason);
-        OrganisationDTO unverified = organisationService.unverifyOrganisation(uuid, reason);
-        return ResponseEntity.ok(ApiResponse.success(unverified, "Organization verification removed successfully"));
+        String normalizedAction = action.toLowerCase();
+        log.info("Admin moderating organization {} with action '{}' and reason: {}", uuid, normalizedAction, reason);
+
+        OrganisationDTO organisationDTO;
+        String message;
+
+        switch (normalizedAction) {
+            case "approve" -> {
+                organisationDTO = organisationService.verifyOrganisation(uuid, reason);
+                message = "Organization approved successfully";
+            }
+            case "reject" -> {
+                organisationDTO = organisationService.unverifyOrganisation(uuid, reason);
+                message = "Organization rejected successfully";
+            }
+            case "revoke" -> {
+                organisationDTO = organisationService.unverifyOrganisation(uuid, reason);
+                message = "Organization verification revoked";
+            }
+            default -> throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Unsupported moderation action: " + action + ". Allowed values: approve, reject, revoke"
+            );
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(organisationDTO, message));
     }
 
     @Operation(

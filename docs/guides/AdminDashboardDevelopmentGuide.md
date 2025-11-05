@@ -1,430 +1,188 @@
 # Elimika Admin Dashboard: Frontend Development Guide
 
-## 1. Overview
+## 1. Mission & Personas
+The admin dashboard is the command center for keeping Elimika healthy, compliant, and growing. The primary persona is the **System Administrator** (global admin) with platform-wide privileges. Secondary personas, such as **Organization Admins**, benefit from shared components but have a scoped view of the same surfaces.
 
-This document outlines the features, requirements, and technical specifications for building the frontend of the Elimika Admin Dashboard. It is intended to provide a clear and actionable guide for frontend engineers.
-
-**Target User:** System Administrator (Global Admin)
-**Overall Goal:** To provide a centralized command center for monitoring, managing, and configuring the entire Elimika platform.
-
----
-
-## 2. System Admin Domain Architecture
-
-This architecture provides the foundation for role-based access control within the admin dashboard.
-
-### Admin Hierarchy and Permissions
-
-```mermaid
-graph TB
-    subgraph "Admin Domain Structure"
-        SA[Super Admin<br/>🔧 Platform Owner]
-        GA[Global Admin<br/>⚙️ System Operations]
-        OA[Organization Admin<br/>🏢 Institution Management]
-
-        SA --> GA
-        GA --> OA
-    end
-
-    subgraph "Domain Assignment Methods"
-        INV[Invitation Process<br/>📧 Email-based Assignment]
-        DIRECT[Direct Assignment<br/>🔗 API-based Addition]
-        BOOTSTRAP[Bootstrap Process<br/>⚡ Platform Initialization]
-    end
-
-    subgraph "Database Mapping"
-        UDM[user_domain_mapping<br/>🗃️ Global Admin Assignment]
-        UODM[user_organisation_domain_mapping<br/>🎯 Organization Admin Assignment]
-    end
-
-    SA -.-> BOOTSTRAP
-    GA -.-> INV
-    GA -.-> DIRECT
-    OA -.-> UODM
-    GA -.-> UDM
-
-    style SA fill:#d32f2f
-    style GA fill:#ff5722
-    style OA fill:#ff9800
-    style INV fill:#4caf50
-```
-
-### Admin Domain Types
-
-| Domain Type | Scope | Assignment Method | Database Table | Use Case |
-|-------------|-------|------------------|----------------|----------|
-| **System Admin** | Platform-wide | `user_domain_mapping` | Global domain assignment | Complete platform control |
-| **Organization Admin** | Institution-specific | `user_organisation_domain_mapping` | Contextual domain assignment | Organization management only |
+### Outcomes
+- Real-time visibility into platform performance, growth, and operational risk.
+- Ability to grant, review, and revoke privileged access without leaving the dashboard.
+- Fast triage paths for organization and instructor verification workflows.
+- Clear auditability of key admin actions using existing APIs and telemetry hooks.
 
 ---
 
-## Feature 1.0: At-a-Glance Dashboard & Analytics
+## 2. Experience Blueprint ("360°" View)
 
-### 1.1 Objective
-To provide a high-level, real-time overview of the platform's status, key metrics, and simple analytics, enabling admins to quickly assess the state and trends of the system.
+### 2.1 Layout Shell
+- **Global App Bar:** quick access to search, notifications, and profile controls. The bar persists across all admin workspaces.
+- **Primary Navigation Rail:** anchors the five core surfaces: *Overview*, *Users*, *Organizations*, *Instructors*, and *Branches*. Each surface maps to concrete API contracts (see section 3).
+- **Context Panel:** right-aligned panel for contextual insights (verification status, recent actions). Populated by responses from the relevant admin endpoints.
+- **Workspace Canvas:** the central grid where KPI cards, tables, and detail views render.
 
-### 1.2 User Stories
-- As an admin, I want to see key platform metrics (KPIs) to track growth.
-- As an admin, I want to view simple charts showing user growth and role distribution to understand platform trends.
-- As an admin, I want to know the health status of critical system components to react to issues.
-- As an admin, I want to see a feed of recent, important events to stay informed.
+### 2.2 Surface Summary
+| Surface | Purpose | Primary Data Source |
+|---------|---------|---------------------|
+| Overview | KPIs, trend charts, system health snapshot, activity timeline | `GET /api/v1/admin/dashboard/statistics`, `GET /api/v1/admin/dashboard/activity-feed` |
+| Users | Manage administrators and platform users | Admin user endpoints, `/api/v1/users*` |
+| Organizations | Review organizations, moderate verification status, inspect members | Organization endpoints + admin verification routes |
+| Instructors | Verify instructors, inspect documentation metrics | Admin instructor verification routes |
+| Branches | View branches within organizations and their members | `/api/v1/organisations/{uuid}/training-branches*` |
 
-### 1.3 UI/UX Description
-- A modern dashboard layout featuring a top row of "Key Performance Indicator (KPI)" cards.
-- A section below the KPIs for simple analytical charts.
-- A sidebar or panel for "System Health" and an "Activity Feed".
+### 2.3 Data Story
+`AdminDashboardStatsDTO` already ships a comprehensive payload. UI teams should map the object to the following visual blocks:
+- **User Metrics:** total users, 24h actives, new registrations (7d), suspended accounts.
+- **Organization Metrics:** total organizations, pending approvals count, active vs suspended.
+- **Admin Metrics:** total admins, breakdown of system vs organization admins, active sessions, admin actions today.
+- **Learning & Timetabling Metrics:** course inventory, enrollments, session throughput, attendance trends.
+- **Commerce Metrics:** total orders, last 30 days orders, captured orders, unique customers, purchase mix.
+- **Communication Metrics:** notification creation/delivery/failure stats, pending count.
+- **Compliance Metrics:** verification state for instructors and course creators, expiring documents.
+- **System Performance:** uptime, response time, error rate, storage usage strings.
 
-### 1.4 Simple Analytics Suggestions
-- **User Growth Chart:** A line chart displaying new user registrations over the last 30 days.
-- **Domain Distribution:** A pie or donut chart showing the current breakdown of users by role (`Student`, `Instructor`, `Admin`).
-- **Organization Growth:** A line chart showing new organization sign-ups over the last 6 months.
-
-### 1.5 Required API Endpoints & Data
-- **Statistics:** `GET /api/v1/admin/dashboard/statistics` (Returns `AdminDashboardStatsDTO` with aggregated analytics).
-- **Activity Feed:** `GET /api/v1/admin/dashboard/activity-feed` (Returns `List<ActivityEventDTO>`).
-- **Analytics:** All analytics are provided via the consolidated `/api/v1/admin/dashboard/statistics` endpoint which aggregates data from multiple modules.
-
-### 1.6 Analytics Architecture
-
-The admin dashboard statistics endpoint aggregates analytics from multiple domain modules using Service Provider Interfaces (SPIs). This decoupled architecture ensures module independence while providing comprehensive platform-wide analytics.
-
-#### Module Analytics SPIs
-
-Each domain module exposes analytics through an SPI interface in `apps.sarafrika.elimika.shared.spi.analytics`:
-
-| Module | Analytics Service | Snapshot Type | Key Metrics |
-|--------|------------------|---------------|-------------|
-| **Course** | `CourseAnalyticsService` | `CourseAnalyticsSnapshot` | Total courses, enrollments, completion rates, programs |
-| **Timetabling** | `TimetablingAnalyticsService` | `TimetablingAnalyticsSnapshot` | Scheduled sessions, attendance, completion rates |
-| **Commerce** | `CommerceAnalyticsService` | `CommerceAnalyticsSnapshot` | Orders, customers, purchases by type |
-| **Notifications** | `NotificationAnalyticsService` | `NotificationAnalyticsSnapshot` | Delivery rates, pending notifications |
-| **Instructor** | `InstructorAnalyticsService` | `InstructorAnalyticsSnapshot` | Verified instructors, pending verifications, document status |
-| **Course Creator** | `CourseCreatorAnalyticsService` | `CourseCreatorAnalyticsSnapshot` | Total creators, verification status |
-
-#### Analytics Data Flow
-
-```mermaid
-graph LR
-    A[Admin Dashboard UI] -->|GET /api/v1/admin/dashboard/statistics| B[AdminServiceImpl]
-    B -->|captureSnapshot| C1[CourseAnalyticsService]
-    B -->|captureSnapshot| C2[TimetablingAnalyticsService]
-    B -->|captureSnapshot| C3[CommerceAnalyticsService]
-    B -->|captureSnapshot| C4[NotificationAnalyticsService]
-    B -->|captureSnapshot| C5[InstructorAnalyticsService]
-    B -->|captureSnapshot| C6[CourseCreatorAnalyticsService]
-    C1 & C2 & C3 & C4 & C5 & C6 --> D[AdminDashboardStatsDTO]
-    D --> A
-```
-
-#### Implementation Location
-
-- **SPI Interfaces**: `src/main/java/apps/sarafrika/elimika/shared/spi/analytics/`
-- **Service Implementations**: Each module's `service/impl/` package (e.g., `CourseAnalyticsServiceImpl`)
-- **Admin Aggregation**: `src/main/java/apps/sarafrika/elimika/tenancy/services/impl/AdminServiceImpl.java`
-
-#### Example Analytics Snapshot
-
-```json
-{
-  "course_analytics": {
-    "total_courses": 150,
-    "published_courses": 120,
-    "total_course_enrollments": 5000,
-    "active_course_enrollments": 3200,
-    "average_course_progress": 67.5
-  },
-  "commerce_analytics": {
-    "total_orders": 800,
-    "orders_last_30_days": 120,
-    "unique_customers": 450
-  },
-  "instructor_analytics": {
-    "verified_instructors": 45,
-    "pending_instructors": 5,
-    "documents_expiring_30d": 8
-  }
-}
-```
-
-### 1.6 Frontend Engineer Task Breakdown
-
-| Component | Description | Key Props / State | Interactions |
-| :--- | :--- | :--- | :--- |
-| `DashboardPage` | Main container for the dashboard. | `stats`, `activity`, `analyticsData`, `loading`, `error` | Fetches all data on mount. |
-| `KPICard` | Displays a single metric (e.g., "Total Users"). | `title: string`, `value: number`, `icon: string` | None. |
-| `AnalyticsChart` | A reusable chart component. | `type: 'line' \| 'pie'`, `data: object`, `title: string` | Tooltips on hover. |
-| `SystemHealthPanel` | Shows the status of backend services. | `services: Array<{name, status}>` | Color-coded status indicators. |
-| `ActivityFeed` | Displays a list of recent platform events. | `events: Array<ActivityEventDTO>` | Links to relevant pages. |
+Keep chart transformations inside the presentation layer; the DTO already exposes aggregated values so no additional backend joins are required.
 
 ---
 
-## Feature 2.0: Comprehensive Admin User Management
+## 3. API Contract Map (Current Capabilities)
+Only list APIs that exist in the service today.
 
-### 2.1 Objective
-To provide admins with the tools to search, view, and manage every user account on the platform, with a focus on securely managing system administrator roles.
+### 3.1 Analytics & Overview
+| Endpoint | Purpose | Notes |
+|----------|---------|-------|
+| `GET /api/v1/admin/dashboard/statistics` | Returns `AdminDashboardStatsDTO` for KPI, charts, and contextual panels | Cache for short intervals (30–60s) to reduce load |
+| `GET /api/v1/admin/dashboard/activity-feed` | Returns paginated `AdminActivityEventDTO` items for the timeline | Sort by newest first; reuse pageable/sort controls |
 
-### 2.2 User Stories
-- As an admin, I want to search for users by name or email.
-- As an admin, I want to filter the user list by role, organization, or status.
-- As an admin, I want to view a user's detailed profile.
-- As an admin, I want to suspend, delete, or change the roles of a user.
-- As a super admin, I want to securely invite new system administrators.
-- As a super admin, I want to revoke system administrator privileges from a user.
+### 3.2 Admin Identity & Domains
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/admin/users/{uuid}/domains` | Grant admin domain (system or organisation scoped) |
+| `DELETE /api/v1/admin/users/{uuid}/domains/{domain}` | Revoke admin domain |
+| `GET /api/v1/admin/users/admins` | Paginated list of all admin users |
+| `GET /api/v1/admin/users/system-admins` | Paginated list of system administrators |
+| `GET /api/v1/admin/users/organization-admins` | Paginated list of organization administrators |
+| `GET /api/v1/admin/users/eligible` | Paginated list of users eligible for promotion |
+| `GET /api/v1/admin/users/{uuid}/is-admin` | Boolean check for any admin domain |
+| `GET /api/v1/admin/users/{uuid}/is-system-admin` | Boolean check for system admin domain |
 
-### 2.3 Core API Endpoints & Status
+### 3.3 User Directory
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/users` | Paginated list of users (supports Pageable params) |
+| `GET /api/v1/users/search` | User search with query params |
+| `GET /api/v1/users/{uuid}` | Fetch individual user profile |
+| `PUT /api/v1/users/{uuid}` | Update user profile |
+| `DELETE /api/v1/users/{uuid}` | Delete user |
 
-#### **Available Endpoints (for general user management)**
+### 3.4 Organization Oversight
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/organisations` | Paginated organizations list |
+| `POST /api/v1/organisations` | Create organization (admin bootstrap flow) |
+| `GET /api/v1/organisations/{uuid}` | Organization details |
+| `PUT /api/v1/organisations/{uuid}` | Update organization |
+| `GET /api/v1/organisations/{uuid}/users` | Members inside organization |
+| `GET /api/v1/organisations/{uuid}/training-branches` | Branch list under organization |
+| `POST /api/v1/admin/organizations/{uuid}/moderate?action=approve|reject|revoke` | Unified moderation endpoint |
+| `GET /api/v1/admin/organizations/{uuid}/verification-status` | Boolean verification check |
+| `GET /api/v1/admin/organizations/pending` | Pending approval queue (unverified organisations) |
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| `GET` | `/api/v1/users` | List all platform users |
-| `GET` | `/api/v1/users/search` | Search users with filters |
-| `GET` | `/api/v1/users/{uuid}` | Get user details |
-| `PUT` | `/api/v1/users/{uuid}` | Update user profile |
-| `DELETE` | `/api/v1/users/{uuid}` | Delete user account |
+### 3.5 Instructor Verification & Compliance
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/admin/instructors/{uuid}/verify` | Approve instructor |
+| `POST /api/v1/admin/instructors/{uuid}/unverify` | Revoke verification |
+| `GET /api/v1/admin/instructors/{uuid}/verification-status` | Boolean verification check |
 
-#### **Missing Critical Endpoints for Admin Management** ⚠️
-
-The following endpoints are **NOT IMPLEMENTED** and are required for full functionality.
-
-| Priority | Method | Missing Endpoint | Purpose | Impact |
-|----------|--------|------------------|---------|---------|
-| **HIGH** | `POST` | `/api/v1/admin/users/{uuid}/domains` | Add admin domain to user | **Core functionality blocked** |
-| **HIGH** | `DELETE` | `/api/v1/admin/users/{uuid}/domains/{domain}` | Remove admin domain | **Admin removal impossible** |
-| **HIGH** | `GET` | `/api/v1/admin/users/admins` | List all system admins | **Admin dashboard empty** |
-| **MEDIUM** | `POST` | `/api/v1/admin/users/invite-admin` | Direct admin invitation | **Streamlined admin creation blocked** |
-
-### 2.4 Frontend Implementation Guide
-
-#### **Component Structure**
-
-The frontend implementation for this feature should be organized into a clear component hierarchy. A `UserManagementPage` component will act as the main container. This page will house an `AdminUserManagement` component, which in turn contains child components for specific functionalities:
--   **`AdminUserTable`**: A component to display a paginated list of administrators.
--   **`AdminInviteModal`**: A modal dialog for the admin invitation flow.
--   **`AdminDetailsModal`**: A modal for viewing and editing the details of an administrator.
--   **`AdminBulkActions`**: A component to handle batch operations like suspending or deleting multiple admins.
-
-#### **Admin Invitation Workflow**
-
-The process for inviting a new system administrator involves the frontend, the API, the email service, and the authentication system (Keycloak).
-
-**Current Implementation Status:** ⚠️ **Partially Available**
-**Workaround:** Use the general organization invitation and manually assign the admin domain via database.
-
-```mermaid
-sequenceDiagram
-    participant ADMIN as Super Admin
-    participant UI as React Frontend
-    participant API as Elimika API
-    participant EMAIL as Email Service
-    participant TARGET as Target User
-    participant KC as Keycloak
-
-    Note over ADMIN,KC: Phase 1: Admin Invitation Creation
-    ADMIN->>UI: 1. Access Admin Management
-    UI->>ADMIN: 2. Show Admin Invite Form
-    ADMIN->>UI: 3. Submit Admin Invite
-    Note right of ADMIN: {<br/>"email": "newadmin@company.com",<br/>"name": "Jane Admin",<br/>"role": "admin"<br/>}
-
-    Note over UI,EMAIL: Phase 2: API Processing (MISSING IMPLEMENTATION)
-    UI->>API: 4. POST /api/v1/admin/users/invite-admin ❌
-    Note over API: MISSING: Direct admin invitation endpoint
-    Note over API: WORKAROUND: Use organization invitation
-
-    API->>EMAIL: 5. Send Admin Invitation Email
-    EMAIL->>TARGET: 6. Invitation email with accept link
-
-    Note over TARGET,KC: Phase 3: Admin Assignment
-    TARGET->>UI: 7. Click Accept Link
-    UI->>KC: 8. Authenticate via Keycloak
-    KC->>UI: 9. Return JWT + user info
-    UI->>API: 10. POST /api/v1/admin/users/{uuid}/domains ❌
-    Note over API: MISSING: Admin domain assignment endpoint
-
-    API->>UI: 11. Return success + admin permissions
-    UI->>ADMIN: 12. Confirmation: New admin added
-```
-
-#### **Component-Level Logic**
-
--   **`AdminInviteModal`**: This component should render a form with fields for the new admin's email, name, admin level (system or organization), and an optional welcome message. On submission, it should handle the API call to invite the user. Because the direct admin invitation endpoint is missing, the current workaround is to use the organization invitation endpoint. The UI should clearly message that a manual step is required after the user accepts the invitation.
-
--   **`AdminUserTable`**: This component is responsible for fetching and displaying a list of users with the admin domain. It will use the `/api/v1/users/search` endpoint with a filter for the 'admin' domain as a workaround for the missing dedicated admin list endpoint. The component should also provide actions for each admin, such as viewing details or removing admin privileges. The removal action should be disabled or show a warning, as the required API endpoint is not yet implemented.
-
-### 2.5 API Service Layer and Security
-
-#### **API Service**
-
-A dedicated API service or client should be created in the frontend codebase to manage all interactions with the admin-related endpoints. This service will encapsulate the logic for making API calls, including handling workarounds for missing endpoints. For instance, the `getAdminUsers` function would call the `searchUsers` endpoint with the appropriate filter, while the `inviteAdmin` function would throw a "not implemented" error to alert developers that the backend functionality is missing.
-
-#### **Security**
-
-Frontend security should be handled using a custom React hook, such as `useAdminAccess`. This hook will check the authenticated user's JWT for their domain information (e.g., the presence of the 'admin' domain). The hook should return boolean flags like `isSystemAdmin` or `canManageUsers`. These flags can then be used to implement protected routes and conditionally render UI elements, ensuring that only authorized administrators can access sensitive management features.
-
-### 2.6 Critical Implementation Gaps
-
-This section details the required backend implementation for the missing endpoints.
-
-#### **Admin Domain Management Endpoints** ⚠️ **CRITICAL**
-
-```javascript
-// REQUIRED BACKEND IMPLEMENTATION
-/**
- * Add admin domain to existing user
- * POST /api/v1/admin/users/{userUuid}/domains
- *
- * Request Body:
- * {
- *   "domainName": "admin",
- *   "assignmentType": "global",
- *   "reason": "Promoted to system administrator"
- * }
- */
-
-/**
- * Remove admin domain from user
- * DELETE /api/v1/admin/users/{userUuid}/domains/{domainName}
- *
- * Query Parameters:
- * - reason: "Role change" | "Security concern"
- */
-```
+### 3.6 Branch Operations
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/organisations/{uuid}/training-branches` | Create branch inside organization |
+| `GET /api/v1/organisations/{uuid}/training-branches/{branchUuid}` | Branch detail |
+| `PUT /api/v1/organisations/{uuid}/training-branches/{branchUuid}` | Update branch |
+| `DELETE /api/v1/organisations/{uuid}/training-branches/{branchUuid}` | Delete branch |
+| `GET /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users` | Users assigned to branch |
+| `GET /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}` | Branch users filtered by domain |
+| `POST /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Assign user to branch |
+| `DELETE /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Remove user from branch |
 
 ---
 
-## Feature 3.0: Organization & Tenancy Management
+## 4. Implementation Playbooks
 
-### 3.1 Objective
-To enable admins to manage the entire lifecycle of organizations on the platform.
+### 4.1 Overview Surface
+1. Fetch `GET /api/v1/admin/dashboard/statistics` on page load and via background refresh every 60 seconds (or on demand when filters change).
+2. Map each nested metrics object to dedicated UI components (e.g., `user_metrics.total_users` to a KPI card).
+3. Derive chart datasets client-side—e.g., convert `new_registrations_7d` into sparklines using historical snapshots stored in local state.
+4. Surface status badges using `overall_health` and `system_performance` strings. Define thresholds client-side; the payload already normalises values as strings.
+5. **Activity Feed:** pull paginated items from `GET /api/v1/admin/dashboard/activity-feed`, surface the `summary` as the primary title, and conditionally render badges for response status or action types.
+   - `AdminActivityEventDTO` carries request metadata (method, endpoint, response status, processing time) plus actor details (`actor_name`, `actor_email`, `actor_domains`).
+   - Use `occurred_at` (UTC) for ordering and `request_id` for linking deeper audit traces when troubleshooting.
 
-### 3.2 User Stories
-- As an admin, I want to see a list of all organizations and their status.
-- As an admin, I need a queue to review and approve/reject new organization applications.
-- As an admin, I want to view an organization's detailed profile.
+### 4.2 Admin Identity Management
+1. Use `GET /api/v1/admin/users/admins` as the primary source for the admin roster table. The response is a `PagedDTO`.
+2. Filter views with supporting endpoints: system admins (`/system-admins`), organization admins (`/organization-admins`), and candidates (`/eligible`).
+3. Wrap promotion actions around `POST /api/v1/admin/users/{uuid}/domains`. Required request payload mirrors `AdminDomainAssignmentRequestDTO` (domain name, assignment type, optional reason).
+4. Wire demotion flows to `DELETE /api/v1/admin/users/{uuid}/domains/{domain}` and prompt for an optional reason query parameter.
+5. Use `/is-admin` and `/is-system-admin` checks to gate destructive UI controls and to render inline badges in shared tables.
 
-### 3.3 Required API Endpoints
-- `GET /api/v1/organisations`
-- `POST /api/v1/organisations`
-- `GET /api/v1/admin/organizations/pending`
-- `POST /api/v1/admin/organizations/{uuid}/approve`
-- `GET /api/v1/organisations/{uuid}/users`
-- `GET /api/v1/organisations/{uuid}/training-branches`
+### 4.3 User Directory Operations
+1. Back the global search bar with `GET /api/v1/users/search`. Pass raw query params (name, email, domain) as provided by the request builder.
+2. Use `GET /api/v1/users` to populate default user tables and maintain pagination state.
+3. Route profile drawers to `GET /api/v1/users/{uuid}` and basic edits to `PUT /api/v1/users/{uuid}`.
+4. Deleting a user should call `DELETE /api/v1/users/{uuid}` and then invalidate local caches for admin lists (promotions may be impacted).
 
-### 3.4 Frontend Engineer Task Breakdown
+### 4.4 Organization Oversight
+1. The Organization workspace lists entries from `GET /api/v1/organisations` and surfaces status columns from the DTO (e.g., `adminVerified`).
+2. Back the approval queue tab with `GET /api/v1/admin/organizations/pending`; reuse the same table component and highlight verification reasons or submission timestamps if available.
+3. Detail views should call `GET /api/v1/organisations/{uuid}` and hydrate tabs for *Members* (`GET /api/v1/organisations/{uuid}/users`) and *Branches* (`GET /api/v1/organisations/{uuid}/training-branches`).
+4. Moderation actions call `POST /api/v1/admin/organizations/{uuid}/moderate` with `action=approve|reject|revoke`. Reflect the result in UI instantly and revalidate the overview stats.
+5. Provide a small badge sourced from `GET /api/v1/admin/organizations/{uuid}/verification-status` for context panels.
 
-| Component | Description | Key Props / State | Interactions |
-| :--- | :--- | :--- | :--- |
-| `OrganizationPage` | Main container with tabs for lists. | `activeTab`, `orgs`, `pendingOrgs` | Switches between tabs. |
-| `OrganizationList` | Displays active organizations. | `orgs: Array<OrgDTO>` | Clicking an org navigates to its profile. |
-| `PendingApprovalsQueue` | Displays orgs awaiting approval. | `pendingOrgs: Array<OrgDTO>` | "Approve" and "Reject" buttons. |
-| `OrganizationProfile` | Detailed view of a single organization. | `org: OrgDTO` | Displays users, branches, and courses. |
+### 4.5 Instructor Verification & Compliance
+1. Instructor review queues can be powered by existing instructor search endpoints (outside this document) combined with verification calls below.
+2. Verification toggles invoke `POST /api/v1/admin/instructors/{uuid}/verify` or `/unverify` and re-fetch compliance metrics via the statistics endpoint.
+3. Display real-time status using `GET /api/v1/admin/instructors/{uuid}/verification-status` where a detail panel needs an authoritative badge.
 
----
-
-## Feature 4.0: Content & Course Oversight
-
-### 4.1 Objective
-To provide admins with a high-level view of all educational content on the platform, with tools for moderation and management.
-
-### 4.2 User Stories
-- As an admin, I want to browse and search all courses on the platform, regardless of the organization.
-- As an admin, I want to view a course's details and statistics (enrollment, completion rate).
-- As an admin, I want to manage the library of public, reusable assessment rubrics.
-- As an admin, I want a queue to review content (courses, comments) that has been reported by users for moderation.
-
-### 4.3 UI/UX Description
-- A searchable data table for all courses, similar to the user management view.
-- A dedicated page for managing the public rubric library, perhaps with the ability to "feature" or "verify" high-quality rubrics.
-- A moderation queue that displays reported items with context and provides actions (e.g., "Dismiss Report," "Unpublish Content").
-
-### 4.4 Required API Endpoints & Data
-- **Courses:**
-    - `GET /api/v1/admin/courses` (New endpoint needed to list all courses across all orgs).
-    - `GET /api/v1/courses/{uuid}` (Existing, but may need an admin-specific view).
-- **Rubrics:**
-    - `GET /api/v1/rubrics/discovery/public` (Existing, as per `RubricManagementGuide.md`).
-    - `PUT /api/v1/rubrics/{uuid}` (Existing, admin could use this to change status, e.g., `is_verified`).
-- **Moderation:**
-    - `GET /api/v1/admin/moderation/queue` (New endpoint needed).
-    - `POST /api/v1/admin/moderation/actions` (New endpoint needed to perform actions on reported content).
-
-### 4.5 Frontend Engineer Task Breakdown
-
-| Component | Description | Key Props / State | Interactions |
-| :--- | :--- | :--- | :--- |
-| `ContentOversightPage` | Main container with tabs for Courses, Rubrics, Moderation. | `activeTab` | Switches between content types. |
-| `AllCoursesTable` | A data table to display all courses on the platform. | `courses: Array<CourseDTO>` | Search, filter by org/instructor. |
-| `PublicRubricsGrid` | A card-based grid to display public rubrics. | `rubrics: Array<RubricDTO>` | Clicking a rubric shows its matrix. Admin can toggle a `is_verified` flag. |
-| `ModerationQueue` | Displays a list of reported content items. | `reportedItems: Array<ReportDTO>` | Admin can view the report details and take action. |
+### 4.6 Branch Management
+1. Display branches under an organization with `GET /api/v1/organisations/{uuid}/training-branches`.
+2. Provide branch-level drawers that call the detail endpoint and list assigned users. Cross-filter using `/users/domain/{domainName}` when highlighting specific roles (instructor view vs admin view).
+3. Use the assignment endpoints to manage branch membership without leaving the dashboard surface.
 
 ---
 
-## Feature 5.0: System & Platform Settings
+## 5. State Management & Performance
+- **Data Fetching Layer:** centralise API calls in a typed client (e.g., React Query + generated hooks). Keep polling for statistics separate from mutation flows so admin actions do not flood the dashboard endpoint.
+- **Caching:** short-lived cache (<=60s) for statistics; longer cache for admins/users with explicit invalidation after mutations.
+- **Optimistic UI:** apply for domain assignments/removals and verification toggles. Roll back on error with toast notification.
+- **Pagination Normalisation:** reuse the shared `PagedDTO` mapper so tables across surfaces behave consistently.
 
-### 5.1 Objective
-To provide a centralized location for admins to manage platform-wide configurations, security settings, and technical configurations.
+## 6. Security & Access Control
+- Guard admin routes with a custom hook (e.g., `useAdminAccess`) that inspects JWT claims for admin domains.
+- Combine client-side gating with server responses: call `/is-admin` prior to showing privileged modals.
+- Ensure CSRF and access tokens are scoped appropriately when embedding admin components inside other shells.
 
-### 5.2 User Stories
-- As an admin, I want to manage the email templates for system-wide notifications.
-- As an admin, I want to view system security and audit logs to track important actions.
-- As an admin, I want to enable or disable major platform features using feature toggles.
-- As an admin, I want to place the platform in "Maintenance Mode," which shows a banner to all users.
+## 7. Error Handling & Observability
+- Funnel API errors through a central handler that maps HTTP codes to actionable UI copy (403 -> "Insufficient privileges" etc.).
+- Instrument critical actions (domain assignment, verification toggles) with analytics events for audit trails.
+- Surface partial-data states on the overview screen when the statistics payload loads but a widget fails to render; do not block the rest of the dashboard.
 
-### 5.3 UI/UX Description
-- A settings page with a clear navigation structure, likely a vertical list of categories (e.g., General, Notifications, Security, Advanced).
-- An editor for email templates with support for variables (e.g., `{{userName}}`).
-- A read-only log viewer for audit trails, with search and filtering capabilities.
-- A simple list of feature toggles with on/off switches.
+## 8. Progressive Enhancements
+- Keep emerging modules behind feature flags so you can iterate quickly while continuing to lean on the shared endpoints above.
+- When product validation calls for additional APIs (e.g., richer moderation analytics, direct admin invites), coordinate delivery so the UI can drop interim compositions without regressions.
 
-### 5.4 Required API Endpoints & Data
-- **Notifications:**
-    - `GET /api/v1/admin/notifications/templates` (New endpoint needed).
-    - `PUT /api/v1/admin/notifications/templates/{templateId}` (New endpoint needed).
-- **Security:**
-    - `GET /api/v1/admin/audit-log` (New endpoint needed, should support pagination and filtering).
-- **Settings:**
-    - `GET /api/v1/admin/settings` (New endpoint needed to fetch current settings like maintenance mode).
-    - `PUT /api/v1/admin/settings` (New endpoint needed to update settings).
-    - `GET /api/v1/admin/features` (New endpoint for feature toggles).
-    - `PUT /api/v1/admin/features/{featureName}` (New endpoint to toggle a feature).
+## 9. Frontend Preparation for Potential `POST /api/v1/admin/users/invite-admin`
+The current invite workflow is fully supported by combining organization invitations with the domain-assignment endpoints. If a dedicated admin invite API is introduced later, the UI can adopt it with the following guardrails:
 
-### 5.5 Frontend Engineer Task Breakdown
+1. **Feature Flag:** wrap the invite flow in a `adminInvite.enabled` flag so it can flip from the consolidated approach to the dedicated endpoint at launch.
+2. **Request Shape:** reuse the `AdminDomainAssignmentRequestDTO` fields (`domainName`, `assignmentType`, optional `reason`) and extend with invite-specific metadata (`email`, `fullName`) once the contract is formalised.
+3. **Submission Flow:** on modal submit, call the new endpoint, display confirmation, and pre-fetch `/api/v1/admin/users/admins` plus `/eligible` to keep tables fresh.
+4. **Audit Trail:** log invite attempts (success/failure) so admins can reconcile invites regardless of backend implementation.
 
-| Component | Description | Key Props / State | Interactions |
-| :--- | :--- | :--- | :--- |
-| `SettingsPage` | Main container with sidebar navigation. | `settings`, `templates`, `logs` | Fetches and displays various settings data. |
-| `EmailTemplateEditor` | An editor for modifying notification templates. | `template: TemplateDTO` | Saves changes to a template. Supports previewing. |
-| `AuditLogViewer` | A searchable, filterable view of audit logs. | `logs: Array<LogEntryDTO>` | Search by user, action, or date range. |
-| `FeatureToggleList` | A list of features that can be enabled/disabled. | `features: Array<FeatureDTO>` | Toggling the switch triggers an API call. |
-
----
-
-## Feature 6.0: Advanced Analytics & Reporting
-
-### 6.1 Objective
-To allow admins to generate, view, and export detailed reports on various aspects of the platform for business intelligence and operational analysis.
-
-### 6.2 User Stories
-- As an admin, I want to generate a downloadable CSV report of all users, including their roles and organization affiliations.
-- As an admin, I want to generate a report on course enrollment and completion rates across the entire platform.
-- As an admin, I want to create a report on instructor activity, showing the number of courses created and students taught.
-
-### 6.3 UI/UX Description
-- A dedicated "Reporting" page.
-- The page will feature a list of available reports.
-- Each report item will have a description and a "Generate Report" button.
-- Generating a report might take time, so the UI should handle asynchronous job status (e.g., "Generating...", "Ready for Download").
-
-### 6.4 Required API Endpoints & Data
-- This feature would likely be powered by an asynchronous job system.
-- `POST /api/v1/admin/reports/{reportType}`: Kicks off a report generation job (e.g., `reportType` could be `all-users` or `course-completion`). Returns a `jobId`.
-- `GET /api/v1/admin/reports/jobs/{jobId}`: Polls for the status of the report generation job.
-- `GET /api/v1/admin/reports/download/{jobId}`: When the job is complete, this endpoint downloads the generated file (e.g., a CSV).
-
-### 6.5 Frontend Engineer Task Breakdown
-
-| Component | Description | Key Props / State | Interactions |
-| :--- | :--- | :--- | :--- |
-| `ReportingPage` | Main container that lists available reports. | `availableReports`, `reportJobs` | Displays the list of reports and the status of recent jobs. |
-| `ReportGeneratorCard` | A card for a single type of report. | `report: ReportInfoDTO` | Clicking "Generate" starts the process. |
-| `ReportJobsList` | Shows the status of ongoing and completed reports. | `jobs: Array<JobDTO>` | Provides a "Download" link when a job is complete. Handles polling for status updates. |
+## 10. Testing & Verification Checklist
+- ✅ `GET /api/v1/admin/dashboard/statistics` renders KPI cards, charts, and contextual badges.
+- ✅ Domain assignment and removal flows hit the correct admin endpoints and invalidate caches.
+- ✅ Organization moderation actions (`approve`, `reject`, `revoke`) update verification badges and reflected metrics.
+- ✅ Instructor verification toggles update compliance cards.
+- ✅ Branch membership edits sync with backend endpoints and update branch tables.
+- ✅ Activity feed renders using `GET /api/v1/admin/dashboard/activity-feed` and paginates correctly.
+- ✅ Feature flags continue to guard optional modules (invite flow, future enhancements) without blocking core dashboards.

@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.shared.spi.analytics.TimetablingAnalyticsService;
 import apps.sarafrika.elimika.shared.spi.analytics.TimetablingAnalyticsSnapshot;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
+import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -28,14 +29,20 @@ import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRe
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.shared.tracking.entity.RequestAuditLog;
+import apps.sarafrika.elimika.shared.tracking.repository.RequestAuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +74,7 @@ public class AdminServiceImpl implements AdminService {
     private final NotificationAnalyticsService notificationAnalyticsService;
     private final InstructorAnalyticsService instructorAnalyticsService;
     private final CourseCreatorAnalyticsService courseCreatorAnalyticsService;
+    private final RequestAuditLogRepository requestAuditLogRepository;
 
     @Override
     @Transactional
@@ -357,6 +365,27 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<AdminActivityEventDTO> getDashboardActivity(Pageable pageable) {
+        log.debug("Fetching admin activity feed with pageable: {}", pageable);
+
+        Sort sort = pageable.getSort().isSorted()
+                ? pageable.getSort()
+                : Sort.by(Sort.Direction.DESC, "createdDate");
+
+        PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+
+        Page<RequestAuditLog> auditLogs = requestAuditLogRepository.findAdminActivity(
+                "/api/v1/admin",
+                200,
+                399,
+                pageRequest
+        );
+
+        return auditLogs.map(this::toAdminActivityEventDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<UserDTO> getAdminEligibleUsers(String searchTerm, Pageable pageable) {
         // Get all users who are not already admins
         // This is a simplified implementation
@@ -401,6 +430,87 @@ public class AdminServiceImpl implements AdminService {
     }
 
     // Helper methods
+
+    private AdminActivityEventDTO toAdminActivityEventDTO(RequestAuditLog log) {
+        return new AdminActivityEventDTO(
+                log.getUuid(),
+                log.getCreatedDate(),
+                deriveSummary(log),
+                log.getHttpMethod(),
+                log.getRequestUri(),
+                log.getQueryString(),
+                log.getResponseStatus(),
+                log.getProcessingTimeMs(),
+                log.getUserFullName(),
+                log.getUserEmail(),
+                log.getUserUuid(),
+                log.getUserDomains(),
+                log.getRequestId()
+        );
+    }
+
+    private String deriveSummary(RequestAuditLog log) {
+        String method = log.getHttpMethod() == null ? "" : log.getHttpMethod().toUpperCase();
+        String uri = log.getRequestUri() == null ? "" : log.getRequestUri();
+
+        if (uri.contains("/organizations") && uri.contains("/moderate")) {
+            String action = extractQueryParam(log.getQueryString(), "action");
+            return switch (action != null ? action.toLowerCase() : "moderate") {
+                case "approve" -> "Approved organisation";
+                case "reject" -> "Rejected organisation";
+                case "revoke" -> "Revoked organisation verification";
+                default -> "Moderated organisation";
+            };
+        }
+
+        if (uri.contains("/users") && uri.endsWith("/domains") && "POST".equals(method)) {
+            return "Assigned admin domain";
+        }
+
+        if (uri.contains("/users") && uri.contains("/domains/" ) && "DELETE".equals(method)) {
+            return "Removed admin domain";
+        }
+
+        if (uri.contains("/dashboard/statistics")) {
+            return "Viewed dashboard statistics";
+        }
+
+        if (uri.contains("/dashboard/activity-feed")) {
+            return "Viewed dashboard activity";
+        }
+
+        if (uri.contains("/instructors") && uri.contains("/verify")) {
+            return "Verified instructor";
+        }
+
+        if (uri.contains("/instructors") && uri.contains("/unverify")) {
+            return "Unverified instructor";
+        }
+
+        return (method + " " + uri).trim();
+    }
+
+    private String extractQueryParam(String query, String key) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        String[] pairs = query.split("&");
+        for (String pair : pairs) {
+            int idx = pair.indexOf('=');
+            if (idx < 0) {
+                if (pair.equalsIgnoreCase(key)) {
+                    return "";
+                }
+                continue;
+            }
+            String paramKey = pair.substring(0, idx);
+            if (paramKey.equalsIgnoreCase(key)) {
+                String value = pair.substring(idx + 1);
+                return URLDecoder.decode(value, StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
 
     private User findUserOrThrow(UUID userUuid) {
         return userRepository.findByUuid(userUuid)

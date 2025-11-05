@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services;
 
+import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -85,6 +86,14 @@ public interface AdminService {
      * @return Comprehensive admin dashboard statistics
      */
     AdminDashboardStatsDTO getDashboardStatistics();
+
+    /**
+     * Get recent admin activity feed for dashboard timeline.
+     *
+     * @param pageable pagination information
+     * @return paginated list of recent admin activities
+     */
+    Page<AdminActivityEventDTO> getDashboardActivity(Pageable pageable);
 
     /**
      * Get list of users eligible for admin promotion

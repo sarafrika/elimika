@@ -175,12 +175,14 @@ sequenceDiagram
     
     Note over ADMIN,DB: Admin Review Process
     ADMIN->>API: GET /api/v1/admin/organizations/{uuid}/details
-    ADMIN->>API: POST /api/v1/admin/organizations/{uuid}/approve
+    ADMIN->>API: POST /api/v1/admin/organizations/{uuid}/moderate?action=approve
     
     API->>DB: Update organization status to active
     API->>EMAIL: Send approval notification to org
     API-->>ORG: Organization setup instructions
 ```
+
+**Moderation Endpoint Note:** Use `POST /api/v1/admin/organizations/{uuid}/moderate` with `action=approve|reject|revoke` to handle the full approval lifecycle. Provide an optional `reason` query parameter for audit clarity.
 
 ### User Domain Assignment Workflow
 

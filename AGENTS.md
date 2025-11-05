@@ -12,6 +12,9 @@ Elimika is a Spring Boot 3.5 service on Java 21. Feature modules live in `src/ma
 ## Coding Style & Naming Conventions
 Use 4-space indentation and follow the existing Lombok patterns. Classes, controllers, and configuration beans use PascalCase, while Spring beans and packages stay lowercase. Keep controllers thin, move domain logic into the relevant module, and keep request and response DTOs alongside feature code. Configuration files should reference secrets via environment variables, never literals.
 
+- When moderating organizations, rely on the consolidated endpoint `POST /api/v1/admin/organizations/{uuid}/moderate?action=approve|reject|revoke` instead of bespoke verify/unverify routes.
+- Order dashboard activity feeds from `GET /api/v1/admin/dashboard/activity-feed`; resist duplicating audit lookups in feature code.
+
 ### Flyway Migration Naming
 - Always name migration files `Vyyyymmddhhmm__migration_name.sql` using the current UTC timestamp. Run `date -u +"%Y%m%d%H%M"` in the terminal to generate the prefix and avoid manual guessing.
 - Treat UTC as the source of truth for all timestamps (migrations, auditing, cross-service messages). Convert external inputs to UTC immediately and only localize at the presentation layer.
