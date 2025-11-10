@@ -35,6 +35,7 @@ The admin dashboard is the command center for keeping Elimika healthy, compliant
 - **Organization Metrics:** total organizations, pending approvals count, active vs suspended.
 - **Admin Metrics:** total admins, breakdown of system vs organization admins, active sessions, admin actions today.
 - **Learning & Timetabling Metrics:** course inventory, enrollments, session throughput, attendance trends.
+- **Enrollment Compliance:** Age-gated enrollment attempts, `AgeRestrictionException` counts per course, and percentage of students missing DOB so admins can spot policy friction quickly.
 - **Commerce Metrics:** total orders, last 30 days orders, captured orders, unique customers, purchase mix.
 - **Communication Metrics:** notification creation/delivery/failure stats, pending count.
 - **Compliance Metrics:** verification state for instructors and course creators, expiring documents.

@@ -13,6 +13,11 @@ The **Student** domain represents learners who engage with educational content, 
 - **Certificate Earning**: Obtain completion certificates for courses and programs
 - **Content Consumption**: View lessons, download materials, interact with content
 
+### Enrollment Compliance
+- Students (or their guardians) must provide a verified date of birth before enrolling. The platform runs every enrollment through the global age gate and blocks requests outside the course or class limits with an `AgeRestrictionException`.
+- Keep guardian contacts and demographic tags current; the rule engine uses these signals alongside DOB to enforce youth vs. adult pathways.
+- When a rejection occurs, resurface the backend message (“Student age 12 is below the minimum age 16 required…”) so families immediately know whether to wait, pick another course, or request an override from support.
+
 ### Domain Assignment Patterns
 
 ```mermaid

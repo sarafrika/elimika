@@ -9,6 +9,8 @@ The Elimika platform implements a flexible dual-tier user domain system that man
 The system supports four primary user domains:
 
 - **Student**: Learners who enroll in courses and training programs
+
+> **Enrollment compliance:** Student domains must capture a verified date of birth before enrollments. The AgeVerificationService enforces course/class age limits and returns `AgeRestrictionException` when a learner falls outside the configured band, so tenant onboarding flows should surface DOB requirements up front.
 - **Instructor**: Educators who create and deliver content
 - **Admin**: System administrators with platform-wide privileges
 - **Organisation User**: Users affiliated with specific organizations

@@ -91,6 +91,11 @@ Invite users to join an organization with a specific role.
 | `admin` | System administrators | Full organizational control, manage users, courses, settings |
 | `organisation_user` | General organization members | Basic access to organizational resources |
 
+### Enrollment Compliance
+- Invitations that assign the `student` domain must funnel the learner (or guardian) through a profile capture step that collects date of birth before any enrollment UI is unlocked. The platform runs every enrollment through the centralized age gate and will return `AgeRestrictionException` if DOB is missing or outside the configured course/class bounds.
+- Surface the backend rejection message in the invitation acceptance flow so invitees understand why enrollment is blocked and who to contact for overrides.
+- Organization admins should double-check that branch/course age policies are documented inside invitation notes when targeting youth cohorts, minimizing support escalations later.
+
 ### Example Request
 
 An administrator would make a `POST` request to the relevant endpoint with a JSON body containing the recipient's details, the domain to assign, and the inviter's UUID.

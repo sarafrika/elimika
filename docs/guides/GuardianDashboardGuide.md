@@ -37,6 +37,11 @@ This guide explains how the guardian access APIs work and how the frontend shoul
   ```
 - When a guardian’s share scope is `ATTENDANCE`, both progress arrays are intentionally empty—the frontend should hide academic widgets in that case.
 
+### Enrollment Compliance Notifications
+- If the enrollment API rejects a request with `AgeRestrictionException`, capture the payload and surface a banner in the guardian dashboard showing the course/class name, allowed age range, and guidance to pick an age-appropriate alternative.
+- Prompt guardians to confirm the learner’s DOB when a rejection occurs; wire the CTA to the profile editor so they can fix typos without contacting support.
+- Provide quick links to filtered course search (pre-populated with the guardian’s learner age) so families can immediately retry with offerings that pass the age gate.
+
 ## Frontend Workflow
 1. **Session bootstrap**
    - After a guardian signs in, call `GET /api/v1/guardians/me/students`.

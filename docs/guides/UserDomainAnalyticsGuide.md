@@ -41,6 +41,7 @@ Currently, student analytics are integrated within **Course Analytics** and **Ti
 |--------|---------------|-------------|
 | **Total Enrollments** | Course | All course enrollments across platform |
 | **Active Enrollments** | Course | Students currently progressing through courses |
+| **Age-Gated Rejections** | Course | Enrollment attempts blocked by age verification (AgeRestrictionException) |
 | **Completion Rate** | Course | Percentage of enrollments completed |
 | **Average Progress** | Course | Mean progress across all active enrollments |
 | **Attendance Rate** | Timetabling | Percentage of attended vs. scheduled sessions |

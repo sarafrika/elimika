@@ -13,6 +13,11 @@ The **Instructor** domain represents educators who create, deliver, and manage e
 - **Performance Analytics**: Track student engagement and learning outcomes
 - **Certification Authority**: Award certificates upon course completion
 
+### Enrollment Compliance
+- Instructors configure age expectations per course/class (via course age limits or class metadata). These values feed the global age gate enforced at enrollment time, so collaborators must keep the limits accurate.
+- When coordinating manual enrollments, confirm the student profile has a date of birth; otherwise the backend raises `AgeRestrictionException` and the enrollment never posts to the timetable.
+- Communicate limit changes to organization admins and storefront teams so paywall, invitations, and guardian dashboards stay in sync, avoiding surprise denials at checkout.
+
 ### Domain Assignment Patterns
 
 ```mermaid

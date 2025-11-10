@@ -261,6 +261,8 @@ A course accepts new enrollments if ALL conditions are met:
 2. Active flag is true
 3. Either `class_limit` is null OR current enrollment count < `class_limit`
 
+> **Age gate reminder:** Even if `accepts_new_enrollments=true`, the course may still block specific learners through `age_lower_limit` / `age_upper_limit`. Surface these fields in search results so families know whether the AgeVerificationService will permit enrollment before they hit checkout.
+
 **Example:**
 ```http
 GET /api/v1/courses/search?accepts_new_enrollments=true&difficulty_name=beginner

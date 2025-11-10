@@ -13,6 +13,11 @@ The **Course Creator** domain represents content authors who design, build, and 
 - **Content Monetization**: Earn revenue from course sales and enrollments
 - **Quality Control**: Update and maintain course content over time
 
+### Enrollment Compliance
+- Every course must explicitly declare the acceptable learner band via `age_lower_limit` and/or `age_upper_limit`. These limits feed the shared `AgeVerificationService`, which looks up the student's date of birth and throws an `AgeRestrictionException` if the request falls outside the configured range.
+- Enrollment and checkout UIs must collect DOB before submission and bubble up the backend error message (“Student age 12 is below the minimum age 16 required for course …”) so learners and guardians know why the request failed.
+- When age limits change, update the course description and marketing copy so downstream storefronts, timetabling, and guardian dashboards show consistent expectations.
+
 ### Domain Assignment Patterns
 
 ```mermaid

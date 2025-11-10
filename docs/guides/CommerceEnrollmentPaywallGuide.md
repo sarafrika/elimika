@@ -164,6 +164,10 @@ When the frontend calls `POST /enrollment`, the backend verifies payment. If the
 }
 ```
 
+### Age-gated enrollments
+- After payment succeeds but before the class is reserved, the enrollment API checks the course/class age limits via `AgeVerificationService`. If the student’s DOB is missing or outside the allowed band, the endpoint returns `422` with an `AgeRestrictionException` message (e.g., “Student age 12 is below the minimum age 16 required for course ‘Algebra Basics’”).
+- Require learners or guardians to supply DOB before checkout, store it in the student profile, and surface the backend message verbatim so families understand why the enrollment cannot proceed. Offer alternate classes or refund paths when appropriate.
+
 ### UI Guidance
 
 - **Primary CTA:** “Complete payment to enroll.”
