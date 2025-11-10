@@ -1,3 +1,11 @@
+# [2.34.0](https://github.com/sarafrika/elimika/compare/v2.33.0...v2.34.0) (2025-11-10)
+
+
+### Features
+
+* add system rule governance and age gating ([550959d](https://github.com/sarafrika/elimika/commit/550959da300dbf03d831ee816a3b1d19a6a56c80))
+* enforce visibility, session format, and rate cards ([fb7966e](https://github.com/sarafrika/elimika/commit/fb7966edbfe915b82688e647758c03abc48cbe2f))
+
 # [2.33.0](https://github.com/sarafrika/elimika/compare/v2.32.0...v2.33.0) (2025-11-10)
 
 
