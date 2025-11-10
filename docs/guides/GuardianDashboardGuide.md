@@ -63,4 +63,43 @@ This guide explains how the guardian access APIs work and how the frontend shoul
 5. **Polling/refresh**
    - For long-running study sessions, poll the dashboard endpoint every ~60 seconds or expose a manual refresh button; the payload is lightweight and read-only.
 
+## Recommended Layout & Controls
+### Global shell
+- **Header:** show guardian name, “Parent Portal” label, and the active student selector (pill, dropdown, or segmented control). Include a `Link another learner` CTA only for admins/instructors.
+- **Left rail (desktop):** quick links for Dashboard, Attendance, Notifications, and Billing (if share scope allows). Collapse to a bottom nav on mobile.
+- **Primary content stack:** use cards with consistent spacing and color-coded status chips (e.g., success for `COMPLETED`, warning for `PENDING`, neutral for `ACTIVE`).
+
+### Student selector
+- Use the `/me/students` payload to build options with: avatar initials, student name, relationship badge, and status pill.
+- Persist the last selected student in local storage so a guardian re-opens the same view after refresh.
+- Disable or gray out entries whose `status` ≠ `ACTIVE`; clicking should open a modal explaining the pending/revoked state.
+
+### Dashboard widgets
+1. **Learner summary card**
+   - Show name, grade level (if available), relationship, share scope badge, and last synced time.
+   - Provide quick-action buttons: “View Attendance”, “Download Report Card” (only for `FULL` / `ACADEMICS`).
+
+2. **Course progress grid**
+   - Render up to 10 items from `course_progress`.
+   - Each tile: course name, instructor chip (optional future enhancement), progress bar, mini timeline showing `updated_date`.
+   - Clicking opens the existing student course details page but with guardian read-only mode.
+
+3. **Program milestones**
+   - Use timeline or stacked cards for `program_progress`: show program name, status, progress radial chart, and expected completion date (derive from enrollment metadata if needed).
+
+4. **Attendance + communications**
+   - For `ATTENDANCE` scope, make this section full width and hide other academic cards.
+   - Include last 5 attendance entries or announcements fetched from existing endpoints; keep placeholders ready even if the backend payload is empty.
+
+### Controls and states
+- **Loading:** skeleton rows for course/program cards; spinner in student selector.
+- **Empty states:** friendly illustrations plus CTA (“Ask the instructor to link you”) when no students exist; “No active courses yet” message when arrays are empty for `FULL/ACADEMICS`.
+- **Errors:** toast + inline banner with retry button; on `403/404`, fallback to student picker view.
+- **Filters:** optional chips to filter course cards by `status` (Active, Completed) using client-side filtering of the response.
+
+## Monitoring & Accessibility Tips
+- Announce student changes via ARIA live regions so screen readers know the dashboard content refreshed.
+- Ensure status colors meet WCAG contrast and pair them with text labels, not color alone.
+- Log guardian actions (student switch, refresh clicks) to help support teams audit usage if access disputes arise.
+
 By following this flow, the frontend stays aligned with the backend authorization rules while giving guardians a clear, scoped view of their learner’s progress.
