@@ -4,6 +4,7 @@ public enum UserDomain {
     student,
     instructor,
     admin,
+    parent,
     organisation_user,
     course_creator
 }

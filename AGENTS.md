@@ -14,6 +14,7 @@ Use 4-space indentation and follow the existing Lombok patterns. Classes, contro
 
 - When moderating organizations, rely on the consolidated endpoint `POST /api/v1/admin/organizations/{uuid}/moderate?action=approve|reject|revoke` instead of bespoke verify/unverify routes.
 - Order dashboard activity feeds from `GET /api/v1/admin/dashboard/activity-feed`; resist duplicating audit lookups in feature code.
+- Entity classes must keep `@Column` usage to `@Column(name = "...")` only—nullability, defaults, and constraints belong exclusively in Flyway migrations.
 
 ### Flyway Migration Naming
 - Always name migration files `Vyyyymmddhhmm__migration_name.sql` using the current UTC timestamp. Run `date -u +"%Y%m%d%H%M"` in the terminal to generate the prefix and avoid manual guessing.

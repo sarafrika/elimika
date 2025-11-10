@@ -58,6 +58,13 @@ public class DomainSecurityService {
     }
 
     /**
+     * Checks if the currently authenticated user is a guardian/parent.
+     */
+    public boolean isGuardian() {
+        return hasUserDomain(UserDomain.parent);
+    }
+
+    /**
      * Checks if the current user has any of the specified domains.
      */
     public boolean hasAnyDomain(UserDomain... domains) {
