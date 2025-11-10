@@ -198,6 +198,95 @@ This UI allows users to define how often the class should repeat.
 
 -   **API Endpoint:** `PUT /api/v1/classes/{uuid}`
 -   **Method:** `PUT`
+
+---
+
+## 6. Rate Card UX Updates
+
+### 6.0 Data Flow Diagram
+
+```mermaid
+graph TD
+    subgraph Instructor Console
+        A[Rate Card Wizard] -->|submit rate card| B(Courses API\nPOST /training-applications)
+        C[Class Builder] -->|select visibility & format| D(Classes API\nPOST /classes)
+    end
+
+    subgraph Core Services
+        B --> E[(Course Training Applications)]
+        D --> F[(Class Definitions)]
+        E -->|approved rate card lookup| D
+        G[Order Service] --> H[(Platform Fee Rules)]
+    end
+
+    subgraph Student Checkout
+        I[Cart UI] -->|fetch fee breakdown| J(Commerce API\nGET /cart /order)
+        J -->|PlatformFeeBreakdown| I
+    end
+
+    D -->|class pricing| I
+    B -->|status notifications| Instructor Console
+```
+
+Instructors now define a **segmented rate card** (private/public × individual/group) during the course training application flow, and class creation must surface those approved amounts. Update the existing UI as follows.
+
+### 6.1 Capture Rate Cards in the Training Application Wizard
+
+1. **Currency selector** – dropdown seeded with the platform currencies (default to the tenant currency). This feeds the single `rate_card.currency` field.
+2. **Four numeric inputs** – group them in a 2×2 grid so instructors understand they must supply every combination:
+
+| Visibility \\ Format | Individual (per hour, per learner) | Group (per hour, per learner) |
+|----------------------|------------------------------------|--------------------------------|
+| **Private**          | `private_individual_rate`           | `private_group_rate`           |
+| **Public**           | `public_individual_rate`            | `public_group_rate`            |
+
+3. **Validation rules**:
+    - All cells are required and must be non‑negative decimals with four fractional digits.
+    - Enforce `value >= course.minimum_training_fee`; display an inline helper like “KES 2,500.00 is the minimum for this course”.
+    - When the instructor enters mixed values, keep the form valid—pricing can differ per cell.
+4. **Preview summary** – before submitting, render a small table or chip list summarizing the four figures so instructors know what will drive class pricing later.
+5. **Payload** – `POST /api/v1/courses/{course_uuid}/training-applications` expects:
+
+```json
+{
+  "applicant_type": "instructor",
+  "applicant_uuid": "f6cda07a-5b44-4ccc-8f7a-0a7c1bd6e2e4",
+  "rate_card": {
+    "currency": "KES",
+    "private_individual_rate": 3500.0000,
+    "private_group_rate": 2800.0000,
+    "public_individual_rate": 3200.0000,
+    "public_group_rate": 2400.0000
+  },
+  "application_notes": "Weekday evening slots available."
+}
+```
+
+### 6.2 Surface Rate Cards During Class Creation
+
+When instructors define a class for an approved course (`course_uuid` present):
+
+1. **Visibility + Format selectors**
+    - Add two required controls: `class_visibility` (Public/Private) and `session_format` (Individual/Group).
+    - Use contextual copy to explain that pricing is locked to the approved rate card.
+2. **Training fee display**
+    - Auto-populate `training_fee` by looking up the approved rate for the selected combination.
+    - Render the field as read-only with helper text: “Sourced from your approved rate card”.
+    - If no rate exists (e.g., approval revoked), block submission and surface the backend error message.
+3. **Scenario preview**
+    - Show a mini recap card: “Private Group sessions cost KES 2,800 per learner”. This helps instructors confirm they picked the right toggle.
+4. **Error handling**
+    - Display validation errors returned from `POST /api/v1/classes` (e.g., instructor lacks an approved rate card) near the form header.
+
+### 6.3 Order Summary & Receipts
+
+Student-facing receipts (cart review, checkout confirmation, PDF download) must list:
+
+- **Tuition line items** – each class/product with its price.
+- **Platform fee/top-up charges** – use `platform_fee` from the API to show the amount, currency, and rule label (“Platform service fee – Rule #PF-123”).
+- **Net total** – subtotal + platform fee + payment-provider surcharges, so learners see exactly how the final figure is composed.
+
+Re-use the `PlatformFeeBreakdown` schema in UI models so future deductions (discounts/waivers) can be enumerated without additional backend changes.
 -   **Controller Method:** `updateClassDefinition`
 
 **Request Body:**

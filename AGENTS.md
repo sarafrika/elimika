@@ -16,6 +16,7 @@ Use 4-space indentation and follow the existing Lombok patterns. Classes, contro
 - Order dashboard activity feeds from `GET /api/v1/admin/dashboard/activity-feed`; resist duplicating audit lookups in feature code.
 - Entity classes must keep `@Column` usage to `@Column(name = "...")` only—nullability, defaults, and constraints belong exclusively in Flyway migrations.
 - Persist enumerations with explicit `AttributeConverter` implementations (see `*Converter` classes) instead of `@Enumerated`; converters must normalize values case-insensitively (e.g., `value.toUpperCase(Locale.ROOT)`) so legacy data keeps working.
+- When updating or adding feature guides under `docs/guides/`, include a Mermaid DFD/sequence diagram that shows the UI ↔ API ↔ storage flow so frontend engineers can reason about contracts quickly.
 
 ### Flyway Migration Naming
 - Always name migration files `Vyyyymmddhhmm__migration_name.sql` using the current UTC timestamp. Run `date -u +"%Y%m%d%H%M"` in the terminal to generate the prefix and avoid manual guessing.
