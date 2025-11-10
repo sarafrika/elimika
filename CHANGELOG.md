@@ -1,3 +1,10 @@
+# [2.33.0](https://github.com/sarafrika/elimika/compare/v2.32.0...v2.33.0) (2025-11-10)
+
+
+### Features
+
+* enable guardian dashboard access with parent domain and frontend guide ([56e5e59](https://github.com/sarafrika/elimika/commit/56e5e59ddb3b3df47486e77a0687e218b224a63d))
+
 # [2.32.0](https://github.com/sarafrika/elimika/compare/v2.31.1...v2.32.0) (2025-11-05)
 
 
