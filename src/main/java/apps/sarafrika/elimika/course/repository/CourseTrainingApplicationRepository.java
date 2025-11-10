@@ -20,6 +20,11 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
                                                                                         CourseTrainingApplicantType applicantType,
                                                                                         UUID applicantUuid);
 
+    Optional<CourseTrainingApplication> findByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(UUID courseUuid,
+                                                                                                  CourseTrainingApplicantType applicantType,
+                                                                                                  UUID applicantUuid,
+                                                                                                  CourseTrainingApplicationStatus status);
+
     boolean existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(UUID courseUuid,
                                                                         CourseTrainingApplicantType applicantType,
                                                                         UUID applicantUuid,

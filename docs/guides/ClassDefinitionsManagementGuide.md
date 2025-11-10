@@ -105,7 +105,7 @@ sequenceDiagram
 3.  Associate the pattern with the definition.
 4.  Trigger the scheduling process to generate the `ScheduledInstance` objects.
 
-> **Important:** When linking a class definition to a course (`course_uuid`), the specified instructor and/or organisation must already have an approved training application for that course. Attempting to create or update a class definition without the necessary approvals— or after an approval has been revoked— will fail with a clear validation error. Every training application now includes the instructor's proposed rate per trainee per hour (stored with a currency code, defaulting to KES, and captured to four decimal places), so coordinators can align scheduled class fees with approved rate cards.
+> **Important:** When linking a class definition to a course (`course_uuid`), the specified instructor and/or organisation must already have an approved training application for that course. Attempting to create or update a class definition without the necessary approvals— or after an approval has been revoked— will fail with a clear validation error. Every training application now includes a segmented rate card (private/public × individual/group) with a shared currency (defaulting to KES), so coordinators can align scheduled class fees with the approved combination instead of free-text prices.
 
 ---
 

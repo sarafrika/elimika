@@ -1,6 +1,10 @@
 package apps.sarafrika.elimika.classes.model;
 
+import apps.sarafrika.elimika.classes.util.converter.ClassVisibilityConverter;
+import apps.sarafrika.elimika.classes.util.converter.SessionFormatConverter;
+import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -58,5 +62,13 @@ public class ClassDefinition extends BaseEntity {
 
     @Column(name = "training_fee")
     private BigDecimal trainingFee;
+
+    @Convert(converter = ClassVisibilityConverter.class)
+    @Column(name = "class_visibility")
+    private ClassVisibility classVisibility;
+
+    @Convert(converter = SessionFormatConverter.class)
+    @Column(name = "session_format")
+    private SessionFormat sessionFormat;
 
 }

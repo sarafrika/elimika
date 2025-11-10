@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
+import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -71,11 +72,11 @@ class CourseTrainingApplicationServiceImplTest {
 
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
         when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
+        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
-                new BigDecimal("2000.00"),
-                "KES",
+                rateCard("KES", "2000.00"),
                 null
         );
 
@@ -116,8 +117,7 @@ class CourseTrainingApplicationServiceImplTest {
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
-                new BigDecimal("2800.1254"),
-                "usd",
+                rateCard("usd", "2800.1254"),
                 "Ready to deliver evening cohorts"
         );
 
@@ -127,7 +127,10 @@ class CourseTrainingApplicationServiceImplTest {
         verify(applicationRepository).save(captor.capture());
 
         CourseTrainingApplication saved = captor.getValue();
-        assertThat(saved.getRatePerHourPerHead()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPrivateIndividualRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPrivateGroupRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPublicIndividualRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPublicGroupRate()).isEqualByComparingTo("2800.1254");
         assertThat(saved.getRateCurrency()).isEqualTo("USD");
         assertThat(saved.getStatus()).isEqualTo(CourseTrainingApplicationStatus.PENDING);
     }
@@ -138,17 +141,40 @@ class CourseTrainingApplicationServiceImplTest {
         UUID applicantUuid = UUID.randomUUID();
 
         when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(false);
+        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
 
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
-                new BigDecimal("2500.00"),
-                "KES",
+                rateCard("KES", "2500.00"),
                 null
         );
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Instructors may only submit training applications for themselves");
+    }
+
+    private CourseTrainingRateCardDTO rateCard(String currency, String amount) {
+        BigDecimal normalized = new BigDecimal(amount);
+        return new CourseTrainingRateCardDTO(
+                currency,
+                normalized,
+                normalized,
+                normalized,
+                normalized
+        );
+    }
+
+    private PlatformCurrency defaultKes() {
+        return new PlatformCurrency(
+                "KES",
+                404,
+                "Kenyan Shilling",
+                "KSh",
+                2,
+                true,
+                false
+        );
     }
 }

@@ -37,12 +37,20 @@ public class CourseTrainingApplication extends BaseEntity {
     @Column(name = "applicant_uuid", nullable = false)
     private UUID applicantUuid;
 
-    // Instructor/organisation rate for delivering the course (per hour, per trainee).
-    @Column(name = "rate_per_hour_per_head", nullable = false)
-    private BigDecimal ratePerHourPerHead;
-
     @Column(name = "rate_currency", nullable = false, length = 3)
     private String rateCurrency;
+
+    @Column(name = "private_individual_rate", nullable = false)
+    private BigDecimal privateIndividualRate;
+
+    @Column(name = "private_group_rate", nullable = false)
+    private BigDecimal privateGroupRate;
+
+    @Column(name = "public_individual_rate", nullable = false)
+    private BigDecimal publicIndividualRate;
+
+    @Column(name = "public_group_rate", nullable = false)
+    private BigDecimal publicGroupRate;
 
     @Column(name = "status", nullable = false)
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)

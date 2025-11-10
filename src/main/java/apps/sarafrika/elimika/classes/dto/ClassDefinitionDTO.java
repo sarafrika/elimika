@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.classes.dto;
 
+import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -38,6 +40,8 @@ import java.util.UUID;
             "organisation_uuid": "org12345-6789-abcd-ef01-234567890abc",
             "course_uuid": "course123-4567-89ab-cdef-123456789abc",
             "training_fee": 240.00,
+            "class_visibility": "PUBLIC",
+            "session_format": "GROUP",
             "duration_minutes": 90,
             "location_type": "HYBRID",
             "max_participants": 25,
@@ -126,6 +130,26 @@ public record ClassDefinitionDTO(
         @DecimalMin(value = "0.00", message = "Training fee cannot be negative")
         @JsonProperty("training_fee")
         BigDecimal trainingFee,
+
+        @Schema(
+                description = "**[REQUIRED]** Visibility of the class when offerings are published.",
+                example = "PUBLIC",
+                allowableValues = {"PUBLIC", "PRIVATE"},
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "Class visibility is required")
+        @JsonProperty("class_visibility")
+        ClassVisibility classVisibility,
+
+        @Schema(
+                description = "**[REQUIRED]** Session format indicating whether the delivery targets an individual learner or group.",
+                example = "GROUP",
+                allowableValues = {"INDIVIDUAL", "GROUP"},
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull(message = "Session format is required")
+        @JsonProperty("session_format")
+        SessionFormat sessionFormat,
 
         @Schema(
                 description = "**[REQUIRED]** Default start time for class sessions.",

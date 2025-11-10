@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
+import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
@@ -34,6 +35,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,19 +69,19 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(course);
-        BigDecimal proposedRate = request.ratePerHourPerHead();
-        if (proposedRate == null) {
-            throw new IllegalArgumentException("Rate per hour per head is required");
+        CourseTrainingRateCardDTO rateCardRequest = request.rateCard();
+        if (rateCardRequest == null) {
+            throw new IllegalArgumentException("Rate card is required");
         }
-        validateRateAgainstMinimum(proposedRate, minimumTrainingFee);
+        validateRateCard(rateCardRequest, minimumTrainingFee);
 
-        PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(request.rateCurrency());
+        PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
         String rateCurrency = resolvedCurrency.getCode();
 
         CourseTrainingApplication application = applicationRepository
                 .findByCourseUuidAndApplicantTypeAndApplicantUuid(courseUuid, request.applicantType(), request.applicantUuid())
-                .map(existing -> updateExistingApplication(existing, request, proposedRate, rateCurrency))
-                .orElseGet(() -> createNewApplication(courseUuid, request, proposedRate, rateCurrency));
+                .map(existing -> updateExistingApplication(existing, request, rateCardRequest, rateCurrency))
+                .orElseGet(() -> createNewApplication(courseUuid, request, rateCardRequest, rateCurrency));
 
         try {
             CourseTrainingApplication saved = applicationRepository.save(application);
@@ -211,7 +213,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
     private CourseTrainingApplication updateExistingApplication(CourseTrainingApplication existing,
                                                                 CourseTrainingApplicationRequest request,
-                                                                BigDecimal ratePerHourPerHead,
+                                                                CourseTrainingRateCardDTO rateCard,
                                                                 String rateCurrency) {
         if (existing.getStatus() == CourseTrainingApplicationStatus.APPROVED) {
             throw new IllegalStateException("Applicant is already approved to deliver this course.");
@@ -225,14 +227,13 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         existing.setReviewNotes(null);
         existing.setReviewedBy(null);
         existing.setReviewedAt(null);
-        existing.setRatePerHourPerHead(ratePerHourPerHead);
-        existing.setRateCurrency(rateCurrency);
+        applyRateCard(existing, rateCard, rateCurrency);
         return existing;
     }
 
     private CourseTrainingApplication createNewApplication(UUID courseUuid,
                                                            CourseTrainingApplicationRequest request,
-                                                           BigDecimal ratePerHourPerHead,
+                                                           CourseTrainingRateCardDTO rateCard,
                                                            String rateCurrency) {
         CourseTrainingApplication application = new CourseTrainingApplication();
         application.setCourseUuid(courseUuid);
@@ -240,9 +241,21 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setApplicantUuid(request.applicantUuid());
         application.setStatus(CourseTrainingApplicationStatus.PENDING);
         application.setApplicationNotes(request.applicationNotes());
-        application.setRatePerHourPerHead(ratePerHourPerHead);
-        application.setRateCurrency(rateCurrency);
+        applyRateCard(application, rateCard, rateCurrency);
         return application;
+    }
+
+    private void applyRateCard(CourseTrainingApplication target,
+                               CourseTrainingRateCardDTO rateCard,
+                               String rateCurrency) {
+        if (rateCard == null) {
+            throw new IllegalArgumentException("Rate card is required");
+        }
+        target.setRateCurrency(rateCurrency);
+        target.setPrivateIndividualRate(rateCard.privateIndividualRate());
+        target.setPrivateGroupRate(rateCard.privateGroupRate());
+        target.setPublicIndividualRate(rateCard.publicIndividualRate());
+        target.setPublicGroupRate(rateCard.publicGroupRate());
     }
 
     private CourseTrainingApplication findApplication(UUID courseUuid, UUID applicationUuid) {
@@ -257,13 +270,32 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         return course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
     }
 
-    private void validateRateAgainstMinimum(BigDecimal proposedRate, BigDecimal minimumTrainingFee) {
-        if (proposedRate.compareTo(minimumTrainingFee) < 0) {
-            throw new IllegalArgumentException(String.format(
-                    "Rate %s cannot be less than the course minimum training fee %s",
-                    proposedRate,
-                    minimumTrainingFee));
+    private void validateRateCard(CourseTrainingRateCardDTO rateCard, BigDecimal minimumTrainingFee) {
+        if (rateCard == null) {
+            throw new IllegalArgumentException("Rate card is required");
         }
+
+        Map<String, BigDecimal> rateMap = new LinkedHashMap<>();
+        rateMap.put("private_individual_rate", rateCard.privateIndividualRate());
+        rateMap.put("private_group_rate", rateCard.privateGroupRate());
+        rateMap.put("public_individual_rate", rateCard.publicIndividualRate());
+        rateMap.put("public_group_rate", rateCard.publicGroupRate());
+
+        rateMap.forEach((label, value) -> {
+            if (value == null) {
+                throw new IllegalArgumentException(label + " is required");
+            }
+            if (value.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException(label + " cannot be negative");
+            }
+            if (minimumTrainingFee != null && value.compareTo(minimumTrainingFee) < 0) {
+                throw new IllegalArgumentException(String.format(
+                        "%s %.4f cannot be less than the course minimum training fee %.2f",
+                        label,
+                        value,
+                        minimumTrainingFee));
+            }
+        });
     }
 
     private void ensureCourseExists(UUID courseUuid) {

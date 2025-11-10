@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO;
+import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -12,14 +13,21 @@ public final class CourseTrainingApplicationFactory {
         if (entity == null) {
             return null;
         }
+        CourseTrainingRateCardDTO rateCard = new CourseTrainingRateCardDTO(
+                entity.getRateCurrency(),
+                entity.getPrivateIndividualRate(),
+                entity.getPrivateGroupRate(),
+                entity.getPublicIndividualRate(),
+                entity.getPublicGroupRate()
+        );
+
         return new CourseTrainingApplicationDTO(
                 entity.getUuid(),
                 entity.getCourseUuid(),
                 entity.getApplicantType(),
                 entity.getApplicantUuid(),
                 entity.getStatus(),
-                entity.getRatePerHourPerHead(),
-                entity.getRateCurrency(),
+                rateCard,
                 entity.getApplicationNotes(),
                 entity.getReviewNotes(),
                 entity.getReviewedBy(),

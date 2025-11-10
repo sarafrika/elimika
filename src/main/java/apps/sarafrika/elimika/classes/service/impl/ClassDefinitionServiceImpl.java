@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -318,6 +319,36 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
     }
 
+    private Optional<BigDecimal> resolveApprovedRate(ClassDefinition entity) {
+        UUID courseUuid = entity.getCourseUuid();
+        if (courseUuid == null) {
+            return Optional.empty();
+        }
+
+        if (entity.getDefaultInstructorUuid() != null) {
+            Optional<BigDecimal> instructorRate = courseTrainingApprovalSpi.resolveInstructorRate(
+                    courseUuid,
+                    entity.getDefaultInstructorUuid(),
+                    entity.getClassVisibility(),
+                    entity.getSessionFormat()
+            );
+            if (instructorRate.isPresent()) {
+                return instructorRate;
+            }
+        }
+
+        if (entity.getOrganisationUuid() != null) {
+            return courseTrainingApprovalSpi.resolveOrganisationRate(
+                    courseUuid,
+                    entity.getOrganisationUuid(),
+                    entity.getClassVisibility(),
+                    entity.getSessionFormat()
+            );
+        }
+
+        return Optional.empty();
+    }
+
     private void validateTrainingFee(ClassDefinition entity) {
         if (entity.getCourseUuid() == null) {
             return;
@@ -327,12 +358,27 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         BigDecimal minimumTrainingFee = courseInfoService.getMinimumTrainingFee(entity.getCourseUuid())
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Course with UUID %s not found", entity.getCourseUuid())));
 
-        if (entity.getTrainingFee() == null) {
-            throw new IllegalArgumentException("Training fee is required when linking a class definition to a course");
+        if (entity.getClassVisibility() == null) {
+            throw new IllegalArgumentException("Class visibility is required when linking a class definition to a course");
+        }
+        if (entity.getSessionFormat() == null) {
+            throw new IllegalArgumentException("Session format is required when linking a class definition to a course");
         }
 
-        if (entity.getTrainingFee().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Training fee cannot be negative");
+        BigDecimal resolvedRate = resolveApprovedRate(entity)
+                .orElseThrow(() -> new IllegalStateException(String.format(
+                        "No approved rate card found for the selected instructor/organisation on course %s. Submit and approve a training application with rates first.",
+                        entity.getCourseUuid())));
+
+        if (entity.getTrainingFee() == null) {
+            entity.setTrainingFee(resolvedRate);
+        } else if (entity.getTrainingFee().compareTo(resolvedRate) != 0) {
+            throw new IllegalArgumentException(String.format(
+                    "Training fee %.2f must match the approved rate card amount %.2f for %s %s sessions.",
+                    entity.getTrainingFee(),
+                    resolvedRate,
+                    entity.getClassVisibility(),
+                    entity.getSessionFormat()));
         }
 
         if (entity.getTrainingFee().compareTo(minimumTrainingFee) < 0) {
