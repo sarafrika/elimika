@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,13 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     @Override
     public Optional<String> getCourseName(UUID courseUuid) {
         return courseRepository.findByUuid(courseUuid)
-                .map(apps.sarafrika.elimika.course.model.Course::getName);
+                .map(Course::getName);
+    }
+
+    @Override
+    public Optional<AgeLimits> getAgeLimits(UUID courseUuid) {
+        return courseRepository.findByUuid(courseUuid)
+                .map(course -> new AgeLimits(course.getAgeLowerLimit(), course.getAgeUpperLimit()))
+                .filter(limits -> limits.minAge() != null || limits.maxAge() != null);
     }
 }

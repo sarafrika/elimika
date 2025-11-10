@@ -5,6 +5,6 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Commerce",
-        allowedDependencies = {"shared", "tenancy", "commerce.purchase :: commerce-purchase-spi"}
+        allowedDependencies = {"shared", "tenancy", "systemconfig", "commerce.purchase :: commerce-purchase-spi"}
 )
 package apps.sarafrika.elimika.commerce;

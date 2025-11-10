@@ -1,5 +1,9 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.shared.service.AgeVerificationService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
@@ -45,6 +49,15 @@ class TimetableServiceImplTest {
     @Mock
     private GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
 
+    @Mock
+    private ClassDefinitionLookupService classDefinitionLookupService;
+
+    @Mock
+    private CourseInfoService courseInfoService;
+
+    @Mock
+    private AgeVerificationService ageVerificationService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -54,7 +67,10 @@ class TimetableServiceImplTest {
                 enrollmentRepository,
                 applicationEventPublisher,
                 scheduledInstanceSpecBuilder,
-                enrollmentSpecBuilder
+                enrollmentSpecBuilder,
+                classDefinitionLookupService,
+                courseInfoService,
+                ageVerificationService
         );
     }
 

@@ -21,7 +21,8 @@
                 "authentication :: keycloak-integration",
                 "tenancy :: tenancy-spi",
                 "student :: student-spi",
-                "instructor :: instructor-spi"
+                "instructor :: instructor-spi",
+                "systemconfig"
         }
 )
 package apps.sarafrika.elimika.shared;

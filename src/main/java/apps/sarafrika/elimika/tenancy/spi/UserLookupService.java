@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.spi;
 
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -58,6 +59,14 @@ public interface UserLookupService {
      * @return Optional containing the full name, or empty if user not found
      */
     Optional<String> getUserFullName(UUID userUuid);
+
+    /**
+     * Gets the date of birth sourced from the profile (Keycloak/user record).
+     *
+     * @param userUuid User identifier
+     * @return Optional date of birth
+     */
+    Optional<LocalDate> getUserDateOfBirth(UUID userUuid);
 
     /**
      * Checks if a user has a specific domain.

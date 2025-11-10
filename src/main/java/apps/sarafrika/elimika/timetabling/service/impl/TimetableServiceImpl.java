@@ -1,7 +1,10 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.service.AgeVerificationService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
@@ -30,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,6 +49,9 @@ public class TimetableServiceImpl implements TimetableService {
     private final ApplicationEventPublisher eventPublisher;
     private final GenericSpecificationBuilder<ScheduledInstance> scheduledInstanceSpecBuilder;
     private final GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
+    private final ClassDefinitionLookupService classDefinitionLookupService;
+    private final CourseInfoService courseInfoService;
+    private final AgeVerificationService ageVerificationService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -161,6 +168,8 @@ public class TimetableServiceImpl implements TimetableService {
 
         UUID classDefinitionUuid = request.classDefinitionUuid();
         UUID studentUuid = request.studentUuid();
+
+        enforceClassAgeLimits(studentUuid, classDefinitionUuid);
 
         List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
 
@@ -462,6 +471,45 @@ public class TimetableServiceImpl implements TimetableService {
         if (request.studentUuid() == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
         }
+    }
+
+    private void enforceClassAgeLimits(UUID studentUuid, UUID classDefinitionUuid) {
+        if (studentUuid == null || classDefinitionUuid == null) {
+            return;
+        }
+
+        Optional<ClassDefinitionLookupService.ClassDefinitionSnapshot> snapshotOpt =
+                classDefinitionLookupService.findByUuid(classDefinitionUuid);
+        if (snapshotOpt.isEmpty()) {
+            return;
+        }
+        ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = snapshotOpt.get();
+        UUID courseUuid = snapshot.courseUuid();
+        if (courseUuid == null) {
+            return;
+        }
+
+        courseInfoService.getAgeLimits(courseUuid)
+                .ifPresent(ageLimits -> ageVerificationService.verifyStudentAge(
+                        studentUuid,
+                        ageLimits.minAge(),
+                        ageLimits.maxAge(),
+                        resolveCourseContext(snapshot)
+                ));
+    }
+
+    private String resolveCourseContext(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        if (snapshot.title() != null && !snapshot.title().isBlank()) {
+            return "course \"" + snapshot.title().trim() + "\"";
+        }
+        UUID courseUuid = snapshot.courseUuid();
+        if (courseUuid == null) {
+            return "the selected course";
+        }
+        return courseInfoService.getCourseName(courseUuid)
+                .filter(name -> !name.isBlank())
+                .map(name -> "course \"" + name.trim() + "\"")
+                .orElse("course " + courseUuid);
     }
 
     private void validateDateRange(UUID uuid, LocalDate start, LocalDate end) {

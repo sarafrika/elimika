@@ -72,7 +72,6 @@ class CourseTrainingApplicationServiceImplTest {
 
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
         when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
-        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
@@ -82,7 +81,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Rate")
+                .hasMessageContaining("private_individual_rate")
                 .hasMessageContaining("minimum training fee");
     }
 
@@ -141,8 +140,6 @@ class CourseTrainingApplicationServiceImplTest {
         UUID applicantUuid = UUID.randomUUID();
 
         when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(false);
-        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
-
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,

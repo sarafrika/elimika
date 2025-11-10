@@ -27,6 +27,7 @@ The admin dashboard is the command center for keeping Elimika healthy, compliant
 | Organizations | Review organizations, moderate verification status, inspect members | Organization endpoints + admin verification routes |
 | Instructors | Verify instructors, inspect documentation metrics | Admin instructor verification routes |
 | Branches | View branches within organizations and their members | `/api/v1/organisations/{uuid}/training-branches*` |
+| System Config | Govern platform-wide rules (fees, waivers, age gates) | `/api/v1/system-rules*` |
 
 ### 2.3 Data Story
 `AdminDashboardStatsDTO` already ships a comprehensive payload. UI teams should map the object to the following visual blocks:
@@ -40,6 +41,13 @@ The admin dashboard is the command center for keeping Elimika healthy, compliant
 - **System Performance:** uptime, response time, error rate, storage usage strings.
 
 Keep chart transformations inside the presentation layer; the DTO already exposes aggregated values so no additional backend joins are required.
+
+### 2.4 System Configuration Surface (NEW)
+- **Hero summary card:** show the count of active rules per category (Platform Fee, Age Gate, Notifications) plus the timestamp of the last change. Color-code chips (green = active, grey = draft) to telegraph status at a glance.
+- **Rule grid:** columns should include Category, Key, Scope (type + reference), Priority, Status, Effective Window, and Updated By. Add quick filters for category/status and a typeahead against the rule key so ops can find overrides rapidly.
+- **Detail drawer:** tap a row to slide out the JSON payload rendered prettily, grouped into friendly cards (e.g., “Age Gate → Min 5 / Max 18”). Include badges such as “Platform Default” for the seeded 5–18 rule so admins know what not to delete.
+- **Action bar:** `Create Rule` opens a modal that mirrors `SystemRuleRequest`. Disable immutable fields (category/key) when editing to prevent accidental rekeys. Validation should run client-side before hitting the API.
+- **UI inspo:** think “feature flag console meets configuration diff”—light cards, comfortable spacing, and monospace fonts only inside the JSON viewer. Keep CTAs high-contrast but minimal to reinforce a calm, trustworthy experience.
 
 ---
 
@@ -104,6 +112,14 @@ Only list APIs that exist in the service today.
 | `GET /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}` | Branch users filtered by domain |
 | `POST /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Assign user to branch |
 | `DELETE /api/v1/organisations/{uuid}/training-branches/{branchUuid}/users/{userUuid}` | Remove user from branch |
+
+### 3.7 System Configuration
+| Endpoint | Purpose | Notes |
+|----------|---------|-------|
+| `GET /api/v1/system-rules` | Paginated list of rules (supports `category` & `status` filters) | Drives the rules table/grid. Use metadata from `PagedDTO`. |
+| `GET /api/v1/system-rules/{uuid}` | Fetch a single rule | Populate the detail drawer before entering edit mode. |
+| `POST /api/v1/system-rules` | Create rule | Mirror `SystemRuleRequest` fields. Validate JSON payload client-side. |
+| `PUT /api/v1/system-rules/{uuid}` | Update existing rule | Lock category/key in UI; allow status/priority/payload changes. |
 
 ---
 

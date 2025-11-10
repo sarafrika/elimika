@@ -59,5 +59,14 @@ public class MedusaCartResponse {
 
         @JsonProperty("metadata")
         private Map<String, Object> metadata;
+
+        @JsonProperty("unit_price")
+        private Long unitPrice;
+
+        @JsonProperty("subtotal")
+        private Long subtotal;
+
+        @JsonProperty("total")
+        private Long total;
     }
 }

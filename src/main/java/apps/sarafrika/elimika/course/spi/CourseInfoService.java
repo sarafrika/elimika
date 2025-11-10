@@ -40,4 +40,14 @@ public interface CourseInfoService {
      * @return Optional containing the course name, or empty if course not found
      */
     Optional<String> getCourseName(UUID courseUuid);
+
+    /**
+     * Retrieves the configured age limits for a course, if any.
+     *
+     * @param courseUuid The UUID of the course
+     * @return Optional containing minimum/maximum age, or empty when no limits exist
+     */
+    Optional<AgeLimits> getAgeLimits(UUID courseUuid);
+
+    record AgeLimits(Integer minAge, Integer maxAge) { }
 }

@@ -58,6 +58,16 @@ public record StudentDTO(
         UUID userUuid,
 
         @Schema(
+                description = "**[OPTIONAL]** Demographic tag used for growth controls (e.g., youth_female, adult).",
+                example = "youth_female",
+                maxLength = 64,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 64, message = "Demographic tag must not exceed 64 characters")
+        @JsonProperty("demographic_tag")
+        String demographicTag,
+
+        @Schema(
                 description = "**[OPTIONAL]** Full name of the primary guardian/parent. This is the main emergency contact for the student.",
                 example = "John Doe",
                 minLength = 1,

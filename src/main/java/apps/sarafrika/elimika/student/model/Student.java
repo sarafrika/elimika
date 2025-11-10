@@ -35,4 +35,7 @@ public class Student extends BaseEntity {
 
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
+
+    @Column(name = "demographic_tag")
+    private String demographicTag;
 }

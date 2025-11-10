@@ -1,8 +1,5 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
-import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
-import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
-import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
@@ -10,6 +7,10 @@ import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepos
 import apps.sarafrika.elimika.commerce.purchase.spi.CommercePurchaseService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
+import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
+import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
+import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         purchase.setMedusaDisplayId(order.getDisplayId());
         purchase.setPaymentStatus(order.getPaymentStatus());
         purchase.setMedusaCreatedAt(order.getCreatedAt());
+        applyPlatformFee(purchase, order.getPlatformFee());
 
         if (checkoutRequest != null) {
             purchase.setCustomerEmail(checkoutRequest.getCustomerEmail());
@@ -94,6 +96,18 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
             entity.setStudentUuid(resolveStudentUuid(Map.of(), checkoutRequest));
         }
         return entity;
+    }
+
+    private void applyPlatformFee(CommercePurchase purchase, PlatformFeeBreakdown breakdown) {
+        if (breakdown == null) {
+            purchase.setPlatformFeeAmount(null);
+            purchase.setPlatformFeeCurrency(null);
+            purchase.setPlatformFeeRuleUuid(null);
+            return;
+        }
+        purchase.setPlatformFeeAmount(breakdown.amount());
+        purchase.setPlatformFeeCurrency(breakdown.currency());
+        purchase.setPlatformFeeRuleUuid(breakdown.ruleUuid());
     }
 
 

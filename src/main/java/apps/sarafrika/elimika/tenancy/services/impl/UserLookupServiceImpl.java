@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,6 +63,12 @@ public class UserLookupServiceImpl implements UserLookupService {
     public Optional<String> getUserFullName(UUID userUuid) {
         return userRepository.findByUuid(userUuid)
                 .map(user -> user.getFirstName() + " " + user.getLastName());
+    }
+
+    @Override
+    public Optional<LocalDate> getUserDateOfBirth(UUID userUuid) {
+        return userRepository.findByUuid(userUuid)
+                .map(User::getDob);
     }
 
     @Override

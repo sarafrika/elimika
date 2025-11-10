@@ -38,6 +38,18 @@ public class MedusaOrderResponse {
     @JsonProperty("payment_status")
     private String paymentStatus;
 
+    @JsonProperty("region_id")
+    private String regionId;
+
+    @JsonProperty("currency_code")
+    private String currencyCode;
+
+    @JsonProperty("subtotal")
+    private Long subtotal;
+
+    @JsonProperty("total")
+    private Long total;
+
     @JsonProperty("items")
     private List<MedusaCartResponse.MedusaLineItemResponse> items;
 }

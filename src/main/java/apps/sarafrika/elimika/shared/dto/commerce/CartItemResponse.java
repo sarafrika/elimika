@@ -35,6 +35,18 @@ public class CartItemResponse {
     @JsonProperty("variant_id")
     private final String variantId;
 
+    @Schema(description = "Price per unit in the smallest currency denomination", example = "250000")
+    @JsonProperty("unit_price")
+    private final Long unitPrice;
+
+    @Schema(description = "Subtotal for the line item in the smallest currency denomination", example = "250000")
+    @JsonProperty("subtotal")
+    private final Long subtotal;
+
+    @Schema(description = "Total for the line item after discounts in the smallest currency denomination", example = "200000")
+    @JsonProperty("total")
+    private final Long total;
+
     @Schema(description = "Custom metadata captured for the line item")
     @JsonProperty("metadata")
     private final Map<String, Object> metadata;

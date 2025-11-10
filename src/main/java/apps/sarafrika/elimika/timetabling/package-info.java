@@ -59,6 +59,8 @@
     allowedDependencies = {
             "shared",
             "availability :: availability-spi",
+            "classes :: classes-spi",
+            "course :: course-spi",
             "student",
             "tenancy"
     }
