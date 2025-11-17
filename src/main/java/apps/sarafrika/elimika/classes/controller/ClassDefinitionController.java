@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.RecurrenceEngineService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +32,7 @@ public class ClassDefinitionController {
 
     private final ClassDefinitionServiceInterface classDefinitionService;
     private final RecurrenceEngineService recurrenceEngineService;
+    private final TimetableService timetableService;
 
     // ================================
     // CORE CLASS DEFINITION MANAGEMENT
@@ -45,6 +48,18 @@ public class ClassDefinitionController {
         
         ClassDefinitionDTO result = classDefinitionService.createClassDefinition(request);
         return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
+    }
+
+    @Operation(summary = "List enrollments for a class definition across all scheduled instances")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully")
+    @GetMapping("/{uuid}/enrollments")
+    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getEnrollmentsForClass(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid) {
+        log.debug("REST request to get enrollments for class definition: {}", uuid);
+
+        List<EnrollmentDTO> enrollments = timetableService.getEnrollmentsForClass(uuid);
+        return ResponseEntity.ok(ApiResponse.success(enrollments, "Enrollments retrieved successfully"));
     }
 
     @Operation(summary = "Get a class definition by UUID")

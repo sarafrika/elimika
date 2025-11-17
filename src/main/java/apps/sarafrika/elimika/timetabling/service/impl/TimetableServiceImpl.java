@@ -389,6 +389,19 @@ public class TimetableServiceImpl implements TimetableService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<EnrollmentDTO> getEnrollmentsForClass(UUID classDefinitionUuid) {
+        log.debug("Getting enrollments for class definition: {}", classDefinitionUuid);
+
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+
+        List<Enrollment> enrollments = enrollmentRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        return EnrollmentFactory.toDTOList(enrollments);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean hasInstructorConflict(UUID instructorUuid, ScheduleRequestDTO request) {
         if (instructorUuid == null || request == null) {
             throw new IllegalArgumentException("Instructor UUID and schedule request cannot be null");
