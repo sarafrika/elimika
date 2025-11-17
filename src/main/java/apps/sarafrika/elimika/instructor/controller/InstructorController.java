@@ -4,6 +4,9 @@ import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -16,10 +19,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,6 +49,9 @@ public class InstructorController {
     private final InstructorExperienceService instructorExperienceService;
     private final InstructorProfessionalMembershipService instructorProfessionalMembershipService;
     private final InstructorSkillService instructorSkillService;
+    private final StorageService storageService;
+    private final StorageProperties storageProperties;
+    private final InstructorReviewService instructorReviewService;
 
     // ===== INSTRUCTOR BASIC OPERATIONS =====
 
@@ -207,6 +218,80 @@ public class InstructorController {
                         .success(createdDocument, "Document added successfully"));
     }
 
+    @Operation(
+            summary = "Upload instructor document file",
+            description = """
+                    Uploads a PDF document for an instructor and creates a document record.
+                    
+                    **Use cases:**
+                    - Uploading certificates, licenses, and other professional credentials.
+                    - Attaching supporting documents to education, experience, or membership records.
+                    
+                    **File requirements:**
+                    - Must be a PDF file (`application/pdf`).
+                    - Stored via the platform StorageService under the `profile_documents` folder, partitioned by instructor UUID.
+                    """
+    )
+    @PostMapping(value = "/{instructorUuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> uploadInstructorDocument(
+            @PathVariable UUID instructorUuid,
+            @RequestParam("file") @PdfFile MultipartFile file,
+            @RequestParam("document_type_uuid") UUID documentTypeUuid,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "education_uuid", required = false) UUID educationUuid,
+            @RequestParam(value = "experience_uuid", required = false) UUID experienceUuid,
+            @RequestParam(value = "membership_uuid", required = false) UUID membershipUuid,
+            @RequestParam(value = "expiry_date", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
+    ) {
+
+        String folder = storageProperties.getFolders().getProfileDocuments()
+                + "/instructors/" + instructorUuid;
+
+        String storedFileName = storageService.store(file, folder);
+        String filePath = storedFileName;
+        String originalFilename = file.getOriginalFilename();
+        String resolvedTitle = (title != null && !title.isBlank())
+                ? title
+                : (originalFilename != null ? originalFilename : "Instructor Document");
+
+        String mimeType = storageService.getContentType(storedFileName);
+
+        InstructorDocumentDTO requestDto = new InstructorDocumentDTO(
+                null,
+                instructorUuid,
+                documentTypeUuid,
+                educationUuid,
+                experienceUuid,
+                membershipUuid,
+                originalFilename,
+                storedFileName,
+                filePath,
+                file.getSize(),
+                mimeType,
+                null,
+                resolvedTitle,
+                description,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                expiryDate,
+                null,
+                null,
+                null,
+                null
+        );
+
+        InstructorDocumentDTO createdDocument = instructorDocumentService.createInstructorDocument(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(createdDocument, "Document uploaded successfully"));
+    }
+
     @Operation(summary = "Get instructor documents", description = "Retrieves all documents for a specific instructor")
     @GetMapping("/{instructorUuid}/documents")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<InstructorDocumentDTO>>> getInstructorDocuments(
@@ -246,6 +331,94 @@ public class InstructorController {
         InstructorDocumentDTO verifiedDocument = instructorDocumentService.verifyDocument(documentUuid, verifiedBy, verificationNotes);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(verifiedDocument, "Document verified successfully"));
+    }
+
+    // ===== INSTRUCTOR REVIEWS =====
+
+    @Operation(
+            summary = "Submit a review for an instructor",
+            description = """
+                    Allows a student to leave a review for an instructor, scoped to a specific enrollment.
+                    
+                    Frontend clients should:
+                    - Use the student's enrollment UUID and the instructor UUID for the class they attended.
+                    - Enforce that each enrollment can create at most one review for a given instructor.
+                    """
+    )
+    @PostMapping("/{instructorUuid}/reviews")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorReviewDTO>> submitInstructorReview(
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody InstructorReviewDTO reviewDTO) {
+
+        InstructorReviewDTO payload = new InstructorReviewDTO(
+                null,
+                instructorUuid,
+                reviewDTO.studentUuid(),
+                reviewDTO.enrollmentUuid(),
+                reviewDTO.rating(),
+                reviewDTO.headline(),
+                reviewDTO.comments(),
+                reviewDTO.clarityRating(),
+                reviewDTO.engagementRating(),
+                reviewDTO.punctualityRating(),
+                reviewDTO.isAnonymous(),
+                null,
+                null,
+                null,
+                null
+        );
+
+        InstructorReviewDTO created = instructorReviewService.createReview(payload);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(created, "Review submitted successfully"));
+    }
+
+    @Operation(
+            summary = "Get reviews for an instructor",
+            description = "Returns all reviews left for the specified instructor."
+    )
+    @GetMapping("/{instructorUuid}/reviews")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<InstructorReviewDTO>>> getInstructorReviews(
+            @PathVariable UUID instructorUuid) {
+        List<InstructorReviewDTO> reviews = instructorReviewService.getReviewsForInstructor(instructorUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(reviews, "Instructor reviews fetched successfully"));
+    }
+
+    @Operation(
+            summary = "Get instructor rating summary",
+            description = "Returns average rating and total review count for an instructor."
+    )
+    @GetMapping("/{instructorUuid}/reviews/summary")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorRatingSummaryDTO>> getInstructorRatingSummary(
+            @PathVariable UUID instructorUuid) {
+        List<InstructorReviewDTO> reviews = instructorReviewService.getReviewsForInstructor(instructorUuid);
+        long count = reviews.size();
+
+        Double average = null;
+        if (count > 0) {
+            average = reviews.stream()
+                    .map(InstructorReviewDTO::rating)
+                    .filter(r -> r != null)
+                    .mapToInt(Integer::intValue)
+                    .average()
+                    .orElse(Double.NaN);
+            if (average.isNaN()) {
+                average = null;
+            }
+        }
+
+        InstructorRatingSummaryDTO summary = new InstructorRatingSummaryDTO(
+                instructorUuid,
+                average,
+                count
+        );
+
+        return ResponseEntity.ok(
+                apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(summary, "Instructor rating summary fetched successfully")
+        );
     }
 
     // ===== INSTRUCTOR EDUCATION =====

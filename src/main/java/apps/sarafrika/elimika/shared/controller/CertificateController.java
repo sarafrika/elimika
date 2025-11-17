@@ -1,8 +1,11 @@
 package apps.sarafrika.elimika.course.controller;
 
-import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -15,8 +18,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.math.BigDecimal;
@@ -37,6 +42,8 @@ public class CertificateController {
 
     private final CertificateService certificateService;
     private final CertificateTemplateService certificateTemplateService;
+    private final StorageService storageService;
+    private final StorageProperties storageProperties;
 
     // ===== CERTIFICATE BASIC OPERATIONS =====
 
@@ -56,6 +63,60 @@ public class CertificateController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdCertificate, "Certificate created successfully"));
+    }
+
+    @Operation(
+            summary = "Upload certificate PDF",
+            description = """
+                    Uploads an externally generated certificate PDF file for an existing certificate record and updates its download URL.
+                    
+                    **File requirements:**
+                    - Must be a PDF (`application/pdf`).
+                    - Stored via the platform StorageService under the `certificates` folder.
+                    
+                    Frontend clients should call this after a certificate record exists, then use the returned `certificate_url`
+                    to power download links in student dashboards and admin UIs.
+                    """
+    )
+    @PostMapping(value = "/{uuid}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CertificateDTO>> uploadCertificatePdf(
+            @PathVariable UUID uuid,
+            @RequestParam("file") @PdfFile MultipartFile file
+    ) {
+        String folder = storageProperties.getFolders().getCertificates();
+        String storedFileName = storageService.store(file, folder);
+
+        String fileUrl = storageProperties.getBaseUrl() != null
+                ? storageProperties.getBaseUrl() + "/" + storedFileName
+                : storedFileName;
+
+        CertificateDTO existing = certificateService.getCertificateByUuid(uuid);
+
+        CertificateDTO updatePayload = new CertificateDTO(
+                existing.uuid(),
+                existing.certificateNumber(),
+                existing.studentUuid(),
+                existing.courseUuid(),
+                existing.programUuid(),
+                existing.templateUuid(),
+                existing.issuedDate(),
+                existing.completionDate(),
+                existing.finalGrade(),
+                fileUrl,
+                existing.isValid(),
+                existing.revokedAt(),
+                existing.revokedReason(),
+                existing.createdDate(),
+                existing.createdBy(),
+                existing.updatedDate(),
+                existing.updatedBy()
+        );
+
+        CertificateDTO updated = certificateService.updateCertificate(uuid, updatePayload);
+        return ResponseEntity.ok(
+                apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(updated, "Certificate PDF uploaded successfully")
+        );
     }
 
     @Operation(

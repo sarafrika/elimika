@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
+import apps.sarafrika.elimika.course.internal.LessonMediaValidationService;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
@@ -58,6 +59,7 @@ public class CourseController {
     private final CourseCategoryService courseCategoryService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
+    private final LessonMediaValidationService lessonMediaValidationService;
 
     // ===== COURSE BASIC OPERATIONS =====
 
@@ -757,6 +759,72 @@ public class CourseController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdContent, "Content added successfully"));
+    }
+
+    @Operation(
+            summary = "Upload media for lesson content",
+            description = """
+                Uploads a media file (PDF, image, audio, video) for a specific lesson and creates a LessonContent record.
+
+                **Use cases:**
+                - Course creators attaching PDFs, videos, or audio during course content authoring.
+                - Rich text editors (e.g. Tiptap) uploading inline images and receiving a public URL to embed in HTML.
+
+                **File handling:**
+                - Files are stored via the platform StorageService under the `course_materials` folder, partitioned by course and lesson UUID.
+                - The returned LessonContentDTO will have `file_url`, `mime_type`, and `file_size_bytes` populated.
+
+                To use this for a rich text editor image upload, call this endpoint with an `image` content type
+                and then embed the returned `file_url` in the editor HTML.
+                """
+    )
+    @PostMapping(
+            value = "/{courseUuid}/lessons/{lessonUuid}/content/upload",
+            consumes = MULTIPART_FORM_DATA_VALUE,
+            produces = APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<LessonContentDTO>> uploadLessonMedia(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID lessonUuid,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("content_type_uuid") UUID contentTypeUuid,
+            @RequestParam("title") String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "is_required", required = false) Boolean isRequired
+    ) {
+        lessonMediaValidationService.validateForLessonContent(file);
+
+        String folder = storageProperties.getFolders().getCourseMaterials()
+                + "/" + courseUuid
+                + "/lessons/" + lessonUuid;
+
+        String storedFileName = storageService.store(file, folder);
+        String fileUrl = storageProperties.getBaseUrl() != null
+                ? storageProperties.getBaseUrl() + "/" + storedFileName
+                : storedFileName;
+
+        LessonContentDTO requestDto = new LessonContentDTO(
+                null,
+                lessonUuid,
+                contentTypeUuid,
+                title,
+                description,
+                null,
+                fileUrl,
+                file.getSize(),
+                storageService.getContentType(storedFileName),
+                null,
+                isRequired,
+                null,
+                null,
+                null,
+                null
+        );
+
+        LessonContentDTO createdContent = lessonContentService.createLessonContent(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(createdContent, "Lesson media uploaded successfully"));
     }
 
     @Operation(

@@ -56,6 +56,11 @@ public class StorageProperties {
         private String certificates = "certificates";
 
         /**
+         * Folder for profile and verification documents (e.g., instructor credentials)
+         */
+        private String profileDocuments = "profile_documents";
+
+        /**
          * Folder for assignments
          */
         private String assignments = "assignments";

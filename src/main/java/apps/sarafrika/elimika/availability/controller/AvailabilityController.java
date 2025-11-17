@@ -396,4 +396,37 @@ public class AvailabilityController {
         availabilityService.blockTime(instructorUuid, start, end, colorCode);
         return ResponseEntity.ok(ApiResponse.success(null, "Time blocked successfully"));
     }
+
+    // ================================
+    // STUDENT BOOKING
+    // ================================
+
+    @Operation(
+        summary = "Book an instructor for a private session",
+        description = """
+            Allows a student to book an instructor for a one-on-one session outside publicly scheduled classes.
+
+            **Flow:**
+            - The frontend first uses the `/available` endpoint to show free slots.
+            - Once a slot is selected, the client calls this endpoint with start/end times and an optional purpose.
+            - The service verifies the instructor is available, then blocks the slot so it is not offered again.
+
+            This endpoint does not create enrollments or class definitions; it simply reserves the instructor's time.
+            Other modules (e.g., Timetabling, Commerce) can listen for bookings and create paid sessions if needed.
+            """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Instructor slot booked successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Instructor not available or invalid request")
+    @PostMapping("/book")
+    public ResponseEntity<ApiResponse<Void>> bookInstructorSlot(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Valid @RequestBody apps.sarafrika.elimika.availability.dto.InstructorSlotBookingRequestDTO request) {
+
+        if (!instructorUuid.equals(request.instructorUuid())) {
+            throw new IllegalArgumentException("Path instructorUuid must match request instructor_uuid.");
+        }
+
+        availabilityService.bookInstructorSlot(request);
+        return ResponseEntity.status(201).body(ApiResponse.success(null, "Instructor slot booked successfully"));
+    }
 }

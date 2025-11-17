@@ -243,6 +243,58 @@ GET /api/v1/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/availability/check?
 
 ---
 
+## 7. Student Bookings for Private Sessions
+
+Students can book one-on-one sessions with instructors using the same availability data that powers class scheduling. The key difference is that bookings reserve the instructor's time without immediately creating a public class or enrollment; other modules can follow up to create paid sessions.
+
+```mermaid
+sequenceDiagram
+    participant ST as Student UI (Instructor Profile)
+    participant Avail as Availability API
+
+    ST->>Avail: GET /api/v1/instructors/{instructorUuid}/availability/available?start_date&end_date
+    Avail-->>ST: List of available slots
+
+    Note over ST,Avail: Student selects a slot
+    ST->>Avail: POST /api/v1/instructors/{instructorUuid}/availability/book\n{ instructor_uuid, start_time, end_time, purpose, student_uuid }
+    Avail-->>ST: 201 Created (slot reserved)
+```
+
+### Booking Endpoint
+
+-   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/book`
+-   **Method:** `POST`
+-   **Body:** `InstructorSlotBookingRequestDTO`
+
+**Request body fields:**
+
+-   `instructor_uuid` (UUID, required) – must match the path variable.
+-   `start_time` (ISO date-time, required) – booking start.
+-   `end_time` (ISO date-time, required) – booking end.
+-   `purpose` (string, optional, max 500 chars) – short description (e.g., "Private coaching on data structures").
+-   `student_uuid` (UUID, optional) – can be supplied or inferred from the authenticated user.
+
+**Behaviour:**
+
+-   Validates that the instructor is available for the full `[start_time, end_time]` window (using the same logic as `/availability/check`).
+-   If not available, returns `400` with a clear message.
+-   If available, creates a blocked availability entry for that period so:
+    -   The slot no longer appears in `/available` results.
+    -   Future scheduling/booking honours the reservation.
+
+### Frontend Integration Tips
+
+-   On instructor profile or detail pages:
+    -   Show a "Book Private Session" CTA that opens a calendar of available slots using `/available`.
+    -   After the user picks a slot, post it to `/availability/book`.
+    -   Show a confirmation state with the selected time and purpose.
+-   On the instructor dashboard:
+    -   Render blocked slots created by bookings with a distinct color (e.g., teal) using the existing availability data so instructors can see upcoming private commitments.
+-   Coordinate with Timetabling/Commerce flows:
+    -   After a successful booking, optionally redirect students into a payment or session details screen where the private session is converted into a scheduled class + enrollment.
+
+---
+
 ## 7. Data Structures for Frontend
 
 ### `AvailabilitySlotDTO`

@@ -365,6 +365,24 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         log.debug("Created blocked time slot for instructor: {} with color: {}", instructorUuid, colorCode);
     }
 
+    @Override
+    public void bookInstructorSlot(apps.sarafrika.elimika.availability.dto.InstructorSlotBookingRequestDTO request) {
+        UUID instructorUuid = request.instructorUuid();
+        LocalDateTime start = request.startTime();
+        LocalDateTime end = request.endTime();
+
+        log.debug("Booking instructor slot for instructor: {} from {} to {} (student: {}, purpose: {})",
+                instructorUuid, start, end, request.studentUuid(), request.purpose());
+
+        if (!isInstructorAvailable(instructorUuid, start, end)) {
+            throw new IllegalStateException("Instructor is not available for the requested time range.");
+        }
+
+        // For now, booking is represented by a blocked availability slot.
+        // Future iterations can introduce a dedicated bookings table with richer metadata.
+        blockTime(instructorUuid, start, end, "#95E1D3");
+    }
+
     private boolean matchesDate(InstructorAvailability slot, LocalDate date) {
         return switch (slot.getAvailabilityType()) {
             case DAILY -> true; // Daily patterns always match

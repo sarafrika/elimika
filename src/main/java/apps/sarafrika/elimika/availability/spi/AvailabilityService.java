@@ -190,4 +190,16 @@ public interface AvailabilityService {
      * @throws IllegalArgumentException if any parameter is null or if start is after end
      */
     void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode);
+
+    /**
+     * Books an available time slot for an instructor by blocking the requested period.
+     * This is typically invoked from student-facing booking flows for private sessions.
+     *
+     * Implementations should:
+     * - Validate that the instructor is available for the requested period.
+     * - Create a blocked availability entry so the slot is no longer offered.
+     *
+     * @param request booking request details
+     */
+    void bookInstructorSlot(apps.sarafrika.elimika.availability.dto.InstructorSlotBookingRequestDTO request);
 }

@@ -265,8 +265,82 @@ flowchart TD
 |--------|----------|---------|-------------------|
 | `POST` | `/api/v1/instructors/{uuid}/documents` | Add instructor documents | Upload credentials, certificates |
 | `GET` | `/api/v1/instructors/{uuid}/documents` | Get instructor documents | View uploaded documents |
+| `POST` | `/api/v1/instructors/{uuid}/documents/upload` | Upload instructor document PDF | Store verified PDFs via StorageService |
 | `POST` | `/api/v1/instructors/{uuid}/memberships` | Add professional memberships | Industry affiliations |
 | `GET` | `/api/v1/instructors/{uuid}/memberships` | Get professional memberships | Professional body memberships |
+
+### Student Reviews and Ratings
+
+Students can leave structured reviews for instructors once they have attended a class. Reviews are tied to specific enrollments so that feedback remains grounded in real teaching interactions rather than free‑floating comments.
+
+```mermaid
+sequenceDiagram
+    participant ST as Student UI (Class Details)
+    participant API as Instructor API
+    participant T as Timetabling
+    participant DB as Reviews DB
+
+    ST->>T: Fetch enrollments for student
+    T-->>ST: Enrollment list (with instructor + instances)
+
+    Note over ST,API: Leave Review Flow
+    ST->>API: POST /api/v1/instructors/{instructorUuid}/reviews\n{ student_uuid, enrollment_uuid, rating, comments }
+    API->>T: Validate enrollment_uuid belongs to student
+    API->>DB: Persist InstructorReview
+    API-->>ST: 201 Created + InstructorReviewDTO
+
+    ST->>API: GET /api/v1/instructors/{instructorUuid}/reviews
+    API-->>ST: List of reviews + ratings
+```
+
+#### API: Submit an Instructor Review
+
+- **Endpoint:** `POST /api/v1/instructors/{instructorUuid}/reviews`
+- **Body:** `InstructorReviewDTO` JSON
+- **Key fields:**
+  - `student_uuid` – the student leaving the review.
+  - `enrollment_uuid` – enrollment that links the student to a specific scheduled class instance.
+  - `rating` – overall rating from `1` to `5`.
+  - Optional fields: `headline`, `comments`, `clarity_rating`, `engagement_rating`, `punctuality_rating`, `is_anonymous`.
+
+**Rules enforced by the backend:**
+
+- The `enrollment_uuid` must exist and belong to `student_uuid`; otherwise the request fails.
+- A student can submit at most one review per `(instructor_uuid, enrollment_uuid)` pair. Subsequent attempts will return an error.
+
+**Frontend integration tips:**
+
+- Show a “Rate Instructor” entry point on:
+  - Class detail pages once the class is completed, or
+  - A “My Classes” / “Past Sessions” tab after attendance is marked.
+- Pre‑select the `instructorUuid` and `enrollmentUuid` from the student’s enrollments to avoid manual lookup.
+- Use a 5‑star UI for `rating` and optional sliders or star widgets for the dimension ratings.
+- Respect `is_anonymous` when displaying reviews on public instructor profile pages (hide student name/avatar when true).
+
+#### API: Fetch Instructor Reviews
+
+- **Endpoint:** `GET /api/v1/instructors/{instructorUuid}/reviews`
+- **Purpose:** Populate instructor profile pages and analytics dashboards with:
+  - Individual reviews and comments.
+  - Aggregate star ratings (frontend can compute the average or call the summary endpoint below).
+
+For quick analytics without client-side aggregation, use:
+
+- **Endpoint:** `GET /api/v1/instructors/{instructorUuid}/reviews/summary`
+- **Response:** `InstructorRatingSummaryDTO` with:
+  - `average_rating` – average of all non-null `rating` values, or `null` when there are no reviews.
+  - `review_count` – total number of reviews for the instructor.
+
+Recommended UI patterns:
+
+- On the instructor profile, add:
+  - An average rating badge (e.g. `4.7 ★` from `review_count` reviews, using `/reviews/summary`).
+  - A breakdown chart by rating (5★, 4★, etc.).
+  - A review list showing `headline`, `comments`, and anonymized student metadata.
+- For org admins, add filters such as:
+  - Date range,
+  - Minimum rating,
+  - Specific classes/programs.
 
 ## Organization-Specific Instructor Features
 
