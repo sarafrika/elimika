@@ -5,33 +5,23 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
 /**
- * Converts the ProficiencyLevel enum to its name string value for the database,
- * and back to the enum from the database string.
- * This implementation uses the enum name() and valueOf() methods since ProficiencyLevel
- * stores enum names (BEGINNER, INTERMEDIATE, etc.) in the database.
+ * Attribute converter for ProficiencyLevel.
+ *
+ * Currently not auto-applied because InstructorSkill is mapped directly as a
+ * PostgreSQL named enum using @Enumerated and @JdbcTypeCode. This converter is
+ * retained for potential future use where ProficiencyLevel needs to be stored
+ * as a normalized string column.
  */
-@Converter(autoApply = true)
+@Converter(autoApply = false)
 public class ProficiencyLevelConverter implements AttributeConverter<ProficiencyLevel, String> {
 
-    /**
-     * Converts the ProficiencyLevel enum to its corresponding string value.
-     *
-     * @param attribute The enum value from the entity (e.g., ProficiencyLevel.BEGINNER).
-     * @return The string value for the database (e.g., "BEGINNER"), or null if the enum is null.
-     */
     @Override
     public String convertToDatabaseColumn(ProficiencyLevel attribute) {
         return attribute != null ? attribute.getValue() : null;
     }
 
-    /**
-     * Converts the string from the database back to the corresponding ProficiencyLevel enum.
-     *
-     * @param dbData The string value from the database (e.g., "BEGINNER").
-     * @return The matching ProficiencyLevel enum, or null if the database value is null.
-     */
     @Override
     public ProficiencyLevel convertToEntityAttribute(String dbData) {
-        return dbData != null ? ProficiencyLevel.valueOf(dbData) : null;
+        return dbData != null ? ProficiencyLevel.fromValue(dbData) : null;
     }
 }
