@@ -14,7 +14,6 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -42,8 +41,13 @@ import java.util.UUID;
             "training_fee": 240.00,
             "class_visibility": "PUBLIC",
             "session_format": "GROUP",
+            "default_start_time": "2025-01-15T14:00:00Z",
+            "default_end_time": "2025-01-15T15:30:00Z",
             "duration_minutes": 90,
             "location_type": "HYBRID",
+            "location_name": "Nairobi HQ – Room 101",
+            "location_latitude": -1.292066,
+            "location_longitude": 36.821945,
             "max_participants": 25,
             "allow_waitlist": true,
             "recurrence_pattern_uuid": "rp123456-7890-abcd-ef01-234567890abc",
@@ -152,24 +156,24 @@ public record ClassDefinitionDTO(
         SessionFormat sessionFormat,
 
         @Schema(
-                description = "**[REQUIRED]** Default start time for class sessions.",
-                example = "09:00:00",
-                format = "time",
+                description = "**[REQUIRED]** Default start date-time for class sessions (UTC).",
+                example = "2025-01-15T09:00:00Z",
+                format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @NotNull(message = "Default start time is required")
         @JsonProperty("default_start_time")
-        LocalTime defaultStartTime,
+        LocalDateTime defaultStartTime,
 
         @Schema(
-                description = "**[REQUIRED]** Default end time for class sessions.",
-                example = "10:30:00",
-                format = "time",
+                description = "**[REQUIRED]** Default end date-time for class sessions (UTC).",
+                example = "2025-01-15T10:30:00Z",
+                format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @NotNull(message = "Default end time is required")
         @JsonProperty("default_end_time")
-        LocalTime defaultEndTime,
+        LocalDateTime defaultEndTime,
 
         @Schema(
                 description = "**[REQUIRED]** Default delivery format for the class.",
@@ -180,6 +184,37 @@ public record ClassDefinitionDTO(
         @NotNull(message = "Location type is required")
         @JsonProperty("location_type")
         LocationType locationType,
+
+        @Schema(
+                description = "**[OPTIONAL]** Human-readable name for the primary class location, used for Mapbox forward/reverse geocoding (e.g., campus, room, or venue name). " +
+                        "Required when location_type is IN_PERSON or HYBRID.",
+                example = "Nairobi HQ – Room 101",
+                maxLength = 255,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_name")
+        String locationName,
+
+        @Schema(
+                description = "**[OPTIONAL]** Latitude coordinate for the primary class location, used with Mapbox. " +
+                        "Required when location_type is IN_PERSON or HYBRID.",
+                example = "-1.292066",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_latitude")
+        BigDecimal locationLatitude,
+
+        @Schema(
+                description = "**[OPTIONAL]** Longitude coordinate for the primary class location, used with Mapbox. " +
+                        "Required when location_type is IN_PERSON or HYBRID.",
+                example = "36.821945",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_longitude")
+        BigDecimal locationLongitude,
 
         @Schema(
                 description = "**[OPTIONAL]** Maximum number of participants allowed in the class.",

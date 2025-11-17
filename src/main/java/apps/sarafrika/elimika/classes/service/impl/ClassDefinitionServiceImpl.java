@@ -16,6 +16,7 @@ import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,7 +65,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         if (entity.getIsActive() == null) {
             entity.setIsActive(true);
         }
-        
+
+        validateLocationRequirements(entity);
         validateTrainingApprovals(entity);
         validateTrainingFee(entity);
 
@@ -98,6 +100,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
         
         ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
+        validateLocationRequirements(existingEntity);
         validateTrainingApprovals(existingEntity);
         validateTrainingFee(existingEntity);
         
@@ -406,6 +409,46 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             throw new IllegalStateException(String.format(
                     "Organisation %s is not approved to deliver course %s. Submit a training application and wait for approval before scheduling classes.",
                     organisationUuid, courseUuid));
+        }
+    }
+
+    /**
+     * Ensures that in-person and hybrid classes carry a Mapbox-ready location payload.
+     * <p>
+     * ONLINE classes may omit location_name and coordinates; IN_PERSON and HYBRID must supply:
+     * - location_name (human readable)
+     * - location_latitude (between -90 and 90)
+     * - location_longitude (between -180 and 180)
+     *
+     * @param entity the class definition to validate
+     */
+    private void validateLocationRequirements(ClassDefinition entity) {
+        LocationType locationType = entity.getLocationType();
+        if (locationType == null) {
+            return;
+        }
+
+        if (LocationType.ONLINE.equals(locationType)) {
+            // Online classes do not require a physical location; location fields are optional
+            return;
+        }
+
+        String locationName = entity.getLocationName();
+        if (locationName == null || locationName.trim().isEmpty()) {
+            throw new IllegalArgumentException("location_name is required when location_type is IN_PERSON or HYBRID");
+        }
+
+        var latitude = entity.getLocationLatitude();
+        var longitude = entity.getLocationLongitude();
+        if (latitude == null || longitude == null) {
+            throw new IllegalArgumentException("location_latitude and location_longitude are required when location_type is IN_PERSON or HYBRID");
+        }
+
+        if (latitude.compareTo(new BigDecimal("-90")) < 0 || latitude.compareTo(new BigDecimal("90")) > 0) {
+            throw new IllegalArgumentException("location_latitude must be between -90 and 90 degrees");
+        }
+        if (longitude.compareTo(new BigDecimal("-180")) < 0 || longitude.compareTo(new BigDecimal("180")) > 0) {
+            throw new IllegalArgumentException("location_longitude must be between -180 and 180 degrees");
         }
     }
 }

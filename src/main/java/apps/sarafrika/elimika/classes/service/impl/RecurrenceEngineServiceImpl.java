@@ -85,8 +85,8 @@ public class RecurrenceEngineServiceImpl implements RecurrenceEngineService {
         List<ScheduledInstanceDTO> scheduledInstances = new ArrayList<>();
         
         for (LocalDate occurrenceDate : occurrenceDates) {
-            LocalDateTime startDateTime = occurrenceDate.atTime(classDefinition.defaultStartTime());
-            LocalDateTime endDateTime = occurrenceDate.atTime(classDefinition.defaultEndTime());
+            LocalDateTime startDateTime = occurrenceDate.atTime(classDefinition.defaultStartTime().toLocalTime());
+            LocalDateTime endDateTime = occurrenceDate.atTime(classDefinition.defaultEndTime().toLocalTime());
             
             // Create ScheduleRequestDTO for this instance
             ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(

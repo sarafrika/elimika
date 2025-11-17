@@ -26,6 +26,9 @@ public class ScheduledInstanceFactory {
                 entity.getTimezone(),
                 entity.getTitle(),
                 entity.getLocationType(),
+                entity.getLocationName(),
+                entity.getLocationLatitude(),
+                entity.getLocationLongitude(),
                 entity.getMaxParticipants(),
                 entity.getStatus(),
                 entity.getCancellationReason(),
@@ -63,6 +66,9 @@ public class ScheduledInstanceFactory {
         entity.setTimezone(dto.timezone());
         entity.setTitle(dto.title());
         entity.setLocationType(dto.locationType());
+        entity.setLocationName(dto.locationName());
+        entity.setLocationLatitude(dto.locationLatitude());
+        entity.setLocationLongitude(dto.locationLongitude());
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setStatus(dto.status());
         entity.setCancellationReason(dto.cancellationReason());
@@ -94,6 +100,15 @@ public class ScheduledInstanceFactory {
         }
         if (dto.locationType() != null) {
             entity.setLocationType(dto.locationType());
+        }
+        if (dto.locationName() != null) {
+            entity.setLocationName(dto.locationName());
+        }
+        if (dto.locationLatitude() != null) {
+            entity.setLocationLatitude(dto.locationLatitude());
+        }
+        if (dto.locationLongitude() != null) {
+            entity.setLocationLongitude(dto.locationLongitude());
         }
         if (dto.maxParticipants() != null) {
             entity.setMaxParticipants(dto.maxParticipants());

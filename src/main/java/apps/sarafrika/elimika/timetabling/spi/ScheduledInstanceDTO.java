@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -31,7 +32,10 @@ import java.util.UUID;
             "end_time": "2024-09-15T10:30:00",
             "timezone": "UTC",
             "title": "Introduction to Java Programming",
-            "location_type": "ONLINE",
+            "location_type": "IN_PERSON",
+            "location_name": "Nairobi HQ – Room 101",
+            "location_latitude": -1.292066,
+            "location_longitude": 36.821945,
             "max_participants": 25,
             "status": "SCHEDULED",
             "cancellation_reason": null,
@@ -111,13 +115,40 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[REQUIRED]** Location type for the class (cached from class definition).",
-                example = "ONLINE",
+                example = "IN_PERSON",
                 allowableValues = {"ONLINE", "IN_PERSON", "HYBRID"},
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @NotNull(message = "Location type is required")
         @JsonProperty("location_type")
         String locationType,
+
+        @Schema(
+                description = "**[OPTIONAL]** Human-readable name for the session location (cached from class definition or overridden per instance).",
+                example = "Nairobi HQ – Room 101",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_name")
+        String locationName,
+
+        @Schema(
+                description = "**[OPTIONAL]** Latitude coordinate for this scheduled instance location.",
+                example = "-1.292066",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_latitude")
+        BigDecimal locationLatitude,
+
+        @Schema(
+                description = "**[OPTIONAL]** Longitude coordinate for this scheduled instance location.",
+                example = "36.821945",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_longitude")
+        BigDecimal locationLongitude,
 
         @Schema(
                 description = "**[REQUIRED]** Maximum number of participants for this session (cached from class definition).",

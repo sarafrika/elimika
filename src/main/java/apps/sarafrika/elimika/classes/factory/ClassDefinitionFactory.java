@@ -25,6 +25,9 @@ public class ClassDefinitionFactory {
                 entity.getDefaultStartTime(),
                 entity.getDefaultEndTime(),
                 entity.getLocationType(),
+                entity.getLocationName(),
+                entity.getLocationLatitude(),
+                entity.getLocationLongitude(),
                 entity.getMaxParticipants(),
                 entity.getAllowWaitlist(),
                 entity.getRecurrencePatternUuid(),
@@ -53,6 +56,9 @@ public class ClassDefinitionFactory {
         entity.setDefaultStartTime(dto.defaultStartTime());
         entity.setDefaultEndTime(dto.defaultEndTime());
         entity.setLocationType(dto.locationType());
+        entity.setLocationName(dto.locationName());
+        entity.setLocationLatitude(dto.locationLatitude());
+        entity.setLocationLongitude(dto.locationLongitude());
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setAllowWaitlist(dto.allowWaitlist());
         entity.setRecurrencePatternUuid(dto.recurrencePatternUuid());
@@ -97,6 +103,15 @@ public class ClassDefinitionFactory {
         }
         if (dto.locationType() != null) {
             entity.setLocationType(dto.locationType());
+        }
+        if (dto.locationName() != null) {
+            entity.setLocationName(dto.locationName());
+        }
+        if (dto.locationLatitude() != null) {
+            entity.setLocationLatitude(dto.locationLatitude());
+        }
+        if (dto.locationLongitude() != null) {
+            entity.setLocationLongitude(dto.locationLongitude());
         }
         if (dto.maxParticipants() != null) {
             entity.setMaxParticipants(dto.maxParticipants());

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -40,13 +40,22 @@ public class ClassDefinition extends BaseEntity {
     private UUID courseUuid;
 
     @Column(name = "default_start_time")
-    private LocalTime defaultStartTime;
+    private LocalDateTime defaultStartTime;
 
     @Column(name = "default_end_time")
-    private LocalTime defaultEndTime;
+    private LocalDateTime defaultEndTime;
 
     @Column(name = "location_type")
     private LocationType locationType;
+
+    @Column(name = "location_name")
+    private String locationName;
+
+    @Column(name = "location_latitude")
+    private BigDecimal locationLatitude;
+
+    @Column(name = "location_longitude")
+    private BigDecimal locationLongitude;
 
     @Column(name = "max_participants")
     private Integer maxParticipants = 50;

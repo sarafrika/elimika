@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -50,6 +51,15 @@ public class ScheduledInstance extends BaseEntity {
     
     @Column(name = "location_type")
     private String locationType;
+
+    @Column(name = "location_name")
+    private String locationName;
+
+    @Column(name = "location_latitude")
+    private BigDecimal locationLatitude;
+
+    @Column(name = "location_longitude")
+    private BigDecimal locationLongitude;
     
     @Column(name = "max_participants")
     private Integer maxParticipants;

@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -31,7 +32,10 @@ import java.util.UUID;
             "start_time": "2024-09-15T09:00:00",
             "end_time": "2024-09-15T10:30:00",
             "timezone": "UTC",
-            "location_type": "ONLINE",
+            "location_type": "IN_PERSON",
+            "location_name": "Nairobi HQ – Room 101",
+            "location_latitude": -1.292066,
+            "location_longitude": 36.821945,
             "scheduling_status": "SCHEDULED",
             "enrollment_status": "ENROLLED",
             "attendance_marked_at": null
@@ -108,12 +112,36 @@ public record StudentScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Location type for the class.",
-                example = "ONLINE",
+                example = "IN_PERSON",
                 allowableValues = {"ONLINE", "IN_PERSON", "HYBRID"},
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("location_type")
         String locationType,
+
+        @Schema(
+                description = "**[READ-ONLY]** Human-readable location name for the scheduled class.",
+                example = "Nairobi HQ – Room 101",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("location_name")
+        String locationName,
+
+        @Schema(
+                description = "**[READ-ONLY]** Latitude coordinate for the scheduled class location.",
+                example = "-1.292066",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("location_latitude")
+        BigDecimal locationLatitude,
+
+        @Schema(
+                description = "**[READ-ONLY]** Longitude coordinate for the scheduled class location.",
+                example = "36.821945",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("location_longitude")
+        BigDecimal locationLongitude,
 
         @Schema(
                 description = "**[READ-ONLY]** Current status of the scheduled instance.",

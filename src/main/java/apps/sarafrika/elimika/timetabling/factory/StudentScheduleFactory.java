@@ -26,6 +26,9 @@ public class StudentScheduleFactory {
                 scheduledInstance.getEndTime(),
                 scheduledInstance.getTimezone(),
                 scheduledInstance.getLocationType(),
+                scheduledInstance.getLocationName(),
+                scheduledInstance.getLocationLatitude(),
+                scheduledInstance.getLocationLongitude(),
                 scheduledInstance.getStatus(),
                 enrollment.getStatus(),
                 enrollment.getAttendanceMarkedAt()

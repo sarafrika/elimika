@@ -129,13 +129,46 @@ This form should capture the details for a `ClassDefinition`.
   "description": "A deep dive into modern React design patterns.",
   "default_instructor_uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
   "course_uuid": "c1d2e3f4-g5h6-7890-1234-567890abcdef",
-  "default_start_time": "14:00:00",
-  "default_end_time": "15:30:00",
-  "location_type": "ONLINE",
+  "default_start_time": "2025-01-15T14:00:00Z",
+  "default_end_time": "2025-01-15T15:30:00Z",
+  "location_type": "IN_PERSON",
+  "location_name": "Nairobi HQ – Room 101",
+  "location_latitude": -1.292066,
+  "location_longitude": 36.821945,
   "max_participants": 30,
   "allow_waitlist": true,
   "is_active": true
 }
+```
+
+**Location & Mapbox expectations:**
+
+- When `location_type` is `ONLINE`, `location_name` and coordinates are optional and usually omitted.
+- When `location_type` is `IN_PERSON` or `HYBRID`, the frontend **must** send:
+  - `location_name` – a human-readable label (e.g., `"Nairobi HQ – Room 101"`).
+  - `location_latitude` – latitude between `-90` and `90`.
+  - `location_longitude` – longitude between `-180` and `180`.
+- The backend will reject IN_PERSON/HYBRID definitions missing any of these fields, or with coordinates outside the valid ranges.
+
+### 5.1 Mapbox Location Flow for Classes
+
+Use the same Mapbox map picker you use elsewhere in the app to populate the class location fields.
+
+```mermaid
+sequenceDiagram
+    participant UI as Class Builder UI
+    participant MAP as Mapbox JS SDK
+    participant API as Classes API
+    participant DB as Postgres
+
+    UI->>MAP: Search/place-select (address or pin)
+    MAP-->>UI: place_name + center[lon, lat]
+
+    UI->>API: POST /api/v1/classes\n(location_type=IN_PERSON|HYBRID,\nlocation_name, location_latitude, location_longitude)
+    API->>DB: Persist class_definitions.location_*\n(and denormalized scheduled_instances.location_*)
+    API-->>UI: ClassDefinitionDTO\n(including location_name/latitude/longitude)
+
+    Note over UI,MAP: For ONLINE classes, skip the map step and omit location fields.
 ```
 
 **Handling the Response:**
@@ -151,8 +184,8 @@ The API will return the newly created `ClassDefinitionDTO`. Your UI should store
   "data": {
     "uuid": "cd123456-7890-abcd-ef01-234567890abc",
     "title": "Advanced React Patterns",
-    "default_start_time": "14:00:00",
-    "default_end_time": "15:30:00",
+    "default_start_time": "2025-01-15T14:00:00Z",
+    "default_end_time": "2025-01-15T15:30:00Z",
     "duration_minutes": 90,
     "duration_formatted": "1h 30m",
     "has_recurrence": false,
