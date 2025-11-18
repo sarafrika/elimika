@@ -1,3 +1,10 @@
+## [2.35.1](https://github.com/sarafrika/elimika/compare/v2.35.0...v2.35.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* align instructor reviews migration with class enrollments ([f910174](https://github.com/sarafrika/elimika/commit/f910174bb23db128e94e90eaba6709ec8e1a1874))
+
 # [2.35.0](https://github.com/sarafrika/elimika/compare/v2.34.0...v2.35.0) (2025-11-18)
 
 
