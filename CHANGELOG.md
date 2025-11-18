@@ -1,3 +1,25 @@
+# [2.35.0](https://github.com/sarafrika/elimika/compare/v2.34.0...v2.35.0) (2025-11-18)
+
+
+### Bug Fixes
+
+* break commerce modulith cycle via order completion event ([5002689](https://github.com/sarafrika/elimika/commit/5002689755a922d18158068d549b6c1553ea531e))
+* loosen catalog provisioning dependency to satisfy modulith ([56c9380](https://github.com/sarafrika/elimika/commit/56c9380dccd63d860d581481eed7d14977e07909))
+* persist instructor skill proficiency enum correctly ([854ec92](https://github.com/sarafrika/elimika/commit/854ec9275c6522588bca24829c18c9eab1ee015b))
+* remove course dependency from catalog provisioning ([99e51ff](https://github.com/sarafrika/elimika/commit/99e51ff9fbc9805d88163d30ffb6c5542f8f5014))
+* remove paywall spi cycle and update references ([9ef3bc7](https://github.com/sarafrika/elimika/commit/9ef3bc7cd529a4e01c4656c12b7718804f6ed50a))
+* resolve modulith architecture violations ([769d677](https://github.com/sarafrika/elimika/commit/769d67785fd48b458ee5a003fd8d532da0c9b264))
+* restore instructor review classes ([780d77d](https://github.com/sarafrika/elimika/commit/780d77d7872db2b40fe52571c24b54b4119ab0ef))
+* update class catalog listener to new event fields ([be0165f](https://github.com/sarafrika/elimika/commit/be0165fc60247bcb61a3a2c708bb4de874e57f02))
+
+
+### Features
+
+* add class location coordinates and datetime defaults ([34c2a40](https://github.com/sarafrika/elimika/commit/34c2a40d9773251d8cb35f4a25c68dd319b05009))
+* add lesson media uploads, instructor reviews, and private bookings ([056a6e2](https://github.com/sarafrika/elimika/commit/056a6e25cc82198abe9bd3ec694eba45c2be8dee))
+* enable internal commerce checkout and paywall ([cc1acda](https://github.com/sarafrika/elimika/commit/cc1acda54f2bbb7fa21bedc414ba18dc8fc6b9ac))
+* expose class enrollments to instructors ([7e4f97d](https://github.com/sarafrika/elimika/commit/7e4f97df3313dcc08c631bd080d930f8ebce8cde))
+
 # [2.34.0](https://github.com/sarafrika/elimika/compare/v2.33.0...v2.34.0) (2025-11-10)
 
 
