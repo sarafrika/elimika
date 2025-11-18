@@ -6,7 +6,7 @@ CREATE TABLE instructor_reviews (
 
     instructor_uuid UUID NOT NULL REFERENCES instructors (uuid) ON DELETE CASCADE,
     student_uuid UUID NOT NULL REFERENCES students (uuid) ON DELETE CASCADE,
-    enrollment_uuid UUID NOT NULL REFERENCES enrollments (uuid) ON DELETE CASCADE,
+    enrollment_uuid UUID NOT NULL REFERENCES class_enrollments (uuid) ON DELETE CASCADE,
 
     rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
     headline VARCHAR(255),
@@ -35,4 +35,3 @@ ALTER TABLE instructor_reviews
 COMMENT ON TABLE instructor_reviews IS 'Student reviews and ratings for instructors, scoped to enrollments.';
 COMMENT ON COLUMN instructor_reviews.rating IS 'Overall star rating (1-5) provided by the student.';
 COMMENT ON COLUMN instructor_reviews.is_anonymous IS 'When true, public displays should hide the student identity.';
-
