@@ -12,14 +12,18 @@ import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -37,7 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(SystemRuleAdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@SuppressWarnings("removal")
+@ExtendWith(SpringExtension.class)
+@Import(SystemRuleAdminControllerTest.MockConfig.class)
 class SystemRuleAdminControllerTest {
 
     @Autowired
@@ -46,13 +51,13 @@ class SystemRuleAdminControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @Autowired
     private SystemRuleAdminService systemRuleAdminService;
 
-    @MockBean
+    @Autowired
     private UserManagementService userManagementService;
 
-    @MockBean
+    @Autowired
     private RequestAuditService requestAuditService;
 
     @Test
@@ -113,5 +118,22 @@ class SystemRuleAdminControllerTest {
                 LocalDateTime.now(),
                 "system"
         );
+    }
+
+    static class MockConfig {
+        @Bean
+        SystemRuleAdminService systemRuleAdminService() {
+            return Mockito.mock(SystemRuleAdminService.class);
+        }
+
+        @Bean
+        UserManagementService userManagementService() {
+            return Mockito.mock(UserManagementService.class);
+        }
+
+        @Bean
+        RequestAuditService requestAuditService() {
+            return Mockito.mock(RequestAuditService.class);
+        }
     }
 }
