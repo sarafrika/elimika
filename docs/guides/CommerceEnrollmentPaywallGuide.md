@@ -114,6 +114,7 @@ Before calling this endpoint you should already have:
 6. **Complete Checkout** – `POST /commerce/orders/checkout` finalizes the order. Inspect `payment_status` (`captured`/`paid`) to mark success.
 7. **Store Order Reference** – Use `order.id` or `order.display_id` for receipts and reconciliation.
 8. **Advance to Enrollment UX** – Present “Continue to enrollment” CTA after payment.
+9. **Email Receipt** – The backend now emits an order receipt email to the purchaser using the payment metadata and order totals; surface the same summary in the UI for consistency.
 
 ---
 

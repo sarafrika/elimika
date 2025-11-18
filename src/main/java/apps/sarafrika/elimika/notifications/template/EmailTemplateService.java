@@ -48,6 +48,10 @@ public class EmailTemplateService {
                 String.format("Class schedule %s: %s",
                         event.getTemplateVariables().getOrDefault("changeTypeLabel", "updated"),
                         event.getTemplateVariables().getOrDefault("assessmentTitle", "Assessment"));
+            case "order-payment-receipt" ->
+                String.format("Receipt for Order %s",
+                        event.getTemplateVariables().getOrDefault("orderDisplayId",
+                                event.getTemplateVariables().getOrDefault("orderId", "payment")));
             default -> 
                 String.format("[%s] %s", applicationName, event.getNotificationType().getDisplayName());
         };

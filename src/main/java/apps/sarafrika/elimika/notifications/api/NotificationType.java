@@ -42,6 +42,7 @@ public enum NotificationType {
     ACCOUNT_CREATED("ACCOUNT_CREATED", "account-created", "Account Created", NotificationCategory.SYSTEM_ADMIN),
     PASSWORD_RESET_REQUEST("PASSWORD_RESET_REQUEST", "password-reset-request", "Password Reset", NotificationCategory.SYSTEM_ADMIN),
     SECURITY_ALERT("SECURITY_ALERT", "security-alert", "Security Alert", NotificationCategory.SYSTEM_ADMIN),
+    ORDER_PAYMENT_RECEIPT("ORDER_PAYMENT_RECEIPT", "order-payment-receipt", "Order Receipt", NotificationCategory.SYSTEM_ADMIN),
     
     // Engagement & Motivation
     WEEKLY_PROGRESS_SUMMARY("WEEKLY_PROGRESS_SUMMARY", "weekly-progress-summary", "Progress Summary", NotificationCategory.LEARNING_PROGRESS),
