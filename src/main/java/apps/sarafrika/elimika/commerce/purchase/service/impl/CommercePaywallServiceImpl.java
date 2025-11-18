@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
 import apps.sarafrika.elimika.commerce.purchase.service.CommerceAccessService;
-import apps.sarafrika.elimika.commerce.purchase.spi.paywall.CommercePaywallService;
+import apps.sarafrika.elimika.commerce.spi.paywall.CommercePaywallService;
 import apps.sarafrika.elimika.shared.exceptions.PaymentRequiredException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
