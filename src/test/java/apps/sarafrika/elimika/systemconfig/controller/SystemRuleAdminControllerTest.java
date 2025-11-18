@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(SystemRuleAdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@SuppressWarnings("removal")
 class SystemRuleAdminControllerTest {
 
     @Autowired
