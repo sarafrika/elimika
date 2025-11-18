@@ -20,13 +20,13 @@ public class ClassCatalogEventListener {
 
     @EventListener
     public void onClassDefined(ClassDefinedEventDTO event) {
-        log.debug("Received ClassDefinedEvent for class definition {}", event.classDefinitionUuid());
-        catalogProvisioningService.ensureClassIsPurchasable(event.classDefinitionUuid());
+        log.debug("Received ClassDefinedEvent for class definition {}", event.definitionUuid());
+        catalogProvisioningService.ensureClassIsPurchasable(event.definitionUuid());
     }
 
     @EventListener
     public void onClassUpdated(ClassDefinitionUpdatedEventDTO event) {
-        log.debug("Received ClassDefinitionUpdatedEvent for class definition {}", event.classDefinitionUuid());
-        catalogProvisioningService.ensureClassIsPurchasable(event.classDefinitionUuid());
+        log.debug("Received ClassDefinitionUpdatedEvent for class definition {}", event.definitionUuid());
+        catalogProvisioningService.ensureClassIsPurchasable(event.definitionUuid());
     }
 }
