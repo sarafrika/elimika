@@ -58,6 +58,9 @@ class TimetableServiceImplTest {
     @Mock
     private AgeVerificationService ageVerificationService;
 
+    @Mock
+    private apps.sarafrika.elimika.commerce.purchase.spi.paywall.CommercePaywallService commercePaywallService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -70,7 +73,8 @@ class TimetableServiceImplTest {
                 enrollmentSpecBuilder,
                 classDefinitionLookupService,
                 courseInfoService,
-                ageVerificationService
+                ageVerificationService,
+                commercePaywallService
         );
     }
 
