@@ -8,7 +8,6 @@ import apps.sarafrika.elimika.commerce.internal.enums.VariantStatus;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductRepository;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.commerce.internal.service.CatalogProvisioningService;
-import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -31,7 +30,6 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
     private final CommerceProductRepository productRepository;
     private final CommerceProductVariantRepository variantRepository;
     private final ClassDefinitionLookupService classDefinitionLookupService;
-    private final CourseInfoService courseInfoService;
     private final InternalCommerceProperties internalCommerceProperties;
 
     @Override
@@ -60,9 +58,7 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
     }
 
     private CommerceProduct createCourseProduct(UUID courseUuid) {
-        String title = courseInfoService.getCourseName(courseUuid)
-                .filter(StringUtils::hasText)
-                .orElse("Course " + courseUuid);
+        String title = "Course " + courseUuid;
         CommerceProduct product = new CommerceProduct();
         product.setCourseUuid(courseUuid);
         product.setTitle(title);
@@ -92,11 +88,6 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
     private BigDecimal resolvePrice(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
         if (snapshot.trainingFee() != null) {
             return snapshot.trainingFee().setScale(4, RoundingMode.HALF_UP);
-        }
-        if (snapshot.courseUuid() != null) {
-            return courseInfoService.getMinimumTrainingFee(snapshot.courseUuid())
-                    .map(fee -> fee.setScale(4, RoundingMode.HALF_UP))
-                    .orElse(ZERO);
         }
         return ZERO;
     }
