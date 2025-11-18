@@ -1,3 +1,10 @@
+# [2.36.0](https://github.com/sarafrika/elimika/compare/v2.35.1...v2.36.0) (2025-11-18)
+
+
+### Features
+
+* email receipts after paid orders ([9e04a6b](https://github.com/sarafrika/elimika/commit/9e04a6bdabd5a059a13fa3c96f6225ba92120cd1))
+
 ## [2.35.1](https://github.com/sarafrika/elimika/compare/v2.35.0...v2.35.1) (2025-11-18)
 
 
