@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,21 +32,21 @@ public class CartItemResponse {
     @JsonProperty("quantity")
     private final int quantity;
 
-    @Schema(description = "Medusa variant identifier", example = "variant_01HZX1Y4K8R0HVWZ4Q6CF6M1AP")
+    @Schema(description = "Variant identifier within the commerce catalog", example = "variant_01HZX1Y4K8R0HVWZ4Q6CF6M1AP")
     @JsonProperty("variant_id")
     private final String variantId;
 
-    @Schema(description = "Price per unit in the smallest currency denomination", example = "250000")
+    @Schema(description = "Price per unit with up to 4 decimal places", example = "2500.0000")
     @JsonProperty("unit_price")
-    private final Long unitPrice;
+    private final BigDecimal unitPrice;
 
-    @Schema(description = "Subtotal for the line item in the smallest currency denomination", example = "250000")
+    @Schema(description = "Subtotal for the line item with up to 4 decimal places", example = "2500.0000")
     @JsonProperty("subtotal")
-    private final Long subtotal;
+    private final BigDecimal subtotal;
 
-    @Schema(description = "Total for the line item after discounts in the smallest currency denomination", example = "200000")
+    @Schema(description = "Total for the line item after discounts with up to 4 decimal places", example = "2500.0000")
     @JsonProperty("total")
-    private final Long total;
+    private final BigDecimal total;
 
     @Schema(description = "Custom metadata captured for the line item")
     @JsonProperty("metadata")

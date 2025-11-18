@@ -29,7 +29,8 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
             return Optional.of(new ClassDefinitionSnapshot(
                     dto.uuid(),
                     dto.courseUuid(),
-                    dto.title()
+                    dto.title(),
+                    dto.trainingFee()
             ));
         } catch (ResourceNotFoundException ex) {
             return Optional.empty();

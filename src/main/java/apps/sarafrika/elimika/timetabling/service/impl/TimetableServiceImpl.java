@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.commerce.purchase.spi.paywall.CommercePaywallService;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
@@ -52,6 +53,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final CourseInfoService courseInfoService;
     private final AgeVerificationService ageVerificationService;
+    private final CommercePaywallService commercePaywallService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -170,6 +172,7 @@ public class TimetableServiceImpl implements TimetableService {
         UUID studentUuid = request.studentUuid();
 
         enforceClassAgeLimits(studentUuid, classDefinitionUuid);
+        commercePaywallService.verifyClassEnrollmentAccess(studentUuid, classDefinitionUuid);
 
         List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
 

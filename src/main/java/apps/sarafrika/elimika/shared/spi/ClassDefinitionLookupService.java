@@ -13,6 +13,7 @@ public interface ClassDefinitionLookupService {
     record ClassDefinitionSnapshot(
             UUID classDefinitionUuid,
             UUID courseUuid,
-            String title
+            String title,
+            java.math.BigDecimal trainingFee
     ) { }
 }

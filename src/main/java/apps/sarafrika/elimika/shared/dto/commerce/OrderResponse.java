@@ -5,16 +5,15 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
-
-import java.time.OffsetDateTime;
-import java.util.List;
 
 /**
- * API response describing an order stored in Medusa.
+ * API response describing an order stored in the internal commerce stack.
  */
 @Getter
 @Builder(toBuilder = true)
@@ -23,7 +22,7 @@ import java.util.List;
 @Schema(name = "OrderResponse", description = "Order information synchronised from Medusa")
 public class OrderResponse {
 
-    @Schema(description = "Unique Medusa identifier of the order", example = "order_01HZX2Z2C2MBK8C6Y8PF0YTW30")
+    @Schema(description = "Unique identifier of the order", example = "b6d7ab1b-7a21-4b3f-9e52-d6c2f5b2a9f0")
     @JsonProperty("id")
     private final String id;
 
@@ -31,7 +30,7 @@ public class OrderResponse {
     @JsonProperty("display_id")
     private final String displayId;
 
-    @Schema(description = "Payment status reported by Medusa", example = "captured")
+    @Schema(description = "Payment status", example = "CAPTURED")
     @JsonProperty("payment_status")
     private final String paymentStatus;
 
@@ -39,13 +38,13 @@ public class OrderResponse {
     @JsonProperty("currency_code")
     private final String currencyCode;
 
-    @Schema(description = "Subtotal in the smallest currency denomination", example = "100000")
+    @Schema(description = "Subtotal with up to 4 decimal places", example = "1000.0000")
     @JsonProperty("subtotal")
-    private final Long subtotal;
+    private final BigDecimal subtotal;
 
-    @Schema(description = "Total in the smallest currency denomination", example = "103000")
+    @Schema(description = "Total with up to 4 decimal places", example = "1030.0000")
     @JsonProperty("total")
-    private final Long total;
+    private final BigDecimal total;
 
     @Schema(description = "Timestamp when the order was created", example = "2024-07-20T09:55:00Z", format = "date-time")
     @JsonProperty("created_at")

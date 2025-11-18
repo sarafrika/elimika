@@ -14,7 +14,7 @@ import lombok.Setter;
 import org.springframework.util.StringUtils;
 
 /**
- * Represents partial updates that can be applied to a Medusa cart.
+ * Represents partial updates that can be applied to a cart.
  */
 @Getter
 @Setter
@@ -30,19 +30,19 @@ public class UpdateCartRequest {
     @JsonProperty("email")
     private String email;
 
-    @Schema(description = "Medusa customer identifier to associate with the cart", example = "cus_01HZX1X6QAQCCYT11S3R6G9KVN")
+    @Schema(description = "Customer identifier to associate with the cart", example = "user-uuid")
     @JsonProperty("customer_id")
     private String customerId;
 
-    @Schema(description = "Medusa shipping address identifier", example = "addr_01HZX2F2Z6E0Y0T8VJX3W6PC66")
+    @Schema(description = "Shipping address identifier", example = "address-uuid")
     @JsonProperty("shipping_address_id")
     private String shippingAddressId;
 
-    @Schema(description = "Medusa billing address identifier", example = "addr_01HZX2F7GZ92P2X9YBQB0NQ9E3")
+    @Schema(description = "Billing address identifier", example = "address-uuid")
     @JsonProperty("billing_address_id")
     private String billingAddressId;
 
-    @Schema(description = "Optional metadata map forwarded to Medusa", example = "{\"cohort\":\"Q3-2024\"}")
+    @Schema(description = "Optional metadata map stored with the cart", example = "{\"cohort\":\"Q3-2024\"}")
     @JsonProperty("metadata")
     private Map<String, Object> metadata;
 

@@ -21,10 +21,10 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "CheckoutRequest", description = "Checkout payload that orchestrates Medusa cart completion")
+@Schema(name = "CheckoutRequest", description = "Checkout payload that orchestrates cart completion")
 public class CheckoutRequest {
 
-    @Schema(description = "Identifier of the cart being checked out", example = "cart_01HZX25RFMBW79S99RWQYJXWCM", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Identifier of the cart being checked out", example = "2f6d4d1e-5f2a-4b2e-9f8d-0b7c3e9b5c1a", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "Cart identifier is required")
     @JsonProperty("cart_id")
     private String cartId;

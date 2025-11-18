@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(CartController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Commerce Carts", description = "Operations for managing shopping carts synchronised with Medusa")
+@Tag(name = "Commerce Carts", description = "Operations for managing shopping carts")
 public class CartController {
 
     public static final String API_ROOT_PATH = "/api/v1/commerce/carts";
@@ -40,7 +40,7 @@ public class CartController {
 
     @Operation(
             summary = "Create a new cart",
-            description = "Initialises a new cart in Medusa that can be used for checkout flows",
+            description = "Initialises a new cart that can be used for checkout flows",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Cart created successfully",
                             content = @Content(schema = @Schema(implementation = CartResponse.class)))
@@ -73,7 +73,7 @@ public class CartController {
 
     @Operation(
             summary = "Retrieve cart details",
-            description = "Fetches the latest cart representation from Medusa",
+            description = "Fetches the latest cart representation",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cart retrieved",
                             content = @Content(schema = @Schema(implementation = CartResponse.class)))
@@ -106,7 +106,7 @@ public class CartController {
 
     @Operation(
             summary = "Select payment session",
-            description = "Locks the cart to a particular Medusa payment provider",
+            description = "Locks the cart to a particular payment provider",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment session selected",
                             content = @Content(schema = @Schema(implementation = CartResponse.class)))
@@ -123,7 +123,7 @@ public class CartController {
 
     @Operation(
             summary = "Complete cart",
-            description = "Finalises the cart in Medusa and creates an order",
+            description = "Finalises the cart and creates an order",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cart completed",
                             content = @Content(schema = @Schema(implementation = OrderResponse.class)))

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.shared.config;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.exceptions.DatabaseAuditException;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.exceptions.PaymentRequiredException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpAuthenticationException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
@@ -106,6 +107,13 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("A database error occurred. Please try again or contact support if the problem persists"));
+    }
+
+    @ExceptionHandler(PaymentRequiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePaymentRequiredException(PaymentRequiredException ex) {
+        log.debug("Payment required", ex);
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                .body(ApiResponse.error("Payment required", ex.getMessage()));
     }
 
     /**

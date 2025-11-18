@@ -24,7 +24,7 @@ import lombok.Setter;
 public class SelectPaymentSessionRequest {
 
     @Schema(
-            description = "Identifier of the Medusa payment provider (e.g. 'manual', 'stripe')",
+            description = "Identifier of the payment provider (e.g. 'manual', 'stripe')",
             example = "manual",
             requiredMode = Schema.RequiredMode.REQUIRED
     )

@@ -14,11 +14,12 @@ Use 4-space indentation and follow the existing Lombok patterns. Classes, contro
 
 - When moderating organizations, rely on the consolidated endpoint `POST /api/v1/admin/organizations/{uuid}/moderate?action=approve|reject|revoke` instead of bespoke verify/unverify routes.
 - Order dashboard activity feeds from `GET /api/v1/admin/dashboard/activity-feed`; resist duplicating audit lookups in feature code.
-- Entity classes must keep `@Column` usage to `@Column(name = "...")` only—nullability, defaults, and constraints belong exclusively in Flyway migrations.
+- Entity classes must keep `@Column` usage to `@Column(name = "...")` only—nullability, length, defaults, and other constraints belong exclusively in Flyway migrations (always omit extra attributes).
 - Persist enumerations with explicit `AttributeConverter` implementations (see `*Converter` classes) instead of `@Enumerated`; converters must normalize values case-insensitively (e.g., `value.toUpperCase(Locale.ROOT)`) so legacy data keeps working.
-- When updating or adding feature guides under `docs/guides/`, include a Mermaid DFD/sequence diagram that shows the UI ↔ API ↔ storage flow so frontend engineers can reason about contracts quickly.
+- When updating or adding feature guides under `docs/guides/`, include a clear UI ↔ API ↔ storage flow diagram (Mermaid no longer required) so frontend engineers can reason about contracts quickly.
 - Avoid the Builder pattern entirely—prefer constructors, factory methods, or Lombok records for data assembly so object graphs stay explicit and easy to trace.
 - Every JSON DTO (requests/responses) must annotate fields with `@JsonProperty("snake_case")` so contracts stay explicit; never rely on `@JsonNaming` defaults.
+- After completing any task, ensure a commit is created with a clear Conventional Commit message before moving on to the next task.
 
 ### Flyway Migration Naming
 - Always name migration files `Vyyyymmddhhmm__migration_name.sql` using the current UTC timestamp. Run `date -u +"%Y%m%d%H%M"` in the terminal to generate the prefix and avoid manual guessing.

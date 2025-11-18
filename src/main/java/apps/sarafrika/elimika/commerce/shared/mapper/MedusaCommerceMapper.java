@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.commerce.medusa.dto.MedusaOrderResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -23,8 +24,14 @@ public class MedusaCommerceMapper {
         }
         return CartResponse.builder()
                 .id(medusaCart.getId())
-                .regionId(medusaCart.getRegionId())
-                .customerId(medusaCart.getCustomerId())
+                .currencyCode(null)
+                .regionCode(medusaCart.getRegionId())
+                .status(null)
+                .subtotal(null)
+                .tax(null)
+                .discount(null)
+                .shipping(null)
+                .total(null)
                 .createdAt(medusaCart.getCreatedAt())
                 .updatedAt(medusaCart.getUpdatedAt())
                 .items(toCartItems(medusaCart.getItems()))
@@ -45,8 +52,8 @@ public class MedusaCommerceMapper {
                 .paymentStatus(medusaOrder.getPaymentStatus())
                 .createdAt(medusaOrder.getCreatedAt())
                 .currencyCode(medusaOrder.getCurrencyCode())
-                .subtotal(medusaOrder.getSubtotal())
-                .total(medusaOrder.getTotal())
+                .subtotal(toAmount(medusaOrder.getSubtotal()))
+                .total(toAmount(medusaOrder.getTotal()))
                 .platformFee(platformFee)
                 .items(toCartItems(medusaOrder.getItems()))
                 .build();
@@ -62,11 +69,15 @@ public class MedusaCommerceMapper {
                         .title(item.getTitle())
                         .quantity(item.getQuantity())
                         .variantId(item.getVariantId())
-                        .unitPrice(item.getUnitPrice())
-                        .subtotal(item.getSubtotal())
-                        .total(item.getTotal())
+                        .unitPrice(toAmount(item.getUnitPrice()))
+                        .subtotal(toAmount(item.getSubtotal()))
+                        .total(toAmount(item.getTotal()))
                         .metadata(item.getMetadata())
                         .build())
                 .toList();
+    }
+
+    private BigDecimal toAmount(Long value) {
+        return value == null ? null : BigDecimal.valueOf(value).setScale(4, java.math.RoundingMode.HALF_UP);
     }
 }

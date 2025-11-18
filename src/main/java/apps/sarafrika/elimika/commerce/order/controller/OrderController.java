@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(OrderController.API_ROOT_PATH)
 @RequiredArgsConstructor
-@Tag(name = "Commerce Orders", description = "Endpoints for orchestrating and tracking Medusa orders")
+@Tag(name = "Commerce Orders", description = "Endpoints for orchestrating and tracking orders")
 public class OrderController {
 
     public static final String API_ROOT_PATH = "/api/v1/commerce/orders";
@@ -35,7 +35,7 @@ public class OrderController {
 
     @Operation(
             summary = "Complete checkout",
-            description = "Performs the full Medusa checkout flow including customer association and payment selection",
+            description = "Performs the full checkout flow including customer association and payment selection",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Order created",
                             content = @Content(schema = @Schema(implementation = OrderResponse.class)))
@@ -51,7 +51,7 @@ public class OrderController {
 
     @Operation(
             summary = "Get order details",
-            description = "Retrieves an order from Medusa to support order tracking",
+            description = "Retrieves an order to support order tracking",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Order retrieved",
                             content = @Content(schema = @Schema(implementation = OrderResponse.class)))
@@ -59,7 +59,7 @@ public class OrderController {
     )
     @GetMapping("/{orderId}")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrder(
-            @Parameter(description = "Medusa order identifier", required = true)
+            @Parameter(description = "Order identifier", required = true)
             @PathVariable String orderId) {
         OrderResponse order = orderService.getOrder(orderId);
         return ResponseEntity.ok(ApiResponse.success(order, "Order retrieved successfully"));

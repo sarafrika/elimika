@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Payload used by the Elimika frontend to bootstrap a checkout cart on Medusa.
+ * Payload used by the Elimika frontend to bootstrap a checkout cart using the internal commerce stack.
  */
 @Getter
 @Setter
@@ -24,37 +24,29 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "CreateCartRequest", description = "Request body for creating a new cart that synchronises with Medusa")
+@Schema(name = "CreateCartRequest", description = "Request body for creating a new cart")
 public class CreateCartRequest {
 
     @Schema(
-            description = "Identifier of the Medusa region the cart belongs to",
-            example = "reg_01HZX1W8GX9YYB01X54MB2F15C",
+            description = "Currency code the cart is priced in",
+            example = "USD",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotBlank(message = "Region identifier is required")
-    @JsonProperty("region_id")
-    private String regionId;
+    @NotBlank(message = "Currency code is required")
+    @JsonProperty("currency_code")
+    private String currencyCode;
 
     @Schema(
-            description = "Medusa customer identifier to associate with the cart",
-            example = "cus_01HZX1X6QAQCCYT11S3R6G9KVN",
+            description = "Optional region code for pricing rules",
+            example = "KE",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
-    @JsonProperty("customer_id")
-    private String customerId;
-
-    @Schema(
-            description = "Sales channel identifier configured in Medusa",
-            example = "sc_01HZX20Y4D9CK3R6RHY9PRF20C",
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED
-    )
-    @JsonProperty("sales_channel_id")
-    private String salesChannelId;
+    @JsonProperty("region_code")
+    private String regionCode;
 
     @Builder.Default
     @Schema(
-            description = "Arbitrary metadata forwarded to Medusa",
+            description = "Arbitrary metadata stored with the cart",
             example = "{\"campaign\":\"back-to-school\"}",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )

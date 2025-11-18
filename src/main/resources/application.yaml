@@ -99,6 +99,11 @@ medusa:
   base-url: ${MEDUSA_BASE_URL:https://medusa.example.com}
   api-token: ${MEDUSA_API_TOKEN:changeme}
 
+commerce:
+  internal:
+    enabled: ${COMMERCE_INTERNAL_ENABLED:false}
+    default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:USD}
+
 # Actuator configuration
 management:
   endpoints:

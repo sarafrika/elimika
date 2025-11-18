@@ -13,55 +13,22 @@ This guide walks frontend engineers and designers through the end-to-end experie
 
 ## 2. Experience Flow
 
-```mermaid
-graph TD
-    M[Marketing / Course Catalog] --> |Select Course/Class| C[Cart Builder]
-    C --> |Create Cart| CA[POST /commerce/carts]
-    CA --> |Add Items with metadata| AI[POST /commerce/carts/&#123;id&#125;/items]
-    AI --> |Select Payment Provider| SP[POST /commerce/carts/&#123;id&#125;/payment-session]
-    SP --> |Checkout| CO[POST /commerce/orders/checkout]
-    CO --> |Payment Confirmed| OR[Order Recorded]
-    OR --> |Attempt Enrollment| EN[POST /enrollment]
-    EN -->|Paywall Check| PW{{Commerce Paywall}}
-    PW -->|Payment Settled| OK[Enrollment Confirmed]
-    PW -->|Unpaid 402| ERR[Display Payment Required State]
-```
+1. Create cart (`POST /commerce/carts`) with `currency_code` and optional `region_code`.
+2. Add items (`POST /commerce/carts/{id}/items`) with variant and course/class/student metadata.
+3. Select payment provider (`POST /commerce/carts/{id}/payment-session`).
+4. Checkout (`POST /commerce/orders/checkout`).
+5. On payment success, attempt enrollment; paywall returns `402` if unpaid.
 
 ---
 
 ## 3. API Call Sequence
 
-```mermaid
-sequenceDiagram
-    participant UI as Frontend UI
-    participant CartAPI as Cart Service
-    participant OrderAPI as Order Service
-    participant Payment as Payment Provider
-    participant EnrollAPI as Timetabling Service
-
-    UI->>CartAPI: POST /commerce/carts (Create cart)
-    CartAPI-->>UI: CartResponse (id, region_id, items[])
-
-    loop Each course/class selection
-        UI->>CartAPI: POST /commerce/carts/{cartId}/items (variant_id, metadata)
-        CartAPI-->>UI: CartResponse (items updated)
-    end
-
-    UI->>CartAPI: POST /commerce/carts/{cartId}/payment-session (provider_id)
-    CartAPI-->>UI: CartResponse (payment session locked)
-
-    UI->>OrderAPI: POST /commerce/orders/checkout (cart_id, customer_email, payment_provider_id)
-    OrderAPI->>Payment: Capture or authorize payment
-    Payment-->>OrderAPI: Payment confirmation
-    OrderAPI-->>UI: OrderResponse (payment_status = captured/paid)
-
-    UI->>EnrollAPI: POST /enrollment (class_definition_uuid, student_uuid)
-    alt Payment settled
-        EnrollAPI-->>UI: EnrollmentDTO[]
-    else Payment required
-        EnrollAPI-->>UI: 402 Payment Required (+ message)
-    end
-```
+Sequence (text):
+- UI → Cart API: create cart; receive `id`, totals.
+- UI → Cart API: add items (variant + metadata) per selection; receive updated cart.
+- UI → Cart API: select payment provider.
+- UI → Order API: checkout with cart id, customer email, provider; wait for paid status.
+- UI → Enrollment API: enroll class/student; handle `402` for unpaid.
 
 ---
 
@@ -70,13 +37,13 @@ sequenceDiagram
 Use the following ordered steps in your UI to ensure cart and checkout interactions stay aligned with backend expectations:
 
 1. **Bootstrap Cart**  
-   `POST /api/v1/commerce/carts` with region (and optional customer) to receive a `cart.id`.
+   `POST /api/v1/commerce/carts` with `currency_code` (and optional `region_code`) to receive a `cart.id`.
 2. **Add Line Items**  
    For each course/class selection call `POST /api/v1/commerce/carts/{cartId}/items` supplying the metadata contract below.
 3. **Review / Edit Cart** *(optional)*  
    Fetch the cart via `GET /api/v1/commerce/carts/{cartId}` if you need to render a confirmation page or allow removals.
 4. **Lock Payment Provider**  
-   `POST /api/v1/commerce/carts/{cartId}/payment-session` with `provider_id` so Medusa prepares the payment session.
+   `POST /api/v1/commerce/carts/{cartId}/payment-session` with `provider_id` to prepare the payment session.
 5. **Collect Payer Details**  
    Gather email (and address IDs if relevant) for the final checkout payload.
 6. **Complete Checkout**  
@@ -95,31 +62,31 @@ Each cart line item represents a prepaid entitlement for a specific learner to a
 - **Course UUID** – Primary key from the Elimika course catalog (`courses` table). One course may have multiple classes; paying it typically unlocks all course resources.
 - **Class Definition UUID** – Identifier for a scheduled class template (`class_definitions` table). It maps to cohorts or recurring sessions that the student will attend.
 - **Student UUID** – Primary key for the learner in the `students` table (not the user UUID). Supports scenarios where a guardian purchases on behalf of a dependent.
-- **Medusa Variant ID** – SKU in the Medusa commerce engine representing the digital product for this course/class access. Backoffice tooling (or the catalog sync endpoint) exposes these IDs.
+- **Variant ID** – Internal commerce variant code/UUID representing the SKU for this course/class access.
 
 ### Fetching Catalog Metadata
 
-Use the dedicated catalog API to retrieve the Medusa product/variant for a course or class before building the cart payload:
+Use the dedicated catalog API to retrieve the internal product/variant for a course or class before building the cart payload:
 
-- `GET /api/v1/commerce/catalog/by-course/{courseUuid}` – returns the Medusa identifiers for a course-level purchase.
+- `GET /api/v1/commerce/catalog/by-course/{courseUuid}` – returns the variant identifiers for a course-level purchase.
 - `GET /api/v1/commerce/catalog/by-class/{classDefinitionUuid}` – returns the variant tied to a specific class definition.
 
 Catalog items are managed via `POST/PUT /api/v1/commerce/catalog` by operations/admin tooling, ensuring the storefront can simply query and reuse the stored mapping.
 
 Every cart line item must include metadata so the backend can tie a payment to course/class access. Missing keys will cause the paywall to block enrollment even after checkout.
 
-| Key                     | Type    | Required | Description                                                                                                                                                 |
-|-------------------------|---------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `course_uuid`           | UUID    | Yes      | Course granting access. Obtain this from the Course Catalogue API / course detail view that powers the storefront.                                         |
-| `class_definition_uuid` | UUID    | Yes      | Class definition selected during scheduling. Fetch via the Class Definitions API (`GET /api/v1/classes/…`) when rendering available cohorts/sessions.       |
-| `student_uuid`          | UUID    | Yes      | Student who will consume the access (supports parents/admins purchasing for others). Read from the learner profile context or student selection UI.        |
-| Medusa `variant_id`     | String  | Yes      | Variant identifier for the digital product in Medusa. Retrieve it when showing the product detail page (via `/admin/products` sync) or a preloaded catalog. |
+| Key                     | Type    | Required | Description                                                                                                                                           |
+|-------------------------|---------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `course_uuid`           | UUID    | Yes      | Course granting access. Obtain this from the Course Catalogue API / course detail view that powers the storefront.                                   |
+| `class_definition_uuid` | UUID    | Yes      | Class definition selected during scheduling. Fetch via the Class Definitions API (`GET /api/v1/classes/…`) when rendering available cohorts/sessions. |
+| `student_uuid`          | UUID    | Yes      | Student who will consume the access (supports parents/admins purchasing for others). Read from the learner profile context or student selection UI.  |
+| `variant_id`            | String  | Yes      | Internal commerce variant identifier representing the SKU for this product. Retrieve via the catalog endpoints above.                                |
 
 **Example Payload When Adding A Line Item**
 
 Before calling this endpoint you should already have:
 
-1. Looked up the Medusa product/variant that represents the course seat. The variant ID is stored when commerce content is provisioned (via the admin tooling) and exposed to the storefront either through a cached catalog or a product lookup endpoint.
+1. Looked up the internal product/variant that represents the course seat via the catalog endpoints or preloaded catalog.
 2. Pulled the `course_uuid` and `class_definition_uuid` from the course/class APIs as the learner chooses an offering.
 3. Selected the `student_uuid` (current user or dependent) from the tenant’s student directory.
 
@@ -195,8 +162,8 @@ When the frontend calls `POST /enrollment`, the backend verifies payment. If the
 POST /api/v1/commerce/carts
 Content-Type: application/json
 {
-  "region_id": "reg_01HZX1W8GX9YYB01X54MB2F15C",
-  "customer_id": "cus_01HZX1X6QAQCCYT11S3R6G9KVN",
+  "currency_code": "USD",
+  "region_code": "KE",
   "items": []
 }
 ```
@@ -207,7 +174,7 @@ Content-Type: application/json
 POST /api/v1/commerce/orders/checkout
 Content-Type: application/json
 {
-  "cart_id": "cart_01HZX25RFMBW79S99RWQYJXWCM",
+  "cart_id": "2f6d4d1e-5f2a-4b2e-9f8d-0b7c3e9b5c1a",
   "customer_email": "learner@example.com",
   "payment_provider_id": "manual"
 }

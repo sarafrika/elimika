@@ -15,7 +15,16 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 public class CommerceAccessServiceImpl implements CommerceAccessService {
 
-    private static final Set<String> SUCCESS_STATUSES = Set.of("captured", "paid");
+    private static final Set<String> SUCCESS_STATUSES = Set.of(
+            "captured",
+            "paid",
+            "authorized",
+            "partially_captured",
+            "CAPTURED",
+            "PAID",
+            "AUTHORIZED",
+            "PARTIALLY_CAPTURED"
+    );
 
     private final CommercePurchaseItemRepository purchaseItemRepository;
 

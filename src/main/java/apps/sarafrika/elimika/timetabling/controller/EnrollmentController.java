@@ -37,6 +37,7 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Student enrolled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid enrollment request or conflicts")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition or scheduled instances not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Payment required before enrollment is permitted")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Student already enrolled")
     @PostMapping
     @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")

@@ -26,8 +26,8 @@ import lombok.Setter;
 public class CartLineItemRequest {
 
     @Schema(
-            description = "Identifier of the Medusa product variant to add to the cart",
-            example = "variant_01HZX1Y4K8R0HVWZ4Q6CF6M1AP",
+            description = "Identifier of the internal product variant to add to the cart",
+            example = "course-seat-advanced-excel",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "Variant identifier is required")
