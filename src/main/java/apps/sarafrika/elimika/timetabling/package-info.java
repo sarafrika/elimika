@@ -61,6 +61,7 @@
             "availability :: availability-spi",
             "classes :: classes-spi",
             "course :: course-spi",
+            "commerce :: commerce-paywall",
             "student",
             "tenancy"
     }

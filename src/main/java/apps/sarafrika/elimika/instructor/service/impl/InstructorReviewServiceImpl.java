@@ -6,8 +6,7 @@ import apps.sarafrika.elimika.instructor.model.InstructorReview;
 import apps.sarafrika.elimika.instructor.repository.InstructorReviewRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorReviewService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.timetabling.model.Enrollment;
-import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -21,17 +20,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class InstructorReviewServiceImpl implements InstructorReviewService {
 
     private final InstructorReviewRepository instructorReviewRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentLookupService enrollmentLookupService;
 
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with ID %s not found";
 
     @Override
     public InstructorReviewDTO createReview(InstructorReviewDTO reviewDTO) {
-        Enrollment enrollment = enrollmentRepository.findByUuid(reviewDTO.enrollmentUuid())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ENROLLMENT_NOT_FOUND_TEMPLATE, reviewDTO.enrollmentUuid())));
+        UUID enrollmentUuid = reviewDTO.enrollmentUuid();
+        UUID studentUuid = reviewDTO.studentUuid();
 
-        if (!enrollment.getStudentUuid().equals(reviewDTO.studentUuid())) {
+        UUID enrollmentStudentUuid = enrollmentLookupService.getEnrollmentStudentUuid(enrollmentUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ENROLLMENT_NOT_FOUND_TEMPLATE, enrollmentUuid)));
+
+        if (!enrollmentStudentUuid.equals(studentUuid)) {
             throw new IllegalArgumentException("Review student_uuid does not match enrollment student.");
         }
 

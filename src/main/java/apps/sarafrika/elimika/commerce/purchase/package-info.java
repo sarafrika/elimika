@@ -5,6 +5,7 @@
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {
                 "shared",
+                "commerce :: commerce-paywall",
                 "tenancy :: tenancy-spi",
                 "student :: student-spi"
         }
