@@ -40,7 +40,7 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
             return;
         }
         Optional<ClassDefinitionLookupService.ClassDefinitionSnapshot> snapshotOpt =
-                classDefinitionLookupService.findByUuid(classDefinitionUuid);
+                classDefinitionLookupService.findByUuidWithoutCourse(classDefinitionUuid);
         if (snapshotOpt.isEmpty()) {
             log.warn("No class definition snapshot found for {}, skipping catalog provisioning", classDefinitionUuid);
             return;

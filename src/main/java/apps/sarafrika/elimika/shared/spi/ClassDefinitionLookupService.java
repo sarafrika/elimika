@@ -10,6 +10,11 @@ public interface ClassDefinitionLookupService {
 
     Optional<ClassDefinitionSnapshot> findByUuid(UUID classDefinitionUuid);
 
+    default Optional<ClassDefinitionSnapshot> findByUuidWithoutCourse(UUID classDefinitionUuid) {
+        return findByUuid(classDefinitionUuid).map(snapshot ->
+                new ClassDefinitionSnapshot(snapshot.classDefinitionUuid(), null, snapshot.title(), snapshot.trainingFee()));
+    }
+
     record ClassDefinitionSnapshot(
             UUID classDefinitionUuid,
             UUID courseUuid,
