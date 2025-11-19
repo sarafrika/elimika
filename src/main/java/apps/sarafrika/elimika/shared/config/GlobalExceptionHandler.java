@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.exceptions.PaymentRequiredException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpAuthenticationException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
+import apps.sarafrika.elimika.student.exception.StudentAgeGateException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler {
         log.debug("Record not found", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Record not found", ex.getMessage()));
+    }
+
+    @ExceptionHandler(StudentAgeGateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleStudentAgeGateException(StudentAgeGateException ex) {
+        log.debug("Student age gate blocked request", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Student age gate blocked the request", ex.getMessage()));
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
