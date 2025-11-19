@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * DTO for admin dashboard statistics
@@ -47,6 +48,10 @@ public record AdminDashboardStatsDTO(
     AdminMetrics adminMetrics
 
     ,
+
+    @Schema(description = "Keycloak admin event telemetry")
+    @JsonProperty("keycloak_admin_events")
+    KeycloakAdminEventMetrics keycloakAdminEvents,
 
     @Schema(description = "Learning performance metrics")
     @JsonProperty("learning_metrics")
@@ -130,6 +135,18 @@ public record AdminDashboardStatsDTO(
         long systemAdmins,
         @JsonProperty("organization_admins")
         long organizationAdmins
+    ) {}
+
+    @Schema(description = "Keycloak admin event activity")
+    public record KeycloakAdminEventMetrics(
+        @JsonProperty("events_last_24h")
+        long eventsLast24Hours,
+        @JsonProperty("events_last_7d")
+        long eventsLast7Days,
+        @JsonProperty("operations_last_24h")
+        Map<String, Long> operationsLast24Hours,
+        @JsonProperty("resource_types_last_24h")
+        Map<String, Long> resourceTypesLast24Hours
     ) {}
 
     @Schema(description = "Detailed learning analytics")
@@ -236,6 +253,9 @@ public record AdminDashboardStatsDTO(
         }
         if (overallHealth == null) {
             overallHealth = "UNKNOWN";
+        }
+        if (keycloakAdminEvents == null) {
+            keycloakAdminEvents = new KeycloakAdminEventMetrics(0, 0, Map.of(), Map.of());
         }
     }
 }

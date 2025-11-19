@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.authentication.dto.KeycloakAdminEventSummary;
+import apps.sarafrika.elimika.authentication.services.KeycloakAdminEventService;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsService;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsSnapshot;
 import apps.sarafrika.elimika.shared.spi.analytics.CourseAnalyticsService;
@@ -74,6 +76,7 @@ public class AdminServiceImpl implements AdminService {
     private final NotificationAnalyticsService notificationAnalyticsService;
     private final InstructorAnalyticsService instructorAnalyticsService;
     private final CourseCreatorAnalyticsService courseCreatorAnalyticsService;
+    private final KeycloakAdminEventService keycloakAdminEventService;
     private final RequestAuditLogRepository requestAuditLogRepository;
 
     @Override
@@ -254,6 +257,7 @@ public class AdminServiceImpl implements AdminService {
         NotificationAnalyticsSnapshot notificationAnalytics = notificationAnalyticsService.captureSnapshot();
         InstructorAnalyticsSnapshot instructorAnalytics = instructorAnalyticsService.captureSnapshot();
         CourseCreatorAnalyticsSnapshot courseCreatorAnalytics = courseCreatorAnalyticsService.captureSnapshot();
+        KeycloakAdminEventSummary keycloakAdminEventSummary = keycloakAdminEventService.getAdminEventSummary();
 
         // User metrics
         long totalUsers = userRepository.count();
@@ -307,9 +311,15 @@ public class AdminServiceImpl implements AdminService {
                 new AdminDashboardStatsDTO.AdminMetrics(
                         totalAdmins,
                         0, // activeAdminSessions - would need session tracking
-                        0, // adminActionsToday - would need audit log
+                        keycloakAdminEventSummary.eventsLast24Hours(),
                         systemAdmins,
                         organizationAdmins
+                ),
+                new AdminDashboardStatsDTO.KeycloakAdminEventMetrics(
+                        keycloakAdminEventSummary.eventsLast24Hours(),
+                        keycloakAdminEventSummary.eventsLast7Days(),
+                        keycloakAdminEventSummary.operationsLast24Hours(),
+                        keycloakAdminEventSummary.resourceTypesLast24Hours()
                 ),
                 new AdminDashboardStatsDTO.LearningMetrics(
                         courseAnalytics.totalCourses(),
