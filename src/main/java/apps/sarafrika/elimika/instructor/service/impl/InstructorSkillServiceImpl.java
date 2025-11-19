@@ -7,7 +7,7 @@ import apps.sarafrika.elimika.instructor.factory.InstructorSkillFactory;
 import apps.sarafrika.elimika.instructor.model.InstructorSkill;
 import apps.sarafrika.elimika.instructor.repository.InstructorSkillRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorSkillService;
-import apps.sarafrika.elimika.instructor.util.enums.ProficiencyLevel;
+import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

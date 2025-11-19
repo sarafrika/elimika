@@ -6,7 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Getter
@@ -23,12 +22,6 @@ public class CourseCreator extends BaseEntity {
 
     @Column(name = "full_name")
     private String fullName;
-
-    @Column(name = "lat")
-    private BigDecimal latitude;
-
-    @Column(name = "long")
-    private BigDecimal longitude;
 
     @Column(name = "bio")
     private String bio;

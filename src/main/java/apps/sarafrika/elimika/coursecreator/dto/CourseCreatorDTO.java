@@ -3,9 +3,9 @@ package apps.sarafrika.elimika.coursecreator.dto;
 import apps.sarafrika.elimika.shared.utils.validation.ValidUrl;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -29,8 +29,6 @@ import java.util.UUID;
             "user_uuid": "u1s2e3r4-5a6c-7t89-0abc-defghijklmno",
             "full_name": "Alice Johnson",
             "bio": "Passionate content creator with expertise in designing engaging online courses. Specializes in technical training materials and interactive learning experiences.",
-            "latitude": -1.2921,
-            "longitude": 36.8219,
             "professional_headline": "Educational Content Designer & Course Architect",
             "website": "https://alicejohnson.com",
             "admin_verified": true,
@@ -38,8 +36,6 @@ import java.util.UUID;
             "created_by": "admin@sarafrika.com",
             "updated_date": "2024-09-30T15:30:00",
             "updated_by": "admin@sarafrika.com",
-            "has_location_coordinates": true,
-            "formatted_location": "-1.292100, 36.821900",
             "is_profile_complete": true
         }
         """
@@ -74,32 +70,6 @@ public record CourseCreatorDTO(
         @Size(min = 1, max = 255, message = "Full name must be between 1 and 255 characters")
         @JsonProperty("full_name")
         String fullName,
-
-        @Schema(
-                description = "**[OPTIONAL]** Geographical latitude coordinate of the course creator's base of operations. Matches instructor payloads for geo-aware features.",
-                example = "-1.2921",
-                minimum = "-90.0",
-                maximum = "90.0",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @DecimalMin(value = "-90.0", message = "Latitude must be between -90 and 90 degrees")
-        @DecimalMax(value = "90.0", message = "Latitude must be between -90 and 90 degrees")
-        @JsonProperty("latitude")
-        BigDecimal latitude,
-
-        @Schema(
-                description = "**[OPTIONAL]** Geographical longitude coordinate of the course creator's base of operations. Used along with latitude for discovery and compliance checks.",
-                example = "36.8219",
-                minimum = "-180.0",
-                maximum = "180.0",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @DecimalMin(value = "-180.0", message = "Longitude must be between -180 and 180 degrees")
-        @DecimalMax(value = "180.0", message = "Longitude must be between -180 and 180 degrees")
-        @JsonProperty("longitude")
-        BigDecimal longitude,
 
         @Schema(
                 description = "**[OPTIONAL]** Professional biography describing course creator's background, expertise, and content creation philosophy. Used in creator profiles and course descriptions.",
@@ -201,37 +171,4 @@ public record CourseCreatorDTO(
                         professionalHeadline != null && !professionalHeadline.trim().isEmpty();
         }
 
-        /**
-         * Indicates whether both latitude and longitude are present.
-         *
-         * @return true when geo coordinates exist
-         */
-        @JsonProperty(value = "has_location_coordinates", access = JsonProperty.Access.READ_ONLY)
-        @Schema(
-                description = "**[READ-ONLY]** Signals if course creator geo coordinates are configured (mirrors instructor payloads).",
-                example = "true",
-                accessMode = Schema.AccessMode.READ_ONLY
-        )
-        public boolean hasLocationCoordinates() {
-                return latitude != null && longitude != null;
-        }
-
-        /**
-         * Returns formatted coordinates just like instructor DTO responses.
-         *
-         * @return coordinate string or null when incomplete
-         */
-        @JsonProperty(value = "formatted_location", access = JsonProperty.Access.READ_ONLY)
-        @Schema(
-                description = "**[READ-ONLY]** Formatted coordinate string built from latitude/longitude.",
-                example = "-1.292100, 36.821900",
-                nullable = true,
-                accessMode = Schema.AccessMode.READ_ONLY
-        )
-        public String getFormattedLocation() {
-                if (!hasLocationCoordinates()) {
-                        return null;
-                }
-                return String.format("%.6f, %.6f", latitude, longitude);
-        }
 }

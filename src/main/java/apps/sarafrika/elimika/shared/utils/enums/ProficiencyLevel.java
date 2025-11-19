@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.instructor.util.enums;
+package apps.sarafrika.elimika.shared.utils.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Enum for skill proficiency levels
+ * Enum for skill proficiency levels shared across instructor and course creator domains.
  * Must match the database enum: proficiency_level_enum
  */
 @Getter

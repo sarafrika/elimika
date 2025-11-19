@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.instructor.util.converter;
 
-import apps.sarafrika.elimika.instructor.util.enums.ProficiencyLevel;
+import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
