@@ -1,11 +1,11 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.converter.ProficiencyLevelConverter;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -28,7 +28,7 @@ public class CourseCreatorSkill extends BaseEntity {
     @Column(name = "skill_name")
     private String skillName;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "proficiency_level")
+    @Convert(converter = ProficiencyLevelConverter.class)
     private ProficiencyLevel proficiencyLevel;
 }
