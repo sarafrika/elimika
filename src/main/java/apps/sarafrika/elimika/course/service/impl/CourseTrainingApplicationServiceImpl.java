@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.service.CourseTrainingApplicationService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
@@ -35,7 +36,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,6 +55,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final GenericSpecificationBuilder<CourseTrainingApplication> specificationBuilder;
     private final CurrencyService currencyService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseTrainingRateCardValidator rateCardValidator;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -73,7 +74,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         if (rateCardRequest == null) {
             throw new IllegalArgumentException("Rate card is required");
         }
-        validateRateCard(rateCardRequest, minimumTrainingFee);
+        rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
 
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
         String rateCurrency = resolvedCurrency.getCode();
@@ -268,34 +269,6 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
     private BigDecimal resolveMinimumTrainingFee(Course course) {
         return course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
-    }
-
-    private void validateRateCard(CourseTrainingRateCardDTO rateCard, BigDecimal minimumTrainingFee) {
-        if (rateCard == null) {
-            throw new IllegalArgumentException("Rate card is required");
-        }
-
-        Map<String, BigDecimal> rateMap = new LinkedHashMap<>();
-        rateMap.put("private_individual_rate", rateCard.privateIndividualRate());
-        rateMap.put("private_group_rate", rateCard.privateGroupRate());
-        rateMap.put("public_individual_rate", rateCard.publicIndividualRate());
-        rateMap.put("public_group_rate", rateCard.publicGroupRate());
-
-        rateMap.forEach((label, value) -> {
-            if (value == null) {
-                throw new IllegalArgumentException(label + " is required");
-            }
-            if (value.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException(label + " cannot be negative");
-            }
-            if (minimumTrainingFee != null && value.compareTo(minimumTrainingFee) < 0) {
-                throw new IllegalArgumentException(String.format(
-                        "%s %.4f cannot be less than the course minimum training fee %.2f",
-                        label,
-                        value,
-                        minimumTrainingFee));
-            }
-        });
     }
 
     private void ensureCourseExists(UUID courseUuid) {

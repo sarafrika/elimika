@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -49,16 +50,20 @@ class CourseTrainingApplicationServiceImplTest {
     @Mock
     private DomainSecurityService domainSecurityService;
 
+    private CourseTrainingRateCardValidator rateCardValidator;
+
     private CourseTrainingApplicationServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        rateCardValidator = new CourseTrainingRateCardValidator();
         service = new CourseTrainingApplicationServiceImpl(
                 courseRepository,
                 applicationRepository,
                 specificationBuilder,
                 currencyService,
-                domainSecurityService
+                domainSecurityService,
+                rateCardValidator
         );
     }
 
@@ -82,6 +87,29 @@ class CourseTrainingApplicationServiceImplTest {
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("private_individual_rate")
+                .hasMessageContaining("minimum training fee");
+    }
+
+    @Test
+    void submitApplicationRejectsOrganisationRateBelowMinimum() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID organisationUuid = UUID.randomUUID();
+
+        Course course = new Course();
+        course.setMinimumTrainingFee(new BigDecimal("3000.00"));
+
+        when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
+
+        CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
+                CourseTrainingApplicantType.ORGANISATION,
+                organisationUuid,
+                rateCard("KES", "3200.00", "2500.00", "3600.00", "4100.00"),
+                null
+        );
+
+        assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("private_group_rate")
                 .hasMessageContaining("minimum training fee");
     }
 
@@ -160,6 +188,20 @@ class CourseTrainingApplicationServiceImplTest {
                 normalized,
                 normalized,
                 normalized
+        );
+    }
+
+    private CourseTrainingRateCardDTO rateCard(String currency,
+                                               String privateIndividual,
+                                               String privateGroup,
+                                               String publicIndividual,
+                                               String publicGroup) {
+        return new CourseTrainingRateCardDTO(
+                currency,
+                new BigDecimal(privateIndividual),
+                new BigDecimal(privateGroup),
+                new BigDecimal(publicIndividual),
+                new BigDecimal(publicGroup)
         );
     }
 
