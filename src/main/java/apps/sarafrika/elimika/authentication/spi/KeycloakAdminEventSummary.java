@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.authentication.dto;
+package apps.sarafrika.elimika.authentication.spi;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,4 +35,3 @@ public record KeycloakAdminEventSummary(
                 : Collections.unmodifiableMap(resourceTypesLast24Hours);
     }
 }
-

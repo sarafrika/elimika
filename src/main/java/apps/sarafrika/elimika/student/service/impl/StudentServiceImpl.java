@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
-import apps.sarafrika.elimika.student.exception.StudentAgeGateException;
+import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import apps.sarafrika.elimika.student.factory.StudentFactory;
 import apps.sarafrika.elimika.student.model.Student;
 import apps.sarafrika.elimika.student.repository.StudentRepository;

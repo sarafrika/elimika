@@ -1,6 +1,4 @@
-package apps.sarafrika.elimika.authentication.services;
-
-import apps.sarafrika.elimika.authentication.dto.KeycloakAdminEventSummary;
+package apps.sarafrika.elimika.authentication.spi;
 
 /**
  * Provides access to Keycloak admin event telemetry so that other modules
@@ -15,4 +13,3 @@ public interface KeycloakAdminEventService {
      */
     KeycloakAdminEventSummary getAdminEventSummary();
 }
-

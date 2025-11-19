@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
-import apps.sarafrika.elimika.authentication.dto.KeycloakAdminEventSummary;
-import apps.sarafrika.elimika.authentication.services.KeycloakAdminEventService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventSummary;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsService;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsSnapshot;
 import apps.sarafrika.elimika.shared.spi.analytics.CourseAnalyticsService;

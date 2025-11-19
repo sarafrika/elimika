@@ -17,6 +17,8 @@ public class CourseCreatorFactory {
                 courseCreator.getUuid(),
                 courseCreator.getUserUuid(),
                 courseCreator.getFullName(),
+                courseCreator.getLatitude(),
+                courseCreator.getLongitude(),
                 courseCreator.getBio(),
                 courseCreator.getProfessionalHeadline(),
                 courseCreator.getWebsite(),
@@ -37,6 +39,8 @@ public class CourseCreatorFactory {
         courseCreator.setUuid(dto.uuid());
         courseCreator.setUserUuid(dto.userUuid());
         courseCreator.setFullName(dto.fullName());
+        courseCreator.setLatitude(dto.latitude());
+        courseCreator.setLongitude(dto.longitude());
         courseCreator.setBio(dto.bio());
         courseCreator.setProfessionalHeadline(dto.professionalHeadline());
         courseCreator.setWebsite(dto.website());

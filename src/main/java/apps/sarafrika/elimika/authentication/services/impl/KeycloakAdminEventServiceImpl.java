@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.authentication.services.impl;
 
-import apps.sarafrika.elimika.authentication.dto.KeycloakAdminEventSummary;
-import apps.sarafrika.elimika.authentication.services.KeycloakAdminEventService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventSummary;
+import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
@@ -127,4 +127,3 @@ public class KeycloakAdminEventServiceImpl implements KeycloakAdminEventService 
         }
     }
 }
-

@@ -170,6 +170,12 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         if (courseCreatorDTO.fullName() != null) {
             existingCourseCreator.setFullName(courseCreatorDTO.fullName());
         }
+        if (courseCreatorDTO.latitude() != null) {
+            existingCourseCreator.setLatitude(courseCreatorDTO.latitude());
+        }
+        if (courseCreatorDTO.longitude() != null) {
+            existingCourseCreator.setLongitude(courseCreatorDTO.longitude());
+        }
         if (courseCreatorDTO.website() != null) {
             existingCourseCreator.setWebsite(courseCreatorDTO.website());
         }

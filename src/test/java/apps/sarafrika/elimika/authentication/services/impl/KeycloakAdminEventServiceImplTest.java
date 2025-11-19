@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.authentication.services.impl;
 
-import apps.sarafrika.elimika.authentication.dto.KeycloakAdminEventSummary;
+import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventSummary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,7 +49,7 @@ class KeycloakAdminEventServiceImplTest {
 
         when(keycloak.realm("elimika")).thenReturn(realmResource);
         when(realmResource.getAdminEvents(any(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt(), anyInt(), any()))
-                .thenReturn(pageOne, pageTwo, Collections.emptyList(), sevenDayWindow, Collections.emptyList());
+                .thenReturn(pageOne, pageTwo, sevenDayWindow, Collections.emptyList());
 
         KeycloakAdminEventSummary summary = service.getAdminEventSummary();
 
@@ -82,4 +82,3 @@ class KeycloakAdminEventServiceImplTest {
         return representation;
     }
 }
-

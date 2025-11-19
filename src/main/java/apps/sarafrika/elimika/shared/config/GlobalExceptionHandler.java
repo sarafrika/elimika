@@ -7,7 +7,7 @@ import apps.sarafrika.elimika.shared.exceptions.PaymentRequiredException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpAuthenticationException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
-import apps.sarafrika.elimika.student.exception.StudentAgeGateException;
+import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
