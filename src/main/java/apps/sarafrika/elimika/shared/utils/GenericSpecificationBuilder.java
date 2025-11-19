@@ -21,6 +21,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class GenericSpecificationBuilder<T> {
     private static final List<String> EXCLUDED_PARAMS = List.of("page", "size", "sort");
+    private static final Set<String> SUPPORTED_OPERATIONS = Set.of(
+            "eq",
+            "gt",
+            "lt",
+            "gte",
+            "lte",
+            "like",
+            "startswith",
+            "endswith",
+            "in",
+            "notin",
+            "noteq",
+            "between",
+            "notingroup"
+    );
     private final Map<Class<?>, Map<String, String>> fieldColumnCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Map<String, Class<?>>> relationshipCache = new ConcurrentHashMap<>();
     private final Map<RelationshipKey, String> inverseRelationshipCache = new ConcurrentHashMap<>();
@@ -68,11 +83,14 @@ public class GenericSpecificationBuilder<T> {
 
     private SearchCriteriaInfo parseSearchKey(String key) {
         int lastUnderscoreIndex = key.lastIndexOf("_");
-        if (lastUnderscoreIndex != -1) {
-            return new SearchCriteriaInfo(
-                    key.substring(0, lastUnderscoreIndex),
-                    key.substring(lastUnderscoreIndex + 1)
-            );
+        if (lastUnderscoreIndex != -1 && lastUnderscoreIndex < key.length() - 1) {
+            String potentialOperation = key.substring(lastUnderscoreIndex + 1).toLowerCase(Locale.ROOT);
+            if (SUPPORTED_OPERATIONS.contains(potentialOperation)) {
+                return new SearchCriteriaInfo(
+                        key.substring(0, lastUnderscoreIndex),
+                        potentialOperation
+                );
+            }
         }
         return new SearchCriteriaInfo(key, "eq");
     }
