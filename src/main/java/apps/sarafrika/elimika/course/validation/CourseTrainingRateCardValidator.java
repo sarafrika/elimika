@@ -23,10 +23,10 @@ public class CourseTrainingRateCardValidator {
 
         BigDecimal floor = minimumTrainingFee != null ? minimumTrainingFee : ZERO;
         Map<String, BigDecimal> rateMap = new LinkedHashMap<>();
-        rateMap.put("private_individual_rate", rateCard.privateIndividualRate());
-        rateMap.put("private_group_rate", rateCard.privateGroupRate());
-        rateMap.put("public_individual_rate", rateCard.publicIndividualRate());
-        rateMap.put("public_group_rate", rateCard.publicGroupRate());
+        rateMap.put("private_online_rate", rateCard.privateOnlineRate());
+        rateMap.put("private_inperson_rate", rateCard.privateInpersonRate());
+        rateMap.put("group_online_rate", rateCard.groupOnlineRate());
+        rateMap.put("group_inperson_rate", rateCard.groupInpersonRate());
 
         rateMap.forEach((label, value) -> validateEntry(label, value, floor));
     }
@@ -48,4 +48,3 @@ public class CourseTrainingRateCardValidator {
         }
     }
 }
-

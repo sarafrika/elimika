@@ -261,17 +261,17 @@ graph TD
     B -->|status notifications| Instructor Console
 ```
 
-Instructors now define a **segmented rate card** (private/public × individual/group) during the course training application flow, and class creation must surface those approved amounts. Update the existing UI as follows.
+Instructors now define a **segmented rate card** (session format × delivery modality) during the course training application flow, and class creation must surface those approved amounts. Update the existing UI as follows.
 
 ### 6.1 Capture Rate Cards in the Training Application Wizard
 
 1. **Currency selector** – dropdown seeded with the platform currencies (default to the tenant currency). This feeds the single `rate_card.currency` field.
 2. **Four numeric inputs** – group them in a 2×2 grid so instructors understand they must supply every combination:
 
-| Visibility \\ Format | Individual (per hour, per learner) | Group (per hour, per learner) |
-|----------------------|------------------------------------|--------------------------------|
-| **Private**          | `private_individual_rate`           | `private_group_rate`           |
-| **Public**           | `public_individual_rate`            | `public_group_rate`            |
+| Format \\ Modality | Online (per hour, per learner) | In Person (per hour, per learner) |
+|--------------------|--------------------------------|-----------------------------------|
+| **Private / 1:1**  | `private_online_rate`          | `private_inperson_rate`           |
+| **Group**          | `group_online_rate`            | `group_inperson_rate`             |
 
 3. **Validation rules**:
     - All cells are required and must be non‑negative decimals with four fractional digits.
@@ -286,10 +286,10 @@ Instructors now define a **segmented rate card** (private/public × individual/g
   "applicant_uuid": "f6cda07a-5b44-4ccc-8f7a-0a7c1bd6e2e4",
   "rate_card": {
     "currency": "KES",
-    "private_individual_rate": 3500.0000,
-    "private_group_rate": 2800.0000,
-    "public_individual_rate": 3200.0000,
-    "public_group_rate": 2400.0000
+    "private_online_rate": 3500.0000,
+    "private_inperson_rate": 3600.0000,
+    "group_online_rate": 2800.0000,
+    "group_inperson_rate": 3000.0000
   },
   "application_notes": "Weekday evening slots available."
 }
@@ -299,15 +299,15 @@ Instructors now define a **segmented rate card** (private/public × individual/g
 
 When instructors define a class for an approved course (`course_uuid` present):
 
-1. **Visibility + Format selectors**
-    - Add two required controls: `class_visibility` (Public/Private) and `session_format` (Individual/Group).
-    - Use contextual copy to explain that pricing is locked to the approved rate card.
+1. **Format + Modality selectors**
+    - Add required controls for `session_format` (Individual/Group) and `location_type` (Online/In-person/Hybrid).
+    - Use contextual copy to explain that pricing is locked to the approved rate card based on these choices.
 2. **Training fee display**
-    - Auto-populate `training_fee` by looking up the approved rate for the selected combination.
+    - Auto-populate `training_fee` by looking up the approved rate for the selected format + modality combination.
     - Render the field as read-only with helper text: “Sourced from your approved rate card”.
     - If no rate exists (e.g., approval revoked), block submission and surface the backend error message.
 3. **Scenario preview**
-    - Show a mini recap card: “Private Group sessions cost KES 2,800 per learner”. This helps instructors confirm they picked the right toggle.
+    - Show a mini recap card: “Group Online sessions cost KES 2,800 per learner”. This helps instructors confirm they picked the right toggle.
 4. **Error handling**
     - Display validation errors returned from `POST /api/v1/classes` (e.g., instructor lacks an approved rate card) near the form header.
 

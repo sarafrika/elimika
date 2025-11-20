@@ -22,10 +22,10 @@ import java.util.UUID;
           "applicant_uuid": "inst-1234-5678-90ab-cdef12345678",
           "rate_card": {
             "currency": "KES",
-            "private_individual_rate": 3500.0000,
-            "private_group_rate": 2800.0000,
-            "public_individual_rate": 3000.0000,
-            "public_group_rate": 2400.0000
+            "private_online_rate": 3500.0000,
+            "private_inperson_rate": 3600.0000,
+            "group_online_rate": 2800.0000,
+            "group_inperson_rate": 3000.0000
           },
           "application_notes": "I hold the vendor certification required for this course."
         }
@@ -51,7 +51,7 @@ public record CourseTrainingApplicationRequest(
         UUID applicantUuid,
 
         @Schema(
-                description = "**[REQUIRED]** Instructor rate card across privacy/session segments.",
+                description = "**[REQUIRED]** Instructor rate card across session format and delivery modality combinations.",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @JsonProperty("rate_card")

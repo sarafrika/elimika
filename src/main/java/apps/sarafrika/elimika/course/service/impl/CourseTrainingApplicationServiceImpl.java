@@ -253,10 +253,10 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             throw new IllegalArgumentException("Rate card is required");
         }
         target.setRateCurrency(rateCurrency);
-        target.setPrivateIndividualRate(rateCard.privateIndividualRate());
-        target.setPrivateGroupRate(rateCard.privateGroupRate());
-        target.setPublicIndividualRate(rateCard.publicIndividualRate());
-        target.setPublicGroupRate(rateCard.publicGroupRate());
+        target.setPrivateOnlineRate(rateCard.privateOnlineRate());
+        target.setPrivateInpersonRate(rateCard.privateInpersonRate());
+        target.setGroupOnlineRate(rateCard.groupOnlineRate());
+        target.setGroupInpersonRate(rateCard.groupInpersonRate());
     }
 
     private CourseTrainingApplication findApplication(UUID courseUuid, UUID applicationUuid) {

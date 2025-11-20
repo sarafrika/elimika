@@ -24,10 +24,10 @@ import java.util.UUID;
             "status": "pending",
             "rate_card": {
                 "currency": "KES",
-                "private_individual_rate": 3500.0000,
-                "private_group_rate": 2800.0000,
-                "public_individual_rate": 3000.0000,
-                "public_group_rate": 2400.0000
+                "private_online_rate": 3500.0000,
+                "private_inperson_rate": 3600.0000,
+                "group_online_rate": 2800.0000,
+                "group_inperson_rate": 3000.0000
             },
             "application_notes": "I have delivered similar courses for 5 years.",
             "review_notes": null,

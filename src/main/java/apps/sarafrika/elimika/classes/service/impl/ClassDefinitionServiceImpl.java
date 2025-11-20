@@ -17,6 +17,7 @@ import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -328,12 +329,15 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             return Optional.empty();
         }
 
+        SessionFormat sessionFormat = entity.getSessionFormat();
+        LocationType locationType = entity.getLocationType();
+
         if (entity.getDefaultInstructorUuid() != null) {
             Optional<BigDecimal> instructorRate = courseTrainingApprovalSpi.resolveInstructorRate(
                     courseUuid,
                     entity.getDefaultInstructorUuid(),
-                    entity.getClassVisibility(),
-                    entity.getSessionFormat()
+                    sessionFormat,
+                    locationType
             );
             if (instructorRate.isPresent()) {
                 return instructorRate;
@@ -344,8 +348,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             return courseTrainingApprovalSpi.resolveOrganisationRate(
                     courseUuid,
                     entity.getOrganisationUuid(),
-                    entity.getClassVisibility(),
-                    entity.getSessionFormat()
+                    sessionFormat,
+                    locationType
             );
         }
 
@@ -367,6 +371,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         if (entity.getSessionFormat() == null) {
             throw new IllegalArgumentException("Session format is required when linking a class definition to a course");
         }
+        if (entity.getLocationType() == null) {
+            throw new IllegalArgumentException("Location type is required when linking a class definition to a course");
+        }
 
         BigDecimal resolvedRate = resolveApprovedRate(entity)
                 .orElseThrow(() -> new IllegalStateException(String.format(
@@ -377,11 +384,11 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             entity.setTrainingFee(resolvedRate);
         } else if (entity.getTrainingFee().compareTo(resolvedRate) != 0) {
             throw new IllegalArgumentException(String.format(
-                    "Training fee %.2f must match the approved rate card amount %.2f for %s %s sessions.",
+                    "Training fee %.2f must match the approved rate card amount %.2f for %s %s delivery.",
                     entity.getTrainingFee(),
                     resolvedRate,
-                    entity.getClassVisibility(),
-                    entity.getSessionFormat()));
+                    entity.getSessionFormat(),
+                    entity.getLocationType()));
         }
 
         if (entity.getTrainingFee().compareTo(minimumTrainingFee) < 0) {

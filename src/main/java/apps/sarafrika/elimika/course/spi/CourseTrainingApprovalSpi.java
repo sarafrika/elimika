@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.spi;
 
-import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 
 import java.math.BigDecimal;
@@ -31,7 +31,7 @@ public interface CourseTrainingApprovalSpi {
     boolean isOrganisationApproved(UUID courseUuid, UUID organisationUuid);
 
     /**
-     * Resolves the approved instructor rate for the provided privacy/session format pair.
+     * Resolves the approved instructor rate for the provided session format and delivery modality pair.
      *
      * @param courseUuid     Course identifier
      * @param instructorUuid Instructor identifier
@@ -41,11 +41,11 @@ public interface CourseTrainingApprovalSpi {
      */
     Optional<BigDecimal> resolveInstructorRate(UUID courseUuid,
                                                UUID instructorUuid,
-                                               ClassVisibility visibility,
-                                               SessionFormat sessionFormat);
+                                               SessionFormat sessionFormat,
+                                               LocationType locationType);
 
     /**
-     * Resolves the approved organisation rate for the provided privacy/session format pair.
+     * Resolves the approved organisation rate for the provided session format and delivery modality pair.
      *
      * @param courseUuid       Course identifier
      * @param organisationUuid Organisation identifier
@@ -55,6 +55,6 @@ public interface CourseTrainingApprovalSpi {
      */
     Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
                                                  UUID organisationUuid,
-                                                 ClassVisibility visibility,
-                                                 SessionFormat sessionFormat);
+                                                 SessionFormat sessionFormat,
+                                                 LocationType locationType);
 }

@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.dto;
 
-import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 
 /**
- * Represents a rate card that captures instructor pricing across private/public and individual/group sessions.
+ * Represents a rate card that captures instructor pricing across session format and delivery modality.
  */
 @Schema(name = "CourseTrainingRateCard")
 public record CourseTrainingRateCardDTO(
@@ -29,39 +29,47 @@ public record CourseTrainingRateCardDTO(
         @JsonProperty("currency")
         String currency,
 
-        @Schema(description = "Private 1:1 session rate per learner per hour.", example = "3500.0000")
-        @NotNull(message = "Private individual rate is required")
-        @DecimalMin(value = "0.0000", message = "Private individual rate cannot be negative")
-        @Digits(integer = 8, fraction = 4, message = "Private individual rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("private_individual_rate")
-        BigDecimal privateIndividualRate,
+        @Schema(description = "1:1 private session rate when delivered online, per learner per hour.", example = "3500.0000")
+        @NotNull(message = "Private online rate is required")
+        @DecimalMin(value = "0.0000", message = "Private online rate cannot be negative")
+        @Digits(integer = 8, fraction = 4, message = "Private online rate must have at most 8 digits and 4 decimals")
+        @JsonProperty("private_online_rate")
+        BigDecimal privateOnlineRate,
 
-        @Schema(description = "Private group session rate per learner per hour.", example = "2800.0000")
-        @NotNull(message = "Private group rate is required")
-        @DecimalMin(value = "0.0000", message = "Private group rate cannot be negative")
-        @Digits(integer = 8, fraction = 4, message = "Private group rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("private_group_rate")
-        BigDecimal privateGroupRate,
+        @Schema(description = "1:1 private session rate when delivered in person, per learner per hour.", example = "3600.0000")
+        @NotNull(message = "Private in-person rate is required")
+        @DecimalMin(value = "0.0000", message = "Private in-person rate cannot be negative")
+        @Digits(integer = 8, fraction = 4, message = "Private in-person rate must have at most 8 digits and 4 decimals")
+        @JsonProperty("private_inperson_rate")
+        BigDecimal privateInpersonRate,
 
-        @Schema(description = "Public individual rate per learner per hour.", example = "3000.0000")
-        @NotNull(message = "Public individual rate is required")
-        @DecimalMin(value = "0.0000", message = "Public individual rate cannot be negative")
-        @Digits(integer = 8, fraction = 4, message = "Public individual rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("public_individual_rate")
-        BigDecimal publicIndividualRate,
+        @Schema(description = "Group session rate when delivered online, per learner per hour.", example = "2800.0000")
+        @NotNull(message = "Group online rate is required")
+        @DecimalMin(value = "0.0000", message = "Group online rate cannot be negative")
+        @Digits(integer = 8, fraction = 4, message = "Group online rate must have at most 8 digits and 4 decimals")
+        @JsonProperty("group_online_rate")
+        BigDecimal groupOnlineRate,
 
-        @Schema(description = "Public group rate per learner per hour.", example = "2400.0000")
-        @NotNull(message = "Public group rate is required")
-        @DecimalMin(value = "0.0000", message = "Public group rate cannot be negative")
-        @Digits(integer = 8, fraction = 4, message = "Public group rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("public_group_rate")
-        BigDecimal publicGroupRate
+        @Schema(description = "Group session rate when delivered in person, per learner per hour.", example = "3000.0000")
+        @NotNull(message = "Group in-person rate is required")
+        @DecimalMin(value = "0.0000", message = "Group in-person rate cannot be negative")
+        @Digits(integer = 8, fraction = 4, message = "Group in-person rate must have at most 8 digits and 4 decimals")
+        @JsonProperty("group_inperson_rate")
+        BigDecimal groupInpersonRate
 ) {
 
-    public BigDecimal resolveRate(ClassVisibility visibility, SessionFormat format) {
-        return switch (visibility) {
-            case PRIVATE -> format == SessionFormat.INDIVIDUAL ? privateIndividualRate : privateGroupRate;
-            case PUBLIC -> format == SessionFormat.INDIVIDUAL ? publicIndividualRate : publicGroupRate;
+    public BigDecimal resolveRate(SessionFormat format, LocationType locationType) {
+        boolean online = LocationType.ONLINE.equals(locationType);
+        boolean inPerson = LocationType.IN_PERSON.equals(locationType) || LocationType.HYBRID.equals(locationType);
+
+        if (!online && !inPerson) {
+            // default to online pricing when location type is unspecified
+            online = true;
+        }
+
+        return switch (format) {
+            case INDIVIDUAL -> online ? privateOnlineRate : privateInpersonRate;
+            case GROUP -> online ? groupOnlineRate : groupInpersonRate;
         };
     }
 }

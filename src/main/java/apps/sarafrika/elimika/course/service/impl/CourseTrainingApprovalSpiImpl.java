@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
-import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,17 +33,17 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
     @Override
     public Optional<BigDecimal> resolveInstructorRate(UUID courseUuid,
                                                       UUID instructorUuid,
-                                                      ClassVisibility visibility,
-                                                      SessionFormat sessionFormat) {
-        return resolveRate(courseUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, visibility, sessionFormat);
+                                                      SessionFormat sessionFormat,
+                                                      LocationType locationType) {
+        return resolveRate(courseUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, sessionFormat, locationType);
     }
 
     @Override
     public Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
                                                         UUID organisationUuid,
-                                                        ClassVisibility visibility,
-                                                        SessionFormat sessionFormat) {
-        return resolveRate(courseUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, visibility, sessionFormat);
+                                                        SessionFormat sessionFormat,
+                                                        LocationType locationType) {
+        return resolveRate(courseUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType);
     }
 
     private boolean isApplicantApproved(UUID courseUuid,
@@ -63,9 +63,9 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
     private Optional<BigDecimal> resolveRate(UUID courseUuid,
                                              UUID applicantUuid,
                                              CourseTrainingApplicantType applicantType,
-                                             ClassVisibility visibility,
-                                             SessionFormat sessionFormat) {
-        if (courseUuid == null || applicantUuid == null || visibility == null || sessionFormat == null) {
+                                             SessionFormat sessionFormat,
+                                             LocationType locationType) {
+        if (courseUuid == null || applicantUuid == null || sessionFormat == null) {
             return Optional.empty();
         }
 
@@ -76,19 +76,23 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
                         applicantUuid,
                         CourseTrainingApplicationStatus.APPROVED
                 )
-                .map(application -> extractRate(application, visibility, sessionFormat));
+                .map(application -> extractRate(application, sessionFormat, locationType));
     }
 
     private BigDecimal extractRate(CourseTrainingApplication application,
-                                   ClassVisibility visibility,
-                                   SessionFormat sessionFormat) {
-        return switch (visibility) {
-            case PRIVATE -> sessionFormat == SessionFormat.INDIVIDUAL
-                    ? application.getPrivateIndividualRate()
-                    : application.getPrivateGroupRate();
-            case PUBLIC -> sessionFormat == SessionFormat.INDIVIDUAL
-                    ? application.getPublicIndividualRate()
-                    : application.getPublicGroupRate();
+                                   SessionFormat sessionFormat,
+                                   LocationType locationType) {
+        LocationType effectiveLocation = locationType != null ? locationType : LocationType.ONLINE;
+        boolean online = LocationType.ONLINE.equals(effectiveLocation);
+        boolean inPerson = LocationType.IN_PERSON.equals(effectiveLocation) || LocationType.HYBRID.equals(effectiveLocation);
+
+        if (!online && !inPerson) {
+            online = true;
+        }
+
+        return switch (sessionFormat) {
+            case INDIVIDUAL -> online ? application.getPrivateOnlineRate() : application.getPrivateInpersonRate();
+            case GROUP -> online ? application.getGroupOnlineRate() : application.getGroupInpersonRate();
         };
     }
 }

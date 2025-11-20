@@ -86,7 +86,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("private_individual_rate")
+                .hasMessageContaining("private_online_rate")
                 .hasMessageContaining("minimum training fee");
     }
 
@@ -109,7 +109,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("private_group_rate")
+                .hasMessageContaining("private_inperson_rate")
                 .hasMessageContaining("minimum training fee");
     }
 
@@ -154,10 +154,10 @@ class CourseTrainingApplicationServiceImplTest {
         verify(applicationRepository).save(captor.capture());
 
         CourseTrainingApplication saved = captor.getValue();
-        assertThat(saved.getPrivateIndividualRate()).isEqualByComparingTo("2800.1254");
-        assertThat(saved.getPrivateGroupRate()).isEqualByComparingTo("2800.1254");
-        assertThat(saved.getPublicIndividualRate()).isEqualByComparingTo("2800.1254");
-        assertThat(saved.getPublicGroupRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPrivateOnlineRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPrivateInpersonRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getGroupOnlineRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getGroupInpersonRate()).isEqualByComparingTo("2800.1254");
         assertThat(saved.getRateCurrency()).isEqualTo("USD");
         assertThat(saved.getStatus()).isEqualTo(CourseTrainingApplicationStatus.PENDING);
     }
@@ -192,16 +192,16 @@ class CourseTrainingApplicationServiceImplTest {
     }
 
     private CourseTrainingRateCardDTO rateCard(String currency,
-                                               String privateIndividual,
-                                               String privateGroup,
-                                               String publicIndividual,
-                                               String publicGroup) {
+                                               String privateOnline,
+                                               String privateInperson,
+                                               String groupOnline,
+                                               String groupInperson) {
         return new CourseTrainingRateCardDTO(
                 currency,
-                new BigDecimal(privateIndividual),
-                new BigDecimal(privateGroup),
-                new BigDecimal(publicIndividual),
-                new BigDecimal(publicGroup)
+                new BigDecimal(privateOnline),
+                new BigDecimal(privateInperson),
+                new BigDecimal(groupOnline),
+                new BigDecimal(groupInperson)
         );
     }
 

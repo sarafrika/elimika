@@ -40,17 +40,17 @@ public class CourseTrainingApplication extends BaseEntity {
     @Column(name = "rate_currency", nullable = false, length = 3)
     private String rateCurrency;
 
-    @Column(name = "private_individual_rate", nullable = false)
-    private BigDecimal privateIndividualRate;
+    @Column(name = "private_online_rate", nullable = false)
+    private BigDecimal privateOnlineRate;
 
-    @Column(name = "private_group_rate", nullable = false)
-    private BigDecimal privateGroupRate;
+    @Column(name = "private_inperson_rate", nullable = false)
+    private BigDecimal privateInpersonRate;
 
-    @Column(name = "public_individual_rate", nullable = false)
-    private BigDecimal publicIndividualRate;
+    @Column(name = "group_online_rate", nullable = false)
+    private BigDecimal groupOnlineRate;
 
-    @Column(name = "public_group_rate", nullable = false)
-    private BigDecimal publicGroupRate;
+    @Column(name = "group_inperson_rate", nullable = false)
+    private BigDecimal groupInpersonRate;
 
     @Column(name = "status", nullable = false)
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)
