@@ -4,6 +4,9 @@ import apps.sarafrika.elimika.availability.dto.*;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.availability.dto.InstructorCalendarEntryDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -22,6 +25,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,6 +56,7 @@ import java.util.UUID;
 public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
+    private final TimetableService timetableService;
 
     // ================================
     // AVAILABILITY OVERVIEW & BULK OPERATIONS
@@ -328,6 +333,37 @@ public class AvailabilityController {
     }
 
     @Operation(
+        summary = "Get merged instructor calendar",
+        description = "Returns a merged feed of availability slots, blocked time, and scheduled instances for the instructor within a date range."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Calendar retrieved successfully")
+    @GetMapping("/calendar")
+    public ResponseEntity<ApiResponse<List<InstructorCalendarEntryDTO>>> getInstructorCalendar(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Parameter(description = "Start date of the range (YYYY-MM-DD)")
+            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "End date of the range (YYYY-MM-DD)")
+            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        log.debug("REST request to get merged calendar for instructor: {} from {} to {}", instructorUuid, startDate, endDate);
+
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("Start date must be on or before end date");
+        }
+
+        List<InstructorCalendarEntryDTO> entries = new java.util.ArrayList<>();
+
+        startDate.datesUntil(endDate.plusDays(1))
+                .forEach(date -> availabilityService.getAvailabilityForDate(instructorUuid, date)
+                        .forEach(slot -> entries.add(mapAvailabilityEntry(date, slot))));
+
+        List<ScheduledInstanceDTO> scheduledInstances = timetableService.getScheduleForInstructor(instructorUuid, startDate, endDate);
+        scheduledInstances.forEach(instance -> entries.add(mapScheduledInstanceEntry(instance)));
+
+        return ResponseEntity.ok(ApiResponse.success(entries, "Instructor calendar retrieved successfully"));
+    }
+
+    @Operation(
         summary = "Check if instructor is available during a time period",
         description = """
             Checks whether an instructor is available for the entire specified time period.
@@ -428,5 +464,42 @@ public class AvailabilityController {
 
         availabilityService.bookInstructorSlot(request);
         return ResponseEntity.status(201).body(ApiResponse.success(null, "Instructor slot booked successfully"));
+    }
+
+    private InstructorCalendarEntryDTO mapAvailabilityEntry(LocalDate date, AvailabilitySlotDTO slot) {
+        LocalTime startTime = slot.startTime();
+        LocalTime endTime = slot.endTime();
+
+        return new InstructorCalendarEntryDTO(
+                slot.uuid(),
+                Boolean.TRUE.equals(slot.isAvailable())
+                        ? InstructorCalendarEntryDTO.CalendarEntryType.AVAILABILITY
+                        : InstructorCalendarEntryDTO.CalendarEntryType.BLOCKED,
+                date.atTime(startTime),
+                date.atTime(endTime),
+                slot.availabilityType(),
+                slot.isAvailable(),
+                null,
+                null,
+                null,
+                null,
+                slot.customPattern()
+        );
+    }
+
+    private InstructorCalendarEntryDTO mapScheduledInstanceEntry(ScheduledInstanceDTO instance) {
+        return new InstructorCalendarEntryDTO(
+                instance.uuid(),
+                InstructorCalendarEntryDTO.CalendarEntryType.SCHEDULED_INSTANCE,
+                instance.startTime(),
+                instance.endTime(),
+                null,
+                false,
+                instance.status(),
+                instance.title(),
+                instance.classDefinitionUuid(),
+                instance.locationType(),
+                instance.cancellationReason()
+        );
     }
 }

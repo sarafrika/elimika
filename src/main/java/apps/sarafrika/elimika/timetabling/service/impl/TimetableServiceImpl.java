@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.commerce.spi.paywall.CommercePaywallService;
+import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
@@ -54,6 +55,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final CourseInfoService courseInfoService;
     private final AgeVerificationService ageVerificationService;
     private final CommercePaywallService commercePaywallService;
+    private final AvailabilityService availabilityService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -65,10 +67,9 @@ public class TimetableServiceImpl implements TimetableService {
         log.debug("Scheduling class for instructor: {} at time: {}", request.instructorUuid(), request.startTime());
         
         validateScheduleRequest(request);
-        
-        // Check for instructor conflicts
-        if (hasInstructorConflict(request.instructorUuid(), request)) {
-            throw new IllegalArgumentException("Instructor has conflicting schedule at the requested time");
+        List<String> conflicts = resolveInstructorConflicts(request.instructorUuid(), request);
+        if (!conflicts.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", conflicts));
         }
         
         ScheduledInstance entity = ScheduledInstanceFactory.toEntity(request);
@@ -410,10 +411,7 @@ public class TimetableServiceImpl implements TimetableService {
             throw new IllegalArgumentException("Instructor UUID and schedule request cannot be null");
         }
 
-        List<ScheduledInstance> conflictingInstances = scheduledInstanceRepository
-            .findOverlappingInstancesForInstructor(instructorUuid, request.startTime(), request.endTime());
-
-        return !conflictingInstances.isEmpty();
+        return !resolveInstructorConflicts(instructorUuid, request).isEmpty();
     }
 
     @Override
@@ -475,6 +473,22 @@ public class TimetableServiceImpl implements TimetableService {
         if (request.startTime().isAfter(request.endTime()) || request.startTime().equals(request.endTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
         }
+    }
+
+    private List<String> resolveInstructorConflicts(UUID instructorUuid, ScheduleRequestDTO request) {
+        List<String> conflicts = new java.util.ArrayList<>();
+
+        if (!availabilityService.isInstructorAvailable(instructorUuid, request.startTime(), request.endTime())) {
+            conflicts.add("Instructor is not available for the requested time range");
+        }
+
+        List<ScheduledInstance> overlapping = scheduledInstanceRepository
+                .findOverlappingInstancesForInstructor(instructorUuid, request.startTime(), request.endTime());
+        if (!overlapping.isEmpty()) {
+            conflicts.add("Instructor has existing scheduled instances that overlap this time");
+        }
+
+        return conflicts;
     }
 
     private void validateEnrollmentRequest(EnrollmentRequestDTO request) {

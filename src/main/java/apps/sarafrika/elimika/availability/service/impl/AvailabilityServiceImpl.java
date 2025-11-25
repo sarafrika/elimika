@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.availability.model.InstructorAvailability;
 import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         
         availabilityRepository.saveAll(entities);
         log.debug("Created {} weekly availability slots for instructor: {}", entities.size(), instructorUuid);
+        publishAvailabilityChanged(instructorUuid, AvailabilityType.WEEKLY, determineEffectiveDate(entities), "Weekly availability set");
     }
 
     @Override
@@ -86,6 +88,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         
         availabilityRepository.saveAll(entities);
         log.debug("Created {} daily availability slots for instructor: {}", entities.size(), instructorUuid);
+        publishAvailabilityChanged(instructorUuid, AvailabilityType.DAILY, determineEffectiveDate(entities), "Daily availability set");
     }
 
     @Override
@@ -111,6 +114,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         
         availabilityRepository.saveAll(entities);
         log.debug("Created {} monthly availability slots for instructor: {}", entities.size(), instructorUuid);
+        publishAvailabilityChanged(instructorUuid, AvailabilityType.MONTHLY, determineEffectiveDate(entities), "Monthly availability set");
     }
 
     @Override
@@ -136,6 +140,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         
         availabilityRepository.saveAll(entities);
         log.debug("Created {} custom availability slots for instructor: {}", entities.size(), instructorUuid);
+        publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, determineEffectiveDate(entities), "Custom availability set");
     }
 
     @Override
@@ -159,6 +164,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         InstructorAvailability savedEntity = availabilityRepository.save(entity);
         
         log.debug("Created availability slot with UUID: {}", savedEntity.getUuid());
+        publishAvailabilityChanged(savedEntity.getInstructorUuid(), savedEntity.getAvailabilityType(),
+                resolveEffectiveDate(savedEntity), "Availability slot created");
         return AvailabilityFactory.toDTO(savedEntity);
     }
 
@@ -181,6 +188,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         InstructorAvailability savedEntity = availabilityRepository.save(entity);
         
         log.debug("Updated availability slot: {}", slotUuid);
+        publishAvailabilityChanged(savedEntity.getInstructorUuid(), savedEntity.getAvailabilityType(),
+                resolveEffectiveDate(savedEntity), "Availability slot updated");
         return AvailabilityFactory.toDTO(savedEntity);
     }
 
@@ -198,6 +207,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
         availabilityRepository.delete(entity);
         log.debug("Deleted availability slot: {}", slotUuid);
+        publishAvailabilityChanged(entity.getInstructorUuid(), entity.getAvailabilityType(),
+                resolveEffectiveDate(entity), "Availability slot deleted");
     }
 
     @Override
@@ -361,8 +372,10 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         blockSlot.setCustomPattern("BLOCKED_TIME_SLOT");
         blockSlot.setColorCode(colorCode);
 
-        availabilityRepository.save(blockSlot);
+        InstructorAvailability saved = availabilityRepository.save(blockSlot);
         log.debug("Created blocked time slot for instructor: {} with color: {}", instructorUuid, colorCode);
+        publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, resolveEffectiveDate(saved),
+                "Instructor time blocked");
     }
 
     @Override
@@ -390,6 +403,38 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             case MONTHLY -> matchesMonthlyPattern(slot, date);
             case CUSTOM -> matchesCustomPattern(slot, date);
         };
+    }
+
+    private void publishAvailabilityChanged(UUID instructorUuid, AvailabilityType type, LocalDate effectiveDate, String description) {
+        if (instructorUuid == null) {
+            return;
+        }
+        AvailabilityType safeType = type != null ? type : AvailabilityType.CUSTOM;
+        LocalDate effective = effectiveDate != null ? effectiveDate : LocalDate.now();
+        InstructorAvailabilityChangedEventDTO event = new InstructorAvailabilityChangedEventDTO(
+                instructorUuid,
+                safeType,
+                effective,
+                description
+        );
+        eventPublisher.publishEvent(event);
+    }
+
+    private LocalDate resolveEffectiveDate(InstructorAvailability availability) {
+        if (availability.getSpecificDate() != null) {
+            return availability.getSpecificDate();
+        }
+        if (availability.getEffectiveStartDate() != null) {
+            return availability.getEffectiveStartDate();
+        }
+        return LocalDate.now();
+    }
+
+    private LocalDate determineEffectiveDate(List<InstructorAvailability> entities) {
+        return entities.stream()
+                .map(this::resolveEffectiveDate)
+                .min(LocalDate::compareTo)
+                .orElse(LocalDate.now());
     }
 
     private boolean matchesWeeklyPattern(InstructorAvailability slot, LocalDate date) {

@@ -198,6 +198,17 @@ This will create a new `AvailabilitySlot` with `is_available` set to `false` and
 
 ---
 
+### 6.0 Unified Instructor Calendar
+
+Use the merged calendar feed to render a single view that combines availability slots, blocked time, and scheduled class instances.
+
+-   **API Endpoint:** `GET /api/v1/instructors/{instructorUuid}/availability/calendar`
+-   **Query Parameters:** `start_date`, `end_date` (inclusive, `YYYY-MM-DD`)
+-   **Response:** Array of `InstructorCalendarEntryDTO` entries with `entry_type` set to `AVAILABILITY`, `BLOCKED`, or `SCHEDULED_INSTANCE`.
+-   **Tip:** Render availability entries in green, blocked entries using their `color_code` (if present), and scheduled instances with the status badge (`SCHEDULED`/`ONGOING`/`COMPLETED`).
+
+---
+
 ## 6. Checking Availability
 
 This is a crucial integration point for other modules, like **Class Definition Management**. Before scheduling a class, you must check if the instructor is available.
