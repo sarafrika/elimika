@@ -38,7 +38,7 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
             return;
         }
         Optional<ClassDefinitionLookupService.ClassDefinitionSnapshot> snapshotOpt =
-                classDefinitionLookupService.findByUuidWithoutCourse(classDefinitionUuid);
+                classDefinitionLookupService.findByUuid(classDefinitionUuid);
         if (snapshotOpt.isEmpty()) {
             log.warn("No class definition snapshot found for {}, skipping catalog provisioning", classDefinitionUuid);
             return;
@@ -51,17 +51,18 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         }
 
         CommerceProduct product = productRepository.findByCourseUuid(courseUuid)
-                .orElseGet(() -> createCourseProduct(courseUuid));
+                .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
 
         variantRepository.findByCode(classDefinitionUuid.toString())
                 .orElseGet(() -> createVariant(product, classDefinitionUuid, snapshot));
     }
 
-    private CommerceProduct createCourseProduct(UUID courseUuid) {
-        String title = "Course " + courseUuid;
+    private CommerceProduct createCourseProduct(UUID courseUuid, ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        String title = snapshot.title();
         CommerceProduct product = new CommerceProduct();
         product.setCourseUuid(courseUuid);
         product.setTitle(title);
+        product.setDescription(snapshot.description());
         product.setCurrencyCode(resolveCurrency());
         product.setStatus(ProductStatus.ACTIVE);
         product.setActive(true);

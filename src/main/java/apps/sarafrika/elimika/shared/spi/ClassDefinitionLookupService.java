@@ -12,13 +12,19 @@ public interface ClassDefinitionLookupService {
 
     default Optional<ClassDefinitionSnapshot> findByUuidWithoutCourse(UUID classDefinitionUuid) {
         return findByUuid(classDefinitionUuid).map(snapshot ->
-                new ClassDefinitionSnapshot(snapshot.classDefinitionUuid(), null, snapshot.title(), snapshot.trainingFee()));
+                new ClassDefinitionSnapshot(
+                        snapshot.classDefinitionUuid(),
+                        null,
+                        snapshot.title(),
+                        snapshot.description(),
+                        snapshot.trainingFee()));
     }
 
     record ClassDefinitionSnapshot(
             UUID classDefinitionUuid,
             UUID courseUuid,
             String title,
+            String description,
             java.math.BigDecimal trainingFee
     ) { }
 }

@@ -30,6 +30,7 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
                     dto.uuid(),
                     dto.courseUuid(),
                     dto.title(),
+                    dto.description(),
                     dto.trainingFee()
             ));
         } catch (ResourceNotFoundException ex) {
