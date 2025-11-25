@@ -1,3 +1,21 @@
+# [2.37.0](https://github.com/sarafrika/elimika/compare/v2.36.0...v2.37.0) (2025-11-20)
+
+
+### Bug Fixes
+
+* expose student age gate failures ([1f48fd4](https://github.com/sarafrika/elimika/commit/1f48fd40476bde1a151c498a0cb267194a58c91b))
+* resolve underscored search params ([68efc34](https://github.com/sarafrika/elimika/commit/68efc349606f93d2d52ba31cd841d94cb5c1eba9))
+* use converter for proficiency levels ([23192c5](https://github.com/sarafrika/elimika/commit/23192c599e5958145b77b9d886d8748d565fd85b))
+
+
+### Features
+
+* align course creator profiles with instructor data ([34aafb6](https://github.com/sarafrika/elimika/commit/34aafb622d1efd97758990127b5e81cbd6f37180))
+* capture course creator qualification records ([403ef5d](https://github.com/sarafrika/elimika/commit/403ef5dba1d2507e4b867bd50e5205368c137ba7))
+* enforce training application price floors ([7e4181c](https://github.com/sarafrika/elimika/commit/7e4181c18611ba38be0e62bf818d9d0d5287fe95))
+* segment rate cards by delivery modality ([0ec8d5a](https://github.com/sarafrika/elimika/commit/0ec8d5a0a1935e0dc17ebda3bc9284d4f864f366))
+* surface keycloak admin events in stats ([46524a6](https://github.com/sarafrika/elimika/commit/46524a6b5ddd8db57636249a8b1e2ce044606ab9))
+
 # [2.36.0](https://github.com/sarafrika/elimika/compare/v2.35.1...v2.36.0) (2025-11-18)
 
 
