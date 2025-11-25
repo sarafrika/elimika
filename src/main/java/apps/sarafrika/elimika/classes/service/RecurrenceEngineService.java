@@ -116,12 +116,4 @@ public interface RecurrenceEngineService {
             LocalDate startDate,
             LocalDate endDate
     );
-
-    /**
-     * Checks for scheduling conflicts with instructor availability and existing classes.
-     *
-     * @param scheduledInstances The list of scheduled instances to check
-     * @return List of instances that have conflicts
-     */
-    List<ScheduledInstanceDTO> checkSchedulingConflicts(List<ScheduledInstanceDTO> scheduledInstances);
 }

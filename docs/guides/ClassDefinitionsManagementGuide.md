@@ -336,65 +336,6 @@ Re-use the `PlatformFeeBreakdown` schema in UI models so future deductions (disc
 
 This is typically a button that, when clicked, generates the actual class instances on the calendar.
 
-#### Step 3.1: Preview the Schedule (Highly Recommended)
-
-Before creating the instances, show the user a preview of what will be scheduled.
-
--   **API Endpoint:** `GET /api/v1/classes/{uuid}/schedule/preview`
--   **Method:** `GET`
--   **Controller Method:** `previewRecurringClassSchedule`
--   **Query Parameters:**
-    -   `startDate`: The date to start the preview from (e.g., `2024-09-01`).
-    -   `endDate`: The date to end the preview (e.g., `2024-12-31`).
-
-**Example Request:**
-
-```http
-GET /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule/preview?startDate=2024-09-01&endDate=2024-09-30
-```
-
-**The response will be an array of `ScheduledInstanceDTO` objects that you can display in a list or on a calendar UI.**
-
-#### Step 3.2: Check for Conflicts
-
-It's crucial to check for scheduling conflicts *before* generating the schedule.
-
--   **API Endpoint:** `GET /api/v1/classes/{uuid}/schedule/conflicts`
--   **Method:** `GET`
--   **Controller Method:** `checkClassSchedulingConflicts`
--   **Query Parameters:** `startDate` and `endDate`.
-
-**Example Request:**
-
-```http
-GET /api/v1/classes/cd123456-7890-abcd-ef01-234567890abc/schedule/conflicts?startDate=2024-09-01&endDate=2024-12-31
-```
-
-**Handling the Response:**
-
-The API will return a list of instances that conflict with the instructor's availability or other existing classes. Your UI should clearly display these conflicts to the user and ask them how to proceed.
-
-**Example Conflict Response:**
-
-```json
-{
-  "success": true,
-  "message": "Found 2 scheduling conflicts out of 48 potential instances",
-  "data": [
-    {
-      "start_time": "2024-10-14T14:00:00",
-      "end_time": "2024-10-14T15:30:00",
-      "conflict_reason": "Instructor not available"
-    },
-    {
-      "start_time": "2024-11-05T14:00:00",
-      "end_time": "2024-11-05T15:30:00",
-      "conflict_reason": "Conflicts with another class: 'Advanced Python'"
-    }
-  ]
-}
-```
-
 #### Step 3.3: Create the Schedule
 
 Once the user confirms, you can create the actual schedule.
@@ -403,6 +344,7 @@ Once the user confirms, you can create the actual schedule.
 -   **Method:** `POST`
 -   **Controller Method:** `scheduleRecurringClassFromDefinition`
 -   **Query Parameters:** `startDate` and `endDate`.
+-   **Conflict handling:** The backend now enforces instructor availability and overlap checks during scheduling, so no separate conflict endpoint is required.
 
 **Example Request:**
 

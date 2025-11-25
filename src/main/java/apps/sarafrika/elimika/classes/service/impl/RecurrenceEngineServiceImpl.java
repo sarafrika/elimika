@@ -295,27 +295,6 @@ public class RecurrenceEngineServiceImpl implements RecurrenceEngineService {
         return occurrenceDates;
     }
 
-    @Override
-    public List<ScheduledInstanceDTO> checkSchedulingConflicts(List<ScheduledInstanceDTO> scheduledInstances) {
-        List<ScheduledInstanceDTO> conflictingInstances = new ArrayList<>();
-        
-        for (ScheduledInstanceDTO instance : scheduledInstances) {
-            ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
-                    instance.classDefinitionUuid(),
-                    instance.instructorUuid(),
-                    instance.startTime(),
-                    instance.endTime(),
-                    instance.timezone()
-            );
-            
-            if (hasSchedulingConflict(scheduleRequest)) {
-                conflictingInstances.add(instance);
-            }
-        }
-        
-        return conflictingInstances;
-    }
-
     // Private helper methods
 
     private LocalDate determineEffectiveEndDate(RecurrencePatternDTO pattern, LocalDate requestedEndDate) {
@@ -444,16 +423,9 @@ public class RecurrenceEngineServiceImpl implements RecurrenceEngineService {
     }
 
     private boolean hasSchedulingConflict(ScheduleRequestDTO scheduleRequest) {
-        // Check instructor availability
-        if (!availabilityService.isInstructorAvailable(
-                scheduleRequest.instructorUuid(), 
-                scheduleRequest.startTime(), 
-                scheduleRequest.endTime())) {
-            return true;
-        }
-        
-        // Check for existing scheduled classes
         return timetableService.hasInstructorConflict(
-                scheduleRequest.instructorUuid(), scheduleRequest);
+                scheduleRequest.instructorUuid(),
+                scheduleRequest
+        );
     }
 }
