@@ -1,13 +1,22 @@
 package apps.sarafrika.elimika.shared.config;
 
+import apps.sarafrika.elimika.commerce.medusa.exception.MedusaIntegrationException;
+import apps.sarafrika.elimika.notifications.preferences.spi.exceptions.PreferencesException;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.exceptions.AgeRestrictionException;
 import apps.sarafrika.elimika.shared.exceptions.DatabaseAuditException;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.exceptions.InvalidCsvFormatException;
+import apps.sarafrika.elimika.shared.exceptions.KeycloakException;
 import apps.sarafrika.elimika.shared.exceptions.PaymentRequiredException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpAuthenticationException;
+import apps.sarafrika.elimika.shared.exceptions.SmtpConnectionException;
+import apps.sarafrika.elimika.shared.exceptions.SmtpMessagingException;
+import apps.sarafrika.elimika.shared.exceptions.UserNotFoundException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -18,7 +27,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -45,6 +56,41 @@ public class GlobalExceptionHandler {
         log.debug("Duplicate resource", ex);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("Duplicate resource", ex.getMessage()));
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, ValidationException.class})
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(Exception ex) {
+        log.debug("Invalid request payload", ex);
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "Request contains invalid data";
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException ex) {
+        log.debug("Operation cannot proceed in current state", ex);
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "Operation cannot be performed in the current state";
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
+        String message = ex.getReason();
+        if (message == null || message.isBlank()) {
+            HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+            message = status != null ? status.getReasonPhrase() : "Request could not be processed";
+        }
+
+        log.debug("Request rejected with status {}", ex.getStatusCode(), ex);
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(ApiResponse.error(message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -89,13 +135,14 @@ public class GlobalExceptionHandler {
 
         String exceptionMessage = ex.getMessage();
         if (exceptionMessage != null) {
-            if (exceptionMessage.contains("foreign key")) {
+            String normalizedMessage = exceptionMessage.toLowerCase(Locale.ROOT);
+            if (normalizedMessage.contains("foreign key")) {
                 message = "Cannot complete operation: referenced record does not exist or is in use";
-            } else if (exceptionMessage.contains("unique")) {
+            } else if (normalizedMessage.contains("unique")) {
                 message = "A record with this information already exists";
-            } else if (exceptionMessage.contains("check constraint")) {
+            } else if (normalizedMessage.contains("check constraint")) {
                 message = "The provided data does not meet validation requirements";
-            } else if (exceptionMessage.contains("not null") || exceptionMessage.contains("NOT NULL")) {
+            } else if (normalizedMessage.contains("not null")) {
                 message = "Required information is missing";
             }
         }
@@ -122,6 +169,58 @@ public class GlobalExceptionHandler {
         log.debug("Payment required", ex);
         return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
                 .body(ApiResponse.error("Payment required", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AgeRestrictionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAgeRestrictionException(AgeRestrictionException ex) {
+        log.debug("Age restriction prevented operation", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUserNotFoundException(UserNotFoundException ex) {
+        log.debug("User not found", ex);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("User not found", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCsvFormatException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidCsvFormatException(InvalidCsvFormatException ex) {
+        log.debug("Invalid CSV format", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Invalid CSV content", ex.getMessage()));
+    }
+
+    @ExceptionHandler({SmtpConnectionException.class, SmtpMessagingException.class})
+    public ResponseEntity<ApiResponse<Void>> handleSmtpExceptions(RuntimeException ex) {
+        log.error("SMTP operation failed", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("Email delivery is temporarily unavailable", ex.getMessage()));
+    }
+
+    @ExceptionHandler(KeycloakException.class)
+    public ResponseEntity<ApiResponse<Void>> handleKeycloakException(KeycloakException ex) {
+        String errorId = UUID.randomUUID().toString();
+        log.error("Identity provider error [errorId={}]", errorId, ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.error("Identity provider request failed", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MedusaIntegrationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMedusaIntegrationException(MedusaIntegrationException ex) {
+        String errorId = UUID.randomUUID().toString();
+        log.error("Medusa integration error [errorId={}]", errorId, ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.error("Commerce service request failed", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PreferencesException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePreferencesException(PreferencesException ex) {
+        String errorId = UUID.randomUUID().toString();
+        log.error("Notification preferences error [errorId={}]", errorId, ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Unable to load notification preferences", ex.getMessage()));
     }
 
     /**
