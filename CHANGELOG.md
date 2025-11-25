@@ -1,3 +1,18 @@
+# [2.38.0](https://github.com/sarafrika/elimika/compare/v2.37.0...v2.38.0) (2025-11-25)
+
+
+### Bug Fixes
+
+* allow scheduling when no availability patterns ([dea5633](https://github.com/sarafrika/elimika/commit/dea5633a4b6605326eafa70caffac624ba16fdde))
+* clean availability controller annotations ([af447d1](https://github.com/sarafrika/elimika/commit/af447d1580763d7d872fb18fcbe169515351111c))
+* improve API exception messaging ([85c6dc4](https://github.com/sarafrika/elimika/commit/85c6dc4c0e9b320ccd1043b34072eae0c76efebd))
+* resolve modulith architecture violations ([27c8417](https://github.com/sarafrika/elimika/commit/27c84179638de98e155b8891b60acc3dbb272634))
+
+
+### Features
+
+* unify instructor calendar scheduling ([f24722f](https://github.com/sarafrika/elimika/commit/f24722fc6f072b9ca4d584fbf5156f1ccf8be39b))
+
 # [2.37.0](https://github.com/sarafrika/elimika/compare/v2.36.0...v2.37.0) (2025-11-20)
 
 
