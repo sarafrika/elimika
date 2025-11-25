@@ -78,60 +78,18 @@ sequenceDiagram
 
 ## 4. Core Task: Building the Availability Calendar
 
-The primary UI is a weekly calendar where instructors can manage their availability.
+Use the merged calendar feed to render a single view that combines availability slots, blocked time, and scheduled class instances.
 
-### Fetching Availability Data
-
-To populate the calendar, fetch all availability slots for an instructor.
-
--   **API Endpoint:** `GET /api/v1/instructors/{instructorUuid}/availability`
--   **Method:** `GET`
--   **Controller Method:** `getInstructorAvailability`
-
-**Example Request:**
-
-```http
-GET /api/v1/instructors/a1b2c3d4-e5f6-7890-1234-567890abcdef/availability
-```
-
-**Example Response:**
-
-The response will be a list of `AvailabilitySlotDTO` objects. Your UI should render these slots on the calendar, using `is_available` to style them differently (e.g., green for available, gray for blocked).
-
-```json
-{
-  "success": true,
-  "message": "Instructor availability retrieved successfully",
-  "data": [
-    {
-      "uuid": "slot1-uuid-...",
-      "instructor_uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-      "availability_type": "WEEKLY",
-      "day_of_week": 1, // Monday
-      "start_time": "09:00:00",
-      "end_time": "12:00:00",
-      "is_available": true,
-      "duration_formatted": "3h 0m"
-    },
-    {
-      "uuid": "slot2-uuid-...",
-      "instructor_uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-      "availability_type": "SPECIFIC_DATE",
-      "specific_date": "2024-10-20",
-      "start_time": "14:00:00",
-      "end_time": "15:00:00",
-      "is_available": false, // Blocked time
-      "duration_formatted": "1h 0m"
-    }
-  ]
-}
-```
+-   **API Endpoint:** `GET /api/v1/instructors/{instructorUuid}/availability/calendar`
+-   **Query Parameters:** `start_date`, `end_date` (inclusive, `YYYY-MM-DD`)
+-   **Response:** Array of `InstructorCalendarEntryDTO` entries with `entry_type` set to `AVAILABILITY`, `BLOCKED`, or `SCHEDULED_INSTANCE`.
+-   **Tip:** Render availability entries in green, blocked entries using their `color_code` (if present), and scheduled instances with the status badge (`SCHEDULED`/`ONGOING`/`COMPLETED`).
 
 ---
 
 ## 5. Managing Availability Patterns
 
-Instructors can define their availability in several ways.
+Instructors can define their availability via recurring patterns and blocked time. Use the pattern setter for bulk changes and the block endpoint for one-offs or bookings.
 
 ### Setting Weekly Availability
 

@@ -3,31 +3,23 @@ package apps.sarafrika.elimika.availability.controller;
 import apps.sarafrika.elimika.availability.dto.*;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
-import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.availability.dto.InstructorCalendarEntryDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.Explode;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -59,82 +51,8 @@ public class AvailabilityController {
     private final TimetableService timetableService;
 
     // ================================
-    // AVAILABILITY OVERVIEW & BULK OPERATIONS
+    // AVAILABILITY BULK OPERATIONS & CALENDAR
     // ================================
-
-    @Operation(
-        summary = "Get all availability for an instructor",
-        description = "Retrieves all availability slots for a specific instructor, including all patterns and blocked times"
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability retrieved successfully")
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getInstructorAvailability(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid) {
-        log.debug("REST request to get all availability for instructor: {}", instructorUuid);
-
-        List<AvailabilitySlotDTO> result = availabilityService.getAvailabilityForInstructor(instructorUuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Instructor availability retrieved successfully"));
-    }
-
-    @Operation(
-            summary = "Search availability slots with flexible filtering",
-            description = """
-                    Search and filter availability slots using dynamic query parameters.
-
-                    **Supported filter operators:**
-                    - `_eq` - equals (e.g., `is_available=true`)
-                    - `_ne` or `_noteq` - not equals (e.g., `availability_type_ne=DAILY`)
-                    - `_like` - contains (for strings, e.g., `custom_pattern_like=BLOCK`)
-                    - `_gt` - greater than (e.g., `day_of_week_gt=3`)
-                    - `_gte` - greater than or equal (e.g., `start_time_gte=09:00:00`)
-                    - `_lt` - less than (e.g., `day_of_month_lt=15`)
-                    - `_lte` - less than or equal (e.g., `end_time_lte=17:00:00`)
-                    - `_in` - in list (comma-separated, e.g., `availability_type_in=WEEKLY,MONTHLY`)
-
-                    **Example queries:**
-                    - Get all available slots: `?is_available=true`
-                    - Get blocked times: `?is_available=false`
-                    - Get weekly patterns for Monday: `?availability_type=WEEKLY&day_of_week=1`
-                    - Get slots with specific color: `?color_code=#FF6B6B`
-                    - Get slots by date range: `?specific_date_gte=2024-01-01&specific_date_lte=2024-12-31`
-                    - Combined: `?is_available=false&color_code_like=FF6B`
-
-                    **Pagination:** Use standard Spring pagination parameters:
-                    - `page` - page number (0-indexed)
-                    - `size` - page size
-                    - `sort` - sorting (e.g., `start_time,asc` or `specific_date,desc`)
-
-                    **Examples:**
-                    - `/search?is_available=true&page=0&size=20&sort=start_time,asc`
-                    - `/search?availability_type_in=WEEKLY,MONTHLY&day_of_week_gte=1&day_of_week_lte=5`
-                    - `/search?is_available=false&specific_date_gte=2024-10-01`
-                   \s""",
-            responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Search results returned successfully",
-                            content = @Content(schema = @Schema(implementation = Page.class)))
-            }
-    )
-    @GetMapping("/search")
-    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<AvailabilitySlotDTO>>> searchAvailability(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(
-                    description = "Optional search parameters for filtering",
-                    schema = @Schema(type = "object", additionalProperties = Schema.AdditionalPropertiesValue.TRUE),
-                    explode = Explode.TRUE
-            )
-            @RequestParam Map<String, String> searchParams,
-            Pageable pageable) {
-        log.debug("REST request to search availability for instructor: {} with params: {}", instructorUuid, searchParams);
-
-        // Add instructor filter to search params
-        searchParams.put("instructor_uuid", instructorUuid.toString());
-
-        Page<AvailabilitySlotDTO> results = availabilityService.search(searchParams, pageable);
-        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
-                .success(PagedDTO.from(results, ServletUriComponentsBuilder
-                                .fromCurrentRequestUri().build().toString()),
-                        "Availability search successful"));
-    }
 
     @Operation(
         summary = "Clear all availability for an instructor",
@@ -149,80 +67,6 @@ public class AvailabilityController {
         availabilityService.clearAvailability(instructorUuid);
         return ResponseEntity.noContent().build();
     }
-
-    // ================================
-    // INDIVIDUAL SLOT MANAGEMENT
-    // ================================
-
-    @Operation(
-        summary = "Create a new availability slot",
-        description = "Creates a single availability slot for an instructor"
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Availability slot created successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping("/slots")
-    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> createAvailabilitySlot(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Valid @RequestBody AvailabilitySlotDTO request) {
-        log.debug("REST request to create availability slot for instructor: {}", instructorUuid);
-
-        AvailabilitySlotDTO result = availabilityService.createAvailabilitySlot(request);
-        return ResponseEntity.status(201).body(ApiResponse.success(result, "Availability slot created successfully"));
-    }
-
-    @Operation(
-        summary = "Get a specific availability slot",
-        description = "Retrieves a single availability slot by its UUID"
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slot retrieved successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Availability slot not found")
-    @GetMapping("/slots/{slotUuid}")
-    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> getAvailabilitySlot(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid) {
-        log.debug("REST request to get availability slot: {} for instructor: {}", slotUuid, instructorUuid);
-
-        AvailabilitySlotDTO result = availabilityService.getAvailabilitySlot(slotUuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Availability slot retrieved successfully"));
-    }
-
-    @Operation(
-        summary = "Update an availability slot",
-        description = "Updates an existing availability slot"
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slot updated successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Availability slot not found")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PutMapping("/slots/{slotUuid}")
-    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> updateAvailabilitySlot(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid,
-            @Valid @RequestBody AvailabilitySlotDTO request) {
-        log.debug("REST request to update availability slot: {} for instructor: {}", slotUuid, instructorUuid);
-
-        AvailabilitySlotDTO result = availabilityService.updateAvailabilitySlot(slotUuid, request);
-        return ResponseEntity.ok(ApiResponse.success(result, "Availability slot updated successfully"));
-    }
-
-    @Operation(
-        summary = "Delete an availability slot",
-        description = "Removes a specific availability slot"
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Availability slot deleted successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Availability slot not found")
-    @DeleteMapping("/slots/{slotUuid}")
-    public ResponseEntity<ApiResponse<Void>> deleteAvailabilitySlot(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid) {
-        log.debug("REST request to delete availability slot: {} for instructor: {}", slotUuid, instructorUuid);
-
-        availabilityService.deleteAvailabilitySlot(slotUuid);
-        return ResponseEntity.noContent().build();
-    }
-
-    // ================================
-    // RECURRING PATTERN MANAGEMENT
-    // ================================
 
     @Operation(
         summary = "Set availability patterns",
@@ -292,46 +136,6 @@ public class AvailabilityController {
         summary = "Get availability for a specific date",
         description = "Retrieves all availability slots (including from patterns) for an instructor on a specific date"
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability for date retrieved successfully")
-    @GetMapping("/date/{date}")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getAvailabilityForDate(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "Date to check (YYYY-MM-DD)")
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        log.debug("REST request to get availability for instructor: {} on date: {}", instructorUuid, date);
-
-        List<AvailabilitySlotDTO> result = availabilityService.getAvailabilityForDate(instructorUuid, date);
-        return ResponseEntity.ok(ApiResponse.success(result, "Availability for date retrieved successfully"));
-    }
-
-    @Operation(
-        summary = "Find available slots within a date range",
-        description = """
-            Finds all available time slots for an instructor within a specified date range.
-
-            This is useful for scheduling systems that need to:
-            - Show available booking slots
-            - Find the next available time
-            - Display a calendar of availability
-
-            Only returns slots where isAvailable = true (excludes blocked times).
-            """
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Available slots found successfully")
-    @GetMapping("/available")
-    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> findAvailableSlots(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "Start date of search range (YYYY-MM-DD)")
-            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @Parameter(description = "End date of search range (YYYY-MM-DD)")
-            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        log.debug("REST request to find available slots for instructor: {} from {} to {}",
-                instructorUuid, startDate, endDate);
-
-        List<AvailabilitySlotDTO> result = availabilityService.findAvailableSlots(instructorUuid, startDate, endDate);
-        return ResponseEntity.ok(ApiResponse.success(result, "Available slots found successfully"));
-    }
-
     @Operation(
         summary = "Get merged instructor calendar",
         description = "Returns a merged feed of availability slots, blocked time, and scheduled instances for the instructor within a date range."
@@ -368,13 +172,7 @@ public class AvailabilityController {
         description = """
             Checks whether an instructor is available for the entire specified time period.
 
-            Returns true only if the instructor is available for the ENTIRE duration.
-            This considers:
-            - All availability patterns
-            - Blocked time slots
-            - Existing bookings (if integrated with scheduling)
-
-            Useful for validating booking requests before creating them.
+            Returns true unless a blocked slot overlaps the requested window.
             """
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability check completed")
@@ -436,35 +234,6 @@ public class AvailabilityController {
     // ================================
     // STUDENT BOOKING
     // ================================
-
-    @Operation(
-        summary = "Book an instructor for a private session",
-        description = """
-            Allows a student to book an instructor for a one-on-one session outside publicly scheduled classes.
-
-            **Flow:**
-            - The frontend first uses the `/available` endpoint to show free slots.
-            - Once a slot is selected, the client calls this endpoint with start/end times and an optional purpose.
-            - The service verifies the instructor is available, then blocks the slot so it is not offered again.
-
-            This endpoint does not create enrollments or class definitions; it simply reserves the instructor's time.
-            Other modules (e.g., Timetabling, Commerce) can listen for bookings and create paid sessions if needed.
-            """
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Instructor slot booked successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Instructor not available or invalid request")
-    @PostMapping("/book")
-    public ResponseEntity<ApiResponse<Void>> bookInstructorSlot(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Valid @RequestBody apps.sarafrika.elimika.availability.dto.InstructorSlotBookingRequestDTO request) {
-
-        if (!instructorUuid.equals(request.instructorUuid())) {
-            throw new IllegalArgumentException("Path instructorUuid must match request instructor_uuid.");
-        }
-
-        availabilityService.bookInstructorSlot(request);
-        return ResponseEntity.status(201).body(ApiResponse.success(null, "Instructor slot booked successfully"));
-    }
 
     private InstructorCalendarEntryDTO mapAvailabilityEntry(LocalDate date, AvailabilitySlotDTO slot) {
         LocalTime startTime = slot.startTime();
