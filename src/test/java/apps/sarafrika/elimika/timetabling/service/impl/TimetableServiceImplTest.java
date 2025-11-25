@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
+import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
-import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
@@ -61,6 +61,9 @@ class TimetableServiceImplTest {
     @Mock
     private apps.sarafrika.elimika.commerce.spi.paywall.CommercePaywallService commercePaywallService;
 
+    @Mock
+    private AvailabilityService availabilityService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -74,7 +77,8 @@ class TimetableServiceImplTest {
                 classDefinitionLookupService,
                 courseInfoService,
                 ageVerificationService,
-                commercePaywallService
+                commercePaywallService,
+                availabilityService
         );
     }
 
