@@ -301,9 +301,14 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             .filter(slot -> matchesDate(slot, date))
             .collect(Collectors.toList());
 
-        // Check if all matching slots are available (not blocked)
+        if (matchingSlots.isEmpty()) {
+            // No availability defined for the window: do not block scheduling
+            return true;
+        }
+
+        // Block only when an overlapping slot is explicitly marked unavailable
         return matchingSlots.stream()
-            .allMatch(slot -> Boolean.TRUE.equals(slot.getIsAvailable()));
+            .noneMatch(slot -> Boolean.FALSE.equals(slot.getIsAvailable()));
     }
 
     @Override
