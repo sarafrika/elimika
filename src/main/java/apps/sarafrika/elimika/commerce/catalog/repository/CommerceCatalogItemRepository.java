@@ -16,7 +16,7 @@ public interface CommerceCatalogItemRepository extends JpaRepository<CommerceCat
 
     Optional<CommerceCatalogItem> findByClassDefinitionUuid(UUID classDefinitionUuid);
 
-    Optional<CommerceCatalogItem> findByMedusaVariantId(String medusaVariantId);
+    Optional<CommerceCatalogItem> findByVariantCode(String variantCode);
 
     List<CommerceCatalogItem> findByActiveTrue();
 }

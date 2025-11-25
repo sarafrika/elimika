@@ -19,7 +19,7 @@ import lombok.Getter;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "OrderResponse", description = "Order information synchronised from Medusa")
+@Schema(name = "OrderResponse", description = "Order information stored by the internal commerce engine")
 public class OrderResponse {
 
     @Schema(description = "Unique identifier of the order", example = "b6d7ab1b-7a21-4b3f-9e52-d6c2f5b2a9f0")

@@ -17,7 +17,7 @@ public interface CommercePurchaseService {
     /**
      * Records an order in the purchase module.
      *
-     * @param order The order details from Medusa
+     * @param order The order details produced by the internal commerce engine
      * @param checkoutRequest The checkout request details
      */
     void recordOrder(OrderResponse order, CheckoutRequest checkoutRequest);

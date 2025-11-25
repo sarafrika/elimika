@@ -14,7 +14,7 @@ public interface CommerceCatalogService {
 
     Optional<CommerceCatalogItemDTO> getByClassDefinition(UUID classDefinitionUuid);
 
-    Optional<CommerceCatalogItemDTO> getByVariantId(String medusaVariantId);
+    Optional<CommerceCatalogItemDTO> getByVariantCode(String variantCode);
 
     List<CommerceCatalogItemDTO> listAll(Boolean activeOnly);
 }

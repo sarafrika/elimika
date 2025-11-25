@@ -1,4 +1,4 @@
 /**
- * Cart management module responsible for synchronising cart state between Elimika and Medusa.
+ * Cart management module responsible for maintaining cart state within Elimika's internal commerce stack.
  */
 package apps.sarafrika.elimika.commerce.cart;

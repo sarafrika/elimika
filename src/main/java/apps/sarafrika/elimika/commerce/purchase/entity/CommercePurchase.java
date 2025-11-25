@@ -23,11 +23,11 @@ import lombok.Setter;
 @Table(name = "commerce_purchase")
 public class CommercePurchase extends BaseEntity {
 
-    @Column(name = "medusa_order_id")
-    private String medusaOrderId;
+    @Column(name = "order_id")
+    private String orderId;
 
-    @Column(name = "medusa_display_id")
-    private String medusaDisplayId;
+    @Column(name = "order_number")
+    private String orderNumber;
 
     @Column(name = "customer_email")
     private String customerEmail;
@@ -38,8 +38,8 @@ public class CommercePurchase extends BaseEntity {
     @Column(name = "payment_status")
     private String paymentStatus;
 
-    @Column(name = "medusa_created_at")
-    private OffsetDateTime medusaCreatedAt;
+    @Column(name = "order_created_at")
+    private OffsetDateTime orderCreatedAt;
 
     @Column(name = "platform_fee_amount")
     private BigDecimal platformFeeAmount;

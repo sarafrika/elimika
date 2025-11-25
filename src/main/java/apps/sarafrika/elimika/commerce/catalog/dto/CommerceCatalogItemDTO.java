@@ -12,7 +12,7 @@ import lombok.Builder;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "CommerceCatalogItem", description = "Mapping between Elimika courses/classes and Medusa catalog variants")
+@Schema(name = "CommerceCatalogItem", description = "Mapping between Elimika courses/classes and internal commerce variants")
 public record CommerceCatalogItemDTO(
         @Schema(description = "Catalog item UUID")
         @JsonProperty("uuid")
@@ -26,13 +26,13 @@ public record CommerceCatalogItemDTO(
         @JsonProperty("class_definition_uuid")
         UUID classDefinitionUuid,
 
-        @Schema(description = "Medusa product identifier")
-        @JsonProperty("medusa_product_id")
-        String medusaProductId,
+        @Schema(description = "Internal commerce product code")
+        @JsonProperty("product_code")
+        String productCode,
 
-        @Schema(description = "Medusa variant identifier")
-        @JsonProperty("medusa_variant_id")
-        String medusaVariantId,
+        @Schema(description = "Internal commerce variant code")
+        @JsonProperty("variant_code")
+        String variantCode,
 
         @Schema(description = "Currency code configured for the variant")
         @JsonProperty("currency_code")

@@ -1,5 +1,5 @@
 /**
- * Commerce Purchase module responsible for persisting order snapshots received from Medusa.
+ * Commerce Purchase module responsible for persisting order snapshots produced by the internal commerce engine.
  * Exposes analytics and purchase state via named interfaces while keeping persistence internal.
  */
 @org.springframework.modulith.ApplicationModule(

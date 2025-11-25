@@ -45,7 +45,7 @@ public class CartLineItemRequest {
     private int quantity;
 
     @Schema(
-            description = "Optional metadata forwarded to Medusa and persisted with the line item",
+            description = "Optional metadata persisted with the line item",
             example = "{\"course_uuid\":\"5f5e0f54-59bb-4c77-b21d-6d496dd1b4b2\",\"class_definition_uuid\":\"0f6b8eaa-1f22-4a1b-9a3e-37cf582f58b7\",\"student_uuid\":\"8f4544d3-1741-47ba-aacc-5c9e0fbcd410\"}",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )

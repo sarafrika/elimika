@@ -22,13 +22,13 @@ public class CommerceCatalogItem extends BaseEntity {
     @Column(name = "class_definition_uuid")
     private UUID classDefinitionUuid;
 
-    @Column(name = "medusa_product_id")
-    private String medusaProductId;
+    @Column(name = "product_code")
+    private String productCode;
 
-    @Column(name = "medusa_variant_id")
-    private String medusaVariantId;
+    @Column(name = "variant_code")
+    private String variantCode;
 
-    @Column(name = "currency_code", length = 3, nullable = false)
+    @Column(name = "currency_code")
     private String currencyCode;
 
     @Column(name = "active")

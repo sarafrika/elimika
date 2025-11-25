@@ -20,15 +20,15 @@ public record UpsertCommerceCatalogItemRequest(
         @JsonProperty("class_definition_uuid")
         UUID classDefinitionUuid,
 
-        @Schema(description = "Medusa product identifier", example = "prod_01J0ABCXYZ")
-        @NotBlank(message = "Medusa product identifier is required")
-        @JsonProperty("medusa_product_id")
-        String medusaProductId,
+        @Schema(description = "Internal commerce product code", example = "course-01J0ABCXYZ")
+        @NotBlank(message = "Product code is required")
+        @JsonProperty("product_code")
+        String productCode,
 
-        @Schema(description = "Medusa variant identifier", example = "variant_01J0ABCXYZ")
-        @NotBlank(message = "Medusa variant identifier is required")
-        @JsonProperty("medusa_variant_id")
-        String medusaVariantId,
+        @Schema(description = "Internal commerce variant code", example = "variant-01J0ABCXYZ")
+        @NotBlank(message = "Variant code is required")
+        @JsonProperty("variant_code")
+        String variantCode,
 
         @Schema(description = "Currency code for the variant. Defaults to the platform currency when omitted.", example = "USD")
         @JsonProperty("currency_code")

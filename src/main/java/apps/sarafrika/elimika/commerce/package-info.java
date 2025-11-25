@@ -1,7 +1,6 @@
 /**
- * Commerce module orchestrates purchasing workflows backed by Medusa.
- * Submodules expose functionality via named interfaces while persistence and
- * integration details remain internal.
+ * Commerce module orchestrates purchasing workflows backed by the internal commerce engine.
+ * Submodules expose functionality via named interfaces while persistence and integration details remain internal.
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Commerce",

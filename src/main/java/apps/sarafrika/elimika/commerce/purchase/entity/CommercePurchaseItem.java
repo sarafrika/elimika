@@ -26,8 +26,8 @@ public class CommercePurchaseItem extends BaseEntity {
     @JoinColumn(name = "purchase_id")
     private CommercePurchase purchase;
 
-    @Column(name = "medusa_line_item_id")
-    private String medusaLineItemId;
+    @Column(name = "line_item_id")
+    private String lineItemId;
 
     @Column(name = "variant_id")
     private String variantId;

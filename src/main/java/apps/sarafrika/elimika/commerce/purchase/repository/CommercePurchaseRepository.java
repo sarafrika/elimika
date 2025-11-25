@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CommercePurchaseRepository extends JpaRepository<CommercePurchase, Long> {
 
-    Optional<CommercePurchase> findByMedusaOrderId(String medusaOrderId);
+    Optional<CommercePurchase> findByOrderId(String orderId);
 
     long countByCreatedDateAfter(LocalDateTime createdDate);
 

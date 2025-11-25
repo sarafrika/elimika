@@ -42,13 +42,13 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
             return;
         }
 
-        CommercePurchase purchase = purchaseRepository.findByMedusaOrderId(order.getId())
+        CommercePurchase purchase = purchaseRepository.findByOrderId(order.getId())
                 .orElseGet(CommercePurchase::new);
 
-        purchase.setMedusaOrderId(order.getId());
-        purchase.setMedusaDisplayId(order.getDisplayId());
+        purchase.setOrderId(order.getId());
+        purchase.setOrderNumber(order.getDisplayId());
         purchase.setPaymentStatus(order.getPaymentStatus());
-        purchase.setMedusaCreatedAt(order.getCreatedAt());
+        purchase.setOrderCreatedAt(order.getCreatedAt());
         applyPlatformFee(purchase, order.getPlatformFee());
 
         if (checkoutRequest != null) {
@@ -80,7 +80,7 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
     ) {
         CommercePurchaseItem entity = new CommercePurchaseItem();
         entity.setPurchase(purchase);
-        entity.setMedusaLineItemId(item.getId());
+        entity.setLineItemId(item.getId());
         entity.setVariantId(item.getVariantId());
         entity.setTitle(item.getTitle());
         entity.setQuantity(item.getQuantity());

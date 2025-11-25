@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(CommerceCatalogController.API_ROOT)
 @RequiredArgsConstructor
-@Tag(name = "Commerce Catalog", description = "Manage mappings between Elimika courses/classes and Medusa products")
+@Tag(name = "Commerce Catalog", description = "Manage mappings between Elimika courses/classes and internal commerce variants")
 public class CommerceCatalogController {
 
     public static final String API_ROOT = "/api/v1/commerce/catalog";
@@ -58,7 +58,7 @@ public class CommerceCatalogController {
                         .body(ApiResponse.error("Catalog item not found for class definition")));
     }
 
-    @Operation(summary = "Update catalog mapping", description = "Updates Medusa identifiers or status for an existing mapping")
+    @Operation(summary = "Update catalog mapping", description = "Updates internal variant identifiers or status for an existing mapping")
     @PutMapping("/{catalogUuid}")
     public ResponseEntity<ApiResponse<CommerceCatalogItemDTO>> updateCatalogItem(
             @PathVariable UUID catalogUuid,

@@ -51,11 +51,11 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
     }
 
     @Override
-    public Optional<CommerceCatalogItemDTO> getByVariantId(String medusaVariantId) {
-        if (ObjectUtils.isEmpty(medusaVariantId)) {
+    public Optional<CommerceCatalogItemDTO> getByVariantCode(String variantCode) {
+        if (ObjectUtils.isEmpty(variantCode)) {
             return Optional.empty();
         }
-        return catalogItemRepository.findByMedusaVariantId(medusaVariantId).map(this::toDto);
+        return catalogItemRepository.findByVariantCode(variantCode).map(this::toDto);
     }
 
     @Override
@@ -69,8 +69,8 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
     private void applyRequest(CommerceCatalogItem entity, UpsertCommerceCatalogItemRequest request) {
         entity.setCourseUuid(request.courseUuid());
         entity.setClassDefinitionUuid(request.classDefinitionUuid());
-        entity.setMedusaProductId(request.medusaProductId());
-        entity.setMedusaVariantId(request.medusaVariantId());
+        entity.setProductCode(request.productCode());
+        entity.setVariantCode(request.variantCode());
         String currencyCode = currencyService.resolveCurrencyOrDefault(request.currencyCode()).getCode();
         entity.setCurrencyCode(currencyCode);
         if (request.active() != null) {
@@ -97,8 +97,8 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
                 .uuid(entity.getUuid())
                 .courseUuid(entity.getCourseUuid())
                 .classDefinitionUuid(entity.getClassDefinitionUuid())
-                .medusaProductId(entity.getMedusaProductId())
-                .medusaVariantId(entity.getMedusaVariantId())
+                .productCode(entity.getProductCode())
+                .variantCode(entity.getVariantCode())
                 .currencyCode(entity.getCurrencyCode())
                 .active(entity.isActive())
                 .createdDate(entity.getCreatedDate())
