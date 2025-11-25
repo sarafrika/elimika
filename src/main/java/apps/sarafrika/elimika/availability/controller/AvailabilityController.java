@@ -3,9 +3,8 @@ package apps.sarafrika.elimika.availability.controller;
 import apps.sarafrika.elimika.availability.dto.*;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
-import apps.sarafrika.elimika.availability.dto.InstructorCalendarEntryDTO;
-import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
-import apps.sarafrika.elimika.timetabling.spi.TimetableService;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleLookupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -48,7 +47,7 @@ import java.util.UUID;
 public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
-    private final TimetableService timetableService;
+    private final InstructorScheduleLookupService instructorScheduleLookupService;
 
     // ================================
     // AVAILABILITY BULK OPERATIONS & CALENDAR
@@ -157,7 +156,8 @@ public class AvailabilityController {
                 .forEach(date -> availabilityService.getAvailabilityForDate(instructorUuid, date)
                         .forEach(slot -> entries.add(mapAvailabilityEntry(date, slot))));
 
-        List<ScheduledInstanceDTO> scheduledInstances = timetableService.getScheduleForInstructor(instructorUuid, startDate, endDate);
+        List<InstructorScheduleEntry> scheduledInstances = instructorScheduleLookupService.getScheduleForInstructor(
+                instructorUuid, startDate, endDate);
         scheduledInstances.forEach(instance -> entries.add(mapScheduledInstanceEntry(instance)));
 
         return ResponseEntity.ok(ApiResponse.success(entries, "Instructor calendar retrieved successfully"));
@@ -252,7 +252,7 @@ public class AvailabilityController {
         );
     }
 
-    private InstructorCalendarEntryDTO mapScheduledInstanceEntry(ScheduledInstanceDTO instance) {
+    private InstructorCalendarEntryDTO mapScheduledInstanceEntry(InstructorScheduleEntry instance) {
         return new InstructorCalendarEntryDTO(
                 instance.uuid(),
                 InstructorCalendarEntryDTO.CalendarEntryType.SCHEDULED_INSTANCE,

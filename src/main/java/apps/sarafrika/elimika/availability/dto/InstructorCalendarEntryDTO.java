@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.availability.dto;
 
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
-import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -41,7 +41,7 @@ public record InstructorCalendarEntryDTO(
 
         @Schema(description = "Scheduled instance status when applicable", example = "SCHEDULED")
         @JsonProperty("status")
-        SchedulingStatus status,
+        InstructorScheduleStatus status,
 
         @Schema(description = "Optional title (for scheduled instances)", example = "Intro to Java")
         @JsonProperty("title")

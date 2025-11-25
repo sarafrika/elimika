@@ -1,7 +1,5 @@
 package apps.sarafrika.elimika.shared.config;
 
-import apps.sarafrika.elimika.commerce.medusa.exception.MedusaIntegrationException;
-import apps.sarafrika.elimika.notifications.preferences.spi.exceptions.PreferencesException;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.exceptions.AgeRestrictionException;
 import apps.sarafrika.elimika.shared.exceptions.DatabaseAuditException;
@@ -205,22 +203,6 @@ public class GlobalExceptionHandler {
         log.error("Identity provider error [errorId={}]", errorId, ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ApiResponse.error("Identity provider request failed", ex.getMessage()));
-    }
-
-    @ExceptionHandler(MedusaIntegrationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMedusaIntegrationException(MedusaIntegrationException ex) {
-        String errorId = UUID.randomUUID().toString();
-        log.error("Medusa integration error [errorId={}]", errorId, ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ApiResponse.error("Commerce service request failed", ex.getMessage()));
-    }
-
-    @ExceptionHandler(PreferencesException.class)
-    public ResponseEntity<ApiResponse<Void>> handlePreferencesException(PreferencesException ex) {
-        String errorId = UUID.randomUUID().toString();
-        log.error("Notification preferences error [errorId={}]", errorId, ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Unable to load notification preferences", ex.getMessage()));
     }
 
     /**
