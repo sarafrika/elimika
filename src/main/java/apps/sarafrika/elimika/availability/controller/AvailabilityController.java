@@ -30,10 +30,10 @@ import java.util.UUID;
  * and availability checking operations.
  *
  * Endpoint Structure:
- * - /api/v1/instructors/{instructorUuid}/availability - Manage all availability
- * - /api/v1/instructors/{instructorUuid}/availability/slots - Manage individual slots
  * - /api/v1/instructors/{instructorUuid}/availability/patterns - Set recurring patterns
  * - /api/v1/instructors/{instructorUuid}/availability/check - Check availability
+ * - /api/v1/instructors/{instructorUuid}/availability/block - Block time
+ * - /api/v1/instructors/{instructorUuid}/availability/calendar - Merged calendar feed
  *
  * @author Wilfred Njuguna
  * @version 1.0
@@ -132,10 +132,6 @@ public class AvailabilityController {
     // AVAILABILITY QUERIES
     // ================================
 
-    @Operation(
-        summary = "Get availability for a specific date",
-        description = "Retrieves all availability slots (including from patterns) for an instructor on a specific date"
-    )
     @Operation(
         summary = "Get merged instructor calendar",
         description = "Returns a merged feed of availability slots, blocked time, and scheduled instances for the instructor within a date range."
