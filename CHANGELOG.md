@@ -1,3 +1,10 @@
+# [2.40.0](https://github.com/sarafrika/elimika/compare/v2.39.0...v2.40.0) (2025-12-02)
+
+
+### Features
+
+* generate readable class variant skus ([efa31ec](https://github.com/sarafrika/elimika/commit/efa31ecd91c413136dbefe2f52dfb4b53be2f6f3))
+
 # [2.39.0](https://github.com/sarafrika/elimika/compare/v2.38.1...v2.39.0) (2025-12-02)
 
 
