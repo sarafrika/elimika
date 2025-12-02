@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,4 +21,6 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     long countByDifficultyUuid(UUID difficultyUuid);
 
     long countByStatus(ContentStatus status);
+
+    List<Course> findByStatus(ContentStatus status);
 }
