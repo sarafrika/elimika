@@ -48,9 +48,9 @@ public class CommerceCatalogueController {
                 .body(ApiResponse.success(dto, "Catalogue item created successfully"));
     }
 
-    @Operation(summary = "Get catalogue mapping by course or class", description = "Tries course first, then class")
-    @GetMapping("/lookup")
-    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> getByCourseOrClass(
+    @Operation(summary = "Search catalogue mapping by course or class", description = "Tries course first, then class")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> searchByCourseOrClass(
             @RequestParam(name = "course_uuid", required = false) UUID courseUuid,
             @RequestParam(name = "class_uuid", required = false) UUID classDefinitionUuid) {
         return catalogService.getByCourseOrClass(courseUuid, classDefinitionUuid)
