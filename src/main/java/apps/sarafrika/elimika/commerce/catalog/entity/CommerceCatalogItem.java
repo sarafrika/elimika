@@ -33,4 +33,7 @@ public class CommerceCatalogItem extends BaseEntity {
 
     @Column(name = "active")
     private boolean active = true;
+
+    @Column(name = "publicly_visible")
+    private boolean publiclyVisible = true;
 }

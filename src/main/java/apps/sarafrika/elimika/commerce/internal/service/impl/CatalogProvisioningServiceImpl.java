@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.commerce.internal.service.impl;
 
+import apps.sarafrika.elimika.commerce.catalog.entity.CommerceCatalogItem;
+import apps.sarafrika.elimika.commerce.catalog.repository.CommerceCatalogItemRepository;
 import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceProduct;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
@@ -8,6 +10,7 @@ import apps.sarafrika.elimika.commerce.internal.enums.VariantStatus;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductRepository;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.commerce.internal.service.CatalogProvisioningService;
+import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -29,6 +32,7 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
 
     private final CommerceProductRepository productRepository;
     private final CommerceProductVariantRepository variantRepository;
+    private final CommerceCatalogItemRepository catalogItemRepository;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final InternalCommerceProperties internalCommerceProperties;
 
@@ -53,8 +57,10 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         CommerceProduct product = productRepository.findByCourseUuid(courseUuid)
                 .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
 
-        variantRepository.findByCode(classDefinitionUuid.toString())
+        CommerceProductVariant variant = variantRepository.findByCode(classDefinitionUuid.toString())
                 .orElseGet(() -> createVariant(product, classDefinitionUuid, snapshot));
+
+        upsertCatalogItem(product, variant, snapshot);
     }
 
     private CommerceProduct createCourseProduct(UUID courseUuid, ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
@@ -86,11 +92,29 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         return saved;
     }
 
+    private void upsertCatalogItem(CommerceProduct product, CommerceProductVariant variant,
+                                   ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        CommerceCatalogItem item = catalogItemRepository.findByClassDefinitionUuid(snapshot.classDefinitionUuid())
+                .orElseGet(CommerceCatalogItem::new);
+        item.setCourseUuid(snapshot.courseUuid());
+        item.setClassDefinitionUuid(snapshot.classDefinitionUuid());
+        item.setProductCode(product.getUuid() == null ? null : product.getUuid().toString());
+        item.setVariantCode(variant.getCode());
+        item.setCurrencyCode(variant.getCurrencyCode());
+        item.setActive(true);
+        item.setPubliclyVisible(resolveVisibility(snapshot.classVisibility()));
+        catalogItemRepository.save(item);
+    }
+
     private BigDecimal resolvePrice(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
         if (snapshot.trainingFee() != null) {
             return snapshot.trainingFee().setScale(4, RoundingMode.HALF_UP);
         }
         return ZERO;
+    }
+
+    private boolean resolveVisibility(ClassVisibility visibility) {
+        return visibility == null || visibility == ClassVisibility.PUBLIC;
     }
 
     private String resolveCurrency() {

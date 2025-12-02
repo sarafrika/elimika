@@ -42,6 +42,10 @@ public record CommerceCatalogItemDTO(
         @JsonProperty("active")
         boolean active,
 
+        @Schema(description = "Whether this catalog item is visible to public storefronts")
+        @JsonProperty("publicly_visible")
+        boolean publiclyVisible,
+
         @Schema(description = "Created timestamp")
         @JsonProperty("created_date")
         LocalDateTime createdDate,

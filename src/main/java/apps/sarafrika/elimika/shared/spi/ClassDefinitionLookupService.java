@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.shared.spi;
 
 import java.util.Optional;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 
 /**
  * Cross-module lookup service exposing read-only class definition attributes.
@@ -17,7 +18,8 @@ public interface ClassDefinitionLookupService {
                         null,
                         snapshot.title(),
                         snapshot.description(),
-                        snapshot.trainingFee()));
+                        snapshot.trainingFee(),
+                        snapshot.classVisibility()));
     }
 
     record ClassDefinitionSnapshot(
@@ -25,6 +27,7 @@ public interface ClassDefinitionLookupService {
             UUID courseUuid,
             String title,
             String description,
-            java.math.BigDecimal trainingFee
+            java.math.BigDecimal trainingFee,
+            ClassVisibility classVisibility
     ) { }
 }

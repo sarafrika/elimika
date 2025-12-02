@@ -36,5 +36,9 @@ public record UpsertCommerceCatalogItemRequest(
 
         @Schema(description = "Active flag")
         @JsonProperty("active")
-        Boolean active) {
+        Boolean active,
+
+        @Schema(description = "Whether the catalog item should be visible to public storefront queries")
+        @JsonProperty("publicly_visible")
+        Boolean publiclyVisible) {
 }

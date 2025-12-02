@@ -4,11 +4,10 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.util.Optional;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +30,8 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
                     dto.courseUuid(),
                     dto.title(),
                     dto.description(),
-                    dto.trainingFee()
+                    dto.trainingFee(),
+                    dto.classVisibility()
             ));
         } catch (ResourceNotFoundException ex) {
             return Optional.empty();

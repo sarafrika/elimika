@@ -76,6 +76,9 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
         if (request.active() != null) {
             entity.setActive(request.active());
         }
+        if (request.publiclyVisible() != null) {
+            entity.setPubliclyVisible(request.publiclyVisible());
+        }
     }
 
     private CommerceCatalogItem saveEntity(CommerceCatalogItem entity) {
@@ -101,6 +104,7 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
                 .variantCode(entity.getVariantCode())
                 .currencyCode(entity.getCurrencyCode())
                 .active(entity.isActive())
+                .publiclyVisible(entity.isPubliclyVisible())
                 .createdDate(entity.getCreatedDate())
                 .updatedDate(entity.getLastModifiedDate())
                 .build();
