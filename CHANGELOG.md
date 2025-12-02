@@ -1,3 +1,15 @@
+# [2.39.0](https://github.com/sarafrika/elimika/compare/v2.38.1...v2.39.0) (2025-12-02)
+
+
+### Bug Fixes
+
+* allow optional user phone numbers ([a9ece75](https://github.com/sarafrika/elimika/commit/a9ece758abce385149e2599105761352dc258484))
+
+
+### Features
+
+* auto provision catalog items with visibility ([ad17a25](https://github.com/sarafrika/elimika/commit/ad17a25a0b4b064e79fbe33aa3124f7949019785))
+
 ## [2.38.1](https://github.com/sarafrika/elimika/compare/v2.38.0...v2.38.1) (2025-11-25)
 
 
