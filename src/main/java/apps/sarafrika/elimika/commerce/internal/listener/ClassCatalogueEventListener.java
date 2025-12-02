@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.commerce.internal.listener;
 
-import apps.sarafrika.elimika.commerce.internal.service.CatalogProvisioningService;
+import apps.sarafrika.elimika.commerce.internal.service.CatalogueProvisioningService;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import lombok.RequiredArgsConstructor;
@@ -9,14 +9,14 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Synchronises class definitions into the internal commerce catalog when new classes are created or updated.
+ * Synchronises class definitions into the internal commerce catalogue when new classes are created or updated.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ClassCatalogEventListener {
+public class ClassCatalogueEventListener {
 
-    private final CatalogProvisioningService catalogProvisioningService;
+    private final CatalogueProvisioningService catalogProvisioningService;
 
     @EventListener
     public void onClassDefined(ClassDefinedEventDTO event) {

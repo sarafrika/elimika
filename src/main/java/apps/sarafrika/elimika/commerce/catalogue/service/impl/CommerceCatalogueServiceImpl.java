@@ -1,10 +1,10 @@
-package apps.sarafrika.elimika.commerce.catalog.service.impl;
+package apps.sarafrika.elimika.commerce.catalogue.service.impl;
 
-import apps.sarafrika.elimika.commerce.catalog.dto.CommerceCatalogItemDTO;
-import apps.sarafrika.elimika.commerce.catalog.dto.UpsertCommerceCatalogItemRequest;
-import apps.sarafrika.elimika.commerce.catalog.entity.CommerceCatalogItem;
-import apps.sarafrika.elimika.commerce.catalog.repository.CommerceCatalogItemRepository;
-import apps.sarafrika.elimika.commerce.catalog.service.CommerceCatalogService;
+import apps.sarafrika.elimika.commerce.catalogue.dto.CommerceCatalogueItemDTO;
+import apps.sarafrika.elimika.commerce.catalogue.dto.UpsertCommerceCatalogueItemRequest;
+import apps.sarafrika.elimika.commerce.catalogue.entity.CommerceCatalogueItem;
+import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueItemRepository;
+import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueService;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -19,15 +19,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
-public class CommerceCatalogServiceImpl implements CommerceCatalogService {
+public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
-    private final CommerceCatalogItemRepository catalogItemRepository;
+    private final CommerceCatalogueItemRepository catalogItemRepository;
     private final CurrencyService currencyService;
 
     @Override
     @Transactional
-    public CommerceCatalogItemDTO updateItem(UUID catalogUuid, UpsertCommerceCatalogItemRequest request) {
-        CommerceCatalogItem entity = catalogItemRepository.findByUuid(catalogUuid)
+    public CommerceCatalogueItemDTO updateItem(UUID catalogUuid, UpsertCommerceCatalogueItemRequest request) {
+        CommerceCatalogueItem entity = catalogItemRepository.findByUuid(catalogUuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog item not found"));
         validateAssociation(request.courseUuid(), request.classDefinitionUuid());
         applyRequest(entity, request);
@@ -35,7 +35,7 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
     }
 
     @Override
-    public Optional<CommerceCatalogItemDTO> getByCourse(UUID courseUuid) {
+    public Optional<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid) {
         if (courseUuid == null) {
             return Optional.empty();
         }
@@ -43,7 +43,7 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
     }
 
     @Override
-    public Optional<CommerceCatalogItemDTO> getByClassDefinition(UUID classDefinitionUuid) {
+    public Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid) {
         if (classDefinitionUuid == null) {
             return Optional.empty();
         }
@@ -51,7 +51,7 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
     }
 
     @Override
-    public Optional<CommerceCatalogItemDTO> getByVariantCode(String variantCode) {
+    public Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode) {
         if (ObjectUtils.isEmpty(variantCode)) {
             return Optional.empty();
         }
@@ -59,14 +59,14 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
     }
 
     @Override
-    public List<CommerceCatalogItemDTO> listAll(Boolean activeOnly) {
-        List<CommerceCatalogItem> entities = Boolean.TRUE.equals(activeOnly)
+    public List<CommerceCatalogueItemDTO> listAll(Boolean activeOnly) {
+        List<CommerceCatalogueItem> entities = Boolean.TRUE.equals(activeOnly)
                 ? catalogItemRepository.findByActiveTrue()
                 : catalogItemRepository.findAll();
         return entities.stream().map(this::toDto).toList();
     }
 
-    private void applyRequest(CommerceCatalogItem entity, UpsertCommerceCatalogItemRequest request) {
+    private void applyRequest(CommerceCatalogueItem entity, UpsertCommerceCatalogueItemRequest request) {
         entity.setCourseUuid(request.courseUuid());
         entity.setClassDefinitionUuid(request.classDefinitionUuid());
         entity.setProductCode(request.productCode());
@@ -81,7 +81,7 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
         }
     }
 
-    private CommerceCatalogItem saveEntity(CommerceCatalogItem entity) {
+    private CommerceCatalogueItem saveEntity(CommerceCatalogueItem entity) {
         try {
             return catalogItemRepository.save(entity);
         } catch (DataIntegrityViolationException ex) {
@@ -95,8 +95,8 @@ public class CommerceCatalogServiceImpl implements CommerceCatalogService {
         }
     }
 
-    private CommerceCatalogItemDTO toDto(CommerceCatalogItem entity) {
-        return CommerceCatalogItemDTO.builder()
+    private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity) {
+        return CommerceCatalogueItemDTO.builder()
                 .uuid(entity.getUuid())
                 .courseUuid(entity.getCourseUuid())
                 .classDefinitionUuid(entity.getClassDefinitionUuid())

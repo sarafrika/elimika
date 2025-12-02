@@ -32,7 +32,7 @@ public class CartItemResponse {
     @JsonProperty("quantity")
     private final int quantity;
 
-    @Schema(description = "Variant identifier within the commerce catalog", example = "variant_01HZX1Y4K8R0HVWZ4Q6CF6M1AP")
+    @Schema(description = "Variant identifier within the commerce catalogue", example = "variant_01HZX1Y4K8R0HVWZ4Q6CF6M1AP")
     @JsonProperty("variant_id")
     private final String variantId;
 

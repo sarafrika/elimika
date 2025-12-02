@@ -1,17 +1,17 @@
 # Elimika
 
 ## Overview
-Elimika is Sarafrika's modular learning platform backend. It orchestrates courses, classes, organizations, and learner experiences while handling authentication, scheduling, and commerce in one Spring Boot 3.5 service targeting Java 21. Publishing a course or class automatically syncs it to the public catalog and Medusa commerce stack, keeping storefront data consistent without manual API calls.
+Elimika is Sarafrika's modular learning platform backend. It orchestrates courses, classes, organizations, and learner experiences while handling authentication, scheduling, and commerce in one Spring Boot 3.5 service targeting Java 21. Publishing a course or class automatically syncs it to the public catalogue and Medusa commerce stack, keeping storefront data consistent without manual API calls.
 
 ## Core Capabilities
 - Domain-driven modules for courses, class definitions, timetabling, availability, and assessments
 - Organization, instructor, and student domains with Keycloak-backed identity and role management
-- Commerce workflows that generate paywalls, track purchases, and push catalog data to Medusa
+- Commerce workflows that generate paywalls, track purchases, and push catalogue data to Medusa
 - Notification and email services for enrollment, invitations, and progress updates
 - Flyway-managed PostgreSQL schema migrations and storage helpers for media assets
 
 ## Architecture & Stack
-The service runs on Spring Boot with Spring Modulith, Jakarta Validation, and JPA/Hibernate. Authentication uses Keycloak 26+, while payments and catalog operations integrate with Medusa. Persistent data lives in PostgreSQL; Flyway migrations under `src/main/resources/db/migration` execute on startup. Semantic-release (pnpm) automates versioning and changelog updates.
+The service runs on Spring Boot with Spring Modulith, Jakarta Validation, and JPA/Hibernate. Authentication uses Keycloak 26+, while payments and catalogue operations integrate with Medusa. Persistent data lives in PostgreSQL; Flyway migrations under `src/main/resources/db/migration` execute on startup. Semantic-release (pnpm) automates versioning and changelog updates.
 
 ## Prerequisites
 - Java 21 runtime (the Gradle wrapper manages builds)

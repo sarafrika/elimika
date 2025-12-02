@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.commerce.catalog.dto;
+package apps.sarafrika.elimika.commerce.catalogue.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,8 +10,8 @@ import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "CommerceCatalogItemUpsertRequest", description = "Payload for creating or updating catalog mappings")
-public record UpsertCommerceCatalogItemRequest(
+@Schema(name = "CommerceCatalogueItemUpsertRequest", description = "Payload for creating or updating catalogue mappings")
+public record UpsertCommerceCatalogueItemRequest(
         @Schema(description = "Course UUID to associate", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         @JsonProperty("course_uuid")
         UUID courseUuid,
@@ -38,7 +38,7 @@ public record UpsertCommerceCatalogItemRequest(
         @JsonProperty("active")
         Boolean active,
 
-        @Schema(description = "Whether the catalog item should be visible to public storefront queries")
+        @Schema(description = "Whether the catalogue item should be visible to public storefront queries")
         @JsonProperty("publicly_visible")
         Boolean publiclyVisible) {
 }

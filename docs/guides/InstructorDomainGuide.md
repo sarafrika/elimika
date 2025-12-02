@@ -71,7 +71,7 @@ Assignment is done by adding an entry to the `user_domain_mapping` table linking
 
 **Capabilities**:
 - Create public courses accessible to all students
-- Publish to platform course catalog
+- Publish to platform course catalogue
 - Earn revenue from course enrollments
 - Build instructor reputation and ratings
 

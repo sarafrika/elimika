@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.commerce.internal.listener;
 
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
-import apps.sarafrika.elimika.commerce.internal.service.CatalogProvisioningService;
+import apps.sarafrika.elimika.commerce.internal.service.CatalogueProvisioningService;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
@@ -15,23 +15,23 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Backfills catalog entries for already published courses/classes on startup.
+ * Backfills catalogue entries for already published courses/classes on startup.
  * This is idempotent and only runs when internal commerce is enabled.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class CatalogBackfillInitializer implements ApplicationListener<ApplicationReadyEvent> {
+public class CatalogueBackfillInitializer implements ApplicationListener<ApplicationReadyEvent> {
 
     private final InternalCommerceProperties internalCommerceProperties;
     private final CourseRepository courseRepository;
     private final ClassDefinitionRepository classDefinitionRepository;
-    private final CatalogProvisioningService catalogProvisioningService;
+    private final CatalogueProvisioningService catalogProvisioningService;
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
         if (!Boolean.TRUE.equals(internalCommerceProperties.getEnabled())) {
-            log.info("Internal commerce disabled; skipping catalog backfill");
+            log.info("Internal commerce disabled; skipping catalogue backfill");
             return;
         }
 

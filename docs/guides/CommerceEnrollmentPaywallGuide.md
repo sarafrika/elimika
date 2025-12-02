@@ -59,19 +59,19 @@ Use the following ordered steps in your UI to ensure cart and checkout interacti
 
 Each cart line item represents a prepaid entitlement for a specific learner to access a course (and optionally a scheduled class). The identifiers you pass tell the backend exactly which records should be unlocked:
 
-- **Course UUID** – Primary key from the Elimika course catalog (`courses` table). One course may have multiple classes; paying it typically unlocks all course resources.
+- **Course UUID** – Primary key from the Elimika course catalogue (`courses` table). One course may have multiple classes; paying it typically unlocks all course resources.
 - **Class Definition UUID** – Identifier for a scheduled class template (`class_definitions` table). It maps to cohorts or recurring sessions that the student will attend.
 - **Student UUID** – Primary key for the learner in the `students` table (not the user UUID). Supports scenarios where a guardian purchases on behalf of a dependent.
 - **Variant ID** – Internal commerce variant code/UUID representing the SKU for this course/class access.
 
-### Fetching Catalog Metadata
+### Fetching Catalogue Metadata
 
-Use the dedicated catalog API to retrieve the internal product/variant for a course or class before building the cart payload:
+Use the dedicated catalogue API to retrieve the internal product/variant for a course or class before building the cart payload:
 
-- `GET /api/v1/commerce/catalog/by-course/{courseUuid}` – returns the variant identifiers for a course-level purchase.
-- `GET /api/v1/commerce/catalog/by-class/{classDefinitionUuid}` – returns the variant tied to a specific class definition.
+- `GET /api/v1/commerce/catalogue/by-course/{courseUuid}` – returns the variant identifiers for a course-level purchase.
+- `GET /api/v1/commerce/catalogue/by-class/{classDefinitionUuid}` – returns the variant tied to a specific class definition.
 
-Catalog items are managed via `POST/PUT /api/v1/commerce/catalog` by operations/admin tooling, ensuring the storefront can simply query and reuse the stored mapping.
+Catalogue items are managed via `POST/PUT /api/v1/commerce/catalogue` by operations/admin tooling, ensuring the storefront can simply query and reuse the stored mapping.
 
 Every cart line item must include metadata so the backend can tie a payment to course/class access. Missing keys will cause the paywall to block enrollment even after checkout.
 
@@ -80,13 +80,13 @@ Every cart line item must include metadata so the backend can tie a payment to c
 | `course_uuid`           | UUID    | Yes      | Course granting access. Obtain this from the Course Catalogue API / course detail view that powers the storefront.                                   |
 | `class_definition_uuid` | UUID    | Yes      | Class definition selected during scheduling. Fetch via the Class Definitions API (`GET /api/v1/classes/…`) when rendering available cohorts/sessions. |
 | `student_uuid`          | UUID    | Yes      | Student who will consume the access (supports parents/admins purchasing for others). Read from the learner profile context or student selection UI.  |
-| `variant_id`            | String  | Yes      | Internal commerce variant identifier representing the SKU for this product. Retrieve via the catalog endpoints above.                                |
+| `variant_id`            | String  | Yes      | Internal commerce variant identifier representing the SKU for this product. Retrieve via the catalogue endpoints above.                                |
 
 **Example Payload When Adding A Line Item**
 
 Before calling this endpoint you should already have:
 
-1. Looked up the internal product/variant that represents the course seat via the catalog endpoints or preloaded catalog.
+1. Looked up the internal product/variant that represents the course seat via the catalogue endpoints or preloaded catalog.
 2. Pulled the `course_uuid` and `class_definition_uuid` from the course/class APIs as the learner chooses an offering.
 3. Selected the `student_uuid` (current user or dependent) from the tenant’s student directory.
 

@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.commerce.internal.service.impl;
 
-import apps.sarafrika.elimika.commerce.catalog.entity.CommerceCatalogItem;
-import apps.sarafrika.elimika.commerce.catalog.repository.CommerceCatalogItemRepository;
+import apps.sarafrika.elimika.commerce.catalogue.entity.CommerceCatalogueItem;
+import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueItemRepository;
 import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceProduct;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
@@ -9,7 +9,7 @@ import apps.sarafrika.elimika.commerce.internal.enums.ProductStatus;
 import apps.sarafrika.elimika.commerce.internal.enums.VariantStatus;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductRepository;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
-import apps.sarafrika.elimika.commerce.internal.service.CatalogProvisioningService;
+import apps.sarafrika.elimika.commerce.internal.service.CatalogueProvisioningService;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import jakarta.transaction.Transactional;
@@ -26,13 +26,13 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
-public class CatalogProvisioningServiceImpl implements CatalogProvisioningService {
+public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
 
     private final CommerceProductRepository productRepository;
     private final CommerceProductVariantRepository variantRepository;
-    private final CommerceCatalogItemRepository catalogItemRepository;
+    private final CommerceCatalogueItemRepository catalogItemRepository;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final InternalCommerceProperties internalCommerceProperties;
 
@@ -54,7 +54,7 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
             return;
         }
 
-        Optional<CommerceCatalogItem> existingCatalogItem = catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        Optional<CommerceCatalogueItem> existingCatalogItem = catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid);
         CommerceProduct product = productRepository.findByCourseUuid(courseUuid)
                 .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
 
@@ -77,7 +77,7 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         return saved;
     }
 
-    private CommerceProductVariant resolveVariant(Optional<CommerceCatalogItem> existingCatalogItem,
+    private CommerceProductVariant resolveVariant(Optional<CommerceCatalogueItem> existingCatalogItem,
                                                   CommerceProduct product,
                                                   UUID classDefinitionUuid,
                                                   ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
@@ -112,9 +112,9 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         return saved;
     }
 
-    private void upsertCatalogItem(CommerceCatalogItem existingItem, CommerceProduct product, CommerceProductVariant variant,
+    private void upsertCatalogItem(CommerceCatalogueItem existingItem, CommerceProduct product, CommerceProductVariant variant,
                                    ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
-        CommerceCatalogItem item = existingItem == null ? new CommerceCatalogItem() : existingItem;
+        CommerceCatalogueItem item = existingItem == null ? new CommerceCatalogueItem() : existingItem;
         item.setCourseUuid(snapshot.courseUuid());
         item.setClassDefinitionUuid(snapshot.classDefinitionUuid());
         item.setProductCode(product.getUuid() == null ? null : product.getUuid().toString());

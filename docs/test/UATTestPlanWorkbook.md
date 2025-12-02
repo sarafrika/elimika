@@ -92,7 +92,7 @@ Features: schedule instance, enrollment, attendance, conflicts.
   - TT-06: Conflict detection for instructor and student → overlapping times rejected.
 
 ### 8) Commerce & Payments
-Features: purchases/orders, catalog pricing, rate card alignment, paywall before enrollment, platform fees.
+Features: purchases/orders, catalogue pricing, rate card alignment, paywall before enrollment, platform fees.
 - Scenarios:
   - COM-01: Create order for class enrollment → totals match rate card and platform fee breakdown.
   - COM-02: Paywall enforced before enrollment when required → API blocks unpaid enrollment.

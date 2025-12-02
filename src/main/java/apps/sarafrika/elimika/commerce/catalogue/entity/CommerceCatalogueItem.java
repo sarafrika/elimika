@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.commerce.catalog.entity;
+package apps.sarafrika.elimika.commerce.catalogue.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.Column;
@@ -13,8 +13,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "commerce_catalog_item")
-public class CommerceCatalogItem extends BaseEntity {
+@Table(name = "commerce_catalogue_item")
+public class CommerceCatalogueItem extends BaseEntity {
 
     @Column(name = "course_uuid")
     private UUID courseUuid;

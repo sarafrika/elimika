@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.commerce.catalog.dto;
+package apps.sarafrika.elimika.commerce.catalogue.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -12,9 +12,9 @@ import lombok.Builder;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "CommerceCatalogItem", description = "Mapping between Elimika courses/classes and internal commerce variants")
-public record CommerceCatalogItemDTO(
-        @Schema(description = "Catalog item UUID")
+@Schema(name = "CommerceCatalogueItem", description = "Mapping between Elimika courses/classes and internal commerce variants")
+public record CommerceCatalogueItemDTO(
+        @Schema(description = "Catalogue item UUID")
         @JsonProperty("uuid")
         UUID uuid,
 
@@ -42,7 +42,7 @@ public record CommerceCatalogItemDTO(
         @JsonProperty("active")
         boolean active,
 
-        @Schema(description = "Whether this catalog item is visible to public storefronts")
+        @Schema(description = "Whether this catalogue item is visible to public storefronts")
         @JsonProperty("publicly_visible")
         boolean publiclyVisible,
 

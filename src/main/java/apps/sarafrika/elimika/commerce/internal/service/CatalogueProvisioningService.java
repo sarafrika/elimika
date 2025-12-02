@@ -5,7 +5,7 @@ import java.util.UUID;
 /**
  * Provisions internal commerce catalog entries when courses/classes are published.
  */
-public interface CatalogProvisioningService {
+public interface CatalogueProvisioningService {
 
     /**
      * Ensures a class definition has a purchasable variant under its parent course product.
