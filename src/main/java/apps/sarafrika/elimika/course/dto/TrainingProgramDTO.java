@@ -42,7 +42,6 @@ import java.util.UUID;
             "updated_date": "2024-04-15T15:30:00",
             "updated_by": "instructor@sarafrika.com",
             "total_duration_display": "120 hours 30 minutes",
-            "is_free": false,
             "is_published": true,
             "program_type": "Comprehensive Masterclass"
         }

@@ -5,9 +5,17 @@ import apps.sarafrika.elimika.commerce.catalogue.dto.UpsertCommerceCatalogueItem
 import apps.sarafrika.elimika.commerce.catalogue.entity.CommerceCatalogueItem;
 import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueItemRepository;
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueService;
+import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService;
+import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService.VisibilityContext;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +31,8 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     private final CommerceCatalogueItemRepository catalogItemRepository;
     private final CurrencyService currencyService;
+    private final GenericSpecificationBuilder<CommerceCatalogueItem> specificationBuilder;
+    private final CommerceCatalogueAccessService accessService;
 
     @Override
     @Transactional
@@ -45,48 +55,60 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     @Override
     public Optional<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid) {
-        if (courseUuid == null) {
-            return Optional.empty();
-        }
-        return catalogItemRepository.findByCourseUuid(courseUuid).map(this::toDto);
+        return getByCourse(courseUuid, accessService.buildContext());
     }
 
     @Override
     public Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid) {
-        if (classDefinitionUuid == null) {
-            return Optional.empty();
-        }
-        return catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid).map(this::toDto);
+        return getByClassDefinition(classDefinitionUuid, accessService.buildContext());
     }
 
     @Override
     public Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode) {
-        if (ObjectUtils.isEmpty(variantCode)) {
-            return Optional.empty();
-        }
-        return catalogItemRepository.findByVariantCode(variantCode).map(this::toDto);
+        return mapIfVisible(
+                ObjectUtils.isEmpty(variantCode)
+                        ? Optional.empty()
+                        : catalogItemRepository.findByVariantCode(variantCode),
+                accessService.buildContext());
     }
 
     @Override
     public Optional<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid) {
-        if (courseUuid != null) {
-            Optional<CommerceCatalogueItemDTO> byCourse = getByCourse(courseUuid);
-            if (byCourse.isPresent()) {
-                return byCourse;
-            }
+        VisibilityContext context = accessService.buildContext();
+        Optional<CommerceCatalogueItemDTO> byCourse = getByCourse(courseUuid, context);
+        if (byCourse.isPresent()) {
+            return byCourse;
         }
-        if (classDefinitionUuid != null) {
-            return getByClassDefinition(classDefinitionUuid);
-        }
-        return Optional.empty();
+        return getByClassDefinition(classDefinitionUuid, context);
     }
 
     @Override
     public List<CommerceCatalogueItemDTO> listAll(Boolean activeOnly) {
-        List<CommerceCatalogueItem> entities = Boolean.TRUE.equals(activeOnly)
-                ? catalogItemRepository.findByActiveTrue()
-                : catalogItemRepository.findAll();
+        Map<String, String> params = new HashMap<>();
+        if (Boolean.TRUE.equals(activeOnly)) {
+            params.put("active", "true");
+        }
+        applyPublicFilterWhenAnonymous(params);
+
+        Specification<CommerceCatalogueItem> spec = specificationBuilder.buildSpecification(
+                CommerceCatalogueItem.class, params);
+        List<CommerceCatalogueItem> entities = spec == null
+                ? catalogItemRepository.findAll()
+                : catalogItemRepository.findAll(spec);
         return entities.stream().map(this::toDto).toList();
+    }
+
+    @Override
+    public Page<CommerceCatalogueItemDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        Map<String, String> effectiveParams = new HashMap<>(searchParams);
+        applyPublicFilterWhenAnonymous(effectiveParams);
+
+        Specification<CommerceCatalogueItem> spec = specificationBuilder.buildSpecification(
+                CommerceCatalogueItem.class, effectiveParams);
+        Page<CommerceCatalogueItem> page = spec == null
+                ? catalogItemRepository.findAll(pageable)
+                : catalogItemRepository.findAll(spec, pageable);
+        return page.map(this::toDto);
     }
 
     private void applyRequest(CommerceCatalogueItem entity, UpsertCommerceCatalogueItemRequest request) {
@@ -131,5 +153,31 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .createdDate(entity.getCreatedDate())
                 .updatedDate(entity.getLastModifiedDate())
                 .build();
+    }
+
+    private Optional<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid, VisibilityContext context) {
+        if (courseUuid == null) {
+            return Optional.empty();
+        }
+        return mapIfVisible(catalogItemRepository.findByCourseUuid(courseUuid), context);
+    }
+
+    private Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid, VisibilityContext context) {
+        if (classDefinitionUuid == null) {
+            return Optional.empty();
+        }
+        return mapIfVisible(catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid), context);
+    }
+
+    private Optional<CommerceCatalogueItemDTO> mapIfVisible(Optional<CommerceCatalogueItem> item, VisibilityContext context) {
+        return item.filter(candidate -> accessService.canView(candidate, context))
+                .map(this::toDto);
+    }
+
+    private void applyPublicFilterWhenAnonymous(Map<String, String> params) {
+        VisibilityContext context = accessService.buildContext();
+        if (!context.authenticated() && !params.containsKey("publiclyVisible")) {
+            params.put("publiclyVisible", "true");
+        }
     }
 }

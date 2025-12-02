@@ -194,7 +194,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         return trainingProgramRepository.findByPriceIsNullOrPrice(BigDecimal.ZERO)
                 .stream()
                 .map(TrainingProgramFactory::toDTO)
-                .filter(TrainingProgramDTO::isFree) // Using computed property
+                .filter(dto -> dto.price() == null || BigDecimal.ZERO.compareTo(dto.price()) >= 0)
                 .collect(Collectors.toList());
     }
 
