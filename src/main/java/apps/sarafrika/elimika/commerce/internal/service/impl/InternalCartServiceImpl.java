@@ -20,6 +20,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderItemRepo
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderRepository;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
+import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +54,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final CommerceOrderItemRepository orderItemRepository;
     private final InternalCommerceMapper mapper;
     private final ObjectMapper objectMapper;
+    private final RegionResolver regionResolver;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -64,7 +66,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         CommerceCart cart = new CommerceCart();
         cart.setStatus(CartStatus.OPEN);
         cart.setCurrencyCode(currencyCode);
-        cart.setRegionCode(request.getRegionCode());
+        cart.setRegionCode(regionResolver.resolveRegionCode(request.getRegionCode()));
         cart.setMetadataJson(writeMetadata(sanitizeMetadata(request.getMetadata())));
         cart = cartRepository.save(cart);
 
