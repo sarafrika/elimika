@@ -1,3 +1,10 @@
+## [2.38.1](https://github.com/sarafrika/elimika/compare/v2.38.0...v2.38.1) (2025-11-25)
+
+
+### Bug Fixes
+
+* populate internal catalog from class definitions ([4e6ff73](https://github.com/sarafrika/elimika/commit/4e6ff7370f6824fadb15f19cb46a130498e5bbc9))
+
 # [2.38.0](https://github.com/sarafrika/elimika/compare/v2.37.0...v2.38.0) (2025-11-25)
 
 
