@@ -419,21 +419,6 @@ public record CourseDTO(
     }
 
     /**
-     * Checks if the course is free (no price or price is 0).
-     *
-     * @return true if course is free
-     */
-    @JsonProperty(value = "is_free", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Indicates if the course is offered for free.",
-            example = "false",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public boolean isFree() {
-        return price == null || price.compareTo(BigDecimal.ZERO) == 0;
-    }
-
-    /**
      * Checks if the course is published and available to students.
      *
      * @return true if status is PUBLISHED

@@ -264,21 +264,6 @@ public record TrainingProgramDTO(
     }
 
     /**
-     * Checks if the program is free (no price or price is 0).
-     *
-     * @return true if program is free
-     */
-    @JsonProperty(value = "is_free", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Indicates if the program is offered for free.",
-            example = "false",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public boolean isFree() {
-        return price == null || price.compareTo(BigDecimal.ZERO) == 0;
-    }
-
-    /**
      * Returns a program type classification based on duration and title.
      *
      * @return Program type for categorization

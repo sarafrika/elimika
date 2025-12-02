@@ -55,8 +55,7 @@ GET /api/v1/courses/search?name_like=python&is_published=true&page=0&size=20
       "duration_minutes": 30,
       "status": "PUBLISHED",
       "active": true,
-      "is_free": false,
-      "is_published": true,
+      "      "is_published": true,
       "lifecycle_stage": "published",
       "category_names": ["Programming", "Python"],
       "category_uuids": ["880e8400-e29b-41d4-a716-446655440003"],
@@ -229,22 +228,17 @@ GET /api/v1/courses/search?lifecycle_stage=draft&course_creator_uuid=550e8400-..
 ```
 Finds all draft courses by a specific creator.
 
-### Free Courses (is_free)
-
+### Free Courses (
 Filter courses that are free (price is null or zero):
 
 ```http
-GET /api/v1/courses/search?is_free=true
-```
+GET /api/v1/courses/search?```
 
 **How it works:**
-- `is_free=true` - Returns courses where price is NULL or 0
-- `is_free=false` - Returns courses with price > 0
-
+- `- `
 **Example:**
 ```http
-GET /api/v1/courses/search?is_free=true&category_name=programming
-```
+GET /api/v1/courses/search?```
 Finds all free programming courses.
 
 ### Accepts New Enrollments
@@ -349,11 +343,9 @@ GET /api/v1/courses/search?price_lte=30
 
 ```http
 # Free courses
-GET /api/v1/courses/search?is_free=true
-
+GET /api/v1/courses/search?
 # Paid courses only
-GET /api/v1/courses/search?is_free=false
-```
+GET /api/v1/courses/search?```
 
 ---
 
@@ -406,8 +398,7 @@ Returns beginner courses that:
 ### Example 2: Find Available Free Programming Courses
 
 ```http
-GET /api/v1/courses/search?category_name=programming&is_free=true&accepts_new_enrollments=true
-```
+GET /api/v1/courses/search?category_name=programming&```
 
 Returns courses that:
 - Are in programming categories
@@ -597,8 +588,7 @@ GET /api/v1/courses/search?category_name=programming&page=2&size=15&sort=name,as
 The course search functionality uses a two-layer approach:
 
 1. **CourseSpecificationBuilder** - Handles domain-specific course searches
-   - Computed field searches (is_free, lifecycle_stage, accepts_new_enrollments)
-   - Relationship traversal (category_name, difficulty_name)
+   - Computed field searches (   - Relationship traversal (category_name, difficulty_name)
    - Complex enrollment-based queries
    - Custom predicates for course-specific logic
 
@@ -614,8 +604,7 @@ These parameters are extracted and processed specially:
 - `category_name` - Uses subquery on junction table
 - `difficulty_name` - Joins difficulty_levels table
 - `lifecycle_stage` - Maps to ContentStatus enum
-- `is_free` - Checks price is null or zero
-- `is_published`, `is_draft`, `is_archived`, `is_in_review` - Status shortcuts
+- `- `is_published`, `is_draft`, `is_archived`, `is_in_review` - Status shortcuts
 - `min_price`, `max_price` - Price range filters
 - `has_enrollments` - Subquery on enrollments
 - `accepts_new_enrollments` - Complex multi-condition check
@@ -773,8 +762,7 @@ GET /api/v1/courses/search?is_published=true
 
 ```http
 # Good - Specific query
-GET /api/v1/courses/search?category_name=python&difficulty_name=beginner&is_free=true
-
+GET /api/v1/courses/search?category_name=python&difficulty_name=beginner&
 # Less efficient - Too broad
 GET /api/v1/courses/search?category_name=programming
 ```
@@ -783,8 +771,7 @@ GET /api/v1/courses/search?category_name=programming
 
 ```http
 # Good - Uses computed field
-GET /api/v1/courses/search?is_free=true
-
+GET /api/v1/courses/search?
 # Works but less clear
 GET /api/v1/courses/search?price=0
 ```
@@ -840,8 +827,7 @@ GET /api/v1/courses/search?is_published=true
 ### Migration Benefits
 
 - **Clearer intent** - `is_published=true` vs `status=PUBLISHED`
-- **Computed fields** - Access DTO fields like `is_free`, `accepts_new_enrollments`
-- **Relationship traversal** - Search by `category_name` instead of category UUID
+- **Computed fields** - Access DTO fields like `- **Relationship traversal** - Search by `category_name` instead of category UUID
 - **Complex filters** - Use `accepts_new_enrollments` instead of multiple conditions
 
 ---
@@ -866,8 +852,7 @@ For questions, issues, or feature requests related to course search functionalit
 | `category_name` | String | Search by category name (partial match) |
 | `difficulty_name` | String | Search by difficulty level name (partial match) |
 | `lifecycle_stage` | Enum | draft, in_review, published, archived |
-| `is_free` | Boolean | Filter free courses |
-| `is_published` | Boolean | Filter published courses (status=PUBLISHED) |
+| `| `is_published` | Boolean | Filter published courses (status=PUBLISHED) |
 | `is_draft` | Boolean | Filter draft courses (status=DRAFT) |
 | `is_archived` | Boolean | Filter archived courses (status=ARCHIVED) |
 | `is_in_review` | Boolean | Filter in-review courses (status=IN_REVIEW) |

@@ -81,11 +81,7 @@ public class CourseSpecificationBuilder {
             specifications.add(hasLifecycleStage(lifecycleStage.trim()));
         }
 
-        // Handle is_free (computed field)
-        if (isFree != null) {
-            boolean free = Boolean.parseBoolean(isFree);
-            specifications.add(isFree(free));
-        }
+        // is_free removed (deprecated)
 
         // Handle status-based searches
         if (isPublished != null && Boolean.parseBoolean(isPublished)) {
@@ -170,7 +166,6 @@ public class CourseSpecificationBuilder {
         remainingParams.remove("category_name");
         remainingParams.remove("difficulty_name");
         remainingParams.remove("lifecycle_stage");
-        remainingParams.remove("is_free");
         remainingParams.remove("is_published");
         remainingParams.remove("is_draft");
         remainingParams.remove("is_archived");
