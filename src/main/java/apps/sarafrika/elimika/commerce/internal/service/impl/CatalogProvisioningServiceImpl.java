@@ -54,13 +54,13 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
             return;
         }
 
+        Optional<CommerceCatalogItem> existingCatalogItem = catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid);
         CommerceProduct product = productRepository.findByCourseUuid(courseUuid)
                 .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
 
-        CommerceProductVariant variant = variantRepository.findByCode(classDefinitionUuid.toString())
-                .orElseGet(() -> createVariant(product, classDefinitionUuid, snapshot));
+        CommerceProductVariant variant = resolveVariant(existingCatalogItem, product, classDefinitionUuid, snapshot);
 
-        upsertCatalogItem(product, variant, snapshot);
+        upsertCatalogItem(existingCatalogItem.orElse(null), product, variant, snapshot);
     }
 
     private CommerceProduct createCourseProduct(UUID courseUuid, ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
@@ -77,11 +77,31 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         return saved;
     }
 
+    private CommerceProductVariant resolveVariant(Optional<CommerceCatalogItem> existingCatalogItem,
+                                                  CommerceProduct product,
+                                                  UUID classDefinitionUuid,
+                                                  ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        if (existingCatalogItem.isPresent() && StringUtils.hasText(existingCatalogItem.get().getVariantCode())) {
+            Optional<CommerceProductVariant> existingVariant =
+                    variantRepository.findByCode(existingCatalogItem.get().getVariantCode());
+            if (existingVariant.isPresent()) {
+                return existingVariant.get();
+            }
+        }
+
+        Optional<CommerceProductVariant> legacyVariant = variantRepository.findByCode(classDefinitionUuid.toString());
+        if (legacyVariant.isPresent()) {
+            return legacyVariant.get();
+        }
+
+        return createVariant(product, classDefinitionUuid, snapshot);
+    }
+
     private CommerceProductVariant createVariant(CommerceProduct product, UUID classDefinitionUuid,
                                                  ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
         CommerceProductVariant variant = new CommerceProductVariant();
         variant.setProduct(product);
-        variant.setCode(classDefinitionUuid.toString());
+        variant.setCode(generateVariantCode(snapshot.title(), classDefinitionUuid));
         variant.setTitle(snapshot.title());
         variant.setCurrencyCode(resolveCurrency());
         variant.setUnitAmount(resolvePrice(snapshot));
@@ -92,10 +112,9 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
         return saved;
     }
 
-    private void upsertCatalogItem(CommerceProduct product, CommerceProductVariant variant,
+    private void upsertCatalogItem(CommerceCatalogItem existingItem, CommerceProduct product, CommerceProductVariant variant,
                                    ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
-        CommerceCatalogItem item = catalogItemRepository.findByClassDefinitionUuid(snapshot.classDefinitionUuid())
-                .orElseGet(CommerceCatalogItem::new);
+        CommerceCatalogItem item = existingItem == null ? new CommerceCatalogItem() : existingItem;
         item.setCourseUuid(snapshot.courseUuid());
         item.setClassDefinitionUuid(snapshot.classDefinitionUuid());
         item.setProductCode(product.getUuid() == null ? null : product.getUuid().toString());
@@ -120,5 +139,28 @@ public class CatalogProvisioningServiceImpl implements CatalogProvisioningServic
     private String resolveCurrency() {
         String configured = internalCommerceProperties.getDefaultCurrency();
         return StringUtils.hasText(configured) ? configured.trim().toUpperCase() : "USD";
+    }
+
+    private String generateVariantCode(String title, UUID classDefinitionUuid) {
+        String base = toSlug(title);
+        String shortId = classDefinitionUuid == null ? "unknown" : classDefinitionUuid.toString().substring(0, 8);
+        int maxBaseLength = Math.max(8, 48 - shortId.length());
+        if (base.length() > maxBaseLength) {
+            base = base.substring(0, maxBaseLength);
+        }
+        return base + "-" + shortId;
+    }
+
+    private String toSlug(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "class";
+        }
+        String slug = value.trim().toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-+|-+$)", "");
+        if (!StringUtils.hasText(slug)) {
+            return "class";
+        }
+        return slug;
     }
 }
