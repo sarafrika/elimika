@@ -1,13 +1,6 @@
 package apps.sarafrika.elimika.commerce.internal.listener;
 
-import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
-import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
-import apps.sarafrika.elimika.commerce.internal.service.CatalogueProvisioningService;
-import apps.sarafrika.elimika.course.model.Course;
-import apps.sarafrika.elimika.course.repository.CourseRepository;
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
-import java.util.List;
-import java.util.UUID;
+import apps.sarafrika.elimika.commerce.internal.service.CatalogueBackfillService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -23,38 +16,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CatalogueBackfillInitializer implements ApplicationListener<ApplicationReadyEvent> {
 
-    private final InternalCommerceProperties internalCommerceProperties;
-    private final CourseRepository courseRepository;
-    private final ClassDefinitionRepository classDefinitionRepository;
-    private final CatalogueProvisioningService catalogProvisioningService;
+    private final CatalogueBackfillService catalogueBackfillService;
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        if (!Boolean.TRUE.equals(internalCommerceProperties.getEnabled())) {
-            log.info("Internal commerce disabled; skipping catalogue backfill");
-            return;
-        }
-
-        List<Course> publishedCourses = courseRepository.findByStatus(ContentStatus.PUBLISHED);
-        int processedClasses = 0;
-
-        for (Course course : publishedCourses) {
-            if (course.getUuid() == null) {
-                continue;
-            }
-            List<apps.sarafrika.elimika.classes.model.ClassDefinition> classDefinitions =
-                    classDefinitionRepository.findByCourseUuid(course.getUuid());
-            for (apps.sarafrika.elimika.classes.model.ClassDefinition definition : classDefinitions) {
-                UUID classUuid = definition.getUuid();
-                if (classUuid == null) {
-                    continue;
-                }
-                catalogProvisioningService.ensureClassIsPurchasable(classUuid);
-                processedClasses++;
-            }
-        }
-
-        log.info("Catalog backfill finished for {} published courses; processed {} class definitions",
-                publishedCourses.size(), processedClasses);
+        int processed = catalogueBackfillService.backfillPublishedCatalogue();
+        log.info("Catalogue backfill finished; processed {} class definitions", processed);
     }
 }
