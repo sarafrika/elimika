@@ -9,7 +9,8 @@ public interface RegionResolver {
      * Resolves a normalized region code to apply to commerce operations.
      *
      * @param requestedRegion optional region hint from upstream (ignored if a default is configured)
+     * @param clientIp optional client IP address
      * @return normalized region code (e.g., ISO country code)
      */
-    String resolveRegionCode(String requestedRegion);
+    String resolveRegionCode(String requestedRegion, String clientIp);
 }

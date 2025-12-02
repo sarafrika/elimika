@@ -66,7 +66,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         CommerceCart cart = new CommerceCart();
         cart.setStatus(CartStatus.OPEN);
         cart.setCurrencyCode(currencyCode);
-        cart.setRegionCode(regionResolver.resolveRegionCode(request.getRegionCode()));
+        cart.setRegionCode(regionResolver.resolveRegionCode(request.getRegionCode(), null));
         cart.setMetadataJson(writeMetadata(sanitizeMetadata(request.getMetadata())));
         cart = cartRepository.save(cart);
 

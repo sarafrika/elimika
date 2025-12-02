@@ -30,4 +30,14 @@ public class InternalCommerceProperties {
      * Default region code used for commerce flows when client input is absent or ignored.
      */
     private String defaultRegion = "KE";
+
+    /**
+     * Enables IP-based geo lookups to derive region codes.
+     */
+    private Boolean geoipEnabled = Boolean.FALSE;
+
+    /**
+     * Endpoint template to resolve country/region from IP. Must contain {ip} placeholder.
+     */
+    private String geoipCountryEndpoint = "https://ipapi.co/{ip}/country/";
 }
