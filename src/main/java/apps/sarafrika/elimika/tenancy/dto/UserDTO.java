@@ -144,13 +144,12 @@ public record UserDTO(
         LocalDate dob,
 
         @Schema(
-                description = "**[REQUIRED]** User's contact phone number. Should include country code for international numbers. Used for notifications and verification.",
+                description = "**[OPTIONAL]** User's contact phone number. Should include country code for international numbers when provided.",
                 example = "+254712345678",
-                minLength = 1,
                 maxLength = 20,
-                requiredMode = Schema.RequiredMode.REQUIRED
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @NotBlank(message = "Phone number is required")
         @Size(max = 20, message = "Phone number must not exceed 20 characters")
         @JsonProperty("phone_number")
         @ValidPhoneNumber(mobileOnly = true)
