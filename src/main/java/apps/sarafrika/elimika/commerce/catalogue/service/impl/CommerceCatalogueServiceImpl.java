@@ -68,6 +68,20 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     }
 
     @Override
+    public Optional<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid) {
+        if (courseUuid != null) {
+            Optional<CommerceCatalogueItemDTO> byCourse = getByCourse(courseUuid);
+            if (byCourse.isPresent()) {
+                return byCourse;
+            }
+        }
+        if (classDefinitionUuid != null) {
+            return getByClassDefinition(classDefinitionUuid);
+        }
+        return Optional.empty();
+    }
+
+    @Override
     public List<CommerceCatalogueItemDTO> listAll(Boolean activeOnly) {
         List<CommerceCatalogueItem> entities = Boolean.TRUE.equals(activeOnly)
                 ? catalogItemRepository.findByActiveTrue()

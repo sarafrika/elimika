@@ -14,6 +14,8 @@ public interface CommerceCatalogueService {
 
     Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid);
 
+    Optional<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid);
+
     Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode);
 
     List<CommerceCatalogueItemDTO> listAll(Boolean activeOnly);

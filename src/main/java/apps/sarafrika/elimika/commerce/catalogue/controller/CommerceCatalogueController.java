@@ -48,24 +48,15 @@ public class CommerceCatalogueController {
                 .body(ApiResponse.success(dto, "Catalogue item created successfully"));
     }
 
-    @Operation(summary = "Get catalogue mapping by course")
-    @GetMapping("/by-course/{courseUuid}")
-    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> getByCourse(
-            @PathVariable UUID courseUuid) {
-        return catalogService.getByCourse(courseUuid)
+    @Operation(summary = "Get catalogue mapping by course or class", description = "Tries course first, then class")
+    @GetMapping("/lookup")
+    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> getByCourseOrClass(
+            @RequestParam(name = "course_uuid", required = false) UUID courseUuid,
+            @RequestParam(name = "class_uuid", required = false) UUID classDefinitionUuid) {
+        return catalogService.getByCourseOrClass(courseUuid, classDefinitionUuid)
                 .map(item -> ResponseEntity.ok(ApiResponse.success(item, "Catalogue item retrieved successfully")))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Catalogue item not found for course")));
-    }
-
-    @Operation(summary = "Get catalogue mapping by class definition")
-    @GetMapping("/by-class/{classUuid}")
-    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> getByClass(
-            @PathVariable("classUuid") UUID classDefinitionUuid) {
-        return catalogService.getByClassDefinition(classDefinitionUuid)
-                .map(item -> ResponseEntity.ok(ApiResponse.success(item, "Catalogue item retrieved successfully")))
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Catalogue item not found for class definition")));
+                        .body(ApiResponse.error("Catalogue item not found")));
     }
 
     @Operation(summary = "Update catalogue mapping", description = "Updates internal variant identifiers or status for an existing mapping")
