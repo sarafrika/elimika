@@ -17,4 +17,6 @@ public interface CommerceCatalogueService {
     Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode);
 
     List<CommerceCatalogueItemDTO> listAll(Boolean activeOnly);
+
+    CommerceCatalogueItemDTO createItem(UpsertCommerceCatalogueItemRequest request);
 }

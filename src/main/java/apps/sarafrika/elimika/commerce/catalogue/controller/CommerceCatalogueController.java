@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
 
 @RestController
 @RequestMapping(CommerceCatalogueController.API_ROOT)
@@ -36,6 +37,15 @@ public class CommerceCatalogueController {
             @RequestParam(name = "active_only", required = false) Boolean activeOnly) {
         List<CommerceCatalogueItemDTO> items = catalogService.listAll(activeOnly);
         return ResponseEntity.ok(ApiResponse.success(items, "Catalogue items retrieved successfully"));
+    }
+
+    @Operation(summary = "Create catalogue mapping", description = "Creates a catalogue mapping for a course or class")
+    @PostMapping
+    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> createCatalogItem(
+            @Valid @RequestBody UpsertCommerceCatalogueItemRequest request) {
+        CommerceCatalogueItemDTO dto = catalogService.createItem(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(dto, "Catalogue item created successfully"));
     }
 
     @Operation(summary = "Get catalogue mapping by course")

@@ -28,8 +28,17 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     @Transactional
     public CommerceCatalogueItemDTO updateItem(UUID catalogUuid, UpsertCommerceCatalogueItemRequest request) {
         CommerceCatalogueItem entity = catalogItemRepository.findByUuid(catalogUuid)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog item not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalogue item not found"));
         validateAssociation(request.courseUuid(), request.classDefinitionUuid());
+        applyRequest(entity, request);
+        return toDto(saveEntity(entity));
+    }
+
+    @Override
+    @Transactional
+    public CommerceCatalogueItemDTO createItem(UpsertCommerceCatalogueItemRequest request) {
+        validateAssociation(request.courseUuid(), request.classDefinitionUuid());
+        CommerceCatalogueItem entity = new CommerceCatalogueItem();
         applyRequest(entity, request);
         return toDto(saveEntity(entity));
     }
