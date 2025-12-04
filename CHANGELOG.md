@@ -1,3 +1,16 @@
+# [2.41.0](https://github.com/sarafrika/elimika/compare/v2.40.0...v2.41.0) (2025-12-03)
+
+
+### Bug Fixes
+
+* align commerce catalogue search with shared pattern ([f8f743f](https://github.com/sarafrika/elimika/commit/f8f743fe779a487fe642cbb8e61d30b4be2d628e))
+
+
+### Features
+
+* allow creating catalogue mappings via API ([555e882](https://github.com/sarafrika/elimika/commit/555e8826b27c674cbf177324566ca0fab9523273))
+* derive cart region via geoip fallback ([06bf0dd](https://github.com/sarafrika/elimika/commit/06bf0dd4b770e2580241872a4625a914e655fb1f))
+
 # [2.40.0](https://github.com/sarafrika/elimika/compare/v2.39.0...v2.40.0) (2025-12-02)
 
 
