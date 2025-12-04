@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -237,6 +238,49 @@ public class TimetableServiceImpl implements TimetableService {
 
         log.debug("Enrolled student into {} scheduled instances for class definition: {}", createdEnrollments.size(), classDefinitionUuid);
         return EnrollmentFactory.toDTOList(createdEnrollments);
+    }
+
+    @Override
+    public List<EnrollmentDTO> joinWaitlist(EnrollmentRequestDTO request) {
+        log.debug("Adding student {} to waitlist for class definition {}", request.studentUuid(), request.classDefinitionUuid());
+
+        validateEnrollmentRequest(request);
+        UUID classDefinitionUuid = request.classDefinitionUuid();
+        UUID studentUuid = request.studentUuid();
+
+        List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        if (scheduledInstances.isEmpty()) {
+            throw new ResourceNotFoundException(String.format("No scheduled instances found for class definition with UUID %s", classDefinitionUuid));
+        }
+
+        Boolean waitlistEnabled = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::allowWaitlist)
+                .orElse(Boolean.TRUE);
+        if (Boolean.FALSE.equals(waitlistEnabled)) {
+            throw new IllegalStateException("Waitlisting is disabled for this class");
+        }
+
+        boolean hasAvailableSeat = scheduledInstances.stream()
+                .filter(this::isInstanceOpenForEnrollment)
+                .anyMatch(this::hasCapacityForInstance);
+        if (hasAvailableSeat) {
+            throw new IllegalStateException("Class has available seats; enroll instead of joining the waitlist");
+        }
+
+        List<Enrollment> waitlisted = new ArrayList<>();
+        for (ScheduledInstance instance : scheduledInstances) {
+            Optional<Enrollment> existing = enrollmentRepository.findByScheduledInstanceUuidAndStudentUuid(instance.getUuid(), studentUuid);
+            if (existing.isPresent() && !EnrollmentStatus.CANCELLED.equals(existing.get().getStatus())) {
+                throw new DuplicateResourceException("Student is already enrolled or waitlisted for this class");
+            }
+
+            Enrollment enrollment = existing.orElseGet(() -> EnrollmentFactory.toEntity(instance.getUuid(), studentUuid));
+            enrollment.setStatus(EnrollmentStatus.WAITLISTED);
+            waitlisted.add(enrollmentRepository.save(enrollment));
+        }
+
+        log.info("Student {} added to waitlist for class definition {}", studentUuid, classDefinitionUuid);
+        return EnrollmentFactory.toDTOList(waitlisted);
     }
 
     @Override
@@ -448,8 +492,47 @@ public class TimetableServiceImpl implements TimetableService {
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
 
-        long currentEnrollments = getEnrollmentCount(instanceUuid);
-        return currentEnrollments < instance.getMaxParticipants();
+        if (!isInstanceOpenForEnrollment(instance)) {
+            return false;
+        }
+
+        return hasCapacityForInstance(instance);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasCapacityForClassDefinition(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+
+        List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        if (scheduledInstances.isEmpty()) {
+            return false;
+        }
+
+        return scheduledInstances.stream()
+                .filter(this::isInstanceOpenForEnrollment)
+                .anyMatch(this::hasCapacityForInstance);
+    }
+
+    private boolean hasCapacityForInstance(ScheduledInstance instance) {
+        if (instance == null || instance.getUuid() == null) {
+            return false;
+        }
+        Integer maxParticipants = instance.getMaxParticipants();
+        if (maxParticipants == null || maxParticipants <= 0) {
+            return true;
+        }
+        long currentEnrollments = enrollmentRepository.countActiveEnrollmentsByScheduledInstance(instance.getUuid());
+        return currentEnrollments < maxParticipants;
+    }
+
+    private boolean isInstanceOpenForEnrollment(ScheduledInstance instance) {
+        if (instance == null || instance.getStatus() == null) {
+            return false;
+        }
+        return SchedulingStatus.SCHEDULED.equals(instance.getStatus()) || SchedulingStatus.ONGOING.equals(instance.getStatus());
     }
 
     // ===== Validation Helper Methods =====

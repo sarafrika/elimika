@@ -19,7 +19,9 @@ public interface ClassDefinitionLookupService {
                         snapshot.title(),
                         snapshot.description(),
                         snapshot.trainingFee(),
-                        snapshot.classVisibility()));
+                        snapshot.classVisibility(),
+                        snapshot.maxParticipants(),
+                        snapshot.allowWaitlist()));
     }
 
     record ClassDefinitionSnapshot(
@@ -28,6 +30,8 @@ public interface ClassDefinitionLookupService {
             String title,
             String description,
             java.math.BigDecimal trainingFee,
-            ClassVisibility classVisibility
+            ClassVisibility classVisibility,
+            Integer maxParticipants,
+            Boolean allowWaitlist
     ) { }
 }

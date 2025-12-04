@@ -68,7 +68,7 @@ public record EnrollmentDTO(
         @Schema(
                 description = "**[OPTIONAL]** Current enrollment and attendance status.",
                 example = "ENROLLED",
-                allowableValues = {"ENROLLED", "ATTENDED", "ABSENT", "CANCELLED"},
+                allowableValues = {"ENROLLED", "WAITLISTED", "ATTENDED", "ABSENT", "CANCELLED"},
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty("status")
@@ -182,7 +182,7 @@ public record EnrollmentDTO(
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public boolean canBeCancelled() {
-        return EnrollmentStatus.ENROLLED.equals(status);
+        return EnrollmentStatus.ENROLLED.equals(status) || EnrollmentStatus.WAITLISTED.equals(status);
     }
 
     /**

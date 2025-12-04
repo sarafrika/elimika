@@ -50,6 +50,21 @@ public class EnrollmentController {
         return ResponseEntity.status(201).body(ApiResponse.success(result, "Student enrolled into all scheduled class instances"));
     }
 
+    @Operation(summary = "Join class waitlist when capacity is full")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Student added to waitlist")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Waitlist disabled or class has available seats")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class or scheduled instances not found")
+    @PostMapping("/waitlist")
+    @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> joinWaitlist(
+            @Valid @RequestBody EnrollmentRequestDTO request) {
+        log.debug("REST request to join waitlist for student: {} and class definition: {}",
+                request.studentUuid(), request.classDefinitionUuid());
+
+        List<EnrollmentDTO> result = timetableService.joinWaitlist(request);
+        return ResponseEntity.status(201).body(ApiResponse.success(result, "Student added to class waitlist"));
+    }
+
     @Operation(summary = "Cancel a student enrollment")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Enrollment cancelled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")

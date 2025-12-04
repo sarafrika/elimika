@@ -69,7 +69,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                                               @Param("instructorUuid") UUID instructorUuid);
 
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.scheduledInstanceUuid = :scheduledInstanceUuid " +
-           "AND e.status NOT IN ('CANCELLED')")
+           "AND e.status NOT IN ('CANCELLED', 'WAITLISTED')")
     Long countActiveEnrollmentsByScheduledInstance(@Param("scheduledInstanceUuid") UUID scheduledInstanceUuid);
 
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.scheduledInstanceUuid = :scheduledInstanceUuid " +

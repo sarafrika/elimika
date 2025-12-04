@@ -19,6 +19,7 @@ import java.util.Map;
  */
 public enum EnrollmentStatus {
     ENROLLED("ENROLLED", "Student is enrolled"),
+    WAITLISTED("WAITLISTED", "Student is on the waitlist"),
     ATTENDED("ATTENDED", "Student attended the class"),
     ABSENT("ABSENT", "Student was absent"),
     CANCELLED("CANCELLED", "Enrollment was cancelled");

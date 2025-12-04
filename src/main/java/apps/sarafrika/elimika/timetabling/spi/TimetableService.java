@@ -194,4 +194,21 @@ public interface TimetableService {
      * @throws IllegalArgumentException if instanceUuid is null
      */
     boolean hasCapacityForEnrollment(UUID instanceUuid);
+
+    /**
+     * Checks if any scheduled instance for a class definition still has capacity.
+     *
+     * @param classDefinitionUuid The class definition identifier
+     * @return true if at least one scheduled instance can accept enrollments
+     */
+    boolean hasCapacityForClassDefinition(UUID classDefinitionUuid);
+
+    /**
+     * Adds a student to the waitlist for all scheduled instances of a class definition
+     * when capacity has been reached.
+     *
+     * @param request enrollment request containing student and class identifiers
+     * @return list of waitlist records created
+     */
+    List<EnrollmentDTO> joinWaitlist(EnrollmentRequestDTO request);
 }

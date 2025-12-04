@@ -31,7 +31,9 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
                     dto.title(),
                     dto.description(),
                     dto.trainingFee(),
-                    dto.classVisibility()
+                    dto.classVisibility(),
+                    dto.maxParticipants(),
+                    dto.allowWaitlist()
             ));
         } catch (ResourceNotFoundException ex) {
             return Optional.empty();

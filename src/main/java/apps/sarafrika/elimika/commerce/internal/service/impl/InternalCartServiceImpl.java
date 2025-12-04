@@ -22,6 +22,8 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVarian
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -55,6 +57,8 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final InternalCommerceMapper mapper;
     private final ObjectMapper objectMapper;
     private final RegionResolver regionResolver;
+    private final TimetableService timetableService;
+    private final ClassDefinitionLookupService classDefinitionLookupService;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -139,6 +143,8 @@ public class InternalCartServiceImpl implements InternalCartService {
         if (CollectionUtils.isEmpty(cart.getItems())) {
             throw new IllegalStateException("Cart has no items");
         }
+
+        enforceClassCapacities(cart);
 
         String customerEmail = resolveCustomerEmail(cart);
         if (!StringUtils.hasText(customerEmail)) {
@@ -277,6 +283,54 @@ public class InternalCartServiceImpl implements InternalCartService {
         if (cart.getStatus() != null && cart.getStatus() != CartStatus.OPEN) {
             throw new IllegalStateException("Cart is not open");
         }
+    }
+
+    private void enforceClassCapacities(CommerceCart cart) {
+        if (cart == null || CollectionUtils.isEmpty(cart.getItems())) {
+            return;
+        }
+
+        for (CommerceCartItem item : cart.getItems()) {
+            UUID classDefinitionUuid = extractClassDefinitionUuid(item);
+            if (classDefinitionUuid == null) {
+                continue;
+            }
+
+            boolean hasCapacity = timetableService.hasCapacityForClassDefinition(classDefinitionUuid);
+            if (!hasCapacity) {
+                boolean allowWaitlist = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                        .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::allowWaitlist)
+                        .orElse(false);
+                String message = allowWaitlist
+                        ? "Class is at capacity; join the waitlist before completing checkout"
+                        : "Class is at capacity and cannot be purchased";
+                throw new IllegalStateException(message);
+            }
+        }
+    }
+
+    private UUID extractClassDefinitionUuid(CommerceCartItem item) {
+        if (item == null) {
+            return null;
+        }
+
+        CommerceProductVariant variant = item.getVariant();
+        if (variant != null && variant.getProduct() != null && variant.getProduct().getClassDefinitionUuid() != null) {
+            return variant.getProduct().getClassDefinitionUuid();
+        }
+
+        Map<String, Object> metadata = readMetadata(item.getMetadataJson());
+        Object classUuidValue = metadata.get("class_definition_uuid");
+        if (classUuidValue instanceof UUID uuid) {
+            return uuid;
+        }
+        if (classUuidValue instanceof String s && StringUtils.hasText(s)) {
+            try {
+                return UUID.fromString(s);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> mergeMetadata(String existingJson, Map<String, Object> updates) {
