@@ -22,8 +22,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVarian
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
-import apps.sarafrika.elimika.timetabling.spi.TimetableService;
+import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -57,8 +56,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final InternalCommerceMapper mapper;
     private final ObjectMapper objectMapper;
     private final RegionResolver regionResolver;
-    private final TimetableService timetableService;
-    private final ClassDefinitionLookupService classDefinitionLookupService;
+    private final ClassCapacityService classCapacityService;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -296,11 +294,9 @@ public class InternalCartServiceImpl implements InternalCartService {
                 continue;
             }
 
-            boolean hasCapacity = timetableService.hasCapacityForClassDefinition(classDefinitionUuid);
+            boolean hasCapacity = classCapacityService.hasCapacity(classDefinitionUuid);
             if (!hasCapacity) {
-                boolean allowWaitlist = classDefinitionLookupService.findByUuid(classDefinitionUuid)
-                        .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::allowWaitlist)
-                        .orElse(false);
+                boolean allowWaitlist = classCapacityService.isWaitlistEnabled(classDefinitionUuid);
                 String message = allowWaitlist
                         ? "Class is at capacity; join the waitlist before completing checkout"
                         : "Class is at capacity and cannot be purchased";
