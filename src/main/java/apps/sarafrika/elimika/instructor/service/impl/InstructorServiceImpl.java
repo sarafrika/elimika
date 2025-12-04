@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
 import apps.sarafrika.elimika.instructor.model.Instructor;
@@ -32,6 +33,7 @@ public class InstructorServiceImpl implements InstructorService {
     private final ApplicationEventPublisher applicationEventPublisher;
 
     private final GenericSpecificationBuilder<Instructor> specificationBuilder;
+    private final DomainSecurityService domainSecurityService;
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
 
@@ -100,6 +102,11 @@ public class InstructorServiceImpl implements InstructorService {
 
         Instructor instructor = instructorRepository.findByUuid(instructorUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, instructorUuid)));
+
+        domainSecurityService.enforceNotSelfApprovingProfile(
+                instructor.getUserUuid(),
+                "instructor"
+        );
 
         instructor.setAdminVerified(true);
         Instructor verifiedInstructor = instructorRepository.save(instructor);

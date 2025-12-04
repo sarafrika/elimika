@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     private final CourseCreatorRepository courseCreatorRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final GenericSpecificationBuilder<CourseCreator> specificationBuilder;
+    private final DomainSecurityService domainSecurityService;
 
     private static final String COURSE_CREATOR_NOT_FOUND_TEMPLATE = "Course creator with ID %s not found";
 
@@ -98,6 +100,11 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
 
         CourseCreator courseCreator = courseCreatorRepository.findByUuid(courseCreatorUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_CREATOR_NOT_FOUND_TEMPLATE, courseCreatorUuid)));
+
+        domainSecurityService.enforceNotSelfApprovingProfile(
+                courseCreator.getUserUuid(),
+                "course creator"
+        );
 
         courseCreator.setAdminVerified(true);
         CourseCreator verifiedCourseCreator = courseCreatorRepository.save(courseCreator);

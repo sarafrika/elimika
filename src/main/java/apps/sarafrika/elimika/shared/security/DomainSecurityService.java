@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -137,6 +138,51 @@ public class DomainSecurityService {
     }
 
     /**
+     * Prevents admins who hold additional user domains from self-approving their own profiles.
+     *
+     * @param profileOwnerUuid UUID of the profile owner being approved
+     * @param profileLabel     Human friendly profile label for the error message
+     */
+    public void enforceNotSelfApprovingProfile(UUID profileOwnerUuid, String profileLabel) {
+        UUID currentUserUuid = getCurrentUserUuid();
+        if (currentUserUuid == null || profileOwnerUuid == null) {
+            return;
+        }
+
+        if (!currentUserUuid.equals(profileOwnerUuid)) {
+            return;
+        }
+
+        if (isAdminWithAdditionalDomains(currentUserUuid)) {
+            throw new AccessDeniedException(
+                    String.format("Admins with multiple domains cannot approve their own %s profile.", profileLabel)
+            );
+        }
+    }
+
+    /**
+     * Prevents admins who hold additional user domains from approving organisations they belong to.
+     *
+     * @param organisationUuid target organisation identifier
+     */
+    public void enforceNotSelfApprovingOrganisation(UUID organisationUuid) {
+        UUID currentUserUuid = getCurrentUserUuid();
+        if (currentUserUuid == null || organisationUuid == null) {
+            return;
+        }
+
+        if (!isAdminWithAdditionalDomains(currentUserUuid)) {
+            return;
+        }
+
+        if (userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)) {
+            throw new AccessDeniedException(
+                    "Admins with multiple domains cannot approve organisations they belong to."
+            );
+        }
+    }
+
+    /**
      * Gets the UUID of the current authenticated user.
      * Returns null if no user is authenticated.
      */
@@ -157,6 +203,13 @@ public class DomainSecurityService {
             log.error("Error getting current user UUID", e);
             return null;
         }
+    }
+
+    private boolean isAdminWithAdditionalDomains(UUID userUuid) {
+        List<UserDomain> domains = userLookupService.getUserDomains(userUuid);
+        boolean hasAdminDomain = domains.stream().anyMatch(UserDomain.admin::equals);
+        boolean hasOtherDomains = domains.stream().anyMatch(domain -> domain != UserDomain.admin);
+        return hasAdminDomain && hasOtherDomains;
     }
 
     /**

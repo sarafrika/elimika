@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
@@ -38,6 +39,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     private final TrainingBranchRepository trainingBranchRepository;
     private final GenericSpecificationBuilder<Organisation> specificationBuilder;
     private final UserContextService userContextService;
+    private final DomainSecurityService domainSecurityService;
 
     @Override
     @Transactional
@@ -490,6 +492,8 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Transactional
     public OrganisationDTO verifyOrganisation(UUID organisationUuid, String reason) {
         log.debug("Verifying organisation: {} with reason: {}", organisationUuid, reason);
+
+        domainSecurityService.enforceNotSelfApprovingOrganisation(organisationUuid);
 
         Organisation organisation = findOrganisationOrThrow(organisationUuid);
 
