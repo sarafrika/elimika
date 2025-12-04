@@ -1,3 +1,16 @@
+# [2.42.0](https://github.com/sarafrika/elimika/compare/v2.41.0...v2.42.0) (2025-12-04)
+
+
+### Bug Fixes
+
+* block admins from self-approving other domains ([d628ce0](https://github.com/sarafrika/elimika/commit/d628ce075477e39a12c729fbd04805fbe8166ed3))
+* decouple class capacity checks from timetabling ([88198ae](https://github.com/sarafrika/elimika/commit/88198ae605fe803e845e34880d651a112bdeea4b))
+
+
+### Features
+
+* enforce class capacity and waitlist flow ([54dc382](https://github.com/sarafrika/elimika/commit/54dc38287b57b041f1288d5bc0c02338a9943e00))
+
 # [2.41.0](https://github.com/sarafrika/elimika/compare/v2.40.0...v2.41.0) (2025-12-03)
 
 
