@@ -2,9 +2,6 @@ package apps.sarafrika.elimika.classes.service.impl;
 
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.*;
-import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
-import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
-import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
@@ -16,14 +13,17 @@ import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
+import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,8 +46,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
-    @Lazy
-    private final TimetableService timetableService;
+    private final ObjectProvider<TimetableService> timetableServiceProvider;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final int MAX_SCHEDULING_ITERATIONS = 2000;
@@ -404,7 +403,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 end,
                 "UTC"
         );
-        if (timetableService.hasInstructorConflict(instructorUuid, requestDTO)) {
+        if (timetableService().hasInstructorConflict(instructorUuid, requestDTO)) {
             reasons.add("Instructor has overlapping scheduled instances");
         }
         return reasons;
@@ -418,12 +417,20 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 end,
                 "UTC"
         );
-        return timetableService.scheduleClass(scheduleRequestDTO);
+        return timetableService().scheduleClass(scheduleRequestDTO);
     }
 
     private record ClassSchedulingOutcome(List<ScheduledInstanceDTO> scheduledInstances,
                                           List<ClassSchedulingConflictDTO> conflicts,
                                           boolean blockingConflict) {
+    }
+
+    private TimetableService timetableService() {
+        TimetableService svc = timetableServiceProvider.getIfAvailable();
+        if (svc == null) {
+            throw new IllegalStateException("TimetableService is not available");
+        }
+        return svc;
     }
 
     @Override
