@@ -21,7 +21,7 @@ flowchart LR
     Pay -->|POST /api/v1/bookings/:uuid/payment-callback\npayment_status, reference| BookingSvc
     BookingSvc -->|Update status\nconfirmed/payment_failed| DB
     BookingSvc -->|Keep or release block| Availability
-    UI -->|GET /api/v1/bookings/{uuid}\nor notifications| BookingSvc
+    UI -->|GET /api/v1/bookings/:uuid\nor notifications| BookingSvc
 
     subgraph Cleanup
       Cron[Job every 5 mins] -->|Expire holds past hold_expires_at| BookingSvc
