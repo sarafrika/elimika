@@ -350,19 +350,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    public void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode) {
-        log.debug("Blocking time for instructor: {} from {} to {} with color: {}",
-                instructorUuid, start, end, colorCode);
-
-        validateBlockRequest(instructorUuid, start, end);
-
-        InstructorAvailability blockSlot = buildBlockedSlot(instructorUuid, start, end, colorCode);
-        InstructorAvailability saved = availabilityRepository.save(blockSlot);
-        log.debug("Created blocked time slot for instructor: {} with color: {}", instructorUuid, colorCode);
-        publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, resolveEffectiveDate(saved),
-                "Instructor time blocked");
-    }
-
     @Override
     public void removeBlockedSlot(UUID slotUuid) {
         if (slotUuid == null) {
@@ -417,7 +404,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
         // For now, booking is represented by a blocked availability slot.
         // Future iterations can introduce a dedicated bookings table with richer metadata.
-        blockTime(instructorUuid, start, end, "#95E1D3");
+        blockTimeSlots(instructorUuid, List.of(new BlockedTimeSlotRequestDTO(start, end, "#95E1D3")));
     }
 
     private void validateBlockRequest(UUID instructorUuid, LocalDateTime start, LocalDateTime end) {

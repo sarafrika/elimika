@@ -179,19 +179,6 @@ public interface AvailabilityService {
     void clearAvailability(UUID instructorUuid);
 
     /**
-     * Blocks time for an instructor during a specific period.
-     * This creates availability slots with isAvailable = false.
-     * Optionally accepts a color code for visual categorization.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param start The start date/time to block
-     * @param end The end date/time to block
-     * @param colorCode Optional hex color code for UI visualization (e.g., "#FF6B6B")
-     * @throws IllegalArgumentException if any parameter is null or if start is after end
-     */
-    void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode);
-
-    /**
      * Blocks multiple time slots for an instructor in a single request.
      *
      * @param instructorUuid The UUID of the instructor
