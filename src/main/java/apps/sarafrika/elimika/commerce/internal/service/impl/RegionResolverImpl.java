@@ -3,13 +3,10 @@ package apps.sarafrika.elimika.commerce.internal.service.impl;
 import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import jakarta.servlet.http.HttpServletRequest;
-import java.net.http.HttpClient;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClient.Builder;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -19,7 +16,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 public class RegionResolverImpl implements RegionResolver {
 
     private final InternalCommerceProperties internalCommerceProperties;
-    private final Builder restClientBuilder;
+    private final RestClient geoRestClient;
 
     @Override
     public String resolveRegionCode(String requestedRegion, String clientIp) {
@@ -44,9 +41,8 @@ public class RegionResolverImpl implements RegionResolver {
             return null;
         }
         try {
-            RestClient restClient = geoRestClient();
             String endpoint = internalCommerceProperties.getGeoipCountryEndpoint();
-            String response = restClient.get()
+            String response = geoRestClient.get()
                     .uri(endpoint, ip)
                     .retrieve()
                     .body(String.class);
@@ -58,19 +54,6 @@ public class RegionResolverImpl implements RegionResolver {
             // Fail silently and fall back
         }
         return null;
-    }
-
-    private RestClient geoRestClient() {
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(java.time.Duration.ofSeconds(2))
-                .build();
-
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(2));
-
-        return restClientBuilder
-                .requestFactory(requestFactory)
-                .build();
     }
 
     private String extractClientIp() {
