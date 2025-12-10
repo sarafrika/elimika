@@ -14,18 +14,18 @@ This guide explains how students book instructors for course sessions, how the p
 
 ```mermaid
 flowchart LR
-    UI[Course UI] -->|POST /api/v1/bookings<br/>{student, course, instructor, start, end, price}| BookingSvc[Booking Service]
-    BookingSvc -->|Insert booking<br/>status=payment_required| DB[(bookings table)]
+    UI[Course UI] -->|POST /api/v1/bookings\nstudent, course, instructor, start, end, price| BookingSvc[Booking Service]
+    BookingSvc -->|Insert booking\nstatus=payment_required| DB[(bookings table)]
     BookingSvc -->|Block slot| Availability[instructor_availability]
     BookingSvc -->|Create payment session| Pay[Payment Engine]
-    Pay -->|POST /api/v1/bookings/{uuid}/payment-callback<br/>{payment_status, ref}| BookingSvc
-    BookingSvc -->|Update status<br/>confirmed/payment_failed| DB
+    Pay -->|POST /api/v1/bookings/{uuid}/payment-callback\npayment_status, reference| BookingSvc
+    BookingSvc -->|Update status\nconfirmed/payment_failed| DB
     BookingSvc -->|Keep or release block| Availability
-    UI -->|GET /api/v1/bookings/{uuid}<br/>or notifications| BookingSvc
+    UI -->|GET /api/v1/bookings/{uuid}\nor notifications| BookingSvc
 
     subgraph Cleanup
-      Cron[Job every 5 mins] -->|expire holds past hold_expires_at| BookingSvc
-      BookingSvc -->|status=expired + release block| DB
+      Cron[Job every 5 mins] -->|Expire holds past hold_expires_at| BookingSvc
+      BookingSvc -->|status = expired\nrelease block| DB
     end
 ```
 
