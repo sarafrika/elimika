@@ -1,3 +1,10 @@
+# [2.44.0](https://github.com/sarafrika/elimika/compare/v2.43.0...v2.44.0) (2025-12-10)
+
+
+### Features
+
+* validate active platform currencies for carts ([54c1948](https://github.com/sarafrika/elimika/commit/54c194861835d89e5cc689a76101007dddff7350))
+
 # [2.43.0](https://github.com/sarafrika/elimika/compare/v2.42.0...v2.43.0) (2025-12-10)
 
 
