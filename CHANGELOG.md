@@ -1,3 +1,10 @@
+## [2.47.2](https://github.com/sarafrika/elimika/compare/v2.47.1...v2.47.2) (2025-12-10)
+
+
+### Bug Fixes
+
+* avoid promoting organisation admins to platform admins ([9de3e18](https://github.com/sarafrika/elimika/commit/9de3e18a4a3557189a90ed8f9ad6a6db35b242ad))
+
 ## [2.47.1](https://github.com/sarafrika/elimika/compare/v2.47.0...v2.47.1) (2025-12-10)
 
 
