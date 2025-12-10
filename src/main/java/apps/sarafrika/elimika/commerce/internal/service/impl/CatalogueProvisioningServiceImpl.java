@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,13 +57,14 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
             return;
         }
 
-        Optional<CommerceCatalogueItem> existingCatalogItem = catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        List<CommerceCatalogueItem> existingCatalogItems = catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        CommerceCatalogueItem existingCatalogItem = selectExistingCatalogueItem(existingCatalogItems);
         CommerceProduct product = productRepository.findByCourseUuid(courseUuid)
                 .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
 
         CommerceProductVariant variant = resolveVariant(existingCatalogItem, product, classDefinitionUuid, snapshot);
 
-        upsertCatalogItem(existingCatalogItem.orElse(null), product, variant, snapshot);
+        upsertCatalogItem(existingCatalogItem, product, variant, snapshot);
     }
 
     private CommerceProduct createCourseProduct(UUID courseUuid, ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
@@ -79,13 +81,13 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
         return saved;
     }
 
-    private CommerceProductVariant resolveVariant(Optional<CommerceCatalogueItem> existingCatalogItem,
+    private CommerceProductVariant resolveVariant(CommerceCatalogueItem existingCatalogItem,
                                                   CommerceProduct product,
                                                   UUID classDefinitionUuid,
                                                   ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
-        if (existingCatalogItem.isPresent() && StringUtils.hasText(existingCatalogItem.get().getVariantCode())) {
+        if (existingCatalogItem != null && StringUtils.hasText(existingCatalogItem.getVariantCode())) {
             Optional<CommerceProductVariant> existingVariant =
-                    variantRepository.findByCode(existingCatalogItem.get().getVariantCode());
+                    variantRepository.findByCode(existingCatalogItem.getVariantCode());
             if (existingVariant.isPresent()) {
                 return existingVariant.get();
             }
@@ -136,6 +138,13 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
 
     private boolean resolveVisibility(ClassVisibility visibility) {
         return visibility == null || visibility == ClassVisibility.PUBLIC;
+    }
+
+    private CommerceCatalogueItem selectExistingCatalogueItem(List<CommerceCatalogueItem> items) {
+        return items.stream()
+                .filter(CommerceCatalogueItem::isActive)
+                .findFirst()
+                .orElse(items.stream().findFirst().orElse(null));
     }
 
     private String resolveCurrency() {

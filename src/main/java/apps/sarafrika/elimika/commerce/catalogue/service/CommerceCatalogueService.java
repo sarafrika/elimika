@@ -13,11 +13,11 @@ public interface CommerceCatalogueService {
 
     CommerceCatalogueItemDTO updateItem(UUID catalogUuid, UpsertCommerceCatalogueItemRequest request);
 
-    Optional<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid);
+    List<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid);
 
-    Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid);
+    List<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid);
 
-    Optional<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid);
+    List<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid);
 
     Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode);
 

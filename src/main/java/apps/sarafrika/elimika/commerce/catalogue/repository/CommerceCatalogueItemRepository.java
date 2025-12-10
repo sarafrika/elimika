@@ -14,9 +14,9 @@ public interface CommerceCatalogueItemRepository extends JpaRepository<CommerceC
 
     Optional<CommerceCatalogueItem> findByUuid(UUID uuid);
 
-    Optional<CommerceCatalogueItem> findByCourseUuid(UUID courseUuid);
+    List<CommerceCatalogueItem> findByCourseUuid(UUID courseUuid);
 
-    Optional<CommerceCatalogueItem> findByClassDefinitionUuid(UUID classDefinitionUuid);
+    List<CommerceCatalogueItem> findByClassDefinitionUuid(UUID classDefinitionUuid);
 
     Optional<CommerceCatalogueItem> findByVariantCode(String variantCode);
 

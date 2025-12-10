@@ -13,7 +13,9 @@ import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,12 +56,12 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     }
 
     @Override
-    public Optional<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid) {
+    public List<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid) {
         return getByCourse(courseUuid, accessService.buildContext());
     }
 
     @Override
-    public Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid) {
+    public List<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid) {
         return getByClassDefinition(classDefinitionUuid, accessService.buildContext());
     }
 
@@ -73,13 +75,18 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     }
 
     @Override
-    public Optional<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid) {
+    public List<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid) {
         VisibilityContext context = accessService.buildContext();
-        Optional<CommerceCatalogueItemDTO> byCourse = getByCourse(courseUuid, context);
-        if (byCourse.isPresent()) {
-            return byCourse;
+        List<CommerceCatalogueItemDTO> results = new ArrayList<>();
+        results.addAll(getByCourse(courseUuid, context));
+        results.addAll(getByClassDefinition(classDefinitionUuid, context));
+        LinkedHashMap<UUID, CommerceCatalogueItemDTO> distinct = new LinkedHashMap<>();
+        for (CommerceCatalogueItemDTO dto : results) {
+            if (dto.uuid() != null) {
+                distinct.putIfAbsent(dto.uuid(), dto);
+            }
         }
-        return getByClassDefinition(classDefinitionUuid, context);
+        return new ArrayList<>(distinct.values());
     }
 
     @Override
@@ -155,23 +162,30 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .build();
     }
 
-    private Optional<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid, VisibilityContext context) {
+    private List<CommerceCatalogueItemDTO> getByCourse(UUID courseUuid, VisibilityContext context) {
         if (courseUuid == null) {
-            return Optional.empty();
+            return List.of();
         }
-        return mapIfVisible(catalogItemRepository.findByCourseUuid(courseUuid), context);
+        return mapVisible(catalogItemRepository.findByCourseUuid(courseUuid), context);
     }
 
-    private Optional<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid, VisibilityContext context) {
+    private List<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid, VisibilityContext context) {
         if (classDefinitionUuid == null) {
-            return Optional.empty();
+            return List.of();
         }
-        return mapIfVisible(catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid), context);
+        return mapVisible(catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid), context);
     }
 
     private Optional<CommerceCatalogueItemDTO> mapIfVisible(Optional<CommerceCatalogueItem> item, VisibilityContext context) {
         return item.filter(candidate -> accessService.canView(candidate, context))
                 .map(this::toDto);
+    }
+
+    private List<CommerceCatalogueItemDTO> mapVisible(List<CommerceCatalogueItem> items, VisibilityContext context) {
+        return items.stream()
+                .filter(item -> accessService.canView(item, context))
+                .map(this::toDto)
+                .toList();
     }
 
     private void applyPublicFilterWhenAnonymous(Map<String, String> params) {

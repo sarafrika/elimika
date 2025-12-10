@@ -94,14 +94,22 @@ public class CommerceCatalogueController {
                 "Catalogue search completed successfully"));
     }
 
-    @Operation(summary = "Resolve catalogue mapping by course or class", description = "Tries course first, then class")
+    @Operation(summary = "Resolve catalogue mappings by course or class", description = "Returns all catalogue entries for the provided course or class")
     @GetMapping("/resolve")
-    public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> resolveByCourseOrClass(
+    public ResponseEntity<ApiResponse<List<CommerceCatalogueItemDTO>>> resolveByCourseOrClass(
             @RequestParam(name = "course_uuid", required = false) UUID courseUuid,
             @RequestParam(name = "class_uuid", required = false) UUID classDefinitionUuid) {
-        return catalogService.getByCourseOrClass(courseUuid, classDefinitionUuid)
-                .map(item -> ResponseEntity.ok(ApiResponse.success(item, "Catalogue item retrieved successfully")))
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Catalogue item not found")));
+        if (courseUuid == null && classDefinitionUuid == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("course_uuid or class_uuid is required"));
+        }
+
+        List<CommerceCatalogueItemDTO> items = catalogService.getByCourseOrClass(courseUuid, classDefinitionUuid);
+        if (items.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Catalogue items not found"));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(items, "Catalogue items retrieved successfully"));
     }
 }
