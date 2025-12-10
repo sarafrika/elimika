@@ -24,7 +24,7 @@ public class InternalCommerceProperties {
     /**
      * Default currency code used when provisioning catalog entries if none is provided upstream.
      */
-    private String defaultCurrency = "USD";
+    private String defaultCurrency = "KES";
 
     /**
      * Default region code used for commerce flows when client input is absent or ignored.

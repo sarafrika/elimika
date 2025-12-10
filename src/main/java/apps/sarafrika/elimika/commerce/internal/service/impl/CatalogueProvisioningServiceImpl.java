@@ -140,7 +140,7 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
 
     private String resolveCurrency() {
         String configured = internalCommerceProperties.getDefaultCurrency();
-        return StringUtils.hasText(configured) ? configured.trim().toUpperCase() : "USD";
+        return StringUtils.hasText(configured) ? configured.trim().toUpperCase() : "KES";
     }
 
     private String generateVariantCode(UUID courseUuid, UUID classDefinitionUuid) {
