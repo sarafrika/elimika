@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,7 +21,10 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@Schema(name = "CartLineItemRequest", description = "Line item definition used when creating or updating a cart")
+@Schema(
+        name = "CartLineItemRequest",
+        description = "Line item definition used when creating or updating a cart (metadata is system-managed)"
+)
 public class CartLineItemRequest {
 
     @Schema(
@@ -43,13 +45,4 @@ public class CartLineItemRequest {
     @Min(value = 1, message = "Quantity must be at least 1")
     @JsonProperty("quantity")
     private int quantity;
-
-    @Schema(
-            description = "Optional metadata persisted with the line item",
-            example = "{\"course_uuid\":\"5f5e0f54-59bb-4c77-b21d-6d496dd1b4b2\",\"class_definition_uuid\":\"0f6b8eaa-1f22-4a1b-9a3e-37cf582f58b7\",\"student_uuid\":\"8f4544d3-1741-47ba-aacc-5c9e0fbcd410\"}",
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED
-    )
-    @Builder.Default
-    @JsonProperty("metadata")
-    private Map<String, Object> metadata = Map.of();
 }

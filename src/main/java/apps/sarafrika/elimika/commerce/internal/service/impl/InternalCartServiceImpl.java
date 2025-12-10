@@ -70,7 +70,6 @@ public class InternalCartServiceImpl implements InternalCartService {
         cart.setStatus(CartStatus.OPEN);
         cart.setCurrencyCode(currencyCode);
         cart.setRegionCode(regionResolver.resolveRegionCode(request.getRegionCode(), null));
-        cart.setMetadataJson(writeMetadata(sanitizeMetadata(request.getMetadata())));
         cart = cartRepository.save(cart);
 
         if (!CollectionUtils.isEmpty(request.getItems())) {
@@ -80,6 +79,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
 
         recalcTotals(cart);
+        refreshCartMetadata(cart);
         cartRepository.save(cart);
         return mapper.toCartResponse(cart);
     }
@@ -90,6 +90,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         ensureOpen(cart);
         addItemToCart(cart, request);
         recalcTotals(cart);
+        refreshCartMetadata(cart);
         cartRepository.save(cart);
         return mapper.toCartResponse(cart);
     }
@@ -105,21 +106,20 @@ public class InternalCartServiceImpl implements InternalCartService {
         CommerceCart cart = loadCart(cartId);
         ensureOpen(cart);
 
-        Map<String, Object> metadata = mergeMetadata(cart.getMetadataJson(), request.getMetadata());
         if (StringUtils.hasText(request.getEmail())) {
-            metadata.put("customer_email", request.getEmail());
+            cart.setCustomerEmail(request.getEmail());
         }
         if (StringUtils.hasText(request.getCustomerId())) {
-            metadata.put("customer_id", request.getCustomerId());
+            cart.setCustomerId(request.getCustomerId());
         }
         if (StringUtils.hasText(request.getShippingAddressId())) {
-            metadata.put("shipping_address_id", request.getShippingAddressId());
+            cart.setShippingAddressId(request.getShippingAddressId());
         }
         if (StringUtils.hasText(request.getBillingAddressId())) {
-            metadata.put("billing_address_id", request.getBillingAddressId());
+            cart.setBillingAddressId(request.getBillingAddressId());
         }
 
-        cart.setMetadataJson(writeMetadata(metadata));
+        refreshCartMetadata(cart);
         cartRepository.save(cart);
         return mapper.toCartResponse(cart);
     }
@@ -128,9 +128,8 @@ public class InternalCartServiceImpl implements InternalCartService {
     public CartResponse selectPaymentSession(String cartId, SelectPaymentSessionRequest request) {
         CommerceCart cart = loadCart(cartId);
         ensureOpen(cart);
-        Map<String, Object> metadata = mergeMetadata(cart.getMetadataJson(), Map.of());
-        metadata.put("payment_provider_id", request.getProviderId());
-        cart.setMetadataJson(writeMetadata(metadata));
+        cart.setPaymentProviderId(request.getProviderId());
+        refreshCartMetadata(cart);
         cartRepository.save(cart);
         return mapper.toCartResponse(cart);
     }
@@ -145,15 +144,21 @@ public class InternalCartServiceImpl implements InternalCartService {
 
         enforceClassCapacities(cart);
 
-        String customerEmail = resolveCustomerEmail(cart);
+        String customerEmail = cart.getCustomerEmail();
         if (!StringUtils.hasText(customerEmail)) {
             throw new IllegalStateException("Customer email is required to complete checkout");
         }
+
+        refreshCartMetadata(cart);
 
         CommerceOrder order = new CommerceOrder();
         order.setCart(cart);
         order.setUserUuid(cart.getUserUuid());
         order.setCustomerEmail(customerEmail);
+        order.setCustomerId(cart.getCustomerId());
+        order.setShippingAddressId(cart.getShippingAddressId());
+        order.setBillingAddressId(cart.getBillingAddressId());
+        order.setPaymentProviderId(cart.getPaymentProviderId());
         order.setStatus(OrderStatus.PENDING);
         order.setPaymentStatus(PaymentStatus.AWAITING_PAYMENT);
         order.setCurrencyCode(cart.getCurrencyCode());
@@ -201,7 +206,7 @@ public class InternalCartServiceImpl implements InternalCartService {
             item.setUnitAmount(unitAmount);
             item.setSubtotalAmount(unitAmount.multiply(BigDecimal.valueOf(quantity)));
             item.setTotalAmount(item.getSubtotalAmount());
-            item.setMetadataJson(writeMetadata(sanitizeMetadata(request.getMetadata())));
+            item.setMetadataJson(writeMetadata(buildLineItemMetadata(variant)));
 
             if (cart.getItems() == null) {
                 cart.setItems(new ArrayList<>());
@@ -218,6 +223,7 @@ public class InternalCartServiceImpl implements InternalCartService {
             existing.setQuantity(newQuantity);
             existing.setSubtotalAmount(existing.getUnitAmount().multiply(BigDecimal.valueOf(newQuantity)));
             existing.setTotalAmount(existing.getSubtotalAmount());
+            existing.setMetadataJson(writeMetadata(buildLineItemMetadata(variant)));
             cartItemRepository.save(existing);
         }
     }
@@ -334,14 +340,6 @@ public class InternalCartServiceImpl implements InternalCartService {
         return null;
     }
 
-    private Map<String, Object> mergeMetadata(String existingJson, Map<String, Object> updates) {
-        Map<String, Object> merged = new LinkedHashMap<>(readMetadata(existingJson));
-        if (updates != null) {
-            merged.putAll(sanitizeMetadata(updates));
-        }
-        return merged;
-    }
-
     private Map<String, Object> readMetadata(String json) {
         if (!StringUtils.hasText(json)) {
             return new LinkedHashMap<>();
@@ -353,11 +351,66 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
     }
 
-    private Map<String, Object> sanitizeMetadata(Map<String, Object> metadata) {
-        if (metadata == null || metadata.isEmpty()) {
+    private Map<String, Object> buildLineItemMetadata(CommerceProductVariant variant) {
+        if (variant == null) {
             return Map.of();
         }
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        CommerceProduct product = variant.getProduct();
+        if (product != null) {
+            if (product.getUuid() != null) {
+                metadata.put("product_uuid", product.getUuid());
+            }
+            if (StringUtils.hasText(product.getTitle())) {
+                metadata.put("product_title", product.getTitle());
+            }
+            if (product.getCourseUuid() != null) {
+                metadata.put("course_uuid", product.getCourseUuid());
+            }
+            if (product.getClassDefinitionUuid() != null) {
+                metadata.put("class_definition_uuid", product.getClassDefinitionUuid());
+            }
+        }
+
+        if (variant.getUuid() != null) {
+            metadata.put("variant_uuid", variant.getUuid());
+        }
+        if (StringUtils.hasText(variant.getCode())) {
+            metadata.put("variant_code", variant.getCode());
+        }
+        if (StringUtils.hasText(variant.getTitle())) {
+            metadata.put("variant_title", variant.getTitle());
+        }
         return metadata;
+    }
+
+    private Map<String, Object> buildCartMetadata(CommerceCart cart) {
+        if (cart == null || CollectionUtils.isEmpty(cart.getItems())) {
+            return Map.of();
+        }
+
+        List<Map<String, Object>> items = cart.getItems().stream()
+                .map(item -> buildLineItemMetadata(item.getVariant()))
+                .filter(metadata -> !metadata.isEmpty())
+                .toList();
+
+        if (items.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("items", items);
+        return metadata;
+    }
+
+    private void refreshCartMetadata(CommerceCart cart) {
+        if (!CollectionUtils.isEmpty(cart.getItems())) {
+            for (CommerceCartItem item : cart.getItems()) {
+                item.setMetadataJson(writeMetadata(buildLineItemMetadata(item.getVariant())));
+            }
+        }
+        cart.setMetadataJson(writeMetadata(buildCartMetadata(cart)));
     }
 
     private String writeMetadata(Map<String, Object> metadata) {
@@ -369,19 +422,6 @@ public class InternalCartServiceImpl implements InternalCartService {
         } catch (JsonProcessingException ex) {
             return null;
         }
-    }
-
-    private String resolveCustomerEmail(CommerceCart cart) {
-        Map<String, Object> metadata = readMetadata(cart.getMetadataJson());
-        Object email = metadata.get("customer_email");
-        if (email instanceof String s && StringUtils.hasText(s)) {
-            return s;
-        }
-        email = metadata.get("email");
-        if (email instanceof String s2 && StringUtils.hasText(s2)) {
-            return s2;
-        }
-        return null;
     }
 
     private BigDecimal amount(BigDecimal value) {

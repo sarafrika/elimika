@@ -39,6 +39,21 @@ public class CommerceCart extends BaseEntity {
     @Column(name = "region_code")
     private String regionCode;
 
+    @Column(name = "customer_email")
+    private String customerEmail;
+
+    @Column(name = "customer_id")
+    private String customerId;
+
+    @Column(name = "shipping_address_id")
+    private String shippingAddressId;
+
+    @Column(name = "billing_address_id")
+    private String billingAddressId;
+
+    @Column(name = "payment_provider_id")
+    private String paymentProviderId;
+
     @Column(name = "subtotal_amount")
     private BigDecimal subtotalAmount = BigDecimal.ZERO;
 

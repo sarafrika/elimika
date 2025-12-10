@@ -42,6 +42,9 @@ public class CommerceOrder extends BaseEntity {
     @Column(name = "customer_email")
     private String customerEmail;
 
+    @Column(name = "customer_id")
+    private String customerId;
+
     @Convert(converter = OrderStatusConverter.class)
     @Column(name = "status")
     private OrderStatus status = OrderStatus.PENDING;
@@ -74,6 +77,15 @@ public class CommerceOrder extends BaseEntity {
 
     @Column(name = "placed_at")
     private LocalDateTime placedAt;
+
+    @Column(name = "shipping_address_id")
+    private String shippingAddressId;
+
+    @Column(name = "billing_address_id")
+    private String billingAddressId;
+
+    @Column(name = "payment_provider_id")
+    private String paymentProviderId;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata_json")

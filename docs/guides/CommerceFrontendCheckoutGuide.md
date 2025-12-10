@@ -9,7 +9,7 @@ This guide explains how to implement cart and checkout flows against Elimika’s
 
 ## End-to-End Flow (text)
 1) Create a cart with `currency_code` (and optional `region_code`).
-2) Add line items for each class/course selection, including metadata (course UUID, class definition UUID, student UUID).
+2) Add line items for each class/course selection; the backend attaches read-only catalogue metadata (course/class context) automatically.
 3) Select payment provider (`mpesa`).
 4) Complete checkout with cart id, customer email, and `payment_provider_id = "mpesa"`.
 5) After payment is confirmed (`payment_status` paid/captured/authorized), proceed to enrollment; if unpaid, backend returns 402.
@@ -43,15 +43,10 @@ Response (excerpt):
 ```json
 {
   "variant_id": "class-definition-uuid",
-  "quantity": 1,
-  "metadata": {
-    "course_uuid": "course-uuid",
-    "class_definition_uuid": "class-definition-uuid",
-    "student_uuid": "student-uuid"
-  }
+  "quantity": 1
 }
 ```
-Response returns updated cart with totals and items (unit/subtotal/total are 4dp decimals).
+Response returns updated cart with totals and items (unit/subtotal/total are 4dp decimals). Metadata in responses is system-populated for catalogue context only.
 
 ### Select Payment Provider
 `POST /api/v1/commerce/carts/{cartId}/payment-session`
@@ -88,9 +83,13 @@ Response (excerpt):
       "subtotal": "2500.0000",
       "total": "2500.0000",
       "metadata": {
+        "product_uuid": "product-uuid",
+        "product_title": "Advanced Excel Course",
         "course_uuid": "course-uuid",
         "class_definition_uuid": "class-definition-uuid",
-        "student_uuid": "student-uuid"
+        "variant_uuid": "variant-uuid",
+        "variant_code": "class-definition-uuid",
+        "variant_title": "Advanced Excel"
       }
     }
   ]
@@ -118,7 +117,6 @@ Response (excerpt):
 - `cart.id`
 - `order.id` (and `order.display_id` if shown to users)
 - Selected `payment_provider_id` (only `mpesa` currently)
-- `student_uuid` and `class_definition_uuid` per line item metadata
 
 ## Error Handling Patterns
 - 400: validation issues (missing currency_code, invalid UUIDs).
@@ -129,4 +127,4 @@ Response (excerpt):
 ## Testing Checklist (frontend)
 - Create cart → add item → select `mpesa` → checkout → enrollment success.
 - Enrollment attempt without payment returns 402.
-- Mismatched currency or missing metadata results in 400.
+- Mismatched currency between cart and variants results in 400.

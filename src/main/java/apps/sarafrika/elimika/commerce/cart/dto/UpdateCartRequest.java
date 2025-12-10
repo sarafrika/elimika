@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -42,15 +41,10 @@ public class UpdateCartRequest {
     @JsonProperty("billing_address_id")
     private String billingAddressId;
 
-    @Schema(description = "Optional metadata map stored with the cart", example = "{\"cohort\":\"Q3-2024\"}")
-    @JsonProperty("metadata")
-    private Map<String, Object> metadata;
-
     public boolean hasUpdates() {
         return StringUtils.hasText(email)
                 || StringUtils.hasText(customerId)
                 || StringUtils.hasText(shippingAddressId)
-                || StringUtils.hasText(billingAddressId)
-                || (metadata != null && !metadata.isEmpty());
+                || StringUtils.hasText(billingAddressId);
     }
 }

@@ -48,7 +48,7 @@ public class CartItemResponse {
     @JsonProperty("total")
     private final BigDecimal total;
 
-    @Schema(description = "Custom metadata captured for the line item")
+    @Schema(description = "System-managed metadata describing the catalogue context for the line item (read-only)")
     @JsonProperty("metadata")
     private final Map<String, Object> metadata;
 }

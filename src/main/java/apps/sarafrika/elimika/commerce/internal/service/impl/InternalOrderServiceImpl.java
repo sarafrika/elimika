@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.internal.service.impl;
 
+import apps.sarafrika.elimika.commerce.cart.dto.SelectPaymentSessionRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.UpdateCartRequest;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrder;
 import apps.sarafrika.elimika.commerce.internal.mapper.InternalCommerceMapper;
@@ -8,8 +9,6 @@ import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,9 +28,16 @@ public class InternalOrderServiceImpl implements InternalOrderService {
     public OrderResponse completeCheckout(CheckoutRequest request) {
         UpdateCartRequest updateCartRequest = UpdateCartRequest.builder()
                 .email(request.getCustomerEmail())
-                .metadata(buildCheckoutMetadata(request))
+                .shippingAddressId(request.getShippingAddressId())
+                .billingAddressId(request.getBillingAddressId())
                 .build();
         internalCartService.updateCart(request.getCartId(), updateCartRequest);
+        if (StringUtils.hasText(request.getPaymentProviderId())) {
+            SelectPaymentSessionRequest paymentRequest = SelectPaymentSessionRequest.builder()
+                    .providerId(request.getPaymentProviderId())
+                    .build();
+            internalCartService.selectPaymentSession(request.getCartId(), paymentRequest);
+        }
         return internalCartService.completeCart(request.getCartId());
     }
 
@@ -42,20 +48,6 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         CommerceOrder order = orderRepository.findByUuid(uuid)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
         return mapper.toOrderResponse(order);
-    }
-
-    private Map<String, Object> buildCheckoutMetadata(CheckoutRequest request) {
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        if (StringUtils.hasText(request.getShippingAddressId())) {
-            metadata.put("shipping_address_id", request.getShippingAddressId());
-        }
-        if (StringUtils.hasText(request.getBillingAddressId())) {
-            metadata.put("billing_address_id", request.getBillingAddressId());
-        }
-        if (StringUtils.hasText(request.getPaymentProviderId())) {
-            metadata.put("payment_provider_id", request.getPaymentProviderId());
-        }
-        return metadata;
     }
 
     private UUID parseUuid(String id) {

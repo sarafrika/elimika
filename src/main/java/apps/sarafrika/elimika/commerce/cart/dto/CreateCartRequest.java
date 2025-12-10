@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,15 +42,6 @@ public class CreateCartRequest {
     )
     @JsonProperty("region_code")
     private String regionCode;
-
-    @Builder.Default
-    @Schema(
-            description = "Arbitrary metadata stored with the cart",
-            example = "{\"campaign\":\"back-to-school\"}",
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED
-    )
-    @JsonProperty("metadata")
-    private Map<String, Object> metadata = Map.of();
 
     @Valid
     @Builder.Default

@@ -89,7 +89,7 @@ public class CartController {
 
     @Operation(
             summary = "Update cart attributes",
-            description = "Updates cart metadata such as customer or addresses",
+            description = "Updates cart details such as customer or addresses",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cart updated",
                             content = @Content(schema = @Schema(implementation = CartResponse.class)))
