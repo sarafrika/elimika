@@ -3,7 +3,9 @@ package apps.sarafrika.elimika.commerce.internal.service.impl;
 import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.http.HttpClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -59,7 +61,16 @@ public class RegionResolverImpl implements RegionResolver {
     }
 
     private RestClient geoRestClient() {
-        return restClientBuilder.build();
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(2))
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(2));
+
+        return restClientBuilder
+                .requestFactory(requestFactory)
+                .build();
     }
 
     private String extractClientIp() {
