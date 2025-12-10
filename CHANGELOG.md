@@ -1,3 +1,11 @@
+## [2.47.3](https://github.com/sarafrika/elimika/compare/v2.47.2...v2.47.3) (2025-12-10)
+
+
+### Bug Fixes
+
+* add collection import for actuator timers ([a125333](https://github.com/sarafrika/elimika/commit/a1253334db681f1f5b6b3342336c59be712581f4))
+* compile actuator metrics lookup ([c9258eb](https://github.com/sarafrika/elimika/commit/c9258eb6b89b34659911282952bffff074fa776c))
+
 ## [2.47.2](https://github.com/sarafrika/elimika/compare/v2.47.1...v2.47.2) (2025-12-10)
 
 
