@@ -9,6 +9,8 @@ import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -30,6 +32,14 @@ public class CurrencyServiceImpl implements CurrencyService {
         return repository.findByActiveTrueOrderByCurrencyNameAsc().stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public Page<CurrencyDTO> getActiveCurrencies(Pageable pageable) {
+        Pageable effectivePageable = pageable == null ? Pageable.unpaged() : pageable;
+        return repository.findByActiveTrue(effectivePageable)
+                .map(this::toDto);
     }
 
     @Override
