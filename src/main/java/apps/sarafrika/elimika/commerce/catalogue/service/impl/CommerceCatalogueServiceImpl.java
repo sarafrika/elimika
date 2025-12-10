@@ -7,12 +7,15 @@ import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueIte
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueService;
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService;
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService.VisibilityContext;
+import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -35,6 +38,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     private final CurrencyService currencyService;
     private final GenericSpecificationBuilder<CommerceCatalogueItem> specificationBuilder;
     private final CommerceCatalogueAccessService accessService;
+    private final CommerceProductVariantRepository variantRepository;
 
     @Override
     @Transactional
@@ -154,6 +158,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .classDefinitionUuid(entity.getClassDefinitionUuid())
                 .productCode(entity.getProductCode())
                 .variantCode(entity.getVariantCode())
+                .unitAmount(resolveUnitAmount(entity.getVariantCode()))
                 .currencyCode(entity.getCurrencyCode())
                 .active(entity.isActive())
                 .publiclyVisible(entity.isPubliclyVisible())
@@ -186,6 +191,18 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .filter(item -> accessService.canView(item, context))
                 .map(this::toDto)
                 .toList();
+    }
+
+    private BigDecimal resolveUnitAmount(String variantCode) {
+        if (ObjectUtils.isEmpty(variantCode)) {
+            return null;
+        }
+        return variantRepository.findByCode(variantCode)
+                .map(variant -> {
+                    BigDecimal amount = variant.getUnitAmount();
+                    return amount == null ? null : amount.setScale(4, RoundingMode.HALF_UP);
+                })
+                .orElse(null);
     }
 
     private void applyPublicFilterWhenAnonymous(Map<String, String> params) {

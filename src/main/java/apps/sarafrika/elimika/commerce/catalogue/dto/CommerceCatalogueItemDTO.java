@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.Builder;
 
@@ -33,6 +34,10 @@ public record CommerceCatalogueItemDTO(
         @Schema(description = "Internal commerce variant code")
         @JsonProperty("variant_code")
         String variantCode,
+
+        @Schema(description = "Unit price of the variant")
+        @JsonProperty("unit_amount")
+        BigDecimal unitAmount,
 
         @Schema(description = "Currency code configured for the variant")
         @JsonProperty("currency_code")
