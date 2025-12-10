@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.commerce.internal.entity.CommerceCart;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceCartItem;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrder;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrderItem;
+import apps.sarafrika.elimika.commerce.internal.entity.CommerceProduct;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
 import apps.sarafrika.elimika.commerce.internal.enums.CartStatus;
 import apps.sarafrika.elimika.commerce.internal.enums.OrderStatus;
@@ -184,7 +185,9 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
 
         int quantity = Math.max(1, request.getQuantity());
-        if (variant.getInventoryQuantity() != null && variant.getInventoryQuantity() < quantity) {
+        if (shouldEnforceInventory(variant)
+                && variant.getInventoryQuantity() != null
+                && variant.getInventoryQuantity() < quantity) {
             throw new IllegalStateException("Insufficient inventory for variant " + variant.getCode());
         }
 
@@ -207,7 +210,9 @@ public class InternalCartServiceImpl implements InternalCartService {
             cartItemRepository.save(item);
         } else {
             int newQuantity = existing.getQuantity() + quantity;
-            if (variant.getInventoryQuantity() != null && variant.getInventoryQuantity() < newQuantity) {
+            if (shouldEnforceInventory(variant)
+                    && variant.getInventoryQuantity() != null
+                    && variant.getInventoryQuantity() < newQuantity) {
                 throw new IllegalStateException("Insufficient inventory for variant " + variant.getCode());
             }
             existing.setQuantity(newQuantity);
@@ -381,5 +386,15 @@ public class InternalCartServiceImpl implements InternalCartService {
 
     private BigDecimal amount(BigDecimal value) {
         return value == null ? ZERO : value.setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private boolean shouldEnforceInventory(CommerceProductVariant variant) {
+        if (variant == null) {
+            return true;
+        }
+        CommerceProduct product = variant.getProduct();
+        boolean isDigitalService = product != null
+                && (product.getCourseUuid() != null || product.getClassDefinitionUuid() != null);
+        return !isDigitalService;
     }
 }
