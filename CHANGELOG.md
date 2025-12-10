@@ -1,3 +1,16 @@
+# [2.47.0](https://github.com/sarafrika/elimika/compare/v2.46.0...v2.47.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* allow multi-period instructor block requests ([25f3f13](https://github.com/sarafrika/elimika/commit/25f3f13f07f5a63ccc3d3e90c6a81d1931796243))
+
+
+### Features
+
+* add instructor calendar block endpoint ([58c003c](https://github.com/sarafrika/elimika/commit/58c003c0e3f7b879a63ae542307a38d38ba8f819))
+* embed class session templates with conflict handling ([a57cca0](https://github.com/sarafrika/elimika/commit/a57cca0c49def8f6ce64308a4301b4631d724afb))
+
 # [2.46.0](https://github.com/sarafrika/elimika/compare/v2.45.0...v2.46.0) (2025-12-10)
 
 
