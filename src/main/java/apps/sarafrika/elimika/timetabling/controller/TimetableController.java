@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -128,6 +129,20 @@ public class TimetableController {
         boolean hasConflict = timetableService.hasInstructorConflict(instructorUuid, request);
         return ResponseEntity.ok(ApiResponse.success(hasConflict, 
             hasConflict ? "Instructor has scheduling conflicts" : "No conflicts found"));
+    }
+
+    @Operation(summary = "Block instructor calendar for non-teaching time")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Block created successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid block request")
+    @PostMapping("/instructor/{instructorUuid}/blocks")
+    public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> blockInstructorTime(
+            @Parameter(description = "UUID of the instructor")
+            @PathVariable UUID instructorUuid,
+            @Valid @RequestBody BlockInstructorTimeRequest request) {
+        log.debug("REST request to block instructor {} from {} to {}", instructorUuid, request.startTime(), request.endTime());
+
+        ScheduledInstanceDTO result = timetableService.blockInstructorTime(instructorUuid, request);
+        return ResponseEntity.status(201).body(ApiResponse.success(result, "Instructor time blocked"));
     }
 
     @Operation(summary = "Check if a student has enrollment conflicts")

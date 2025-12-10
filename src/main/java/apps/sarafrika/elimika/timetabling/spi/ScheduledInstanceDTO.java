@@ -58,11 +58,10 @@ public record ScheduledInstanceDTO(
         UUID uuid,
 
         @Schema(
-                description = "**[REQUIRED]** Reference to the class definition UUID that this instance is based on.",
+                description = "**[OPTIONAL]** Reference to the class definition UUID that this instance is based on. Null for instructor block entries.",
                 example = "cd123456-7890-abcd-ef01-234567890abc",
-                requiredMode = Schema.RequiredMode.REQUIRED
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @NotNull(message = "Class definition UUID is required")
         @JsonProperty("class_definition_uuid")
         UUID classDefinitionUuid,
 
@@ -151,12 +150,11 @@ public record ScheduledInstanceDTO(
         BigDecimal locationLongitude,
 
         @Schema(
-                description = "**[REQUIRED]** Maximum number of participants for this session (cached from class definition).",
+                description = "**[OPTIONAL]** Maximum number of participants for this session (cached from class definition).",
                 example = "25",
-                minimum = "1",
-                requiredMode = Schema.RequiredMode.REQUIRED
+                minimum = "0",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @NotNull(message = "Max participants is required")
         @JsonProperty("max_participants")
         Integer maxParticipants,
 

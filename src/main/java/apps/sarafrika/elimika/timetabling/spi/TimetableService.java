@@ -178,6 +178,15 @@ public interface TimetableService {
     boolean hasStudentConflict(UUID studentUuid, ScheduleRequestDTO request);
 
     /**
+     * Blocks an instructor's calendar for non-teaching time.
+     *
+     * @param instructorUuid The instructor to block
+     * @param request Block request payload
+     * @return The created blocked entry as a scheduled instance DTO
+     */
+    apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO blockInstructorTime(UUID instructorUuid, apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest request);
+
+    /**
      * Gets the current enrollment count for a scheduled instance.
      *
      * @param instanceUuid The UUID of the scheduled instance

@@ -21,7 +21,8 @@ public enum SchedulingStatus {
     SCHEDULED("SCHEDULED", "Class is scheduled"),
     ONGOING("ONGOING", "Class is currently in progress"),
     COMPLETED("COMPLETED", "Class has been completed"),
-    CANCELLED("CANCELLED", "Class has been cancelled");
+    CANCELLED("CANCELLED", "Class has been cancelled"),
+    BLOCKED("BLOCKED", "Instructor unavailable / blocked time");
     
     private final String value;
     private final String description;

@@ -472,6 +472,36 @@ public class TimetableServiceImpl implements TimetableService {
     }
 
     @Override
+    public ScheduledInstanceDTO blockInstructorTime(UUID instructorUuid, apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest request) {
+        if (instructorUuid == null) {
+            throw new IllegalArgumentException("Instructor UUID cannot be null");
+        }
+        if (request == null || request.startTime() == null || request.endTime() == null) {
+            throw new IllegalArgumentException("start_time and end_time are required");
+        }
+        if (!request.startTime().isBefore(request.endTime())) {
+            throw new IllegalArgumentException("start_time must be before end_time");
+        }
+
+        ScheduledInstance block = new ScheduledInstance();
+        block.setInstructorUuid(instructorUuid);
+        block.setClassDefinitionUuid(null);
+        block.setStartTime(request.startTime());
+        block.setEndTime(request.endTime());
+        block.setTimezone("UTC");
+        block.setTitle(request.reason() != null && !request.reason().isBlank()
+                ? "Blocked: " + request.reason()
+                : "Instructor blocked");
+        block.setLocationType("ONLINE");
+        block.setMaxParticipants(0);
+        block.setStatus(SchedulingStatus.BLOCKED);
+        block.setCancellationReason(request.reason());
+
+        ScheduledInstance saved = scheduledInstanceRepository.save(block);
+        return ScheduledInstanceFactory.toDTO(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public long getEnrollmentCount(UUID instanceUuid) {
         if (instanceUuid == null) {
