@@ -15,6 +15,8 @@ import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.math.BigInteger;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -101,7 +103,7 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
                                                  ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
         CommerceProductVariant variant = new CommerceProductVariant();
         variant.setProduct(product);
-        variant.setCode(generateVariantCode(snapshot.title(), classDefinitionUuid));
+        variant.setCode(generateVariantCode(product.getCourseUuid(), classDefinitionUuid));
         variant.setTitle(snapshot.title());
         variant.setCurrencyCode(resolveCurrency());
         variant.setUnitAmount(resolvePrice(snapshot));
@@ -141,26 +143,47 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
         return StringUtils.hasText(configured) ? configured.trim().toUpperCase() : "USD";
     }
 
-    private String generateVariantCode(String title, UUID classDefinitionUuid) {
-        String base = toSlug(title);
-        String shortId = classDefinitionUuid == null ? "unknown" : classDefinitionUuid.toString().substring(0, 8);
-        int maxBaseLength = Math.max(8, 48 - shortId.length());
-        if (base.length() > maxBaseLength) {
-            base = base.substring(0, maxBaseLength);
+    private String generateVariantCode(UUID courseUuid, UUID classDefinitionUuid) {
+        String typeSegment = classDefinitionUuid != null ? "CLS" : "CRS";
+        UUID source = classDefinitionUuid != null ? classDefinitionUuid : courseUuid;
+        String hexSeed = (source == null ? UUID.randomUUID() : source).toString().replace("-", "");
+
+        BigInteger numericSeed = new BigInteger(hexSeed, 16);
+        String base36 = numericSeed.toString(36).toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+
+        StringBuilder body = new StringBuilder(base36);
+        if (!containsDigit(body)) {
+            body.append('1');
         }
-        return base + "-" + shortId;
+        if (!containsLetter(body)) {
+            body.append('A');
+        }
+        while (body.length() < 8) {
+            body.append('0');
+        }
+        int maxLength = 16;
+        if (body.length() > maxLength) {
+            body.setLength(maxLength);
+        }
+
+        return "SKU-" + typeSegment + "-" + body;
     }
 
-    private String toSlug(String value) {
-        if (!StringUtils.hasText(value)) {
-            return "class";
+    private boolean containsDigit(CharSequence value) {
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isDigit(value.charAt(i))) {
+                return true;
+            }
         }
-        String slug = value.trim().toLowerCase()
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("(^-+|-+$)", "");
-        if (!StringUtils.hasText(slug)) {
-            return "class";
+        return false;
+    }
+
+    private boolean containsLetter(CharSequence value) {
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isLetter(value.charAt(i))) {
+                return true;
+            }
         }
-        return slug;
+        return false;
     }
 }
