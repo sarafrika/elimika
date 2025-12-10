@@ -476,29 +476,37 @@ public class TimetableServiceImpl implements TimetableService {
         if (instructorUuid == null) {
             throw new IllegalArgumentException("Instructor UUID cannot be null");
         }
-        if (request == null || request.startTime() == null || request.endTime() == null) {
-            throw new IllegalArgumentException("start_time and end_time are required");
-        }
-        if (!request.startTime().isBefore(request.endTime())) {
-            throw new IllegalArgumentException("start_time must be before end_time");
+        if (request == null || request.periods() == null || request.periods().isEmpty()) {
+            throw new IllegalArgumentException("At least one block period is required");
         }
 
-        ScheduledInstance block = new ScheduledInstance();
-        block.setInstructorUuid(instructorUuid);
-        block.setClassDefinitionUuid(null);
-        block.setStartTime(request.startTime());
-        block.setEndTime(request.endTime());
-        block.setTimezone("UTC");
-        block.setTitle(request.reason() != null && !request.reason().isBlank()
-                ? "Blocked: " + request.reason()
-                : "Instructor blocked");
-        block.setLocationType("ONLINE");
-        block.setMaxParticipants(0);
-        block.setStatus(SchedulingStatus.BLOCKED);
-        block.setCancellationReason(request.reason());
+        ScheduledInstance lastSaved = null;
+        for (apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest.Period period : request.periods()) {
+            if (period == null || period.startTime() == null || period.endTime() == null) {
+                throw new IllegalArgumentException("start_time and end_time are required");
+            }
+            if (!period.startTime().isBefore(period.endTime())) {
+                throw new IllegalArgumentException("start_time must be before end_time");
+            }
 
-        ScheduledInstance saved = scheduledInstanceRepository.save(block);
-        return ScheduledInstanceFactory.toDTO(saved);
+            ScheduledInstance block = new ScheduledInstance();
+            block.setInstructorUuid(instructorUuid);
+            block.setClassDefinitionUuid(null);
+            block.setStartTime(period.startTime());
+            block.setEndTime(period.endTime());
+            block.setTimezone("UTC");
+            block.setTitle(period.reason() != null && !period.reason().isBlank()
+                    ? "Blocked: " + period.reason()
+                    : "Instructor blocked");
+            block.setLocationType("ONLINE");
+            block.setMaxParticipants(0);
+            block.setStatus(SchedulingStatus.BLOCKED);
+            block.setCancellationReason(period.reason());
+
+            lastSaved = scheduledInstanceRepository.save(block);
+        }
+
+        return ScheduledInstanceFactory.toDTO(lastSaved);
     }
 
     @Override

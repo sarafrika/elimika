@@ -139,7 +139,8 @@ public class TimetableController {
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody BlockInstructorTimeRequest request) {
-        log.debug("REST request to block instructor {} from {} to {}", instructorUuid, request.startTime(), request.endTime());
+        int periodCount = request.periods() != null ? request.periods().size() : 0;
+        log.debug("REST request to block instructor {} for {} period(s)", instructorUuid, periodCount);
 
         ScheduledInstanceDTO result = timetableService.blockInstructorTime(instructorUuid, request);
         return ResponseEntity.status(201).body(ApiResponse.success(result, "Instructor time blocked"));
