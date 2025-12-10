@@ -48,7 +48,7 @@ sequenceDiagram
     participant DB as Database
     participant T as Timetabling
 
-    I->>API: 1. POST /classes (basic info + times + recurrence_pattern_uuid)
+    I->>API: 1. POST /classes (basic info + times + session_templates)
     API->>DB: Save class definition
     API->>I: Return class UUID
 
@@ -85,13 +85,12 @@ sequenceDiagram
 ### Class Definition vs. Scheduled Instance
 
 -   **`ClassDefinition`**: This is the **template** for a class. It defines *what* the class is about (e.g., "Introduction to Java"), its duration (e.g., 90 minutes), the instructor, and the maximum number of students. It does **not** have a specific date.
--   **`RecurrencePattern`**: This is the **rule** for scheduling. It defines *how often* a class should occur (e.g., every Monday and Wednesday at 10:00 AM). Recurrence patterns are provisioned out-of-band and referenced by UUID.
 -   **`ScheduledInstance`**: This is the **actual calendar event**. It's a concrete occurrence of a class on a specific date and time (e.g., "Introduction to Java on 2024-09-09 from 10:00 to 11:30").
 
 **Typical Workflow:**
 
-1.  Create a `ClassDefinition`, optionally referencing an existing `recurrence_pattern_uuid`.
-2.  Trigger the scheduling process to generate the `ScheduledInstance` objects.
+1.  Create a `ClassDefinition` with required `session_templates` (inline recurrence + conflict strategy).
+2.  Scheduling runs during creation to generate `ScheduledInstance` objects.
 
 > **Important:** When linking a class definition to a course (`course_uuid`), the specified instructor and/or organisation must already have an approved training application for that course. Attempting to create or update a class definition without the necessary approvals— or after an approval has been revoked— will fail with a clear validation error. Every training application now includes a segmented rate card (private/public × individual/group) with a shared currency (defaulting to KES), so coordinators can align scheduled class fees with the approved combination instead of free-text prices.
 
@@ -204,9 +203,7 @@ The API will return the newly created `ClassDefinitionDTO`. Your UI should store
 
 ---
 
-> Recurrence patterns are now provisioned outside of the Classes API. When scheduling, supply an existing `recurrence_pattern_uuid` on the class definition or omit it for one-off classes.
-
----
+> Inline `session_templates` now drive scheduling; no external recurrence pattern references are required.
 
 ## 6. Rate Card UX Updates
 
@@ -300,7 +297,6 @@ Re-use the `PlatformFeeBreakdown` schema in UI models so future deductions (disc
 
 ```json
 {
-  "recurrence_pattern_uuid": "rp123456-7890-abcd-ef01-234567890abc"
 }
 ```
 

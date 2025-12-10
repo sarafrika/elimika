@@ -4,9 +4,7 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
-import apps.sarafrika.elimika.classes.service.RecurrenceEngineService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
-import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +29,6 @@ import java.util.UUID;
 public class ClassDefinitionController {
 
     private final ClassDefinitionServiceInterface classDefinitionService;
-    private final RecurrenceEngineService recurrenceEngineService;
     private final TimetableService timetableService;
 
     // ================================
@@ -166,59 +163,4 @@ public class ClassDefinitionController {
         return ResponseEntity.ok(ApiResponse.success(result, "All active class definitions retrieved successfully"));
     }
 
-    // ================================
-    // RECURRING SCHEDULE MANAGEMENT (Google Calendar-like functionality)
-    // ================================
-
-    @Operation(summary = "Schedule recurring classes from a class definition")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Recurring schedule created successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data or class definition has no recurrence pattern")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
-    @PostMapping("/{uuid}/schedule")
-    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> scheduleRecurringClassFromDefinition(
-            @Parameter(description = "UUID of the class definition to schedule", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "Date to start scheduling from (YYYY-MM-DD)", required = true)
-            @RequestParam LocalDate startDate,
-            @Parameter(description = "Date to stop scheduling (optional, uses pattern end date if not provided)")
-            @RequestParam(required = false) LocalDate endDate) {
-        
-        log.debug("REST request to schedule recurring class: {} from {} to {}", uuid, startDate, endDate);
-        
-        List<ScheduledInstanceDTO> result = recurrenceEngineService.scheduleRecurringClass(uuid, startDate, endDate);
-        return ResponseEntity.status(201).body(ApiResponse.success(result, 
-            String.format("Created %d recurring class instances", result.size())));
-    }
-
-    @Operation(summary = "Update recurring schedule for a class definition")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurring schedule updated successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
-    @PutMapping("/{uuid}/schedule")
-    public ResponseEntity<ApiResponse<List<ScheduledInstanceDTO>>> updateRecurringClassSchedule(
-            @Parameter(description = "UUID of the class definition to update schedule for", required = true)
-            @PathVariable UUID uuid) {
-        
-        log.debug("REST request to update recurring schedule for class: {}", uuid);
-        
-        List<ScheduledInstanceDTO> result = recurrenceEngineService.updateRecurringSchedule(uuid);
-        return ResponseEntity.ok(ApiResponse.success(result, 
-            String.format("Updated recurring schedule with %d instances", result.size())));
-    }
-
-    @Operation(summary = "Cancel recurring schedule for a class definition")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurring schedule cancelled successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
-    @DeleteMapping("/{uuid}/schedule")
-    public ResponseEntity<ApiResponse<Void>> cancelRecurringClassSchedule(
-            @Parameter(description = "UUID of the class definition to cancel schedule for", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "Reason for cancellation", required = true)
-            @RequestParam String reason) {
-        
-        log.debug("REST request to cancel recurring schedule for class: {} with reason: {}", uuid, reason);
-        
-        int cancelledCount = recurrenceEngineService.cancelRecurringSchedule(uuid, reason);
-        return ResponseEntity.ok(ApiResponse.success(null, 
-            String.format("Cancelled %d future class instances", cancelledCount)));
-    }
 }

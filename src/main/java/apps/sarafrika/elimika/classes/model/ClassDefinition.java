@@ -63,9 +63,6 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "allow_waitlist")
     private Boolean allowWaitlist = true;
 
-    @Column(name = "recurrence_pattern_uuid")
-    private UUID recurrencePatternUuid;
-
     @Column(name = "is_active")
     private Boolean isActive = true;
 

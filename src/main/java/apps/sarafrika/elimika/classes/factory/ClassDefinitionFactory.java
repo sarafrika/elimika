@@ -30,7 +30,6 @@ public class ClassDefinitionFactory {
                 entity.getLocationLongitude(),
                 entity.getMaxParticipants(),
                 entity.getAllowWaitlist(),
-                entity.getRecurrencePatternUuid(),
                 entity.getIsActive(),
                 java.util.List.of(),
                 entity.getCreatedDate(),
@@ -62,7 +61,6 @@ public class ClassDefinitionFactory {
         entity.setLocationLongitude(dto.locationLongitude());
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setAllowWaitlist(dto.allowWaitlist());
-        entity.setRecurrencePatternUuid(dto.recurrencePatternUuid());
         entity.setIsActive(dto.isActive());
         return entity;
     }
@@ -119,9 +117,6 @@ public class ClassDefinitionFactory {
         }
         if (dto.allowWaitlist() != null) {
             entity.setAllowWaitlist(dto.allowWaitlist());
-        }
-        if (dto.recurrencePatternUuid() != null) {
-            entity.setRecurrencePatternUuid(dto.recurrencePatternUuid());
         }
         if (dto.isActive() != null) {
             entity.setIsActive(dto.isActive());

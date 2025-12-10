@@ -6,17 +6,14 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
-import apps.sarafrika.elimika.classes.factory.RecurrencePatternFactory;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
-import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
-import apps.sarafrika.elimika.classes.util.enums.RecurrenceType;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -44,7 +41,6 @@ import java.util.stream.Collectors;
 public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterface, ClassDefinitionService {
 
     private final ClassDefinitionRepository classDefinitionRepository;
-    private final RecurrencePatternRepository recurrencePatternRepository;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
@@ -52,7 +48,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final TimetableService timetableService;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
-    private static final String RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE = "Recurrence pattern with UUID %s not found";
     private static final int MAX_SCHEDULING_ITERATIONS = 2000;
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
 
@@ -105,7 +100,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 result.locationType(),
                 result.maxParticipants(),
                 result.allowWaitlist(),
-                result.recurrencePatternUuid()
+                null
         );
         eventPublisher.publishEvent(event);
         
@@ -173,7 +168,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                            ConflictResolutionStrategy strategy,
                                            List<ClassSchedulingConflictDTO> conflicts,
                                            List<ScheduledInstanceDTO> scheduledInstances) {
-        RecurrenceType type = recurrence.recurrenceType();
+        ClassRecurrenceDTO.RecurrenceType type = recurrence.recurrenceType();
         int targetOccurrences = recurrence.occurrenceCount() != null ? recurrence.occurrenceCount() : 0;
         LocalDate endDateLimit = recurrence.endDate();
 
@@ -325,7 +320,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                     List<ClassSchedulingConflictDTO> conflicts,
                                     List<ScheduledInstanceDTO> scheduledInstances) {
         ClassRecurrenceDTO safeRecurrence = recurrence != null ? recurrence :
-                new ClassRecurrenceDTO(RecurrenceType.DAILY, 1, null, null, null, 1);
+                new ClassRecurrenceDTO(ClassRecurrenceDTO.RecurrenceType.DAILY, 1, null, null, null, 1);
         LocalDateTime rollingStart = start;
         LocalDateTime rollingEnd = end;
         int attempts = 0;
@@ -550,16 +545,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public RecurrencePatternDTO getRecurrencePattern(UUID patternUuid) {
-        log.debug("Retrieving recurrence pattern with UUID: {}", patternUuid);
-        
-        return recurrencePatternRepository.findByUuid(patternUuid)
-                .map(RecurrencePatternFactory::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
     }
 
     @Override

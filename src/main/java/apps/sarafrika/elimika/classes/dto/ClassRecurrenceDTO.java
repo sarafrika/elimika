@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.classes.dto;
 
-import apps.sarafrika.elimika.classes.util.enums.RecurrenceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -36,4 +35,10 @@ public record ClassRecurrenceDTO(
         @JsonProperty("occurrence_count")
         Integer occurrenceCount
 ) {
+
+    public enum RecurrenceType {
+        DAILY,
+        WEEKLY,
+        MONTHLY
+    }
 }

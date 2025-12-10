@@ -2,7 +2,6 @@ package apps.sarafrika.elimika.classes.service;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
-import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,5 +38,4 @@ public interface ClassDefinitionServiceInterface {
 
     List<ClassDefinitionDTO> findAllActiveClasses();
 
-    RecurrencePatternDTO getRecurrencePattern(UUID patternUuid);
 }

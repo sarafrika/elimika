@@ -51,7 +51,19 @@ import java.util.UUID;
             "location_longitude": 36.821945,
             "max_participants": 25,
             "allow_waitlist": true,
-            "recurrence_pattern_uuid": "rp123456-7890-abcd-ef01-234567890abc",
+            "session_templates": [
+              {
+                "start_time": "2025-01-15T14:00:00Z",
+                "end_time": "2025-01-15T15:30:00Z",
+                "recurrence": {
+                  "recurrence_type": "WEEKLY",
+                  "interval_value": 1,
+                  "days_of_week": "MONDAY,WEDNESDAY",
+                  "occurrence_count": 8
+                },
+                "conflict_resolution": "FAIL"
+              }
+            ],
             "is_active": true,
             "created_date": "2024-09-05T10:00:00",
             "updated_date": "2024-09-05T15:30:00",
@@ -239,15 +251,6 @@ public record ClassDefinitionDTO(
         Boolean allowWaitlist,
 
         @Schema(
-                description = "**[OPTIONAL]** Reference to the recurrence pattern UUID for repeating classes.",
-                example = "rp123456-7890-abcd-ef01-234567890abc",
-                nullable = true,
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED
-        )
-        @JsonProperty("recurrence_pattern_uuid")
-        UUID recurrencePatternUuid,
-
-        @Schema(
                 description = "**[OPTIONAL]** Whether this class definition is currently active and available for scheduling.",
                 example = "true",
                 nullable = false,
@@ -356,21 +359,6 @@ public record ClassDefinitionDTO(
         } else {
             return minutes + "m";
         }
-    }
-
-    /**
-     * Checks if this class definition has a recurrence pattern.
-     *
-     * @return true if recurrence pattern is configured, false otherwise
-     */
-    @JsonProperty(value = "has_recurrence", access = JsonProperty.Access.READ_ONLY)
-    @Schema(
-            description = "**[READ-ONLY]** Indicates if the class definition has a recurrence pattern configured.",
-            example = "true",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
-    public boolean hasRecurrence() {
-        return recurrencePatternUuid != null;
     }
 
     /**

@@ -2,7 +2,6 @@ package apps.sarafrika.elimika.classes.spi;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
-import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -114,16 +113,6 @@ public interface ClassDefinitionService {
      * @return List of all active class definitions (empty list if none found)
      */
     List<ClassDefinitionDTO> findAllActiveClasses();
-
-    /**
-     * Retrieves a recurrence pattern by its UUID.
-     *
-     * @param patternUuid The UUID of the recurrence pattern to retrieve
-     * @return The recurrence pattern if found
-     * @throws IllegalArgumentException if the UUID is null or invalid
-     * @throws RuntimeException if recurrence pattern is not found
-     */
-    RecurrencePatternDTO getRecurrencePattern(UUID patternUuid);
 
     /**
      * Checks if an instructor has availability defined for their classes.
