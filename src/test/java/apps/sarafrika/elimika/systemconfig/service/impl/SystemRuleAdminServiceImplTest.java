@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -102,7 +103,7 @@ class SystemRuleAdminServiceImplTest {
         rule.setCreatedBy("system");
         Page<SystemRule> page = new PageImpl<>(List.of(rule));
 
-        when(systemRuleRepository.findAll(any(Specification.class), eq(Pageable.unpaged()))).thenReturn(page);
+        when(systemRuleRepository.findAll(ArgumentMatchers.<Specification<SystemRule>>any(), eq(Pageable.unpaged()))).thenReturn(page);
 
         Page<SystemRuleResponse> response = systemRuleAdminService.listRules(
                 RuleCategory.AGE_GATE,

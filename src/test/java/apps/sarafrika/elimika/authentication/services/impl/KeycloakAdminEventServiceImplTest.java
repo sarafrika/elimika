@@ -49,7 +49,10 @@ class KeycloakAdminEventServiceImplTest {
 
         when(keycloak.realm("elimika")).thenReturn(realmResource);
         when(realmResource.getAdminEvents(any(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt(), anyInt(), any()))
-                .thenReturn(pageOne, pageTwo, sevenDayWindow, Collections.emptyList());
+                .thenReturn(pageOne)
+                .thenReturn(pageTwo)
+                .thenReturn(sevenDayWindow)
+                .thenReturn(Collections.emptyList());
 
         KeycloakAdminEventSummary summary = service.getAdminEventSummary();
 

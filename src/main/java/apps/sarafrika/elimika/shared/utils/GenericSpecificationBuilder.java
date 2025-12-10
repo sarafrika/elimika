@@ -177,10 +177,10 @@ public class GenericSpecificationBuilder<T> {
             Root<T> root) {
 
         return switch (operation.toLowerCase()) {
-            case "gt" -> criteriaBuilder.greaterThan(field.as(Comparable.class), (Comparable) value);
-            case "lt" -> criteriaBuilder.lessThan(field.as(Comparable.class), (Comparable) value);
-            case "gte" -> criteriaBuilder.greaterThanOrEqualTo(field.as(Comparable.class), (Comparable) value);
-            case "lte" -> criteriaBuilder.lessThanOrEqualTo(field.as(Comparable.class), (Comparable) value);
+            case "gt" -> compare(criteriaBuilder, field, value, ComparisonOperator.GREATER_THAN);
+            case "lt" -> compare(criteriaBuilder, field, value, ComparisonOperator.LESS_THAN);
+            case "gte" -> compare(criteriaBuilder, field, value, ComparisonOperator.GREATER_THAN_OR_EQUAL);
+            case "lte" -> compare(criteriaBuilder, field, value, ComparisonOperator.LESS_THAN_OR_EQUAL);
             case "like" -> createLikePredicate(criteriaBuilder, field, value);
             case "startswith" -> createStartsWithPredicate(criteriaBuilder, field, value);
             case "endswith" -> createEndsWithPredicate(criteriaBuilder, field, value);
@@ -358,11 +358,7 @@ public class GenericSpecificationBuilder<T> {
 
         validateComparableTypes(startValue, endValue);
 
-        return criteriaBuilder.between(
-                field.as(Comparable.class),
-                (Comparable) startValue,
-                (Comparable) endValue
-        );
+        return between(criteriaBuilder, field, startValue, endValue);
     }
 
     private void validateBetweenValues(String[] rangeValues) {
@@ -377,6 +373,54 @@ public class GenericSpecificationBuilder<T> {
         if (!(startValue instanceof Comparable) || !(endValue instanceof Comparable)) {
             throw new IllegalArgumentException("'between' operation is only supported for comparable types");
         }
+    }
+
+    private <Y extends Comparable<? super Y>> Predicate compare(
+            CriteriaBuilder criteriaBuilder,
+            Path<?> field,
+            Object value,
+            ComparisonOperator operator
+    ) {
+        if (!(value instanceof Comparable<?> comparableValue)) {
+            throw new IllegalArgumentException("Comparison operations require comparable values");
+        }
+        if (!Comparable.class.isAssignableFrom(field.getJavaType())) {
+            throw new IllegalArgumentException("Field type is not comparable: " + field.getJavaType());
+        }
+
+        @SuppressWarnings("unchecked")
+        Path<Y> typedField = (Path<Y>) field;
+        @SuppressWarnings("unchecked")
+        Y typedValue = (Y) comparableValue;
+
+        return switch (operator) {
+            case GREATER_THAN -> criteriaBuilder.greaterThan(typedField, typedValue);
+            case LESS_THAN -> criteriaBuilder.lessThan(typedField, typedValue);
+            case GREATER_THAN_OR_EQUAL -> criteriaBuilder.greaterThanOrEqualTo(typedField, typedValue);
+            case LESS_THAN_OR_EQUAL -> criteriaBuilder.lessThanOrEqualTo(typedField, typedValue);
+        };
+    }
+
+    private <Y extends Comparable<? super Y>> Predicate between(
+            CriteriaBuilder criteriaBuilder,
+            Path<?> field,
+            Object startValue,
+            Object endValue
+    ) {
+        @SuppressWarnings("unchecked")
+        Path<Y> typedField = (Path<Y>) field;
+        @SuppressWarnings("unchecked")
+        Y start = (Y) startValue;
+        @SuppressWarnings("unchecked")
+        Y end = (Y) endValue;
+        return criteriaBuilder.between(typedField, start, end);
+    }
+
+    private enum ComparisonOperator {
+        GREATER_THAN,
+        LESS_THAN,
+        GREATER_THAN_OR_EQUAL,
+        LESS_THAN_OR_EQUAL
     }
 
     private Path<?> resolveFieldPath(Root<T> root, String fieldKey) {

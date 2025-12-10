@@ -52,16 +52,16 @@ public class KeyCloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
                 return Collections.emptySet();
             }
 
-            Map<String, Object> clientAccess = (Map<String, Object>) resourceAccess.get(CLIENT_KEY);
-            if (clientAccess == null) {
+            Object clientAccessRaw = resourceAccess.get(CLIENT_KEY);
+            if (!(clientAccessRaw instanceof Map<?, ?> clientAccess)) {
                 log.debug("No client access found for client: {}", CLIENT_KEY);
                 return Collections.emptySet();
             }
 
             log.debug("Extracted client access: {}", clientAccess);
 
-            Collection<String> resourceRoles = (Collection<String>) clientAccess.get(ROLES_KEY);
-            if (resourceRoles == null) {
+            Object resourceRolesRaw = clientAccess.get(ROLES_KEY);
+            if (!(resourceRolesRaw instanceof Collection<?> resourceRoles)) {
                 log.debug("No roles found in client access");
                 return Collections.emptySet();
             }
@@ -70,6 +70,7 @@ public class KeyCloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
 
             return resourceRoles.stream()
                     .filter(Objects::nonNull)
+                    .map(Object::toString)
                     .map(role -> new SimpleGrantedAuthority(role.replace("-", ":")))
                     .collect(Collectors.toSet());
         } catch (Exception e) {

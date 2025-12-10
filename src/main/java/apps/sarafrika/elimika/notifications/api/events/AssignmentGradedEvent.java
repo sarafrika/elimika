@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationPriority;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -101,7 +102,7 @@ public record AssignmentGradedEvent(
         if (maxScore == null || maxScore.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        return score.divide(maxScore, 2, BigDecimal.ROUND_HALF_UP)
+        return score.divide(maxScore, 2, RoundingMode.HALF_UP)
                    .multiply(BigDecimal.valueOf(100));
     }
     

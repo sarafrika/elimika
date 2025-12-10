@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 
+import java.net.URI;
 import java.net.URL;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
@@ -102,7 +103,7 @@ public class JwtConfig {
 
     private boolean validateWithJWK(SignedJWT signedJWT, JWKValidator validator) throws JOSEException {
         try {
-            JWKSet jwkSet = JWKSet.load(new URL(jwkUrl));
+            JWKSet jwkSet = JWKSet.load(URI.create(jwkUrl).toURL());
             String keyId = signedJWT.getHeader().getKeyID();
 
             JWK jwk = jwkSet.getKeys().stream()
