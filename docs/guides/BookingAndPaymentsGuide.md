@@ -18,7 +18,7 @@ flowchart LR
     BookingSvc -->|Insert booking\nstatus=payment_required| DB[(bookings table)]
     BookingSvc -->|Block slot| Availability[instructor_availability]
     BookingSvc -->|Create payment session| Pay[Payment Engine]
-    Pay -->|POST /api/v1/bookings/{uuid}/payment-callback\npayment_status, reference| BookingSvc
+    Pay -->|POST /api/v1/bookings/:uuid/payment-callback\npayment_status, reference| BookingSvc
     BookingSvc -->|Update status\nconfirmed/payment_failed| DB
     BookingSvc -->|Keep or release block| Availability
     UI -->|GET /api/v1/bookings/{uuid}\nor notifications| BookingSvc
