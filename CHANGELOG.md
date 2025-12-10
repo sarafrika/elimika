@@ -1,3 +1,12 @@
+# [2.45.0](https://github.com/sarafrika/elimika/compare/v2.44.0...v2.45.0) (2025-12-10)
+
+
+### Features
+
+* add bookings with availability holds and payment callbacks ([762a2ad](https://github.com/sarafrika/elimika/commit/762a2add87dabf014edcb59a1285fc722f15ce06))
+* support bulk blocking of availability slots ([b74c5db](https://github.com/sarafrika/elimika/commit/b74c5dbbd578fb1d71dec77a216a62287002904b))
+* switch block endpoint to bulk payload ([47805b8](https://github.com/sarafrika/elimika/commit/47805b8a688a0d8eae823c5d399d114ae7621710))
+
 # [2.44.0](https://github.com/sarafrika/elimika/compare/v2.43.0...v2.44.0) (2025-12-10)
 
 
