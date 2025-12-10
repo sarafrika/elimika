@@ -227,6 +227,32 @@ public class AvailabilityController {
         return ResponseEntity.ok(ApiResponse.success(null, "Time blocked successfully"));
     }
 
+    @Operation(
+        summary = "Block multiple time slots for an instructor",
+        description = """
+            Blocks multiple specific time periods for an instructor in one request, making them unavailable.
+
+            Each slot creates an availability entry with isAvailable = false and can optionally specify
+            a color code for frontend visualization (e.g., distinguishing PTO vs. meetings).
+            """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Time slots blocked successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid time range or color code format")
+    @PostMapping("/block/bulk")
+    public ResponseEntity<ApiResponse<Void>> blockTimeSlots(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Valid @RequestBody BlockTimeSlotsRequestDTO request) {
+        int slotCount = request != null && request.slots() != null ? request.slots().size() : 0;
+        log.debug("REST request to block {} time slots for instructor: {}", slotCount, instructorUuid);
+
+        if (request == null) {
+            throw new IllegalArgumentException("Request payload cannot be null");
+        }
+
+        availabilityService.blockTimeSlots(instructorUuid, request.slots());
+        return ResponseEntity.ok(ApiResponse.success(null, "Time slots blocked successfully"));
+    }
+
     // ================================
     // STUDENT BOOKING
     // ================================

@@ -192,6 +192,15 @@ public interface AvailabilityService {
     void blockTime(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode);
 
     /**
+     * Blocks multiple time slots for an instructor in a single request.
+     *
+     * @param instructorUuid The UUID of the instructor
+     * @param slots List of blocked time slots to create
+     * @throws IllegalArgumentException if the instructorUuid is null or the slots list is empty/invalid
+     */
+    void blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots);
+
+    /**
      * Books an available time slot for an instructor by blocking the requested period.
      * This is typically invoked from student-facing booking flows for private sessions.
      *

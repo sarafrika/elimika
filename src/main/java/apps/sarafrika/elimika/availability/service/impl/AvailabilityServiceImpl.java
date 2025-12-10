@@ -354,33 +354,38 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         log.debug("Blocking time for instructor: {} from {} to {} with color: {}",
                 instructorUuid, start, end, colorCode);
 
-        if (instructorUuid == null) {
-            throw new IllegalArgumentException("Instructor UUID cannot be null");
-        }
-        if (start == null) {
-            throw new IllegalArgumentException("Start time cannot be null");
-        }
-        if (end == null) {
-            throw new IllegalArgumentException("End time cannot be null");
-        }
-        if (start.isAfter(end)) {
-            throw new IllegalArgumentException("Start time must be before end time");
-        }
+        validateBlockRequest(instructorUuid, start, end);
 
-        InstructorAvailability blockSlot = new InstructorAvailability();
-        blockSlot.setInstructorUuid(instructorUuid);
-        blockSlot.setAvailabilityType(AvailabilityType.CUSTOM);
-        blockSlot.setSpecificDate(start.toLocalDate());
-        blockSlot.setStartTime(start.toLocalTime());
-        blockSlot.setEndTime(end.toLocalTime());
-        blockSlot.setIsAvailable(false);
-        blockSlot.setCustomPattern("BLOCKED_TIME_SLOT");
-        blockSlot.setColorCode(colorCode);
-
+        InstructorAvailability blockSlot = buildBlockedSlot(instructorUuid, start, end, colorCode);
         InstructorAvailability saved = availabilityRepository.save(blockSlot);
         log.debug("Created blocked time slot for instructor: {} with color: {}", instructorUuid, colorCode);
         publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, resolveEffectiveDate(saved),
                 "Instructor time blocked");
+    }
+
+    @Override
+    public void blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots) {
+        int slotCount = slots != null ? slots.size() : 0;
+        log.debug("Blocking {} time slots for instructor: {}", slotCount, instructorUuid);
+
+        if (slots == null || slots.isEmpty()) {
+            throw new IllegalArgumentException("Blocked time slots cannot be null or empty");
+        }
+
+        List<InstructorAvailability> blockedSlots = slots.stream()
+                .map(slot -> {
+                    if (slot == null) {
+                        throw new IllegalArgumentException("Blocked time slot entry cannot be null");
+                    }
+                    validateBlockRequest(instructorUuid, slot.startTime(), slot.endTime());
+                    return buildBlockedSlot(instructorUuid, slot.startTime(), slot.endTime(), slot.colorCode());
+                })
+                .collect(Collectors.toList());
+
+        List<InstructorAvailability> saved = availabilityRepository.saveAll(blockedSlots);
+        log.debug("Created {} blocked time slots for instructor: {}", saved.size(), instructorUuid);
+        publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, determineEffectiveDate(saved),
+                "Instructor time blocked (bulk)");
     }
 
     @Override
@@ -399,6 +404,34 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         // For now, booking is represented by a blocked availability slot.
         // Future iterations can introduce a dedicated bookings table with richer metadata.
         blockTime(instructorUuid, start, end, "#95E1D3");
+    }
+
+    private void validateBlockRequest(UUID instructorUuid, LocalDateTime start, LocalDateTime end) {
+        if (instructorUuid == null) {
+            throw new IllegalArgumentException("Instructor UUID cannot be null");
+        }
+        if (start == null) {
+            throw new IllegalArgumentException("Start time cannot be null");
+        }
+        if (end == null) {
+            throw new IllegalArgumentException("End time cannot be null");
+        }
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("Start time must be before end time");
+        }
+    }
+
+    private InstructorAvailability buildBlockedSlot(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode) {
+        InstructorAvailability blockSlot = new InstructorAvailability();
+        blockSlot.setInstructorUuid(instructorUuid);
+        blockSlot.setAvailabilityType(AvailabilityType.CUSTOM);
+        blockSlot.setSpecificDate(start.toLocalDate());
+        blockSlot.setStartTime(start.toLocalTime());
+        blockSlot.setEndTime(end.toLocalTime());
+        blockSlot.setIsAvailable(false);
+        blockSlot.setCustomPattern("BLOCKED_TIME_SLOT");
+        blockSlot.setColorCode(colorCode);
+        return blockSlot;
     }
 
     private boolean matchesDate(InstructorAvailability slot, LocalDate date) {
