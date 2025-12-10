@@ -122,26 +122,23 @@ This request sets the instructor to be available every Monday from 9 AM to 5 PM 
 
 ### Blocking Specific Times
 
-Users may need to block time for appointments or other commitments. You can optionally provide a color code to visually categorize different types of blocked times.
+Users may need to block time for appointments or other commitments. You can optionally provide a color code to visually categorize different types of blocked times. The endpoint now accepts a JSON payload with one or more slots (bulk only).
 
 -   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/block`
 -   **Method:** `POST`
--   **Controller Method:** `blockTime`
--   **Query Parameters:**
-    -   `start`: The start time in `YYYY-MM-DDTHH:mm:ss` format.
-    -   `end`: The end time in `YYYY-MM-DDTHH:mm:ss` format.
-    -   `color_code` (optional): Hex color code for UI visualization (e.g., `#FF6B6B`).
+-   **Controller Method:** `blockTimeSlots`
+-   **Request Body:**
 
-**Example Request (without color):**
-
-```http
-POST /api/v1/instructors/{instructorUuid}/availability/block?start=2024-09-12T11:00:00&end=2024-09-12T12:30:00
-```
-
-**Example Request (with color code):**
-
-```http
-POST /api/v1/instructors/{instructorUuid}/availability/block?start=2024-09-12T11:00:00&end=2024-09-12T12:30:00&color_code=%23FF6B6B
+```json
+{
+  "slots": [
+    {
+      "start_time": "2024-09-12T11:00:00",
+      "end_time": "2024-09-12T12:30:00",
+      "color_code": "#FF6B6B"
+    }
+  ]
+}
 ```
 
 **Common Color Codes:**
@@ -152,7 +149,7 @@ POST /api/v1/instructors/{instructorUuid}/availability/block?start=2024-09-12T11
 -   **Personal**: `#95E1D3` (Teal)
 -   **Professional Development**: `#A8E6CF` (Mint Green)
 
-This will create a new `AvailabilitySlot` with `is_available` set to `false` and the specified `color_code`.
+This creates one blocked `AvailabilitySlot` per entry with `is_available` set to `false` and the specified `color_code`.
 
 ---
 
