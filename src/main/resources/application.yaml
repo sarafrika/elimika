@@ -98,7 +98,7 @@ logging:
 commerce:
   internal:
     enabled: ${COMMERCE_INTERNAL_ENABLED:false}
-    default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:USD}
+    default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:KES}
 
 # Actuator configuration
 management:
