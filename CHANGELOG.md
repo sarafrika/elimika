@@ -1,3 +1,17 @@
+# [2.46.0](https://github.com/sarafrika/elimika/compare/v2.45.0...v2.46.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* allow multiple catalogue mappings per course ([5a42cd8](https://github.com/sarafrika/elimika/commit/5a42cd860e0fe48f24cefb7ec2f1dbecf909c63e))
+
+
+### Features
+
+* add paginated currency listing endpoint ([8b5737f](https://github.com/sarafrika/elimika/commit/8b5737f04f475e44d8c82f9d3b4341a89382606e))
+* expose catalogue variant pricing ([b81d884](https://github.com/sarafrika/elimika/commit/b81d884f5adaf35e68818213bb632d1c357cbf90))
+* paginate currency listing ([63175f0](https://github.com/sarafrika/elimika/commit/63175f07f86d6a8c9e66f40e762e27ac9c9f6626))
+
 # [2.45.0](https://github.com/sarafrika/elimika/compare/v2.44.0...v2.45.0) (2025-12-10)
 
 
