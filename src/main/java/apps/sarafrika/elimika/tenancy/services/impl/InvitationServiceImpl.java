@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.tenancy.factory.InvitationFactory;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.entity.BulkInvitationUpload;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -28,9 +29,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -48,6 +51,7 @@ public class InvitationServiceImpl implements InvitationService {
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
+    private final BulkInvitationUploadRepository bulkInvitationUploadRepository;
 
     private final UserService userService;
     private final ApplicationEventPublisher eventPublisher;
@@ -160,14 +164,27 @@ public class InvitationServiceImpl implements InvitationService {
         String lowercaseFilename = originalFilename.toLowerCase(Locale.ROOT);
         BulkInvitationProcessingContext context = new BulkInvitationProcessingContext();
 
-        try (InputStream inputStream = file.getInputStream()) {
+        try {
+            byte[] fileBytes = file.getBytes();
+            String fileHash = computeSha256(fileBytes);
+
+            if (bulkInvitationUploadRepository.existsByOrganisationUuidAndFileHash(organisationUuid, fileHash)) {
+                throw new IllegalStateException("This file has already been processed for this organisation");
+            }
+
             if (lowercaseFilename.endsWith(".csv")) {
-                processCsvFile(organisationUuid, inviterUuid, inputStream, context);
+                try (InputStream inputStream = new ByteArrayInputStream(fileBytes)) {
+                    processCsvFile(organisationUuid, inviterUuid, inputStream, context);
+                }
             } else if (lowercaseFilename.endsWith(".xlsx") || lowercaseFilename.endsWith(".xls")) {
-                processSpreadsheetFile(organisationUuid, inviterUuid, inputStream, context);
+                try (InputStream inputStream = new ByteArrayInputStream(fileBytes)) {
+                    processSpreadsheetFile(organisationUuid, inviterUuid, inputStream, context);
+                }
             } else {
                 throw new IllegalArgumentException("Unsupported file type. Please upload a CSV or XLSX file.");
             }
+
+            recordBulkUpload(organisationUuid, inviterUuid, originalFilename, fileHash);
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -397,6 +414,31 @@ public class InvitationServiceImpl implements InvitationService {
 
         int getFailedRows() {
             return failedRows;
+        }
+    }
+
+    private void recordBulkUpload(UUID organisationUuid, UUID inviterUuid, String fileName, String fileHash) {
+        BulkInvitationUpload upload = new BulkInvitationUpload();
+        upload.setOrganisationUuid(organisationUuid);
+        upload.setInviterUuid(inviterUuid);
+        upload.setFileName(fileName);
+        upload.setFileHash(fileHash);
+        upload.setCreatedBy(inviterUuid != null ? inviterUuid.toString() : "system");
+
+        bulkInvitationUploadRepository.save(upload);
+    }
+
+    private String computeSha256(byte[] content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(content);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to compute file hash", e);
         }
     }
 
