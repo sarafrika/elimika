@@ -162,9 +162,8 @@ public class InvitationServiceImpl implements InvitationService {
         invitation.accept(userUuid);
         invitationRepository.save(invitation);
 
-        // Handle domain assignment based on role type
-        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-            // For invitation-only roles, add domain to standalone domains
+        // Handle domain assignment based on role type without elevating to platform admin
+        if ("organisation_user".equals(domainName)) {
             addStandaloneDomainToUser(user, domain);
         }
 

@@ -237,10 +237,8 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // For invitation-only roles (admin, organisation_user), add the domain to user's standalone domains
-        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-            addStandaloneDomainToUser(user, domain);
-        }
+        // Ensure umbrella organisation_user domain is present without granting platform admin scope
+        ensureOrganisationUserDomain(user);
 
 
         return toUserDTO(user);
@@ -413,6 +411,7 @@ public class UserServiceImpl implements UserService {
      */
     private List<String> getUserDomainsFromMappings(UUID userUuid) {
         Set<String> allDomains = new HashSet<>();
+        boolean hasSystemAdminDomain = false;
 
         // Get standalone domains (from user_domain_mapping)
         List<UserDomainMapping> standaloneMappings = userDomainMappingRepository.findByUserUuid(userUuid);
@@ -420,6 +419,9 @@ public class UserServiceImpl implements UserService {
             UserDomain domain = userDomainRepository.findByUuid(mapping.getUserDomainUuid())
                     .orElse(null);
             if (domain != null) {
+                if ("admin".equals(domain.getDomainName())) {
+                    hasSystemAdminDomain = true;
+                }
                 allDomains.add(domain.getDomainName());
             }
         }
@@ -427,10 +429,17 @@ public class UserServiceImpl implements UserService {
         // Get domains from organisation mappings (for context)
         List<UserOrganisationDomainMapping> orgMappings =
                 userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
+        if (!orgMappings.isEmpty()) {
+            allDomains.add("organisation_user");
+        }
         for (UserOrganisationDomainMapping mapping : orgMappings) {
             UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
                     .orElse(null);
             if (domain != null) {
+                // Avoid promoting organisation-level admins to platform admins
+                if ("admin".equals(domain.getDomainName()) && !hasSystemAdminDomain) {
+                    continue;
+                }
                 allDomains.add(domain.getDomainName());
             }
         }
@@ -482,6 +491,14 @@ public class UserServiceImpl implements UserService {
             userDomainMappingRepository.save(mapping);
             log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
         }
+    }
+
+    /**
+     * Ensures the umbrella organisation_user domain exists for organisation members without elevating privileges.
+     */
+    private void ensureOrganisationUserDomain(User user) {
+        UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
+        addStandaloneDomainToUser(user, organisationUserDomain);
     }
 
     // Event Listeners

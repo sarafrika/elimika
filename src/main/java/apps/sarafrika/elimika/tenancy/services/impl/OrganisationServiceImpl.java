@@ -241,10 +241,8 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        // For invitation-only roles, also add to standalone domains
-        if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-            addStandaloneDomainToUser(user, domain);
-        }
+        // Ensure umbrella organisation_user domain is present without granting platform-wide admin
+        ensureOrganisationUserDomain(user);
 
         log.info("Successfully invited user {} to organisation {} with domain {}", email, organisationUuid, domainName);
     }
@@ -320,13 +318,10 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        // If updating to invitation-only role, add to standalone domains
+        // Maintain umbrella organisation membership domain without elevating to platform admin
         User user = userRepository.findByUuid(userUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if ("admin".equals(newDomainName) || "organisation_user".equals(newDomainName)) {
-            addStandaloneDomainToUser(user, newDomain);
-        }
+        ensureOrganisationUserDomain(user);
 
         log.info("Updated user {} role in organisation {} to {}", userUuid, organisationUuid, newDomainName);
     }
@@ -385,7 +380,6 @@ public class OrganisationServiceImpl implements OrganisationService {
                     .orElseThrow(() -> new ResourceNotFoundException("Creator user not found"));
 
             UserDomain adminDomain = findDomainByNameOrThrow("admin");
-            UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
 
             // Create organisation mapping
             UserOrganisationDomainMapping mapping = UserOrganisationDomainMapping.builder()
@@ -400,8 +394,8 @@ public class OrganisationServiceImpl implements OrganisationService {
 
             userOrganisationDomainMappingRepository.save(mapping);
 
-            // Add organisation_user domain to standalone domains
-            addStandaloneDomainToUser(creator, organisationUserDomain);
+            // Add umbrella organisation_user domain to standalone domains (no platform admin escalation)
+            ensureOrganisationUserDomain(creator);
 
             log.info("Successfully assigned creator {} as admin for organisation {}", creatorUuid, organisationUuid);
         } catch (Exception e) {
@@ -422,6 +416,14 @@ public class OrganisationServiceImpl implements OrganisationService {
             userDomainMappingRepository.save(mapping);
             log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
         }
+    }
+
+    /**
+     * Ensures the umbrella organisation_user domain is present on the user without adding platform admin scope.
+     */
+    private void ensureOrganisationUserDomain(User user) {
+        UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
+        addStandaloneDomainToUser(user, organisationUserDomain);
     }
 
     private Organisation findOrganisationOrThrow(UUID uuid) {
