@@ -598,7 +598,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private String resolveAverageResponseTime() {
-        List<Timer> timers = meterRegistry.find("http.server.requests").timers();
+        Collection<Timer> timers = meterRegistry.find("http.server.requests").timers();
         if (timers.isEmpty()) {
             return "unknown";
         }
@@ -623,7 +623,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private String resolveErrorRate() {
-        List<Timer> timers = meterRegistry.find("http.server.requests").timers();
+        Collection<Timer> timers = meterRegistry.find("http.server.requests").timers();
         if (timers.isEmpty()) {
             return "unknown";
         }
