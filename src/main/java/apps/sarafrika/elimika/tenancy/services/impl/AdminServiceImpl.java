@@ -15,6 +15,9 @@ import apps.sarafrika.elimika.shared.spi.analytics.NotificationAnalyticsSnapshot
 import apps.sarafrika.elimika.shared.spi.analytics.TimetablingAnalyticsService;
 import apps.sarafrika.elimika.shared.spi.analytics.TimetablingAnalyticsSnapshot;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
@@ -46,10 +49,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of AdminService for admin-specific operations
@@ -78,6 +84,7 @@ public class AdminServiceImpl implements AdminService {
     private final CourseCreatorAnalyticsService courseCreatorAnalyticsService;
     private final KeycloakAdminEventService keycloakAdminEventService;
     private final RequestAuditLogRepository requestAuditLogRepository;
+    private final MeterRegistry meterRegistry;
 
     @Override
     @Transactional
@@ -281,6 +288,8 @@ public class AdminServiceImpl implements AdminService {
 
         long totalAdmins = systemAdmins + organizationAdmins;
 
+        AdminDashboardStatsDTO.SystemPerformance systemPerformance = buildSystemPerformance();
+
         return new AdminDashboardStatsDTO(
                 now,
                 "HEALTHY",
@@ -302,12 +311,7 @@ public class AdminServiceImpl implements AdminService {
                         0,
                         courseAnalytics.averageCourseProgress()
                 ),
-                new AdminDashboardStatsDTO.SystemPerformance(
-                        "99.9%", // serverUptime - would need monitoring integration
-                        "150ms", // averageResponseTime
-                        "0.01%", // errorRate
-                        "65%" // storageUsage
-                ),
+                systemPerformance,
                 new AdminDashboardStatsDTO.AdminMetrics(
                         totalAdmins,
                         0, // activeAdminSessions - would need session tracking
@@ -547,5 +551,110 @@ public class AdminServiceImpl implements AdminService {
                             .orElse(null);
                     return domain != null && "organisation_user".equals(domain.getDomainName());
                 });
+    }
+
+    private AdminDashboardStatsDTO.SystemPerformance buildSystemPerformance() {
+        String uptime = resolveUptime();
+        String averageResponseTime = resolveAverageResponseTime();
+        String errorRate = resolveErrorRate();
+        String storageUsage = resolveStorageUsage();
+        return new AdminDashboardStatsDTO.SystemPerformance(
+                uptime,
+                averageResponseTime,
+                errorRate,
+                storageUsage
+        );
+    }
+
+    private String resolveUptime() {
+        Double uptimeSeconds = getFirstGaugeValue("process.uptime");
+        if (uptimeSeconds == null || uptimeSeconds < 0) {
+            return "unknown";
+        }
+        Duration duration = Duration.ofMillis(Math.round(uptimeSeconds * 1000));
+        long days = duration.toDays();
+        long hours = duration.minusDays(days).toHours();
+        long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
+
+        if (days > 0) {
+            return String.format(Locale.ROOT, "%dd %dh %dm", days, hours, minutes);
+        }
+        if (hours > 0) {
+            return String.format(Locale.ROOT, "%dh %dm", hours, minutes);
+        }
+        return String.format(Locale.ROOT, "%dm", minutes);
+    }
+
+    private String resolveStorageUsage() {
+        Double total = getFirstGaugeValue("disk.total");
+        Double free = getFirstGaugeValue("disk.free");
+
+        if (total == null || free == null || total <= 0) {
+            return "unknown";
+        }
+        double used = total - free;
+        double percent = used <= 0 ? 0 : (used / total) * 100;
+        return String.format(Locale.ROOT, "%.1f%%", percent);
+    }
+
+    private String resolveAverageResponseTime() {
+        List<Timer> timers = meterRegistry.find("http.server.requests").timers();
+        if (timers.isEmpty()) {
+            return "unknown";
+        }
+
+        double totalTimeMs = 0;
+        long count = 0;
+
+        for (Timer timer : timers) {
+            totalTimeMs += timer.totalTime(TimeUnit.MILLISECONDS);
+            count += timer.count();
+        }
+
+        if (count == 0) {
+            return "unknown";
+        }
+
+        double averageMs = totalTimeMs / count;
+        if (averageMs >= 1000) {
+            return String.format(Locale.ROOT, "%.2fs", averageMs / 1000);
+        }
+        return String.format(Locale.ROOT, "%.0fms", averageMs);
+    }
+
+    private String resolveErrorRate() {
+        List<Timer> timers = meterRegistry.find("http.server.requests").timers();
+        if (timers.isEmpty()) {
+            return "unknown";
+        }
+
+        long totalCount = 0;
+        long errorCount = 0;
+
+        for (Timer timer : timers) {
+            long count = timer.count();
+            totalCount += count;
+            String status = timer.getId().getTag("status");
+            if (status != null && status.startsWith("5")) {
+                errorCount += count;
+            }
+        }
+
+        if (totalCount == 0) {
+            return "unknown";
+        }
+
+        double rate = ((double) errorCount / totalCount) * 100;
+        return String.format(Locale.ROOT, "%.2f%%", rate);
+    }
+
+    private Double getFirstGaugeValue(String metricName) {
+        return meterRegistry.find(metricName)
+                .gauges()
+                .stream()
+                .findFirst()
+                .map(Gauge::value)
+                .filter(value -> !Double.isNaN(value))
+                .orElse(null);
     }
 }
