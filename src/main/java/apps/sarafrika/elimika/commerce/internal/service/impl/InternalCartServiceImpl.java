@@ -22,6 +22,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderReposito
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
+import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -58,6 +59,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final ObjectMapper objectMapper;
     private final RegionResolver regionResolver;
     private final ClassCapacityService classCapacityService;
+    private final CurrencyValidator currencyValidator;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -65,6 +67,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         if (!StringUtils.hasText(currencyCode)) {
             throw new IllegalArgumentException("currency_code is required when internal commerce is enabled");
         }
+        currencyValidator.validateActiveCurrency(currencyCode);
 
         CommerceCart cart = new CommerceCart();
         cart.setStatus(CartStatus.OPEN);
@@ -185,6 +188,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         CommerceProductVariant variant = variantRepository.findByCode(request.getVariantId())
                 .orElseThrow(() -> new IllegalArgumentException("Variant not found: " + request.getVariantId()));
 
+        currencyValidator.validateActiveCurrency(variant.getCurrencyCode());
         if (!variant.getCurrencyCode().equalsIgnoreCase(cart.getCurrencyCode())) {
             throw new IllegalArgumentException("Cart currency does not match variant currency");
         }
