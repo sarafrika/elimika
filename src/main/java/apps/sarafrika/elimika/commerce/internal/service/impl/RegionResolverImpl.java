@@ -2,17 +2,16 @@ package apps.sarafrika.elimika.commerce.internal.service.impl;
 
 import apps.sarafrika.elimika.commerce.internal.config.InternalCommerceProperties;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
-import jakarta.servlet.http.HttpServletRequest;
-import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -43,12 +42,18 @@ public class RegionResolverImpl implements RegionResolver {
             return null;
         }
         try {
-            RestTemplate restTemplate = new RestTemplateBuilder()
-                    .setConnectTimeout(Duration.ofSeconds(2))
-                    .setReadTimeout(Duration.ofSeconds(2))
+            JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory();
+            requestFactory.setConnectTimeout(Duration.ofSeconds(2));
+            requestFactory.setReadTimeout(Duration.ofSeconds(2));
+
+            RestClient restClient = RestClient.builder()
+                    .requestFactory(requestFactory)
                     .build();
             String endpoint = internalCommerceProperties.getGeoipCountryEndpoint();
-            String response = restTemplate.getForObject(endpoint, String.class, ip);
+            String response = restClient.get()
+                    .uri(endpoint, ip)
+                    .retrieve()
+                    .body(String.class);
             String normalized = normalize(response);
             if (isCountryCode(normalized)) {
                 return normalized;
