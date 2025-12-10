@@ -1,24 +1,28 @@
 package apps.sarafrika.elimika.classes.service.impl;
 
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
-import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.RecurrencePatternFactory;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
-import apps.sarafrika.elimika.classes.model.RecurrencePattern;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.RecurrencePatternRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
+import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
+import apps.sarafrika.elimika.classes.util.enums.RecurrenceType;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,9 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,13 +49,20 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
+    private final TimetableService timetableService;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE = "Recurrence pattern with UUID %s not found";
+    private static final int MAX_SCHEDULING_ITERATIONS = 2000;
+    private static final int MAX_ROLLOVER_ITERATIONS = 20;
 
     @Override
-    public ClassDefinitionDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
+    public ClassDefinitionCreationResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
         log.debug("Creating class definition with title: {}", classDefinitionDTO.title());
+
+        if (classDefinitionDTO.sessionTemplates() == null || classDefinitionDTO.sessionTemplates().isEmpty()) {
+            throw new IllegalArgumentException("At least one session template must be provided");
+        }
         
         ClassDefinition entity = ClassDefinitionFactory.toEntity(classDefinitionDTO);
         
@@ -73,6 +86,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         ClassDefinition savedEntity = classDefinitionRepository.save(entity);
         ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
+
+        ClassSchedulingOutcome schedulingOutcome = applySessionTemplates(result, classDefinitionDTO.sessionTemplates());
+        if (schedulingOutcome.blockingConflict()) {
+            throw new SchedulingConflictException(
+                    String.format("Conflicts detected for class %s", result.title()),
+                    schedulingOutcome.conflicts());
+        }
         
         // Publish domain event
         ClassDefinedEventDTO event = new ClassDefinedEventDTO(
@@ -90,7 +110,323 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         eventPublisher.publishEvent(event);
         
         log.info("Created class definition with UUID: {} and published ClassDefinedEvent", result.uuid());
-        return result;
+        return new ClassDefinitionCreationResponseDTO(result, schedulingOutcome.scheduledInstances(), schedulingOutcome.conflicts());
+    }
+
+    private ClassSchedulingOutcome applySessionTemplates(ClassDefinitionDTO classDefinition,
+                                                         List<ClassSessionTemplateDTO> templates) {
+        List<ScheduledInstanceDTO> scheduledInstances = new ArrayList<>();
+        List<ClassSchedulingConflictDTO> conflicts = new ArrayList<>();
+        boolean blockingConflict = false;
+
+        for (ClassSessionTemplateDTO template : templates) {
+            if (template == null) {
+                continue;
+            }
+            if (template.startTime() == null || template.endTime() == null) {
+                throw new IllegalArgumentException("Session templates require both start_time and end_time");
+            }
+            if (!template.startTime().isBefore(template.endTime())) {
+                throw new IllegalArgumentException("Session template start_time must be before end_time");
+            }
+
+            ConflictResolutionStrategy strategy = Optional.ofNullable(template.conflictResolution())
+                    .orElse(ConflictResolutionStrategy.FAIL);
+            int conflictCountBefore = conflicts.size();
+
+            ClassRecurrenceDTO recurrence = template.recurrence();
+            if (recurrence == null || recurrence.recurrenceType() == null) {
+                scheduleSingleSession(classDefinition, template.startTime(), template.endTime(), strategy, conflicts, scheduledInstances);
+            } else {
+                scheduleRecurringSessions(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances);
+            }
+
+            if (strategy == ConflictResolutionStrategy.FAIL && conflicts.size() > conflictCountBefore) {
+                blockingConflict = true;
+            }
+        }
+
+        return new ClassSchedulingOutcome(scheduledInstances, conflicts, blockingConflict);
+    }
+
+    private void scheduleSingleSession(ClassDefinitionDTO classDefinition,
+                                       LocalDateTime start,
+                                       LocalDateTime end,
+                                       ConflictResolutionStrategy strategy,
+                                       List<ClassSchedulingConflictDTO> conflicts,
+                                       List<ScheduledInstanceDTO> scheduledInstances) {
+        List<String> reasons = detectConflicts(classDefinition, start, end);
+        if (reasons.isEmpty()) {
+            scheduledInstances.add(scheduleInstance(classDefinition, start, end));
+            return;
+        }
+
+        conflicts.add(new ClassSchedulingConflictDTO(start, end, reasons));
+        if (strategy == ConflictResolutionStrategy.ROLLOVER) {
+            attemptRollover(classDefinition, start, end, null, conflicts, scheduledInstances);
+        }
+    }
+
+    private void scheduleRecurringSessions(ClassDefinitionDTO classDefinition,
+                                           ClassSessionTemplateDTO template,
+                                           ClassRecurrenceDTO recurrence,
+                                           ConflictResolutionStrategy strategy,
+                                           List<ClassSchedulingConflictDTO> conflicts,
+                                           List<ScheduledInstanceDTO> scheduledInstances) {
+        RecurrenceType type = recurrence.recurrenceType();
+        int targetOccurrences = recurrence.occurrenceCount() != null ? recurrence.occurrenceCount() : 0;
+        LocalDate endDateLimit = recurrence.endDate();
+
+        switch (type) {
+            case DAILY -> scheduleDaily(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances, targetOccurrences, endDateLimit);
+            case WEEKLY -> scheduleWeekly(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances, targetOccurrences, endDateLimit);
+            case MONTHLY -> scheduleMonthly(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances, targetOccurrences, endDateLimit);
+            default -> scheduleSingleSession(classDefinition, template.startTime(), template.endTime(), strategy, conflicts, scheduledInstances);
+        }
+    }
+
+    private void scheduleDaily(ClassDefinitionDTO classDefinition,
+                               ClassSessionTemplateDTO template,
+                               ClassRecurrenceDTO recurrence,
+                               ConflictResolutionStrategy strategy,
+                               List<ClassSchedulingConflictDTO> conflicts,
+                               List<ScheduledInstanceDTO> scheduledInstances,
+                               int targetOccurrences,
+                               LocalDate endDateLimit) {
+        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
+        LocalDateTime cursorStart = template.startTime();
+        LocalDateTime cursorEnd = template.endTime();
+        int scheduledCount = 0;
+        int iterations = 0;
+
+        while (shouldContinueRecurrence(scheduledCount, targetOccurrences, cursorStart.toLocalDate(), endDateLimit) &&
+                iterations < MAX_SCHEDULING_ITERATIONS) {
+            iterations++;
+            boolean scheduled = attemptScheduleWindow(classDefinition, cursorStart, cursorEnd, conflicts, scheduledInstances);
+            if (scheduled) {
+                scheduledCount++;
+            } else if (strategy == ConflictResolutionStrategy.SKIP) {
+                scheduledCount++;
+            } else if (strategy == ConflictResolutionStrategy.ROLLOVER) {
+                if (attemptRollover(classDefinition, cursorStart, cursorEnd, recurrence, conflicts, scheduledInstances)) {
+                    scheduledCount++;
+                } else {
+                    scheduledCount++;
+                }
+            }
+
+            cursorStart = cursorStart.plusDays(interval);
+            cursorEnd = cursorEnd.plusDays(interval);
+        }
+    }
+
+    private void scheduleWeekly(ClassDefinitionDTO classDefinition,
+                                ClassSessionTemplateDTO template,
+                                ClassRecurrenceDTO recurrence,
+                                ConflictResolutionStrategy strategy,
+                                List<ClassSchedulingConflictDTO> conflicts,
+                                List<ScheduledInstanceDTO> scheduledInstances,
+                                int targetOccurrences,
+                                LocalDate endDateLimit) {
+        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
+        Set<DayOfWeek> allowedDays = parseDaysOfWeek(recurrence.daysOfWeek());
+        if (allowedDays.isEmpty()) {
+            allowedDays = Set.of(template.startTime().getDayOfWeek());
+        }
+
+        LocalDate cursorDate = template.startTime().toLocalDate();
+        LocalDate weekAnchor = cursorDate.minusDays(cursorDate.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue());
+        int scheduledCount = 0;
+        int iterations = 0;
+        while (shouldContinueRecurrence(scheduledCount, targetOccurrences, cursorDate, endDateLimit) &&
+                iterations < MAX_SCHEDULING_ITERATIONS) {
+            iterations++;
+            LocalDate currentWeekStart = cursorDate.minusDays(cursorDate.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue());
+            long weeksBetween = ChronoUnit.WEEKS.between(weekAnchor, currentWeekStart);
+
+            if (weeksBetween % interval == 0 && allowedDays.contains(cursorDate.getDayOfWeek())) {
+                LocalDateTime start = cursorDate.atTime(template.startTime().toLocalTime());
+                LocalDateTime end = cursorDate.atTime(template.endTime().toLocalTime());
+
+                boolean scheduled = attemptScheduleWindow(classDefinition, start, end, conflicts, scheduledInstances);
+                if (scheduled) {
+                    scheduledCount++;
+                } else if (strategy == ConflictResolutionStrategy.SKIP) {
+                    scheduledCount++;
+                } else if (strategy == ConflictResolutionStrategy.ROLLOVER) {
+                    if (attemptRollover(classDefinition, start, end, recurrence, conflicts, scheduledInstances)) {
+                        scheduledCount++;
+                    } else {
+                        scheduledCount++;
+                    }
+                }
+            }
+
+            cursorDate = cursorDate.plusDays(1);
+        }
+    }
+
+    private void scheduleMonthly(ClassDefinitionDTO classDefinition,
+                                 ClassSessionTemplateDTO template,
+                                 ClassRecurrenceDTO recurrence,
+                                 ConflictResolutionStrategy strategy,
+                                 List<ClassSchedulingConflictDTO> conflicts,
+                                 List<ScheduledInstanceDTO> scheduledInstances,
+                                 int targetOccurrences,
+                                 LocalDate endDateLimit) {
+        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
+        int scheduledCount = 0;
+        int iterations = 0;
+
+        LocalDate cursorDate = template.startTime().toLocalDate();
+        while (shouldContinueRecurrence(scheduledCount, targetOccurrences, cursorDate, endDateLimit) &&
+                iterations < MAX_SCHEDULING_ITERATIONS) {
+            iterations++;
+            LocalDate targetDate = resolveMonthlyDate(cursorDate, recurrence.dayOfMonth());
+            LocalDateTime start = LocalDateTime.of(targetDate, template.startTime().toLocalTime());
+            LocalDateTime end = LocalDateTime.of(targetDate, template.endTime().toLocalTime());
+
+            boolean scheduled = attemptScheduleWindow(classDefinition, start, end, conflicts, scheduledInstances);
+            if (scheduled) {
+                scheduledCount++;
+            } else if (strategy == ConflictResolutionStrategy.SKIP) {
+                scheduledCount++;
+            } else if (strategy == ConflictResolutionStrategy.ROLLOVER) {
+                if (attemptRollover(classDefinition, start, end, recurrence, conflicts, scheduledInstances)) {
+                    scheduledCount++;
+                } else {
+                    scheduledCount++;
+                }
+            }
+
+            cursorDate = cursorDate.plusMonths(interval);
+        }
+    }
+
+    private boolean attemptScheduleWindow(ClassDefinitionDTO classDefinition,
+                                          LocalDateTime start,
+                                          LocalDateTime end,
+                                          List<ClassSchedulingConflictDTO> conflicts,
+                                          List<ScheduledInstanceDTO> scheduledInstances) {
+        List<String> reasons = detectConflicts(classDefinition, start, end);
+        if (reasons.isEmpty()) {
+            scheduledInstances.add(scheduleInstance(classDefinition, start, end));
+            return true;
+        }
+
+        conflicts.add(new ClassSchedulingConflictDTO(start, end, reasons));
+        return false;
+    }
+
+    private boolean attemptRollover(ClassDefinitionDTO classDefinition,
+                                    LocalDateTime start,
+                                    LocalDateTime end,
+                                    ClassRecurrenceDTO recurrence,
+                                    List<ClassSchedulingConflictDTO> conflicts,
+                                    List<ScheduledInstanceDTO> scheduledInstances) {
+        ClassRecurrenceDTO safeRecurrence = recurrence != null ? recurrence :
+                new ClassRecurrenceDTO(RecurrenceType.DAILY, 1, null, null, null, 1);
+        LocalDateTime rollingStart = start;
+        LocalDateTime rollingEnd = end;
+        int attempts = 0;
+
+        while (attempts < MAX_ROLLOVER_ITERATIONS) {
+            attempts++;
+            rollingStart = advanceByRecurrence(rollingStart, safeRecurrence);
+            rollingEnd = advanceByRecurrence(rollingEnd, safeRecurrence);
+
+            List<String> reasons = detectConflicts(classDefinition, rollingStart, rollingEnd);
+            if (reasons.isEmpty()) {
+                scheduledInstances.add(scheduleInstance(classDefinition, rollingStart, rollingEnd));
+                return true;
+            }
+            conflicts.add(new ClassSchedulingConflictDTO(rollingStart, rollingEnd, reasons));
+        }
+        return false;
+    }
+
+    private LocalDateTime advanceByRecurrence(LocalDateTime current, ClassRecurrenceDTO recurrence) {
+        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
+        return switch (recurrence.recurrenceType()) {
+            case DAILY -> current.plusDays(interval);
+            case WEEKLY -> current.plusWeeks(interval);
+            case MONTHLY -> current.plusMonths(interval);
+            default -> current.plusDays(interval);
+        };
+    }
+
+    private boolean shouldContinueRecurrence(int scheduledCount,
+                                             int targetOccurrences,
+                                             LocalDate currentDate,
+                                             LocalDate endDateLimit) {
+        if (targetOccurrences > 0 && scheduledCount < targetOccurrences) {
+            return true;
+        }
+        if (targetOccurrences <= 0 && endDateLimit != null) {
+            return !currentDate.isAfter(endDateLimit);
+        }
+        return targetOccurrences <= 0 && endDateLimit == null && scheduledCount == 0;
+    }
+
+    private LocalDate resolveMonthlyDate(LocalDate baseDate, Integer dayOfMonth) {
+        if (dayOfMonth == null) {
+            return baseDate;
+        }
+        int lastDay = baseDate.lengthOfMonth();
+        int safeDay = Math.min(dayOfMonth, lastDay);
+        return baseDate.withDayOfMonth(safeDay);
+    }
+
+    private Set<DayOfWeek> parseDaysOfWeek(String daysOfWeek) {
+        if (daysOfWeek == null || daysOfWeek.isBlank()) {
+            return Set.of();
+        }
+        String[] parts = daysOfWeek.split(",");
+        Set<DayOfWeek> results = new LinkedHashSet<>();
+        for (String part : parts) {
+            try {
+                results.add(DayOfWeek.valueOf(part.trim().toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException ignored) {
+                log.warn("Ignoring invalid day_of_week entry: {}", part);
+            }
+        }
+        return results;
+    }
+
+    private List<String> detectConflicts(ClassDefinitionDTO classDefinition, LocalDateTime start, LocalDateTime end) {
+        List<String> reasons = new ArrayList<>();
+        UUID instructorUuid = classDefinition.defaultInstructorUuid();
+
+        if (!availabilityService.isInstructorAvailable(instructorUuid, start, end)) {
+            reasons.add("Instructor is not available for the requested time range");
+        }
+        ScheduleRequestDTO requestDTO = new ScheduleRequestDTO(
+                classDefinition.uuid(),
+                instructorUuid,
+                start,
+                end,
+                "UTC"
+        );
+        if (timetableService.hasInstructorConflict(instructorUuid, requestDTO)) {
+            reasons.add("Instructor has overlapping scheduled instances");
+        }
+        return reasons;
+    }
+
+    private ScheduledInstanceDTO scheduleInstance(ClassDefinitionDTO classDefinition, LocalDateTime start, LocalDateTime end) {
+        ScheduleRequestDTO scheduleRequestDTO = new ScheduleRequestDTO(
+                classDefinition.uuid(),
+                classDefinition.defaultInstructorUuid(),
+                start,
+                end,
+                "UTC"
+        );
+        return timetableService.scheduleClass(scheduleRequestDTO);
+    }
+
+    private record ClassSchedulingOutcome(List<ScheduledInstanceDTO> scheduledInstances,
+                                          List<ClassSchedulingConflictDTO> conflicts,
+                                          boolean blockingConflict) {
     }
 
     @Override
@@ -217,40 +553,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     @Override
-    public RecurrencePatternDTO createRecurrencePattern(RecurrencePatternDTO recurrencePatternDTO) {
-        log.debug("Creating recurrence pattern with type: {}", recurrencePatternDTO.recurrenceType());
-        
-        RecurrencePattern entity = RecurrencePatternFactory.toEntity(recurrencePatternDTO);
-        
-        // Set defaults
-        if (entity.getIntervalValue() == null) {
-            entity.setIntervalValue(1);
-        }
-        
-        RecurrencePattern savedEntity = recurrencePatternRepository.save(entity);
-        RecurrencePatternDTO result = RecurrencePatternFactory.toDTO(savedEntity);
-        
-        log.info("Created recurrence pattern with UUID: {}", result.uuid());
-        return result;
-    }
-
-    @Override
-    public RecurrencePatternDTO updateRecurrencePattern(UUID patternUuid, RecurrencePatternDTO recurrencePatternDTO) {
-        log.debug("Updating recurrence pattern with UUID: {}", patternUuid);
-        
-        RecurrencePattern existingEntity = recurrencePatternRepository.findByUuid(patternUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
-        
-        RecurrencePatternFactory.updateEntityFromDTO(existingEntity, recurrencePatternDTO);
-        
-        RecurrencePattern savedEntity = recurrencePatternRepository.save(existingEntity);
-        RecurrencePatternDTO result = RecurrencePatternFactory.toDTO(savedEntity);
-        
-        log.info("Updated recurrence pattern with UUID: {}", patternUuid);
-        return result;
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public RecurrencePatternDTO getRecurrencePattern(UUID patternUuid) {
         log.debug("Retrieving recurrence pattern with UUID: {}", patternUuid);
@@ -260,30 +562,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
     }
 
-    @Override
-    public void deleteRecurrencePattern(UUID patternUuid) {
-        log.debug("Deleting recurrence pattern with UUID: {}", patternUuid);
-        
-        RecurrencePattern entity = recurrencePatternRepository.findByUuid(patternUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(RECURRENCE_PATTERN_NOT_FOUND_TEMPLATE, patternUuid)));
-        
-        // Check if pattern is still in use by any class definitions
-        List<ClassDefinition> dependentClasses = classDefinitionRepository.findAll()
-                .stream()
-                .filter(cd -> patternUuid.equals(cd.getRecurrencePatternUuid()))
-                .toList();
-        
-        if (!dependentClasses.isEmpty()) {
-            throw new IllegalStateException(
-                String.format("Cannot delete recurrence pattern %s - it is still in use by %d class definition(s)", 
-                    patternUuid, dependentClasses.size())
-            );
-        }
-        
-        recurrencePatternRepository.delete(entity);
-        log.info("Deleted recurrence pattern with UUID: {}", patternUuid);
-    }
-    
     @Override
     @Transactional(readOnly = true)
     public boolean hasInstructorAvailability(UUID instructorUuid) {

@@ -21,8 +21,6 @@ public interface AvailabilityRepository extends JpaRepository<InstructorAvailabi
 
     List<InstructorAvailability> findByInstructorUuid(UUID instructorUuid);
 
-    List<InstructorAvailability> findByInstructorUuidAndAvailabilityType(UUID instructorUuid, AvailabilityType availabilityType);
-
     List<InstructorAvailability> findByInstructorUuidAndIsAvailable(UUID instructorUuid, Boolean isAvailable);
 
     @Query("SELECT ia FROM InstructorAvailability ia WHERE ia.instructorUuid = :instructorUuid AND ia.isAvailable = true")

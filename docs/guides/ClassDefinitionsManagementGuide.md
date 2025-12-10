@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This guide provides frontend engineers with the necessary information to integrate with the **Class Definition Management** APIs. It covers creating class templates, managing recurrence patterns, and scheduling class instances.
+This guide provides frontend engineers with the necessary information to integrate with the **Class Definition Management** APIs. It covers creating class templates and scheduling class instances using existing recurrence rules.
 
 **Key Objective:** Build a UI that allows instructors and administrators to define a class once and schedule it to run multiple times, like in Google Calendar.
 
@@ -48,21 +48,14 @@ sequenceDiagram
     participant DB as Database
     participant T as Timetabling
 
-    I->>API: 1. POST /classes (basic info + times)
+    I->>API: 1. POST /classes (basic info + times + recurrence_pattern_uuid)
     API->>DB: Save class definition
     API->>I: Return class UUID
 
-    I->>API: 2. POST /classes/recurrence-patterns
-    API->>DB: Save pattern (WEEKLY: Mon,Wed,Fri)
-    API->>I: Return pattern UUID
-
-    I->>API: 3. PUT /classes/{uuid} (link pattern)
-    API->>DB: Update class with pattern UUID
-
-    I->>API: 4. POST /classes/{uuid}/schedule
+    I->>API: 2. POST /classes/{uuid}/schedule
     API->>API: Generate schedule instances
     API->>T: Create scheduled instances
-    API->>I: Return 48 scheduled instances
+    API->>I: Return scheduled instances
 ```
 
 ### Workflow 2: Course-Based Class Series
@@ -80,10 +73,7 @@ sequenceDiagram
     A->>API: 2. POST /classes (with course_uuid)
     API->>DB: Save class linked to course
 
-    A->>API: 3. Create weekly pattern
-    API->>DB: Save recurrence pattern
-
-    A->>API: 4. Schedule semester classes
+    A->>API: 3. Schedule semester classes
     API->>API: Generate 16-week schedule
     API->>A: Return full semester schedule
 ```
@@ -95,15 +85,13 @@ sequenceDiagram
 ### Class Definition vs. Scheduled Instance
 
 -   **`ClassDefinition`**: This is the **template** for a class. It defines *what* the class is about (e.g., "Introduction to Java"), its duration (e.g., 90 minutes), the instructor, and the maximum number of students. It does **not** have a specific date.
--   **`RecurrencePattern`**: This is the **rule** for scheduling. It defines *how often* a class should occur (e.g., every Monday and Wednesday at 10:00 AM).
+-   **`RecurrencePattern`**: This is the **rule** for scheduling. It defines *how often* a class should occur (e.g., every Monday and Wednesday at 10:00 AM). Recurrence patterns are provisioned out-of-band and referenced by UUID.
 -   **`ScheduledInstance`**: This is the **actual calendar event**. It's a concrete occurrence of a class on a specific date and time (e.g., "Introduction to Java on 2024-09-09 from 10:00 to 11:30").
 
 **Typical Workflow:**
 
-1.  Create a `ClassDefinition`.
-2.  Create a `RecurrencePattern`.
-3.  Associate the pattern with the definition.
-4.  Trigger the scheduling process to generate the `ScheduledInstance` objects.
+1.  Create a `ClassDefinition`, optionally referencing an existing `recurrence_pattern_uuid`.
+2.  Trigger the scheduling process to generate the `ScheduledInstance` objects.
 
 > **Important:** When linking a class definition to a course (`course_uuid`), the specified instructor and/or organisation must already have an approved training application for that course. Attempting to create or update a class definition without the necessary approvals— or after an approval has been revoked— will fail with a clear validation error. Every training application now includes a segmented rate card (private/public × individual/group) with a shared currency (defaulting to KES), so coordinators can align scheduled class fees with the approved combination instead of free-text prices.
 
@@ -137,9 +125,28 @@ This form should capture the details for a `ClassDefinition`.
   "location_longitude": 36.821945,
   "max_participants": 30,
   "allow_waitlist": true,
+  "session_templates": [
+    {
+      "start_time": "2025-01-15T14:00:00Z",
+      "end_time": "2025-01-15T15:30:00Z",
+      "recurrence": {
+        "recurrence_type": "WEEKLY",
+        "interval_value": 1,
+        "days_of_week": "MONDAY,WEDNESDAY",
+        "occurrence_count": 8
+      },
+      "conflict_resolution": "FAIL"
+    }
+  ],
   "is_active": true
 }
 ```
+
+**Conflict handling strategies**
+
+- `FAIL` (default): halt scheduling for that template on the first conflict; API responds with `409` and the conflicts list (nothing scheduled for that template).
+- `SKIP`: schedule only non-conflicting occurrences; API responds `201` with scheduled instances plus the conflicts list so you can show skipped dates.
+- `ROLLOVER`: when a conflict occurs, push that occurrence forward by the recurrence interval (bounded retries) and schedule it; series end shifts accordingly. Unrecoverable conflicts are returned alongside scheduled instances.
 
 **Location & Mapbox expectations:**
 
@@ -197,40 +204,7 @@ The API will return the newly created `ClassDefinitionDTO`. Your UI should store
 
 ---
 
-### Task 2: Build the "Set Recurrence" UI
-
-This UI allows users to define how often the class should repeat.
-
--   **API Endpoint:** `POST /api/v1/classes/recurrence-patterns`
--   **Method:** `POST`
--   **Controller Method:** `createClassRecurrencePattern`
-
-**Example: Weekly on Monday, Wednesday, Friday**
-
-```json
-{
-  "recurrence_type": "WEEKLY",
-  "days_of_week": "MONDAY,WEDNESDAY,FRIDAY",
-  "interval_value": 1,
-  "end_date": "2025-12-31"
-}
-```
-
-**Example: Monthly on the 15th**
-
-```json
-{
-  "recurrence_type": "MONTHLY",
-  "day_of_month": 15,
-  "interval_value": 1,
-  "occurrence_count": 12
-}
-```
-
-**After creating the pattern, associate it with the class definition:**
-
--   **API Endpoint:** `PUT /api/v1/classes/{uuid}`
--   **Method:** `PUT`
+> Recurrence patterns are now provisioned outside of the Classes API. When scheduling, supply an existing `recurrence_pattern_uuid` on the class definition or omit it for one-off classes.
 
 ---
 

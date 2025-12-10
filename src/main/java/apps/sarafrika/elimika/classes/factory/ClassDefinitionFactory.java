@@ -32,6 +32,7 @@ public class ClassDefinitionFactory {
                 entity.getAllowWaitlist(),
                 entity.getRecurrencePatternUuid(),
                 entity.getIsActive(),
+                java.util.List.of(),
                 entity.getCreatedDate(),
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),

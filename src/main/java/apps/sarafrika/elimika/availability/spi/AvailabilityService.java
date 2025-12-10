@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.availability.spi;
 
-import apps.sarafrika.elimika.availability.dto.*;
+import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -14,8 +14,8 @@ import java.util.UUID;
  * Service Provider Interface for Availability operations.
  * <p>
  * This interface defines the public API that other modules can use to interact
- * with the Availability module. It provides operations for managing instructor
- * availability patterns including daily, weekly, monthly, and custom patterns.
+ * with the Availability module. It provides operations for querying instructor
+ * availability slots and managing existing records.
  * <p>
  * The SPI follows Spring Modulith patterns for inter-module communication
  * and maintains clean boundaries between modules.
@@ -25,46 +25,6 @@ import java.util.UUID;
  * @since 2024-09-05
  */
 public interface AvailabilityService {
-
-    /**
-     * Sets weekly availability patterns for an instructor.
-     * This will replace any existing weekly availability for the instructor.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param slots List of weekly availability slots to set
-     * @throws IllegalArgumentException if instructorUuid is null or slots is empty
-     */
-    void setWeeklyAvailability(UUID instructorUuid, List<WeeklyAvailabilitySlotDTO> slots);
-
-    /**
-     * Sets daily availability patterns for an instructor.
-     * This will replace any existing daily availability for the instructor.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param slots List of daily availability slots to set
-     * @throws IllegalArgumentException if instructorUuid is null or slots is empty
-     */
-    void setDailyAvailability(UUID instructorUuid, List<DailyAvailabilitySlotDTO> slots);
-
-    /**
-     * Sets monthly availability patterns for an instructor.
-     * This will replace any existing monthly availability for the instructor.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param slots List of monthly availability slots to set
-     * @throws IllegalArgumentException if instructorUuid is null or slots is empty
-     */
-    void setMonthlyAvailability(UUID instructorUuid, List<MonthlyAvailabilitySlotDTO> slots);
-
-    /**
-     * Sets custom availability patterns for an instructor.
-     * This will replace any existing custom availability for the instructor.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param slots List of custom availability slots to set
-     * @throws IllegalArgumentException if instructorUuid is null or slots is empty
-     */
-    void setCustomAvailability(UUID instructorUuid, List<CustomAvailabilitySlotDTO> slots);
 
     /**
      * Creates a single availability slot.
@@ -178,31 +138,5 @@ public interface AvailabilityService {
      */
     void clearAvailability(UUID instructorUuid);
 
-    /**
-     * Blocks multiple time slots for an instructor in a single request.
-     *
-     * @param instructorUuid The UUID of the instructor
-     * @param slots List of blocked time slots to create
-     * @throws IllegalArgumentException if the instructorUuid is null or the slots list is empty/invalid
-     */
-    List<AvailabilitySlotDTO> blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots);
-
-    /**
-     * Removes a blocked availability slot by UUID.
-     *
-     * @param slotUuid UUID of the blocked slot to remove
-     */
-    void removeBlockedSlot(UUID slotUuid);
-
-    /**
-     * Books an available time slot for an instructor by blocking the requested period.
-     * This is typically invoked from student-facing booking flows for private sessions.
-     *
-     * Implementations should:
-     * - Validate that the instructor is available for the requested period.
-     * - Create a blocked availability entry so the slot is no longer offered.
-     *
-     * @param request booking request details
-     */
-    void bookInstructorSlot(apps.sarafrika.elimika.availability.dto.InstructorSlotBookingRequestDTO request);
+    // NOTE: Time-slot mutation endpoints have been removed; availability is now managed elsewhere.
 }

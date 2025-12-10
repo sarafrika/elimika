@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -254,6 +255,21 @@ public record ClassDefinitionDTO(
         )
         @JsonProperty("is_active")
         Boolean isActive,
+
+        @Schema(
+                description = """
+                        **[REQUIRED]** Inline session templates with time slots and recurrence rules to schedule class instances during creation.
+                        conflict_resolution per template:
+                        - FAIL: stop scheduling if any conflict; response 409 with conflicts.
+                        - SKIP: schedule non-conflicting occurrences; return conflicts for skipped dates.
+                        - ROLLOVER: push conflicting dates forward by the recurrence interval (bounded retries) and extend the series; return unrecoverable conflicts.
+                        """,
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @JsonProperty("session_templates")
+        @NotNull(message = "session_templates is required")
+        @Size(min = 1, message = "At least one session template is required")
+        List<ClassSessionTemplateDTO> sessionTemplates,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the class definition was first created. Automatically set by the system.",

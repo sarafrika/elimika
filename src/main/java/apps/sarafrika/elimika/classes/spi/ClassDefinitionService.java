@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.spi;
 
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
 
@@ -11,7 +12,7 @@ import java.util.UUID;
  * <p>
  * This interface defines the public API that other modules can use to interact
  * with the Classes module. It provides operations for managing class definitions
- * and their associated recurrence patterns.
+ * and reading their associated recurrence patterns.
  * <p>
  * The SPI follows Spring Modulith patterns for inter-module communication
  * and maintains clean boundaries between modules.
@@ -29,7 +30,7 @@ public interface ClassDefinitionService {
      * @return The created class definition with generated UUID and audit fields
      * @throws IllegalArgumentException if required fields are missing or invalid
      */
-    ClassDefinitionDTO createClassDefinition(ClassDefinitionDTO classDefinition);
+    ClassDefinitionCreationResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
 
     /**
      * Updates an existing class definition.
@@ -115,26 +116,6 @@ public interface ClassDefinitionService {
     List<ClassDefinitionDTO> findAllActiveClasses();
 
     /**
-     * Creates a new recurrence pattern.
-     *
-     * @param recurrencePattern The recurrence pattern data to create
-     * @return The created recurrence pattern with generated UUID and audit fields
-     * @throws IllegalArgumentException if required fields are missing or invalid
-     */
-    RecurrencePatternDTO createRecurrencePattern(RecurrencePatternDTO recurrencePattern);
-
-    /**
-     * Updates an existing recurrence pattern.
-     *
-     * @param patternUuid The UUID of the recurrence pattern to update
-     * @param recurrencePattern The updated recurrence pattern data
-     * @return The updated recurrence pattern
-     * @throws IllegalArgumentException if the UUID is null or invalid
-     * @throws RuntimeException if recurrence pattern is not found
-     */
-    RecurrencePatternDTO updateRecurrencePattern(UUID patternUuid, RecurrencePatternDTO recurrencePattern);
-
-    /**
      * Retrieves a recurrence pattern by its UUID.
      *
      * @param patternUuid The UUID of the recurrence pattern to retrieve
@@ -143,16 +124,6 @@ public interface ClassDefinitionService {
      * @throws RuntimeException if recurrence pattern is not found
      */
     RecurrencePatternDTO getRecurrencePattern(UUID patternUuid);
-
-    /**
-     * Deletes a recurrence pattern. This will also remove the pattern reference
-     * from any class definitions that use it.
-     *
-     * @param patternUuid The UUID of the recurrence pattern to delete
-     * @throws IllegalArgumentException if the UUID is null or invalid
-     * @throws RuntimeException if recurrence pattern is not found or still in use
-     */
-    void deleteRecurrencePattern(UUID patternUuid);
 
     /**
      * Checks if an instructor has availability defined for their classes.

@@ -1,7 +1,5 @@
 package apps.sarafrika.elimika.booking.service.impl;
 
-import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
-import apps.sarafrika.elimika.availability.dto.BlockedTimeSlotRequestDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.booking.dto.BookingPaymentUpdateRequestDTO;
 import apps.sarafrika.elimika.booking.dto.CreateBookingRequestDTO;
@@ -9,7 +7,6 @@ import apps.sarafrika.elimika.booking.model.Booking;
 import apps.sarafrika.elimika.booking.payment.PaymentGatewayClient;
 import apps.sarafrika.elimika.booking.payment.PaymentSession;
 import apps.sarafrika.elimika.booking.repository.BookingRepository;
-import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,17 +16,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,13 +41,12 @@ class BookingServiceImplTest {
     private BookingServiceImpl bookingService;
 
     @Test
-    void createBooking_blocksAvailability_andReturnsSession() {
+    void createBooking_initializesPaymentSession() {
         UUID instructorUuid = UUID.randomUUID();
         UUID studentUuid = UUID.randomUUID();
         UUID courseUuid = UUID.randomUUID();
         LocalDateTime start = LocalDateTime.of(2024, 10, 15, 9, 0);
         LocalDateTime end = LocalDateTime.of(2024, 10, 15, 10, 0);
-        UUID blockUuid = UUID.randomUUID();
 
         CreateBookingRequestDTO request = new CreateBookingRequestDTO(
                 studentUuid,
@@ -68,29 +60,6 @@ class BookingServiceImplTest {
         );
 
         when(availabilityService.isInstructorAvailable(instructorUuid, start, end)).thenReturn(true);
-        AvailabilitySlotDTO blockedSlot = new AvailabilitySlotDTO(
-                blockUuid,
-                instructorUuid,
-                AvailabilityType.CUSTOM,
-                null,
-                null,
-                LocalDate.from(start),
-                LocalTime.from(start),
-                LocalTime.from(end),
-                "BLOCKED_TIME_SLOT",
-                false,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                "#FFD93D"
-        );
-        when(availabilityService.blockTimeSlots(eq(instructorUuid), anyList()))
-                .thenReturn(List.of(blockedSlot));
-
         when(bookingRepository.save(any(Booking.class)))
                 .thenAnswer(invocation -> {
                     Booking booking = invocation.getArgument(0);
@@ -106,10 +75,10 @@ class BookingServiceImplTest {
         var response = bookingService.createBooking(request);
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_REQUIRED);
-        assertThat(response.availabilityBlockUuid()).isEqualTo(blockUuid);
+        assertThat(response.availabilityBlockUuid()).isNull();
         assertThat(response.paymentSessionId()).isEqualTo("sess_123");
 
-        verify(availabilityService).blockTimeSlots(eq(instructorUuid), anyList());
+        verify(availabilityService).isInstructorAvailable(instructorUuid, start, end);
     }
 
     @Test
@@ -128,7 +97,6 @@ class BookingServiceImplTest {
 
         assertThat(response.status()).isEqualTo(BookingStatus.CANCELLED);
         assertThat(response.availabilityBlockUuid()).isNull();
-        verify(availabilityService).removeBlockedSlot(blockUuid);
     }
 
     @Test
@@ -149,7 +117,6 @@ class BookingServiceImplTest {
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_FAILED);
         assertThat(response.availabilityBlockUuid()).isNull();
-        verify(availabilityService).removeBlockedSlot(blockUuid);
     }
 
     @Test
@@ -175,6 +142,5 @@ class BookingServiceImplTest {
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).getStatus()).isEqualTo(BookingStatus.EXPIRED);
         assertThat(saved.get(0).getAvailabilityBlockUuid()).isNull();
-        verify(availabilityService).removeBlockedSlot(blockUuid);
     }
 }

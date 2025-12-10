@@ -1,8 +1,7 @@
 package apps.sarafrika.elimika.availability.factory;
 
-import apps.sarafrika.elimika.availability.dto.*;
+import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.model.InstructorAvailability;
-import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -54,72 +53,6 @@ public class AvailabilityFactory {
         entity.setCustomPattern(dto.customPattern());
         entity.setIsAvailable(dto.isAvailable());
         entity.setRecurrenceInterval(dto.recurrenceInterval());
-        entity.setEffectiveStartDate(dto.effectiveStartDate());
-        entity.setEffectiveEndDate(dto.effectiveEndDate());
-        return entity;
-    }
-
-    public static InstructorAvailability toEntity(WeeklyAvailabilitySlotDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-        InstructorAvailability entity = new InstructorAvailability();
-        entity.setInstructorUuid(dto.instructorUuid());
-        entity.setAvailabilityType(AvailabilityType.WEEKLY);
-        entity.setDayOfWeek(dto.dayOfWeek());
-        entity.setStartTime(dto.startTime());
-        entity.setEndTime(dto.endTime());
-        entity.setIsAvailable(dto.isAvailable() != null ? dto.isAvailable() : true);
-        entity.setRecurrenceInterval(dto.recurrenceInterval() != null ? dto.recurrenceInterval() : 1);
-        entity.setEffectiveStartDate(dto.effectiveStartDate());
-        entity.setEffectiveEndDate(dto.effectiveEndDate());
-        return entity;
-    }
-
-    public static InstructorAvailability toEntity(DailyAvailabilitySlotDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-        InstructorAvailability entity = new InstructorAvailability();
-        entity.setInstructorUuid(dto.instructorUuid());
-        entity.setAvailabilityType(AvailabilityType.DAILY);
-        entity.setStartTime(dto.startTime());
-        entity.setEndTime(dto.endTime());
-        entity.setIsAvailable(dto.isAvailable() != null ? dto.isAvailable() : true);
-        entity.setRecurrenceInterval(dto.recurrenceInterval() != null ? dto.recurrenceInterval() : 1);
-        entity.setEffectiveStartDate(dto.effectiveStartDate());
-        entity.setEffectiveEndDate(dto.effectiveEndDate());
-        return entity;
-    }
-
-    public static InstructorAvailability toEntity(MonthlyAvailabilitySlotDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-        InstructorAvailability entity = new InstructorAvailability();
-        entity.setInstructorUuid(dto.instructorUuid());
-        entity.setAvailabilityType(AvailabilityType.MONTHLY);
-        entity.setDayOfMonth(dto.dayOfMonth());
-        entity.setStartTime(dto.startTime());
-        entity.setEndTime(dto.endTime());
-        entity.setIsAvailable(dto.isAvailable() != null ? dto.isAvailable() : true);
-        entity.setRecurrenceInterval(dto.recurrenceInterval() != null ? dto.recurrenceInterval() : 1);
-        entity.setEffectiveStartDate(dto.effectiveStartDate());
-        entity.setEffectiveEndDate(dto.effectiveEndDate());
-        return entity;
-    }
-
-    public static InstructorAvailability toEntity(CustomAvailabilitySlotDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-        InstructorAvailability entity = new InstructorAvailability();
-        entity.setInstructorUuid(dto.instructorUuid());
-        entity.setAvailabilityType(AvailabilityType.CUSTOM);
-        entity.setCustomPattern(dto.customPattern());
-        entity.setStartTime(dto.startTime());
-        entity.setEndTime(dto.endTime());
-        entity.setIsAvailable(dto.isAvailable() != null ? dto.isAvailable() : true);
         entity.setEffectiveStartDate(dto.effectiveStartDate());
         entity.setEffectiveEndDate(dto.effectiveEndDate());
         return entity;

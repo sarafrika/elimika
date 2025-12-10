@@ -72,7 +72,7 @@ Features: profile (general/education/experience/memberships), documents upload, 
   - INST-09: Analytics helper (average_rating, review_count) → matches raw reviews.
 
 ### 6) Classes (Definitions) & Scheduling
-Features: class definition, location (Mapbox-ready), recurrence patterns, schedule generation, invite link (public enrollment), class-level enrollment listing.
+Features: class definition, location (Mapbox-ready), schedule generation, invite link (public enrollment), class-level enrollment listing.
 - Scenarios:
   - CLS-01: Create class definition with date-time defaults, location fields for IN_PERSON/HYBRID → validation enforces name/lat/long.
   - CLS-02: ONLINE class without location → accepted.
@@ -110,7 +110,7 @@ Features: student profile, enrollments, lesson progress, content/quiz/assignment
   - STU-06: Submit instructor review → linked to enrollment; visible in instructor reviews.
 
 ### 10) Availability (Instructor Scheduling)
-Features: availability patterns, blocking slots, private bookings (student → instructor), conflict with classes.
+Features: availability calendar, private bookings (student → instructor), conflict checks with classes.
 - Scenarios:
   - AV-01: Create availability block → visible; overlapping blocks prevented.
   - AV-02: Block time for private booking (book endpoint) → converted to blocked slot.

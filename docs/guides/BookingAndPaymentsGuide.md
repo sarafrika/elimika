@@ -99,9 +99,9 @@ Sets status to `cancelled` and releases the availability block (if present).
 
 ## 5. Availability Interaction
 
-- On create: service checks instructor availability, then blocks the slot via `POST /api/v1/instructors/{instructorUuid}/availability/block` (bulk JSON payload) and stores the `availability_block_uuid`.
-- On payment failure/cancel/expiry: service calls `removeBlockedSlot` to release the hold.
-- On confirmation: block remains, representing the confirmed session.
+- On create: service checks instructor availability and records the booking without creating availability blocks.
+- On payment failure/cancel/expiry: booking status changes only; no availability cleanup is required.
+- On confirmation: availability is unaffected; downstream scheduling should reflect the booking.
 
 ---
 

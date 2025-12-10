@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.availability.service.impl;
 
-import apps.sarafrika.elimika.availability.dto.*;
+import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.factory.AvailabilityFactory;
 import apps.sarafrika.elimika.availability.model.InstructorAvailability;
 import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
@@ -38,110 +38,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     private final GenericSpecificationBuilder<InstructorAvailability> specificationBuilder;
 
     private static final String AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE = "Availability slot with UUID %s not found";
-
-    @Override
-    public void setWeeklyAvailability(UUID instructorUuid, List<WeeklyAvailabilitySlotDTO> slots) {
-        log.debug("Setting weekly availability for instructor: {}", instructorUuid);
-        
-        if (instructorUuid == null) {
-            throw new IllegalArgumentException("Instructor UUID cannot be null");
-        }
-        if (slots == null || slots.isEmpty()) {
-            throw new IllegalArgumentException("Weekly availability slots cannot be null or empty");
-        }
-
-        // Remove existing weekly availability
-        List<InstructorAvailability> existingWeeklySlots = 
-            availabilityRepository.findByInstructorUuidAndAvailabilityType(instructorUuid, AvailabilityType.WEEKLY);
-        availabilityRepository.deleteAll(existingWeeklySlots);
-
-        // Create new weekly availability slots
-        List<InstructorAvailability> entities = slots.stream()
-            .map(AvailabilityFactory::toEntity)
-            .collect(Collectors.toList());
-        
-        availabilityRepository.saveAll(entities);
-        log.debug("Created {} weekly availability slots for instructor: {}", entities.size(), instructorUuid);
-        publishAvailabilityChanged(instructorUuid, AvailabilityType.WEEKLY, determineEffectiveDate(entities), "Weekly availability set");
-    }
-
-    @Override
-    public void setDailyAvailability(UUID instructorUuid, List<DailyAvailabilitySlotDTO> slots) {
-        log.debug("Setting daily availability for instructor: {}", instructorUuid);
-        
-        if (instructorUuid == null) {
-            throw new IllegalArgumentException("Instructor UUID cannot be null");
-        }
-        if (slots == null || slots.isEmpty()) {
-            throw new IllegalArgumentException("Daily availability slots cannot be null or empty");
-        }
-
-        // Remove existing daily availability
-        List<InstructorAvailability> existingDailySlots = 
-            availabilityRepository.findByInstructorUuidAndAvailabilityType(instructorUuid, AvailabilityType.DAILY);
-        availabilityRepository.deleteAll(existingDailySlots);
-
-        // Create new daily availability slots
-        List<InstructorAvailability> entities = slots.stream()
-            .map(AvailabilityFactory::toEntity)
-            .collect(Collectors.toList());
-        
-        availabilityRepository.saveAll(entities);
-        log.debug("Created {} daily availability slots for instructor: {}", entities.size(), instructorUuid);
-        publishAvailabilityChanged(instructorUuid, AvailabilityType.DAILY, determineEffectiveDate(entities), "Daily availability set");
-    }
-
-    @Override
-    public void setMonthlyAvailability(UUID instructorUuid, List<MonthlyAvailabilitySlotDTO> slots) {
-        log.debug("Setting monthly availability for instructor: {}", instructorUuid);
-        
-        if (instructorUuid == null) {
-            throw new IllegalArgumentException("Instructor UUID cannot be null");
-        }
-        if (slots == null || slots.isEmpty()) {
-            throw new IllegalArgumentException("Monthly availability slots cannot be null or empty");
-        }
-
-        // Remove existing monthly availability
-        List<InstructorAvailability> existingMonthlySlots = 
-            availabilityRepository.findByInstructorUuidAndAvailabilityType(instructorUuid, AvailabilityType.MONTHLY);
-        availabilityRepository.deleteAll(existingMonthlySlots);
-
-        // Create new monthly availability slots
-        List<InstructorAvailability> entities = slots.stream()
-            .map(AvailabilityFactory::toEntity)
-            .collect(Collectors.toList());
-        
-        availabilityRepository.saveAll(entities);
-        log.debug("Created {} monthly availability slots for instructor: {}", entities.size(), instructorUuid);
-        publishAvailabilityChanged(instructorUuid, AvailabilityType.MONTHLY, determineEffectiveDate(entities), "Monthly availability set");
-    }
-
-    @Override
-    public void setCustomAvailability(UUID instructorUuid, List<CustomAvailabilitySlotDTO> slots) {
-        log.debug("Setting custom availability for instructor: {}", instructorUuid);
-        
-        if (instructorUuid == null) {
-            throw new IllegalArgumentException("Instructor UUID cannot be null");
-        }
-        if (slots == null || slots.isEmpty()) {
-            throw new IllegalArgumentException("Custom availability slots cannot be null or empty");
-        }
-
-        // Remove existing custom availability
-        List<InstructorAvailability> existingCustomSlots = 
-            availabilityRepository.findByInstructorUuidAndAvailabilityType(instructorUuid, AvailabilityType.CUSTOM);
-        availabilityRepository.deleteAll(existingCustomSlots);
-
-        // Create new custom availability slots
-        List<InstructorAvailability> entities = slots.stream()
-            .map(AvailabilityFactory::toEntity)
-            .collect(Collectors.toList());
-        
-        availabilityRepository.saveAll(entities);
-        log.debug("Created {} custom availability slots for instructor: {}", entities.size(), instructorUuid);
-        publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, determineEffectiveDate(entities), "Custom availability set");
-    }
 
     @Override
     public AvailabilitySlotDTO createAvailabilitySlot(AvailabilitySlotDTO slot) {
@@ -349,91 +245,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         log.debug("Cleared {} availability slots for instructor: {}", allSlots.size(), instructorUuid);
     }
 
-    @Override
-    public void removeBlockedSlot(UUID slotUuid) {
-        if (slotUuid == null) {
-            return;
-        }
-        availabilityRepository.findByUuid(slotUuid).ifPresent(availability -> {
-            availabilityRepository.delete(availability);
-            log.debug("Removed blocked availability slot {}", slotUuid);
-            publishAvailabilityChanged(availability.getInstructorUuid(), availability.getAvailabilityType(),
-                    resolveEffectiveDate(availability), "Blocked slot removed");
-        });
-    }
-
-    @Override
-    public List<AvailabilitySlotDTO> blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots) {
-        int slotCount = slots != null ? slots.size() : 0;
-        log.debug("Blocking {} time slots for instructor: {}", slotCount, instructorUuid);
-
-        if (slots == null || slots.isEmpty()) {
-            throw new IllegalArgumentException("Blocked time slots cannot be null or empty");
-        }
-
-        List<InstructorAvailability> blockedSlots = slots.stream()
-                .map(slot -> {
-                    if (slot == null) {
-                        throw new IllegalArgumentException("Blocked time slot entry cannot be null");
-                    }
-                    validateBlockRequest(instructorUuid, slot.startTime(), slot.endTime());
-                    return buildBlockedSlot(instructorUuid, slot.startTime(), slot.endTime(), slot.colorCode());
-                })
-                .collect(Collectors.toList());
-
-        List<InstructorAvailability> saved = availabilityRepository.saveAll(blockedSlots);
-        log.debug("Created {} blocked time slots for instructor: {}", saved.size(), instructorUuid);
-        publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, determineEffectiveDate(saved),
-                "Instructor time blocked (bulk)");
-        return AvailabilityFactory.toDTOList(saved);
-    }
-
-    @Override
-    public void bookInstructorSlot(apps.sarafrika.elimika.availability.dto.InstructorSlotBookingRequestDTO request) {
-        UUID instructorUuid = request.instructorUuid();
-        LocalDateTime start = request.startTime();
-        LocalDateTime end = request.endTime();
-
-        log.debug("Booking instructor slot for instructor: {} from {} to {} (student: {}, purpose: {})",
-                instructorUuid, start, end, request.studentUuid(), request.purpose());
-
-        if (!isInstructorAvailable(instructorUuid, start, end)) {
-            throw new IllegalStateException("Instructor is not available for the requested time range.");
-        }
-
-        // For now, booking is represented by a blocked availability slot.
-        // Future iterations can introduce a dedicated bookings table with richer metadata.
-        blockTimeSlots(instructorUuid, List.of(new BlockedTimeSlotRequestDTO(start, end, "#95E1D3")));
-    }
-
-    private void validateBlockRequest(UUID instructorUuid, LocalDateTime start, LocalDateTime end) {
-        if (instructorUuid == null) {
-            throw new IllegalArgumentException("Instructor UUID cannot be null");
-        }
-        if (start == null) {
-            throw new IllegalArgumentException("Start time cannot be null");
-        }
-        if (end == null) {
-            throw new IllegalArgumentException("End time cannot be null");
-        }
-        if (start.isAfter(end)) {
-            throw new IllegalArgumentException("Start time must be before end time");
-        }
-    }
-
-    private InstructorAvailability buildBlockedSlot(UUID instructorUuid, LocalDateTime start, LocalDateTime end, String colorCode) {
-        InstructorAvailability blockSlot = new InstructorAvailability();
-        blockSlot.setInstructorUuid(instructorUuid);
-        blockSlot.setAvailabilityType(AvailabilityType.CUSTOM);
-        blockSlot.setSpecificDate(start.toLocalDate());
-        blockSlot.setStartTime(start.toLocalTime());
-        blockSlot.setEndTime(end.toLocalTime());
-        blockSlot.setIsAvailable(false);
-        blockSlot.setCustomPattern("BLOCKED_TIME_SLOT");
-        blockSlot.setColorCode(colorCode);
-        return blockSlot;
-    }
-
     private boolean matchesDate(InstructorAvailability slot, LocalDate date) {
         return switch (slot.getAvailabilityType()) {
             case DAILY -> true; // Daily patterns always match
@@ -466,13 +277,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             return availability.getEffectiveStartDate();
         }
         return LocalDate.now();
-    }
-
-    private LocalDate determineEffectiveDate(List<InstructorAvailability> entities) {
-        return entities.stream()
-                .map(this::resolveEffectiveDate)
-                .min(LocalDate::compareTo)
-                .orElse(LocalDate.now());
     }
 
     private boolean matchesWeeklyPattern(InstructorAvailability slot, LocalDate date) {

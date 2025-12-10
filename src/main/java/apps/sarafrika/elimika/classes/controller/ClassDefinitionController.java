@@ -1,7 +1,8 @@
 package apps.sarafrika.elimika.classes.controller;
 
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
-import apps.sarafrika.elimika.classes.dto.RecurrencePatternDTO;
+import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.RecurrenceEngineService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -15,7 +16,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/classes")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Class Definition Management", description = "APIs for creating and managing class definitions, recurrence patterns, and scheduling.")
+@Tag(name = "Class Definition Management", description = "APIs for creating and managing class definitions and scheduling.")
 
 public class ClassDefinitionController {
 
@@ -42,12 +42,17 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionCreationResponseDTO>> createClassDefinition(
             @Valid @RequestBody ClassDefinitionDTO request) {
         log.debug("REST request to create class definition: {}", request.title());
-        
-        ClassDefinitionDTO result = classDefinitionService.createClassDefinition(request);
-        return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
+
+        try {
+            ClassDefinitionCreationResponseDTO result = classDefinitionService.createClassDefinition(request);
+            return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
+        } catch (SchedulingConflictException e) {
+            log.warn("Scheduling conflicts while creating class definition {}: {}", request.title(), e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        }
     }
 
     @Operation(summary = "List enrollments for a class definition across all scheduled instances")
@@ -159,64 +164,6 @@ public class ClassDefinitionController {
         
         List<ClassDefinitionDTO> result = classDefinitionService.findAllActiveClasses();
         return ResponseEntity.ok(ApiResponse.success(result, "All active class definitions retrieved successfully"));
-    }
-
-    // ================================
-    // RECURRENCE PATTERN MANAGEMENT
-    // ================================
-
-    @Operation(summary = "Create a new recurrence pattern")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Recurrence pattern created successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping("/recurrence-patterns")
-    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> createClassRecurrencePattern(
-            @Valid @RequestBody RecurrencePatternDTO request) {
-        log.debug("REST request to create recurrence pattern: {}", request.recurrenceType());
-        
-        RecurrencePatternDTO result = classDefinitionService.createRecurrencePattern(request);
-        return ResponseEntity.status(201).body(ApiResponse.success(result, "Recurrence pattern created successfully"));
-    }
-
-    @Operation(summary = "Get a recurrence pattern by UUID")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurrence pattern retrieved successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Recurrence pattern not found")
-    @GetMapping("/recurrence-patterns/{uuid}")
-    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> getClassRecurrencePattern(
-            @Parameter(description = "UUID of the recurrence pattern to retrieve", required = true)
-            @PathVariable UUID uuid) {
-        log.debug("REST request to get recurrence pattern: {}", uuid);
-        
-        RecurrencePatternDTO result = classDefinitionService.getRecurrencePattern(uuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Recurrence pattern retrieved successfully"));
-    }
-
-    @Operation(summary = "Update a recurrence pattern by UUID")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurrence pattern updated successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Recurrence pattern not found")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PutMapping("/recurrence-patterns/{uuid}")
-    public ResponseEntity<ApiResponse<RecurrencePatternDTO>> updateClassRecurrencePattern(
-            @Parameter(description = "UUID of the recurrence pattern to update", required = true)
-            @PathVariable UUID uuid,
-            @Valid @RequestBody RecurrencePatternDTO request) {
-        log.debug("REST request to update recurrence pattern: {}", uuid);
-        
-        RecurrencePatternDTO result = classDefinitionService.updateRecurrencePattern(uuid, request);
-        return ResponseEntity.ok(ApiResponse.success(result, "Recurrence pattern updated successfully"));
-    }
-
-    @Operation(summary = "Delete a recurrence pattern by UUID")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recurrence pattern deleted successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Recurrence pattern is still in use")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Recurrence pattern not found")
-    @DeleteMapping("/recurrence-patterns/{uuid}")
-    public ResponseEntity<ApiResponse<Void>> deleteClassRecurrencePattern(
-            @Parameter(description = "UUID of the recurrence pattern to delete", required = true)
-            @PathVariable UUID uuid) {
-        log.debug("REST request to delete recurrence pattern: {}", uuid);
-        
-        classDefinitionService.deleteRecurrencePattern(uuid);
-        return ResponseEntity.ok(ApiResponse.success(null, "Recurrence pattern deleted successfully"));
     }
 
     // ================================

@@ -1,7 +1,5 @@
 package apps.sarafrika.elimika.booking.service.impl;
 
-import apps.sarafrika.elimika.availability.dto.BlockedTimeSlotRequestDTO;
-import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.booking.dto.BookingPaymentUpdateRequestDTO;
 import apps.sarafrika.elimika.booking.dto.BookingResponseDTO;
@@ -22,7 +20,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -32,7 +29,6 @@ import java.util.UUID;
 public class BookingServiceImpl implements BookingService {
 
     private static final int DEFAULT_HOLD_MINUTES = 30;
-    private static final String HOLD_COLOR_CODE = "#FFD93D";
 
     private final BookingRepository bookingRepository;
     private final AvailabilityService availabilityService;
@@ -46,18 +42,6 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalStateException("Instructor is not available for the requested time range.");
         }
 
-        List<AvailabilitySlotDTO> blockedSlots = availabilityService.blockTimeSlots(
-                request.instructorUuid(),
-                List.of(new BlockedTimeSlotRequestDTO(request.startTime(), request.endTime(), HOLD_COLOR_CODE))
-        );
-
-        UUID blockUuid = blockedSlots.stream()
-                .filter(Objects::nonNull)
-                .map(AvailabilitySlotDTO::uuid)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
-
         Booking booking = new Booking();
         booking.setStudentUuid(request.studentUuid());
         booking.setCourseUuid(request.courseUuid());
@@ -69,7 +53,6 @@ public class BookingServiceImpl implements BookingService {
         booking.setPriceAmount(resolvePrice(request.priceAmount()));
         booking.setCurrency(request.currency());
         booking.setPurpose(request.purpose());
-        booking.setAvailabilityBlockUuid(blockUuid);
 
         Booking saved = bookingRepository.save(booking);
 
@@ -101,7 +84,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        releaseAvailabilityBlock(booking);
+        booking.setAvailabilityBlockUuid(null);
         Booking saved = bookingRepository.save(booking);
         return mapToResponse(saved);
     }
@@ -119,7 +102,7 @@ public class BookingServiceImpl implements BookingService {
             booking.setStatus(BookingStatus.PAYMENT_FAILED);
             booking.setPaymentReference(request.paymentReference());
             booking.setPaymentEngine(request.paymentEngine());
-            releaseAvailabilityBlock(booking);
+            booking.setAvailabilityBlockUuid(null);
         }
 
         Booking saved = bookingRepository.save(booking);
@@ -132,7 +115,7 @@ public class BookingServiceImpl implements BookingService {
         List<Booking> expired = bookingRepository.findByStatusAndHoldExpiresAtBefore(BookingStatus.PAYMENT_REQUIRED, now);
         expired.forEach(booking -> {
             booking.setStatus(BookingStatus.EXPIRED);
-            releaseAvailabilityBlock(booking);
+            booking.setAvailabilityBlockUuid(null);
         });
         bookingRepository.saveAll(expired);
         if (!expired.isEmpty()) {
@@ -174,13 +157,6 @@ public class BookingServiceImpl implements BookingService {
             return null;
         }
         return amount.setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private void releaseAvailabilityBlock(Booking booking) {
-        if (booking.getAvailabilityBlockUuid() != null) {
-            availabilityService.removeBlockedSlot(booking.getAvailabilityBlockUuid());
-            booking.setAvailabilityBlockUuid(null);
-        }
     }
 
     private BookingResponseDTO mapToResponse(Booking booking) {

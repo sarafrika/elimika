@@ -8,6 +8,7 @@ This guide provides frontend engineers with a comprehensive walkthrough for inte
 **OpenAPI Tag:** `Instructor Availability Management`
 
 **Note:** All availability endpoints are now nested under the instructor resource for better RESTful design and consistency with other modules.
+**Important:** Endpoints for setting recurrence patterns or blocking slots have been removed; the frontend consumes the calendar and availability check endpoints only.
 
 ---
 
@@ -41,42 +42,7 @@ graph TD
 
 ---
 
-## 3. API Call Sequences
-
-The following diagram illustrates the sequence of API calls for setting and checking instructor availability:
-
-```mermaid
-sequenceDiagram
-    participant I as Instructor
-    participant A as Admin
-    participant UI as Frontend UI
-    participant AvailAPI as Availability API
-    participant ClassAPI as Class API
-
-    I->>UI: 1. Sets weekly availability (e.g., Mon 9-5)
-    UI->>AvailAPI: POST /instructors/{id}/availability/patterns?patternType=weekly
-    AvailAPI-->>UI: Success
-
-    A->>UI: 2. Tries to schedule a new class for Instructor
-    UI->>ClassAPI: GET /classes/{id}/schedule/conflicts
-    ClassAPI->>AvailAPI: checkInstructorAvailability(time)
-    AvailAPI-->>ClassAPI: Returns 'true' or 'false'
-    ClassAPI-->>UI: Returns conflicts (if any)
-
-    alt No Conflicts
-        UI->>A: Shows success message
-        A->>UI: Confirms schedule
-        UI->>ClassAPI: POST /classes/{id}/schedule
-        ClassAPI-->>UI: Schedule created
-    else Conflicts Found
-        UI->>A: Displays conflict details
-        A->>UI: Adjusts schedule and retries
-    end
-```
-
----
-
-## 4. Core Task: Building the Availability Calendar
+## 3. Core Task: Building the Availability Calendar
 
 Use the merged calendar feed to render a single view that combines availability slots, blocked time, and scheduled class instances.
 
@@ -87,84 +53,7 @@ Use the merged calendar feed to render a single view that combines availability 
 
 ---
 
-## 5. Managing Availability Patterns
-
-Instructors can define their availability via recurring patterns and blocked time. Use the pattern setter for bulk changes and the block endpoint for one-offs or bookings.
-
-### Setting Weekly Availability
-
-This is the most common scenario. The user selects time slots that repeat every week.
-
--   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/patterns?patternType=weekly`
--   **Method:** `POST`
--   **Controller Method:** `setAvailabilityPatterns`
-
-**Example Request Body:**
-
-This request sets the instructor to be available every Monday from 9 AM to 5 PM and every Wednesday from 10 AM to 1 PM.
-
-```json
-[
-  {
-    "day_of_week": 1, // Monday
-    "start_time": "09:00:00",
-    "end_time": "17:00:00",
-    "is_available": true
-  },
-  {
-    "day_of_week": 3, // Wednesday
-    "start_time": "10:00:00",
-    "end_time": "13:00:00",
-    "is_available": true
-  }
-]
-```
-
-### Blocking Specific Times
-
-Users may need to block time for appointments or other commitments. You can optionally provide a color code to visually categorize different types of blocked times. The endpoint now accepts a JSON payload with one or more slots (bulk only).
-
--   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/block`
--   **Method:** `POST`
--   **Controller Method:** `blockTimeSlots`
--   **Request Body:**
-
-```json
-{
-  "slots": [
-    {
-      "start_time": "2024-09-12T11:00:00",
-      "end_time": "2024-09-12T12:30:00",
-      "color_code": "#FF6B6B"
-    }
-  ]
-}
-```
-
-**Common Color Codes:**
-
--   **Vacation**: `#FF6B6B` (Red)
--   **Meeting**: `#FFD93D` (Yellow)
--   **Sick Leave**: `#FFA07A` (Orange)
--   **Personal**: `#95E1D3` (Teal)
--   **Professional Development**: `#A8E6CF` (Mint Green)
-
-This creates one blocked `AvailabilitySlot` per entry with `is_available` set to `false` and the specified `color_code`.
-
----
-
-### 6.0 Unified Instructor Calendar
-
-Use the merged calendar feed to render a single view that combines availability slots, blocked time, and scheduled class instances.
-
--   **API Endpoint:** `GET /api/v1/instructors/{instructorUuid}/availability/calendar`
--   **Query Parameters:** `start_date`, `end_date` (inclusive, `YYYY-MM-DD`)
--   **Response:** Array of `InstructorCalendarEntryDTO` entries with `entry_type` set to `AVAILABILITY`, `BLOCKED`, or `SCHEDULED_INSTANCE`.
--   **Tip:** Render availability entries in green, blocked entries using their `color_code` (if present), and scheduled instances with the status badge (`SCHEDULED`/`ONGOING`/`COMPLETED`).
-
----
-
-## 6. Checking Availability
+## 4. Checking Availability
 
 This is a crucial integration point for other modules, like **Class Definition Management**. Before scheduling a class, you must check if the instructor is available.
 
@@ -228,40 +117,7 @@ sequenceDiagram
 
 ### Booking Endpoint
 
--   **API Endpoint:** `POST /api/v1/instructors/{instructorUuid}/availability/book`
--   **Method:** `POST`
--   **Body:** `InstructorSlotBookingRequestDTO`
-
-**Request body fields:**
-
--   `instructor_uuid` (UUID, required) – must match the path variable.
--   `start_time` (ISO date-time, required) – booking start.
--   `end_time` (ISO date-time, required) – booking end.
--   `purpose` (string, optional, max 500 chars) – short description (e.g., "Private coaching on data structures").
--   `student_uuid` (UUID, optional) – can be supplied or inferred from the authenticated user.
-
-**Behaviour:**
-
--   Validates that the instructor is available for the full `[start_time, end_time]` window (using the same logic as `/availability/check`).
--   If not available, returns `400` with a clear message.
--   If available, creates a blocked availability entry for that period so:
-    -   The slot no longer appears in `/available` results.
-    -   Future scheduling/booking honours the reservation.
-
-### Frontend Integration Tips
-
--   On instructor profile or detail pages:
-    -   Show a "Book Private Session" CTA that opens a calendar of available slots using `/available`.
-    -   After the user picks a slot, post it to `/availability/book`.
-    -   Show a confirmation state with the selected time and purpose.
--   On the instructor dashboard:
-    -   Render blocked slots created by bookings with a distinct color (e.g., teal) using the existing availability data so instructors can see upcoming private commitments.
--   Coordinate with Timetabling/Commerce flows:
-    -   After a successful booking, optionally redirect students into a payment or session details screen where the private session is converted into a scheduled class + enrollment.
-
----
-
-## 7. Data Structures for Frontend
+## 5. Data Structures for Frontend
 
 ### `AvailabilitySlotDTO`
 
@@ -272,10 +128,6 @@ This is the primary data structure you'll work with. It represents a single bloc
 -   `start_time` and `end_time`: The time range for the slot.
 -   `is_available`: A boolean indicating if the instructor is available or blocked during this time.
 -   `color_code`: Optional hex color code for blocked times (e.g., `#FF6B6B` for vacation).
-
-### `WeeklyAvailabilitySlotDTO`
-
-This is a simpler data structure used when creating recurring weekly availability patterns. It includes the `day_of_week`, `start_time`, and `end_time`.
 
 ---
 
