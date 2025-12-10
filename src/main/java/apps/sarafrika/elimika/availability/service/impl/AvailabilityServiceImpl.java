@@ -350,7 +350,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    @Override
     public void removeBlockedSlot(UUID slotUuid) {
         if (slotUuid == null) {
             return;
