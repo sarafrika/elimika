@@ -9,6 +9,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClient.Builder;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -18,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 public class RegionResolverImpl implements RegionResolver {
 
     private final InternalCommerceProperties internalCommerceProperties;
+    private final Builder restClientBuilder;
 
     @Override
     public String resolveRegionCode(String requestedRegion, String clientIp) {
@@ -42,13 +44,7 @@ public class RegionResolverImpl implements RegionResolver {
             return null;
         }
         try {
-            JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory();
-            requestFactory.setConnectTimeout(Duration.ofSeconds(2));
-            requestFactory.setReadTimeout(Duration.ofSeconds(2));
-
-            RestClient restClient = RestClient.builder()
-                    .requestFactory(requestFactory)
-                    .build();
+            RestClient restClient = geoRestClient();
             String endpoint = internalCommerceProperties.getGeoipCountryEndpoint();
             String response = restClient.get()
                     .uri(endpoint, ip)
@@ -62,6 +58,15 @@ public class RegionResolverImpl implements RegionResolver {
             // Fail silently and fall back
         }
         return null;
+    }
+
+    private RestClient geoRestClient() {
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
+        requestFactory.setReadTimeout(Duration.ofSeconds(2));
+        return restClientBuilder
+                .requestFactory(requestFactory)
+                .build();
     }
 
     private String extractClientIp() {
