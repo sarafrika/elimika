@@ -167,6 +167,7 @@ class BookingServiceImplTest {
 
         bookingService.expireHolds();
 
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Booking>> captor = ArgumentCaptor.forClass(List.class);
         verify(bookingRepository).saveAll(captor.capture());
         List<Booking> saved = captor.getValue();
