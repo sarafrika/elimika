@@ -54,7 +54,9 @@ class GenericSpecificationBuilderTest {
         assertThat(specification).isNotNull();
 
         when(root.get("adminVerified")).thenReturn(path);
-        when(path.getJavaType()).thenReturn(Boolean.class);
+        @SuppressWarnings("unchecked")
+        Class<Boolean> booleanClass = (Class<Boolean>) (Class<?>) Boolean.class;
+        when(path.getJavaType()).thenReturn(booleanClass);
         when(criteriaBuilder.equal(path, true)).thenReturn(predicate);
 
         specification.toPredicate(root, criteriaQuery, criteriaBuilder);
