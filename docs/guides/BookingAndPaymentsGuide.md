@@ -12,19 +12,21 @@ This guide explains how students book instructors for course sessions, how the p
 
 ## 2. UI ↔ API ↔ Storage Flow
 
-```
-UI (Course page)
-  → POST /api/v1/bookings {student_uuid, course_uuid, instructor_uuid, start_time, end_time, price, currency, purpose}
-  ← booking {uuid, status=payment_required, payment_session_id, availability_block_uuid, hold_expires_at}
-UI opens payment_url (from payment_session_id via payment engine)
-Payment Engine → POST /api/v1/bookings/{uuid}/payment-callback {payment_reference, payment_status}
-Booking Service → updates status (confirmed|payment_failed), keeps or releases availability_block_uuid
-UI polls GET /api/v1/bookings/{uuid} (or listens to notification) to reflect final state
-Storage:
-  - bookings: booking record, status, payment refs, hold expiry
-  - instructor_availability: blocked slot (hold/confirmed)
-Cleanup:
-  - scheduled job expires holds past hold_expires_at → status=expired, releases block
+```mermaid
+flowchart LR
+    UI[Course UI] -->|POST /api/v1/bookings<br/>{student, course, instructor, start, end, price}| BookingSvc[Booking Service]
+    BookingSvc -->|Insert booking<br/>status=payment_required| DB[(bookings table)]
+    BookingSvc -->|Block slot| Availability[instructor_availability]
+    BookingSvc -->|Create payment session| Pay[Payment Engine]
+    Pay -->|POST /api/v1/bookings/{uuid}/payment-callback<br/>{payment_status, ref}| BookingSvc
+    BookingSvc -->|Update status<br/>confirmed/payment_failed| DB
+    BookingSvc -->|Keep or release block| Availability
+    UI -->|GET /api/v1/bookings/{uuid}<br/>or notifications| BookingSvc
+
+    subgraph Cleanup
+      Cron[Job every 5 mins] -->|expire holds past hold_expires_at| BookingSvc
+      BookingSvc -->|status=expired + release block| DB
+    end
 ```
 
 ---
