@@ -5,19 +5,34 @@ import apps.sarafrika.elimika.notifications.api.events.*;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationPreviewDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.BulkInvitationResultDTO;
+import apps.sarafrika.elimika.tenancy.dto.BulkInvitationRowErrorDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.factory.InvitationFactory;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,6 +54,8 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Value("${app.invitation.expiry-days:7}")
     private int invitationExpiryDays;
+
+    private static final List<String> REQUIRED_HEADERS = List.of("recipient_email", "recipient_name", "domain_name");
 
     // ================================
     // INVITATION CREATION
@@ -129,6 +146,258 @@ public class InvitationServiceImpl implements InvitationService {
                 inviterUuid,
                 notes
         );
+    }
+
+    @Override
+    public BulkInvitationResultDTO processBulkInvitations(UUID organisationUuid, UUID inviterUuid, MultipartFile file) {
+        log.info("Processing bulk invitation upload for organisation {} by inviter {}", organisationUuid, inviterUuid);
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Upload file is required");
+        }
+
+        String originalFilename = Optional.ofNullable(file.getOriginalFilename()).orElse("");
+        String lowercaseFilename = originalFilename.toLowerCase(Locale.ROOT);
+        BulkInvitationProcessingContext context = new BulkInvitationProcessingContext();
+
+        try (InputStream inputStream = file.getInputStream()) {
+            if (lowercaseFilename.endsWith(".csv")) {
+                processCsvFile(organisationUuid, inviterUuid, inputStream, context);
+            } else if (lowercaseFilename.endsWith(".xlsx") || lowercaseFilename.endsWith(".xls")) {
+                processSpreadsheetFile(organisationUuid, inviterUuid, inputStream, context);
+            } else {
+                throw new IllegalArgumentException("Unsupported file type. Please upload a CSV or XLSX file.");
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to process bulk invitations file {}: {}", originalFilename, e.getMessage());
+            throw new RuntimeException("Failed to process bulk invitations: " + e.getMessage(), e);
+        }
+
+        log.info("Bulk invitation upload complete for organisation {}: {} rows processed, {} succeeded, {} failed",
+                organisationUuid, context.getTotalRows(), context.getSuccessfulRows(), context.getFailedRows());
+
+        return context.toResult();
+    }
+
+    // ================================
+    // BULK INVITATION PROCESSING
+    // ================================
+
+    private void processCsvFile(UUID organisationUuid, UUID inviterUuid, InputStream inputStream,
+                                BulkInvitationProcessingContext context) throws Exception {
+        CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setIgnoreHeaderCase(true)
+                .setTrim(true)
+                .build();
+
+        try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+             CSVParser parser = csvFormat.parse(reader)) {
+
+            validateHeaders(parser.getHeaderMap().keySet());
+
+            for (CSVRecord record : parser) {
+                handleRow(organisationUuid, inviterUuid, (int) record.getRecordNumber(),
+                        record.get("recipient_email"),
+                        record.get("recipient_name"),
+                        record.get("domain_name"),
+                        record.isMapped("branch_uuid") ? record.get("branch_uuid") : null,
+                        record.isMapped("notes") ? record.get("notes") : null,
+                        context);
+            }
+        }
+    }
+
+    private void processSpreadsheetFile(UUID organisationUuid, UUID inviterUuid, InputStream inputStream,
+                                        BulkInvitationProcessingContext context) throws Exception {
+        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
+            if (sheet == null) {
+                throw new IllegalArgumentException("Spreadsheet file is empty");
+            }
+
+            Row headerRow = sheet.getRow(0);
+            Map<String, Integer> headerIndex = extractHeaderIndex(headerRow);
+            validateHeaders(headerIndex.keySet());
+
+            for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+                if (row == null) {
+                    continue;
+                }
+
+                handleRow(
+                        organisationUuid,
+                        inviterUuid,
+                        rowIndex + 1,
+                        getCellValue(row, headerIndex.get("recipient_email")),
+                        getCellValue(row, headerIndex.get("recipient_name")),
+                        getCellValue(row, headerIndex.get("domain_name")),
+                        headerIndex.containsKey("branch_uuid") ? getCellValue(row, headerIndex.get("branch_uuid")) : null,
+                        headerIndex.containsKey("notes") ? getCellValue(row, headerIndex.get("notes")) : null,
+                        context
+                );
+            }
+        }
+    }
+
+    private void handleRow(UUID organisationUuid,
+                           UUID inviterUuid,
+                           int rowNumber,
+                           String recipientEmail,
+                           String recipientName,
+                           String domainName,
+                           String branchUuidValue,
+                           String notes,
+                           BulkInvitationProcessingContext context) {
+
+        if (isRowEmpty(recipientEmail, recipientName, domainName, branchUuidValue, notes)) {
+            log.debug("Skipping empty bulk invitation row {}", rowNumber);
+            return;
+        }
+
+        context.incrementTotalRows();
+
+        try {
+            UUID branchUuid = parseBranchUuid(branchUuidValue);
+
+            createOrganisationInvitation(
+                    safeTrim(recipientEmail),
+                    safeTrim(recipientName),
+                    organisationUuid,
+                    safeTrim(domainName),
+                    branchUuid,
+                    inviterUuid,
+                    safeTrim(notes)
+            );
+
+            context.incrementSuccess();
+        } catch (Exception e) {
+            log.warn("Failed to process bulk invitation row {} for recipient {}: {}", rowNumber, recipientEmail, e.getMessage());
+            context.addFailure(rowNumber, safeTrim(recipientEmail), e);
+        }
+    }
+
+    private UUID parseBranchUuid(String branchUuidValue) {
+        if (!hasText(branchUuidValue)) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(branchUuidValue.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid branch UUID format");
+        }
+    }
+
+    private boolean isRowEmpty(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String getCellValue(Row row, Integer cellIndex) {
+        if (row == null || cellIndex == null) {
+            return null;
+        }
+
+        var cell = row.getCell(cellIndex);
+        if (cell == null) {
+            return null;
+        }
+
+        DataFormatter formatter = new DataFormatter();
+        String formatted = formatter.formatCellValue(cell);
+        return safeTrim(formatted);
+    }
+
+    private Map<String, Integer> extractHeaderIndex(Row headerRow) {
+        if (headerRow == null) {
+            throw new IllegalArgumentException("Spreadsheet must include a header row");
+        }
+
+        Map<String, Integer> headerIndex = new HashMap<>();
+
+        for (int cellIndex = 0; cellIndex < headerRow.getLastCellNum(); cellIndex++) {
+            var cell = headerRow.getCell(cellIndex);
+            String headerName = cell != null ? safeTrim(cell.getStringCellValue()) : null;
+
+            if (hasText(headerName)) {
+                headerIndex.put(headerName.toLowerCase(Locale.ROOT), cellIndex);
+            }
+        }
+
+        if (headerIndex.isEmpty()) {
+            throw new IllegalArgumentException("Spreadsheet header row is empty");
+        }
+
+        return headerIndex;
+    }
+
+    private void validateHeaders(Collection<String> headers) {
+        Set<String> normalizedHeaders = headers.stream()
+                .filter(Objects::nonNull)
+                .map(header -> header.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        for (String required : REQUIRED_HEADERS) {
+            if (!normalizedHeaders.contains(required)) {
+                throw new IllegalArgumentException("Missing required column: " + required);
+            }
+        }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private static class BulkInvitationProcessingContext {
+        private int totalRows;
+        private int successfulRows;
+        private int failedRows;
+        private final List<BulkInvitationRowErrorDTO> errors = new ArrayList<>();
+
+        void incrementTotalRows() {
+            totalRows++;
+        }
+
+        void incrementSuccess() {
+            successfulRows++;
+        }
+
+        void addFailure(int rowNumber, String recipientEmail, Exception exception) {
+            failedRows++;
+            String errorMessage = exception != null && hasText(exception.getMessage())
+                    ? exception.getMessage()
+                    : "Unknown error";
+            errors.add(new BulkInvitationRowErrorDTO(rowNumber, recipientEmail, errorMessage));
+        }
+
+        BulkInvitationResultDTO toResult() {
+            return new BulkInvitationResultDTO(totalRows, successfulRows, failedRows, List.copyOf(errors));
+        }
+
+        int getTotalRows() {
+            return totalRows;
+        }
+
+        int getSuccessfulRows() {
+            return successfulRows;
+        }
+
+        int getFailedRows() {
+            return failedRows;
+        }
     }
 
     // ================================

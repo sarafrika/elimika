@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.tenancy.services;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationPreviewDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.BulkInvitationResultDTO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,6 +39,16 @@ public interface InvitationService {
             UUID branchUuid,
             UUID inviterUuid,
             String notes);
+
+    /**
+     * Processes a CSV or XLSX upload to create multiple invitations.
+     *
+     * @param organisationUuid the organisation the invitations target
+     * @param inviterUuid the UUID of the user sending all invitations in the batch
+     * @param file the uploaded CSV or XLSX file
+     * @return summary of processed invitations and row-level errors
+     */
+    BulkInvitationResultDTO processBulkInvitations(UUID organisationUuid, UUID inviterUuid, MultipartFile file);
 
     /**
      * Creates and sends a training branch invitation via email.

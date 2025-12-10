@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.tenancy.dto.BulkInvitationResultDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.InvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
@@ -21,10 +22,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -200,6 +205,51 @@ class OrganisationController {
                 invitationRequest.inviterUuid(),
                 invitationRequest.notes());
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Invitation created successfully"));
+    }
+
+    @Operation(
+            summary = "Download bulk invitation template",
+            description = "Returns a CSV template for bulk uploads. Columns: recipient_email, recipient_name, domain_name, branch_uuid (optional), notes (optional). " +
+                    "The same columns apply to CSV and XLSX uploads."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Template downloaded successfully")
+    @GetMapping("/{uuid}/invitations/bulk/template")
+    public ResponseEntity<byte[]> downloadBulkInvitationTemplate(
+            @Parameter(description = "UUID of the organization for context. Invitations in the upload must belong to this organization.", required = true)
+            @PathVariable UUID uuid) {
+
+        String template = """
+                recipient_email,recipient_name,domain_name,branch_uuid,notes
+                student1@example.com,Student One,student,,Welcome to the organisation
+                instructor1@example.com,Instructor One,instructor,550e8400-e29b-41d4-a716-446655440002,Please join the Nairobi branch
+                """.strip();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"bulk-invitations-template.csv\"")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(template.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Operation(
+            summary = "Bulk upload invitations",
+            description = "Uploads a CSV or XLSX file containing multiple invitations. Processes each row, logs errors, and returns a summary " +
+                    "with per-row failures once processing completes. Inviter must be an organisation admin or organisation_user."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bulk invitations processed; see response for success/failure counts")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid file format or missing required columns")
+    @PostMapping(path = "/{uuid}/invitations/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<BulkInvitationResultDTO>> uploadBulkInvitations(
+            @Parameter(description = "UUID of the organization the invitations belong to.", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "UUID of the user creating the invitations. Must have permission to invite users to the organization.", required = true)
+            @RequestParam("inviter_uuid") UUID inviterUuid,
+            @Parameter(description = "CSV or XLSX file with headers: recipient_email, recipient_name, domain_name, branch_uuid (optional), notes (optional).", required = true)
+            @RequestParam("file") MultipartFile file) {
+
+        BulkInvitationResultDTO result = invitationService.processBulkInvitations(uuid, inviterUuid, file);
+        String message = String.format("Processed %d rows: %d succeeded, %d failed",
+                result.totalRows(), result.successfulInvitations(), result.failedRows());
+        return ResponseEntity.ok(ApiResponse.success(result, message));
     }
 
     @Operation(
