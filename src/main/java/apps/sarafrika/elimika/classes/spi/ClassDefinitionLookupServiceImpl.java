@@ -1,8 +1,7 @@
 package apps.sarafrika.elimika.classes.spi;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
-import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
-import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.classes.model.ClassDefinition;
+import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,30 +12,27 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupService {
 
-    private final ClassDefinitionServiceInterface classDefinitionService;
+    private final ClassDefinitionRepository classDefinitionRepository;
 
     @Override
     public Optional<ClassDefinitionSnapshot> findByUuid(UUID classDefinitionUuid) {
         if (classDefinitionUuid == null) {
             return Optional.empty();
         }
-        try {
-            ClassDefinitionDTO dto = classDefinitionService.getClassDefinition(classDefinitionUuid);
-            if (dto == null) {
-                return Optional.empty();
-            }
-            return Optional.of(new ClassDefinitionSnapshot(
-                    dto.uuid(),
-                    dto.courseUuid(),
-                    dto.title(),
-                    dto.description(),
-                    dto.trainingFee(),
-                    dto.classVisibility(),
-                    dto.maxParticipants(),
-                    dto.allowWaitlist()
-            ));
-        } catch (ResourceNotFoundException ex) {
-            return Optional.empty();
-        }
+        return classDefinitionRepository.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionLookupServiceImpl::toSnapshot);
+    }
+
+    private static ClassDefinitionSnapshot toSnapshot(ClassDefinition entity) {
+        return new ClassDefinitionSnapshot(
+                entity.getUuid(),
+                entity.getCourseUuid(),
+                entity.getTitle(),
+                entity.getDescription(),
+                entity.getTrainingFee(),
+                entity.getClassVisibility(),
+                entity.getMaxParticipants(),
+                entity.getAllowWaitlist()
+        );
     }
 }
