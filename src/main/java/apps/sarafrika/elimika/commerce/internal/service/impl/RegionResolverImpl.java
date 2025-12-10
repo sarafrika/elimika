@@ -62,8 +62,8 @@ public class RegionResolverImpl implements RegionResolver {
 
     private RestClient geoRestClient() {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
-        requestFactory.setReadTimeout(Duration.ofSeconds(2));
+        requestFactory.setConnectTimeout((int) Duration.ofSeconds(2).toMillis());
+        requestFactory.setReadTimeout((int) Duration.ofSeconds(2).toMillis());
         return restClientBuilder
                 .requestFactory(requestFactory)
                 .build();
