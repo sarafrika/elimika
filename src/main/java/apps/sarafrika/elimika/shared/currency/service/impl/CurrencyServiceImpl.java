@@ -43,6 +43,13 @@ public class CurrencyServiceImpl implements CurrencyService {
     }
 
     @Override
+    @Transactional
+    public Page<CurrencyDTO> getCurrencies(Pageable pageable) {
+        Pageable effectivePageable = pageable == null ? Pageable.unpaged() : pageable;
+        return repository.findAll(effectivePageable).map(this::toDto);
+    }
+
+    @Override
     public List<CurrencyDTO> getAllCurrencies() {
         return repository.findAll().stream()
                 .sorted((a, b) -> a.getCode().compareToIgnoreCase(b.getCode()))

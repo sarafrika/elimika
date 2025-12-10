@@ -15,6 +15,8 @@ public interface CurrencyService {
 
     Page<CurrencyDTO> getActiveCurrencies(Pageable pageable);
 
+    Page<CurrencyDTO> getCurrencies(Pageable pageable);
+
     List<CurrencyDTO> getAllCurrencies();
 
     CurrencyDTO getDefaultCurrency();
