@@ -198,7 +198,14 @@ public interface AvailabilityService {
      * @param slots List of blocked time slots to create
      * @throws IllegalArgumentException if the instructorUuid is null or the slots list is empty/invalid
      */
-    void blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots);
+    List<AvailabilitySlotDTO> blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots);
+
+    /**
+     * Removes a blocked availability slot by UUID.
+     *
+     * @param slotUuid UUID of the blocked slot to remove
+     */
+    void removeBlockedSlot(UUID slotUuid);
 
     /**
      * Books an available time slot for an instructor by blocking the requested period.

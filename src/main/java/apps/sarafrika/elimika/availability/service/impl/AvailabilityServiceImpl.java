@@ -364,7 +364,20 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    public void blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots) {
+    public void removeBlockedSlot(UUID slotUuid) {
+        if (slotUuid == null) {
+            return;
+        }
+        availabilityRepository.findByUuid(slotUuid).ifPresent(availability -> {
+            availabilityRepository.delete(availability);
+            log.debug("Removed blocked availability slot {}", slotUuid);
+            publishAvailabilityChanged(availability.getInstructorUuid(), availability.getAvailabilityType(),
+                    resolveEffectiveDate(availability), "Blocked slot removed");
+        });
+    }
+
+    @Override
+    public List<AvailabilitySlotDTO> blockTimeSlots(UUID instructorUuid, List<BlockedTimeSlotRequestDTO> slots) {
         int slotCount = slots != null ? slots.size() : 0;
         log.debug("Blocking {} time slots for instructor: {}", slotCount, instructorUuid);
 
@@ -386,6 +399,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         log.debug("Created {} blocked time slots for instructor: {}", saved.size(), instructorUuid);
         publishAvailabilityChanged(instructorUuid, AvailabilityType.CUSTOM, determineEffectiveDate(saved),
                 "Instructor time blocked (bulk)");
+        return AvailabilityFactory.toDTOList(saved);
     }
 
     @Override

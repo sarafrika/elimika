@@ -60,7 +60,7 @@ class AvailabilityServiceImplTest {
         when(availabilityRepository.saveAll(anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        availabilityService.blockTimeSlots(instructorUuid, slots);
+        var result = availabilityService.blockTimeSlots(instructorUuid, slots);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<InstructorAvailability>> captor = ArgumentCaptor.forClass(List.class);
@@ -71,6 +71,8 @@ class AvailabilityServiceImplTest {
         assertThat(savedSlots.get(0).getIsAvailable()).isFalse();
         assertThat(savedSlots.get(0).getSpecificDate()).isEqualTo(LocalDate.of(2024, 10, 15));
         assertThat(savedSlots.get(1).getSpecificDate()).isEqualTo(LocalDate.of(2024, 10, 16));
+
+        assertThat(result).hasSize(2);
 
         verify(eventPublisher).publishEvent(any(InstructorAvailabilityChangedEventDTO.class));
     }
