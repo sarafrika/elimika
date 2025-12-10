@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
+    @Lazy
     private final TimetableService timetableService;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
