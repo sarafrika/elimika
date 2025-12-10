@@ -1,3 +1,15 @@
+# [2.43.0](https://github.com/sarafrika/elimika/compare/v2.42.0...v2.43.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* skip inventory gating for digital class variants ([8c2d2d3](https://github.com/sarafrika/elimika/commit/8c2d2d30380af0aaa133617e5ec638559dfa7b81))
+
+
+### Features
+
+* enforce sku pattern for internal variants ([3e422d8](https://github.com/sarafrika/elimika/commit/3e422d808b082a9237e549c4bea846d87a5e017b))
+
 # [2.42.0](https://github.com/sarafrika/elimika/compare/v2.41.0...v2.42.0) (2025-12-04)
 
 
