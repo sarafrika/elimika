@@ -1,3 +1,12 @@
+## [2.47.1](https://github.com/sarafrika/elimika/compare/v2.47.0...v2.47.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* break timetable to class definition cycle ([4d80012](https://github.com/sarafrika/elimika/commit/4d800122eb2e9e32b1675073035948da2b2ce921))
+* break timetable/class definition circular dependency ([f4740c5](https://github.com/sarafrika/elimika/commit/f4740c5f9f4d2decf92c36134e90e8d613dd2fd5))
+* resolve timetable wiring without lazy lookup ([191f89c](https://github.com/sarafrika/elimika/commit/191f89cf03c385f8e21d7353532ef5da789d3965))
+
 # [2.47.0](https://github.com/sarafrika/elimika/compare/v2.46.0...v2.47.0) (2025-12-10)
 
 
