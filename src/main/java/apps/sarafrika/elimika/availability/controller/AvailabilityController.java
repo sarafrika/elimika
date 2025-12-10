@@ -31,7 +31,7 @@ import java.util.UUID;
  * Endpoint Structure:
  * - /api/v1/instructors/{instructorUuid}/availability/patterns - Set recurring patterns
  * - /api/v1/instructors/{instructorUuid}/availability/check - Check availability
- * - /api/v1/instructors/{instructorUuid}/availability/block - Block time
+ * - /api/v1/instructors/{instructorUuid}/availability/block - Block time (bulk)
  * - /api/v1/instructors/{instructorUuid}/availability/calendar - Merged calendar feed
  *
  * @author Wilfred Njuguna
@@ -194,12 +194,12 @@ public class AvailabilityController {
     @Operation(
         summary = "Block time for an instructor",
         description = """
-            Blocks a specific time period for an instructor, making them unavailable.
+            Blocks one or more specific time periods for an instructor, making them unavailable.
 
-            This creates availability slots with isAvailable = false, which override
+            Each slot creates availability entries with isAvailable = false, which override
             any existing availability patterns for that time period.
 
-            You can optionally provide a color code (hex format) to categorize and
+            You can optionally provide color codes (hex format) to categorize and
             visually distinguish different types of blocked times on the frontend.
 
             Common use cases:
@@ -209,36 +209,9 @@ public class AvailabilityController {
             - Personal time off (e.g., color_code: "#95E1D3" - teal)
             """
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Time blocked successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid time range or color code format")
-    @PostMapping("/block")
-    public ResponseEntity<ApiResponse<Void>> blockTime(
-            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "Start date and time to block (ISO format: YYYY-MM-DDTHH:mm:ss)")
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @Parameter(description = "End date and time to block (ISO format: YYYY-MM-DDTHH:mm:ss)")
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
-            @Parameter(description = "Optional hex color code for UI visualization (e.g., #FF6B6B)")
-            @RequestParam(value = "color_code", required = false) String colorCode) {
-        log.debug("REST request to block time for instructor: {} from {} to {} with color: {}",
-                instructorUuid, start, end, colorCode);
-
-        availabilityService.blockTime(instructorUuid, start, end, colorCode);
-        return ResponseEntity.ok(ApiResponse.success(null, "Time blocked successfully"));
-    }
-
-    @Operation(
-        summary = "Block multiple time slots for an instructor",
-        description = """
-            Blocks multiple specific time periods for an instructor in one request, making them unavailable.
-
-            Each slot creates an availability entry with isAvailable = false and can optionally specify
-            a color code for frontend visualization (e.g., distinguishing PTO vs. meetings).
-            """
-    )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Time slots blocked successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid time range or color code format")
-    @PostMapping("/block/bulk")
+    @PostMapping("/block")
     public ResponseEntity<ApiResponse<Void>> blockTimeSlots(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
             @Valid @RequestBody BlockTimeSlotsRequestDTO request) {
