@@ -188,6 +188,10 @@ public class OrganisationServiceImpl implements OrganisationService {
     public void inviteUserToOrganisation(UUID organisationUuid, String email, String domainName, UUID branchUuid) {
         log.debug("Inviting user with email {} to organisation {} with domain {}", email, organisationUuid, domainName);
 
+        if ("course_creator".equalsIgnoreCase(domainName)) {
+            throw new IllegalArgumentException("course_creator domain is not supported at the organisation level");
+        }
+
         Organisation organisation = findOrganisationOrThrow(organisationUuid);
         UserDomain domain = findDomainByNameOrThrow(domainName);
 

@@ -183,6 +183,10 @@ public class UserServiceImpl implements UserService {
     public UserDTO assignUserToOrganisation(UUID userUuid, UUID organisationUuid, String domainName, UUID branchUuid) {
         log.debug("Assigning user {} to organisation {} with domain {}", userUuid, organisationUuid, domainName);
 
+        if ("course_creator".equalsIgnoreCase(domainName)) {
+            throw new IllegalArgumentException("course_creator domain is not supported at the organisation level");
+        }
+
         User user = findUserOrThrow(userUuid);
         Organisation organisation = findOrganisationOrThrow(organisationUuid);
         UserDomain domain = findDomainByNameOrThrow(domainName);

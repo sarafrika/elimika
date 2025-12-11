@@ -210,6 +210,10 @@ public class AdminServiceImpl implements AdminService {
         String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
         log.info("Creating organisation user for email {} in organisation {}", normalizedEmail, organisationUuid);
 
+        if ("course_creator".equalsIgnoreCase(request.domainName())) {
+            throw new IllegalArgumentException("course_creator domain is not supported at the organisation level");
+        }
+
         // Validate organisation exists
         organisationRepository.findByUuid(organisationUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Organisation not found with UUID: " + organisationUuid));
