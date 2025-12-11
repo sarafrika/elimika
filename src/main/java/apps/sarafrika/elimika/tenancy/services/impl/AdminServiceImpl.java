@@ -22,6 +22,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
@@ -34,10 +35,14 @@ import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRe
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
+import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.shared.tracking.entity.RequestAuditLog;
 import apps.sarafrika.elimika.shared.tracking.repository.RequestAuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -45,6 +50,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -86,6 +92,11 @@ public class AdminServiceImpl implements AdminService {
     private final KeycloakAdminEventService keycloakAdminEventService;
     private final RequestAuditLogRepository requestAuditLogRepository;
     private final MeterRegistry meterRegistry;
+    private final KeycloakUserService keycloakUserService;
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+    @Value("${app.keycloak.realm}")
+    private String keycloakRealm;
 
     @Override
     @Transactional
@@ -141,6 +152,55 @@ public class AdminServiceImpl implements AdminService {
 
         log.info("Successfully removed {} domain from user {}", domainName, userUuid);
         return userService.getUserByUuid(userUuid);
+    }
+
+    @Override
+    @Transactional
+    public UserDTO createAdminUser(AdminCreateUserRequestDTO request) {
+        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        log.info("Creating admin user for email {}", normalizedEmail);
+
+        // Ensure user does not already exist locally
+        userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
+            throw new IllegalStateException("User already exists. Provide the existing email to promote instead of creating a new account.");
+        });
+
+        // Ensure user does not already exist in Keycloak
+        if (keycloakUserService.getUserByUsername(normalizedEmail, keycloakRealm).isPresent()) {
+            throw new IllegalStateException("User already exists in Keycloak. Provide the existing email to promote instead of creating a new account.");
+        }
+
+        // Create local user record
+        User user = new User();
+        user.setFirstName(request.firstName());
+        user.setMiddleName(request.middleName());
+        user.setLastName(request.lastName());
+        user.setEmail(normalizedEmail);
+        user.setUsername(normalizedEmail);
+        user.setPhoneNumber(request.phoneNumber());
+        user.setActive(true);
+
+        user = userRepository.save(user);
+
+        // Create Keycloak user via event and trigger required actions email
+        UserCreationEvent creationEvent = new UserCreationEvent(
+                normalizedEmail,
+                request.firstName(),
+                request.lastName(),
+                normalizedEmail,
+                true,
+                UserDomain.admin,
+                keycloakRealm,
+                user.getUuid()
+        );
+        applicationEventPublisher.publishEvent(creationEvent);
+
+        // Assign admin domain locally
+        AdminDomainAssignmentRequestDTO domainRequest = new AdminDomainAssignmentRequestDTO("admin", "Created via admin onboarding");
+        assignAdminDomain(user.getUuid(), domainRequest);
+
+        log.info("Successfully created admin user {} with UUID {}", normalizedEmail, user.getUuid());
+        return userService.getUserByUuid(user.getUuid());
     }
 
     @Override

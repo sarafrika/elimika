@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.services;
 import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +39,14 @@ public interface AdminService {
      * @return Updated user DTO with admin domain removed
      */
     UserDTO removeAdminDomain(UUID userUuid, String domainName, String reason);
+
+    /**
+     * Creates a new admin user (in Keycloak and local DB) if they don't already exist.
+     *
+     * @param request admin user creation payload
+     * @return created admin user
+     */
+    UserDTO createAdminUser(AdminCreateUserRequestDTO request);
 
     /**
      * Get all admin users with filtering and pagination
