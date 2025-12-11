@@ -1,3 +1,22 @@
+# [2.48.0](https://github.com/sarafrika/elimika/compare/v2.47.3...v2.48.0) (2025-12-11)
+
+
+### Bug Fixes
+
+* add missing list import to admin controller ([c89acc6](https://github.com/sarafrika/elimika/commit/c89acc665883cd02c5f6e0d26ef1986f04b71fbd))
+* avoid storing user domains in keycloak provisioning ([b4d2638](https://github.com/sarafrika/elimika/commit/b4d263880824db742b46783a6b14cb7750969371))
+* block course creator domain for organisation assignments ([715ec42](https://github.com/sarafrika/elimika/commit/715ec425adea08da58ef785b0c227656695ca7e7))
+* include optional imports for domain lookups ([ffa8d74](https://github.com/sarafrika/elimika/commit/ffa8d748900ad6c2377464a1c565b092a3d5050b))
+
+
+### Features
+
+* add admin user creation flow ([6fb3e21](https://github.com/sarafrika/elimika/commit/6fb3e21bfff4b4f38dd441876a534e5477a9ec78))
+* add bulk invitation uploads ([083f5cb](https://github.com/sarafrika/elimika/commit/083f5cb02da31e11e0f87f1b482259f53aa29d2e))
+* create organisation users with domain assignment ([8eb6aaa](https://github.com/sarafrika/elimika/commit/8eb6aaa5dc638c044dde38fd737ddf2993d27c08))
+* dedupe bulk invitation uploads ([388c676](https://github.com/sarafrika/elimika/commit/388c67601f451a8f7b8f5945aaab93fe561d7a1b))
+* expose org-supported domains from user_domain ([63bfee2](https://github.com/sarafrika/elimika/commit/63bfee29c16f6ea1190b34cfbf59a58b1f486564))
+
 ## [2.47.3](https://github.com/sarafrika/elimika/compare/v2.47.2...v2.47.3) (2025-12-10)
 
 
