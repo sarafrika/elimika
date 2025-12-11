@@ -158,47 +158,21 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public UserDTO createAdminUser(AdminCreateUserRequestDTO request) {
-        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        String normalizedEmail = normalizeEmail(request.email());
         log.info("Creating admin user for email {}", normalizedEmail);
 
-        // Ensure user does not already exist locally
-        userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
-            throw new IllegalStateException("User already exists. Provide the existing email to promote instead of creating a new account.");
-        });
+        ensureEmailAvailable(normalizedEmail, "Admin");
 
-        // Ensure user does not already exist in Keycloak
-        if (keycloakUserService.getUserByUsername(normalizedEmail, keycloakRealm).isPresent()) {
-            throw new IllegalStateException("User already exists in Keycloak. Provide the existing email to promote instead of creating a new account.");
-        }
-
-        // Create local user record
-        User user = new User();
-        user.setFirstName(request.firstName());
-        user.setMiddleName(request.middleName());
-        user.setLastName(request.lastName());
-        user.setEmail(normalizedEmail);
-        user.setUsername(normalizedEmail);
-        user.setPhoneNumber(request.phoneNumber());
-        user.setActive(true);
-
-        user = userRepository.save(user);
-
-        // Create Keycloak user via event and trigger required actions email
-        UserCreationEvent creationEvent = new UserCreationEvent(
-                normalizedEmail,
+        User user = createLocalUser(
                 request.firstName(),
+                request.middleName(),
                 request.lastName(),
                 normalizedEmail,
-                true,
-                UserDomain.admin,
-                keycloakRealm,
-                user.getUuid()
+                request.phoneNumber()
         );
-        applicationEventPublisher.publishEvent(creationEvent);
 
-        // Assign admin domain locally
-        AdminDomainAssignmentRequestDTO domainRequest = new AdminDomainAssignmentRequestDTO("admin", "Created via admin onboarding");
-        assignAdminDomain(user.getUuid(), domainRequest);
+        publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail, UserDomain.admin);
+        assignAdminDomain(user.getUuid(), new AdminDomainAssignmentRequestDTO("admin", "Created via admin onboarding"));
 
         log.info("Successfully created admin user {} with UUID {}", normalizedEmail, user.getUuid());
         return userService.getUserByUuid(user.getUuid());
@@ -207,7 +181,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public UserDTO createOrganisationUser(UUID organisationUuid, OrganisationUserCreateRequestDTO request) {
-        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        String normalizedEmail = normalizeEmail(request.email());
         log.info("Creating organisation user for email {} in organisation {}", normalizedEmail, organisationUuid);
 
         if ("course_creator".equalsIgnoreCase(request.domainName())) {
@@ -221,46 +195,65 @@ public class AdminServiceImpl implements AdminService {
         // Validate domain exists
         UserDomain domain = findDomainByNameOrThrow(request.domainName());
 
-        // Ensure user does not already exist locally
-        userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
-            throw new IllegalStateException("User already exists. Provide the existing email to assign to the organisation.");
-        });
-
-        // Ensure user does not already exist in Keycloak
-        if (keycloakUserService.getUserByUsername(normalizedEmail, keycloakRealm).isPresent()) {
-            throw new IllegalStateException("User already exists in Keycloak. Provide the existing email to assign to the organisation.");
-        }
-
-        // Create local user record
-        User user = new User();
-        user.setFirstName(request.firstName());
-        user.setMiddleName(request.middleName());
-        user.setLastName(request.lastName());
-        user.setEmail(normalizedEmail);
-        user.setUsername(normalizedEmail);
-        user.setPhoneNumber(request.phoneNumber());
-        user.setActive(true);
-
-        user = userRepository.save(user);
-
-        // Create Keycloak user via event and trigger required actions email
-        UserCreationEvent creationEvent = new UserCreationEvent(
-                normalizedEmail,
+        ensureEmailAvailable(normalizedEmail, "Organisation user");
+        User user = createLocalUser(
                 request.firstName(),
+                request.middleName(),
                 request.lastName(),
                 normalizedEmail,
-                true,
-                UserDomain.valueOf(domain.getDomainName()),
-                keycloakRealm,
-                user.getUuid()
+                request.phoneNumber()
         );
-        applicationEventPublisher.publishEvent(creationEvent);
+
+        publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail, UserDomain.valueOf(domain.getDomainName()));
 
         // Assign organisation role (and optional branch)
         userService.assignUserToOrganisation(user.getUuid(), organisationUuid, domain.getDomainName(), request.branchUuid());
 
         log.info("Successfully created organisation user {} with UUID {} in organisation {}", normalizedEmail, user.getUuid(), organisationUuid);
         return userService.getUserByUuid(user.getUuid());
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void ensureEmailAvailable(String normalizedEmail, String context) {
+        userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
+            throw new IllegalStateException("User already exists locally. Provide the existing email to " + context.toLowerCase() + ".");
+        });
+
+        if (keycloakUserService.getUserByUsername(normalizedEmail, keycloakRealm).isPresent()) {
+            throw new IllegalStateException("User already exists in Keycloak. Provide the existing email to " + context.toLowerCase() + ".");
+        }
+    }
+
+    private User createLocalUser(String firstName, String middleName, String lastName, String email, String phoneNumber) {
+        User user = new User();
+        user.setFirstName(firstName);
+        user.setMiddleName(middleName);
+        user.setLastName(lastName);
+        user.setEmail(email);
+        user.setUsername(email);
+        user.setPhoneNumber(phoneNumber);
+        user.setActive(true);
+        return userRepository.save(user);
+    }
+
+    private void publishKeycloakCreation(User user, String firstName, String lastName, String email, UserDomain domain) {
+        UserCreationEvent creationEvent = new UserCreationEvent(
+                email,
+                firstName,
+                lastName,
+                email,
+                true,
+                domain,
+                keycloakRealm,
+                user.getUuid()
+        );
+        applicationEventPublisher.publishEvent(creationEvent);
     }
 
     @Override
