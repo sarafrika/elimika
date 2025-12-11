@@ -160,10 +160,6 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
     public void assignUserToBranch(UUID branchUuid, UUID userUuid, String domainName) {
         log.debug("Assigning user {} to branch {} with domain {}", userUuid, branchUuid, domainName);
 
-        if ("course_creator".equalsIgnoreCase(domainName)) {
-            throw new IllegalArgumentException("course_creator domain is not supported at the organisation or branch level");
-        }
-
         TrainingBranch branch = findTrainingBranchOrThrow(branchUuid);
         User user = findUserOrThrow(userUuid);
         UserDomain domain = findDomainByNameOrThrow(domainName);
