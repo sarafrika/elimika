@@ -24,4 +24,11 @@ public class UserDomain {
 
     @Column(name = "domain_name", nullable = false, unique = true)
     private String domainName;
+
+    @Column(name = "org_supported", nullable = false)
+    private boolean orgSupported = true;
+
+    @UuidGenerator
+    @Column(name = "domain_key", unique = true, nullable = false)
+    private UUID domainKey;
 }

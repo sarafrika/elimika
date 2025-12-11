@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -57,6 +58,13 @@ public interface AdminService {
      * @return created user with organisation assignment
      */
     UserDTO createOrganisationUser(UUID organisationUuid, OrganisationUserCreateRequestDTO request);
+
+    /**
+     * Lists organisation-supported user domains.
+     *
+     * @return list of domains that can be assigned within organisations
+     */
+    List<DomainDTO> getOrganisationSupportedDomains();
 
     /**
      * Get all admin users with filtering and pagination

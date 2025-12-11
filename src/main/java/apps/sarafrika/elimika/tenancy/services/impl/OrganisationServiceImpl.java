@@ -189,7 +189,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         log.debug("Inviting user with email {} to organisation {} with domain {}", email, organisationUuid, domainName);
 
         Organisation organisation = findOrganisationOrThrow(organisationUuid);
-        UserDomain domain = findDomainByNameOrThrow(domainName);
+        UserDomain domain = findOrgSupportedDomain(domainName);
 
         // Validate branch belongs to organisation if provided
         if (branchUuid != null) {
@@ -426,6 +426,22 @@ public class OrganisationServiceImpl implements OrganisationService {
     private UserDomain findDomainByNameOrThrow(String domainName) {
         return userDomainRepository.findByDomainName(domainName)
                 .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name: " + domainName));
+    }
+
+    private UserDomain findOrgSupportedDomain(String identifier) {
+        if (identifier == null || identifier.trim().isEmpty()) {
+            throw new IllegalArgumentException("Domain name is required");
+        }
+
+        Optional<UserDomain> domain;
+        try {
+            UUID domainUuid = UUID.fromString(identifier);
+            domain = userDomainRepository.findByUuidAndOrgSupportedTrue(domainUuid);
+        } catch (IllegalArgumentException e) {
+            domain = userDomainRepository.findByDomainNameAndOrgSupportedTrue(identifier);
+        }
+
+        return domain.orElseThrow(() -> new IllegalArgumentException("Unsupported organisation domain: " + identifier));
     }
 
     private List<String> getUserDomainsForUser(UUID userUuid) {

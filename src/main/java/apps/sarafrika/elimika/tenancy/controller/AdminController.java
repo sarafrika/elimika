@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
@@ -133,6 +134,17 @@ public class AdminController {
             @Valid @RequestBody OrganisationUserCreateRequestDTO request) {
         UserDTO created = adminService.createOrganisationUser(uuid, request);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Organisation user created successfully"));
+    }
+
+    @Operation(
+            summary = "List organisation-supported user domains",
+            description = "Returns the list of user domains allowed for organisation assignments."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation domains retrieved successfully")
+    @GetMapping("/domains/organisation-supported")
+    public ResponseEntity<ApiResponse<List<DomainDTO>>> getOrganisationSupportedDomains() {
+        List<DomainDTO> domains = adminService.getOrganisationSupportedDomains();
+        return ResponseEntity.ok(ApiResponse.success(domains, "Organisation domains retrieved successfully"));
     }
 
     // ================================

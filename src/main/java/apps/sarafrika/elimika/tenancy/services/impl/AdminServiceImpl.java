@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
@@ -171,7 +172,13 @@ public class AdminServiceImpl implements AdminService {
         );
 
         publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail);
-        assignAdminDomain(user.getUuid(), new AdminDomainAssignmentRequestDTO("admin", "Created via admin onboarding"));
+        AdminDomainAssignmentRequestDTO domainRequest = new AdminDomainAssignmentRequestDTO(
+                "admin",
+                "global",
+                "Created via admin onboarding",
+                null
+        );
+        assignAdminDomain(user.getUuid(), domainRequest);
 
         log.info("Successfully created admin user {} with UUID {}", normalizedEmail, user.getUuid());
         return userService.getUserByUuid(user.getUuid());
@@ -187,8 +194,7 @@ public class AdminServiceImpl implements AdminService {
         organisationRepository.findByUuid(organisationUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Organisation not found with UUID: " + organisationUuid));
 
-        // Validate domain exists
-        UserDomain domain = findDomainByNameOrThrow(request.domainName());
+        UserDomain domain = findOrgSupportedDomain(request.domainName());
 
         ensureEmailAvailable(normalizedEmail, "Organisation user");
         User user = createLocalUser(
@@ -206,6 +212,14 @@ public class AdminServiceImpl implements AdminService {
 
         log.info("Successfully created organisation user {} with UUID {} in organisation {}", normalizedEmail, user.getUuid(), organisationUuid);
         return userService.getUserByUuid(user.getUuid());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DomainDTO> getOrganisationSupportedDomains() {
+        return userDomainRepository.findByOrgSupportedTrue().stream()
+                .map(domain -> new DomainDTO(domain.getUuid(), domain.getDomainName()))
+                .toList();
     }
 
     private String normalizeEmail(String email) {
@@ -249,6 +263,22 @@ public class AdminServiceImpl implements AdminService {
                 user.getUuid()
         );
         applicationEventPublisher.publishEvent(creationEvent);
+    }
+
+    private UserDomain findOrgSupportedDomain(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new IllegalArgumentException("Domain name is required");
+        }
+
+        Optional<UserDomain> domain;
+        try {
+            UUID domainUuid = UUID.fromString(identifier);
+            domain = userDomainRepository.findByUuidAndOrgSupportedTrue(domainUuid);
+        } catch (IllegalArgumentException e) {
+            domain = userDomainRepository.findByDomainNameAndOrgSupportedTrue(identifier);
+        }
+
+        return domain.orElseThrow(() -> new IllegalArgumentException("Unsupported organisation domain: " + identifier));
     }
 
     @Override

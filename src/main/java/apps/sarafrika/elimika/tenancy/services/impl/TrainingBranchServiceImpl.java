@@ -162,7 +162,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
 
         TrainingBranch branch = findTrainingBranchOrThrow(branchUuid);
         User user = findUserOrThrow(userUuid);
-        UserDomain domain = findDomainByNameOrThrow(domainName);
+        UserDomain domain = findOrgSupportedDomain(domainName);
 
         // Check if user is already in the organisation
         UserOrganisationDomainMapping existingMapping = userOrganisationDomainMappingRepository
@@ -294,6 +294,22 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
     private UserDomain findDomainByNameOrThrow(String domainName) {
         return userDomainRepository.findByDomainName(domainName)
                 .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name: " + domainName));
+    }
+
+    private UserDomain findOrgSupportedDomain(String identifier) {
+        if (identifier == null || identifier.trim().isEmpty()) {
+            throw new IllegalArgumentException("Domain name is required");
+        }
+
+        Optional<UserDomain> domain;
+        try {
+            UUID domainUuid = UUID.fromString(identifier);
+            domain = userDomainRepository.findByUuidAndOrgSupportedTrue(domainUuid);
+        } catch (IllegalArgumentException e) {
+            domain = userDomainRepository.findByDomainNameAndOrgSupportedTrue(identifier);
+        }
+
+        return domain.orElseThrow(() -> new IllegalArgumentException("Unsupported organisation domain: " + identifier));
     }
 
     private List<String> getUserDomainsForUser(UUID userUuid) {
