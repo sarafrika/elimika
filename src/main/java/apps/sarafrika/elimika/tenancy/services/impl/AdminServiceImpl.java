@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
@@ -200,6 +201,61 @@ public class AdminServiceImpl implements AdminService {
         assignAdminDomain(user.getUuid(), domainRequest);
 
         log.info("Successfully created admin user {} with UUID {}", normalizedEmail, user.getUuid());
+        return userService.getUserByUuid(user.getUuid());
+    }
+
+    @Override
+    @Transactional
+    public UserDTO createOrganisationUser(UUID organisationUuid, OrganisationUserCreateRequestDTO request) {
+        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        log.info("Creating organisation user for email {} in organisation {}", normalizedEmail, organisationUuid);
+
+        // Validate organisation exists
+        organisationRepository.findByUuid(organisationUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Organisation not found with UUID: " + organisationUuid));
+
+        // Validate domain exists
+        UserDomain domain = findDomainByNameOrThrow(request.domainName());
+
+        // Ensure user does not already exist locally
+        userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
+            throw new IllegalStateException("User already exists. Provide the existing email to assign to the organisation.");
+        });
+
+        // Ensure user does not already exist in Keycloak
+        if (keycloakUserService.getUserByUsername(normalizedEmail, keycloakRealm).isPresent()) {
+            throw new IllegalStateException("User already exists in Keycloak. Provide the existing email to assign to the organisation.");
+        }
+
+        // Create local user record
+        User user = new User();
+        user.setFirstName(request.firstName());
+        user.setMiddleName(request.middleName());
+        user.setLastName(request.lastName());
+        user.setEmail(normalizedEmail);
+        user.setUsername(normalizedEmail);
+        user.setPhoneNumber(request.phoneNumber());
+        user.setActive(true);
+
+        user = userRepository.save(user);
+
+        // Create Keycloak user via event and trigger required actions email
+        UserCreationEvent creationEvent = new UserCreationEvent(
+                normalizedEmail,
+                request.firstName(),
+                request.lastName(),
+                normalizedEmail,
+                true,
+                UserDomain.valueOf(domain.getDomainName()),
+                keycloakRealm,
+                user.getUuid()
+        );
+        applicationEventPublisher.publishEvent(creationEvent);
+
+        // Assign organisation role (and optional branch)
+        userService.assignUserToOrganisation(user.getUuid(), organisationUuid, domain.getDomainName(), request.branchUuid());
+
+        log.info("Successfully created organisation user {} with UUID {} in organisation {}", normalizedEmail, user.getUuid(), organisationUuid);
         return userService.getUserByUuid(user.getUuid());
     }
 

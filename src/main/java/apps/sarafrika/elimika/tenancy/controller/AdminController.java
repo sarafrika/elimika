@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
@@ -115,6 +116,23 @@ public class AdminController {
             @Valid @RequestBody AdminCreateUserRequestDTO request) {
         UserDTO created = adminService.createAdminUser(request);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Admin user created successfully"));
+    }
+
+    @Operation(
+            summary = "Create a new organisation user with domain",
+            description = "Creates a new user, provisions them in Keycloak, assigns them to the organisation with the specified domain " +
+                    "and optional branch. If the email already exists in Keycloak or locally, an error is returned so the client can " +
+                    "use the existing email to assign roles instead."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organisation user created and activation email sent")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Email already exists; use existing user assignment flow")
+    @PostMapping("/organisations/{uuid}/users")
+    public ResponseEntity<ApiResponse<UserDTO>> createOrganisationUser(
+            @Parameter(description = "UUID of the organisation to assign the user to", required = true)
+            @PathVariable UUID uuid,
+            @Valid @RequestBody OrganisationUserCreateRequestDTO request) {
+        UserDTO created = adminService.createOrganisationUser(uuid, request);
+        return ResponseEntity.status(201).body(ApiResponse.success(created, "Organisation user created successfully"));
     }
 
     // ================================

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +48,15 @@ public interface AdminService {
      * @return created admin user
      */
     UserDTO createAdminUser(AdminCreateUserRequestDTO request);
+
+    /**
+     * Creates a new organisation user in Keycloak and the local database, then assigns the organisation domain.
+     *
+     * @param organisationUuid the organisation to assign the user to
+     * @param request          creation payload with domain and optional branch
+     * @return created user with organisation assignment
+     */
+    UserDTO createOrganisationUser(UUID organisationUuid, OrganisationUserCreateRequestDTO request);
 
     /**
      * Get all admin users with filtering and pagination
