@@ -6,7 +6,6 @@
  * - Organization management and hierarchical structures
  * - Multi-tenant user management with domain isolation
  * - Training branch management for organizational subdivisions
- * - User invitation and onboarding workflows
  * - Role-based access control integration
  * - Cross-tenant data isolation and security
  * 
@@ -14,12 +13,11 @@
  * - Organization Management: Create and manage educational institutions and organizations
  * - Training Branches: Support for multiple campuses, departments, or training centers
  * - User Management: Comprehensive user lifecycle management with tenant isolation
- * - Invitation System: Secure user invitation and registration workflows
  * - Domain Mapping: User-to-organization domain associations for proper data isolation
  * - Role Integration: Seamless integration with authentication and authorization systems
  * 
  * Module Boundaries:
- * - Owns: Organizations, training branches, users, invitations, domain mappings
+ * - Owns: Organizations, training branches, users, domain mappings
  * - Does Not Own: Authentication tokens, specific user roles (student/instructor), course data
  * 
  * The module exposes its services through well-defined interfaces while keeping implementation
@@ -29,7 +27,6 @@
  * - OrganisationService: Main service for organization management
  * - UserService: Comprehensive user management operations
  * - TrainingBranchService: Branch and subdivision management
- * - InvitationService: User invitation and onboarding workflows
  * - UserOrganisationDomainMapping: Tenant isolation enforcement
  * 
  * Integration Points:

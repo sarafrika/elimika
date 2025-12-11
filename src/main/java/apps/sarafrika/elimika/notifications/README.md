@@ -37,7 +37,7 @@ The Notifications module provides centralized notification services for the Elim
 - **Learning Journey**: Course enrollment, progress milestones, completion certificates
 - **Assignment Workflow**: Due reminders, submission confirmations, grading notifications
 - **Instructor Tools**: New submissions, grading reminders, student enrollment alerts
-- **Administrative**: Invitations, account management, system notifications
+- **Administrative**: Account management and system notifications
 
 ### 🎨 Email Templates
 - **assignment-due-reminder.html**: Urgent and standard assignment reminders

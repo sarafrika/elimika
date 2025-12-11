@@ -33,12 +33,6 @@ public enum NotificationType {
     GRADING_REMINDER("GRADING_REMINDER", "grading-reminder", "Grading Reminder", NotificationCategory.ASSIGNMENTS_GRADING),
     
     // Administrative Notifications
-    USER_INVITATION_SENT("USER_INVITATION_SENT", "user-invitation-sent", "Invitation Sent", NotificationCategory.SYSTEM_ADMIN),
-    INVITATION_ACCEPTED("INVITATION_ACCEPTED", "invitation-accepted", "Invitation Accepted", NotificationCategory.SYSTEM_ADMIN),
-    INVITATION_DECLINED("INVITATION_DECLINED", "invitation-declined", "Invitation Declined", NotificationCategory.SYSTEM_ADMIN),
-    INVITATION_EXPIRY_REMINDER("INVITATION_EXPIRY_REMINDER", "invitation-expiry-reminder", "Invitation Expiry", NotificationCategory.SYSTEM_ADMIN),
-    
-    // System Notifications
     ACCOUNT_CREATED("ACCOUNT_CREATED", "account-created", "Account Created", NotificationCategory.SYSTEM_ADMIN),
     PASSWORD_RESET_REQUEST("PASSWORD_RESET_REQUEST", "password-reset-request", "Password Reset", NotificationCategory.SYSTEM_ADMIN),
     SECURITY_ALERT("SECURITY_ALERT", "security-alert", "Security Alert", NotificationCategory.SYSTEM_ADMIN),

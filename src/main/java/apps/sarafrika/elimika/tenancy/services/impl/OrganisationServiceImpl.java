@@ -205,16 +205,8 @@ public class OrganisationServiceImpl implements OrganisationService {
         Optional<User> userOptional = userRepository.findByEmail(email);
 
         if (userOptional.isEmpty()) {
-            // For admin and organisation_user roles, user must exist (they should register first)
-            if ("admin".equals(domainName) || "organisation_user".equals(domainName)) {
-                throw new IllegalStateException("User must register on the platform before being invited as " + domainName +
-                        ". Please ask them to create an account first.");
-            }
-
-            // For student/instructor invitations, we'll create invitation and let them register later
-            log.info("Creating invitation for non-existent user {} with domain {}", email, domainName);
-            // This will be handled by the InvitationService
-            return;
+            throw new IllegalStateException("User must register on the platform before being associated with " + domainName +
+                    ". Please ask them to create an account first.");
         }
 
         User user = userOptional.get();

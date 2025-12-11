@@ -2,13 +2,9 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
-import apps.sarafrika.elimika.tenancy.dto.BulkInvitationResultDTO;
-import apps.sarafrika.elimika.tenancy.dto.InvitationDTO;
-import apps.sarafrika.elimika.tenancy.dto.InvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
-import apps.sarafrika.elimika.tenancy.services.InvitationService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
@@ -22,14 +18,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,11 +29,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("api/v1/organisations")
 @RequiredArgsConstructor
-@Tag(name = "Organisations API", description = "Complete organization management including users, training branches, and invitation management within organizational hierarchy")
+@Tag(name = "Organisations API", description = "Complete organization management including users and training branches within organizational hierarchy")
 class OrganisationController {
     private final OrganisationService organisationService;
     private final UserService userService;
-    private final InvitationService invitationService;
     private final TrainingBranchService trainingBranchService;
 
     // ================================
@@ -176,145 +167,6 @@ class OrganisationController {
             @PathVariable String domainName) {
         List<UserDTO> users = userService.getUsersByOrganisationAndDomain(uuid, domainName);
         return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
-    }
-
-    // ================================
-    // ORGANISATION INVITATIONS MANAGEMENT
-    // ================================
-
-    @Operation(
-            summary = "Create an invitation to the top-level organization",
-            description = "Creates and sends an email invitation for a user to join the organization itself, without assignment to a specific branch. " +
-                    "The user will have the specified role at the organization level. " +
-                    "Use the '/{uuid}/training-branches/{branchUuid}/invitations' endpoint to invite a user directly to a branch."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organization-level invitation created and sent successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data: duplicate invitation or invalid domain")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization or inviter user not found")
-    @PostMapping("/{uuid}/invitations")
-    public ResponseEntity<ApiResponse<InvitationDTO>> createOrganizationInvitation(
-            @Parameter(description = "UUID of the organization the user is being invited to join.", required = true)
-            @PathVariable UUID uuid,
-            @Valid @RequestBody InvitationRequestDTO invitationRequest) {
-        InvitationDTO created = invitationService.createOrganisationInvitation(
-                invitationRequest.recipientEmail(),
-                invitationRequest.recipientName(),
-                uuid,
-                invitationRequest.domainName(),
-                null, // Explicitly null for branchUuid, as this is an org-level invitation
-                invitationRequest.inviterUuid(),
-                invitationRequest.notes());
-        return ResponseEntity.status(201).body(ApiResponse.success(created, "Invitation created successfully"));
-    }
-
-    @Operation(
-            summary = "Download bulk invitation template",
-            description = "Returns a CSV template for bulk uploads. Columns: recipient_email, recipient_name, domain_name, branch_uuid (optional), notes (optional). " +
-                    "The same columns apply to CSV and XLSX uploads."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Template downloaded successfully")
-    @GetMapping("/{uuid}/invitations/bulk/template")
-    public ResponseEntity<byte[]> downloadBulkInvitationTemplate(
-            @Parameter(description = "UUID of the organization for context. Invitations in the upload must belong to this organization.", required = true)
-            @PathVariable UUID uuid) {
-
-        String template = """
-                recipient_email,recipient_name,domain_name,branch_uuid,notes
-                student1@example.com,Student One,student,,Welcome to the organisation
-                instructor1@example.com,Instructor One,instructor,550e8400-e29b-41d4-a716-446655440002,Please join the Nairobi branch
-                """.strip();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"bulk-invitations-template.csv\"")
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(template.getBytes(StandardCharsets.UTF_8));
-    }
-
-    @Operation(
-            summary = "Bulk upload invitations",
-            description = "Uploads a CSV or XLSX file containing multiple invitations. Processes each row, logs errors, and returns a summary " +
-                    "with per-row failures once processing completes. Inviter must be an organisation admin or organisation_user."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bulk invitations processed; see response for success/failure counts")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid file format or missing required columns")
-    @PostMapping(path = "/{uuid}/invitations/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<BulkInvitationResultDTO>> uploadBulkInvitations(
-            @Parameter(description = "UUID of the organization the invitations belong to.", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the user creating the invitations. Must have permission to invite users to the organization.", required = true)
-            @RequestParam("inviter_uuid") UUID inviterUuid,
-            @Parameter(description = "CSV or XLSX file with headers: recipient_email, recipient_name, domain_name, branch_uuid (optional), notes (optional).", required = true)
-            @RequestParam("file") MultipartFile file) {
-
-        BulkInvitationResultDTO result = invitationService.processBulkInvitations(uuid, inviterUuid, file);
-        String message = String.format("Processed %d rows: %d succeeded, %d failed",
-                result.totalRows(), result.successfulInvitations(), result.failedRows());
-        return ResponseEntity.ok(ApiResponse.success(result, message));
-    }
-
-    @Operation(
-            summary = "Get all invitations for organization",
-            description = "Retrieves all invitations (regardless of status) that have been sent for this specific organization. " +
-                    "This includes organization-level invitations and branch-specific invitations within the organization. " +
-                    "Results are ordered by creation date (most recent first) and include all invitation statuses."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization invitations retrieved successfully (may be empty list)")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
-    @GetMapping("/{uuid}/invitations")
-    public ResponseEntity<ApiResponse<List<InvitationDTO>>> getOrganizationInvitations(
-            @Parameter(description = "UUID of the organization to retrieve invitations for. Must be an existing organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid) {
-        List<InvitationDTO> invitations = invitationService.getOrganisationInvitations(uuid);
-        return ResponseEntity.ok(ApiResponse.success(invitations, "Invitations retrieved successfully"));
-    }
-
-    @Operation(
-            summary = "Cancel pending invitation",
-            description = "Cancels a pending invitation within this organization, preventing it from being accepted or declined. " +
-                    "Only the original inviter or an organization administrator can cancel invitations. " +
-                    "This action is irreversible and the invitation cannot be reactivated."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation cancelled successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invitation is not pending, or user lacks permission to cancel")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Invitation not found")
-    @DeleteMapping("/{uuid}/invitations/{invitationUuid}")
-    public ResponseEntity<ApiResponse<Void>> cancelInvitation(
-            @Parameter(description = "UUID of the organization that owns the invitation. Must be an existing organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the invitation to cancel. Must be a pending invitation that hasn't been accepted, declined, or expired.",
-                    example = "550e8400-e29b-41d4-a716-446655440000", required = true)
-            @PathVariable UUID invitationUuid,
-            @Parameter(description = "UUID of the user requesting to cancel the invitation. Must be either the original inviter or an administrator of the organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440004", required = true)
-            @RequestParam("canceller_uuid") UUID cancellerUuid) {
-        invitationService.cancelInvitation(invitationUuid, cancellerUuid);
-        return ResponseEntity.ok(ApiResponse.success(null, "Invitation cancelled successfully"));
-    }
-
-    @Operation(
-            summary = "Resend invitation email",
-            description = "Resends the invitation email to the recipient with a fresh expiration date. " +
-                    "Only pending invitations can be resent. The invitation expiry date will be extended from the current time. " +
-                    "Only the original inviter or an organization administrator can resend invitations."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation email resent successfully with updated expiry date")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invitation is not pending, or user lacks permission to resend")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Invitation not found")
-    @PostMapping("/{uuid}/invitations/{invitationUuid}/resend")
-    public ResponseEntity<ApiResponse<Void>> resendInvitation(
-            @Parameter(description = "UUID of the organization that owns the invitation. Must be an existing organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the invitation to resend. Must be a pending invitation that hasn't been accepted, declined, or cancelled.",
-                    example = "550e8400-e29b-41d4-a716-446655440000", required = true)
-            @PathVariable UUID invitationUuid,
-            @Parameter(description = "UUID of the user requesting to resend the invitation. Must be either the original inviter or an administrator of the organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440004", required = true)
-            @RequestParam("resender_uuid") UUID resenderUuid) {
-        invitationService.resendInvitation(invitationUuid, resenderUuid);
-        return ResponseEntity.ok(ApiResponse.success(null, "Invitation resent successfully"));
     }
 
     // ================================
@@ -498,53 +350,6 @@ class OrganisationController {
             @PathVariable UUID userUuid) {
         trainingBranchService.removeUserFromBranch(branchUuid, userUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "User removed from branch successfully"));
-    }
-
-    @Operation(
-            summary = "Create an invitation to a specific training branch",
-            description = "Creates and sends an email invitation for a user to join a specific training branch with a defined role. " +
-                    "This is the sole endpoint for creating branch-specific invitations. The parent organization is inferred from the branch."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Branch invitation created and email sent successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data: duplicate invitation, invalid domain, or invalid branch")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch, inviter user not found")
-    @PostMapping("/{uuid}/training-branches/{branchUuid}/invitations")
-    public ResponseEntity<ApiResponse<InvitationDTO>> createBranchInvitation(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch the user is being invited to join. Must be a branch within the specified organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440002", required = true)
-            @PathVariable UUID branchUuid,
-            @Valid @RequestBody InvitationRequestDTO invitationRequest) {
-        InvitationDTO created = invitationService.createBranchInvitation(
-                invitationRequest.recipientEmail(),
-                invitationRequest.recipientName(),
-                branchUuid,
-                invitationRequest.domainName(),
-                invitationRequest.inviterUuid(),
-                invitationRequest.notes());
-        return ResponseEntity.status(201).body(ApiResponse.success(created, "Branch invitation created successfully"));
-    }
-
-    @Operation(
-            summary = "Get all invitations for training branch",
-            description = "Retrieves all invitations (regardless of status) that have been sent specifically for this training branch. " +
-                    "This only includes branch-specific invitations, not general organization invitations. " +
-                    "Results are ordered by creation date (most recent first) and include all invitation statuses."
-    )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Branch invitations retrieved successfully (may be empty list)")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
-    @GetMapping("/{uuid}/training-branches/{branchUuid}/invitations")
-    public ResponseEntity<ApiResponse<List<InvitationDTO>>> getBranchInvitations(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
-            @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to retrieve invitations for. Must be a branch within the specified organization.",
-                    example = "550e8400-e29b-41d4-a716-446655440002", required = true)
-            @PathVariable UUID branchUuid) {
-        List<InvitationDTO> invitations = invitationService.getBranchInvitations(branchUuid);
-        return ResponseEntity.ok(ApiResponse.success(invitations, "Branch invitations retrieved successfully"));
     }
 
 }
