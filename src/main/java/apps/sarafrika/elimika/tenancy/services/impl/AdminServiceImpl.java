@@ -38,7 +38,6 @@ import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
-import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.shared.tracking.entity.RequestAuditLog;
 import apps.sarafrika.elimika.shared.tracking.repository.RequestAuditLogRepository;
 import lombok.RequiredArgsConstructor;
@@ -171,7 +170,7 @@ public class AdminServiceImpl implements AdminService {
                 request.phoneNumber()
         );
 
-        publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail, UserDomain.admin);
+        publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail);
         assignAdminDomain(user.getUuid(), new AdminDomainAssignmentRequestDTO("admin", "Created via admin onboarding"));
 
         log.info("Successfully created admin user {} with UUID {}", normalizedEmail, user.getUuid());
@@ -200,7 +199,7 @@ public class AdminServiceImpl implements AdminService {
                 request.phoneNumber()
         );
 
-        publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail, UserDomain.valueOf(domain.getDomainName()));
+        publishKeycloakCreation(user, request.firstName(), request.lastName(), normalizedEmail);
 
         // Assign organisation role (and optional branch)
         userService.assignUserToOrganisation(user.getUuid(), organisationUuid, domain.getDomainName(), request.branchUuid());
@@ -238,14 +237,14 @@ public class AdminServiceImpl implements AdminService {
         return userRepository.save(user);
     }
 
-    private void publishKeycloakCreation(User user, String firstName, String lastName, String email, UserDomain domain) {
+    private void publishKeycloakCreation(User user, String firstName, String lastName, String email) {
         UserCreationEvent creationEvent = new UserCreationEvent(
                 email,
                 firstName,
                 lastName,
                 email,
                 true,
-                domain,
+                null,
                 keycloakRealm,
                 user.getUuid()
         );
