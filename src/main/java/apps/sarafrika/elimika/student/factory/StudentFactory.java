@@ -34,7 +34,6 @@ public abstract class StudentFactory {
         Student student = new Student();
         student.setUuid(dto.uuid());
         student.setUserUuid(dto.userUuid());
-        student.setFullName(dto.fullName());
         student.setDemographicTag(dto.demographicTag());
         student.setFirstGuardianName(dto.firstGuardianName());
         student.setFirstGuardianMobile(dto.firstGuardianMobile());
