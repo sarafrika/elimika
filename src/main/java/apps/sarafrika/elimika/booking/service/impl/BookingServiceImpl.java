@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.booking.service.impl;
 
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
+import apps.sarafrika.elimika.booking.dto.BookingPaymentRequestDTO;
+import apps.sarafrika.elimika.booking.dto.BookingPaymentSessionDTO;
 import apps.sarafrika.elimika.booking.dto.BookingPaymentUpdateRequestDTO;
 import apps.sarafrika.elimika.booking.dto.BookingResponseDTO;
 import apps.sarafrika.elimika.booking.dto.CreateBookingRequestDTO;
@@ -13,6 +15,8 @@ import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,6 +111,68 @@ public class BookingServiceImpl implements BookingService {
 
         Booking saved = bookingRepository.save(booking);
         return mapToResponse(saved);
+    }
+
+    @Override
+    public BookingPaymentSessionDTO requestPayment(UUID bookingUuid, BookingPaymentRequestDTO request) {
+        Booking booking = bookingRepository.findByUuid(bookingUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingUuid));
+
+        if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Cannot request payment for a cancelled booking");
+        }
+        if (BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Booking is already paid");
+        }
+
+        if (request != null && request.paymentEngine() != null && !request.paymentEngine().isBlank()) {
+            booking.setPaymentEngine(request.paymentEngine().trim());
+        }
+
+        booking.setStatus(BookingStatus.PAYMENT_REQUIRED);
+        booking.setHoldExpiresAt(resolveHoldExpiry(booking.getStartTime()));
+
+        Booking saved = bookingRepository.save(booking);
+        PaymentSession session = paymentGatewayClient.initiatePayment(saved);
+        saved.setPaymentSessionId(session.sessionId());
+        saved.setPaymentEngine(session.engine());
+        Booking updated = bookingRepository.save(saved);
+
+        return new BookingPaymentSessionDTO(
+                updated.getUuid(),
+                session.sessionId(),
+                session.paymentUrl(),
+                session.engine(),
+                updated.getHoldExpiresAt()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDTO> getBookingsForStudent(UUID studentUuid, BookingStatus status, Pageable pageable) {
+        if (studentUuid == null) {
+            throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        Page<Booking> bookings = status == null
+                ? bookingRepository.findByStudentUuid(studentUuid, pageable)
+                : bookingRepository.findByStudentUuidAndStatus(studentUuid, status, pageable);
+
+        return bookings.map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDTO> getBookingsForInstructor(UUID instructorUuid, BookingStatus status, Pageable pageable) {
+        if (instructorUuid == null) {
+            throw new IllegalArgumentException("Instructor UUID cannot be null");
+        }
+
+        Page<Booking> bookings = status == null
+                ? bookingRepository.findByInstructorUuid(instructorUuid, pageable)
+                : bookingRepository.findByInstructorUuidAndStatus(instructorUuid, status, pageable);
+
+        return bookings.map(this::mapToResponse);
     }
 
     @Override

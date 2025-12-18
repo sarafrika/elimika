@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.booking.controller;
 
+import apps.sarafrika.elimika.booking.dto.BookingPaymentRequestDTO;
+import apps.sarafrika.elimika.booking.dto.BookingPaymentSessionDTO;
 import apps.sarafrika.elimika.booking.dto.BookingPaymentUpdateRequestDTO;
 import apps.sarafrika.elimika.booking.dto.BookingResponseDTO;
 import apps.sarafrika.elimika.booking.dto.CreateBookingRequestDTO;
@@ -12,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -36,6 +39,7 @@ public class BookingController {
 
     @Operation(summary = "Get booking details")
     @GetMapping("/{bookingUuid}")
+    @PreAuthorize("@bookingSecurityService.isBookingParticipantOrAdmin(#bookingUuid)")
     public ResponseEntity<ApiResponse<BookingResponseDTO>> getBooking(
             @Parameter(description = "Booking UUID") @PathVariable UUID bookingUuid) {
         BookingResponseDTO booking = bookingService.getBooking(bookingUuid);
@@ -44,10 +48,21 @@ public class BookingController {
 
     @Operation(summary = "Cancel a booking and release the reserved slot")
     @PostMapping("/{bookingUuid}/cancel")
+    @PreAuthorize("@bookingSecurityService.isBookingParticipant(#bookingUuid)")
     public ResponseEntity<ApiResponse<BookingResponseDTO>> cancelBooking(
             @Parameter(description = "Booking UUID") @PathVariable UUID bookingUuid) {
         BookingResponseDTO booking = bookingService.cancelBooking(bookingUuid);
         return ResponseEntity.ok(ApiResponse.success(booking, "Booking cancelled"));
+    }
+
+    @Operation(summary = "Request payment for a booking")
+    @PostMapping("/{bookingUuid}/request-payment")
+    @PreAuthorize("@bookingSecurityService.isBookingParticipant(#bookingUuid)")
+    public ResponseEntity<ApiResponse<BookingPaymentSessionDTO>> requestPayment(
+            @Parameter(description = "Booking UUID") @PathVariable UUID bookingUuid,
+            @Valid @RequestBody(required = false) BookingPaymentRequestDTO request) {
+        BookingPaymentSessionDTO session = bookingService.requestPayment(bookingUuid, request);
+        return ResponseEntity.ok(ApiResponse.success(session, "Booking payment session created"));
     }
 
     @Operation(summary = "Payment callback to update booking status")
