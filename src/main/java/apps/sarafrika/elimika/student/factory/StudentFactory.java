@@ -12,11 +12,13 @@ public abstract class StudentFactory {
         return new StudentDTO(
                 student.getUuid(),
                 student.getUserUuid(),
+                student.getFullName(),
                 student.getDemographicTag(),
                 student.getFirstGuardianName(),
                 student.getFirstGuardianMobile(),
                 student.getSecondGuardianName(),
                 student.getSecondGuardianMobile(),
+                student.getBio(),
                 student.getCreatedDate(),
                 student.getCreatedBy(),
                 student.getLastModifiedDate(),
@@ -32,11 +34,13 @@ public abstract class StudentFactory {
         Student student = new Student();
         student.setUuid(dto.uuid());
         student.setUserUuid(dto.userUuid());
+        student.setFullName(dto.fullName());
         student.setDemographicTag(dto.demographicTag());
         student.setFirstGuardianName(dto.firstGuardianName());
         student.setFirstGuardianMobile(dto.firstGuardianMobile());
         student.setSecondGuardianName(dto.secondGuardianName());
         student.setSecondGuardianMobile(dto.secondGuardianMobile());
+        student.setBio(dto.bio());
         return student;
     }
 }

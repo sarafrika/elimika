@@ -82,6 +82,7 @@ public class StudentServiceImpl implements StudentService {
         existingStudent.setFirstGuardianMobile(studentDTO.firstGuardianMobile());
         existingStudent.setSecondGuardianName(studentDTO.secondGuardianName());
         existingStudent.setSecondGuardianMobile(studentDTO.secondGuardianMobile());
+        existingStudent.setBio(studentDTO.bio());
 
         Student updatedStudent = studentRepository.save(existingStudent);
         return StudentFactory.toDTO(updatedStudent);

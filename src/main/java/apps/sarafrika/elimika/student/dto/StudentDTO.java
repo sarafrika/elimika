@@ -26,10 +26,13 @@ import java.util.UUID;
         {
             "uuid": "s1e2d3c4-5f6g-7h8i-9j0k-lmnopqrstuv",
             "user_uuid": "d2e6f6c4-3d44-11ee-be56-0242ac120002",
+            "full_name": "Amani Njeri",
+            "demographic_tag": "youth_female",
             "first_guardian_name": "John Doe",
             "first_guardian_mobile": "+254712345678",
             "second_guardian_name": "Jane Doe",
             "second_guardian_mobile": "+254787654321",
+            "bio": "Curious learner who loves science and robotics clubs.",
             "created_date": "2024-04-01T12:00:00",
             "created_by": "admin@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -56,6 +59,15 @@ public record StudentDTO(
         @NotNull(message = "User UUID is required")
         @JsonProperty("user_uuid")
         UUID userUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** Complete name of the student. Automatically derived from the linked user profile.",
+                example = "Amani Njeri",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "full_name", access = JsonProperty.Access.READ_ONLY)
+        String fullName,
 
         @Schema(
                 description = "**[OPTIONAL]** Demographic tag used for growth controls (e.g., youth_female, adult).",
@@ -112,6 +124,17 @@ public record StudentDTO(
         @JsonProperty("second_guardian_mobile")
         @ValidPhoneNumber(mobileOnly = true)
         String secondGuardianMobile,
+
+        @Schema(
+                description = "**[OPTIONAL]** Short biography or notes about the student. Used in student profiles.",
+                example = "Curious learner who loves science and robotics clubs.",
+                maxLength = 2000,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 2000, message = "Bio must not exceed 2000 characters")
+        @JsonProperty("bio")
+        String bio,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the student profile was first created. Automatically set by the system.",
