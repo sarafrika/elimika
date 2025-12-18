@@ -9,7 +9,8 @@ public enum InstructorScheduleStatus {
     SCHEDULED,
     ONGOING,
     COMPLETED,
-    CANCELLED;
+    CANCELLED,
+    BLOCKED;
 
     /**
      * Parses a status value ignoring case.
