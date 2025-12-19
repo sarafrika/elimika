@@ -55,6 +55,24 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.success(booking, "Booking cancelled"));
     }
 
+    @Operation(summary = "Instructor accepts a booking")
+    @PostMapping("/{bookingUuid}/accept")
+    @PreAuthorize("@bookingSecurityService.isBookingInstructor(#bookingUuid)")
+    public ResponseEntity<ApiResponse<BookingResponseDTO>> acceptBooking(
+            @Parameter(description = "Booking UUID") @PathVariable UUID bookingUuid) {
+        BookingResponseDTO booking = bookingService.acceptBooking(bookingUuid);
+        return ResponseEntity.ok(ApiResponse.success(booking, "Booking accepted"));
+    }
+
+    @Operation(summary = "Instructor declines a booking")
+    @PostMapping("/{bookingUuid}/decline")
+    @PreAuthorize("@bookingSecurityService.isBookingInstructor(#bookingUuid)")
+    public ResponseEntity<ApiResponse<BookingResponseDTO>> declineBooking(
+            @Parameter(description = "Booking UUID") @PathVariable UUID bookingUuid) {
+        BookingResponseDTO booking = bookingService.declineBooking(bookingUuid);
+        return ResponseEntity.ok(ApiResponse.success(booking, "Booking declined"));
+    }
+
     @Operation(summary = "Request payment for a booking")
     @PostMapping("/{bookingUuid}/request-payment")
     @PreAuthorize("@bookingSecurityService.isBookingParticipant(#bookingUuid)")

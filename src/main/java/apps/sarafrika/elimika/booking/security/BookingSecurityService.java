@@ -38,4 +38,15 @@ public class BookingSecurityService {
         }
         return isBookingParticipant(bookingUuid);
     }
+
+    public boolean isBookingInstructor(UUID bookingUuid) {
+        if (bookingUuid == null) {
+            return false;
+        }
+        Booking booking = bookingRepository.findByUuid(bookingUuid).orElse(null);
+        if (booking == null) {
+            return false;
+        }
+        return domainSecurityService.isInstructorWithUuid(booking.getInstructorUuid());
+    }
 }

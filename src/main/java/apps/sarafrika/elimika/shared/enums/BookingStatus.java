@@ -12,7 +12,9 @@ public enum BookingStatus {
     CONFIRMED("confirmed", "Booking confirmed and slot held"),
     CANCELLED("cancelled", "Booking cancelled by student or system"),
     PAYMENT_FAILED("payment_failed", "Payment attempt failed"),
-    EXPIRED("expired", "Hold expired before payment confirmation");
+    EXPIRED("expired", "Hold expired before payment confirmation"),
+    ACCEPTED("accepted", "Instructor accepted the booking"),
+    DECLINED("declined", "Instructor declined the booking");
 
     private static final Map<String, BookingStatus> VALUE_MAP = new HashMap<>();
     private final String value;

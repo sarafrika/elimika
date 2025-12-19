@@ -27,5 +27,9 @@ public interface BookingService {
 
     Page<BookingResponseDTO> getBookingsForInstructor(UUID instructorUuid, BookingStatus status, Pageable pageable);
 
+    BookingResponseDTO acceptBooking(UUID bookingUuid);
+
+    BookingResponseDTO declineBooking(UUID bookingUuid);
+
     void expireHolds();
 }

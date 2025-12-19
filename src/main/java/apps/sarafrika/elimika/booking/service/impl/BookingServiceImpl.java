@@ -94,6 +94,41 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    public BookingResponseDTO acceptBooking(UUID bookingUuid) {
+        Booking booking = bookingRepository.findByUuid(bookingUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingUuid));
+
+        if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Cannot accept a cancelled booking");
+        }
+        if (BookingStatus.DECLINED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Cannot accept a declined booking");
+        }
+
+        booking.setStatus(BookingStatus.ACCEPTED);
+        Booking saved = bookingRepository.save(booking);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    public BookingResponseDTO declineBooking(UUID bookingUuid) {
+        Booking booking = bookingRepository.findByUuid(bookingUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingUuid));
+
+        if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Cannot decline a cancelled booking");
+        }
+        if (BookingStatus.ACCEPTED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Cannot decline an accepted booking");
+        }
+
+        booking.setStatus(BookingStatus.DECLINED);
+        booking.setAvailabilityBlockUuid(null);
+        Booking saved = bookingRepository.save(booking);
+        return mapToResponse(saved);
+    }
+
+    @Override
     public BookingResponseDTO applyPaymentUpdate(UUID bookingUuid, BookingPaymentUpdateRequestDTO request) {
         Booking booking = bookingRepository.findByUuid(bookingUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingUuid));
