@@ -1,3 +1,17 @@
+# [2.49.0](https://github.com/sarafrika/elimika/compare/v2.48.0...v2.49.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* allow blocked instructor schedule status ([68812b7](https://github.com/sarafrika/elimika/commit/68812b74d4af6b652fa14f22140df4301552d351))
+* keep student full name read-only ([72981c4](https://github.com/sarafrika/elimika/commit/72981c4a153f3148e7f5275799b8a96ca4f293ce))
+
+
+### Features
+
+* add booking listing and payment request endpoints ([3ec13a0](https://github.com/sarafrika/elimika/commit/3ec13a065876b7b964013637c290c86abfadc1b0))
+* include student full name and bio in student responses ([08a8863](https://github.com/sarafrika/elimika/commit/08a886331a5f1d67fc6efdc6cbd8d78181820e87))
+
 # [2.48.0](https://github.com/sarafrika/elimika/compare/v2.47.3...v2.48.0) (2025-12-11)
 
 
