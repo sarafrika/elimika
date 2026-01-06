@@ -11,8 +11,14 @@ import apps.sarafrika.elimika.booking.payment.PaymentGatewayClient;
 import apps.sarafrika.elimika.booking.payment.PaymentSession;
 import apps.sarafrika.elimika.booking.repository.BookingRepository;
 import apps.sarafrika.elimika.booking.spi.BookingService;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -37,6 +43,8 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final AvailabilityService availabilityService;
     private final PaymentGatewayClient paymentGatewayClient;
+    private final ClassDefinitionService classDefinitionService;
+    private final TimetableService timetableService;
 
     @Override
     public BookingResponseDTO createBooking(CreateBookingRequestDTO request) {
@@ -89,6 +97,9 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setAvailabilityBlockUuid(null);
+        if (booking.getScheduledInstanceUuid() != null) {
+            timetableService.cancelScheduledInstance(booking.getScheduledInstanceUuid(), "Booking cancelled");
+        }
         Booking saved = bookingRepository.save(booking);
         return mapToResponse(saved);
     }
@@ -104,8 +115,21 @@ public class BookingServiceImpl implements BookingService {
         if (BookingStatus.DECLINED.equals(booking.getStatus())) {
             throw new IllegalStateException("Cannot accept a declined booking");
         }
+        if (BookingStatus.ACCEPTED_CONFIRMED.equals(booking.getStatus())) {
+            finalizeEnrollment(booking);
+            Booking saved = bookingRepository.save(booking);
+            return mapToResponse(saved);
+        }
+        if (BookingStatus.ACCEPTED.equals(booking.getStatus())) {
+            return mapToResponse(booking);
+        }
 
-        booking.setStatus(BookingStatus.ACCEPTED);
+        if (BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            booking.setStatus(BookingStatus.ACCEPTED_CONFIRMED);
+            finalizeEnrollment(booking);
+        } else {
+            booking.setStatus(BookingStatus.ACCEPTED);
+        }
         Booking saved = bookingRepository.save(booking);
         return mapToResponse(saved);
     }
@@ -118,7 +142,8 @@ public class BookingServiceImpl implements BookingService {
         if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
             throw new IllegalStateException("Cannot decline a cancelled booking");
         }
-        if (BookingStatus.ACCEPTED.equals(booking.getStatus())) {
+        if (BookingStatus.ACCEPTED.equals(booking.getStatus())
+                || BookingStatus.ACCEPTED_CONFIRMED.equals(booking.getStatus())) {
             throw new IllegalStateException("Cannot decline an accepted booking");
         }
 
@@ -134,14 +159,24 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingUuid));
 
         if ("succeeded".equalsIgnoreCase(request.paymentStatus())) {
-            booking.setStatus(BookingStatus.CONFIRMED);
             booking.setPaymentReference(request.paymentReference());
             booking.setPaymentEngine(request.paymentEngine());
+            if (BookingStatus.ACCEPTED.equals(booking.getStatus())) {
+                booking.setStatus(BookingStatus.ACCEPTED_CONFIRMED);
+                finalizeEnrollment(booking);
+            } else if (BookingStatus.ACCEPTED_CONFIRMED.equals(booking.getStatus())) {
+                finalizeEnrollment(booking);
+            } else {
+                booking.setStatus(BookingStatus.CONFIRMED);
+            }
         } else {
             booking.setStatus(BookingStatus.PAYMENT_FAILED);
             booking.setPaymentReference(request.paymentReference());
             booking.setPaymentEngine(request.paymentEngine());
             booking.setAvailabilityBlockUuid(null);
+            if (booking.getScheduledInstanceUuid() != null) {
+                timetableService.cancelScheduledInstance(booking.getScheduledInstanceUuid(), "Payment failed");
+            }
         }
 
         Booking saved = bookingRepository.save(booking);
@@ -157,6 +192,9 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalStateException("Cannot request payment for a cancelled booking");
         }
         if (BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            throw new IllegalStateException("Booking is already paid");
+        }
+        if (BookingStatus.ACCEPTED_CONFIRMED.equals(booking.getStatus())) {
             throw new IllegalStateException("Booking is already paid");
         }
 
@@ -276,9 +314,64 @@ public class BookingServiceImpl implements BookingService {
                 booking.getPaymentEngine(),
                 booking.getHoldExpiresAt(),
                 booking.getAvailabilityBlockUuid(),
+                booking.getScheduledInstanceUuid(),
+                booking.getEnrollmentUuid(),
                 booking.getPurpose(),
                 booking.getCreatedDate(),
                 booking.getLastModifiedDate()
         );
+    }
+
+    private void finalizeEnrollment(Booking booking) {
+        if (!BookingStatus.ACCEPTED_CONFIRMED.equals(booking.getStatus())) {
+            return;
+        }
+
+        if (booking.getScheduledInstanceUuid() == null) {
+            ClassDefinitionDTO classDefinition = resolveClassDefinition(booking);
+            ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
+                    classDefinition.uuid(),
+                    booking.getInstructorUuid(),
+                    booking.getStartTime(),
+                    booking.getEndTime(),
+                    "UTC"
+            );
+            ScheduledInstanceDTO instance = timetableService.scheduleClass(scheduleRequest);
+            booking.setScheduledInstanceUuid(instance.uuid());
+        }
+
+        if (booking.getEnrollmentUuid() == null && booking.getScheduledInstanceUuid() != null) {
+            EnrollmentDTO enrollment = timetableService.enrollStudentInInstance(
+                    booking.getScheduledInstanceUuid(),
+                    booking.getStudentUuid()
+            );
+            booking.setEnrollmentUuid(enrollment.uuid());
+        }
+    }
+
+    private ClassDefinitionDTO resolveClassDefinition(Booking booking) {
+        List<ClassDefinitionDTO> classDefinitions = classDefinitionService.findActiveClassesForCourse(booking.getCourseUuid());
+        if (classDefinitions.isEmpty()) {
+            throw new IllegalStateException("No active class definitions found for course " + booking.getCourseUuid());
+        }
+
+        List<ClassDefinitionDTO> instructorMatches = classDefinitions.stream()
+                .filter(definition -> booking.getInstructorUuid().equals(definition.defaultInstructorUuid()))
+                .toList();
+
+        if (instructorMatches.size() == 1) {
+            return instructorMatches.get(0);
+        }
+        if (instructorMatches.isEmpty() && classDefinitions.size() == 1) {
+            return classDefinitions.get(0);
+        }
+        if (!instructorMatches.isEmpty()) {
+            throw new IllegalStateException(
+                    "Multiple active class definitions found for course " + booking.getCourseUuid()
+                            + " and instructor " + booking.getInstructorUuid());
+        }
+        throw new IllegalStateException(
+                "Multiple active class definitions found for course " + booking.getCourseUuid()
+                        + " without a matching instructor " + booking.getInstructorUuid());
     }
 }

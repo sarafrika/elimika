@@ -7,7 +7,18 @@ import apps.sarafrika.elimika.booking.model.Booking;
 import apps.sarafrika.elimika.booking.payment.PaymentGatewayClient;
 import apps.sarafrika.elimika.booking.payment.PaymentSession;
 import apps.sarafrika.elimika.booking.repository.BookingRepository;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
+import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,6 +47,12 @@ class BookingServiceImplTest {
 
     @Mock
     private PaymentGatewayClient paymentGatewayClient;
+
+    @Mock
+    private ClassDefinitionService classDefinitionService;
+
+    @Mock
+    private TimetableService timetableService;
 
     @InjectMocks
     private BookingServiceImpl bookingService;
@@ -117,6 +134,101 @@ class BookingServiceImplTest {
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_FAILED);
         assertThat(response.availabilityBlockUuid()).isNull();
+    }
+
+    @Test
+    void acceptBooking_afterPayment_createsScheduledInstanceAndEnrollment() {
+        UUID bookingUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID instanceUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        LocalDateTime start = LocalDateTime.of(2024, 10, 15, 9, 0);
+        LocalDateTime end = LocalDateTime.of(2024, 10, 15, 10, 0);
+
+        Booking booking = new Booking();
+        booking.setUuid(bookingUuid);
+        booking.setStudentUuid(studentUuid);
+        booking.setInstructorUuid(instructorUuid);
+        booking.setCourseUuid(courseUuid);
+        booking.setStartTime(start);
+        booking.setEndTime(end);
+        booking.setStatus(BookingStatus.CONFIRMED);
+
+        ClassDefinitionDTO classDefinition = new ClassDefinitionDTO(
+                classDefinitionUuid,
+                "Booking class",
+                null,
+                instructorUuid,
+                null,
+                courseUuid,
+                null,
+                ClassVisibility.PRIVATE,
+                SessionFormat.INDIVIDUAL,
+                start,
+                end,
+                LocationType.ONLINE,
+                null,
+                null,
+                null,
+                1,
+                true,
+                true,
+                List.of(),
+                null,
+                null,
+                null,
+                null
+        );
+
+        ScheduledInstanceDTO instance = new ScheduledInstanceDTO(
+                instanceUuid,
+                classDefinitionUuid,
+                instructorUuid,
+                start,
+                end,
+                "UTC",
+                "Booking session",
+                "ONLINE",
+                null,
+                null,
+                null,
+                1,
+                SchedulingStatus.SCHEDULED,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        EnrollmentDTO enrollment = new EnrollmentDTO(
+                enrollmentUuid,
+                instanceUuid,
+                studentUuid,
+                EnrollmentStatus.ENROLLED,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(bookingRepository.findByUuid(bookingUuid)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classDefinitionService.findActiveClassesForCourse(courseUuid)).thenReturn(List.of(classDefinition));
+        when(timetableService.scheduleClass(any(ScheduleRequestDTO.class))).thenReturn(instance);
+        when(timetableService.enrollStudentInInstance(instanceUuid, studentUuid)).thenReturn(enrollment);
+
+        var response = bookingService.acceptBooking(bookingUuid);
+
+        assertThat(response.status()).isEqualTo(BookingStatus.ACCEPTED_CONFIRMED);
+        assertThat(response.scheduledInstanceUuid()).isEqualTo(instanceUuid);
+        assertThat(response.enrollmentUuid()).isEqualTo(enrollmentUuid);
+        verify(timetableService).scheduleClass(any(ScheduleRequestDTO.class));
+        verify(timetableService).enrollStudentInInstance(instanceUuid, studentUuid);
     }
 
     @Test

@@ -66,4 +66,10 @@ public class Booking extends BaseEntity {
 
     @Column(name = "availability_block_uuid")
     private UUID availabilityBlockUuid;
+
+    @Column(name = "scheduled_instance_uuid")
+    private UUID scheduledInstanceUuid;
+
+    @Column(name = "enrollment_uuid")
+    private UUID enrollmentUuid;
 }

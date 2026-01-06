@@ -70,6 +70,14 @@ public record BookingResponseDTO(
         @JsonProperty("availability_block_uuid")
         UUID availabilityBlockUuid,
 
+        @Schema(description = "UUID of the scheduled class instance created for this booking")
+        @JsonProperty("scheduled_instance_uuid")
+        UUID scheduledInstanceUuid,
+
+        @Schema(description = "UUID of the enrollment created for this booking")
+        @JsonProperty("enrollment_uuid")
+        UUID enrollmentUuid,
+
         @Schema(description = "Purpose or note for this booking")
         @JsonProperty("purpose")
         String purpose,

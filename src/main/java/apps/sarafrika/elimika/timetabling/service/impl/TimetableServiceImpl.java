@@ -241,6 +241,69 @@ public class TimetableServiceImpl implements TimetableService {
     }
 
     @Override
+    public EnrollmentDTO enrollStudentInInstance(UUID instanceUuid, UUID studentUuid) {
+        log.debug("Enrolling student: {} into scheduled instance: {}", studentUuid, instanceUuid);
+
+        if (instanceUuid == null) {
+            throw new IllegalArgumentException("Instance UUID cannot be null");
+        }
+        if (studentUuid == null) {
+            throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        ScheduledInstance instance = scheduledInstanceRepository.findByUuid(instanceUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
+
+        UUID classDefinitionUuid = instance.getClassDefinitionUuid();
+        if (classDefinitionUuid != null) {
+            enforceClassAgeLimits(studentUuid, classDefinitionUuid);
+        }
+
+        Optional<Enrollment> existing = enrollmentRepository.findByScheduledInstanceUuidAndStudentUuid(instanceUuid, studentUuid);
+        if (existing.isPresent() && !EnrollmentStatus.CANCELLED.equals(existing.get().getStatus())) {
+            throw new DuplicateResourceException("Student is already enrolled for this scheduled instance");
+        }
+
+        if (!hasCapacityForEnrollment(instanceUuid)) {
+            throw new IllegalArgumentException(
+                    String.format("Scheduled instance %s has reached maximum capacity", instanceUuid));
+        }
+
+        ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
+                instance.getClassDefinitionUuid(),
+                instance.getInstructorUuid(),
+                instance.getStartTime(),
+                instance.getEndTime(),
+                instance.getTimezone()
+        );
+
+        if (hasStudentConflict(studentUuid, scheduleRequest)) {
+            throw new IllegalArgumentException(
+                    String.format("Student has a scheduling conflict with instance %s starting at %s",
+                            instance.getUuid(), instance.getStartTime()));
+        }
+
+        Enrollment enrollment = existing.orElseGet(() -> EnrollmentFactory.toEntity(instanceUuid, studentUuid));
+        enrollment.setStatus(EnrollmentStatus.ENROLLED);
+        Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+
+        StudentEnrolledEventDTO event = new StudentEnrolledEventDTO(
+                savedEnrollment.getUuid(),
+                instance.getUuid(),
+                savedEnrollment.getStudentUuid(),
+                instance.getClassDefinitionUuid(),
+                instance.getInstructorUuid(),
+                instance.getStartTime(),
+                instance.getTitle()
+        );
+        eventPublisher.publishEvent(event);
+
+        log.debug("Enrolled student {} into scheduled instance {}", studentUuid, instanceUuid);
+        return EnrollmentFactory.toDTO(savedEnrollment);
+    }
+
+    @Override
     public List<EnrollmentDTO> joinWaitlist(EnrollmentRequestDTO request) {
         log.debug("Adding student {} to waitlist for class definition {}", request.studentUuid(), request.classDefinitionUuid());
 

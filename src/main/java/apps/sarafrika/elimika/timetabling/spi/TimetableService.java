@@ -75,6 +75,18 @@ public interface TimetableService {
     List<EnrollmentDTO> enrollStudent(EnrollmentRequestDTO request);
 
     /**
+     * Enrolls a student into a specific scheduled instance.
+     * This is intended for booking-driven enrollments and skips commerce paywall checks.
+     *
+     * @param instanceUuid The UUID of the scheduled instance
+     * @param studentUuid The UUID of the student
+     * @return The created enrollment
+     * @throws IllegalArgumentException if any parameter is null or invalid
+     * @throws RuntimeException if the instance is full, cancelled, or student has conflicts
+     */
+    EnrollmentDTO enrollStudentInInstance(UUID instanceUuid, UUID studentUuid);
+
+    /**
      * Cancels a student enrollment.
      *
      * @param enrollmentUuid The UUID of the enrollment to cancel
