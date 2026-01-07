@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -189,6 +190,24 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         Map<String, String> normalizedParams = searchParams == null ? new HashMap<>() : new HashMap<>(searchParams);
         normalizedParams.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().isBlank());
 
+        String courseCreatorParam = extractSearchParam(normalizedParams, "course_creator_uuid", "courseCreatorUuid");
+        if (courseCreatorParam != null) {
+            try {
+                UUID courseCreatorUuid = UUID.fromString(courseCreatorParam.trim());
+                String courseUuidsList = courseRepository.findUuidsByCourseCreatorUuid(courseCreatorUuid).stream()
+                        .map(UUID::toString)
+                        .collect(Collectors.joining(","));
+
+                if (courseUuidsList.isEmpty()) {
+                    return Page.empty(pageable);
+                }
+
+                normalizedParams.put("courseUuid_in", courseUuidsList);
+            } catch (IllegalArgumentException ex) {
+                log.warn("Invalid course_creator_uuid value: {}", courseCreatorParam);
+            }
+        }
+
         Specification<CourseTrainingApplication> specification =
                 specificationBuilder.buildSpecification(CourseTrainingApplication.class, normalizedParams);
 
@@ -197,6 +216,28 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 : applicationRepository.findAll(pageable);
 
         return page.map(CourseTrainingApplicationFactory::toDTO);
+    }
+
+    private String extractSearchParam(Map<String, String> searchParams, String... keys) {
+        String extractedValue = null;
+        var iterator = searchParams.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            for (String key : keys) {
+                if (matchesSearchKey(entry.getKey(), key)) {
+                    if (extractedValue == null && entry.getValue() != null && !entry.getValue().isBlank()) {
+                        extractedValue = entry.getValue();
+                    }
+                    iterator.remove();
+                    break;
+                }
+            }
+        }
+        return extractedValue;
+    }
+
+    private boolean matchesSearchKey(String candidate, String key) {
+        return candidate.equals(key) || candidate.startsWith(key + "_");
     }
 
     @Override

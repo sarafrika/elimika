@@ -1110,7 +1110,8 @@ public class CourseController {
             summary = "Search training applications",
             description = """
                     Advanced search for training applications using flexible operators on any DTO field.
-                    Supports filters such as `status`, `applicantType`, `courseUuid`, `applicantUuid`, `createdDate_between`, and more.
+                    Supports filters such as `status`, `applicantType`, `courseUuid`, `applicantUuid`, `course_creator_uuid`,
+                    `createdDate_between`, and more.
                     """
     )
     @GetMapping("/training-applications/search")

@@ -9,6 +9,8 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecificationExecutor<Course> {
@@ -23,4 +25,7 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     long countByStatus(ContentStatus status);
 
     List<Course> findByStatus(ContentStatus status);
+
+    @Query("select c.uuid from Course c where c.courseCreatorUuid = :courseCreatorUuid")
+    List<UUID> findUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 }
