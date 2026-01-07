@@ -1,3 +1,10 @@
+# [2.50.0](https://github.com/sarafrika/elimika/compare/v2.49.0...v2.50.0) (2025-12-19)
+
+
+### Features
+
+* add instructor acceptance flow for bookings ([030b0c0](https://github.com/sarafrika/elimika/commit/030b0c00653ad5afd8eb8c6f924b64784c8790c6))
+
 # [2.49.0](https://github.com/sarafrika/elimika/compare/v2.48.0...v2.49.0) (2025-12-18)
 
 
