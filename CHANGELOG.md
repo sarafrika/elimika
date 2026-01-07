@@ -1,3 +1,11 @@
+# [2.51.0](https://github.com/sarafrika/elimika/compare/v2.50.0...v2.51.0) (2026-01-07)
+
+
+### Features
+
+* enroll students when bookings are accepted and paid ([42a94be](https://github.com/sarafrika/elimika/commit/42a94be268d8d659dd3ce6257dba68d4131f776e))
+* support training application search by course creator uuid ([8df374d](https://github.com/sarafrika/elimika/commit/8df374dbbf3f0272758510970c28d5dbb3ce3246))
+
 # [2.50.0](https://github.com/sarafrika/elimika/compare/v2.49.0...v2.50.0) (2025-12-19)
 
 
