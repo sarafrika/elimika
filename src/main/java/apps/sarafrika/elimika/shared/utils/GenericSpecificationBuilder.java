@@ -160,11 +160,12 @@ public class GenericSpecificationBuilder<T> {
     private Predicate buildPredicate(SearchCriteria criteria, Root<T> root, CriteriaBuilder criteriaBuilder, CriteriaQuery query) {
         Path<?> field = resolveFieldPath(root, criteria.getKey());
         Class<?> fieldType = field.getJavaType();
-        Object value = criteria.getOperation().equalsIgnoreCase("notingroup")
+        String operation = criteria.getOperation();
+        Object value = requiresRawValue(operation)
                 ? criteria.getValue()
                 : convertToPostgresType(criteria.getValue(), fieldType);
 
-        return createOperationPredicate(criteriaBuilder, field, value, criteria.getOperation(), fieldType, query, root);
+        return createOperationPredicate(criteriaBuilder, field, value, operation, fieldType, query, root);
     }
 
     private Predicate createOperationPredicate(
@@ -256,7 +257,10 @@ public class GenericSpecificationBuilder<T> {
     }
 
     private Predicate createInPredicate(Path<?> field, Object value) {
-        return field.in(Arrays.stream(value.toString().split(",")).toList());
+        List<Object> typedValues = Arrays.stream(value.toString().split(","))
+                .map(val -> convertToPostgresType(val.trim(), field.getJavaType()))
+                .toList();
+        return field.in(typedValues);
     }
 
     private Predicate createNotInPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
@@ -477,6 +481,16 @@ public class GenericSpecificationBuilder<T> {
 
         log.warn("Unhandled field type: {}", fieldType);
         return stringValue;
+    }
+
+    private boolean requiresRawValue(String operation) {
+        if (operation == null) {
+            return false;
+        }
+        return switch (operation.toLowerCase(Locale.ROOT)) {
+            case "in", "notin", "between", "notingroup" -> true;
+            default -> false;
+        };
     }
 
     private Object convertEnumValue(String value, Class<?> fieldType) {
