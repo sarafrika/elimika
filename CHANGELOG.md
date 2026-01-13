@@ -1,3 +1,10 @@
+# [2.52.0](https://github.com/sarafrika/elimika/compare/v2.51.1...v2.52.0) (2026-01-13)
+
+
+### Features
+
+* add user_no identifier with verhoeff check digit for users ([5cb3742](https://github.com/sarafrika/elimika/commit/5cb3742c6a440f66f732ce4d56c13c4d964b0e45))
+
 ## [2.51.1](https://github.com/sarafrika/elimika/compare/v2.51.0...v2.51.1) (2026-01-08)
 
 
