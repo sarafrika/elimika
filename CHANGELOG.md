@@ -1,3 +1,10 @@
+## [2.53.1](https://github.com/sarafrika/elimika/compare/v2.53.0...v2.53.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* block duplicate pending training applications ([0625d1e](https://github.com/sarafrika/elimika/commit/0625d1e6484f79bd13974629c437216e0af8a5e3))
+
 # [2.53.0](https://github.com/sarafrika/elimika/compare/v2.52.0...v2.53.0) (2026-01-13)
 
 
