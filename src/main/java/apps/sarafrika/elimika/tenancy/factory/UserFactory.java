@@ -27,6 +27,7 @@ public class UserFactory {
     public static UserDTO toDTO(User user, List<String> userDomains, List<UserOrganisationAffiliationDTO> organisationAffiliations) {
         return new UserDTO(
                 user.getUuid(),
+                user.getUserNo(),
                 user.getFirstName(),
                 user.getMiddleName(),
                 user.getLastName(),
@@ -50,6 +51,7 @@ public class UserFactory {
     public static User toEntity(UserDTO dto) {
         User user = new User();
         user.setUuid(dto.uuid());
+        user.setUserNo(dto.userNo());
         user.setFirstName(dto.firstName());
         user.setMiddleName(dto.middleName());
         user.setLastName(dto.lastName());

@@ -36,6 +36,7 @@ import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
+import apps.sarafrika.elimika.tenancy.services.UserNumberService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
@@ -84,6 +85,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final OrganisationRepository organisationRepository;
     private final UserService userService;
+    private final UserNumberService userNumberService;
     private final InstructorManagementService instructorManagementService;
     private final CourseAnalyticsService courseAnalyticsService;
     private final TimetablingAnalyticsService timetablingAnalyticsService;
@@ -247,6 +249,7 @@ public class AdminServiceImpl implements AdminService {
         user.setLastName(lastName);
         user.setEmail(email);
         user.setUsername(email);
+        user.setUserNo(userNumberService.nextUserNo());
         user.setPhoneNumber(phoneNumber);
         user.setActive(true);
         return userRepository.save(user);

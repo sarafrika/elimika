@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.internal.UserMediaValidationService;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.services.UserNumberService;
 import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,7 @@ public class UserServiceImpl implements UserService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final UserMediaValidationService validationService;
     private final NotificationPreferencesService notificationPreferencesService;
+    private final UserNumberService userNumberService;
 
     @Override
     @Transactional
@@ -87,6 +89,7 @@ public class UserServiceImpl implements UserService {
         user.setLastName(userRep.getLastName());
         user.setEmail(userRep.getEmail());
         user.setUsername(userRep.getUsername());
+        user.setUserNo(userNumberService.nextUserNo());
         user.setDob(dob);
         user.setPhoneNumber(phoneNumber);
         user.setActive(userRep.isEnabled());

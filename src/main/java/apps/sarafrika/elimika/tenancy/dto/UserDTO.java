@@ -30,6 +30,7 @@ import java.util.UUID;
         example = """
                 {
                     "uuid": "d2e6f6c4-3d44-11ee-be56-0242ac120002",
+                    "user_no": "123456789",
                     "first_name": "Jane",
                     "middle_name": "A.",
                     "last_name": "Doe",
@@ -60,6 +61,17 @@ public record UserDTO(
         )
         @JsonProperty(value = "uuid", access = JsonProperty.Access.READ_ONLY)
         UUID uuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** Unique numeric identifier used for payments and admissions. Auto-generated with a Verhoeff check digit.",
+                example = "123456789",
+                minLength = 9,
+                maxLength = 9,
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "user_no", access = JsonProperty.Access.READ_ONLY)
+        String userNo,
 
         @Schema(
                 description = "**[REQUIRED]** User's given/first name. Used for display purposes and official documentation. Must not be blank.",
