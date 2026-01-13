@@ -1,3 +1,10 @@
+## [2.51.1](https://github.com/sarafrika/elimika/compare/v2.51.0...v2.51.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* drop users phone number uniqueness constraint ([6cd9c47](https://github.com/sarafrika/elimika/commit/6cd9c47deaf8db83355e36cfab2e3a7dd4b3c329))
+
 # [2.51.0](https://github.com/sarafrika/elimika/compare/v2.50.0...v2.51.0) (2026-01-07)
 
 
