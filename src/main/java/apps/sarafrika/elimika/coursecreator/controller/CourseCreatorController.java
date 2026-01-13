@@ -2,17 +2,22 @@ package apps.sarafrika.elimika.coursecreator.controller;
 
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorCertificationDTO;
+import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDocumentDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorEducationDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorExperienceDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorProfessionalMembershipDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorSkillDTO;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorCertificationService;
+import apps.sarafrika.elimika.coursecreator.service.CourseCreatorDocumentService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorEducationService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorExperienceService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorProfessionalMembershipService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,11 +28,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,6 +63,9 @@ public class CourseCreatorController {
     private final CourseCreatorExperienceService courseCreatorExperienceService;
     private final CourseCreatorProfessionalMembershipService courseCreatorProfessionalMembershipService;
     private final CourseCreatorCertificationService courseCreatorCertificationService;
+    private final CourseCreatorDocumentService courseCreatorDocumentService;
+    private final StorageService storageService;
+    private final StorageProperties storageProperties;
 
     // ===== COURSE CREATOR BASIC OPERATIONS =====
 
@@ -515,6 +528,117 @@ public class CourseCreatorController {
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID certificationUuid) {
         courseCreatorCertificationService.deleteCourseCreatorCertification(certificationUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== COURSE CREATOR DOCUMENTS =====
+
+    @Operation(summary = "Add document to course creator", description = "Uploads and associates a document with a course creator")
+    @PostMapping("/{courseCreatorUuid}/documents")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> addCourseCreatorDocument(
+            @PathVariable UUID courseCreatorUuid,
+            @Valid @RequestBody CourseCreatorDocumentDTO documentDTO) {
+        validateCourseCreatorUuid(courseCreatorUuid, documentDTO.courseCreatorUuid());
+        CourseCreatorDocumentDTO createdDocument = courseCreatorDocumentService.createCourseCreatorDocument(documentDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(createdDocument, "Document added successfully"));
+    }
+
+    @Operation(
+            summary = "Upload course creator document file",
+            description = """
+                    Uploads a PDF document for a course creator and creates a document record.
+                    
+                    **Use cases:**
+                    - Uploading certificates for course creator education records.
+                    
+                    **File requirements:**
+                    - Must be a PDF file (`application/pdf`).
+                    - Stored via the platform StorageService under the `profile_documents` folder, partitioned by course creator UUID.
+                    """
+    )
+    @PostMapping(value = "/{courseCreatorUuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> uploadCourseCreatorDocument(
+            @PathVariable UUID courseCreatorUuid,
+            @RequestParam("file") @PdfFile MultipartFile file,
+            @RequestParam("document_type_uuid") UUID documentTypeUuid,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "education_uuid", required = false) UUID educationUuid,
+            @RequestParam(value = "expiry_date", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
+    ) {
+        String folder = storageProperties.getFolders().getProfileDocuments()
+                + "/course-creators/" + courseCreatorUuid;
+        String storedFileName = storageService.store(file, folder);
+        String filePath = storedFileName;
+        String originalFilename = file.getOriginalFilename();
+        String resolvedTitle = (title != null && !title.isBlank())
+                ? title
+                : (originalFilename != null ? originalFilename : "Course Creator Document");
+
+        String mimeType = storageService.getContentType(storedFileName);
+
+        CourseCreatorDocumentDTO requestDto = new CourseCreatorDocumentDTO(
+                null,
+                courseCreatorUuid,
+                documentTypeUuid,
+                educationUuid,
+                originalFilename,
+                storedFileName,
+                filePath,
+                file.getSize(),
+                mimeType,
+                null,
+                resolvedTitle,
+                description,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                expiryDate,
+                null,
+                null,
+                null,
+                null
+        );
+
+        CourseCreatorDocumentDTO createdDocument = courseCreatorDocumentService.createCourseCreatorDocument(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(createdDocument, "Document uploaded successfully"));
+    }
+
+    @Operation(summary = "Get course creator documents", description = "Retrieves all documents for a specific course creator")
+    @GetMapping("/{courseCreatorUuid}/documents")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseCreatorDocumentDTO>>> getCourseCreatorDocuments(
+            @PathVariable UUID courseCreatorUuid) {
+        List<CourseCreatorDocumentDTO> documents = courseCreatorDocumentService.getDocumentsByCourseCreatorUuid(courseCreatorUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(documents, "Documents fetched successfully"));
+    }
+
+    @Operation(summary = "Update course creator document", description = "Updates a specific course creator document")
+    @PutMapping("/{courseCreatorUuid}/documents/{documentUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> updateCourseCreatorDocument(
+            @PathVariable UUID courseCreatorUuid,
+            @PathVariable UUID documentUuid,
+            @Valid @RequestBody CourseCreatorDocumentDTO documentDTO) {
+        validateCourseCreatorUuid(courseCreatorUuid, documentDTO.courseCreatorUuid());
+        CourseCreatorDocumentDTO updatedDocument = courseCreatorDocumentService.updateCourseCreatorDocument(documentUuid, documentDTO);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(updatedDocument, "Document updated successfully"));
+    }
+
+    @Operation(summary = "Delete course creator document", description = "Removes a document from a course creator profile")
+    @DeleteMapping("/{courseCreatorUuid}/documents/{documentUuid}")
+    public ResponseEntity<Void> deleteCourseCreatorDocument(
+            @PathVariable UUID courseCreatorUuid,
+            @PathVariable UUID documentUuid) {
+        courseCreatorDocumentService.deleteCourseCreatorDocument(documentUuid);
         return ResponseEntity.noContent().build();
     }
 
