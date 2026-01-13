@@ -15,20 +15,6 @@ CREATE TABLE course_creator_documents
     file_path           VARCHAR(500)             NOT NULL,
     file_size_bytes     BIGINT                   NOT NULL,
     mime_type           VARCHAR(100)             NOT NULL,
-    file_hash           VARCHAR(64),
-
-    -- Metadata
-    title               VARCHAR(255),
-    description         TEXT,
-    upload_date         TIMESTAMP WITH TIME ZONE NOT NULL        DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-    is_verified         BOOLEAN                               DEFAULT FALSE,
-    verified_by         VARCHAR(255),
-    verified_at         TIMESTAMP WITH TIME ZONE,
-    verification_notes  TEXT,
-
-    -- Status
-    status              document_status_enum                 DEFAULT 'PENDING',
-    expiry_date         DATE,
 
     created_date        TIMESTAMP WITH TIME ZONE NOT NULL        DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
     updated_date        TIMESTAMP WITH TIME ZONE,
@@ -43,7 +29,4 @@ CREATE TABLE course_creator_documents
 CREATE INDEX idx_course_creator_documents_creator_uuid ON course_creator_documents (course_creator_uuid);
 CREATE INDEX idx_course_creator_documents_uuid ON course_creator_documents (uuid);
 CREATE INDEX idx_course_creator_documents_type_uuid ON course_creator_documents (document_type_uuid);
-CREATE INDEX idx_course_creator_documents_status ON course_creator_documents (status);
-CREATE INDEX idx_course_creator_documents_verified ON course_creator_documents (is_verified);
-CREATE INDEX idx_course_creator_documents_hash ON course_creator_documents (file_hash);
 CREATE INDEX idx_course_creator_documents_education_uuid ON course_creator_documents (education_uuid);

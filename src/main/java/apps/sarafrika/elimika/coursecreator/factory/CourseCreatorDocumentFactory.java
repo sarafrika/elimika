@@ -22,16 +22,6 @@ public final class CourseCreatorDocumentFactory {
                 document.getFilePath(),
                 document.getFileSizeBytes(),
                 document.getMimeType(),
-                document.getFileHash(),
-                document.getTitle(),
-                document.getDescription(),
-                document.getUploadDate(),
-                document.getIsVerified(),
-                document.getVerifiedBy(),
-                document.getVerifiedAt(),
-                document.getVerificationNotes(),
-                document.getStatus(),
-                document.getExpiryDate(),
                 document.getCreatedDate(),
                 document.getCreatedBy(),
                 document.getLastModifiedDate(),
@@ -53,16 +43,6 @@ public final class CourseCreatorDocumentFactory {
         document.setFilePath(dto.filePath());
         document.setFileSizeBytes(dto.fileSizeBytes());
         document.setMimeType(dto.mimeType());
-        document.setFileHash(dto.fileHash());
-        document.setTitle(dto.title());
-        document.setDescription(dto.description());
-        document.setUploadDate(dto.uploadDate());
-        document.setIsVerified(dto.isVerified());
-        document.setVerifiedBy(dto.verifiedBy());
-        document.setVerifiedAt(dto.verifiedAt());
-        document.setVerificationNotes(dto.verificationNotes());
-        document.setStatus(dto.status());
-        document.setExpiryDate(dto.expiryDate());
         document.setCreatedDate(dto.createdDate());
         document.setCreatedBy(dto.createdBy());
         document.setLastModifiedDate(dto.updatedDate());

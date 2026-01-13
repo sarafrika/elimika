@@ -1,13 +1,11 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
-import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -47,39 +45,6 @@ public record CourseCreatorDocumentDTO(
 
         @JsonProperty(value = "mime_type", access = JsonProperty.Access.READ_ONLY)
         String mimeType,
-
-        @JsonProperty(value = "file_hash", access = JsonProperty.Access.READ_ONLY)
-        String fileHash,
-
-        @NotBlank(message = "Document title is required")
-        @Size(max = 255, message = "Title must not exceed 255 characters")
-        @JsonProperty("title")
-        String title,
-
-        @Size(max = 2000, message = "Description must not exceed 2000 characters")
-        @JsonProperty("description")
-        String description,
-
-        @JsonProperty(value = "upload_date", access = JsonProperty.Access.READ_ONLY)
-        LocalDateTime uploadDate,
-
-        @JsonProperty(value = "is_verified", access = JsonProperty.Access.READ_ONLY)
-        Boolean isVerified,
-
-        @JsonProperty(value = "verified_by", access = JsonProperty.Access.READ_ONLY)
-        String verifiedBy,
-
-        @JsonProperty(value = "verified_at", access = JsonProperty.Access.READ_ONLY)
-        LocalDateTime verifiedAt,
-
-        @JsonProperty(value = "verification_notes", access = JsonProperty.Access.READ_ONLY)
-        String verificationNotes,
-
-        @JsonProperty(value = "status", access = JsonProperty.Access.READ_ONLY)
-        DocumentStatus status,
-
-        @JsonProperty("expiry_date")
-        LocalDate expiryDate,
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate,

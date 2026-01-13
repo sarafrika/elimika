@@ -30,13 +30,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -563,20 +561,13 @@ public class CourseCreatorController {
             @PathVariable UUID courseCreatorUuid,
             @RequestParam("file") @PdfFile MultipartFile file,
             @RequestParam("document_type_uuid") UUID documentTypeUuid,
-            @RequestParam(value = "title", required = false) String title,
-            @RequestParam(value = "description", required = false) String description,
-            @RequestParam(value = "education_uuid", required = false) UUID educationUuid,
-            @RequestParam(value = "expiry_date", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
+            @RequestParam(value = "education_uuid", required = false) UUID educationUuid
     ) {
         String folder = storageProperties.getFolders().getProfileDocuments()
                 + "/course-creators/" + courseCreatorUuid;
         String storedFileName = storageService.store(file, folder);
         String filePath = storedFileName;
         String originalFilename = file.getOriginalFilename();
-        String resolvedTitle = (title != null && !title.isBlank())
-                ? title
-                : (originalFilename != null ? originalFilename : "Course Creator Document");
 
         String mimeType = storageService.getContentType(storedFileName);
 
@@ -590,16 +581,6 @@ public class CourseCreatorController {
                 filePath,
                 file.getSize(),
                 mimeType,
-                null,
-                resolvedTitle,
-                description,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                expiryDate,
                 null,
                 null,
                 null,
