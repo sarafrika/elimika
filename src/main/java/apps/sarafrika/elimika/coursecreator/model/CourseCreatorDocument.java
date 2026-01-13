@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -42,4 +43,16 @@ public class CourseCreatorDocument extends BaseEntity {
 
     @Column(name = "mime_type")
     private String mimeType;
+
+    @Column(name = "is_verified")
+    private Boolean isVerified;
+
+    @Column(name = "verified_by")
+    private String verifiedBy;
+
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
+
+    @Column(name = "verification_notes")
+    private String verificationNotes;
 }

@@ -15,5 +15,7 @@ public interface CourseCreatorDocumentService {
 
     CourseCreatorDocumentDTO updateCourseCreatorDocument(UUID uuid, CourseCreatorDocumentDTO documentDTO);
 
+    CourseCreatorDocumentDTO verifyCourseCreatorDocument(UUID uuid, String verifiedBy, String verificationNotes);
+
     void deleteCourseCreatorDocument(UUID uuid);
 }

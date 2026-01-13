@@ -29,6 +29,10 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
         CourseCreatorDocument document = CourseCreatorDocumentFactory.toEntity(documentDTO);
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         document.setCreatedDate(now);
+        document.setIsVerified(false);
+        document.setVerifiedBy(null);
+        document.setVerifiedAt(null);
+        document.setVerificationNotes(null);
         return CourseCreatorDocumentFactory.toDTO(documentRepository.save(document));
     }
 
@@ -78,6 +82,19 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
         if (documentDTO.mimeType() != null) {
             existing.setMimeType(documentDTO.mimeType());
         }
+
+        return CourseCreatorDocumentFactory.toDTO(documentRepository.save(existing));
+    }
+
+    @Override
+    public CourseCreatorDocumentDTO verifyCourseCreatorDocument(UUID uuid, String verifiedBy, String verificationNotes) {
+        CourseCreatorDocument existing = documentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
+
+        existing.setIsVerified(true);
+        existing.setVerifiedBy(verifiedBy);
+        existing.setVerifiedAt(LocalDateTime.now(ZoneOffset.UTC));
+        existing.setVerificationNotes(verificationNotes);
 
         return CourseCreatorDocumentFactory.toDTO(documentRepository.save(existing));
     }

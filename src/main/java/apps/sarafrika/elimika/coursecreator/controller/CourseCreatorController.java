@@ -584,6 +584,10 @@ public class CourseCreatorController {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 null
         );
 
@@ -621,6 +625,19 @@ public class CourseCreatorController {
             @PathVariable UUID documentUuid) {
         courseCreatorDocumentService.deleteCourseCreatorDocument(documentUuid);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Verify course creator document", description = "Marks a course creator document as verified")
+    @PostMapping("/{courseCreatorUuid}/documents/{documentUuid}/verify")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> verifyCourseCreatorDocument(
+            @PathVariable UUID courseCreatorUuid,
+            @PathVariable UUID documentUuid,
+            @RequestParam String verifiedBy,
+            @RequestParam(required = false) String verificationNotes) {
+        CourseCreatorDocumentDTO verifiedDocument = courseCreatorDocumentService
+                .verifyCourseCreatorDocument(documentUuid, verifiedBy, verificationNotes);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(verifiedDocument, "Document verified successfully"));
     }
 
     // ===== QUALIFICATION SEARCH =====

@@ -46,6 +46,18 @@ public record CourseCreatorDocumentDTO(
         @JsonProperty(value = "mime_type", access = JsonProperty.Access.READ_ONLY)
         String mimeType,
 
+        @JsonProperty(value = "is_verified", access = JsonProperty.Access.READ_ONLY)
+        Boolean isVerified,
+
+        @JsonProperty(value = "verified_by", access = JsonProperty.Access.READ_ONLY)
+        String verifiedBy,
+
+        @JsonProperty(value = "verified_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime verifiedAt,
+
+        @JsonProperty(value = "verification_notes", access = JsonProperty.Access.READ_ONLY)
+        String verificationNotes,
+
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate,
 
