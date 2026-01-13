@@ -70,6 +70,8 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
+        ensureNoPendingApplication(courseUuid, request.applicantType(), request.applicantUuid());
+
         BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(course);
         CourseTrainingRateCardDTO rateCardRequest = request.rateCard();
         if (rateCardRequest == null) {
@@ -310,6 +312,20 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
     private BigDecimal resolveMinimumTrainingFee(Course course) {
         return course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
+    }
+
+    private void ensureNoPendingApplication(UUID courseUuid,
+                                            CourseTrainingApplicantType applicantType,
+                                            UUID applicantUuid) {
+        boolean hasPending = applicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                courseUuid,
+                applicantType,
+                applicantUuid,
+                CourseTrainingApplicationStatus.PENDING
+        );
+        if (hasPending) {
+            throw new DuplicateResourceException("An application is already pending review for this course.");
+        }
     }
 
     private void ensureCourseExists(UUID courseUuid) {
