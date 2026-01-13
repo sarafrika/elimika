@@ -1,3 +1,17 @@
+# [2.53.0](https://github.com/sarafrika/elimika/compare/v2.52.0...v2.53.0) (2026-01-13)
+
+
+### Bug Fixes
+
+* handle uuid lists in specification filters ([55d2e51](https://github.com/sarafrika/elimika/commit/55d2e51b5e26cb847a6e7c172d41c1a3213b1224))
+
+
+### Features
+
+* add course creator document uploads and require education certificates ([5d453f1](https://github.com/sarafrika/elimika/commit/5d453f1955c4acc4c9be9aacf6820405d27f9c35))
+* add user wallets with ledger transactions ([ff32589](https://github.com/sarafrika/elimika/commit/ff3258967bd12a6835bf035a0f1714485e934e9b))
+* verify course creator documents independently ([8d3ef3f](https://github.com/sarafrika/elimika/commit/8d3ef3fb1be67b7f71a6c0b3126ade25a8fbc949))
+
 # [2.52.0](https://github.com/sarafrika/elimika/compare/v2.51.1...v2.52.0) (2026-01-13)
 
 
