@@ -1,3 +1,10 @@
+# [2.54.0](https://github.com/sarafrika/elimika/compare/v2.53.1...v2.54.0) (2026-01-20)
+
+
+### Features
+
+* unify class definition responses with scheduling details ([383b4b9](https://github.com/sarafrika/elimika/commit/383b4b926d922e96240b5dde313174f3e9ee8cd8))
+
 ## [2.53.1](https://github.com/sarafrika/elimika/compare/v2.53.0...v2.53.1) (2026-01-13)
 
 
