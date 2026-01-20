@@ -1,3 +1,15 @@
+# [2.55.0](https://github.com/sarafrika/elimika/compare/v2.54.0...v2.55.0) (2026-01-20)
+
+
+### Bug Fixes
+
+* override js-yaml to address security advisory ([e5ae521](https://github.com/sarafrika/elimika/commit/e5ae521a3660185c2e973861a01031765d736517))
+
+
+### Features
+
+* add paginated class schedule and conflict endpoints ([1649b56](https://github.com/sarafrika/elimika/commit/1649b56c28c7c5f470d91677d5acc8e5215ef4bb))
+
 # [2.54.0](https://github.com/sarafrika/elimika/compare/v2.53.1...v2.54.0) (2026-01-20)
 
 
