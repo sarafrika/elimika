@@ -2,10 +2,13 @@ package apps.sarafrika.elimika.classes.controller;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,10 +16,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -161,6 +166,36 @@ public class ClassDefinitionController {
         
         List<ClassDefinitionResponseDTO> result = classDefinitionService.findAllActiveClasses();
         return ResponseEntity.ok(ApiResponse.success(result, "All active class definitions retrieved successfully"));
+    }
+
+    @Operation(summary = "Get class schedule")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class schedule retrieved successfully")
+    @GetMapping("/{uuid}/schedule")
+    public ResponseEntity<ApiResponse<PagedDTO<ScheduledInstanceDTO>>> getClassSchedule(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            Pageable pageable) {
+        log.debug("REST request to get schedule for class definition: {}", uuid);
+
+        Page<ScheduledInstanceDTO> schedule = classDefinitionService.getClassSchedule(uuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(schedule, baseUrl),
+                "Class schedule retrieved successfully"));
+    }
+
+    @Operation(summary = "Get class scheduling conflicts")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class scheduling conflicts retrieved successfully")
+    @GetMapping("/{uuid}/scheduling-conflicts")
+    public ResponseEntity<ApiResponse<PagedDTO<ClassSchedulingConflictDTO>>> getClassSchedulingConflicts(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            Pageable pageable) {
+        log.debug("REST request to get scheduling conflicts for class definition: {}", uuid);
+
+        Page<ClassSchedulingConflictDTO> conflicts = classDefinitionService.getSchedulingConflicts(uuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(conflicts, baseUrl),
+                "Class scheduling conflicts retrieved successfully"));
     }
 
 }

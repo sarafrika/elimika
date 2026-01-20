@@ -2,6 +2,10 @@ package apps.sarafrika.elimika.classes.service;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,5 +41,9 @@ public interface ClassDefinitionServiceInterface {
     List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid);
 
     List<ClassDefinitionResponseDTO> findAllActiveClasses();
+
+    Page<ScheduledInstanceDTO> getClassSchedule(UUID classDefinitionUuid, Pageable pageable);
+
+    Page<ClassSchedulingConflictDTO> getSchedulingConflicts(UUID classDefinitionUuid, Pageable pageable);
 
 }

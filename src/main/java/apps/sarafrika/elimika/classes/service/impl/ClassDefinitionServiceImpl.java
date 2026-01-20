@@ -26,6 +26,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,7 +112,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         eventPublisher.publishEvent(event);
         
         log.info("Created class definition with UUID: {} and published ClassDefinedEvent", result.uuid());
-        return buildResponse(result, schedulingOutcome.scheduledInstances(), schedulingOutcome.conflicts());
+        return buildResponse(result);
     }
 
     private ClassSchedulingOutcome applySessionTemplates(ClassDefinitionDTO classDefinition,
@@ -438,62 +440,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     private ClassDefinitionResponseDTO buildResponse(ClassDefinitionDTO classDefinition) {
-        if (classDefinition == null) {
-            return new ClassDefinitionResponseDTO(null, List.of(), List.of());
-        }
-        List<ScheduledInstanceDTO> scheduledInstances = fetchScheduledInstances(classDefinition.uuid());
-        return buildResponse(classDefinition,
-                scheduledInstances,
-                getSchedulingConflicts(classDefinition, scheduledInstances));
-    }
-
-    private ClassDefinitionResponseDTO buildResponse(ClassDefinitionDTO classDefinition,
-                                                     List<ScheduledInstanceDTO> scheduledInstances,
-                                                     List<ClassSchedulingConflictDTO> conflicts) {
-        return new ClassDefinitionResponseDTO(
-                classDefinition,
-                listOrEmpty(scheduledInstances),
-                listOrEmpty(conflicts)
-        );
-    }
-
-    private List<ScheduledInstanceDTO> fetchScheduledInstances(UUID classDefinitionUuid) {
-        if (classDefinitionUuid == null) {
-            return List.of();
-        }
-        return listOrEmpty(timetableService().getScheduledInstancesForClassDefinition(classDefinitionUuid));
-    }
-
-    private List<ClassSchedulingConflictDTO> getSchedulingConflicts(ClassDefinitionDTO classDefinition,
-                                                                     List<ScheduledInstanceDTO> scheduledInstances) {
-        if (classDefinition == null || classDefinition.uuid() == null) {
-            return List.of();
-        }
-
-        List<ClassSchedulingConflict> conflicts = classSchedulingConflictRepository
-                .findByClassDefinitionUuidAndIsResolvedFalseOrderByRequestedStartAsc(classDefinition.uuid());
-        if (conflicts.isEmpty()) {
-            return List.of();
-        }
-
-        List<ClassSchedulingConflict> resolvedConflicts = new ArrayList<>();
-        List<ClassSchedulingConflictDTO> activeConflicts = new ArrayList<>();
-
-        for (ClassSchedulingConflict conflict : conflicts) {
-            if (isConflictResolved(classDefinition, conflict, scheduledInstances)) {
-                conflict.setIsResolved(true);
-                conflict.setResolvedAt(LocalDateTime.now());
-                resolvedConflicts.add(conflict);
-            } else {
-                activeConflicts.add(toConflictDTO(conflict));
-            }
-        }
-
-        if (!resolvedConflicts.isEmpty()) {
-            classSchedulingConflictRepository.saveAll(resolvedConflicts);
-        }
-
-        return activeConflicts;
+        return new ClassDefinitionResponseDTO(classDefinition);
     }
 
     private boolean isConflictResolved(ClassDefinitionDTO classDefinition,
@@ -534,6 +481,52 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         );
     }
 
+    private void resolveConflictsForClass(ClassDefinitionDTO classDefinition,
+                                          List<ScheduledInstanceDTO> scheduledInstances) {
+        if (classDefinition == null || classDefinition.uuid() == null) {
+            return;
+        }
+
+        List<ClassSchedulingConflict> conflicts = classSchedulingConflictRepository
+                .findByClassDefinitionUuidAndIsResolvedFalseOrderByRequestedStartAsc(classDefinition.uuid());
+        if (conflicts.isEmpty()) {
+            return;
+        }
+
+        List<ClassSchedulingConflict> resolvedConflicts = new ArrayList<>();
+        for (ClassSchedulingConflict conflict : conflicts) {
+            if (isConflictResolved(classDefinition, conflict, scheduledInstances)) {
+                conflict.setIsResolved(true);
+                conflict.setResolvedAt(LocalDateTime.now());
+                resolvedConflicts.add(conflict);
+            }
+        }
+
+        if (!resolvedConflicts.isEmpty()) {
+            classSchedulingConflictRepository.saveAll(resolvedConflicts);
+        }
+    }
+
+    private void ensureSessionTemplatesProvided(UUID classDefinitionUuid, boolean hasScheduledInstances) {
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+        boolean hasConflicts = classSchedulingConflictRepository.existsByClassDefinitionUuid(classDefinitionUuid);
+        if (!hasScheduledInstances && !hasConflicts) {
+            throw new IllegalStateException("Class schedule is unavailable because no session templates were provided when the class was created");
+        }
+    }
+
+    private ClassDefinitionDTO getClassDefinitionDTO(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+        return classDefinitionRepository.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionFactory::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, classDefinitionUuid)));
+    }
+
     private void persistSchedulingConflicts(UUID classDefinitionUuid, List<ClassSchedulingConflictDTO> conflicts) {
         if (classDefinitionUuid == null || conflicts == null || conflicts.isEmpty()) {
             return;
@@ -554,10 +547,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .toList();
 
         classSchedulingConflictRepository.saveAll(entities);
-    }
-
-    private <T> List<T> listOrEmpty(List<T> values) {
-        return values == null ? List.of() : values;
     }
 
     @Override
@@ -708,6 +697,36 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             log.warn("Error checking availability for instructor {}: {}", instructorUuid, e.getMessage());
             return false;
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ScheduledInstanceDTO> getClassSchedule(UUID classDefinitionUuid, Pageable pageable) {
+        log.debug("Fetching schedule for class definition {}", classDefinitionUuid);
+
+        getClassDefinitionDTO(classDefinitionUuid);
+        Page<ScheduledInstanceDTO> page = timetableService()
+                .getScheduledInstancesForClassDefinition(classDefinitionUuid, pageable);
+        ensureSessionTemplatesProvided(classDefinitionUuid, page.getTotalElements() > 0);
+        return page;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ClassSchedulingConflictDTO> getSchedulingConflicts(UUID classDefinitionUuid, Pageable pageable) {
+        log.debug("Fetching scheduling conflicts for class definition {}", classDefinitionUuid);
+
+        ClassDefinitionDTO classDefinition = getClassDefinitionDTO(classDefinitionUuid);
+        List<ScheduledInstanceDTO> scheduledInstances = timetableService()
+                .getScheduledInstancesForClassDefinition(classDefinitionUuid);
+
+        resolveConflictsForClass(classDefinition, scheduledInstances);
+
+        Page<ClassSchedulingConflictDTO> page = classSchedulingConflictRepository
+                .findByClassDefinitionUuidAndIsResolvedFalseOrderByRequestedStartAsc(classDefinitionUuid, pageable)
+                .map(this::toConflictDTO);
+        ensureSessionTemplatesProvided(classDefinitionUuid, !scheduledInstances.isEmpty());
+        return page;
     }
 
     /**

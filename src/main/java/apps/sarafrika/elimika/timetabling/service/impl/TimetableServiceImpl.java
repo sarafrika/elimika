@@ -29,6 +29,8 @@ import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -524,6 +526,28 @@ public class TimetableServiceImpl implements TimetableService {
                 .stream()
                 .map(ScheduledInstanceFactory::toDTO)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ScheduledInstanceDTO> getScheduledInstancesForClassDefinition(UUID classDefinitionUuid, Pageable pageable) {
+        log.debug("Getting scheduled instances page for class definition: {}", classDefinitionUuid);
+
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+
+        Page<ScheduledInstance> page = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid, pageable);
+        return page.map(ScheduledInstanceFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countScheduledInstancesForClassDefinition(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+        return scheduledInstanceRepository.countByClassDefinitionUuid(classDefinitionUuid);
     }
 
     @Override

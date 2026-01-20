@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.timetabling.spi;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -177,6 +179,25 @@ public interface TimetableService {
      * @throws IllegalArgumentException if classDefinitionUuid is null
      */
     List<ScheduledInstanceDTO> getScheduledInstancesForClassDefinition(UUID classDefinitionUuid);
+
+    /**
+     * Retrieves scheduled instances for a class definition with pagination.
+     *
+     * @param classDefinitionUuid The UUID of the class definition
+     * @param pageable pagination information
+     * @return Page of scheduled instances
+     * @throws IllegalArgumentException if classDefinitionUuid is null
+     */
+    Page<ScheduledInstanceDTO> getScheduledInstancesForClassDefinition(UUID classDefinitionUuid, Pageable pageable);
+
+    /**
+     * Counts scheduled instances for a class definition.
+     *
+     * @param classDefinitionUuid The UUID of the class definition
+     * @return count of scheduled instances
+     * @throws IllegalArgumentException if classDefinitionUuid is null
+     */
+    long countScheduledInstancesForClassDefinition(UUID classDefinitionUuid);
 
     /**
      * Checks if an instructor has scheduling conflicts with the proposed time slot.
