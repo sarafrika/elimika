@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.booking.payment.PaymentSession;
 import apps.sarafrika.elimika.booking.repository.BookingRepository;
 import apps.sarafrika.elimika.booking.spi.BookingService;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -30,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -350,12 +352,14 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private ClassDefinitionDTO resolveClassDefinition(Booking booking) {
-        List<ClassDefinitionDTO> classDefinitions = classDefinitionService.findActiveClassesForCourse(booking.getCourseUuid());
+        List<ClassDefinitionResponseDTO> classDefinitions = classDefinitionService.findActiveClassesForCourse(booking.getCourseUuid());
         if (classDefinitions.isEmpty()) {
             throw new IllegalStateException("No active class definitions found for course " + booking.getCourseUuid());
         }
 
         List<ClassDefinitionDTO> instructorMatches = classDefinitions.stream()
+                .map(ClassDefinitionResponseDTO::classDefinition)
+                .filter(Objects::nonNull)
                 .filter(definition -> booking.getInstructorUuid().equals(definition.defaultInstructorUuid()))
                 .toList();
 
@@ -363,7 +367,11 @@ public class BookingServiceImpl implements BookingService {
             return instructorMatches.get(0);
         }
         if (instructorMatches.isEmpty() && classDefinitions.size() == 1) {
-            return classDefinitions.get(0);
+            ClassDefinitionDTO classDefinition = classDefinitions.get(0).classDefinition();
+            if (classDefinition == null) {
+                throw new IllegalStateException("Class definition details missing for course " + booking.getCourseUuid());
+            }
+            return classDefinition;
         }
         if (!instructorMatches.isEmpty()) {
             throw new IllegalStateException(

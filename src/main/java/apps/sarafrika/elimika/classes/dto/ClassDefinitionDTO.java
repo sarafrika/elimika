@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
@@ -72,6 +73,7 @@ import java.util.UUID;
         }
         """
 )
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @ValidTimeRange(
         startField = "defaultStartTime",
         endField = "defaultEndTime",

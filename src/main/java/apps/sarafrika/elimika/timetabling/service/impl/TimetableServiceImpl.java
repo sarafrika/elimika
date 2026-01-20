@@ -513,6 +513,21 @@ public class TimetableServiceImpl implements TimetableService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ScheduledInstanceDTO> getScheduledInstancesForClassDefinition(UUID classDefinitionUuid) {
+        log.debug("Getting scheduled instances for class definition: {}", classDefinitionUuid);
+
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+
+        return scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid)
+                .stream()
+                .map(ScheduledInstanceFactory::toDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean hasInstructorConflict(UUID instructorUuid, ScheduleRequestDTO request) {
         if (instructorUuid == null || request == null) {
             throw new IllegalArgumentException("Instructor UUID and schedule request cannot be null");

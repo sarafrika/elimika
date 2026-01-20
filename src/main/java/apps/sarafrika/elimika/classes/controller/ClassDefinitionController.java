@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.classes.controller;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -39,12 +39,12 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
-    public ResponseEntity<ApiResponse<ClassDefinitionCreationResponseDTO>> createClassDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinition(
             @Valid @RequestBody ClassDefinitionDTO request) {
         log.debug("REST request to create class definition: {}", request.title());
 
         try {
-            ClassDefinitionCreationResponseDTO result = classDefinitionService.createClassDefinition(request);
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(request);
             return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
         } catch (SchedulingConflictException e) {
             log.warn("Scheduling conflicts while creating class definition {}: {}", request.title(), e.getMessage());
@@ -68,12 +68,12 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definition retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> getClassDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> getClassDefinition(
             @Parameter(description = "UUID of the class definition to retrieve", required = true)
             @PathVariable UUID uuid) {
         log.debug("REST request to get class definition: {}", uuid);
         
-        ClassDefinitionDTO result = classDefinitionService.getClassDefinition(uuid);
+        ClassDefinitionResponseDTO result = classDefinitionService.getClassDefinition(uuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definition retrieved successfully"));
     }
 
@@ -82,13 +82,13 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> updateClassDefinition(
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> updateClassDefinition(
             @Parameter(description = "UUID of the class definition to update", required = true)
             @PathVariable UUID uuid,
             @Valid @RequestBody ClassDefinitionDTO request) {
         log.debug("REST request to update class definition: {}", uuid);
         
-        ClassDefinitionDTO result = classDefinitionService.updateClassDefinition(uuid, request);
+        ClassDefinitionResponseDTO result = classDefinitionService.updateClassDefinition(uuid, request);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definition updated successfully"));
     }
 
@@ -112,14 +112,14 @@ public class ClassDefinitionController {
     @Operation(summary = "Get class definitions for a course")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/course/{courseUuid}")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassDefinitionsForCourse(
+    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForCourse(
             @Parameter(description = "UUID of the course", required = true)
             @PathVariable UUID courseUuid,
             @Parameter(description = "Whether to include only active class definitions")
             @RequestParam(defaultValue = "false") boolean activeOnly) {
         log.debug("REST request to get classes for course: {} (activeOnly: {})", courseUuid, activeOnly);
         
-        List<ClassDefinitionDTO> result = activeOnly 
+        List<ClassDefinitionResponseDTO> result = activeOnly 
             ? classDefinitionService.findActiveClassesForCourse(courseUuid)
             : classDefinitionService.findClassesForCourse(courseUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for course retrieved successfully"));
@@ -128,14 +128,14 @@ public class ClassDefinitionController {
     @Operation(summary = "Get class definitions for an instructor")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/instructor/{instructorUuid}")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassDefinitionsForInstructor(
+    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForInstructor(
             @Parameter(description = "UUID of the instructor", required = true)
             @PathVariable UUID instructorUuid,
             @Parameter(description = "Whether to include only active class definitions")
             @RequestParam(defaultValue = "false") boolean activeOnly) {
         log.debug("REST request to get classes for instructor: {} (activeOnly: {})", instructorUuid, activeOnly);
         
-        List<ClassDefinitionDTO> result = activeOnly 
+        List<ClassDefinitionResponseDTO> result = activeOnly 
             ? classDefinitionService.findActiveClassesForInstructor(instructorUuid)
             : classDefinitionService.findClassesForInstructor(instructorUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for instructor retrieved successfully"));
@@ -144,22 +144,22 @@ public class ClassDefinitionController {
     @Operation(summary = "Get class definitions for an organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getClassDefinitionsForOrganisation(
+    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForOrganisation(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid) {
         log.debug("REST request to get classes for organisation: {}", organisationUuid);
         
-        List<ClassDefinitionDTO> result = classDefinitionService.findClassesForOrganisation(organisationUuid);
+        List<ClassDefinitionResponseDTO> result = classDefinitionService.findClassesForOrganisation(organisationUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for organisation retrieved successfully"));
     }
 
     @Operation(summary = "Get all active class definitions")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active class definitions retrieved successfully")
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionDTO>>> getAllActiveClassDefinitions() {
+    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getAllActiveClassDefinitions() {
         log.debug("REST request to get all active classes");
         
-        List<ClassDefinitionDTO> result = classDefinitionService.findAllActiveClasses();
+        List<ClassDefinitionResponseDTO> result = classDefinitionService.findAllActiveClasses();
         return ResponseEntity.ok(ApiResponse.success(result, "All active class definitions retrieved successfully"));
     }
 

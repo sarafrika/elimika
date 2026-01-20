@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -10,6 +11,7 @@ import java.util.List;
         name = "ClassSchedulingConflict",
         description = "Details of a conflicting schedule request during class creation"
 )
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record ClassSchedulingConflictDTO(
 
         @Schema(description = "Requested start date-time that conflicted", example = "2025-01-15T14:00:00")

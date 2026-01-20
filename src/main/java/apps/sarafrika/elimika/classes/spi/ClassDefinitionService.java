@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.classes.spi;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 
 import java.util.List;
@@ -29,7 +29,7 @@ public interface ClassDefinitionService {
      * @return The created class definition with generated UUID and audit fields
      * @throws IllegalArgumentException if required fields are missing or invalid
      */
-    ClassDefinitionCreationResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
+    ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
 
     /**
      * Updates an existing class definition.
@@ -40,7 +40,7 @@ public interface ClassDefinitionService {
      * @throws IllegalArgumentException if the UUID is null or invalid
      * @throws RuntimeException if class definition is not found
      */
-    ClassDefinitionDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
+    ClassDefinitionResponseDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
 
     /**
      * Deactivates a class definition by setting its active status to false.
@@ -60,7 +60,7 @@ public interface ClassDefinitionService {
      * @throws IllegalArgumentException if the UUID is null or invalid
      * @throws RuntimeException if class definition is not found
      */
-    ClassDefinitionDTO getClassDefinition(UUID definitionUuid);
+    ClassDefinitionResponseDTO getClassDefinition(UUID definitionUuid);
 
     /**
      * Retrieves all class definitions for a specific course.
@@ -69,7 +69,7 @@ public interface ClassDefinitionService {
      * @return List of class definitions for the course (empty list if none found)
      * @throws IllegalArgumentException if the UUID is null or invalid
      */
-    List<ClassDefinitionDTO> findClassesForCourse(UUID courseUuid);
+    List<ClassDefinitionResponseDTO> findClassesForCourse(UUID courseUuid);
 
     /**
      * Retrieves all active class definitions for a specific course.
@@ -78,7 +78,7 @@ public interface ClassDefinitionService {
      * @return List of active class definitions for the course (empty list if none found)
      * @throws IllegalArgumentException if the UUID is null or invalid
      */
-    List<ClassDefinitionDTO> findActiveClassesForCourse(UUID courseUuid);
+    List<ClassDefinitionResponseDTO> findActiveClassesForCourse(UUID courseUuid);
 
     /**
      * Retrieves all class definitions for a specific instructor.
@@ -87,7 +87,7 @@ public interface ClassDefinitionService {
      * @return List of class definitions for the instructor (empty list if none found)
      * @throws IllegalArgumentException if the UUID is null or invalid
      */
-    List<ClassDefinitionDTO> findClassesForInstructor(UUID instructorUuid);
+    List<ClassDefinitionResponseDTO> findClassesForInstructor(UUID instructorUuid);
 
     /**
      * Retrieves all active class definitions for a specific instructor.
@@ -96,7 +96,7 @@ public interface ClassDefinitionService {
      * @return List of active class definitions for the instructor (empty list if none found)
      * @throws IllegalArgumentException if the UUID is null or invalid
      */
-    List<ClassDefinitionDTO> findActiveClassesForInstructor(UUID instructorUuid);
+    List<ClassDefinitionResponseDTO> findActiveClassesForInstructor(UUID instructorUuid);
 
     /**
      * Retrieves all class definitions for a specific organization.
@@ -105,14 +105,14 @@ public interface ClassDefinitionService {
      * @return List of class definitions for the organization (empty list if none found)
      * @throws IllegalArgumentException if the UUID is null or invalid
      */
-    List<ClassDefinitionDTO> findClassesForOrganisation(UUID organisationUuid);
+    List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid);
 
     /**
      * Retrieves all active class definitions.
      *
      * @return List of all active class definitions (empty list if none found)
      */
-    List<ClassDefinitionDTO> findAllActiveClasses();
+    List<ClassDefinitionResponseDTO> findAllActiveClasses();
 
     /**
      * Checks if an instructor has availability defined for their classes.

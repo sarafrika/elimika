@@ -3,8 +3,10 @@ package apps.sarafrika.elimika.classes.service.impl;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
+import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
+import apps.sarafrika.elimika.classes.repository.ClassSchedulingConflictRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
@@ -42,6 +44,7 @@ import java.util.stream.Collectors;
 public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterface, ClassDefinitionService {
 
     private final ClassDefinitionRepository classDefinitionRepository;
+    private final ClassSchedulingConflictRepository classSchedulingConflictRepository;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
@@ -53,7 +56,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
 
     @Override
-    public ClassDefinitionCreationResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
+    public ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
         log.debug("Creating class definition with title: {}", classDefinitionDTO.title());
 
         if (classDefinitionDTO.sessionTemplates() == null || classDefinitionDTO.sessionTemplates().isEmpty()) {
@@ -84,6 +87,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
 
         ClassSchedulingOutcome schedulingOutcome = applySessionTemplates(result, classDefinitionDTO.sessionTemplates());
+        persistSchedulingConflicts(result.uuid(), schedulingOutcome.conflicts());
         if (schedulingOutcome.blockingConflict()) {
             throw new SchedulingConflictException(
                     String.format("Conflicts detected for class %s", result.title()),
@@ -106,7 +110,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         eventPublisher.publishEvent(event);
         
         log.info("Created class definition with UUID: {} and published ClassDefinedEvent", result.uuid());
-        return new ClassDefinitionCreationResponseDTO(result, schedulingOutcome.scheduledInstances(), schedulingOutcome.conflicts());
+        return buildResponse(result, schedulingOutcome.scheduledInstances(), schedulingOutcome.conflicts());
     }
 
     private ClassSchedulingOutcome applySessionTemplates(ClassDefinitionDTO classDefinition,
@@ -433,8 +437,131 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return svc;
     }
 
+    private ClassDefinitionResponseDTO buildResponse(ClassDefinitionDTO classDefinition) {
+        if (classDefinition == null) {
+            return new ClassDefinitionResponseDTO(null, List.of(), List.of());
+        }
+        List<ScheduledInstanceDTO> scheduledInstances = fetchScheduledInstances(classDefinition.uuid());
+        return buildResponse(classDefinition,
+                scheduledInstances,
+                getSchedulingConflicts(classDefinition, scheduledInstances));
+    }
+
+    private ClassDefinitionResponseDTO buildResponse(ClassDefinitionDTO classDefinition,
+                                                     List<ScheduledInstanceDTO> scheduledInstances,
+                                                     List<ClassSchedulingConflictDTO> conflicts) {
+        return new ClassDefinitionResponseDTO(
+                classDefinition,
+                listOrEmpty(scheduledInstances),
+                listOrEmpty(conflicts)
+        );
+    }
+
+    private List<ScheduledInstanceDTO> fetchScheduledInstances(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return List.of();
+        }
+        return listOrEmpty(timetableService().getScheduledInstancesForClassDefinition(classDefinitionUuid));
+    }
+
+    private List<ClassSchedulingConflictDTO> getSchedulingConflicts(ClassDefinitionDTO classDefinition,
+                                                                     List<ScheduledInstanceDTO> scheduledInstances) {
+        if (classDefinition == null || classDefinition.uuid() == null) {
+            return List.of();
+        }
+
+        List<ClassSchedulingConflict> conflicts = classSchedulingConflictRepository
+                .findByClassDefinitionUuidAndIsResolvedFalseOrderByRequestedStartAsc(classDefinition.uuid());
+        if (conflicts.isEmpty()) {
+            return List.of();
+        }
+
+        List<ClassSchedulingConflict> resolvedConflicts = new ArrayList<>();
+        List<ClassSchedulingConflictDTO> activeConflicts = new ArrayList<>();
+
+        for (ClassSchedulingConflict conflict : conflicts) {
+            if (isConflictResolved(classDefinition, conflict, scheduledInstances)) {
+                conflict.setIsResolved(true);
+                conflict.setResolvedAt(LocalDateTime.now());
+                resolvedConflicts.add(conflict);
+            } else {
+                activeConflicts.add(toConflictDTO(conflict));
+            }
+        }
+
+        if (!resolvedConflicts.isEmpty()) {
+            classSchedulingConflictRepository.saveAll(resolvedConflicts);
+        }
+
+        return activeConflicts;
+    }
+
+    private boolean isConflictResolved(ClassDefinitionDTO classDefinition,
+                                       ClassSchedulingConflict conflict,
+                                       List<ScheduledInstanceDTO> scheduledInstances) {
+        if (conflict == null) {
+            return true;
+        }
+        LocalDateTime requestedStart = conflict.getRequestedStart();
+        LocalDateTime requestedEnd = conflict.getRequestedEnd();
+
+        if (requestedStart != null && requestedEnd != null && scheduledInstances != null) {
+            boolean scheduledMatch = scheduledInstances.stream()
+                    .filter(instance -> instance != null)
+                    .anyMatch(instance -> requestedStart.equals(instance.startTime())
+                            && requestedEnd.equals(instance.endTime()));
+            if (scheduledMatch) {
+                return true;
+            }
+        }
+
+        if (requestedStart == null || requestedEnd == null) {
+            return true;
+        }
+
+        List<String> reasons = detectConflicts(classDefinition, requestedStart, requestedEnd);
+        return reasons.isEmpty();
+    }
+
+    private ClassSchedulingConflictDTO toConflictDTO(ClassSchedulingConflict conflict) {
+        List<String> reasons = conflict.getReasons() == null
+                ? List.of()
+                : Arrays.asList(conflict.getReasons());
+        return new ClassSchedulingConflictDTO(
+                conflict.getRequestedStart(),
+                conflict.getRequestedEnd(),
+                reasons
+        );
+    }
+
+    private void persistSchedulingConflicts(UUID classDefinitionUuid, List<ClassSchedulingConflictDTO> conflicts) {
+        if (classDefinitionUuid == null || conflicts == null || conflicts.isEmpty()) {
+            return;
+        }
+
+        List<ClassSchedulingConflict> entities = conflicts.stream()
+                .map(conflict -> {
+                    ClassSchedulingConflict entity = new ClassSchedulingConflict();
+                    entity.setClassDefinitionUuid(classDefinitionUuid);
+                    entity.setRequestedStart(conflict.requestedStart());
+                    entity.setRequestedEnd(conflict.requestedEnd());
+                    List<String> reasons = conflict.reasons() == null ? List.of() : conflict.reasons();
+                    entity.setReasons(reasons.toArray(new String[0]));
+                    entity.setIsResolved(false);
+                    entity.setResolvedAt(null);
+                    return entity;
+                })
+                .toList();
+
+        classSchedulingConflictRepository.saveAll(entities);
+    }
+
+    private <T> List<T> listOrEmpty(List<T> values) {
+        return values == null ? List.of() : values;
+    }
+
     @Override
-    public ClassDefinitionDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinitionDTO) {
+    public ClassDefinitionResponseDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinitionDTO) {
         log.debug("Updating class definition with UUID: {}", definitionUuid);
         
         ClassDefinition existingEntity = classDefinitionRepository.findByUuid(definitionUuid)
@@ -456,7 +583,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         eventPublisher.publishEvent(event);
         
         log.info("Updated class definition with UUID: {} and published ClassDefinitionUpdatedEvent", definitionUuid);
-        return result;
+        return buildResponse(result);
     }
 
     @Override
@@ -482,77 +609,84 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     @Override
     @Transactional(readOnly = true)
-    public ClassDefinitionDTO getClassDefinition(UUID definitionUuid) {
+    public ClassDefinitionResponseDTO getClassDefinition(UUID definitionUuid) {
         log.debug("Retrieving class definition with UUID: {}", definitionUuid);
-        
-        return classDefinitionRepository.findByUuid(definitionUuid)
+
+        ClassDefinitionDTO classDefinition = classDefinitionRepository.findByUuid(definitionUuid)
                 .map(ClassDefinitionFactory::toDTO)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
+        return buildResponse(classDefinition);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClassDefinitionDTO> findClassesForCourse(UUID courseUuid) {
+    public List<ClassDefinitionResponseDTO> findClassesForCourse(UUID courseUuid) {
         log.debug("Finding classes for course UUID: {}", courseUuid);
-        
+
         return classDefinitionRepository.findByCourseUuid(courseUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClassDefinitionDTO> findActiveClassesForCourse(UUID courseUuid) {
+    public List<ClassDefinitionResponseDTO> findActiveClassesForCourse(UUID courseUuid) {
         log.debug("Finding active classes for course UUID: {}", courseUuid);
-        
+
         return classDefinitionRepository.findActiveClassesForCourse(courseUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClassDefinitionDTO> findClassesForInstructor(UUID instructorUuid) {
+    public List<ClassDefinitionResponseDTO> findClassesForInstructor(UUID instructorUuid) {
         log.debug("Finding classes for instructor UUID: {}", instructorUuid);
-        
+
         return classDefinitionRepository.findByDefaultInstructorUuid(instructorUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClassDefinitionDTO> findActiveClassesForInstructor(UUID instructorUuid) {
+    public List<ClassDefinitionResponseDTO> findActiveClassesForInstructor(UUID instructorUuid) {
         log.debug("Finding active classes for instructor UUID: {}", instructorUuid);
-        
+
         return classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClassDefinitionDTO> findClassesForOrganisation(UUID organisationUuid) {
+    public List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid) {
         log.debug("Finding classes for organisation UUID: {}", organisationUuid);
-        
+
         return classDefinitionRepository.findByOrganisationUuid(organisationUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClassDefinitionDTO> findAllActiveClasses() {
+    public List<ClassDefinitionResponseDTO> findAllActiveClasses() {
         log.debug("Finding all active classes");
-        
+
         return classDefinitionRepository.findByIsActiveTrue()
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
 

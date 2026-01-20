@@ -170,6 +170,15 @@ public interface TimetableService {
     List<EnrollmentDTO> getEnrollmentsForClass(UUID classDefinitionUuid);
 
     /**
+     * Retrieves all scheduled instances for a class definition.
+     *
+     * @param classDefinitionUuid The UUID of the class definition
+     * @return List of scheduled instances (empty list if none found)
+     * @throws IllegalArgumentException if classDefinitionUuid is null
+     */
+    List<ScheduledInstanceDTO> getScheduledInstancesForClassDefinition(UUID classDefinitionUuid);
+
+    /**
      * Checks if an instructor has scheduling conflicts with the proposed time slot.
      *
      * @param instructorUuid The UUID of the instructor

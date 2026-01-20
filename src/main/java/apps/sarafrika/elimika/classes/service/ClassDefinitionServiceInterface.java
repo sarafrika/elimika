@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.classes.service;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreationResponseDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 
 import java.util.List;
@@ -18,24 +18,24 @@ import java.util.UUID;
  */
 public interface ClassDefinitionServiceInterface {
 
-    ClassDefinitionCreationResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
+    ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
 
-    ClassDefinitionDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
+    ClassDefinitionResponseDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
 
     void deactivateClassDefinition(UUID definitionUuid);
 
-    ClassDefinitionDTO getClassDefinition(UUID definitionUuid);
+    ClassDefinitionResponseDTO getClassDefinition(UUID definitionUuid);
 
-    List<ClassDefinitionDTO> findClassesForCourse(UUID courseUuid);
+    List<ClassDefinitionResponseDTO> findClassesForCourse(UUID courseUuid);
 
-    List<ClassDefinitionDTO> findActiveClassesForCourse(UUID courseUuid);
+    List<ClassDefinitionResponseDTO> findActiveClassesForCourse(UUID courseUuid);
 
-    List<ClassDefinitionDTO> findClassesForInstructor(UUID instructorUuid);
+    List<ClassDefinitionResponseDTO> findClassesForInstructor(UUID instructorUuid);
 
-    List<ClassDefinitionDTO> findActiveClassesForInstructor(UUID instructorUuid);
+    List<ClassDefinitionResponseDTO> findActiveClassesForInstructor(UUID instructorUuid);
 
-    List<ClassDefinitionDTO> findClassesForOrganisation(UUID organisationUuid);
+    List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid);
 
-    List<ClassDefinitionDTO> findAllActiveClasses();
+    List<ClassDefinitionResponseDTO> findAllActiveClasses();
 
 }
