@@ -1,3 +1,10 @@
+# [2.56.0](https://github.com/sarafrika/elimika/compare/v2.55.0...v2.56.0) (2026-01-26)
+
+
+### Features
+
+* align class pricing with scheduled sessions and add cart item removal ([a208063](https://github.com/sarafrika/elimika/commit/a208063c40e4295154b0cf4a4ed45c4989e2cab7))
+
 # [2.55.0](https://github.com/sarafrika/elimika/compare/v2.54.0...v2.55.0) (2026-01-20)
 
 
