@@ -16,6 +16,9 @@ import apps.sarafrika.elimika.revenue.dto.RevenueTimeSeriesPointDTO;
 import apps.sarafrika.elimika.revenue.service.RevenueAnalyticsService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
+import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -52,6 +55,8 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private final ClassDefinitionService classDefinitionService;
     private final InstructorLookupService instructorLookupService;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final StudentLookupService studentLookupService;
+    private final StudentGuardianLookupService studentGuardianLookupService;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
 
@@ -89,8 +94,46 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
             case course_creator -> loadCourseCreatorLines(range);
             case instructor -> loadInstructorLines(range);
             case organisation_user -> loadOrganisationLines(range);
-            case student, parent -> List.of();
+            case student -> loadStudentLines(range);
+            case parent -> loadGuardianLines(range);
         };
+    }
+
+    private List<CommerceRevenueLineItem> loadStudentLines(DateRange range) {
+        UUID userUuid = domainSecurityService.getCurrentUserUuid();
+        if (userUuid == null) {
+            return List.of();
+        }
+        UUID studentUuid = studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+        if (studentUuid == null) {
+            return List.of();
+        }
+        return revenueQueryService.findCapturedRevenueLinesByStudentUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                List.of(studentUuid)
+        );
+    }
+
+    private List<CommerceRevenueLineItem> loadGuardianLines(DateRange range) {
+        UUID guardianUserUuid = domainSecurityService.getCurrentUserUuid();
+        if (guardianUserUuid == null) {
+            return List.of();
+        }
+        List<UUID> studentUuids = studentGuardianLookupService.findActiveGuardianStudents(guardianUserUuid).stream()
+                .filter(access -> GuardianShareScope.FULL.equals(access.shareScope()))
+                .map(StudentGuardianLookupService.GuardianStudentAccess::studentUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (studentUuids.isEmpty()) {
+            return List.of();
+        }
+        return revenueQueryService.findCapturedRevenueLinesByStudentUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                studentUuids
+        );
     }
 
     private List<CommerceRevenueLineItem> loadCourseCreatorLines(DateRange range) {

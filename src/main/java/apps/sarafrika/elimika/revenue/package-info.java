@@ -9,7 +9,8 @@
                 "classes :: classes-spi",
                 "instructor :: instructor-spi",
                 "coursecreator :: coursecreator-spi",
-                "tenancy :: tenancy-spi"
+                "tenancy :: tenancy-spi",
+                "student :: student-spi"
         }
 )
 package apps.sarafrika.elimika.revenue;

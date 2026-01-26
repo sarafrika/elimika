@@ -92,4 +92,28 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
             @Param("endDate") OffsetDateTime endDate,
             @Param("classDefinitionUuids") List<UUID> classDefinitionUuids
     );
+
+    @Query("""
+            select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem(
+                p.orderId,
+                p.orderCreatedAt,
+                p.orderCurrencyCode,
+                i.total,
+                i.quantity,
+                i.scope,
+                i.courseUuid,
+                i.classDefinitionUuid
+            )
+            from CommercePurchaseItem i
+            join i.purchase p
+            where lower(p.paymentStatus) = 'captured'
+              and p.orderCreatedAt >= :startDate
+              and p.orderCreatedAt <= :endDate
+              and i.studentUuid in :studentUuids
+            """)
+    List<CommerceRevenueLineItem> findCapturedRevenueLinesByStudentUuids(
+            @Param("startDate") OffsetDateTime startDate,
+            @Param("endDate") OffsetDateTime endDate,
+            @Param("studentUuids") List<UUID> studentUuids
+    );
 }

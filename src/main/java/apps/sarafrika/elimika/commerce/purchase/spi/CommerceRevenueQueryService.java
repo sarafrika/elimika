@@ -19,4 +19,10 @@ public interface CommerceRevenueQueryService {
             OffsetDateTime endDate,
             List<UUID> classDefinitionUuids
     );
+
+    List<CommerceRevenueLineItem> findCapturedRevenueLinesByStudentUuids(
+            OffsetDateTime startDate,
+            OffsetDateTime endDate,
+            List<UUID> studentUuids
+    );
 }

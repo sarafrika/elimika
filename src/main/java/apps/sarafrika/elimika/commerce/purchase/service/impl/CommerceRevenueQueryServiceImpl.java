@@ -47,4 +47,16 @@ public class CommerceRevenueQueryServiceImpl implements CommerceRevenueQueryServ
                 classDefinitionUuids
         );
     }
+
+    @Override
+    public List<CommerceRevenueLineItem> findCapturedRevenueLinesByStudentUuids(
+            OffsetDateTime startDate,
+            OffsetDateTime endDate,
+            List<UUID> studentUuids
+    ) {
+        if (studentUuids == null || studentUuids.isEmpty()) {
+            return List.of();
+        }
+        return purchaseItemRepository.findCapturedRevenueLinesByStudentUuids(startDate, endDate, studentUuids);
+    }
 }
