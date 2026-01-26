@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
@@ -11,13 +12,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -133,6 +138,22 @@ public class EnrollmentController {
 
         List<EnrollmentDTO> result = timetableService.getEnrollmentsForInstance(instanceUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Enrollments retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Search enrollments",
+            description = "Search enrollments using query parameters such as student_uuid and class_definition_uuid."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment search completed successfully")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PagedDTO<EnrollmentDTO>>> searchEnrollments(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+        log.debug("REST request to search enrollments with params: {}", searchParams);
+
+        Page<EnrollmentDTO> results = timetableService.searchEnrollments(searchParams, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(results, baseUrl), "Enrollment search completed successfully"));
     }
 
     @Operation(summary = "Get schedule for a specific student within a date range")

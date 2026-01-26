@@ -31,13 +31,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -502,6 +505,39 @@ public class TimetableServiceImpl implements TimetableService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<EnrollmentDTO> searchEnrollments(Map<String, String> searchParams, Pageable pageable) {
+        Map<String, String> normalizedParams = searchParams == null ? new HashMap<>() : new HashMap<>(searchParams);
+        normalizedParams.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().isBlank());
+
+        String classDefinitionParam = extractSearchParam(normalizedParams, "class_definition_uuid", "classDefinitionUuid");
+        if (classDefinitionParam != null) {
+            try {
+                UUID classDefinitionUuid = UUID.fromString(classDefinitionParam.trim());
+                List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+                if (instances.isEmpty()) {
+                    return Page.empty(pageable);
+                }
+
+                String instanceUuidList = instances.stream()
+                        .map(ScheduledInstance::getUuid)
+                        .map(UUID::toString)
+                        .collect(Collectors.joining(","));
+                normalizedParams.put("scheduled_instance_uuid_in", instanceUuidList);
+            } catch (IllegalArgumentException ex) {
+                log.warn("Invalid class_definition_uuid value: {}", classDefinitionParam);
+            }
+        }
+
+        Specification<Enrollment> specification = enrollmentSpecBuilder.buildSpecification(Enrollment.class, normalizedParams);
+        Page<Enrollment> page = specification != null
+                ? enrollmentRepository.findAll(specification, pageable)
+                : enrollmentRepository.findAll(pageable);
+
+        return page.map(EnrollmentFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EnrollmentDTO> getEnrollmentsForClass(UUID classDefinitionUuid) {
         log.debug("Getting enrollments for class definition: {}", classDefinitionUuid);
 
@@ -778,5 +814,27 @@ public class TimetableServiceImpl implements TimetableService {
         if (start.isAfter(end)) {
             throw new IllegalArgumentException("Start date must be before or equal to end date");
         }
+    }
+
+    private String extractSearchParam(Map<String, String> searchParams, String... keys) {
+        String extractedValue = null;
+        var iterator = searchParams.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            for (String key : keys) {
+                if (matchesSearchKey(entry.getKey(), key)) {
+                    if (extractedValue == null && entry.getValue() != null && !entry.getValue().isBlank()) {
+                        extractedValue = entry.getValue();
+                    }
+                    iterator.remove();
+                    break;
+                }
+            }
+        }
+        return extractedValue;
+    }
+
+    private boolean matchesSearchKey(String candidate, String key) {
+        return candidate.equals(key) || candidate.startsWith(key + "_");
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -161,6 +162,15 @@ public interface TimetableService {
      * @throws IllegalArgumentException if instanceUuid is null
      */
     List<EnrollmentDTO> getEnrollmentsForInstance(UUID instanceUuid);
+
+    /**
+     * Searches enrollments with flexible criteria.
+     *
+     * @param searchParams search parameters for filtering
+     * @param pageable pagination information
+     * @return Page of enrollments that match the criteria
+     */
+    Page<EnrollmentDTO> searchEnrollments(Map<String, String> searchParams, Pageable pageable);
 
     /**
      * Retrieves all enrollments for a class definition across its scheduled instances.
