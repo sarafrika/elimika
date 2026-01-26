@@ -7,8 +7,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of Course Information Service
@@ -49,5 +52,31 @@ public class CourseInfoServiceImpl implements CourseInfoService {
         return courseRepository.findByUuid(courseUuid)
                 .map(course -> new AgeLimits(course.getAgeLowerLimit(), course.getAgeUpperLimit()))
                 .filter(limits -> limits.minAge() != null || limits.maxAge() != null);
+    }
+
+    @Override
+    public Optional<RevenueShare> getRevenueShare(UUID courseUuid) {
+        return courseRepository.findByUuid(courseUuid)
+                .map(course -> new RevenueShare(course.getCreatorSharePercentage(), course.getInstructorSharePercentage()));
+    }
+
+    @Override
+    public Map<UUID, RevenueShare> getRevenueShares(List<UUID> courseUuids) {
+        if (courseUuids == null || courseUuids.isEmpty()) {
+            return Map.of();
+        }
+        return courseRepository.findByUuidIn(courseUuids).stream()
+                .collect(Collectors.toMap(
+                        Course::getUuid,
+                        course -> new RevenueShare(course.getCreatorSharePercentage(), course.getInstructorSharePercentage())
+                ));
+    }
+
+    @Override
+    public List<UUID> findCourseUuidsByCourseCreatorUuid(UUID courseCreatorUuid) {
+        if (courseCreatorUuid == null) {
+            return List.of();
+        }
+        return courseRepository.findUuidsByCourseCreatorUuid(courseCreatorUuid);
     }
 }

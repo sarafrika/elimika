@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Convert;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -37,6 +38,15 @@ public class CommercePurchaseItem extends BaseEntity {
 
     @Column(name = "quantity")
     private int quantity;
+
+    @Column(name = "unit_price")
+    private BigDecimal unitPrice;
+
+    @Column(name = "subtotal")
+    private BigDecimal subtotal;
+
+    @Column(name = "total")
+    private BigDecimal total;
 
     @Column(name = "student_uuid")
     private UUID studentUuid;

@@ -26,6 +26,8 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
 
     List<Course> findByStatus(ContentStatus status);
 
+    List<Course> findByUuidIn(List<UUID> uuids);
+
     @Query("select c.uuid from Course c where c.courseCreatorUuid = :courseCreatorUuid")
     List<UUID> findUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 }

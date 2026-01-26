@@ -48,6 +48,9 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         purchase.setOrderId(order.getId());
         purchase.setOrderNumber(order.getDisplayId());
         purchase.setPaymentStatus(order.getPaymentStatus());
+        purchase.setOrderCurrencyCode(order.getCurrencyCode());
+        purchase.setOrderSubtotalAmount(order.getSubtotal());
+        purchase.setOrderTotalAmount(order.getTotal());
         purchase.setOrderCreatedAt(order.getCreatedAt());
         applyPlatformFee(purchase, order.getPlatformFee());
 
@@ -84,6 +87,9 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         entity.setVariantId(item.getVariantId());
         entity.setTitle(item.getTitle());
         entity.setQuantity(item.getQuantity());
+        entity.setUnitPrice(item.getUnitPrice());
+        entity.setSubtotal(item.getSubtotal());
+        entity.setTotal(item.getTotal());
 
         Map<String, Object> metadata = item.getMetadata();
         if (!CollectionUtils.isEmpty(metadata)) {

@@ -38,6 +38,15 @@ public class CommercePurchase extends BaseEntity {
     @Column(name = "payment_status")
     private String paymentStatus;
 
+    @Column(name = "order_currency_code")
+    private String orderCurrencyCode;
+
+    @Column(name = "order_subtotal_amount")
+    private BigDecimal orderSubtotalAmount;
+
+    @Column(name = "order_total_amount")
+    private BigDecimal orderTotalAmount;
+
     @Column(name = "order_created_at")
     private OffsetDateTime orderCreatedAt;
 

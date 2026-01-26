@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.spi;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,5 +51,31 @@ public interface CourseInfoService {
      */
     Optional<AgeLimits> getAgeLimits(UUID courseUuid);
 
+    /**
+     * Retrieves the revenue share percentages for a course.
+     *
+     * @param courseUuid The UUID of the course
+     * @return Optional containing the revenue share percentages, or empty if course not found
+     */
+    Optional<RevenueShare> getRevenueShare(UUID courseUuid);
+
+    /**
+     * Retrieves revenue share percentages for multiple courses.
+     *
+     * @param courseUuids The course UUIDs to fetch
+     * @return Map of course UUID to revenue share percentages
+     */
+    Map<UUID, RevenueShare> getRevenueShares(List<UUID> courseUuids);
+
+    /**
+     * Retrieves course UUIDs owned by a course creator.
+     *
+     * @param courseCreatorUuid The UUID of the course creator
+     * @return List of course UUIDs owned by the creator
+     */
+    List<UUID> findCourseUuidsByCourseCreatorUuid(UUID courseCreatorUuid);
+
     record AgeLimits(Integer minAge, Integer maxAge) { }
+
+    record RevenueShare(BigDecimal creatorSharePercentage, BigDecimal instructorSharePercentage) { }
 }
