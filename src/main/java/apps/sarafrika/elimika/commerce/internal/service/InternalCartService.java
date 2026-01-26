@@ -16,6 +16,8 @@ public interface InternalCartService {
 
     CartResponse addItem(String cartId, CartLineItemRequest request);
 
+    CartResponse removeItem(String cartId, String itemId);
+
     CartResponse getCart(String cartId);
 
     CartResponse updateCart(String cartId, UpdateCartRequest request);

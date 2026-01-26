@@ -31,6 +31,11 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    public CartResponse removeItem(String cartId, String itemId) {
+        return internalCartService.removeItem(cartId, itemId);
+    }
+
+    @Override
     public CartResponse getCart(String cartId) {
         return internalCartService.getCart(cartId);
     }

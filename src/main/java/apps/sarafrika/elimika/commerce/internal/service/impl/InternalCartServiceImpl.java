@@ -5,6 +5,8 @@ import apps.sarafrika.elimika.commerce.cart.dto.CartResponse;
 import apps.sarafrika.elimika.commerce.cart.dto.CreateCartRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.SelectPaymentSessionRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.UpdateCartRequest;
+import apps.sarafrika.elimika.commerce.catalogue.entity.CommerceCatalogueItem;
+import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueItemRepository;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceCart;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceCartItem;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrder;
@@ -25,6 +27,8 @@ import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
+import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
+import apps.sarafrika.elimika.shared.spi.ClassScheduleService.ClassScheduleSummary;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,12 +59,14 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final CommerceCartRepository cartRepository;
     private final CommerceCartItemRepository cartItemRepository;
     private final CommerceProductVariantRepository variantRepository;
+    private final CommerceCatalogueItemRepository catalogItemRepository;
     private final CommerceOrderRepository orderRepository;
     private final CommerceOrderItemRepository orderItemRepository;
     private final InternalCommerceMapper mapper;
     private final ObjectMapper objectMapper;
     private final RegionResolver regionResolver;
     private final ClassCapacityService classCapacityService;
+    private final ClassScheduleService classScheduleService;
     private final CurrencyValidator currencyValidator;
 
     @Override
@@ -94,6 +100,28 @@ public class InternalCartServiceImpl implements InternalCartService {
         CommerceCart cart = loadCart(cartId);
         ensureOpen(cart);
         addItemToCart(cart, request);
+        recalcTotals(cart);
+        refreshCartMetadata(cart);
+        cartRepository.save(cart);
+        return mapper.toCartResponse(cart);
+    }
+
+    @Override
+    public CartResponse removeItem(String cartId, String itemId) {
+        CommerceCart cart = loadCart(cartId);
+        ensureOpen(cart);
+        UUID itemUuid = parseUuid(itemId);
+        CommerceCartItem item = cartItemRepository.findByUuid(itemUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Cart item not found: " + itemId));
+        if (item.getCart() == null || item.getCart().getId() == null || cart.getId() == null
+                || !Objects.equals(item.getCart().getId(), cart.getId())) {
+            throw new IllegalArgumentException("Cart item does not belong to cart: " + cartId);
+        }
+
+        if (!CollectionUtils.isEmpty(cart.getItems())) {
+            cart.getItems().removeIf(existing -> Objects.equals(existing.getUuid(), itemUuid));
+        }
+        cartItemRepository.delete(item);
         recalcTotals(cart);
         refreshCartMetadata(cart);
         cartRepository.save(cart);
@@ -196,6 +224,8 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
 
         int quantity = Math.max(1, request.getQuantity());
+        UUID classDefinitionUuid = resolveClassDefinitionUuid(variant);
+        ClassScheduleSummary scheduleSummary = resolveScheduleSummary(classDefinitionUuid);
         if (shouldEnforceInventory(variant)
                 && variant.getInventoryQuantity() != null
                 && variant.getInventoryQuantity() < quantity) {
@@ -208,11 +238,11 @@ public class InternalCartServiceImpl implements InternalCartService {
             item.setCart(cart);
             item.setVariant(variant);
             item.setQuantity(quantity);
-            BigDecimal unitAmount = amount(variant.getUnitAmount());
+            BigDecimal unitAmount = resolveUnitAmount(variant, scheduleSummary);
             item.setUnitAmount(unitAmount);
             item.setSubtotalAmount(unitAmount.multiply(BigDecimal.valueOf(quantity)));
             item.setTotalAmount(item.getSubtotalAmount());
-            item.setMetadataJson(writeMetadata(buildLineItemMetadata(variant)));
+            item.setMetadataJson(writeMetadata(buildLineItemMetadata(variant, classDefinitionUuid, scheduleSummary)));
 
             if (cart.getItems() == null) {
                 cart.setItems(new ArrayList<>());
@@ -227,9 +257,11 @@ public class InternalCartServiceImpl implements InternalCartService {
                 throw new IllegalStateException("Insufficient inventory for variant " + variant.getCode());
             }
             existing.setQuantity(newQuantity);
-            existing.setSubtotalAmount(existing.getUnitAmount().multiply(BigDecimal.valueOf(newQuantity)));
+            BigDecimal unitAmount = resolveUnitAmount(variant, scheduleSummary);
+            existing.setUnitAmount(unitAmount);
+            existing.setSubtotalAmount(unitAmount.multiply(BigDecimal.valueOf(newQuantity)));
             existing.setTotalAmount(existing.getSubtotalAmount());
-            existing.setMetadataJson(writeMetadata(buildLineItemMetadata(variant)));
+            existing.setMetadataJson(writeMetadata(buildLineItemMetadata(variant, classDefinitionUuid, scheduleSummary)));
             cartItemRepository.save(existing);
         }
     }
@@ -357,7 +389,11 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
     }
 
-    private Map<String, Object> buildLineItemMetadata(CommerceProductVariant variant) {
+    private Map<String, Object> buildLineItemMetadata(
+            CommerceProductVariant variant,
+            UUID classDefinitionUuid,
+            ClassScheduleSummary scheduleSummary
+    ) {
         if (variant == null) {
             return Map.of();
         }
@@ -379,6 +415,10 @@ public class InternalCartServiceImpl implements InternalCartService {
             }
         }
 
+        if (classDefinitionUuid != null) {
+            metadata.put("class_definition_uuid", classDefinitionUuid);
+        }
+
         if (variant.getUuid() != null) {
             metadata.put("variant_uuid", variant.getUuid());
         }
@@ -387,6 +427,15 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
         if (StringUtils.hasText(variant.getTitle())) {
             metadata.put("variant_title", variant.getTitle());
+        }
+        if (scheduleSummary != null && scheduleSummary.scheduledMinutes() > 0) {
+            metadata.put("scheduled_minutes", scheduleSummary.scheduledMinutes());
+            if (scheduleSummary.scheduledInstances() > 0) {
+                metadata.put("scheduled_instances", scheduleSummary.scheduledInstances());
+            }
+            BigDecimal hours = BigDecimal.valueOf(scheduleSummary.scheduledMinutes())
+                    .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+            metadata.put("scheduled_hours", hours);
         }
         return metadata;
     }
@@ -397,7 +446,11 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
 
         List<Map<String, Object>> items = cart.getItems().stream()
-                .map(item -> buildLineItemMetadata(item.getVariant()))
+                .map(item -> {
+                    UUID classDefinitionUuid = resolveClassDefinitionUuid(item.getVariant());
+                    ClassScheduleSummary scheduleSummary = resolveScheduleSummary(classDefinitionUuid);
+                    return buildLineItemMetadata(item.getVariant(), classDefinitionUuid, scheduleSummary);
+                })
                 .filter(metadata -> !metadata.isEmpty())
                 .toList();
 
@@ -413,7 +466,9 @@ public class InternalCartServiceImpl implements InternalCartService {
     private void refreshCartMetadata(CommerceCart cart) {
         if (!CollectionUtils.isEmpty(cart.getItems())) {
             for (CommerceCartItem item : cart.getItems()) {
-                item.setMetadataJson(writeMetadata(buildLineItemMetadata(item.getVariant())));
+                UUID classDefinitionUuid = resolveClassDefinitionUuid(item.getVariant());
+                ClassScheduleSummary scheduleSummary = resolveScheduleSummary(classDefinitionUuid);
+                item.setMetadataJson(writeMetadata(buildLineItemMetadata(item.getVariant(), classDefinitionUuid, scheduleSummary)));
             }
         }
         cart.setMetadataJson(writeMetadata(buildCartMetadata(cart)));
@@ -432,6 +487,41 @@ public class InternalCartServiceImpl implements InternalCartService {
 
     private BigDecimal amount(BigDecimal value) {
         return value == null ? ZERO : value.setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private UUID resolveClassDefinitionUuid(CommerceProductVariant variant) {
+        if (variant == null) {
+            return null;
+        }
+
+        CommerceProduct product = variant.getProduct();
+        if (product != null && product.getClassDefinitionUuid() != null) {
+            return product.getClassDefinitionUuid();
+        }
+
+        if (!StringUtils.hasText(variant.getCode())) {
+            return null;
+        }
+        return catalogItemRepository.findByVariantCode(variant.getCode())
+                .map(CommerceCatalogueItem::getClassDefinitionUuid)
+                .orElse(null);
+    }
+
+    private ClassScheduleSummary resolveScheduleSummary(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return new ClassScheduleSummary(0, 0);
+        }
+        return classScheduleService.getScheduleSummary(classDefinitionUuid);
+    }
+
+    private BigDecimal resolveUnitAmount(CommerceProductVariant variant, ClassScheduleSummary scheduleSummary) {
+        BigDecimal unitAmount = amount(variant.getUnitAmount());
+        if (scheduleSummary == null || scheduleSummary.scheduledMinutes() <= 0) {
+            return unitAmount;
+        }
+        BigDecimal hours = BigDecimal.valueOf(scheduleSummary.scheduledMinutes())
+                .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+        return amount(unitAmount.multiply(hours));
     }
 
     private boolean shouldEnforceInventory(CommerceProductVariant variant) {

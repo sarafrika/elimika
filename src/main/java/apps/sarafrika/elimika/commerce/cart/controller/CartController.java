@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -68,6 +69,24 @@ public class CartController {
             @PathVariable String cartId,
             @Valid @RequestBody CartLineItemRequest request) {
         CartResponse cart = cartService.addItem(cartId, request);
+        return ResponseEntity.ok(ApiResponse.success(cart, "Cart updated successfully"));
+    }
+
+    @Operation(
+            summary = "Remove an item from a cart",
+            description = "Removes a line item from an existing cart",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Item removed",
+                            content = @Content(schema = @Schema(implementation = CartResponse.class)))
+            }
+    )
+    @DeleteMapping("/{cartId}/items/{itemId}")
+    public ResponseEntity<ApiResponse<CartResponse>> removeItem(
+            @Parameter(description = "Identifier of the cart to update", required = true)
+            @PathVariable String cartId,
+            @Parameter(description = "Identifier of the cart item to remove", required = true)
+            @PathVariable String itemId) {
+        CartResponse cart = cartService.removeItem(cartId, itemId);
         return ResponseEntity.ok(ApiResponse.success(cart, "Cart updated successfully"));
     }
 

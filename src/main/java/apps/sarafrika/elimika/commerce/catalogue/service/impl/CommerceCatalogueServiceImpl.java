@@ -9,6 +9,8 @@ import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccess
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService.VisibilityContext;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
+import apps.sarafrika.elimika.shared.spi.ClassScheduleService.ClassScheduleSummary;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
@@ -39,6 +41,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     private final GenericSpecificationBuilder<CommerceCatalogueItem> specificationBuilder;
     private final CommerceCatalogueAccessService accessService;
     private final CommerceProductVariantRepository variantRepository;
+    private final ClassScheduleService classScheduleService;
 
     @Override
     @Transactional
@@ -158,7 +161,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .classDefinitionUuid(entity.getClassDefinitionUuid())
                 .productCode(entity.getProductCode())
                 .variantCode(entity.getVariantCode())
-                .unitAmount(resolveUnitAmount(entity.getVariantCode()))
+                .unitAmount(resolveUnitAmount(entity))
                 .currencyCode(entity.getCurrencyCode())
                 .active(entity.isActive())
                 .publiclyVisible(entity.isPubliclyVisible())
@@ -193,16 +196,31 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .toList();
     }
 
-    private BigDecimal resolveUnitAmount(String variantCode) {
-        if (ObjectUtils.isEmpty(variantCode)) {
+    private BigDecimal resolveUnitAmount(CommerceCatalogueItem item) {
+        if (item == null || ObjectUtils.isEmpty(item.getVariantCode())) {
             return null;
         }
-        return variantRepository.findByCode(variantCode)
-                .map(variant -> {
-                    BigDecimal amount = variant.getUnitAmount();
-                    return amount == null ? null : amount.setScale(4, RoundingMode.HALF_UP);
-                })
+        BigDecimal baseAmount = variantRepository.findByCode(item.getVariantCode())
+                .map(variant -> variant.getUnitAmount() == null
+                        ? null
+                        : variant.getUnitAmount().setScale(4, RoundingMode.HALF_UP))
                 .orElse(null);
+        if (baseAmount == null) {
+            return null;
+        }
+
+        UUID classDefinitionUuid = item.getClassDefinitionUuid();
+        if (classDefinitionUuid == null) {
+            return baseAmount;
+        }
+
+        ClassScheduleSummary summary = classScheduleService.getScheduleSummary(classDefinitionUuid);
+        if (summary == null || summary.scheduledMinutes() <= 0) {
+            return baseAmount;
+        }
+        BigDecimal hours = BigDecimal.valueOf(summary.scheduledMinutes())
+                .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+        return baseAmount.multiply(hours).setScale(4, RoundingMode.HALF_UP);
     }
 
     private void applyPublicFilterWhenAnonymous(Map<String, String> params) {
