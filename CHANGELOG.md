@@ -1,3 +1,10 @@
+# [2.57.0](https://github.com/sarafrika/elimika/compare/v2.56.0...v2.57.0) (2026-01-26)
+
+
+### Features
+
+* add pageable enrollment search endpoint for flexible filters ([1742c54](https://github.com/sarafrika/elimika/commit/1742c54172e6c4db0b478a092122e8c5dcb45108))
+
 # [2.56.0](https://github.com/sarafrika/elimika/compare/v2.55.0...v2.56.0) (2026-01-26)
 
 
