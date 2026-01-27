@@ -29,7 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
-@RequestMapping("/api/v1/analytics/revenue")
+@RequestMapping("/api/v1/revenue/analytics")
 @Tag(name = "Revenue Analytics", description = "Revenue insights for domain analytics")
 @RequiredArgsConstructor
 public class RevenueAnalyticsController {
