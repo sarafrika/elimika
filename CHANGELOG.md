@@ -1,3 +1,11 @@
+# [2.59.0](https://github.com/sarafrika/elimika/compare/v2.58.0...v2.59.0) (2026-01-27)
+
+
+### Features
+
+* add analytics revenue sales and payment endpoints ([a04b319](https://github.com/sarafrika/elimika/commit/a04b319af67de0360fa9e060a364cd4896b78781))
+* enable student and guardian spending analytics ([e1a01a0](https://github.com/sarafrika/elimika/commit/e1a01a0fa0d2ec469738e6000c30d6e839f48f8d))
+
 # [2.58.0](https://github.com/sarafrika/elimika/compare/v2.57.0...v2.58.0) (2026-01-26)
 
 
