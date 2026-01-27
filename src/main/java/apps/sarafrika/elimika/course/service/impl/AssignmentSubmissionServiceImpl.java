@@ -4,7 +4,10 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
 import apps.sarafrika.elimika.course.factory.AssignmentSubmissionFactory;
+import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
+import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
+import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.service.AssignmentSubmissionService;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
@@ -29,7 +32,9 @@ import java.util.stream.Collectors;
 public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionService {
 
     private final AssignmentSubmissionRepository assignmentSubmissionRepository;
+    private final AssignmentRepository assignmentRepository;
     private final GenericSpecificationBuilder<AssignmentSubmission> specificationBuilder;
+    private final AssignmentMediaValidationService assignmentMediaValidationService;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
 
@@ -37,6 +42,16 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
 
     @Override
     public AssignmentSubmissionDTO createAssignmentSubmission(AssignmentSubmissionDTO assignmentSubmissionDTO) {
+        Assignment assignment = assignmentRepository.findByUuid(assignmentSubmissionDTO.assignmentUuid())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Assignment with ID %s not found", assignmentSubmissionDTO.assignmentUuid())));
+
+        assignmentMediaValidationService.validateSubmissionRequest(
+                assignment.getSubmissionTypes(),
+                assignmentSubmissionDTO.submissionText(),
+                assignmentSubmissionDTO.fileUrls()
+        );
+
         AssignmentSubmission submission = AssignmentSubmissionFactory.toEntity(assignmentSubmissionDTO);
 
         // Set defaults
@@ -102,6 +117,16 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     @Override
     public AssignmentSubmissionDTO submitAssignment(UUID enrollmentUuid, UUID assignmentUuid,
                                                     String content, String[] fileUrls) {
+        Assignment assignment = assignmentRepository.findByUuid(assignmentUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Assignment with ID %s not found", assignmentUuid)));
+
+        assignmentMediaValidationService.validateSubmissionRequest(
+                assignment.getSubmissionTypes(),
+                content,
+                fileUrls
+        );
+
         // Check if student already has a submission for this assignment
         assignmentSubmissionRepository.findByEnrollmentUuidAndAssignmentUuid(enrollmentUuid, assignmentUuid)
                 .ifPresent(existing -> {

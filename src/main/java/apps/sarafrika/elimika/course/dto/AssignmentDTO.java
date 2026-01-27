@@ -38,7 +38,7 @@ import java.util.UUID;
             "due_date": "2024-04-15T23:59:59",
             "max_points": 100.00,
             "rubric_uuid": "r1u2b3r4-5i6c-7a8s-9s10-abcdefghijkl",
-            "submission_types": ["PDF", "AUDIO", "TEXT"],
+            "submission_types": ["DOCUMENT", "AUDIO", "TEXT"],
             "status": "PUBLISHED",
             "active": true,
             "created_date": "2024-04-01T12:00:00",
@@ -162,7 +162,8 @@ public record AssignmentDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Array of accepted submission types for this assignment.",
-                example = "[\"PDF\", \"AUDIO\", \"TEXT\"]",
+                example = "[\"DOCUMENT\", \"AUDIO\", \"TEXT\"]",
+                allowableValues = {"TEXT", "DOCUMENT", "IMAGE", "AUDIO", "VIDEO", "URL"},
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty("submission_types")

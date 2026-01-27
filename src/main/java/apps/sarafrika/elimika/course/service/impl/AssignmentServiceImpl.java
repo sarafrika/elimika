@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentDTO;
 import apps.sarafrika.elimika.course.factory.AssignmentFactory;
+import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.service.AssignmentService;
@@ -24,12 +25,17 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final GenericSpecificationBuilder<Assignment> specificationBuilder;
+    private final AssignmentMediaValidationService assignmentMediaValidationService;
 
     private static final String ASSIGNMENT_NOT_FOUND_TEMPLATE = "Assignment with ID %s not found";
 
     @Override
     public AssignmentDTO createAssignment(AssignmentDTO assignmentDTO) {
         Assignment assignment = AssignmentFactory.toEntity(assignmentDTO);
+
+        String[] normalizedSubmissionTypes = assignmentMediaValidationService.normalizeSubmissionTypes(assignment.getSubmissionTypes());
+        assignmentMediaValidationService.validateSubmissionTypes(normalizedSubmissionTypes);
+        assignment.setSubmissionTypes(normalizedSubmissionTypes);
 
         if (assignment.getIsPublished() == null) {
             assignment.setIsPublished(false);
@@ -115,7 +121,9 @@ public class AssignmentServiceImpl implements AssignmentService {
             existingAssignment.setRubricUuid(dto.rubricUuid());
         }
         if (dto.submissionTypes() != null) {
-            existingAssignment.setSubmissionTypes(dto.submissionTypes());
+            String[] normalizedSubmissionTypes = assignmentMediaValidationService.normalizeSubmissionTypes(dto.submissionTypes());
+            assignmentMediaValidationService.validateSubmissionTypes(normalizedSubmissionTypes);
+            existingAssignment.setSubmissionTypes(normalizedSubmissionTypes);
         }
         if (dto.published() != null) {
             existingAssignment.setIsPublished(dto.published());

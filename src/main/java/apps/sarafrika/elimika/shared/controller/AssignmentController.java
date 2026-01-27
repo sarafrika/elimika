@@ -1,8 +1,11 @@
 package apps.sarafrika.elimika.course.controller;
 
-import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
+import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
 import apps.sarafrika.elimika.course.service.*;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -12,12 +15,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -37,6 +44,11 @@ public class AssignmentController {
 
     private final AssignmentService assignmentService;
     private final AssignmentSubmissionService assignmentSubmissionService;
+    private final AssignmentAttachmentService assignmentAttachmentService;
+    private final AssignmentSubmissionAttachmentService assignmentSubmissionAttachmentService;
+    private final AssignmentMediaValidationService assignmentMediaValidationService;
+    private final StorageService storageService;
+    private final StorageProperties storageProperties;
 
     // ===== ASSIGNMENT BASIC OPERATIONS =====
 
@@ -119,6 +131,106 @@ public class AssignmentController {
         return ResponseEntity.noContent().build();
     }
 
+    // ===== ASSIGNMENT ATTACHMENTS =====
+
+    @Operation(
+            summary = "Upload assignment attachment",
+            description = """
+                    Uploads an attachment for an assignment (documents, images, audio, or video).
+
+                    **Use cases:**
+                    - Providing assignment briefs as PDFs or slides
+                    - Attaching sample datasets, images, or reference media
+                    """
+    )
+    @PostMapping(
+            value = "/{assignmentUuid}/attachments/upload",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentAttachmentDTO>> uploadAssignmentAttachment(
+            @PathVariable UUID assignmentUuid,
+            @RequestParam("file") MultipartFile file
+    ) {
+        assignmentMediaValidationService.validateAssignmentAttachment(file);
+
+        String folder = storageProperties.getFolders().getAssignments()
+                + "/" + assignmentUuid
+                + "/attachments";
+
+        String storedFileName = storageService.store(file, folder);
+        String fileUrl = storageProperties.getBaseUrl() != null
+                ? storageProperties.getBaseUrl() + "/" + storedFileName
+                : storedFileName;
+
+        AssignmentAttachmentDTO requestDto = new AssignmentAttachmentDTO(
+                null,
+                assignmentUuid,
+                file.getOriginalFilename(),
+                storedFileName,
+                fileUrl,
+                file.getSize(),
+                storageService.getContentType(storedFileName),
+                null,
+                null,
+                null,
+                null
+        );
+
+        AssignmentAttachmentDTO created = assignmentAttachmentService.createAttachment(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(created, "Assignment attachment uploaded successfully"));
+    }
+
+    @Operation(
+            summary = "Get assignment attachments",
+            description = "Retrieves all attachments linked to a specific assignment."
+    )
+    @GetMapping("/{assignmentUuid}/attachments")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentAttachmentDTO>>> getAssignmentAttachments(
+            @PathVariable UUID assignmentUuid
+    ) {
+        List<AssignmentAttachmentDTO> attachments = assignmentAttachmentService.getAttachmentsByAssignment(assignmentUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(attachments, "Assignment attachments retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Delete assignment attachment",
+            description = "Removes a specific assignment attachment."
+    )
+    @DeleteMapping("/{assignmentUuid}/attachments/{attachmentUuid}")
+    public ResponseEntity<Void> deleteAssignmentAttachment(
+            @PathVariable UUID assignmentUuid,
+            @PathVariable UUID attachmentUuid
+    ) {
+        assignmentAttachmentService.deleteAttachment(attachmentUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Get assignment media by file name",
+            description = "Retrieves assignment media files by their stored filename."
+    )
+    @GetMapping("/media/{fileName}")
+    public ResponseEntity<Resource> getAssignmentMedia(
+            @PathVariable String fileName
+    ) {
+        try {
+            Resource resource = storageService.load(fileName);
+            String contentType = storageService.getContentType(fileName);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // ===== ASSIGNMENT SUBMISSIONS =====
 
     @Operation(
@@ -129,13 +241,102 @@ public class AssignmentController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignment(
             @PathVariable UUID assignmentUuid,
             @RequestParam UUID enrollmentUuid,
-            @RequestParam String content,
+            @RequestParam(required = false) String content,
             @RequestParam(required = false) String[] fileUrls) {
         AssignmentSubmissionDTO submission = assignmentSubmissionService.submitAssignment(
                 enrollmentUuid, assignmentUuid, content, fileUrls);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(submission, "Assignment submitted successfully"));
+    }
+
+    @Operation(
+            summary = "Upload assignment submission attachment",
+            description = "Uploads a file attachment for a specific assignment submission."
+    )
+    @PostMapping(
+            value = "/{assignmentUuid}/submissions/{submissionUuid}/attachments/upload",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionAttachmentDTO>> uploadSubmissionAttachment(
+            @PathVariable UUID assignmentUuid,
+            @PathVariable UUID submissionUuid,
+            @RequestParam("file") MultipartFile file
+    ) {
+        AssignmentSubmissionDTO submission = assignmentSubmissionService.getAssignmentSubmissionByUuid(submissionUuid);
+        if (!assignmentUuid.equals(submission.assignmentUuid())) {
+            throw new IllegalArgumentException("Submission does not belong to the specified assignment");
+        }
+
+        AssignmentDTO assignment = assignmentService.getAssignmentByUuid(assignmentUuid);
+        assignmentMediaValidationService.validateSubmissionAttachment(assignment.submissionTypes(), file);
+
+        String folder = storageProperties.getFolders().getAssignments()
+                + "/" + assignmentUuid
+                + "/submissions/" + submissionUuid;
+
+        String storedFileName = storageService.store(file, folder);
+        String fileUrl = storageProperties.getBaseUrl() != null
+                ? storageProperties.getBaseUrl() + "/" + storedFileName
+                : storedFileName;
+
+        AssignmentSubmissionAttachmentDTO requestDto = new AssignmentSubmissionAttachmentDTO(
+                null,
+                submissionUuid,
+                file.getOriginalFilename(),
+                storedFileName,
+                fileUrl,
+                file.getSize(),
+                storageService.getContentType(storedFileName),
+                null,
+                null,
+                null,
+                null
+        );
+
+        AssignmentSubmissionAttachmentDTO created = assignmentSubmissionAttachmentService.createAttachment(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(created, "Submission attachment uploaded successfully"));
+    }
+
+    @Operation(
+            summary = "Get submission attachments",
+            description = "Retrieves all attachments for a specific assignment submission."
+    )
+    @GetMapping("/{assignmentUuid}/submissions/{submissionUuid}/attachments")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionAttachmentDTO>>> getSubmissionAttachments(
+            @PathVariable UUID assignmentUuid,
+            @PathVariable UUID submissionUuid
+    ) {
+        AssignmentSubmissionDTO submission = assignmentSubmissionService.getAssignmentSubmissionByUuid(submissionUuid);
+        if (!assignmentUuid.equals(submission.assignmentUuid())) {
+            throw new IllegalArgumentException("Submission does not belong to the specified assignment");
+        }
+
+        List<AssignmentSubmissionAttachmentDTO> attachments = assignmentSubmissionAttachmentService.getAttachmentsBySubmission(submissionUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(attachments, "Submission attachments retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Delete submission attachment",
+            description = "Removes a specific submission attachment."
+    )
+    @DeleteMapping("/{assignmentUuid}/submissions/{submissionUuid}/attachments/{attachmentUuid}")
+    public ResponseEntity<Void> deleteSubmissionAttachment(
+            @PathVariable UUID assignmentUuid,
+            @PathVariable UUID submissionUuid,
+            @PathVariable UUID attachmentUuid
+    ) {
+        AssignmentSubmissionDTO submission = assignmentSubmissionService.getAssignmentSubmissionByUuid(submissionUuid);
+        if (!assignmentUuid.equals(submission.assignmentUuid())) {
+            throw new IllegalArgumentException("Submission does not belong to the specified assignment");
+        }
+
+        assignmentSubmissionAttachmentService.deleteAttachment(attachmentUuid);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(
