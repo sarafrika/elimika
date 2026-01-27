@@ -2,15 +2,23 @@ package apps.sarafrika.elimika.revenue.service.impl;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
+import apps.sarafrika.elimika.commerce.internal.spi.CommercePaymentQueryService;
+import apps.sarafrika.elimika.commerce.internal.spi.CommercePaymentView;
 import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
+import apps.sarafrika.elimika.commerce.purchase.spi.CommercePlatformFeeSummary;
 import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem;
 import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueQueryService;
+import apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService.RevenueShare;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.revenue.dto.RevenueAnalyticsOverviewDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueAmountDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDashboardDTO;
+import apps.sarafrika.elimika.revenue.dto.RevenueDomainAnalyticsDTO;
+import apps.sarafrika.elimika.revenue.dto.RevenuePaymentDTO;
+import apps.sarafrika.elimika.revenue.dto.RevenueSaleLineItemDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueScopeBreakdownDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueTimeSeriesPointDTO;
 import apps.sarafrika.elimika.revenue.service.RevenueAnalyticsService;
@@ -38,6 +46,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -51,6 +61,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private static final String UNKNOWN_CURRENCY = "UNKNOWN";
 
     private final CommerceRevenueQueryService revenueQueryService;
+    private final CommercePaymentQueryService paymentQueryService;
     private final CourseInfoService courseInfoService;
     private final ClassDefinitionService classDefinitionService;
     private final InstructorLookupService instructorLookupService;
@@ -76,6 +87,105 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         return buildDashboard(domain, range, lineItems, revenueShares);
     }
 
+    @Override
+    public RevenueAnalyticsOverviewDTO getAnalyticsOverview(LocalDate startDate, LocalDate endDate) {
+        DateRange range = resolveDateRange(startDate, endDate);
+        UUID userUuid = domainSecurityService.getCurrentUserUuid();
+        if (userUuid == null) {
+            return new RevenueAnalyticsOverviewDTO(range.startDate(), range.endDate(), List.of());
+        }
+        List<UserDomain> domains = userLookupService.getUserDomains(userUuid);
+        List<RevenueDomainAnalyticsDTO> dashboards = domains.stream()
+                .distinct()
+                .map(domain -> new RevenueDomainAnalyticsDTO(
+                        domain.name(),
+                        getRevenueDashboard(domain, range.startDate(), range.endDate())
+                ))
+                .sorted(Comparator.comparing(RevenueDomainAnalyticsDTO::domain))
+                .toList();
+        return new RevenueAnalyticsOverviewDTO(range.startDate(), range.endDate(), dashboards);
+    }
+
+    @Override
+    public Page<RevenueSaleLineItemDTO> getSales(
+            UserDomain domain,
+            LocalDate startDate,
+            LocalDate endDate,
+            String paymentStatus,
+            String scope,
+            UUID courseUuid,
+            UUID classDefinitionUuid,
+            UUID studentUuid,
+            Pageable pageable
+    ) {
+        if (domain == null) {
+            throw new IllegalArgumentException("domain is required");
+        }
+        if (!domainSecurityService.hasAnyDomain(domain)) {
+            throw new AccessDeniedException("User does not have access to the requested revenue domain");
+        }
+        DateRange range = resolveDateRange(startDate, endDate);
+        PurchaseScope scopeEnum = resolveScope(scope);
+        String normalizedStatus = normalizeStatus(paymentStatus);
+        boolean includeBuyer = UserDomain.admin.equals(domain);
+
+        Page<CommerceSaleLineItemView> sales = switch (domain) {
+            case admin -> loadAdminSales(range, normalizedStatus, scopeEnum, courseUuid, classDefinitionUuid, studentUuid, pageable);
+            case course_creator -> loadCourseCreatorSales(range, normalizedStatus, scopeEnum, courseUuid, pageable);
+            case instructor -> loadInstructorSales(range, normalizedStatus, scopeEnum, classDefinitionUuid, pageable);
+            case organisation_user -> loadOrganisationSales(range, normalizedStatus, scopeEnum, classDefinitionUuid, pageable);
+            case student -> loadStudentSales(range, normalizedStatus, scopeEnum, studentUuid, pageable);
+            case parent -> loadGuardianSales(range, normalizedStatus, scopeEnum, studentUuid, pageable);
+        };
+
+        return sales.map(view -> toSaleDto(view, includeBuyer));
+    }
+
+    @Override
+    public Page<RevenuePaymentDTO> getPayments(
+            UserDomain domain,
+            LocalDate startDate,
+            LocalDate endDate,
+            String status,
+            String orderId,
+            Pageable pageable
+    ) {
+        if (domain == null) {
+            throw new IllegalArgumentException("domain is required");
+        }
+        if (!domainSecurityService.hasAnyDomain(domain)) {
+            throw new AccessDeniedException("User does not have access to the requested revenue domain");
+        }
+        DateRange range = resolveDateRange(startDate, endDate);
+        List<UUID> orderUuids = resolveOrderUuids(orderId);
+        if (!UserDomain.admin.equals(domain) && orderUuids.isEmpty()) {
+            throw new AccessDeniedException("order_id is required for non-admin payment access");
+        }
+
+        if (!UserDomain.admin.equals(domain)) {
+            assertOrderAccess(domain, orderId);
+        }
+
+        Page<CommercePaymentView> payments = orderUuids.isEmpty()
+                ? paymentQueryService.findPayments(range.startDateTime(), range.endDateTime(), status, pageable)
+                : paymentQueryService.findPaymentsByOrderUuids(range.startDateTime(), range.endDateTime(), status, orderUuids, pageable);
+
+        return payments.map(this::toPaymentDto);
+    }
+
+    @Override
+    public List<RevenueAmountDTO> getPlatformFeeSummary(LocalDate startDate, LocalDate endDate) {
+        DateRange range = resolveDateRange(startDate, endDate);
+        List<CommercePlatformFeeSummary> summaries = revenueQueryService.summarizePlatformFees(
+                range.startDateTime(),
+                range.endDateTime()
+        );
+        return summaries.stream()
+                .map(summary -> new RevenueAmountDTO(summary.currencyCode(), summary.totalAmount()))
+                .sorted(Comparator.comparing(RevenueAmountDTO::currencyCode, Comparator.nullsLast(String::compareTo)))
+                .toList();
+    }
+
     private DateRange resolveDateRange(LocalDate startDate, LocalDate endDate) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         LocalDate resolvedEnd = endDate != null ? endDate : now.toLocalDate();
@@ -87,6 +197,210 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         OffsetDateTime end = resolvedEnd.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC).minusNanos(1);
         return new DateRange(resolvedStart, resolvedEnd, start, end);
     }
+
+    private Page<CommerceSaleLineItemView> loadAdminSales(
+            DateRange range,
+            String paymentStatus,
+            PurchaseScope scope,
+            UUID courseUuid,
+            UUID classDefinitionUuid,
+            UUID studentUuid,
+            Pageable pageable
+    ) {
+        if (courseUuid != null) {
+            return revenueQueryService.findSalesByCourseUuids(
+                    range.startDateTime(),
+                    range.endDateTime(),
+                    paymentStatus,
+                    scope,
+                    List.of(courseUuid),
+                    pageable
+            );
+        }
+        if (classDefinitionUuid != null) {
+            return revenueQueryService.findSalesByClassDefinitionUuids(
+                    range.startDateTime(),
+                    range.endDateTime(),
+                    paymentStatus,
+                    scope,
+                    List.of(classDefinitionUuid),
+                    pageable
+            );
+        }
+        if (studentUuid != null) {
+            return revenueQueryService.findSalesByStudentUuids(
+                    range.startDateTime(),
+                    range.endDateTime(),
+                    paymentStatus,
+                    scope,
+                    List.of(studentUuid),
+                    pageable
+            );
+        }
+        return revenueQueryService.findSales(range.startDateTime(), range.endDateTime(), paymentStatus, scope, pageable);
+    }
+
+    private Page<CommerceSaleLineItemView> loadCourseCreatorSales(
+            DateRange range,
+            String paymentStatus,
+            PurchaseScope scope,
+            UUID courseUuid,
+            Pageable pageable
+    ) {
+        List<UUID> courseUuids = resolveCourseCreatorCourseUuids();
+        if (courseUuid != null) {
+            ensureContains(courseUuids, courseUuid, "course_uuid");
+            courseUuids = List.of(courseUuid);
+        }
+        return revenueQueryService.findSalesByCourseUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                paymentStatus,
+                scope,
+                courseUuids,
+                pageable
+        );
+    }
+
+    private Page<CommerceSaleLineItemView> loadInstructorSales(
+            DateRange range,
+            String paymentStatus,
+            PurchaseScope scope,
+            UUID classDefinitionUuid,
+            Pageable pageable
+    ) {
+        List<UUID> classDefinitionUuids = resolveInstructorClassDefinitionUuids();
+        if (classDefinitionUuid != null) {
+            ensureContains(classDefinitionUuids, classDefinitionUuid, "class_definition_uuid");
+            classDefinitionUuids = List.of(classDefinitionUuid);
+        }
+        return revenueQueryService.findSalesByClassDefinitionUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                paymentStatus,
+                scope,
+                classDefinitionUuids,
+                pageable
+        );
+    }
+
+    private Page<CommerceSaleLineItemView> loadOrganisationSales(
+            DateRange range,
+            String paymentStatus,
+            PurchaseScope scope,
+            UUID classDefinitionUuid,
+            Pageable pageable
+    ) {
+        List<UUID> classDefinitionUuids = resolveOrganisationClassDefinitionUuids();
+        if (classDefinitionUuid != null) {
+            ensureContains(classDefinitionUuids, classDefinitionUuid, "class_definition_uuid");
+            classDefinitionUuids = List.of(classDefinitionUuid);
+        }
+        return revenueQueryService.findSalesByClassDefinitionUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                paymentStatus,
+                scope,
+                classDefinitionUuids,
+                pageable
+        );
+    }
+
+    private Page<CommerceSaleLineItemView> loadStudentSales(
+            DateRange range,
+            String paymentStatus,
+            PurchaseScope scope,
+            UUID studentUuid,
+            Pageable pageable
+    ) {
+        UUID resolvedStudentUuid = resolveCurrentStudentUuid();
+        if (resolvedStudentUuid == null) {
+            return Page.empty(pageable);
+        }
+        if (studentUuid != null && !resolvedStudentUuid.equals(studentUuid)) {
+            throw new AccessDeniedException("student_uuid does not match current user");
+        }
+        return revenueQueryService.findSalesByStudentUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                paymentStatus,
+                scope,
+                List.of(resolvedStudentUuid),
+                pageable
+        );
+    }
+
+    private Page<CommerceSaleLineItemView> loadGuardianSales(
+            DateRange range,
+            String paymentStatus,
+            PurchaseScope scope,
+            UUID studentUuid,
+            Pageable pageable
+    ) {
+        List<UUID> studentUuids = resolveGuardianStudentUuids();
+        if (studentUuid != null) {
+            ensureContains(studentUuids, studentUuid, "student_uuid");
+            studentUuids = List.of(studentUuid);
+        }
+        return revenueQueryService.findSalesByStudentUuids(
+                range.startDateTime(),
+                range.endDateTime(),
+                paymentStatus,
+                scope,
+                studentUuids,
+                pageable
+        );
+    }
+
+    private RevenueSaleLineItemDTO toSaleDto(CommerceSaleLineItemView view, boolean includeBuyer) {
+        if (view == null) {
+            return null;
+        }
+        return new RevenueSaleLineItemDTO(
+                view.orderId(),
+                view.orderNumber(),
+                view.orderCreatedAt(),
+                view.paymentStatus(),
+                view.orderCurrencyCode(),
+                view.orderSubtotalAmount(),
+                view.orderTotalAmount(),
+                view.platformFeeAmount(),
+                view.platformFeeCurrency(),
+                view.platformFeeRuleUuid(),
+                includeBuyer ? view.buyerUserUuid() : null,
+                includeBuyer ? view.customerEmail() : null,
+                view.lineItemId(),
+                view.variantId(),
+                view.title(),
+                view.quantity(),
+                view.unitPrice(),
+                view.subtotal(),
+                view.total(),
+                view.scope() != null ? view.scope().name() : null,
+                view.courseUuid(),
+                view.classDefinitionUuid(),
+                view.studentUuid()
+        );
+    }
+
+    private RevenuePaymentDTO toPaymentDto(CommercePaymentView view) {
+        if (view == null) {
+            return null;
+        }
+        return new RevenuePaymentDTO(
+                view.paymentUuid(),
+                view.orderUuid(),
+                view.orderTotalAmount(),
+                view.orderCurrencyCode(),
+                view.provider(),
+                view.status(),
+                view.amount(),
+                view.currencyCode(),
+                view.externalReference(),
+                view.processedAt()
+        );
+    }
+
 
     private List<CommerceRevenueLineItem> loadRevenueLines(UserDomain domain, DateRange range) {
         return switch (domain) {
@@ -365,6 +679,141 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
 
     private BigDecimal safeAmount(BigDecimal amount) {
         return amount != null ? amount : BigDecimal.ZERO;
+    }
+
+    private PurchaseScope resolveScope(String scope) {
+        if (!StringUtils.hasText(scope)) {
+            return null;
+        }
+        try {
+            return PurchaseScope.valueOf(scope.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid scope value: " + scope);
+        }
+    }
+
+    private String normalizeStatus(String paymentStatus) {
+        if (!StringUtils.hasText(paymentStatus)) {
+            return null;
+        }
+        return paymentStatus.trim();
+    }
+
+    private List<UUID> resolveCourseCreatorCourseUuids() {
+        UUID userUuid = domainSecurityService.getCurrentUserUuid();
+        if (userUuid == null) {
+            return List.of();
+        }
+        UUID creatorUuid = courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid).orElse(null);
+        if (creatorUuid == null) {
+            return List.of();
+        }
+        return courseInfoService.findCourseUuidsByCourseCreatorUuid(creatorUuid);
+    }
+
+    private List<UUID> resolveInstructorClassDefinitionUuids() {
+        UUID userUuid = domainSecurityService.getCurrentUserUuid();
+        if (userUuid == null) {
+            return List.of();
+        }
+        UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(userUuid).orElse(null);
+        if (instructorUuid == null) {
+            return List.of();
+        }
+        return classDefinitionService.findClassesForInstructor(instructorUuid).stream()
+                .map(ClassDefinitionResponseDTO::classDefinition)
+                .filter(Objects::nonNull)
+                .map(dto -> dto.uuid())
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private List<UUID> resolveOrganisationClassDefinitionUuids() {
+        UUID userUuid = domainSecurityService.getCurrentUserUuid();
+        if (userUuid == null) {
+            return List.of();
+        }
+        List<UUID> organisations = userLookupService.getUserOrganizations(userUuid);
+        if (organisations == null || organisations.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> classDefinitionUuids = new HashSet<>();
+        for (UUID organisationUuid : organisations) {
+            if (organisationUuid == null) {
+                continue;
+            }
+            classDefinitionService.findClassesForOrganisation(organisationUuid).stream()
+                    .map(ClassDefinitionResponseDTO::classDefinition)
+                    .filter(Objects::nonNull)
+                    .map(dto -> dto.uuid())
+                    .filter(Objects::nonNull)
+                    .forEach(classDefinitionUuids::add);
+        }
+        return new ArrayList<>(classDefinitionUuids);
+    }
+
+    private UUID resolveCurrentStudentUuid() {
+        UUID userUuid = domainSecurityService.getCurrentUserUuid();
+        if (userUuid == null) {
+            return null;
+        }
+        return studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+    }
+
+    private List<UUID> resolveGuardianStudentUuids() {
+        UUID guardianUserUuid = domainSecurityService.getCurrentUserUuid();
+        if (guardianUserUuid == null) {
+            return List.of();
+        }
+        return studentGuardianLookupService.findActiveGuardianStudents(guardianUserUuid).stream()
+                .filter(access -> GuardianShareScope.FULL.equals(access.shareScope()))
+                .map(StudentGuardianLookupService.GuardianStudentAccess::studentUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private void ensureContains(List<UUID> allowed, UUID requested, String fieldName) {
+        if (requested == null) {
+            return;
+        }
+        if (allowed == null || allowed.isEmpty() || !allowed.contains(requested)) {
+            throw new AccessDeniedException(fieldName + " is not accessible for the current user");
+        }
+    }
+
+    private List<UUID> resolveOrderUuids(String orderId) {
+        if (!StringUtils.hasText(orderId)) {
+            return List.of();
+        }
+        try {
+            return List.of(UUID.fromString(orderId.trim()));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("order_id must be a valid UUID");
+        }
+    }
+
+    private void assertOrderAccess(UserDomain domain, String orderId) {
+        if (!StringUtils.hasText(orderId)) {
+            throw new AccessDeniedException("order_id is required");
+        }
+        String normalizedOrderId = orderId.trim();
+        boolean allowed = switch (domain) {
+            case course_creator -> revenueQueryService.orderBelongsToCourseUuids(normalizedOrderId, resolveCourseCreatorCourseUuids());
+            case instructor -> revenueQueryService.orderBelongsToClassDefinitionUuids(normalizedOrderId, resolveInstructorClassDefinitionUuids());
+            case organisation_user -> revenueQueryService.orderBelongsToClassDefinitionUuids(normalizedOrderId, resolveOrganisationClassDefinitionUuids());
+            case student -> {
+                UUID studentUuid = resolveCurrentStudentUuid();
+                yield studentUuid != null
+                        && revenueQueryService.orderBelongsToStudentUuids(normalizedOrderId, List.of(studentUuid));
+            }
+            case parent -> revenueQueryService.orderBelongsToStudentUuids(normalizedOrderId, resolveGuardianStudentUuids());
+            case admin -> true;
+        };
+        if (!allowed) {
+            throw new AccessDeniedException("Order does not belong to the requested domain");
+        }
     }
 
     private String normalizeCurrency(String currencyCode) {

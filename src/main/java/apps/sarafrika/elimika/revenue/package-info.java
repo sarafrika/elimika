@@ -5,6 +5,7 @@
         allowedDependencies = {
                 "shared",
                 "commerce.purchase :: commerce-purchase-spi",
+                "commerce :: commerce-internal-spi",
                 "course :: course-spi",
                 "classes :: classes-spi",
                 "instructor :: instructor-spi",
