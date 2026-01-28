@@ -8,10 +8,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 @Service
+@Profile("!dev")
 @RequiredArgsConstructor
 public class CommerceAccessServiceImpl implements CommerceAccessService {
 
