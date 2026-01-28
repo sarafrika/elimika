@@ -57,11 +57,13 @@ class StudentServiceImplTest {
         request = new StudentDTO(
                 null,
                 UUID.randomUUID(),
+                "Student Full Name",
                 "youth",
                 "Guardian One",
                 "+254700000000",
                 "Guardian Two",
                 "+254711111111",
+                "Student Bio",
                 LocalDateTime.now(),
                 "system",
                 LocalDateTime.now(),

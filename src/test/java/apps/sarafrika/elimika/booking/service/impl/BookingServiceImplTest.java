@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.booking.payment.PaymentGatewayClient;
 import apps.sarafrika.elimika.booking.payment.PaymentSession;
 import apps.sarafrika.elimika.booking.repository.BookingRepository;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
@@ -218,7 +219,7 @@ class BookingServiceImplTest {
 
         when(bookingRepository.findByUuid(bookingUuid)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(classDefinitionService.findActiveClassesForCourse(courseUuid)).thenReturn(List.of(classDefinition));
+        when(classDefinitionService.findActiveClassesForCourse(courseUuid)).thenReturn(List.of(new ClassDefinitionResponseDTO(classDefinition)));
         when(timetableService.scheduleClass(any(ScheduleRequestDTO.class))).thenReturn(instance);
         when(timetableService.enrollStudentInInstance(instanceUuid, studentUuid)).thenReturn(enrollment);
 
