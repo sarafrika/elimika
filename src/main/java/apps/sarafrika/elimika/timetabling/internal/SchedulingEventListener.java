@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEve
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
+import apps.sarafrika.elimika.timetabling.dto.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
@@ -155,7 +156,16 @@ public class SchedulingEventListener {
                 
                 enrollments.forEach(enrollment -> {
                     enrollment.setStatus(EnrollmentStatus.CANCELLED);
-                    enrollmentRepository.save(enrollment);
+                    Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+                    EnrollmentStatusChangedEventDTO statusEvent = new EnrollmentStatusChangedEventDTO(
+                            savedEnrollment.getUuid(),
+                            instance.getUuid(),
+                            savedEnrollment.getStudentUuid(),
+                            instance.getClassDefinitionUuid(),
+                            savedEnrollment.getStatus(),
+                            LocalDateTime.now()
+                    );
+                    eventPublisher.publishEvent(statusEvent);
                 });
                 
                 log.debug("Cancelled scheduled instance {} and {} enrollments", 

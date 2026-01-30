@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.commerce.spi.paywall.CommercePaywallService;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
+import apps.sarafrika.elimika.timetabling.dto.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
@@ -135,7 +136,8 @@ public class TimetableServiceImpl implements TimetableService {
         
         activeEnrollments.forEach(enrollment -> {
             enrollment.setStatus(EnrollmentStatus.CANCELLED);
-            enrollmentRepository.save(enrollment);
+            Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+            publishEnrollmentStatusChanged(savedEnrollment, entity);
         });
 
         log.debug("Cancelled scheduled instance: {} and {} enrollments", instanceUuid, activeEnrollments.size());
@@ -237,6 +239,7 @@ public class TimetableServiceImpl implements TimetableService {
                     instance.getTitle()
             );
             eventPublisher.publishEvent(event);
+            publishEnrollmentStatusChanged(savedEntity, instance);
 
             createdEnrollments.add(savedEntity);
         }
@@ -303,6 +306,7 @@ public class TimetableServiceImpl implements TimetableService {
                 instance.getTitle()
         );
         eventPublisher.publishEvent(event);
+        publishEnrollmentStatusChanged(savedEnrollment, instance);
 
         log.debug("Enrolled student {} into scheduled instance {}", studentUuid, instanceUuid);
         return EnrollmentFactory.toDTO(savedEnrollment);
@@ -344,7 +348,9 @@ public class TimetableServiceImpl implements TimetableService {
 
             Enrollment enrollment = existing.orElseGet(() -> EnrollmentFactory.toEntity(instance.getUuid(), studentUuid));
             enrollment.setStatus(EnrollmentStatus.WAITLISTED);
-            waitlisted.add(enrollmentRepository.save(enrollment));
+            Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+            publishEnrollmentStatusChanged(savedEnrollment, instance);
+            waitlisted.add(savedEnrollment);
         }
 
         log.info("Student {} added to waitlist for class definition {}", studentUuid, classDefinitionUuid);
@@ -371,7 +377,9 @@ public class TimetableServiceImpl implements TimetableService {
         }
 
         entity.setStatus(EnrollmentStatus.CANCELLED);
-        enrollmentRepository.save(entity);
+        Enrollment savedEntity = enrollmentRepository.save(entity);
+        scheduledInstanceRepository.findByUuid(entity.getScheduledInstanceUuid())
+                .ifPresent(instance -> publishEnrollmentStatusChanged(savedEntity, instance));
 
         log.debug("Cancelled enrollment: {}", enrollmentUuid);
     }
@@ -412,6 +420,8 @@ public class TimetableServiceImpl implements TimetableService {
                     );
                     eventPublisher.publishEvent(event);
                 });
+        scheduledInstanceRepository.findByUuid(entity.getScheduledInstanceUuid())
+                .ifPresent(instance -> publishEnrollmentStatusChanged(savedEntity, instance));
 
         log.debug("Marked attendance for enrollment: {} as: {}", enrollmentUuid, entity.getStatus());
     }
@@ -799,6 +809,21 @@ public class TimetableServiceImpl implements TimetableService {
                 .filter(name -> !name.isBlank())
                 .map(name -> "course \"" + name.trim() + "\"")
                 .orElse("course " + courseUuid);
+    }
+
+    private void publishEnrollmentStatusChanged(Enrollment enrollment, ScheduledInstance instance) {
+        if (enrollment == null || instance == null) {
+            return;
+        }
+        EnrollmentStatusChangedEventDTO event = new EnrollmentStatusChangedEventDTO(
+                enrollment.getUuid(),
+                instance.getUuid(),
+                enrollment.getStudentUuid(),
+                instance.getClassDefinitionUuid(),
+                enrollment.getStatus(),
+                LocalDateTime.now()
+        );
+        eventPublisher.publishEvent(event);
     }
 
     private void validateDateRange(UUID uuid, LocalDate start, LocalDate end) {

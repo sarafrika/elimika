@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.spi.enrollment;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,6 +14,12 @@ import java.util.UUID;
  * @since 2025-10-23
  */
 public interface EnrollmentLookupService {
+
+    record ClassEnrollmentStatusSnapshot(
+            UUID enrollmentUuid,
+            String status,
+            LocalDateTime lastUpdatedAt
+    ) { }
 
     /**
      * Checks if an enrollment exists.
@@ -46,4 +53,23 @@ public interface EnrollmentLookupService {
      * @return true if the student is enrolled, false otherwise
      */
     boolean isStudentEnrolledInInstance(UUID studentUuid, UUID scheduledInstanceUuid);
+
+    /**
+     * Returns the most recent class enrollment for a student in a given course.
+     *
+     * @param studentUuid The UUID of the student
+     * @param courseUuid The UUID of the course
+     * @return Optional containing the most recent class enrollment status snapshot
+     */
+    Optional<ClassEnrollmentStatusSnapshot> findMostRecentEnrollmentForCourse(UUID studentUuid, UUID courseUuid);
+
+    /**
+     * Returns the most recent active class enrollment for a student in a given course.
+     * Active enrollments are those still in-progress for the course.
+     *
+     * @param studentUuid The UUID of the student
+     * @param courseUuid The UUID of the course
+     * @return Optional containing the most recent active class enrollment status snapshot
+     */
+    Optional<ClassEnrollmentStatusSnapshot> findMostRecentActiveEnrollmentForCourse(UUID studentUuid, UUID courseUuid);
 }

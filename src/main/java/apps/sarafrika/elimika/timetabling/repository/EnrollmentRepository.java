@@ -68,6 +68,31 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     List<Enrollment> findByStudentAndInstructor(@Param("studentUuid") UUID studentUuid,
                                               @Param("instructorUuid") UUID instructorUuid);
 
+    @Query(value = "SELECT ce.* " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE ce.student_uuid = :studentUuid " +
+                   "AND cd.course_uuid = :courseUuid " +
+                   "ORDER BY COALESCE(ce.updated_date, ce.created_date) DESC " +
+                   "LIMIT 1",
+           nativeQuery = true)
+    Optional<Enrollment> findLatestByStudentAndCourseUuid(@Param("studentUuid") UUID studentUuid,
+                                                          @Param("courseUuid") UUID courseUuid);
+
+    @Query(value = "SELECT ce.* " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE ce.student_uuid = :studentUuid " +
+                   "AND cd.course_uuid = :courseUuid " +
+                   "AND ce.status IN ('ENROLLED') " +
+                   "ORDER BY COALESCE(ce.updated_date, ce.created_date) DESC " +
+                   "LIMIT 1",
+           nativeQuery = true)
+    Optional<Enrollment> findLatestActiveByStudentAndCourseUuid(@Param("studentUuid") UUID studentUuid,
+                                                                @Param("courseUuid") UUID courseUuid);
+
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.scheduledInstanceUuid = :scheduledInstanceUuid " +
            "AND e.status NOT IN ('CANCELLED', 'WAITLISTED')")
     Long countActiveEnrollmentsByScheduledInstance(@Param("scheduledInstanceUuid") UUID scheduledInstanceUuid);
