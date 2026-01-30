@@ -110,6 +110,11 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
         return courseEnrollmentRepository.existsByCourseUuidAndStatusIn(uuid, statuses);
     }
 
+    @Override
+    public boolean existsByStudentUuidAndCourseUuid(UUID studentUuid, UUID courseUuid) {
+        return courseEnrollmentRepository.existsByStudentUuidAndCourseUuid(studentUuid, courseUuid);
+    }
+
     private void updateEnrollmentFields(CourseEnrollment existingEnrollment, CourseEnrollmentDTO dto) {
         if (dto.studentUuid() != null) {
             existingEnrollment.setStudentUuid(dto.studentUuid());

@@ -22,6 +22,7 @@ public interface CourseEnrollmentService {
 
     Page<CourseEnrollmentDTO> search(Map<String, String> searchParams, Pageable pageable);
 
+    boolean existsByStudentUuidAndCourseUuid(UUID studentUuid, UUID courseUuid);
+
     boolean existsByCourseUuidAndStatusIn(UUID uuid, List<EnrollmentStatus> enrollmentStatuses);
 }
-
