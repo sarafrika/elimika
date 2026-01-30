@@ -137,7 +137,7 @@ public class EmailTemplateService {
                 return raw;
             }
             Optional<OffsetDateTime> parsed = parseOffsetDateTime(text);
-            return parsed.<Object>map(value -> value).orElse(raw);
+            return parsed.map(parsedValue -> (Object) parsedValue).orElse(raw);
         }
         return value;
     }
