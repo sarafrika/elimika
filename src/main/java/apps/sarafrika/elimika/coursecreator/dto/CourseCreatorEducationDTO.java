@@ -23,6 +23,7 @@ import java.util.UUID;
             "uuid": "edu12345-6789-abcd-ef01-234567890abc",
             "course_creator_uuid": "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
             "qualification": "Master of Education",
+            "field_of_study": "Curriculum Studies",
             "school_name": "Strathmore University",
             "year_completed": 2021,
             "certificate_number": "MEd-2021-0099"
@@ -42,6 +43,10 @@ public record CourseCreatorEducationDTO(
         @Size(max = 255, message = "Qualification must not exceed 255 characters")
         @JsonProperty("qualification")
         String qualification,
+
+        @Size(max = 255, message = "Field of study must not exceed 255 characters")
+        @JsonProperty("field_of_study")
+        String fieldOfStudy,
 
         @NotBlank(message = "School name is required")
         @Size(max = 255, message = "School name must not exceed 255 characters")

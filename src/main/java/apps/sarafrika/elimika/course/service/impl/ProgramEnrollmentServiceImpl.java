@@ -2,10 +2,14 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.course.dto.CourseEnrollmentDTO;
 import apps.sarafrika.elimika.course.dto.ProgramEnrollmentDTO;
 import apps.sarafrika.elimika.course.factory.ProgramEnrollmentFactory;
+import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramEnrollment;
+import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
+import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.ProgramEnrollmentService;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,6 +31,8 @@ import java.util.UUID;
 public class ProgramEnrollmentServiceImpl implements ProgramEnrollmentService {
 
     private final ProgramEnrollmentRepository programEnrollmentRepository;
+    private final ProgramCourseRepository programCourseRepository;
+    private final CourseEnrollmentService courseEnrollmentService;
     private final GenericSpecificationBuilder<ProgramEnrollment> specificationBuilder;
 
     private static final String PROGRAM_ENROLLMENT_NOT_FOUND_TEMPLATE = "Program enrollment with ID %s not found";
@@ -46,6 +53,7 @@ public class ProgramEnrollmentServiceImpl implements ProgramEnrollmentService {
         }
 
         ProgramEnrollment savedProgramEnrollment = programEnrollmentRepository.save(programEnrollment);
+        enrollStudentInProgramCourses(savedProgramEnrollment.getStudentUuid(), savedProgramEnrollment.getProgramUuid());
         return ProgramEnrollmentFactory.toDTO(savedProgramEnrollment);
     }
 
@@ -114,6 +122,45 @@ public class ProgramEnrollmentServiceImpl implements ProgramEnrollmentService {
         }
         if (dto.finalGrade() != null) {
             existingProgramEnrollment.setFinalGrade(dto.finalGrade());
+        }
+    }
+
+    private void enrollStudentInProgramCourses(UUID studentUuid, UUID programUuid) {
+        if (studentUuid == null || programUuid == null) {
+            return;
+        }
+
+        List<ProgramCourse> programCourses = programCourseRepository.findByProgramUuidOrderBySequenceOrderAsc(programUuid);
+        if (programCourses.isEmpty()) {
+            return;
+        }
+
+        for (ProgramCourse programCourse : programCourses) {
+            UUID courseUuid = programCourse.getCourseUuid();
+            if (courseUuid == null) {
+                continue;
+            }
+
+            if (courseEnrollmentService.existsByStudentUuidAndCourseUuid(studentUuid, courseUuid)) {
+                continue;
+            }
+
+            CourseEnrollmentDTO courseEnrollment = new CourseEnrollmentDTO(
+                    null,
+                    studentUuid,
+                    courseUuid,
+                    null,
+                    null,
+                    EnrollmentStatus.ACTIVE,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+
+            courseEnrollmentService.createCourseEnrollment(courseEnrollment);
         }
     }
 }
