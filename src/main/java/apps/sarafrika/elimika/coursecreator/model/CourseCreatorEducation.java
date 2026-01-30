@@ -25,6 +25,9 @@ public class CourseCreatorEducation extends BaseEntity {
     @Column(name = "qualification")
     private String qualification;
 
+    @Column(name = "field_of_study")
+    private String fieldOfStudy;
+
     @Column(name = "school_name")
     private String schoolName;
 

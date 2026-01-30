@@ -17,6 +17,7 @@ public class InstructorEducationFactory {
                 education.getUuid(),
                 education.getInstructorUuid(),
                 education.getQualification(),
+                education.getFieldOfStudy(),
                 education.getSchoolName(),
                 education.getYearCompleted(),
                 education.getCertificateNumber(),
@@ -36,6 +37,7 @@ public class InstructorEducationFactory {
         education.setUuid(dto.uuid());
         education.setInstructorUuid(dto.instructorUuid());
         education.setQualification(dto.qualification());
+        education.setFieldOfStudy(dto.fieldOfStudy());
         education.setSchoolName(dto.schoolName());
         education.setYearCompleted(dto.yearCompleted());
         education.setCertificateNumber(dto.certificateNumber());

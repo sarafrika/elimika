@@ -27,6 +27,7 @@ import java.util.UUID;
             "uuid": "edu12345-6789-abcd-ef01-234567890abc",
             "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
             "qualification": "Master of Science in Computer Science",
+            "field_of_study": "Computer Science",
             "school_name": "University of Nairobi",
             "year_completed": 2020,
             "certificate_number": "MSC/CS/2020/0456",
@@ -72,6 +73,17 @@ public record InstructorEducationDTO(
         @Size(max = 255, message = "Qualification must not exceed 255 characters")
         @JsonProperty("qualification")
         String qualification,
+
+        @Schema(
+                description = "**[OPTIONAL]** Academic field of study or specialization for the qualification.",
+                example = "Computer Science",
+                maxLength = 255,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 255, message = "Field of study must not exceed 255 characters")
+        @JsonProperty("field_of_study")
+        String fieldOfStudy,
 
         @Schema(
                 description = "**[REQUIRED]** Full name of the educational institution, university, college, or training organization.",
