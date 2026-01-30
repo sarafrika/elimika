@@ -57,6 +57,7 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/users/profile-image/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/courses/media/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/commerce/catalogue/**").permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS).permitAll() // Allow preflight requests

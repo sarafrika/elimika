@@ -57,6 +57,7 @@ public class CourseController {
     private final CourseTrainingApplicationService courseTrainingApplicationService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
+    private final CourseReviewService courseReviewService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final LessonMediaValidationService lessonMediaValidationService;
@@ -1290,6 +1291,50 @@ public class CourseController {
                 .success(PagedDTO.from(categoryCourses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Category courses retrieved successfully"));
+    }
+
+    // ===== COURSE REVIEWS =====
+
+    @Operation(
+            summary = "Submit or update a course review",
+            description = """
+                    Allows enrolled students to leave a review for a course. Each student can leave
+                    one review per course and may update it anytime.
+                    """
+    )
+    @PostMapping("/{courseUuid}/reviews")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseReviewDTO>> submitCourseReview(
+            @PathVariable UUID courseUuid,
+            @Valid @RequestBody CourseReviewDTO reviewDTO) {
+        CourseReviewDTO payload = new CourseReviewDTO(
+                null,
+                courseUuid,
+                reviewDTO.studentUuid(),
+                reviewDTO.rating(),
+                reviewDTO.headline(),
+                reviewDTO.comments(),
+                reviewDTO.isAnonymous(),
+                null,
+                null,
+                null,
+                null
+        );
+
+        CourseReviewDTO saved = courseReviewService.saveCourseReview(courseUuid, payload);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(saved, "Course review saved successfully"));
+    }
+
+    @Operation(
+            summary = "Get reviews for a course",
+            description = "Returns all reviews left for the specified course."
+    )
+    @GetMapping("/{courseUuid}/reviews")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseReviewDTO>>> getCourseReviews(
+            @PathVariable UUID courseUuid) {
+        List<CourseReviewDTO> reviews = courseReviewService.getReviewsForCourse(courseUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(reviews, "Course reviews fetched successfully"));
     }
 
     /**
