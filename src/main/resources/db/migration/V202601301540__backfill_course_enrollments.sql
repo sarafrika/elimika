@@ -82,8 +82,14 @@ resolved_status AS (
     WHERE c.student_uuid IS NULL
 )
 INSERT INTO course_enrollments (student_uuid, course_uuid, status, created_by, updated_by)
-SELECT student_uuid, course_uuid, status, 'system-migration', 'system-migration'
-FROM resolved_status
+SELECT r.student_uuid,
+       r.course_uuid,
+       r.status,
+       'system-migration',
+       'system-migration'
+FROM resolved_status r
+JOIN students s ON s.uuid = r.student_uuid
+JOIN courses c ON c.uuid = r.course_uuid
 ON CONFLICT (student_uuid, course_uuid) DO UPDATE
 SET status = EXCLUDED.status,
     updated_by = 'system-migration',
