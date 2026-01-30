@@ -31,6 +31,7 @@ JUnit 5 powers testing through `spring-boot-starter-test`. Name new classes with
 
 ## Commit & Pull Request Guidelines
 Follow Conventional Commits (`feat:`, `fix:`, `chore:`) as seen in `feat: enforce commerce paywall before class enrollment`. Commit messages must be fully descriptive—state the intent and scope without relying on terse phrasing or abbreviations. Keep each commit focused and in the imperative. Pull requests should include a brief summary, linked issue, test evidence (`./gradlew test` output or UI screenshots), and call out configuration or secret changes so reviewers can coordinate updates.
+- Pull request descriptions must be well-defined Markdown with clear sections (summary, changes, tests, and configuration/secret impacts).
 - If work starts on the wrong branch, stash the changes, create the correct branch, re-apply the stash, then commit and open the PR from that branch.
 
 ## Environment & Configuration Tips
