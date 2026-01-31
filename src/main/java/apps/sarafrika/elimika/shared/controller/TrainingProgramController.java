@@ -646,14 +646,14 @@ public class TrainingProgramController {
             case "approve" -> programTrainingApplicationService.approveApplication(programUuid, applicationUuid, payload);
             case "reject" -> programTrainingApplicationService.rejectApplication(programUuid, applicationUuid, payload);
             case "revoke" -> programTrainingApplicationService.revokeApplication(programUuid, applicationUuid, payload);
-            default -> throw new IllegalArgumentException(\"Unsupported action '\" + action + \"'. Allowed values: approve, reject, revoke.\");
+            default -> throw new IllegalArgumentException("Unsupported action '" + action + "'. Allowed values: approve, reject, revoke.");
         };
 
         String message = switch (action.toLowerCase()) {
-            case \"approve\" -> \"Training application approved successfully\";
-            case \"reject\" -> \"Training application rejected successfully\";
-            case \"revoke\" -> \"Training access revoked successfully\";
-            default -> \"Training application updated\";
+            case "approve" -> "Training application approved successfully";
+            case "reject" -> "Training application rejected successfully";
+            case "revoke" -> "Training access revoked successfully";
+            default -> "Training application updated";
         };
 
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(application, message));
