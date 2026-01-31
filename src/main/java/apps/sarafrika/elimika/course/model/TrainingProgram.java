@@ -26,8 +26,8 @@ public class TrainingProgram extends BaseEntity {
     @Column(name = "title")
     private String title;
 
-    @Column(name = "instructor_uuid")
-    private UUID instructorUuid;
+    @Column(name = "course_creator_uuid")
+    private UUID courseCreatorUuid;
 
     @Column(name = "category_uuid")
     private UUID categoryUuid;

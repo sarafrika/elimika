@@ -161,7 +161,7 @@ public class TrainingProgramController {
                     - `status_in=PUBLISHED,ACTIVE` - Published or active programs
                     - `price_lte=500.00` - Programs priced at $500 or less
                     - `price=null` - Free programs
-                    - `instructorUuid=uuid` - Programs by specific instructor
+                    - `courseCreatorUuid=uuid` - Programs by specific course creator
                     - `categoryUuid=uuid` - Programs in specific category
                     - `totalDurationHours_gte=40` - Programs 40+ hours long
                     - `totalDurationHours_between=20,100` - Programs between 20-100 hours
@@ -170,7 +170,7 @@ public class TrainingProgramController {
                     **Advanced Program Queries:**
                     - `status=PUBLISHED&active=true&price_lte=100` - Published, active programs under $100
                     - `title_like=certification&totalDurationHours_gte=50` - Certification programs 50+ hours
-                    - `instructorUuid=uuid&status=PUBLISHED` - Published programs by specific instructor
+                    - `courseCreatorUuid=uuid&status=PUBLISHED` - Published programs by specific course creator
                     
                     For complete operator documentation, see the instructor search endpoint.
                     """
@@ -423,19 +423,19 @@ public class TrainingProgramController {
     }
 
     @Operation(
-            summary = "Get programs by instructor",
-            description = "Retrieves all programs created by a specific instructor."
+            summary = "Get programs by course creator",
+            description = "Retrieves all programs created by a specific course creator."
     )
-    @GetMapping("/instructor/{instructorUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getProgramsByInstructor(
-            @PathVariable UUID instructorUuid,
+    @GetMapping("/creator/{courseCreatorUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getProgramsByCourseCreator(
+            @PathVariable UUID courseCreatorUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
-        Page<TrainingProgramDTO> instructorPrograms = trainingProgramService.search(searchParams, pageable);
+        Map<String, String> searchParams = Map.of("courseCreatorUuid", courseCreatorUuid.toString());
+        Page<TrainingProgramDTO> courseCreatorPrograms = trainingProgramService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
-                .success(PagedDTO.from(instructorPrograms, ServletUriComponentsBuilder
+                .success(PagedDTO.from(courseCreatorPrograms, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
-                        "Instructor programs retrieved successfully"));
+                        "Course creator programs retrieved successfully"));
     }
 
     @Operation(

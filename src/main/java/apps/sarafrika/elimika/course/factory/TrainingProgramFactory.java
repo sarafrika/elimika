@@ -16,7 +16,7 @@ public class TrainingProgramFactory {
         return new TrainingProgramDTO(
                 trainingProgram.getUuid(),
                 trainingProgram.getTitle(),
-                trainingProgram.getInstructorUuid(),
+                trainingProgram.getCourseCreatorUuid(),
                 trainingProgram.getCategoryUuid(),
                 trainingProgram.getDescription(),
                 trainingProgram.getObjectives(),
@@ -43,7 +43,7 @@ public class TrainingProgramFactory {
         TrainingProgram trainingProgram = new TrainingProgram();
         trainingProgram.setUuid(dto.uuid());
         trainingProgram.setTitle(dto.title());
-        trainingProgram.setInstructorUuid(dto.instructorUuid());
+        trainingProgram.setCourseCreatorUuid(dto.courseCreatorUuid());
         trainingProgram.setCategoryUuid(dto.categoryUuid());
         trainingProgram.setDescription(dto.description());
         trainingProgram.setObjectives(dto.objectives());

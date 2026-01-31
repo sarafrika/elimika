@@ -188,12 +188,12 @@ public interface TrainingProgramService {
     List<TrainingProgramDTO> getProgramsByCategory(UUID categoryUuid);
 
     /**
-     * Retrieves training programs by instructor.
+     * Retrieves training programs by course creator.
      *
-     * @param instructorUuid the instructor UUID
-     * @return list of programs by the instructor
+     * @param courseCreatorUuid the course creator UUID
+     * @return list of programs by the course creator
      */
-    List<TrainingProgramDTO> getProgramsByInstructor(UUID instructorUuid);
+    List<TrainingProgramDTO> getProgramsByCourseCreator(UUID courseCreatorUuid);
 
     /**
      * Retrieves programs by type classification.

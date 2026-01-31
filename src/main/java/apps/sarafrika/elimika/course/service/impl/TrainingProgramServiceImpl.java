@@ -116,8 +116,8 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     }
 
     @Transactional(readOnly = true)
-    public List<TrainingProgramDTO> getProgramsByInstructor(UUID instructorUuid) {
-        return trainingProgramRepository.findByInstructorUuid(instructorUuid)
+    public List<TrainingProgramDTO> getProgramsByCourseCreator(UUID courseCreatorUuid) {
+        return trainingProgramRepository.findByCourseCreatorUuid(courseCreatorUuid)
                 .stream()
                 .map(TrainingProgramFactory::toDTO)
                 .collect(Collectors.toList());
@@ -253,8 +253,8 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (dto.title() != null) {
             existingProgram.setTitle(dto.title());
         }
-        if (dto.instructorUuid() != null) {
-            existingProgram.setInstructorUuid(dto.instructorUuid());
+        if (dto.courseCreatorUuid() != null) {
+            existingProgram.setCourseCreatorUuid(dto.courseCreatorUuid());
         }
         if (dto.categoryUuid() != null) {
             existingProgram.setCategoryUuid(dto.categoryUuid());

@@ -26,7 +26,7 @@ import java.util.UUID;
         {
             "uuid": "t1r2a3i4-5n6i-7n8g-9p10-abcdefghijkl",
             "title": "Complete Java Development Masterclass",
-            "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
+            "course_creator_uuid": "c1r2e3a4-5t6o-7r8u-9u10-abcdefghijkl",
             "category_uuid": "c1a2t3e4-5g6o-7r8y-9a10-abcdefghijkl",
             "description": "Comprehensive training program covering Java from basics to advanced enterprise development",
             "objectives": "Master Java programming, frameworks, and enterprise development practices",
@@ -70,13 +70,13 @@ public record TrainingProgramDTO(
         String title,
 
         @Schema(
-                description = "**[REQUIRED]** Reference to the instructor UUID who created and manages this program.",
-                example = "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
+                description = "**[REQUIRED]** Reference to the course creator UUID who created and manages this program.",
+                example = "c1r2e3a4-5t6o-7r8u-9u10-abcdefghijkl",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotNull(message = "Instructor UUID is required")
-        @JsonProperty("instructor_uuid")
-        UUID instructorUuid,
+        @NotNull(message = "Course creator UUID is required")
+        @JsonProperty("course_creator_uuid")
+        UUID courseCreatorUuid,
 
         @Schema(
                 description = "**[OPTIONAL]** Reference to the category UUID for program organization and discovery.",
