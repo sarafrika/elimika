@@ -1,3 +1,20 @@
+# [2.61.0](https://github.com/sarafrika/elimika/compare/v2.60.0...v2.61.0) (2026-01-31)
+
+
+### Bug Fixes
+
+* add training program controller status import ([a764b60](https://github.com/sarafrika/elimika/commit/a764b60e400fe39089272e3f97e8f2619b21fb16))
+* correct training program application messages ([e7f30a1](https://github.com/sarafrika/elimika/commit/e7f30a1800a5b3e16cf1e51b4dcabfc8e7bb91e1))
+* skip invalid student or course references in course enrollment backfill ([87da858](https://github.com/sarafrika/elimika/commit/87da858f1631de494c0c3db1fd6621792c94a7d1))
+
+
+### Features
+
+* add training program delivery applications and restrict creation ([620cc3c](https://github.com/sarafrika/elimika/commit/620cc3c061c829323ed4729aa27ab8e674f88c49))
+* add training program delivery applications and restrict creation ([f30484e](https://github.com/sarafrika/elimika/commit/f30484e7ef5a31276286cc7413bedd85f337a4e8))
+* align training program ownership with course creators ([c7343e5](https://github.com/sarafrika/elimika/commit/c7343e535c5f31f86edcb4a7f2c138a45112ad09))
+* align training program ownership with course creators ([785bf78](https://github.com/sarafrika/elimika/commit/785bf78b38307fa7717b0a1fd53f0a210ed883cf))
+
 # [2.60.0](https://github.com/sarafrika/elimika/compare/v2.59.0...v2.60.0) (2026-01-30)
 
 
