@@ -16,11 +16,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -39,6 +42,7 @@ public class TrainingProgramController {
     private final ProgramEnrollmentService programEnrollmentService;
     private final ProgramRequirementService programRequirementService;
     private final CertificateService certificateService;
+    private final ProgramTrainingApplicationService programTrainingApplicationService;
 
     // ===== PROGRAM BASIC OPERATIONS =====
 
@@ -51,6 +55,7 @@ public class TrainingProgramController {
                     @ApiResponse(responseCode = "400", description = "Invalid request data")
             }
     )
+    @PreAuthorize("@domainSecurityService.isCourseCreator()")
     @PostMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> createTrainingProgram(
             @Valid @RequestBody TrainingProgramDTO programDTO) {
@@ -535,5 +540,122 @@ public class TrainingProgramController {
                 .success(PagedDTO.from(requirements, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Program requirements search completed successfully"));
+    }
+
+    // ===== PROGRAM TRAINING APPLICATIONS =====
+
+    @Operation(
+            summary = "Submit program training application",
+            description = """
+                    Allows an instructor or organisation to apply for permission to deliver the specified training program.
+
+                    **Application Workflow:**
+                    - Applicants submit once per program. Rejected applications can be resubmitted, which reopens the request.
+                    - Duplicate pending or approved submissions are rejected with clear error messages. Revoked applicants must resubmit to regain access.
+                    - Program creators review applications using the approval endpoints below.
+                    """
+    )
+    @PostMapping("/{programUuid}/training-applications")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> submitProgramTrainingApplication(
+            @PathVariable UUID programUuid,
+            @Valid @RequestBody ProgramTrainingApplicationRequest request) {
+        ProgramTrainingApplicationDTO application = programTrainingApplicationService.submitApplication(programUuid, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(application, "Training application submitted successfully"));
+    }
+
+    @Operation(
+            summary = "List program training applications",
+            description = """
+                    Retrieves applications for a program. Optionally filter by status using `status=pending|approved|rejected|revoked`.
+                    """
+    )
+    @GetMapping("/{programUuid}/training-applications")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<ProgramTrainingApplicationDTO>>> listProgramTrainingApplications(
+            @PathVariable UUID programUuid,
+            @RequestParam(value = "status", required = false) String status,
+            Pageable pageable) {
+
+        Optional<CourseTrainingApplicationStatus> statusFilter = Optional.ofNullable(status)
+                .filter(s -> !s.isBlank())
+                .map(CourseTrainingApplicationStatus::fromValue);
+
+        Map<String, String> filters = new HashMap<>();
+        filters.put("programUuid", programUuid.toString());
+        statusFilter.ifPresent(applicationStatus -> filters.put("status", applicationStatus.getValue()));
+
+        Page<ProgramTrainingApplicationDTO> applications = programTrainingApplicationService.search(filters, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(applications, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Training applications retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Search program training applications",
+            description = """
+                    Advanced search for training applications using flexible operators on any DTO field.
+                    Supports filters such as `status`, `applicantType`, `programUuid`, `applicantUuid`,
+                    `createdDate_between`, and more.
+                    """
+    )
+    @GetMapping("/training-applications/search")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<ProgramTrainingApplicationDTO>>> searchProgramTrainingApplications(
+            @RequestParam Map<String, String> searchParams,
+            Pageable pageable) {
+
+        Page<ProgramTrainingApplicationDTO> applications = programTrainingApplicationService.search(searchParams, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(applications, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Training application search completed successfully"));
+    }
+
+    @Operation(
+            summary = "Get program training application",
+            description = "Retrieves a specific training application for a program."
+    )
+    @GetMapping("/{programUuid}/training-applications/{applicationUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> getProgramTrainingApplication(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid) {
+        ProgramTrainingApplicationDTO application = programTrainingApplicationService.getApplication(programUuid, applicationUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(application, "Training application retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Decide on program training application",
+            description = """
+                    Applies a decision to an instructor or organisation application to deliver the training program.
+                    Use the `action` query parameter with values `approve`, `reject`, or `revoke`.
+                    """
+    )
+    @PostMapping("/{programUuid}/training-applications/{applicationUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> decideOnProgramTrainingApplication(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid,
+            @RequestParam("action") String action,
+            @Valid @RequestBody(required = false) ProgramTrainingApplicationDecisionRequest decisionRequest) {
+
+        ProgramTrainingApplicationDecisionRequest payload =
+                decisionRequest != null ? decisionRequest : new ProgramTrainingApplicationDecisionRequest(null);
+
+        ProgramTrainingApplicationDTO application = switch (action.toLowerCase()) {
+            case "approve" -> programTrainingApplicationService.approveApplication(programUuid, applicationUuid, payload);
+            case "reject" -> programTrainingApplicationService.rejectApplication(programUuid, applicationUuid, payload);
+            case "revoke" -> programTrainingApplicationService.revokeApplication(programUuid, applicationUuid, payload);
+            default -> throw new IllegalArgumentException(\"Unsupported action '\" + action + \"'. Allowed values: approve, reject, revoke.\");
+        };
+
+        String message = switch (action.toLowerCase()) {
+            case \"approve\" -> \"Training application approved successfully\";
+            case \"reject\" -> \"Training application rejected successfully\";
+            case \"revoke\" -> \"Training access revoked successfully\";
+            default -> \"Training application updated\";
+        };
+
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(application, message));
     }
 }
