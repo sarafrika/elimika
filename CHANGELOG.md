@@ -1,3 +1,23 @@
+# [2.60.0](https://github.com/sarafrika/elimika/compare/v2.59.0...v2.60.0) (2026-01-30)
+
+
+### Bug Fixes
+
+* normalize order receipt createdAt before template rendering ([3e6000a](https://github.com/sarafrika/elimika/commit/3e6000a812742d87c38299034c0a51859db90bb4))
+* preserve createdAt string when parsing fails ([62bb79e](https://github.com/sarafrika/elimika/commit/62bb79e6c985f3dd16055c83cdf44d52d97b262d))
+* resolve createdAt normalization compile error ([eae89d9](https://github.com/sarafrika/elimika/commit/eae89d9684abac198ab3ccbeeecdc267c49d27df))
+* skip invalid student or course references in course enrollment backfill ([e7d04da](https://github.com/sarafrika/elimika/commit/e7d04dae6b2ee80f514f34435b4306470fe308f2))
+
+
+### Features
+
+* add assignment attachments and submission type validation ([d9f49d6](https://github.com/sarafrika/elimika/commit/d9f49d646b23cb1f671c0ff8fa668b3191236666))
+* add dev profile to allow free enrollment ([b85d85a](https://github.com/sarafrika/elimika/commit/b85d85a555c57cfa8ec410944a72a36ff75cb8f5))
+* add enrolled-only course reviews with public read access ([2fa3b8a](https://github.com/sarafrika/elimika/commit/2fa3b8a09e733ef99ceaa56101f2da614b7ceca0))
+* add field of study to education records ([2ffe63b](https://github.com/sarafrika/elimika/commit/2ffe63baacb4048e861ffb0da24a1b8f46e92af0))
+* inherit course enrollments from class and program enrollments ([d52473f](https://github.com/sarafrika/elimika/commit/d52473f4241fc96e17fc0041c748231ae1993e91))
+* sync course enrollments with class and program status changes ([fffe697](https://github.com/sarafrika/elimika/commit/fffe69749aa10bd0f1418e6af912d06dd99badd0))
+
 # [2.59.0](https://github.com/sarafrika/elimika/compare/v2.58.0...v2.59.0) (2026-01-27)
 
 
