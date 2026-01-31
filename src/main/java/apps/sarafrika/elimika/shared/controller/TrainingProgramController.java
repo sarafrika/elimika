@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.controller;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
+import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -541,7 +542,6 @@ public class TrainingProgramController {
                                 .fromCurrentRequestUri().build().toString()),
                         "Program requirements search completed successfully"));
     }
-
     // ===== PROGRAM TRAINING APPLICATIONS =====
 
     @Operation(
