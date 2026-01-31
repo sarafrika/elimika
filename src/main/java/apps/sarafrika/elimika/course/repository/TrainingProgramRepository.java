@@ -24,7 +24,7 @@ public interface TrainingProgramRepository extends JpaRepository<TrainingProgram
 
     List<TrainingProgram> findByCategoryUuid(UUID categoryUuid);
 
-    List<TrainingProgram> findByInstructorUuid(UUID instructorUuid);
+    List<TrainingProgram> findByCourseCreatorUuid(UUID courseCreatorUuid);
 
     List<TrainingProgram> findByStatus(ContentStatus status);
 
