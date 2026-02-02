@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorEducationDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorExperienceDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorProfessionalMembershipDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorSkillDTO;
+import apps.sarafrika.elimika.coursecreator.internal.CourseCreatorDocumentValidationService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorCertificationService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorDocumentService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorEducationService;
@@ -17,7 +18,6 @@ import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
-import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -64,6 +64,7 @@ public class CourseCreatorController {
     private final CourseCreatorDocumentService courseCreatorDocumentService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
+    private final CourseCreatorDocumentValidationService courseCreatorDocumentValidationService;
 
     // ===== COURSE CREATOR BASIC OPERATIONS =====
 
@@ -559,10 +560,12 @@ public class CourseCreatorController {
     @PostMapping(value = "/{courseCreatorUuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> uploadCourseCreatorDocument(
             @PathVariable UUID courseCreatorUuid,
-            @RequestParam("file") @PdfFile MultipartFile file,
+            @RequestParam("file") MultipartFile file,
             @RequestParam("document_type_uuid") UUID documentTypeUuid,
             @RequestParam(value = "education_uuid", required = false) UUID educationUuid
     ) {
+        courseCreatorDocumentValidationService.validateDocument(file);
+
         String folder = storageProperties.getFolders().getProfileDocuments()
                 + "/course-creators/" + courseCreatorUuid;
         String storedFileName = storageService.store(file, folder);

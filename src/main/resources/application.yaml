@@ -5,6 +5,12 @@ spring:
   profiles:
     active: prod
 
+  # Multipart file upload configuration
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+
   modulith:
     detection-strategy: explicitly-annotated
     republish-outstanding-events-on-restart: true

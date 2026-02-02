@@ -2,11 +2,11 @@ package apps.sarafrika.elimika.instructor.controller;
 
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.instructor.dto.*;
+import apps.sarafrika.elimika.instructor.internal.InstructorDocumentValidationService;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
-import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -52,6 +52,7 @@ public class InstructorController {
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final InstructorReviewService instructorReviewService;
+    private final InstructorDocumentValidationService instructorDocumentValidationService;
 
     // ===== INSTRUCTOR BASIC OPERATIONS =====
 
@@ -235,7 +236,7 @@ public class InstructorController {
     @PostMapping(value = "/{instructorUuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> uploadInstructorDocument(
             @PathVariable UUID instructorUuid,
-            @RequestParam("file") @PdfFile MultipartFile file,
+            @RequestParam("file") MultipartFile file,
             @RequestParam("document_type_uuid") UUID documentTypeUuid,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "description", required = false) String description,
@@ -245,6 +246,7 @@ public class InstructorController {
             @RequestParam(value = "expiry_date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
     ) {
+        instructorDocumentValidationService.validateDocument(file);
 
         String folder = storageProperties.getFolders().getProfileDocuments()
                 + "/instructors/" + instructorUuid;
