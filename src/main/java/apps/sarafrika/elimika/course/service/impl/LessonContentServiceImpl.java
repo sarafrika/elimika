@@ -38,6 +38,9 @@ public class LessonContentServiceImpl implements LessonContentService {
         if (lessonContent.getIsRequired() == null) {
             lessonContent.setIsRequired(false);
         }
+        if (lessonContent.getDisplayOrder() == null) {
+            lessonContent.setDisplayOrder(getNextDisplayOrder(lessonContent.getLessonUuid()));
+        }
 
         LessonContent savedLessonContent = lessonContentRepository.save(lessonContent);
         return LessonContentFactory.toDTO(savedLessonContent);
