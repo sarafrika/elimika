@@ -1,3 +1,15 @@
+# [2.62.0](https://github.com/sarafrika/elimika/compare/v2.61.0...v2.62.0) (2026-02-02)
+
+
+### Bug Fixes
+
+* auto-assign display_order when creating lesson content ([4b2de7b](https://github.com/sarafrika/elimika/commit/4b2de7b61800c21c122d907a3055eea7d5caa4a0))
+
+
+### Features
+
+* add file upload size validation and Spring Boot multipart config ([d02c1f0](https://github.com/sarafrika/elimika/commit/d02c1f0f9c6ed2567167215d6c8d5b9f4549a2c1))
+
 # [2.61.0](https://github.com/sarafrika/elimika/compare/v2.60.0...v2.61.0) (2026-01-31)
 
 
