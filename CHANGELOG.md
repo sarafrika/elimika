@@ -1,3 +1,10 @@
+# [2.63.0](https://github.com/sarafrika/elimika/compare/v2.62.0...v2.63.0) (2026-02-10)
+
+
+### Features
+
+* support class definitions linked to training programs as first-class learning context ([110f54a](https://github.com/sarafrika/elimika/commit/110f54a2ba134a5815c7090798152536d382e43c))
+
 # [2.62.0](https://github.com/sarafrika/elimika/compare/v2.61.0...v2.62.0) (2026-02-02)
 
 
