@@ -40,6 +40,7 @@ import java.util.UUID;
             "default_instructor_uuid": "inst1234-5678-90ab-cdef-123456789abc",
             "organisation_uuid": "org12345-6789-abcd-ef01-234567890abc",
             "course_uuid": "course123-4567-89ab-cdef-123456789abc",
+            "program_uuid": null,
             "training_fee": 240.00,
             "class_visibility": "PUBLIC",
             "session_format": "GROUP",
@@ -140,7 +141,16 @@ public record ClassDefinitionDTO(
         UUID courseUuid,
 
         @Schema(
-                description = "**[OPTIONAL]** Training fee charged for sessions created from this class definition. Must meet the course minimum training fee when a course is linked.",
+                description = "**[OPTIONAL]** Reference to the training program UUID if this class is part of a training programme.",
+                example = "program123-4567-89ab-cdef-123456789abc",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("program_uuid")
+        UUID programUuid,
+
+        @Schema(
+                description = "**[OPTIONAL]** Training fee charged for sessions created from this class definition. Must match the approved training rate for linked courses or training programs.",
                 example = "220.00",
                 minimum = "0",
                 nullable = true,
@@ -375,7 +385,7 @@ public record ClassDefinitionDTO(
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public boolean isStandalone() {
-        return courseUuid == null;
+        return courseUuid == null && programUuid == null;
     }
 
     /**

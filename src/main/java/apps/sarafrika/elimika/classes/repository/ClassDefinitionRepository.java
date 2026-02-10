@@ -17,6 +17,8 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
 
     List<ClassDefinition> findByCourseUuid(UUID courseUuid);
 
+    List<ClassDefinition> findByProgramUuid(UUID programUuid);
+
     List<ClassDefinition> findByDefaultInstructorUuid(UUID instructorUuid);
 
     List<ClassDefinition> findByOrganisationUuid(UUID organisationUuid);
@@ -25,6 +27,9 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
 
     @Query("SELECT cd FROM ClassDefinition cd WHERE cd.courseUuid = :courseUuid AND cd.isActive = true")
     List<ClassDefinition> findActiveClassesForCourse(@Param("courseUuid") UUID courseUuid);
+
+    @Query("SELECT cd FROM ClassDefinition cd WHERE cd.programUuid = :programUuid AND cd.isActive = true")
+    List<ClassDefinition> findActiveClassesForProgram(@Param("programUuid") UUID programUuid);
 
     @Query("SELECT cd FROM ClassDefinition cd WHERE cd.defaultInstructorUuid = :instructorUuid AND cd.isActive = true")
     List<ClassDefinition> findActiveClassesForInstructor(@Param("instructorUuid") UUID instructorUuid);

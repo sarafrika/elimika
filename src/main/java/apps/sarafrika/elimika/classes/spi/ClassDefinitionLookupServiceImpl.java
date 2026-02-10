@@ -27,6 +27,7 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
         return new ClassDefinitionSnapshot(
                 entity.getUuid(),
                 entity.getCourseUuid(),
+                entity.getProgramUuid(),
                 entity.getTitle(),
                 entity.getDescription(),
                 entity.getTrainingFee(),

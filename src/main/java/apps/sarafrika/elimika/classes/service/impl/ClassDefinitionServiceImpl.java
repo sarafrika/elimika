@@ -54,6 +54,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final ObjectProvider<TimetableService> timetableServiceProvider;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
+    private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
     private static final int MAX_SCHEDULING_ITERATIONS = 2000;
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
 
@@ -82,6 +83,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
 
         validateLocationRequirements(entity);
+        validateLearningContext(entity);
         validateTrainingApprovals(entity);
         validateTrainingFee(entity);
 
@@ -555,9 +557,11 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         
         ClassDefinition existingEntity = classDefinitionRepository.findByUuid(definitionUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
-        
+
         ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
+        applyLearningContextOverrides(existingEntity, classDefinitionDTO);
         validateLocationRequirements(existingEntity);
+        validateLearningContext(existingEntity);
         validateTrainingApprovals(existingEntity);
         validateTrainingFee(existingEntity);
         
@@ -625,6 +629,30 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Finding active classes for course UUID: {}", courseUuid);
 
         return classDefinitionRepository.findActiveClassesForCourse(courseUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionResponseDTO> findClassesForProgram(UUID programUuid) {
+        log.debug("Finding classes for program UUID: {}", programUuid);
+
+        return classDefinitionRepository.findByProgramUuid(programUuid)
+                .stream()
+                .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionResponseDTO> findActiveClassesForProgram(UUID programUuid) {
+        log.debug("Finding active classes for program UUID: {}", programUuid);
+
+        return classDefinitionRepository.findActiveClassesForProgram(programUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
                 .map(this::buildResponse)
@@ -781,29 +809,89 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return Optional.empty();
     }
 
+    private Optional<BigDecimal> resolveProgramApprovedRate(ClassDefinition entity) {
+        UUID programUuid = entity.getProgramUuid();
+        if (programUuid == null) {
+            return Optional.empty();
+        }
+
+        SessionFormat sessionFormat = entity.getSessionFormat();
+        LocationType locationType = entity.getLocationType();
+
+        if (entity.getDefaultInstructorUuid() != null) {
+            Optional<BigDecimal> instructorRate = courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                    programUuid,
+                    entity.getDefaultInstructorUuid(),
+                    sessionFormat,
+                    locationType
+            );
+            if (instructorRate.isPresent()) {
+                return instructorRate;
+            }
+        }
+
+        if (entity.getOrganisationUuid() != null) {
+            return courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                    programUuid,
+                    entity.getOrganisationUuid(),
+                    sessionFormat,
+                    locationType
+            );
+        }
+
+        return Optional.empty();
+    }
+
     private void validateTrainingFee(ClassDefinition entity) {
-        if (entity.getCourseUuid() == null) {
+        UUID courseUuid = entity.getCourseUuid();
+        UUID programUuid = entity.getProgramUuid();
+        if (courseUuid == null && programUuid == null) {
             return;
         }
 
-        // Verify course exists and get minimum training fee via SPI
-        BigDecimal minimumTrainingFee = courseInfoService.getMinimumTrainingFee(entity.getCourseUuid())
-                .orElseThrow(() -> new ResourceNotFoundException(String.format("Course with UUID %s not found", entity.getCourseUuid())));
-
         if (entity.getClassVisibility() == null) {
-            throw new IllegalArgumentException("Class visibility is required when linking a class definition to a course");
+            throw new IllegalArgumentException("Class visibility is required when linking a class definition to a course or training program");
         }
         if (entity.getSessionFormat() == null) {
-            throw new IllegalArgumentException("Session format is required when linking a class definition to a course");
+            throw new IllegalArgumentException("Session format is required when linking a class definition to a course or training program");
         }
         if (entity.getLocationType() == null) {
-            throw new IllegalArgumentException("Location type is required when linking a class definition to a course");
+            throw new IllegalArgumentException("Location type is required when linking a class definition to a course or training program");
         }
 
-        BigDecimal resolvedRate = resolveApprovedRate(entity)
+        if (courseUuid != null) {
+            // Verify course exists and get minimum training fee via SPI
+            BigDecimal minimumTrainingFee = courseInfoService.getMinimumTrainingFee(courseUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException(String.format("Course with UUID %s not found", courseUuid)));
+
+            BigDecimal resolvedRate = resolveApprovedRate(entity)
+                    .orElseThrow(() -> new IllegalStateException(String.format(
+                            "No approved rate card found for the selected instructor/organisation on course %s. Submit and approve a training application with rates first.",
+                            courseUuid)));
+
+            if (entity.getTrainingFee() == null) {
+                entity.setTrainingFee(resolvedRate);
+            } else if (entity.getTrainingFee().compareTo(resolvedRate) != 0) {
+                throw new IllegalArgumentException(String.format(
+                        "Training fee %.2f must match the approved rate card amount %.2f for %s %s delivery.",
+                        entity.getTrainingFee(),
+                        resolvedRate,
+                        entity.getSessionFormat(),
+                        entity.getLocationType()));
+            }
+
+            if (entity.getTrainingFee().compareTo(minimumTrainingFee) < 0) {
+                throw new IllegalArgumentException(String.format(
+                        "Training fee %.2f cannot be less than the course minimum training fee %.2f",
+                        entity.getTrainingFee(), minimumTrainingFee));
+            }
+            return;
+        }
+
+        BigDecimal resolvedRate = resolveProgramApprovedRate(entity)
                 .orElseThrow(() -> new IllegalStateException(String.format(
-                        "No approved rate card found for the selected instructor/organisation on course %s. Submit and approve a training application with rates first.",
-                        entity.getCourseUuid())));
+                        "No approved rate card found for the selected instructor/organisation on training program %s. Submit and approve a training application with rates first.",
+                        programUuid)));
 
         if (entity.getTrainingFee() == null) {
             entity.setTrainingFee(resolvedRate);
@@ -815,32 +903,83 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     entity.getSessionFormat(),
                     entity.getLocationType()));
         }
-
-        if (entity.getTrainingFee().compareTo(minimumTrainingFee) < 0) {
-            throw new IllegalArgumentException(String.format(
-                    "Training fee %.2f cannot be less than the course minimum training fee %.2f",
-                    entity.getTrainingFee(), minimumTrainingFee));
-        }
     }
 
     private void validateTrainingApprovals(ClassDefinition entity) {
         UUID courseUuid = entity.getCourseUuid();
-        if (courseUuid == null) {
+        UUID programUuid = entity.getProgramUuid();
+        if (courseUuid == null && programUuid == null) {
             return;
         }
 
         UUID instructorUuid = entity.getDefaultInstructorUuid();
-        if (instructorUuid != null && !courseTrainingApprovalSpi.isInstructorApproved(courseUuid, instructorUuid)) {
+        if (courseUuid != null
+                && instructorUuid != null
+                && !courseTrainingApprovalSpi.isInstructorApproved(courseUuid, instructorUuid)) {
             throw new IllegalStateException(String.format(
                     "Instructor %s is not approved to deliver course %s. Submit a training application and wait for approval before scheduling classes.",
                     instructorUuid, courseUuid));
         }
+        if (programUuid != null
+                && instructorUuid != null
+                && !courseTrainingApprovalSpi.isInstructorApprovedForProgram(programUuid, instructorUuid)) {
+            throw new IllegalStateException(String.format(
+                    "Instructor %s is not approved to deliver training program %s. Submit a training application and wait for approval before scheduling classes.",
+                    instructorUuid, programUuid));
+        }
 
         UUID organisationUuid = entity.getOrganisationUuid();
-        if (organisationUuid != null && !courseTrainingApprovalSpi.isOrganisationApproved(courseUuid, organisationUuid)) {
+        if (courseUuid != null
+                && organisationUuid != null
+                && !courseTrainingApprovalSpi.isOrganisationApproved(courseUuid, organisationUuid)) {
             throw new IllegalStateException(String.format(
                     "Organisation %s is not approved to deliver course %s. Submit a training application and wait for approval before scheduling classes.",
                     organisationUuid, courseUuid));
+        }
+        if (programUuid != null
+                && organisationUuid != null
+                && !courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, organisationUuid)) {
+            throw new IllegalStateException(String.format(
+                    "Organisation %s is not approved to deliver training program %s. Submit a training application and wait for approval before scheduling classes.",
+                    organisationUuid, programUuid));
+        }
+    }
+
+    private void validateLearningContext(ClassDefinition entity) {
+        UUID courseUuid = entity.getCourseUuid();
+        UUID programUuid = entity.getProgramUuid();
+
+        if (courseUuid != null && programUuid != null) {
+            throw new IllegalArgumentException("Class definition can be linked to either a course or a training program, not both.");
+        }
+
+        if (courseUuid != null && !courseInfoService.courseExists(courseUuid)) {
+            throw new ResourceNotFoundException(String.format("Course with UUID %s not found", courseUuid));
+        }
+
+        if (programUuid != null && !courseInfoService.trainingProgramExists(programUuid)) {
+            throw new ResourceNotFoundException(String.format(TRAINING_PROGRAM_NOT_FOUND_TEMPLATE, programUuid));
+        }
+    }
+
+    private void applyLearningContextOverrides(ClassDefinition entity, ClassDefinitionDTO dto) {
+        if (dto == null) {
+            return;
+        }
+
+        if (dto.courseUuid() != null && dto.programUuid() != null) {
+            throw new IllegalArgumentException("Class definition can be linked to either a course or a training program, not both.");
+        }
+
+        if (dto.courseUuid() != null) {
+            entity.setCourseUuid(dto.courseUuid());
+            entity.setProgramUuid(null);
+            return;
+        }
+
+        if (dto.programUuid() != null) {
+            entity.setProgramUuid(dto.programUuid());
+            entity.setCourseUuid(null);
         }
     }
 

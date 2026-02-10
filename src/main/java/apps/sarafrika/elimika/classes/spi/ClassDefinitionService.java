@@ -81,6 +81,22 @@ public interface ClassDefinitionService {
     List<ClassDefinitionResponseDTO> findActiveClassesForCourse(UUID courseUuid);
 
     /**
+     * Retrieves all class definitions for a specific training program.
+     *
+     * @param programUuid The UUID of the training program
+     * @return List of class definitions for the training program (empty list if none found)
+     */
+    List<ClassDefinitionResponseDTO> findClassesForProgram(UUID programUuid);
+
+    /**
+     * Retrieves all active class definitions for a specific training program.
+     *
+     * @param programUuid The UUID of the training program
+     * @return List of active class definitions for the training program (empty list if none found)
+     */
+    List<ClassDefinitionResponseDTO> findActiveClassesForProgram(UUID programUuid);
+
+    /**
      * Retrieves all class definitions for a specific instructor.
      *
      * @param instructorUuid The UUID of the instructor

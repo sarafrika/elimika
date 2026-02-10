@@ -16,6 +16,7 @@ public interface ClassDefinitionLookupService {
                 new ClassDefinitionSnapshot(
                         snapshot.classDefinitionUuid(),
                         null,
+                        snapshot.programUuid(),
                         snapshot.title(),
                         snapshot.description(),
                         snapshot.trainingFee(),
@@ -27,6 +28,7 @@ public interface ClassDefinitionLookupService {
     record ClassDefinitionSnapshot(
             UUID classDefinitionUuid,
             UUID courseUuid,
+            UUID programUuid,
             String title,
             String description,
             java.math.BigDecimal trainingFee,

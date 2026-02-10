@@ -57,6 +57,58 @@ public class ClassDefinitionController {
         }
     }
 
+    @Operation(summary = "Create a new class definition for a training program")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
+    @PostMapping("/program/{programUuid}")
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinitionForProgram(
+            @Parameter(description = "UUID of the training program", required = true)
+            @PathVariable UUID programUuid,
+            @Valid @RequestBody ClassDefinitionDTO request) {
+        log.debug("REST request to create class definition: {} for training program: {}", request.title(), programUuid);
+
+        if (request.courseUuid() != null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(
+                    "course_uuid is not allowed when creating a class under /api/v1/classes/program/{programUuid}"));
+        }
+
+        ClassDefinitionDTO programScopedRequest = new ClassDefinitionDTO(
+                request.uuid(),
+                request.title(),
+                request.description(),
+                request.defaultInstructorUuid(),
+                request.organisationUuid(),
+                null,
+                programUuid,
+                request.trainingFee(),
+                request.classVisibility(),
+                request.sessionFormat(),
+                request.defaultStartTime(),
+                request.defaultEndTime(),
+                request.locationType(),
+                request.locationName(),
+                request.locationLatitude(),
+                request.locationLongitude(),
+                request.maxParticipants(),
+                request.allowWaitlist(),
+                request.isActive(),
+                request.sessionTemplates(),
+                request.createdDate(),
+                request.updatedDate(),
+                request.createdBy(),
+                request.updatedBy()
+        );
+
+        try {
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(programScopedRequest);
+            return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
+        } catch (SchedulingConflictException e) {
+            log.warn("Scheduling conflicts while creating class definition {} for program {}: {}",
+                    request.title(), programUuid, e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        }
+    }
+
     @Operation(summary = "List enrollments for a class definition across all scheduled instances")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully")
     @GetMapping("/{uuid}/enrollments")
@@ -128,6 +180,22 @@ public class ClassDefinitionController {
             ? classDefinitionService.findActiveClassesForCourse(courseUuid)
             : classDefinitionService.findClassesForCourse(courseUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for course retrieved successfully"));
+    }
+
+    @Operation(summary = "Get class definitions for a training program")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
+    @GetMapping("/program/{programUuid}")
+    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForProgram(
+            @Parameter(description = "UUID of the training program", required = true)
+            @PathVariable UUID programUuid,
+            @Parameter(description = "Whether to include only active class definitions")
+            @RequestParam(defaultValue = "false") boolean activeOnly) {
+        log.debug("REST request to get classes for training program: {} (activeOnly: {})", programUuid, activeOnly);
+
+        List<ClassDefinitionResponseDTO> result = activeOnly
+                ? classDefinitionService.findActiveClassesForProgram(programUuid)
+                : classDefinitionService.findClassesForProgram(programUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for training program retrieved successfully"));
     }
 
     @Operation(summary = "Get class definitions for an instructor")

@@ -19,6 +19,7 @@ public class ClassDefinitionFactory {
                 entity.getDefaultInstructorUuid(),
                 entity.getOrganisationUuid(),
                 entity.getCourseUuid(),
+                entity.getProgramUuid(),
                 entity.getTrainingFee(),
                 entity.getClassVisibility(),
                 entity.getSessionFormat(),
@@ -50,6 +51,7 @@ public class ClassDefinitionFactory {
         entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
         entity.setOrganisationUuid(dto.organisationUuid());
         entity.setCourseUuid(dto.courseUuid());
+        entity.setProgramUuid(dto.programUuid());
         entity.setTrainingFee(dto.trainingFee());
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
@@ -84,6 +86,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.courseUuid() != null) {
             entity.setCourseUuid(dto.courseUuid());
+        }
+        if (dto.programUuid() != null) {
+            entity.setProgramUuid(dto.programUuid());
         }
         if (dto.trainingFee() != null) {
             entity.setTrainingFee(dto.trainingFee());

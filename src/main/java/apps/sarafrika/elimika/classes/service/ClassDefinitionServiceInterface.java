@@ -34,6 +34,10 @@ public interface ClassDefinitionServiceInterface {
 
     List<ClassDefinitionResponseDTO> findActiveClassesForCourse(UUID courseUuid);
 
+    List<ClassDefinitionResponseDTO> findClassesForProgram(UUID programUuid);
+
+    List<ClassDefinitionResponseDTO> findActiveClassesForProgram(UUID programUuid);
+
     List<ClassDefinitionResponseDTO> findClassesForInstructor(UUID instructorUuid);
 
     List<ClassDefinitionResponseDTO> findActiveClassesForInstructor(UUID instructorUuid);

@@ -31,6 +31,24 @@ public interface CourseTrainingApprovalSpi {
     boolean isOrganisationApproved(UUID courseUuid, UUID organisationUuid);
 
     /**
+     * Checks if the specified instructor has an approved application to deliver the given training program.
+     *
+     * @param programUuid    UUID of the training program
+     * @param instructorUuid UUID of the instructor
+     * @return true if the instructor is approved to deliver the training program
+     */
+    boolean isInstructorApprovedForProgram(UUID programUuid, UUID instructorUuid);
+
+    /**
+     * Checks if the specified organisation has an approved application to deliver the given training program.
+     *
+     * @param programUuid       UUID of the training program
+     * @param organisationUuid UUID of the organisation
+     * @return true if the organisation is approved to deliver the training program
+     */
+    boolean isOrganisationApprovedForProgram(UUID programUuid, UUID organisationUuid);
+
+    /**
      * Resolves the approved instructor rate for the provided session format and delivery modality pair.
      *
      * @param courseUuid     Course identifier
@@ -57,4 +75,32 @@ public interface CourseTrainingApprovalSpi {
                                                  UUID organisationUuid,
                                                  SessionFormat sessionFormat,
                                                  LocationType locationType);
+
+    /**
+     * Resolves the approved instructor rate for a training program.
+     *
+     * @param programUuid    Training program identifier
+     * @param instructorUuid Instructor identifier
+     * @param sessionFormat  Target session format
+     * @param locationType   Delivery modality
+     * @return Optional containing the matching rate if the instructor is approved on the program
+     */
+    Optional<BigDecimal> resolveInstructorProgramRate(UUID programUuid,
+                                                      UUID instructorUuid,
+                                                      SessionFormat sessionFormat,
+                                                      LocationType locationType);
+
+    /**
+     * Resolves the approved organisation rate for a training program.
+     *
+     * @param programUuid       Training program identifier
+     * @param organisationUuid  Organisation identifier
+     * @param sessionFormat     Target session format
+     * @param locationType      Delivery modality
+     * @return Optional containing the matching rate if the organisation is approved on the program
+     */
+    Optional<BigDecimal> resolveOrganisationProgramRate(UUID programUuid,
+                                                        UUID organisationUuid,
+                                                        SessionFormat sessionFormat,
+                                                        LocationType locationType);
 }

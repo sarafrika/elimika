@@ -1,7 +1,9 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 public class CourseInfoServiceImpl implements CourseInfoService {
 
     private final CourseRepository courseRepository;
+    private final TrainingProgramRepository trainingProgramRepository;
 
     @Override
     public Optional<BigDecimal> getMinimumTrainingFee(UUID courseUuid) {
@@ -70,6 +73,17 @@ public class CourseInfoServiceImpl implements CourseInfoService {
                         Course::getUuid,
                         course -> new RevenueShare(course.getCreatorSharePercentage(), course.getInstructorSharePercentage())
                 ));
+    }
+
+    @Override
+    public boolean trainingProgramExists(UUID programUuid) {
+        return trainingProgramRepository.existsByUuid(programUuid);
+    }
+
+    @Override
+    public Optional<String> getTrainingProgramTitle(UUID programUuid) {
+        return trainingProgramRepository.findByUuid(programUuid)
+                .map(TrainingProgram::getTitle);
     }
 
     @Override

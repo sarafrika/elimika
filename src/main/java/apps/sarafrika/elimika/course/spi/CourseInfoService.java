@@ -68,6 +68,22 @@ public interface CourseInfoService {
     Map<UUID, RevenueShare> getRevenueShares(List<UUID> courseUuids);
 
     /**
+     * Checks if a training program exists.
+     *
+     * @param programUuid The UUID of the training program
+     * @return true if the training program exists, false otherwise
+     */
+    boolean trainingProgramExists(UUID programUuid);
+
+    /**
+     * Gets the training program title.
+     *
+     * @param programUuid The UUID of the training program
+     * @return Optional containing the training program title, or empty if not found
+     */
+    Optional<String> getTrainingProgramTitle(UUID programUuid);
+
+    /**
      * Retrieves course UUIDs owned by a course creator.
      *
      * @param courseCreatorUuid The UUID of the course creator
