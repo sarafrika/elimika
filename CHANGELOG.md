@@ -1,3 +1,11 @@
+# [2.64.0](https://github.com/sarafrika/elimika/compare/v2.63.0...v2.64.0) (2026-02-14)
+
+
+### Features
+
+* add paginated endpoint to list all class definitions ([4208112](https://github.com/sarafrika/elimika/commit/42081129a021e75b7f6b8883fea14819bb8a4600))
+* enforce admin approval before course and program usage ([0f5a74b](https://github.com/sarafrika/elimika/commit/0f5a74b181fefd0d4a66b3177fadc7f9ac46eafb))
+
 # [2.63.0](https://github.com/sarafrika/elimika/compare/v2.62.0...v2.63.0) (2026-02-10)
 
 
