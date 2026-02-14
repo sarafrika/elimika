@@ -45,6 +45,16 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     }
 
     @Override
+    public boolean isCourseApproved(UUID courseUuid) {
+        if (courseUuid == null) {
+            return false;
+        }
+        return courseRepository.findByUuid(courseUuid)
+                .map(course -> Boolean.TRUE.equals(course.getAdminApproved()))
+                .orElse(false);
+    }
+
+    @Override
     public Optional<String> getCourseName(UUID courseUuid) {
         return courseRepository.findByUuid(courseUuid)
                 .map(Course::getName);
@@ -78,6 +88,16 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     @Override
     public boolean trainingProgramExists(UUID programUuid) {
         return trainingProgramRepository.existsByUuid(programUuid);
+    }
+
+    @Override
+    public boolean isTrainingProgramApproved(UUID programUuid) {
+        if (programUuid == null) {
+            return false;
+        }
+        return trainingProgramRepository.findByUuid(programUuid)
+                .map(program -> Boolean.TRUE.equals(program.getAdminApproved()))
+                .orElse(false);
     }
 
     @Override

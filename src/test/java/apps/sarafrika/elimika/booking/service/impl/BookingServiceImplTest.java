@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.booking.repository.BookingRepository;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
@@ -34,6 +35,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -54,6 +56,9 @@ class BookingServiceImplTest {
 
     @Mock
     private TimetableService timetableService;
+
+    @Mock
+    private CourseInfoService courseInfoService;
 
     @InjectMocks
     private BookingServiceImpl bookingService;
@@ -78,6 +83,7 @@ class BookingServiceImplTest {
         );
 
         when(availabilityService.isInstructorAvailable(instructorUuid, start, end)).thenReturn(true);
+        when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(true);
         when(bookingRepository.save(any(Booking.class)))
                 .thenAnswer(invocation -> {
                     Booking booking = invocation.getArgument(0);
@@ -220,6 +226,7 @@ class BookingServiceImplTest {
 
         when(bookingRepository.findByUuid(bookingUuid)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(true);
         when(classDefinitionService.findActiveClassesForCourse(courseUuid)).thenReturn(List.of(new ClassDefinitionResponseDTO(classDefinition)));
         when(timetableService.scheduleClass(any(ScheduleRequestDTO.class))).thenReturn(instance);
         when(timetableService.enrollStudentInInstance(instanceUuid, studentUuid)).thenReturn(enrollment);
@@ -256,5 +263,34 @@ class BookingServiceImplTest {
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).getStatus()).isEqualTo(BookingStatus.EXPIRED);
         assertThat(saved.get(0).getAvailabilityBlockUuid()).isNull();
+    }
+
+    @Test
+    void createBookingRejectsUnapprovedCourse() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        LocalDateTime start = LocalDateTime.of(2024, 10, 15, 9, 0);
+        LocalDateTime end = LocalDateTime.of(2024, 10, 15, 10, 0);
+
+        CreateBookingRequestDTO request = new CreateBookingRequestDTO(
+                studentUuid,
+                courseUuid,
+                instructorUuid,
+                start,
+                end,
+                new BigDecimal("50.00"),
+                "USD",
+                "Test booking"
+        );
+
+        when(availabilityService.isInstructorAvailable(instructorUuid, start, end)).thenReturn(true);
+        when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(false);
+
+        assertThatThrownBy(() -> bookingService.createBooking(request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not approved for bookings");
+
+        verify(bookingRepository, never()).save(any(Booking.class));
     }
 }

@@ -40,6 +40,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
     @Override
     public CourseEnrollmentDTO createCourseEnrollment(CourseEnrollmentDTO courseEnrollmentDTO) {
         Course course = getCourseOrThrow(courseEnrollmentDTO.courseUuid());
+        enforceCourseApproval(course);
         enforceAgeLimits(courseEnrollmentDTO.studentUuid(), course);
 
         CourseEnrollment enrollment = CourseEnrollmentFactory.toEntity(courseEnrollmentDTO);
@@ -82,6 +83,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
 
         updateEnrollmentFields(existingEnrollment, courseEnrollmentDTO);
         Course course = getCourseOrThrow(existingEnrollment.getCourseUuid());
+        enforceCourseApproval(course);
         enforceAgeLimits(existingEnrollment.getStudentUuid(), course);
 
         CourseEnrollment updatedEnrollment = courseEnrollmentRepository.save(existingEnrollment);
@@ -160,6 +162,15 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
                 maxAge,
                 describeCourse(course)
         );
+    }
+
+    private void enforceCourseApproval(Course course) {
+        if (course == null) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(course.getAdminApproved())) {
+            throw new IllegalStateException(describeCourse(course) + " is pending admin approval and cannot accept enrollments.");
+        }
     }
 
     private String describeCourse(Course course) {

@@ -27,6 +27,12 @@ public interface CourseService {
 
     CourseDTO publishCourse(UUID uuid);
 
+    CourseDTO approveCourse(UUID uuid, String reason);
+
+    CourseDTO unapproveCourse(UUID uuid, String reason);
+
+    boolean isCourseApproved(UUID uuid);
+
     double getCourseCompletionRate(UUID uuid);
 
     CourseDTO uploadThumbnail(UUID courseUuid, MultipartFile thumbnail);

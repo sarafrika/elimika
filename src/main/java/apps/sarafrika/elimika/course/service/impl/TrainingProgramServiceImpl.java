@@ -49,6 +49,9 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (program.getActive() == null) {
             program.setActive(false);
         }
+        if (program.getAdminApproved() == null) {
+            program.setAdminApproved(false);
+        }
 
         TrainingProgram savedProgram = trainingProgramRepository.save(program);
         return TrainingProgramFactory.toDTO(savedProgram);
@@ -227,6 +230,43 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
 
         TrainingProgram updatedProgram = trainingProgramRepository.save(program);
         return TrainingProgramFactory.toDTO(updatedProgram);
+    }
+
+    @Override
+    public TrainingProgramDTO approveProgram(UUID programUuid, String reason) {
+        TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
+
+        if (!Boolean.TRUE.equals(program.getAdminApproved())) {
+            program.setAdminApproved(true);
+            trainingProgramRepository.save(program);
+        }
+
+        return TrainingProgramFactory.toDTO(program);
+    }
+
+    @Override
+    public TrainingProgramDTO unapproveProgram(UUID programUuid, String reason) {
+        TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
+
+        if (!Boolean.FALSE.equals(program.getAdminApproved())) {
+            program.setAdminApproved(false);
+            trainingProgramRepository.save(program);
+        }
+
+        return TrainingProgramFactory.toDTO(program);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isProgramApproved(UUID programUuid) {
+        TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
+        return Boolean.TRUE.equals(program.getAdminApproved());
     }
 
     @Transactional(readOnly = true)

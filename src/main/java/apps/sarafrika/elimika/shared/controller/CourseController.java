@@ -1213,7 +1213,7 @@ public class CourseController {
     @GetMapping("/active")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getActiveCourses(
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("active", "true");
+        Map<String, String> searchParams = Map.of("active", "true", "admin_approved", "true");
         Page<CourseDTO> activeCourses = courseService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(activeCourses, ServletUriComponentsBuilder
@@ -1228,7 +1228,7 @@ public class CourseController {
     @GetMapping("/published")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getPublishedCourses(
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("status", "PUBLISHED");
+        Map<String, String> searchParams = Map.of("status", "PUBLISHED", "admin_approved", "true");
         Page<CourseDTO> publishedCourses = courseService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(publishedCourses, ServletUriComponentsBuilder

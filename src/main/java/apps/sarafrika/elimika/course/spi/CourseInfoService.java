@@ -36,6 +36,14 @@ public interface CourseInfoService {
     boolean courseExists(UUID courseUuid);
 
     /**
+     * Checks whether a course has admin approval for learner/instructor usage.
+     *
+     * @param courseUuid The UUID of the course
+     * @return true when the course exists and is admin-approved
+     */
+    boolean isCourseApproved(UUID courseUuid);
+
+    /**
      * Gets the course name.
      *
      * @param courseUuid The UUID of the course
@@ -74,6 +82,14 @@ public interface CourseInfoService {
      * @return true if the training program exists, false otherwise
      */
     boolean trainingProgramExists(UUID programUuid);
+
+    /**
+     * Checks whether a training program has admin approval for learner/instructor usage.
+     *
+     * @param programUuid The UUID of the training program
+     * @return true when the training program exists and is admin-approved
+     */
+    boolean isTrainingProgramApproved(UUID programUuid);
 
     /**
      * Gets the training program title.

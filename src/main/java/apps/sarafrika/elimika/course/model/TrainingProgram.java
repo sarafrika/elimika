@@ -62,4 +62,7 @@ public class TrainingProgram extends BaseEntity {
     @Column(name = "status")
     @Convert(converter = ContentStatusConverter.class)
     private ContentStatus status;
+
+    @Column(name = "admin_approved")
+    private Boolean adminApproved;
 }

@@ -6,7 +6,9 @@ import apps.sarafrika.elimika.course.internal.CourseEnrollmentSyncService;
 import apps.sarafrika.elimika.course.dto.ProgramEnrollmentDTO;
 import apps.sarafrika.elimika.course.factory.ProgramEnrollmentFactory;
 import apps.sarafrika.elimika.course.model.ProgramEnrollment;
+import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
+import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.service.ProgramEnrollmentService;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import lombok.RequiredArgsConstructor;
@@ -29,11 +31,13 @@ public class ProgramEnrollmentServiceImpl implements ProgramEnrollmentService {
     private final ProgramEnrollmentRepository programEnrollmentRepository;
     private final CourseEnrollmentSyncService courseEnrollmentSyncService;
     private final GenericSpecificationBuilder<ProgramEnrollment> specificationBuilder;
+    private final TrainingProgramRepository trainingProgramRepository;
 
     private static final String PROGRAM_ENROLLMENT_NOT_FOUND_TEMPLATE = "Program enrollment with ID %s not found";
 
     @Override
     public ProgramEnrollmentDTO createProgramEnrollment(ProgramEnrollmentDTO programEnrollmentDTO) {
+        enforceProgramApproval(programEnrollmentDTO.programUuid());
         ProgramEnrollment programEnrollment = ProgramEnrollmentFactory.toEntity(programEnrollmentDTO);
 
         // Set defaults based on ProgramEnrollmentDTO business logic
@@ -78,6 +82,7 @@ public class ProgramEnrollmentServiceImpl implements ProgramEnrollmentService {
                         String.format(PROGRAM_ENROLLMENT_NOT_FOUND_TEMPLATE, uuid)));
 
         updateProgramEnrollmentFields(existingProgramEnrollment, programEnrollmentDTO);
+        enforceProgramApproval(existingProgramEnrollment.getProgramUuid());
 
         ProgramEnrollment updatedProgramEnrollment = programEnrollmentRepository.save(existingProgramEnrollment);
         courseEnrollmentSyncService.syncFromProgramEnrollment(
@@ -126,6 +131,21 @@ public class ProgramEnrollmentServiceImpl implements ProgramEnrollmentService {
         }
         if (dto.finalGrade() != null) {
             existingProgramEnrollment.setFinalGrade(dto.finalGrade());
+        }
+    }
+
+    private void enforceProgramApproval(UUID programUuid) {
+        if (programUuid == null) {
+            throw new IllegalArgumentException("Program UUID is required for enrollment");
+        }
+
+        TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Training program with UUID " + programUuid + " not found"));
+
+        if (!Boolean.TRUE.equals(program.getAdminApproved())) {
+            throw new IllegalStateException(
+                    "Training program " + programUuid + " is pending admin approval and cannot accept enrollments.");
         }
     }
 

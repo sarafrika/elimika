@@ -69,6 +69,7 @@ public class CourseFactory {
                 course.getBannerUrl(),
                 course.getStatus(),
                 course.getActive(),
+                course.getAdminApproved(),
                 trainingRequirements,
                 categoryNames,
                 course.getCreatedDate(),
@@ -107,6 +108,7 @@ public class CourseFactory {
         course.setBannerUrl(dto.bannerUrl());
         course.setStatus(dto.status());
         course.setActive(dto.active());
+        course.setAdminApproved(dto.adminApproved());
         course.setCreatedDate(dto.createdDate());
         course.setCreatedBy(dto.createdBy());
         course.setLastModifiedDate(dto.updatedDate());

@@ -52,6 +52,7 @@ import java.util.UUID;
             "banner_url": "https://cdn.sarafrika.com/courses/java-advanced-banner.jpg",
             "status": "PUBLISHED",
             "active": true,
+            "admin_approved": true,
             "training_requirements": [
                 {
                     "uuid": "5a8074cc-8893-497b-8d58-4b151c994a80",
@@ -326,6 +327,15 @@ public record CourseDTO(
         Boolean active,
 
         @Schema(
+                description = "**[READ-ONLY]** Indicates whether the course has been approved by an admin for learner/instructor use.",
+                example = "false",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "admin_approved", access = JsonProperty.Access.READ_ONLY)
+        Boolean adminApproved,
+
+        @Schema(
                 description = "**[READ-ONLY]** Structured resources required to deliver this course during instructor-led training sessions.",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 nullable = true
@@ -553,6 +563,8 @@ public record CourseDTO(
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public boolean acceptsNewEnrollments() {
-        return Boolean.TRUE.equals(active) && (isPublished() || isDraft());
+        return Boolean.TRUE.equals(active)
+                && Boolean.TRUE.equals(adminApproved)
+                && (isPublished() || isDraft());
     }
 }

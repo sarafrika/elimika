@@ -180,6 +180,7 @@ public class TimetableServiceImpl implements TimetableService {
         UUID classDefinitionUuid = request.classDefinitionUuid();
         UUID studentUuid = request.studentUuid();
 
+        enforceClassContentApproval(classDefinitionUuid);
         enforceClassAgeLimits(studentUuid, classDefinitionUuid);
         commercePaywallService.verifyClassEnrollmentAccess(studentUuid, classDefinitionUuid);
 
@@ -265,6 +266,7 @@ public class TimetableServiceImpl implements TimetableService {
 
         UUID classDefinitionUuid = instance.getClassDefinitionUuid();
         if (classDefinitionUuid != null) {
+            enforceClassContentApproval(classDefinitionUuid);
             enforceClassAgeLimits(studentUuid, classDefinitionUuid);
         }
 
@@ -319,6 +321,7 @@ public class TimetableServiceImpl implements TimetableService {
         validateEnrollmentRequest(request);
         UUID classDefinitionUuid = request.classDefinitionUuid();
         UUID studentUuid = request.studentUuid();
+        enforceClassContentApproval(classDefinitionUuid);
 
         List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
         if (scheduledInstances.isEmpty()) {
@@ -809,6 +812,28 @@ public class TimetableServiceImpl implements TimetableService {
                 .filter(name -> !name.isBlank())
                 .map(name -> "course \"" + name.trim() + "\"")
                 .orElse("course " + courseUuid);
+    }
+
+    private void enforceClassContentApproval(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return;
+        }
+
+        ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Class definition with UUID " + classDefinitionUuid + " not found"));
+
+        UUID courseUuid = snapshot.courseUuid();
+        if (courseUuid != null && !courseInfoService.isCourseApproved(courseUuid)) {
+            throw new IllegalStateException(
+                    "Course " + courseUuid + " is not approved for enrollment. Please wait for admin approval.");
+        }
+
+        UUID programUuid = snapshot.programUuid();
+        if (programUuid != null && !courseInfoService.isTrainingProgramApproved(programUuid)) {
+            throw new IllegalStateException(
+                    "Training program " + programUuid + " is not approved for enrollment. Please wait for admin approval.");
+        }
     }
 
     private void publishEnrollmentStatusChanged(Enrollment enrollment, ScheduledInstance instance) {

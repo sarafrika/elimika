@@ -37,6 +37,7 @@ import java.util.UUID;
             "price": 899.99,
             "status": "PUBLISHED",
             "active": true,
+            "admin_approved": true,
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -178,6 +179,15 @@ public record TrainingProgramDTO(
         )
         @JsonProperty("active")
         Boolean active,
+
+        @Schema(
+                description = "**[READ-ONLY]** Indicates whether the training program has been approved by an admin for learner/instructor use.",
+                example = "false",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "admin_approved", access = JsonProperty.Access.READ_ONLY)
+        Boolean adminApproved,
 
         @Schema(
                 description = "**[REQUIRED]** Indicates if the program is published,",

@@ -628,6 +628,11 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findActiveClassesForCourse(UUID courseUuid) {
         log.debug("Finding active classes for course UUID: {}", courseUuid);
 
+        if (!courseInfoService.isCourseApproved(courseUuid)) {
+            log.debug("Course {} is not approved; returning no active classes", courseUuid);
+            return List.of();
+        }
+
         return classDefinitionRepository.findActiveClassesForCourse(courseUuid)
                 .stream()
                 .map(ClassDefinitionFactory::toDTO)
@@ -651,6 +656,11 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     @Transactional(readOnly = true)
     public List<ClassDefinitionResponseDTO> findActiveClassesForProgram(UUID programUuid) {
         log.debug("Finding active classes for program UUID: {}", programUuid);
+
+        if (!courseInfoService.isTrainingProgramApproved(programUuid)) {
+            log.debug("Training program {} is not approved; returning no active classes", programUuid);
+            return List.of();
+        }
 
         return classDefinitionRepository.findActiveClassesForProgram(programUuid)
                 .stream()
@@ -678,6 +688,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)
                 .stream()
+                .filter(this::isLinkedContentApproved)
                 .map(ClassDefinitionFactory::toDTO)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
@@ -712,6 +723,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findByIsActiveTrue()
                 .stream()
+                .filter(this::isLinkedContentApproved)
                 .map(ClassDefinitionFactory::toDTO)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
@@ -967,8 +979,20 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             throw new ResourceNotFoundException(String.format("Course with UUID %s not found", courseUuid));
         }
 
+        if (courseUuid != null && !courseInfoService.isCourseApproved(courseUuid)) {
+            throw new IllegalStateException(String.format(
+                    "Course %s is not approved for delivery. An admin must approve it before instructors or organisations can schedule classes.",
+                    courseUuid));
+        }
+
         if (programUuid != null && !courseInfoService.trainingProgramExists(programUuid)) {
             throw new ResourceNotFoundException(String.format(TRAINING_PROGRAM_NOT_FOUND_TEMPLATE, programUuid));
+        }
+
+        if (programUuid != null && !courseInfoService.isTrainingProgramApproved(programUuid)) {
+            throw new IllegalStateException(String.format(
+                    "Training program %s is not approved for delivery. An admin must approve it before instructors or organisations can schedule classes.",
+                    programUuid));
         }
     }
 
@@ -991,6 +1015,24 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             entity.setProgramUuid(dto.programUuid());
             entity.setCourseUuid(null);
         }
+    }
+
+    private boolean isLinkedContentApproved(ClassDefinition classDefinition) {
+        if (classDefinition == null) {
+            return false;
+        }
+
+        UUID courseUuid = classDefinition.getCourseUuid();
+        if (courseUuid != null) {
+            return courseInfoService.isCourseApproved(courseUuid);
+        }
+
+        UUID programUuid = classDefinition.getProgramUuid();
+        if (programUuid != null) {
+            return courseInfoService.isTrainingProgramApproved(programUuid);
+        }
+
+        return true;
     }
 
     /**

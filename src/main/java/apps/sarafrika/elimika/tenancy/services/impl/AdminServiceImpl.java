@@ -620,6 +620,26 @@ public class AdminServiceImpl implements AdminService {
             };
         }
 
+        if (uri.contains("/admin/courses") && uri.contains("/moderate")) {
+            String action = extractQueryParam(log.getQueryString(), "action");
+            return switch (action != null ? action.toLowerCase() : "moderate") {
+                case "approve" -> "Approved course";
+                case "reject" -> "Rejected course";
+                case "revoke" -> "Revoked course approval";
+                default -> "Moderated course approval";
+            };
+        }
+
+        if (uri.contains("/admin/programs") && uri.contains("/moderate")) {
+            String action = extractQueryParam(log.getQueryString(), "action");
+            return switch (action != null ? action.toLowerCase() : "moderate") {
+                case "approve" -> "Approved training program";
+                case "reject" -> "Rejected training program";
+                case "revoke" -> "Revoked training program approval";
+                default -> "Moderated training program approval";
+            };
+        }
+
         if (uri.contains("/users") && uri.endsWith("/domains") && "POST".equals(method)) {
             return "Assigned admin domain";
         }

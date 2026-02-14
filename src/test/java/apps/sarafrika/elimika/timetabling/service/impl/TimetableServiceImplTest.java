@@ -27,8 +27,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -136,6 +138,34 @@ class TimetableServiceImplTest {
                 .first()
                 .extracting(StudentScheduleDTO::scheduledInstanceUuid)
                 .isEqualTo(activeInstance.getUuid());
+    }
+
+    @Test
+    void enrollStudentRejectsUnapprovedCourseContent() {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
+                .thenReturn(Optional.of(new ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                        classDefinitionUuid,
+                        courseUuid,
+                        null,
+                        "Sample Class",
+                        null,
+                        null,
+                        null,
+                        20,
+                        true
+                )));
+        when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(false);
+
+        assertThatThrownBy(() -> timetableService.enrollStudent(
+                new apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO(classDefinitionUuid, studentUuid)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not approved for enrollment");
+
+        verifyNoInteractions(commercePaywallService);
     }
 
     private ScheduledInstance buildScheduledInstance(UUID instructorUuid, SchedulingStatus status) {

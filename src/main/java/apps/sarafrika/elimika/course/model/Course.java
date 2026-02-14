@@ -86,6 +86,9 @@ public class Course extends BaseEntity {
     @Column(name = "active")
     private Boolean active;
 
+    @Column(name = "admin_approved")
+    private Boolean adminApproved;
+
     // Many-to-many relationship with categories through junction table
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<CourseCategoryMapping> categoryMappings = new HashSet<>();

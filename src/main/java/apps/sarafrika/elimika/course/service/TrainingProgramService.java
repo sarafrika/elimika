@@ -85,6 +85,12 @@ public interface TrainingProgramService {
      */
     TrainingProgramDTO publishProgram(UUID programUuid);
 
+    TrainingProgramDTO approveProgram(UUID programUuid, String reason);
+
+    TrainingProgramDTO unapproveProgram(UUID programUuid, String reason);
+
+    boolean isProgramApproved(UUID programUuid);
+
     /**
      * Checks if a program is ready for publishing.
      * Validates that program has title, description, and at least one course.

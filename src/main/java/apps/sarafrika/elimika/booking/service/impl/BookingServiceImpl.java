@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.booking.spi.BookingService;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
@@ -47,6 +48,7 @@ public class BookingServiceImpl implements BookingService {
     private final PaymentGatewayClient paymentGatewayClient;
     private final ClassDefinitionService classDefinitionService;
     private final TimetableService timetableService;
+    private final CourseInfoService courseInfoService;
 
     @Override
     public BookingResponseDTO createBooking(CreateBookingRequestDTO request) {
@@ -55,6 +57,8 @@ public class BookingServiceImpl implements BookingService {
         if (!availabilityService.isInstructorAvailable(request.instructorUuid(), request.startTime(), request.endTime())) {
             throw new IllegalStateException("Instructor is not available for the requested time range.");
         }
+
+        enforceCourseApproval(request.courseUuid());
 
         Booking booking = new Booking();
         booking.setStudentUuid(request.studentUuid());
@@ -329,6 +333,8 @@ public class BookingServiceImpl implements BookingService {
             return;
         }
 
+        enforceCourseApproval(booking.getCourseUuid());
+
         if (booking.getScheduledInstanceUuid() == null) {
             ClassDefinitionDTO classDefinition = resolveClassDefinition(booking);
             ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
@@ -381,5 +387,15 @@ public class BookingServiceImpl implements BookingService {
         throw new IllegalStateException(
                 "Multiple active class definitions found for course " + booking.getCourseUuid()
                         + " without a matching instructor " + booking.getInstructorUuid());
+    }
+
+    private void enforceCourseApproval(UUID courseUuid) {
+        if (courseUuid == null) {
+            return;
+        }
+        if (!courseInfoService.isCourseApproved(courseUuid)) {
+            throw new IllegalStateException(
+                    "Course " + courseUuid + " is not approved for bookings. Please wait for admin approval.");
+        }
     }
 }

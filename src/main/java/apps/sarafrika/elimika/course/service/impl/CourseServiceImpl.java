@@ -70,6 +70,9 @@ public class CourseServiceImpl implements CourseService {
         if (course.getActive() == null) {
             course.setActive(false); // Only published courses can be active
         }
+        if (course.getAdminApproved() == null) {
+            course.setAdminApproved(false);
+        }
         if (course.getMinimumTrainingFee() == null) {
             course.setMinimumTrainingFee(course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO);
         }
@@ -201,6 +204,49 @@ public class CourseServiceImpl implements CourseService {
         log.info("Successfully published course: {}", uuid);
 
         return getCourseByUuid(uuid);
+    }
+
+    @Override
+    public CourseDTO approveCourse(UUID uuid, String reason) {
+        log.debug("Approving course {} with reason {}", uuid, reason);
+
+        Course course = courseRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+
+        if (!Boolean.TRUE.equals(course.getAdminApproved())) {
+            course.setAdminApproved(true);
+            courseRepository.save(course);
+            log.info("Approved course {} for reason {}", uuid, reason);
+        }
+
+        return getCourseByUuid(uuid);
+    }
+
+    @Override
+    public CourseDTO unapproveCourse(UUID uuid, String reason) {
+        log.debug("Removing approval from course {} with reason {}", uuid, reason);
+
+        Course course = courseRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+
+        if (!Boolean.FALSE.equals(course.getAdminApproved())) {
+            course.setAdminApproved(false);
+            courseRepository.save(course);
+            log.info("Removed course approval {} for reason {}", uuid, reason);
+        }
+
+        return getCourseByUuid(uuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isCourseApproved(UUID uuid) {
+        Course course = courseRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+        return Boolean.TRUE.equals(course.getAdminApproved());
     }
 
     @Override
