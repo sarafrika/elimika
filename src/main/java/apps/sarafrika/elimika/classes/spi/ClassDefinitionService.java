@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.classes.spi;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -122,6 +124,14 @@ public interface ClassDefinitionService {
      * @throws IllegalArgumentException if the UUID is null or invalid
      */
     List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid);
+
+    /**
+     * Retrieves all class definitions regardless of active status.
+     *
+     * @param pageable Pagination information
+     * @return Paged class definitions (empty page if none found)
+     */
+    Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable);
 
     /**
      * Retrieves all active class definitions.

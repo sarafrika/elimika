@@ -44,6 +44,8 @@ public interface ClassDefinitionServiceInterface {
 
     List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid);
 
+    Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable);
+
     List<ClassDefinitionResponseDTO> findAllActiveClasses();
 
     Page<ScheduledInstanceDTO> getClassSchedule(UUID classDefinitionUuid, Pageable pageable);

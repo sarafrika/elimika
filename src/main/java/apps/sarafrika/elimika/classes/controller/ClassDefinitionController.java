@@ -226,6 +226,19 @@ public class ClassDefinitionController {
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for organisation retrieved successfully"));
     }
 
+    @Operation(summary = "Get all class definitions")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
+    @GetMapping
+    public ResponseEntity<ApiResponse<PagedDTO<ClassDefinitionResponseDTO>>> getAllClassDefinitions(
+            Pageable pageable) {
+        log.debug("REST request to get all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
+
+        Page<ClassDefinitionResponseDTO> result = classDefinitionService.findAllClasses(pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(result, baseUrl),
+                "All class definitions retrieved successfully"));
+    }
+
     @Operation(summary = "Get all active class definitions")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active class definitions retrieved successfully")
     @GetMapping("/active")

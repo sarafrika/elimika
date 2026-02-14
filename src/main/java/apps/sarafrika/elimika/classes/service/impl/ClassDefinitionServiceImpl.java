@@ -697,6 +697,16 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     @Override
     @Transactional(readOnly = true)
+    public Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable) {
+        log.debug("Finding all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
+
+        return classDefinitionRepository.findAll(pageable)
+                .map(ClassDefinitionFactory::toDTO)
+                .map(this::buildResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ClassDefinitionResponseDTO> findAllActiveClasses() {
         log.debug("Finding all active classes");
 
