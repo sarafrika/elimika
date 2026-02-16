@@ -55,8 +55,19 @@ public class InstructorDocumentFactory {
         document.setExperienceUuid(dto.experienceUuid());
         document.setMembershipUuid(dto.membershipUuid());
         document.setOriginalFilename(dto.originalFilename());
+        document.setStoredFilename(dto.storedFilename());
+        document.setFilePath(dto.filePath());
+        document.setFileSizeBytes(dto.fileSizeBytes());
+        document.setMimeType(dto.mimeType());
+        document.setFileHash(dto.fileHash());
         document.setTitle(dto.title());
         document.setDescription(dto.description());
+        document.setUploadDate(dto.uploadDate());
+        document.setIsVerified(dto.isVerified());
+        document.setVerifiedBy(dto.verifiedBy());
+        document.setVerifiedAt(dto.verifiedAt());
+        document.setVerificationNotes(dto.verificationNotes());
+        document.setStatus(dto.status());
         document.setExpiryDate(dto.expiryDate());
         return document;
     }
