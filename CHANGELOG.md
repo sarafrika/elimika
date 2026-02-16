@@ -1,3 +1,15 @@
+# [2.65.0](https://github.com/sarafrika/elimika/compare/v2.64.0...v2.65.0) (2026-02-16)
+
+
+### Bug Fixes
+
+* persist instructor document upload metadata during create mapping ([7309ae5](https://github.com/sarafrika/elimika/commit/7309ae5ca24a2f235bf918ba5eadd5038ef7a5ad))
+
+
+### Features
+
+* add program-aware commerce catalogue provisioning and lookup ([fa1449e](https://github.com/sarafrika/elimika/commit/fa1449e2e9d481c5bb1c25b7a2169097c213d99a))
+
 # [2.64.0](https://github.com/sarafrika/elimika/compare/v2.63.0...v2.64.0) (2026-02-14)
 
 
