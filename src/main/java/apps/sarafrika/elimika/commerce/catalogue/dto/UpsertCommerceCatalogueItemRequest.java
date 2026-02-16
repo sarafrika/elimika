@@ -20,6 +20,10 @@ public record UpsertCommerceCatalogueItemRequest(
         @JsonProperty("class_definition_uuid")
         UUID classDefinitionUuid,
 
+        @Schema(description = "Training program UUID to associate", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        @JsonProperty("program_uuid")
+        UUID programUuid,
+
         @Schema(description = "Internal commerce product code", example = "course-01J0ABCXYZ")
         @NotBlank(message = "Product code is required")
         @JsonProperty("product_code")

@@ -48,7 +48,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     public CommerceCatalogueItemDTO updateItem(UUID catalogUuid, UpsertCommerceCatalogueItemRequest request) {
         CommerceCatalogueItem entity = catalogItemRepository.findByUuid(catalogUuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalogue item not found"));
-        validateAssociation(request.courseUuid(), request.classDefinitionUuid());
+        validateAssociation(request.courseUuid(), request.classDefinitionUuid(), request.programUuid());
         applyRequest(entity, request);
         return toDto(saveEntity(entity));
     }
@@ -56,7 +56,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     @Override
     @Transactional
     public CommerceCatalogueItemDTO createItem(UpsertCommerceCatalogueItemRequest request) {
-        validateAssociation(request.courseUuid(), request.classDefinitionUuid());
+        validateAssociation(request.courseUuid(), request.classDefinitionUuid(), request.programUuid());
         CommerceCatalogueItem entity = new CommerceCatalogueItem();
         applyRequest(entity, request);
         return toDto(saveEntity(entity));
@@ -73,6 +73,11 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     }
 
     @Override
+    public List<CommerceCatalogueItemDTO> getByProgram(UUID programUuid) {
+        return getByProgram(programUuid, accessService.buildContext());
+    }
+
+    @Override
     public Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode) {
         return mapIfVisible(
                 ObjectUtils.isEmpty(variantCode)
@@ -83,10 +88,19 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     @Override
     public List<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid) {
+        return getByCourseOrClassOrProgram(courseUuid, classDefinitionUuid, null);
+    }
+
+    @Override
+    public List<CommerceCatalogueItemDTO> getByCourseOrClassOrProgram(
+            UUID courseUuid,
+            UUID classDefinitionUuid,
+            UUID programUuid) {
         VisibilityContext context = accessService.buildContext();
         List<CommerceCatalogueItemDTO> results = new ArrayList<>();
         results.addAll(getByCourse(courseUuid, context));
         results.addAll(getByClassDefinition(classDefinitionUuid, context));
+        results.addAll(getByProgram(programUuid, context));
         LinkedHashMap<UUID, CommerceCatalogueItemDTO> distinct = new LinkedHashMap<>();
         for (CommerceCatalogueItemDTO dto : results) {
             if (dto.uuid() != null) {
@@ -128,6 +142,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     private void applyRequest(CommerceCatalogueItem entity, UpsertCommerceCatalogueItemRequest request) {
         entity.setCourseUuid(request.courseUuid());
         entity.setClassDefinitionUuid(request.classDefinitionUuid());
+        entity.setProgramUuid(request.programUuid());
         entity.setProductCode(request.productCode());
         entity.setVariantCode(request.variantCode());
         String currencyCode = currencyService.resolveCurrencyOrDefault(request.currencyCode()).getCode();
@@ -148,9 +163,11 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         }
     }
 
-    private void validateAssociation(UUID courseUuid, UUID classDefinitionUuid) {
-        if (courseUuid == null && classDefinitionUuid == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Either course_uuid or class_definition_uuid must be provided");
+    private void validateAssociation(UUID courseUuid, UUID classDefinitionUuid, UUID programUuid) {
+        if (courseUuid == null && classDefinitionUuid == null && programUuid == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Either course_uuid, class_definition_uuid, or program_uuid must be provided");
         }
     }
 
@@ -159,6 +176,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .uuid(entity.getUuid())
                 .courseUuid(entity.getCourseUuid())
                 .classDefinitionUuid(entity.getClassDefinitionUuid())
+                .programUuid(entity.getProgramUuid())
                 .productCode(entity.getProductCode())
                 .variantCode(entity.getVariantCode())
                 .unitAmount(resolveUnitAmount(entity))
@@ -182,6 +200,13 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             return List.of();
         }
         return mapVisible(catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid), context);
+    }
+
+    private List<CommerceCatalogueItemDTO> getByProgram(UUID programUuid, VisibilityContext context) {
+        if (programUuid == null) {
+            return List.of();
+        }
+        return mapVisible(catalogItemRepository.findByProgramUuid(programUuid), context);
     }
 
     private Optional<CommerceCatalogueItemDTO> mapIfVisible(Optional<CommerceCatalogueItem> item, VisibilityContext context) {

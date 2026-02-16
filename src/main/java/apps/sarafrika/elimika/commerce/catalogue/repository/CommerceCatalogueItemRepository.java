@@ -18,6 +18,8 @@ public interface CommerceCatalogueItemRepository extends JpaRepository<CommerceC
 
     List<CommerceCatalogueItem> findByClassDefinitionUuid(UUID classDefinitionUuid);
 
+    List<CommerceCatalogueItem> findByProgramUuid(UUID programUuid);
+
     Optional<CommerceCatalogueItem> findByVariantCode(String variantCode);
 
     List<CommerceCatalogueItem> findByActiveTrue();

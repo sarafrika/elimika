@@ -410,6 +410,9 @@ public class InternalCartServiceImpl implements InternalCartService {
             if (product.getCourseUuid() != null) {
                 metadata.put("course_uuid", product.getCourseUuid());
             }
+            if (product.getProgramUuid() != null) {
+                metadata.put("program_uuid", product.getProgramUuid());
+            }
             if (product.getClassDefinitionUuid() != null) {
                 metadata.put("class_definition_uuid", product.getClassDefinitionUuid());
             }

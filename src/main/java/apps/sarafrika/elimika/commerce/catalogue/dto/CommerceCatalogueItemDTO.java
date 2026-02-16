@@ -27,6 +27,10 @@ public record CommerceCatalogueItemDTO(
         @JsonProperty("class_definition_uuid")
         UUID classDefinitionUuid,
 
+        @Schema(description = "Associated training program UUID when mapping is program scoped")
+        @JsonProperty("program_uuid")
+        UUID programUuid,
+
         @Schema(description = "Internal commerce product code")
         @JsonProperty("product_code")
         String productCode,

@@ -52,25 +52,38 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
         }
         ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = snapshotOpt.get();
         UUID courseUuid = snapshot.courseUuid();
-        if (courseUuid == null) {
-            log.warn("Class definition {} is not linked to a course; skipping catalog provisioning", classDefinitionUuid);
+        UUID programUuid = snapshot.programUuid();
+        if (courseUuid == null && programUuid == null) {
+            log.warn("Class definition {} is not linked to a course or training program; skipping catalogue provisioning",
+                    classDefinitionUuid);
             return;
         }
 
         List<CommerceCatalogueItem> existingCatalogItems = catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid);
         CommerceCatalogueItem existingCatalogItem = selectExistingCatalogueItem(existingCatalogItems);
-        CommerceProduct product = productRepository.findByCourseUuid(courseUuid)
-                .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
+        CommerceProduct product = resolveProduct(snapshot);
 
         CommerceProductVariant variant = resolveVariant(existingCatalogItem, product, classDefinitionUuid, snapshot);
 
         upsertCatalogItem(existingCatalogItem, product, variant, snapshot);
     }
 
+    private CommerceProduct resolveProduct(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        UUID courseUuid = snapshot.courseUuid();
+        if (courseUuid != null) {
+            return productRepository.findByCourseUuid(courseUuid)
+                    .orElseGet(() -> createCourseProduct(courseUuid, snapshot));
+        }
+        UUID classDefinitionUuid = snapshot.classDefinitionUuid();
+        return productRepository.findByClassDefinitionUuid(classDefinitionUuid)
+                .orElseGet(() -> createProgramClassProduct(classDefinitionUuid, snapshot));
+    }
+
     private CommerceProduct createCourseProduct(UUID courseUuid, ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
         String title = snapshot.title();
         CommerceProduct product = new CommerceProduct();
         product.setCourseUuid(courseUuid);
+        product.setProgramUuid(snapshot.programUuid());
         product.setTitle(title);
         product.setDescription(snapshot.description());
         product.setCurrencyCode(resolveCurrency());
@@ -78,6 +91,22 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
         product.setActive(true);
         CommerceProduct saved = productRepository.save(product);
         log.info("Provisioned commerce product for course {} with uuid {}", courseUuid, saved.getUuid());
+        return saved;
+    }
+
+    private CommerceProduct createProgramClassProduct(
+            UUID classDefinitionUuid,
+            ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        CommerceProduct product = new CommerceProduct();
+        product.setClassDefinitionUuid(classDefinitionUuid);
+        product.setProgramUuid(snapshot.programUuid());
+        product.setTitle(snapshot.title());
+        product.setDescription(snapshot.description());
+        product.setCurrencyCode(resolveCurrency());
+        product.setStatus(ProductStatus.ACTIVE);
+        product.setActive(true);
+        CommerceProduct saved = productRepository.save(product);
+        log.info("Provisioned commerce product for program class {} with uuid {}", classDefinitionUuid, saved.getUuid());
         return saved;
     }
 
@@ -121,6 +150,7 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
         CommerceCatalogueItem item = existingItem == null ? new CommerceCatalogueItem() : existingItem;
         item.setCourseUuid(snapshot.courseUuid());
         item.setClassDefinitionUuid(snapshot.classDefinitionUuid());
+        item.setProgramUuid(snapshot.programUuid());
         item.setProductCode(product.getUuid() == null ? null : product.getUuid().toString());
         item.setVariantCode(variant.getCode());
         item.setCurrencyCode(variant.getCurrencyCode());

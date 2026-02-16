@@ -73,6 +73,7 @@ public class CommerceCatalogueController {
                     **Examples:**
                     - `publiclyVisible=true&active=true` — public, active catalogue entries
                     - `courseUuid=<uuid>` — catalogue entries for a course
+                    - `programUuid=<uuid>` — catalogue entries for a training program
                     - `classDefinitionUuid=<uuid>&active=true` — active class-level entries
                     - `variantCode_like=starter` — variant codes containing `starter`
                     
@@ -94,17 +95,23 @@ public class CommerceCatalogueController {
                 "Catalogue search completed successfully"));
     }
 
-    @Operation(summary = "Resolve catalogue mappings by course or class", description = "Returns all catalogue entries for the provided course or class")
+    @Operation(
+            summary = "Resolve catalogue mappings by course, class, or program",
+            description = "Returns all catalogue entries for the provided course, class, or training program")
     @GetMapping("/resolve")
     public ResponseEntity<ApiResponse<List<CommerceCatalogueItemDTO>>> resolveByCourseOrClass(
             @RequestParam(name = "course_uuid", required = false) UUID courseUuid,
-            @RequestParam(name = "class_uuid", required = false) UUID classDefinitionUuid) {
-        if (courseUuid == null && classDefinitionUuid == null) {
+            @RequestParam(name = "class_uuid", required = false) UUID classDefinitionUuid,
+            @RequestParam(name = "program_uuid", required = false) UUID programUuid) {
+        if (courseUuid == null && classDefinitionUuid == null && programUuid == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("course_uuid or class_uuid is required"));
+                    .body(ApiResponse.error("course_uuid, class_uuid, or program_uuid is required"));
         }
 
-        List<CommerceCatalogueItemDTO> items = catalogService.getByCourseOrClass(courseUuid, classDefinitionUuid);
+        List<CommerceCatalogueItemDTO> items = catalogService.getByCourseOrClassOrProgram(
+                courseUuid,
+                classDefinitionUuid,
+                programUuid);
         if (items.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Catalogue items not found"));

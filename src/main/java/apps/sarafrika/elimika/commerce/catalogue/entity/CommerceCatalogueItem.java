@@ -22,6 +22,9 @@ public class CommerceCatalogueItem extends BaseEntity {
     @Column(name = "class_definition_uuid")
     private UUID classDefinitionUuid;
 
+    @Column(name = "program_uuid")
+    private UUID programUuid;
+
     @Column(name = "product_code")
     private String productCode;
 

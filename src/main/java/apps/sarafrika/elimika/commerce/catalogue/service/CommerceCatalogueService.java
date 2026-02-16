@@ -17,7 +17,11 @@ public interface CommerceCatalogueService {
 
     List<CommerceCatalogueItemDTO> getByClassDefinition(UUID classDefinitionUuid);
 
+    List<CommerceCatalogueItemDTO> getByProgram(UUID programUuid);
+
     List<CommerceCatalogueItemDTO> getByCourseOrClass(UUID courseUuid, UUID classDefinitionUuid);
+
+    List<CommerceCatalogueItemDTO> getByCourseOrClassOrProgram(UUID courseUuid, UUID classDefinitionUuid, UUID programUuid);
 
     Optional<CommerceCatalogueItemDTO> getByVariantCode(String variantCode);
 
