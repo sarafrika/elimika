@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.RubricScoringDTO;
 import apps.sarafrika.elimika.course.factory.RubricScoringFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.RubricScoring;
 import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
 import apps.sarafrika.elimika.course.service.RubricScoringService;
@@ -24,6 +25,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
 
     private final RubricScoringRepository rubricScoringRepository;
     private final GenericSpecificationBuilder<RubricScoring> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String RUBRIC_SCORING_NOT_FOUND_TEMPLATE = "Rubric scoring with ID %s not found";
 
@@ -33,6 +35,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
         rubricScoring.setCriteriaUuid(criteriaUuid);
 
         RubricScoring savedRubricScoring = rubricScoringRepository.save(rubricScoring);
+        publishedCourseVersionTriggerService.captureByRubricCriteriaUuid(savedRubricScoring.getCriteriaUuid());
         return RubricScoringFactory.toDTO(savedRubricScoring);
     }
 
@@ -57,9 +60,12 @@ public class RubricScoringServiceImpl implements RubricScoringService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format("Rubric scoring with ID %s not found in criteria %s", scoringUuid, criteriaUuid)));
 
+        UUID previousCriteriaUuid = existingRubricScoring.getCriteriaUuid();
         updateRubricScoringFields(existingRubricScoring, rubricScoringDTO);
 
         RubricScoring updatedRubricScoring = rubricScoringRepository.save(existingRubricScoring);
+        publishedCourseVersionTriggerService.captureByRubricCriteriaUuid(previousCriteriaUuid);
+        publishedCourseVersionTriggerService.captureByRubricCriteriaUuid(updatedRubricScoring.getCriteriaUuid());
         return RubricScoringFactory.toDTO(updatedRubricScoring);
     }
 
@@ -70,6 +76,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
                     String.format("Rubric scoring with ID %s not found in criteria %s", scoringUuid, criteriaUuid));
         }
         rubricScoringRepository.deleteByUuid(scoringUuid);
+        publishedCourseVersionTriggerService.captureByRubricCriteriaUuid(criteriaUuid);
     }
 
     @Override

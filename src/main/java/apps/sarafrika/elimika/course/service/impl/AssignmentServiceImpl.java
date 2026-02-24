@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentDTO;
 import apps.sarafrika.elimika.course.factory.AssignmentFactory;
 import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.service.AssignmentService;
@@ -26,6 +27,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final GenericSpecificationBuilder<Assignment> specificationBuilder;
     private final AssignmentMediaValidationService assignmentMediaValidationService;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String ASSIGNMENT_NOT_FOUND_TEMPLATE = "Assignment with ID %s not found";
 
@@ -42,6 +44,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
 
         Assignment savedAssignment = assignmentRepository.save(assignment);
+        publishedCourseVersionTriggerService.captureByLessonUuid(savedAssignment.getLessonUuid());
         return AssignmentFactory.toDTO(savedAssignment);
     }
 
@@ -66,19 +69,24 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSIGNMENT_NOT_FOUND_TEMPLATE, uuid)));
 
+        UUID previousLessonUuid = existingAssignment.getLessonUuid();
         updateAssignmentFields(existingAssignment, assignmentDTO);
 
         Assignment updatedAssignment = assignmentRepository.save(existingAssignment);
+        publishedCourseVersionTriggerService.captureByLessonUuid(previousLessonUuid);
+        publishedCourseVersionTriggerService.captureByLessonUuid(updatedAssignment.getLessonUuid());
         return AssignmentFactory.toDTO(updatedAssignment);
     }
 
     @Override
     public void deleteAssignment(UUID uuid) {
-        if (!assignmentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(ASSIGNMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        Assignment existingAssignment = assignmentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ASSIGNMENT_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID lessonUuid = existingAssignment.getLessonUuid();
         assignmentRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByLessonUuid(lessonUuid);
     }
 
     @Override

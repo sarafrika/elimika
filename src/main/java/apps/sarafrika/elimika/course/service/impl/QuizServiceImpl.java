@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizDTO;
 import apps.sarafrika.elimika.course.factory.QuizFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
@@ -27,6 +28,7 @@ public class QuizServiceImpl implements QuizService {
     private final QuizRepository quizRepository;
     private final GenericSpecificationBuilder<Quiz> specificationBuilder;
     private final QuizAttemptRepository quizAttemptRepository;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String QUIZ_NOT_FOUND_TEMPLATE = "Quiz with ID %s not found";
 
@@ -43,6 +45,7 @@ public class QuizServiceImpl implements QuizService {
         }
 
         Quiz savedQuiz = quizRepository.save(quiz);
+        publishedCourseVersionTriggerService.captureByLessonUuid(savedQuiz.getLessonUuid());
         return QuizFactory.toDTO(savedQuiz);
     }
 
@@ -67,19 +70,24 @@ public class QuizServiceImpl implements QuizService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(QUIZ_NOT_FOUND_TEMPLATE, uuid)));
 
+        UUID previousLessonUuid = existingQuiz.getLessonUuid();
         updateQuizFields(existingQuiz, quizDTO);
 
         Quiz updatedQuiz = quizRepository.save(existingQuiz);
+        publishedCourseVersionTriggerService.captureByLessonUuid(previousLessonUuid);
+        publishedCourseVersionTriggerService.captureByLessonUuid(updatedQuiz.getLessonUuid());
         return QuizFactory.toDTO(updatedQuiz);
     }
 
     @Override
     public void deleteQuiz(UUID uuid) {
-        if (!quizRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(QUIZ_NOT_FOUND_TEMPLATE, uuid));
-        }
+        Quiz existingQuiz = quizRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(QUIZ_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID lessonUuid = existingQuiz.getLessonUuid();
         quizRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByLessonUuid(lessonUuid);
     }
 
     @Override

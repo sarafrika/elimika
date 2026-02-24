@@ -127,6 +127,31 @@ public class CourseController {
     }
 
     @Operation(
+            summary = "Get course publish versions",
+            description = "Returns immutable publish snapshots for a course in descending version order."
+    )
+    @GetMapping("/{uuid}/versions")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseVersionDTO>>> getCourseVersions(
+            @PathVariable UUID uuid) {
+        List<CourseVersionDTO> versions = courseService.getCourseVersions(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(versions, "Course versions retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get course publish version",
+            description = "Returns a specific immutable publish snapshot for a course."
+    )
+    @GetMapping("/{uuid}/versions/{versionUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseVersionDTO>> getCourseVersion(
+            @PathVariable UUID uuid,
+            @PathVariable UUID versionUuid) {
+        CourseVersionDTO version = courseService.getCourseVersion(uuid, versionUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(version, "Course version retrieved successfully"));
+    }
+
+    @Operation(
             summary = "Get all courses",
             description = "Retrieves paginated list of all courses with category information and filtering support."
     )

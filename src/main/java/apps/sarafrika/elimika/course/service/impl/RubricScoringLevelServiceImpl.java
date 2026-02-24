@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.RubricScoringLevelDTO;
 import apps.sarafrika.elimika.course.factory.RubricScoringLevelFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.RubricScoringLevel;
 import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
 import apps.sarafrika.elimika.course.service.RubricScoringLevelService;
@@ -37,6 +38,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
 
     private final RubricScoringLevelRepository rubricScoringLevelRepository;
     private final GenericSpecificationBuilder<RubricScoringLevel> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String SCORING_LEVEL_NOT_FOUND_TEMPLATE = "Rubric scoring level with ID %s not found";
     private static final String SCORING_LEVEL_NOT_FOUND_IN_RUBRIC_TEMPLATE = "Rubric scoring level with ID %s not found in rubric %s";
@@ -53,6 +55,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
         }
 
         RubricScoringLevel savedRubricScoringLevel = rubricScoringLevelRepository.save(rubricScoringLevel);
+        publishedCourseVersionTriggerService.captureByRubricUuid(savedRubricScoringLevel.getRubricUuid());
         return RubricScoringLevelFactory.toDTO(savedRubricScoringLevel);
     }
 
@@ -107,9 +110,12 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
                     String.format(SCORING_LEVEL_NOT_FOUND_IN_RUBRIC_TEMPLATE, levelUuid, rubricUuid));
         }
 
+        UUID previousRubricUuid = existingScoringLevel.getRubricUuid();
         updateScoringLevelFields(existingScoringLevel, rubricScoringLevelDTO);
 
         RubricScoringLevel updatedScoringLevel = rubricScoringLevelRepository.save(existingScoringLevel);
+        publishedCourseVersionTriggerService.captureByRubricUuid(previousRubricUuid);
+        publishedCourseVersionTriggerService.captureByRubricUuid(updatedScoringLevel.getRubricUuid());
         return RubricScoringLevelFactory.toDTO(updatedScoringLevel);
     }
 
@@ -126,6 +132,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
         }
 
         rubricScoringLevelRepository.deleteByUuid(levelUuid);
+        publishedCourseVersionTriggerService.captureByRubricUuid(rubricUuid);
     }
 
     @Override
@@ -180,6 +187,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
             scoringLevel.setLevelOrder(newOrder);
             rubricScoringLevelRepository.save(scoringLevel);
         }
+        publishedCourseVersionTriggerService.captureByRubricUuid(rubricUuid);
     }
 
     @Override
@@ -200,6 +208,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
         }
         
         List<RubricScoringLevel> savedLevels = rubricScoringLevelRepository.saveAll(scoringLevels);
+        publishedCourseVersionTriggerService.captureByRubricUuid(rubricUuid);
         return savedLevels.stream()
                 .map(RubricScoringLevelFactory::toDTO)
                 .toList();

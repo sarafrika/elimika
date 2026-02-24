@@ -2,12 +2,16 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
+import apps.sarafrika.elimika.course.dto.CourseVersionDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
+import apps.sarafrika.elimika.course.factory.CourseVersionFactory;
 import apps.sarafrika.elimika.course.internal.CourseMediaValidationService;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.CourseVersionRepository;
 import apps.sarafrika.elimika.course.service.CourseCategoryService;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
@@ -41,12 +45,14 @@ import java.util.UUID;
 public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
+    private final CourseVersionRepository courseVersionRepository;
     private final CourseCategoryMappingRepository mappingRepository;
     private final CourseSpecificationBuilder courseSpecificationBuilder;
     private final LessonService lessonService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
     private final CourseTrainingRequirementService courseTrainingRequirementService;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
     private final StorageService storageService;
     private final CourseMediaValidationService validationService;
     private final StorageProperties storageProperties;
@@ -121,12 +127,17 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
 
+        boolean wasPublishedBeforeUpdate = existingCourse.getStatus() == ContentStatus.PUBLISHED;
         updateCourseFields(existingCourse, courseDTO);
         validateRevenueShare(existingCourse);
         Course updatedCourse = courseRepository.save(existingCourse);
 
         // Handle category assignments if provided
         handleCategoryAssignments(uuid, courseDTO);
+
+        if (wasPublishedBeforeUpdate || updatedCourse.getStatus() == ContentStatus.PUBLISHED) {
+            publishedCourseVersionTriggerService.captureByCourseUuid(updatedCourse.getUuid());
+        }
 
         // Fetch the updated course with category names for response
         return getCourseByUuid(uuid);
@@ -202,8 +213,35 @@ public class CourseServiceImpl implements CourseService {
 
         Course publishedCourse = courseRepository.save(course);
         log.info("Successfully published course: {}", uuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(publishedCourse.getUuid());
 
         return getCourseByUuid(uuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CourseVersionDTO> getCourseVersions(UUID courseUuid) {
+        if (!courseRepository.existsByUuid(courseUuid)) {
+            throw new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid));
+        }
+
+        return courseVersionRepository.findByCourseUuidOrderByVersionNumberDesc(courseUuid)
+                .stream()
+                .map(CourseVersionFactory::toDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CourseVersionDTO getCourseVersion(UUID courseUuid, UUID versionUuid) {
+        if (!courseRepository.existsByUuid(courseUuid)) {
+            throw new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid));
+        }
+
+        return courseVersionRepository.findByUuidAndCourseUuid(versionUuid, courseUuid)
+                .map(CourseVersionFactory::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Course version %s not found for course %s", versionUuid, courseUuid)));
     }
 
     @Override
@@ -302,6 +340,7 @@ public class CourseServiceImpl implements CourseService {
             String thumbnailFolder = storageProperties.getFolders().getCourseThumbnails();
             course.setThumbnailUrl(thumbnail != null ? storeCourseImage(thumbnail, thumbnailFolder) : null);
             Course savedCourse = courseRepository.save(course);
+            publishedCourseVersionTriggerService.captureByCourseUuid(savedCourse.getUuid());
             return CourseFactory.toDTO(savedCourse);
         } catch (Exception ex) {
             log.error("Failed to upload course thumbnail for UUID: {}", courseUuid, ex);
@@ -321,7 +360,8 @@ public class CourseServiceImpl implements CourseService {
         try {
             String bannerFolder = storageProperties.getFolders().getCourseThumbnails(); // Note: You might want to add a separate courseBanners property
             course.setBannerUrl(banner != null ? storeCourseImage(banner, bannerFolder) : null);
-            courseRepository.save(course);
+            Course savedCourse = courseRepository.save(course);
+            publishedCourseVersionTriggerService.captureByCourseUuid(savedCourse.getUuid());
             return getCourseByUuid(courseUuid);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to upload course banner: " + ex.getMessage(), ex);
@@ -341,7 +381,8 @@ public class CourseServiceImpl implements CourseService {
         try {
             String videoFolder = storageProperties.getFolders().getCourseMaterials(); // For intro videos
             course.setIntroVideoUrl(introVideo != null ? storeCourseImage(introVideo, videoFolder) : null);
-            courseRepository.save(course);
+            Course savedCourse = courseRepository.save(course);
+            publishedCourseVersionTriggerService.captureByCourseUuid(savedCourse.getUuid());
             return getCourseByUuid(courseUuid);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to upload course intro video: " + ex.getMessage(), ex);

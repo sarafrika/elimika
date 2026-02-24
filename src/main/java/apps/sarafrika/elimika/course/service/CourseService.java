@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.CourseDTO;
+import apps.sarafrika.elimika.course.dto.CourseVersionDTO;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,10 @@ public interface CourseService {
     boolean isCourseReadyForPublishing(UUID uuid);
 
     CourseDTO publishCourse(UUID uuid);
+
+    List<CourseVersionDTO> getCourseVersions(UUID courseUuid);
+
+    CourseVersionDTO getCourseVersion(UUID courseUuid, UUID versionUuid);
 
     CourseDTO approveCourse(UUID uuid, String reason);
 

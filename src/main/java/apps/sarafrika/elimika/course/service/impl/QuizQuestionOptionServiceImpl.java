@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizQuestionOptionDTO;
 import apps.sarafrika.elimika.course.factory.QuizQuestionOptionFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.QuizQuestionOption;
 import apps.sarafrika.elimika.course.repository.QuizQuestionOptionRepository;
 import apps.sarafrika.elimika.course.service.QuizQuestionOptionService;
@@ -25,6 +26,7 @@ public class QuizQuestionOptionServiceImpl implements QuizQuestionOptionService 
     private final QuizQuestionOptionRepository quizQuestionOptionRepository;
 
     private final GenericSpecificationBuilder<QuizQuestionOption> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String QUIZ_QUESTION_OPTION_NOT_FOUND_TEMPLATE = "Quiz question option with ID %s not found";
 
@@ -38,6 +40,7 @@ public class QuizQuestionOptionServiceImpl implements QuizQuestionOptionService 
         }
 
         QuizQuestionOption savedQuizQuestionOption = quizQuestionOptionRepository.save(quizQuestionOption);
+        publishedCourseVersionTriggerService.captureByQuizQuestionUuid(savedQuizQuestionOption.getQuestionUuid());
         return QuizQuestionOptionFactory.toDTO(savedQuizQuestionOption);
     }
 
@@ -62,19 +65,24 @@ public class QuizQuestionOptionServiceImpl implements QuizQuestionOptionService 
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(QUIZ_QUESTION_OPTION_NOT_FOUND_TEMPLATE, uuid)));
 
+        UUID previousQuestionUuid = existingQuizQuestionOption.getQuestionUuid();
         updateQuizQuestionOptionFields(existingQuizQuestionOption, quizQuestionOptionDTO);
 
         QuizQuestionOption updatedQuizQuestionOption = quizQuestionOptionRepository.save(existingQuizQuestionOption);
+        publishedCourseVersionTriggerService.captureByQuizQuestionUuid(previousQuestionUuid);
+        publishedCourseVersionTriggerService.captureByQuizQuestionUuid(updatedQuizQuestionOption.getQuestionUuid());
         return QuizQuestionOptionFactory.toDTO(updatedQuizQuestionOption);
     }
 
     @Override
     public void deleteQuizQuestionOption(UUID uuid) {
-        if (!quizQuestionOptionRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(QUIZ_QUESTION_OPTION_NOT_FOUND_TEMPLATE, uuid));
-        }
+        QuizQuestionOption existingOption = quizQuestionOptionRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(QUIZ_QUESTION_OPTION_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID questionUuid = existingOption.getQuestionUuid();
         quizQuestionOptionRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByQuizQuestionUuid(questionUuid);
     }
 
     @Override

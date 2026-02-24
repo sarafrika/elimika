@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseRubricAssociationDTO;
 import apps.sarafrika.elimika.course.factory.CourseRubricAssociationFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.CourseRubricAssociation;
 import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -28,6 +29,7 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
     private final CourseRubricAssociationRepository associationRepository;
     private final CourseRepository courseRepository;
     private final AssessmentRubricRepository rubricRepository;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String COURSE_NOT_FOUND_TEMPLATE = "Course with ID %s not found";
     private static final String RUBRIC_NOT_FOUND_TEMPLATE = "Assessment rubric with ID %s not found";
@@ -54,6 +56,7 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
         }
 
         CourseRubricAssociation savedAssociation = associationRepository.save(association);
+        publishedCourseVersionTriggerService.captureByCourseUuid(savedAssociation.getCourseUuid());
         return CourseRubricAssociationFactory.toDTO(savedAssociation);
     }
 
@@ -63,6 +66,7 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSOCIATION_BY_COURSE_RUBRIC_NOT_FOUND_TEMPLATE, courseUuid, rubricUuid)));
         associationRepository.delete(association);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
     }
 
     @Override
@@ -71,6 +75,7 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSOCIATION_BY_CONTEXT_NOT_FOUND_TEMPLATE, courseUuid, rubricUuid, usageContext)));
         associationRepository.delete(association);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
     }
 
     @Override
@@ -131,6 +136,7 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
 
         association.setIsPrimaryRubric(true);
         CourseRubricAssociation updatedAssociation = associationRepository.save(association);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
         return CourseRubricAssociationFactory.toDTO(updatedAssociation);
     }
 
@@ -155,6 +161,7 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ASSOCIATION_NOT_FOUND_TEMPLATE, associationUuid)));
 
+        UUID previousCourseUuid = existingAssociation.getCourseUuid();
         CourseRubricAssociationFactory.updateEntityFromDTO(existingAssociation, dto);
 
         if (dto.isPrimaryRubric()) {
@@ -162,6 +169,8 @@ public class CourseRubricAssociationServiceImpl implements CourseRubricAssociati
         }
 
         CourseRubricAssociation updatedAssociation = associationRepository.save(existingAssociation);
+        publishedCourseVersionTriggerService.captureByCourseUuid(previousCourseUuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(updatedAssociation.getCourseUuid());
         return CourseRubricAssociationFactory.toDTO(updatedAssociation);
     }
 

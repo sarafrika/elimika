@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseRequirementFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.CourseRequirement;
 import apps.sarafrika.elimika.course.repository.CourseRequirementRepository;
 import apps.sarafrika.elimika.course.service.CourseRequirementService;
@@ -24,6 +25,7 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
 
     private final CourseRequirementRepository courseRequirementRepository;
     private final GenericSpecificationBuilder<CourseRequirement> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE = "Course requirement with ID %s not found";
 
@@ -37,6 +39,7 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
         }
 
         CourseRequirement savedCourseRequirement = courseRequirementRepository.save(courseRequirement);
+        publishedCourseVersionTriggerService.captureByCourseUuid(savedCourseRequirement.getCourseUuid());
         return CourseRequirementFactory.toDTO(savedCourseRequirement);
     }
 
@@ -61,19 +64,24 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE, uuid)));
 
+        UUID previousCourseUuid = existingCourseRequirement.getCourseUuid();
         updateCourseRequirementFields(existingCourseRequirement, courseRequirementDTO);
 
         CourseRequirement updatedCourseRequirement = courseRequirementRepository.save(existingCourseRequirement);
+        publishedCourseVersionTriggerService.captureByCourseUuid(previousCourseUuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(updatedCourseRequirement.getCourseUuid());
         return CourseRequirementFactory.toDTO(updatedCourseRequirement);
     }
 
     @Override
     public void deleteCourseRequirement(UUID uuid) {
-        if (!courseRequirementRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        CourseRequirement existingCourseRequirement = courseRequirementRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID courseUuid = existingCourseRequirement.getCourseUuid();
         courseRequirementRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
     }
 
     @Override

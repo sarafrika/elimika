@@ -4,8 +4,10 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssessmentRubricDTO;
 import apps.sarafrika.elimika.course.factory.AssessmentRubricFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
+import apps.sarafrika.elimika.course.repository.CourseRubricAssociationRepository;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,7 +28,9 @@ import java.util.UUID;
 public class AssessmentRubricServiceImpl implements AssessmentRubricService {
 
     private final AssessmentRubricRepository assessmentRubricRepository;
+    private final CourseRubricAssociationRepository courseRubricAssociationRepository;
     private final GenericSpecificationBuilder<AssessmentRubric> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String ASSESSMENT_RUBRIC_NOT_FOUND_TEMPLATE = "Assessment rubric with ID %s not found";
 
@@ -81,6 +86,7 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         updateAssessmentRubricFields(existingAssessmentRubric, assessmentRubricDTO);
 
         AssessmentRubric updatedAssessmentRubric = assessmentRubricRepository.save(existingAssessmentRubric);
+        publishedCourseVersionTriggerService.captureByRubricUuid(updatedAssessmentRubric.getUuid());
         return AssessmentRubricFactory.toDTO(updatedAssessmentRubric);
     }
 
@@ -90,7 +96,13 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
             throw new ResourceNotFoundException(
                     String.format(ASSESSMENT_RUBRIC_NOT_FOUND_TEMPLATE, uuid));
         }
+
+        List<UUID> affectedCourseUuids = courseRubricAssociationRepository.findByRubricUuid(uuid).stream()
+                .map(association -> association.getCourseUuid())
+                .distinct()
+                .toList();
         assessmentRubricRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByCourseUuids(affectedCourseUuids);
     }
 
     @Override

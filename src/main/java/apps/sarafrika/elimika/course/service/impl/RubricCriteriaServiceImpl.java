@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.dto.RubricCriteriaDTO;
 import apps.sarafrika.elimika.course.dto.CriteriaCreationResponse;
 import apps.sarafrika.elimika.course.dto.RubricScoringLevelDTO;
 import apps.sarafrika.elimika.course.factory.RubricCriteriaFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.RubricCriteria;
 import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.service.RubricCriteriaService;
@@ -28,6 +29,7 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
     private final RubricCriteriaRepository rubricCriteriaRepository;
     private final GenericSpecificationBuilder<RubricCriteria> specificationBuilder;
     private final RubricScoringLevelService rubricScoringLevelService;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String RUBRIC_CRITERIA_NOT_FOUND_TEMPLATE = "Rubric criteria with ID %s not found";
 
@@ -37,6 +39,7 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
         rubricCriteria.setRubricUuid(rubricUuid);
 
         RubricCriteria savedRubricCriteria = rubricCriteriaRepository.save(rubricCriteria);
+        publishedCourseVersionTriggerService.captureByRubricUuid(savedRubricCriteria.getRubricUuid());
         return RubricCriteriaFactory.toDTO(savedRubricCriteria);
     }
 
@@ -61,19 +64,24 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format("Rubric criteria with ID %s not found in rubric %s", criteriaUuid, rubricUuid)));
 
+        UUID previousRubricUuid = existingRubricCriteria.getRubricUuid();
         updateRubricCriteriaFields(existingRubricCriteria, rubricCriteriaDTO);
 
         RubricCriteria updatedRubricCriteria = rubricCriteriaRepository.save(existingRubricCriteria);
+        publishedCourseVersionTriggerService.captureByRubricUuid(previousRubricUuid);
+        publishedCourseVersionTriggerService.captureByRubricUuid(updatedRubricCriteria.getRubricUuid());
         return RubricCriteriaFactory.toDTO(updatedRubricCriteria);
     }
 
     @Override
     public void deleteRubricCriteria(UUID rubricUuid, UUID criteriaUuid) {
-        if (!rubricCriteriaRepository.existsByUuidAndRubricUuid(criteriaUuid, rubricUuid)) {
-            throw new ResourceNotFoundException(
-                    String.format("Rubric criteria with ID %s not found in rubric %s", criteriaUuid, rubricUuid));
-        }
+        RubricCriteria existingRubricCriteria = rubricCriteriaRepository.findByUuidAndRubricUuid(criteriaUuid, rubricUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Rubric criteria with ID %s not found in rubric %s", criteriaUuid, rubricUuid)));
+
+        UUID affectedRubricUuid = existingRubricCriteria.getRubricUuid();
         rubricCriteriaRepository.deleteByUuid(criteriaUuid);
+        publishedCourseVersionTriggerService.captureByRubricUuid(affectedRubricUuid);
     }
 
     @Override

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.LessonContentDTO;
 import apps.sarafrika.elimika.course.factory.LessonContentFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.LessonContent;
 import apps.sarafrika.elimika.course.repository.LessonContentRepository;
 import apps.sarafrika.elimika.course.service.LessonContentService;
@@ -27,6 +28,7 @@ public class LessonContentServiceImpl implements LessonContentService {
 
     private final LessonContentRepository lessonContentRepository;
     private final GenericSpecificationBuilder<LessonContent> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String LESSON_CONTENT_NOT_FOUND_TEMPLATE = "Lesson content with ID %s not found";
 
@@ -43,6 +45,7 @@ public class LessonContentServiceImpl implements LessonContentService {
         }
 
         LessonContent savedLessonContent = lessonContentRepository.save(lessonContent);
+        publishedCourseVersionTriggerService.captureByLessonUuid(savedLessonContent.getLessonUuid());
         return LessonContentFactory.toDTO(savedLessonContent);
     }
 
@@ -67,19 +70,24 @@ public class LessonContentServiceImpl implements LessonContentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(LESSON_CONTENT_NOT_FOUND_TEMPLATE, uuid)));
 
+        UUID previousLessonUuid = existingLessonContent.getLessonUuid();
         updateLessonContentFields(existingLessonContent, lessonContentDTO);
 
         LessonContent updatedLessonContent = lessonContentRepository.save(existingLessonContent);
+        publishedCourseVersionTriggerService.captureByLessonUuid(previousLessonUuid);
+        publishedCourseVersionTriggerService.captureByLessonUuid(updatedLessonContent.getLessonUuid());
         return LessonContentFactory.toDTO(updatedLessonContent);
     }
 
     @Override
     public void deleteLessonContent(UUID uuid) {
-        if (!lessonContentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(LESSON_CONTENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        LessonContent existingLessonContent = lessonContentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(LESSON_CONTENT_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID lessonUuid = existingLessonContent.getLessonUuid();
         lessonContentRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByLessonUuid(lessonUuid);
     }
 
     @Override
@@ -175,6 +183,7 @@ public class LessonContentServiceImpl implements LessonContentService {
             content.setDisplayOrder(i + 1);
             lessonContentRepository.save(content);
         }
+        publishedCourseVersionTriggerService.captureByLessonUuid(lessonUuid);
     }
 
     @Transactional(readOnly = true)

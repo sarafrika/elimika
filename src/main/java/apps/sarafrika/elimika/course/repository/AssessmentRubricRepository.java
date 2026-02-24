@@ -22,6 +22,8 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
 
     boolean existsByUuid(UUID uuid);
 
+    List<AssessmentRubric> findByUuidIn(List<UUID> uuids);
+
     /**
      * Finds all public rubrics available for reuse.
      *

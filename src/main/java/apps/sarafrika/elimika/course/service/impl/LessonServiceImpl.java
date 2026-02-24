@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.LessonDTO;
 import apps.sarafrika.elimika.course.factory.LessonFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.service.LessonService;
@@ -26,6 +27,7 @@ public class LessonServiceImpl implements LessonService {
 
     private final LessonRepository lessonRepository;
     private final GenericSpecificationBuilder<Lesson> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String LESSON_NOT_FOUND_TEMPLATE = "Lesson with ID %s not found";
 
@@ -43,6 +45,7 @@ public class LessonServiceImpl implements LessonService {
         }
 
         Lesson savedLesson = lessonRepository.save(lesson);
+        publishedCourseVersionTriggerService.captureByCourseUuid(savedLesson.getCourseUuid());
         return LessonFactory.toDTO(savedLesson);
     }
 
@@ -70,16 +73,19 @@ public class LessonServiceImpl implements LessonService {
         updateLessonFields(existingLesson, lessonDTO);
 
         Lesson updatedLesson = lessonRepository.save(existingLesson);
+        publishedCourseVersionTriggerService.captureByCourseUuid(updatedLesson.getCourseUuid());
         return LessonFactory.toDTO(updatedLesson);
     }
 
     @Override
     public void deleteLesson(UUID uuid) {
-        if (!lessonRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(LESSON_NOT_FOUND_TEMPLATE, uuid));
-        }
+        Lesson existingLesson = lessonRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(LESSON_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID courseUuid = existingLesson.getCourseUuid();
         lessonRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
     }
 
     @Override

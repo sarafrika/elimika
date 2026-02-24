@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentDTO;
 import apps.sarafrika.elimika.course.factory.CourseAssessmentFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
 import apps.sarafrika.elimika.course.service.CourseAssessmentService;
@@ -24,6 +25,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
 
     private final CourseAssessmentRepository courseAssessmentRepository;
     private final GenericSpecificationBuilder<CourseAssessment> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE = "Course assessment with ID %s not found";
 
@@ -37,6 +39,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         }
 
         CourseAssessment savedCourseAssessment = courseAssessmentRepository.save(courseAssessment);
+        publishedCourseVersionTriggerService.captureByCourseUuid(savedCourseAssessment.getCourseUuid());
         return CourseAssessmentFactory.toDTO(savedCourseAssessment);
     }
 
@@ -61,19 +64,24 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE, uuid)));
 
+        UUID previousCourseUuid = existingCourseAssessment.getCourseUuid();
         updateCourseAssessmentFields(existingCourseAssessment, courseAssessmentDTO);
 
         CourseAssessment updatedCourseAssessment = courseAssessmentRepository.save(existingCourseAssessment);
+        publishedCourseVersionTriggerService.captureByCourseUuid(previousCourseUuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(updatedCourseAssessment.getCourseUuid());
         return CourseAssessmentFactory.toDTO(updatedCourseAssessment);
     }
 
     @Override
     public void deleteCourseAssessment(UUID uuid) {
-        if (!courseAssessmentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        CourseAssessment existingCourseAssessment = courseAssessmentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE, uuid)));
+
+        UUID courseUuid = existingCourseAssessment.getCourseUuid();
         courseAssessmentRepository.deleteByUuid(uuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
     }
 
     @Override

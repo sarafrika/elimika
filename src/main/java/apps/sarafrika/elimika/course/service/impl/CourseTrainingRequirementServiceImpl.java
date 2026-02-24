@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseTrainingRequirementFactory;
+import apps.sarafrika.elimika.course.internal.PublishedCourseVersionTriggerService;
 import apps.sarafrika.elimika.course.model.CourseTrainingRequirement;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.service.CourseTrainingRequirementService;
@@ -25,6 +26,7 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
 
     private final CourseTrainingRequirementRepository repository;
     private final GenericSpecificationBuilder<CourseTrainingRequirement> specificationBuilder;
+    private final PublishedCourseVersionTriggerService publishedCourseVersionTriggerService;
 
     private static final String NOT_FOUND_TEMPLATE = "Course training requirement with UUID %s not found";
 
@@ -36,6 +38,7 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
             entity.setIsMandatory(true);
         }
         CourseTrainingRequirement saved = repository.save(entity);
+        publishedCourseVersionTriggerService.captureByCourseUuid(saved.getCourseUuid());
         return CourseTrainingRequirementFactory.toDTO(saved);
     }
 
@@ -48,6 +51,7 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
             throw new ResourceNotFoundException(String.format("Requirement %s does not belong to course %s", requirementUuid, courseUuid));
         }
 
+        UUID previousCourseUuid = existing.getCourseUuid();
         existing.setCourseUuid(courseUuid);
         if (dto.requirementType() != null) {
             existing.setRequirementType(dto.requirementType());
@@ -72,6 +76,8 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
         }
 
         CourseTrainingRequirement updated = repository.save(existing);
+        publishedCourseVersionTriggerService.captureByCourseUuid(previousCourseUuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(updated.getCourseUuid());
         return CourseTrainingRequirementFactory.toDTO(updated);
     }
 
@@ -84,6 +90,7 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
             throw new ResourceNotFoundException(String.format("Requirement %s does not belong to course %s", requirementUuid, courseUuid));
         }
         repository.deleteByUuid(requirementUuid);
+        publishedCourseVersionTriggerService.captureByCourseUuid(courseUuid);
     }
 
     @Override
