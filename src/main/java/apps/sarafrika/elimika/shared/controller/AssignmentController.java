@@ -54,7 +54,7 @@ public class AssignmentController {
 
     @Operation(
             summary = "Create a new assignment",
-            description = "Creates a new assignment with default DRAFT status and inactive state.",
+            description = "Creates a new assignment with unpublished state by default.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Assignment created successfully",
                             content = @Content(schema = @Schema(implementation = AssignmentDTO.class))),
@@ -445,8 +445,7 @@ public class AssignmentController {
                     **Common Assignment Search Examples:**
                     - `title_like=essay` - Assignments with "essay" in title
                     - `lessonUuid=uuid` - Assignments for specific lesson
-                    - `status=PUBLISHED` - Only published assignments
-                    - `active=true` - Only active assignments
+                    - `is_published=true` - Only published assignments
                     - `dueDate_gte=2024-12-01T00:00:00` - Assignments due from Dec 1, 2024
                     - `maxPoints_gte=50` - Assignments worth 50+ points
                     """

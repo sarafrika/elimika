@@ -39,14 +39,12 @@ import java.util.UUID;
             "max_points": 100.00,
             "rubric_uuid": "r1u2b3r4-5i6c-7a8s-9s10-abcdefghijkl",
             "submission_types": ["DOCUMENT", "AUDIO", "TEXT"],
-            "status": "PUBLISHED",
-            "active": true,
+            "is_published": true,
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-05T10:30:00",
             "updated_by": "instructor@sarafrika.com",
             "assignment_category": "Theory Assignment",
-            "is_published": true,
             "points_display": "100.00 points",
             "assignment_scope": "Lesson-Specific",
             "submission_summary": "3 submission types accepted"
@@ -170,7 +168,7 @@ public record AssignmentDTO(
         String[] submissionTypes,
 
         @Schema(
-                description = "**[OPTIONAL]** Indicates if the assignment is actively available for students. Can only be true for published assignments.",
+                description = "**[OPTIONAL]** Indicates whether the assignment is published and visible to students.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
