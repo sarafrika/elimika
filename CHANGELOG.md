@@ -1,3 +1,15 @@
+# [2.66.0](https://github.com/sarafrika/elimika/compare/v2.65.0...v2.66.0) (2026-02-24)
+
+
+### Bug Fixes
+
+* restore UserServiceImpl to version from three commits ago ([c8f59e5](https://github.com/sarafrika/elimika/commit/c8f59e5a84495c91454199dc28e33c612f4da964))
+
+
+### Features
+
+* expose document type options endpoint for profile document uploads ([001f279](https://github.com/sarafrika/elimika/commit/001f279efe260bd9e68af91edce5e043c5149f1e))
+
 # [2.65.0](https://github.com/sarafrika/elimika/compare/v2.64.0...v2.65.0) (2026-02-16)
 
 
