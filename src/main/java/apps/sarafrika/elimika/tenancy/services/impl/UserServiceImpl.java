@@ -660,9 +660,12 @@ public class UserServiceImpl implements UserService {
             if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
                 imageUrl = storageProperties.getBaseUrl() + "/api/v1/users/profile-image/" + fileName;
             } else {
-                imageUrl = ServletUriComponentsBuilder
+                ServletUriComponentsBuilder contextBuilder = ServletUriComponentsBuilder
                         .fromCurrentContextPath()
-                        .scheme("https")
+                        .scheme("https");
+                String contextUri = contextBuilder.build().toUriString();
+                log.info("Resolved profile image context URI from ServletUriComponentsBuilder: {}", contextUri);
+                imageUrl = contextBuilder
                         .path("/api/v1/users/profile-image/")
                         .path(fileName)
                         .build()
