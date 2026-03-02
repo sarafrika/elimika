@@ -1,3 +1,10 @@
+## [2.66.1](https://github.com/sarafrika/elimika/compare/v2.66.0...v2.66.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* derive course requirements course uuid from path only ([591a9b3](https://github.com/sarafrika/elimika/commit/591a9b37cb70a8fc287abb9217a0295f6489b2ca))
+
 # [2.66.0](https://github.com/sarafrika/elimika/compare/v2.65.0...v2.66.0) (2026-02-24)
 
 
