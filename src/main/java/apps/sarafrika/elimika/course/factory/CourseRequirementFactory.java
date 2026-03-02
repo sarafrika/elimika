@@ -15,7 +15,6 @@ public class CourseRequirementFactory {
         }
         return new CourseRequirementDTO(
                 courseRequirement.getUuid(),
-                courseRequirement.getCourseUuid(),
                 courseRequirement.getRequirementType(),
                 courseRequirement.getRequirementText(),
                 courseRequirement.getIsMandatory(),
@@ -33,7 +32,6 @@ public class CourseRequirementFactory {
         }
         CourseRequirement courseRequirement = new CourseRequirement();
         courseRequirement.setUuid(dto.uuid());
-        courseRequirement.setCourseUuid(dto.courseUuid());
         courseRequirement.setRequirementType(dto.requirementType());
         courseRequirement.setRequirementText(dto.requirementText());
         courseRequirement.setIsMandatory(dto.isMandatory());

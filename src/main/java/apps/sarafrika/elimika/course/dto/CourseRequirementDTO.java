@@ -26,17 +26,13 @@ import java.util.UUID;
         example = """
         {
             "uuid": "r1e2q3u4-5i6r-7e8m-9e10-abcdefghijkl",
-            "course_uuid": "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
             "requirement_type": "STUDENT",
             "requirement_text": "Basic knowledge of Java programming and object-oriented concepts",
             "is_mandatory": true,
             "created_date": "2024-04-01T12:00:00",
             "created_by": "instructor@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
-            "updated_by": "instructor@sarafrika.com",
-            "requirement_category": "Student Prerequisite",
-            "is_technical_requirement": true,
-            "priority_level": "High"
+            "updated_by": "instructor@sarafrika.com"
         }
         """
 )
@@ -50,15 +46,6 @@ public record CourseRequirementDTO(
         )
         @JsonProperty(value = "uuid", access = JsonProperty.Access.READ_ONLY)
         UUID uuid,
-
-        @Schema(
-                description = "**[REQUIRED]** Reference to the course UUID that this requirement applies to.",
-                example = "c1o2u3r4-5s6e-7d8a-9t10-abcdefghijkl",
-                requiredMode = Schema.RequiredMode.REQUIRED
-        )
-        @NotNull(message = "Course UUID is required")
-        @JsonProperty("course_uuid")
-        UUID courseUuid,
 
         @Schema(
                 description = "**[REQUIRED]** Type of requirement specifying who or what this applies to.",

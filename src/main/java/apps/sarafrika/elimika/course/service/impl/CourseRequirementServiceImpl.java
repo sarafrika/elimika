@@ -26,10 +26,12 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
     private final GenericSpecificationBuilder<CourseRequirement> specificationBuilder;
 
     private static final String COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE = "Course requirement with ID %s not found";
+    private static final String COURSE_REQUIREMENT_COURSE_MISMATCH_TEMPLATE = "Course requirement %s does not belong to course %s";
 
     @Override
-    public CourseRequirementDTO createCourseRequirement(CourseRequirementDTO courseRequirementDTO) {
+    public CourseRequirementDTO createCourseRequirement(UUID courseUuid, CourseRequirementDTO courseRequirementDTO) {
         CourseRequirement courseRequirement = CourseRequirementFactory.toEntity(courseRequirementDTO);
+        courseRequirement.setCourseUuid(courseUuid);
 
         // Set defaults
         if (courseRequirement.getIsMandatory() == null) {
@@ -56,23 +58,25 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
     }
 
     @Override
-    public CourseRequirementDTO updateCourseRequirement(UUID uuid, CourseRequirementDTO courseRequirementDTO) {
+    public CourseRequirementDTO updateCourseRequirement(UUID courseUuid, UUID uuid, CourseRequirementDTO courseRequirementDTO) {
         CourseRequirement existingCourseRequirement = courseRequirementRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE, uuid)));
 
+        assertBelongsToCourse(existingCourseRequirement, courseUuid);
         updateCourseRequirementFields(existingCourseRequirement, courseRequirementDTO);
+        existingCourseRequirement.setCourseUuid(courseUuid);
 
         CourseRequirement updatedCourseRequirement = courseRequirementRepository.save(existingCourseRequirement);
         return CourseRequirementFactory.toDTO(updatedCourseRequirement);
     }
 
     @Override
-    public void deleteCourseRequirement(UUID uuid) {
-        if (!courseRequirementRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+    public void deleteCourseRequirement(UUID courseUuid, UUID uuid) {
+        CourseRequirement existingCourseRequirement = courseRequirementRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_REQUIREMENT_NOT_FOUND_TEMPLATE, uuid)));
+        assertBelongsToCourse(existingCourseRequirement, courseUuid);
         courseRequirementRepository.deleteByUuid(uuid);
     }
 
@@ -85,9 +89,6 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
     }
 
     private void updateCourseRequirementFields(CourseRequirement existingCourseRequirement, CourseRequirementDTO dto) {
-        if (dto.courseUuid() != null) {
-            existingCourseRequirement.setCourseUuid(dto.courseUuid());
-        }
         if (dto.requirementType() != null) {
             existingCourseRequirement.setRequirementType(dto.requirementType());
         }
@@ -96,6 +97,13 @@ public class CourseRequirementServiceImpl implements CourseRequirementService {
         }
         if (dto.isMandatory() != null) {
             existingCourseRequirement.setIsMandatory(dto.isMandatory());
+        }
+    }
+
+    private void assertBelongsToCourse(CourseRequirement requirement, UUID courseUuid) {
+        if (!courseUuid.equals(requirement.getCourseUuid())) {
+            throw new ResourceNotFoundException(
+                    String.format(COURSE_REQUIREMENT_COURSE_MISMATCH_TEMPLATE, requirement.getUuid(), courseUuid));
         }
     }
 }

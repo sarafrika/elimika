@@ -951,7 +951,7 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseRequirementDTO>> addCourseRequirement(
             @PathVariable UUID courseUuid,
             @Valid @RequestBody CourseRequirementDTO requirementDTO) {
-        CourseRequirementDTO createdRequirement = courseRequirementService.createCourseRequirement(requirementDTO);
+        CourseRequirementDTO createdRequirement = courseRequirementService.createCourseRequirement(courseUuid, requirementDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdRequirement, "Requirement added successfully"));
@@ -982,7 +982,7 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid,
             @Valid @RequestBody CourseRequirementDTO requirementDTO) {
-        CourseRequirementDTO updatedRequirement = courseRequirementService.updateCourseRequirement(requirementUuid, requirementDTO);
+        CourseRequirementDTO updatedRequirement = courseRequirementService.updateCourseRequirement(courseUuid, requirementUuid, requirementDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedRequirement, "Requirement updated successfully"));
     }
@@ -995,7 +995,7 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourseRequirement(
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid) {
-        courseRequirementService.deleteCourseRequirement(requirementUuid);
+        courseRequirementService.deleteCourseRequirement(courseUuid, requirementUuid);
         return ResponseEntity.noContent().build();
     }
 

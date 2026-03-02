@@ -8,15 +8,15 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface CourseRequirementService {
-    CourseRequirementDTO createCourseRequirement(CourseRequirementDTO courseRequirementDTO);
+    CourseRequirementDTO createCourseRequirement(UUID courseUuid, CourseRequirementDTO courseRequirementDTO);
 
     CourseRequirementDTO getCourseRequirementByUuid(UUID uuid);
 
     Page<CourseRequirementDTO> getAllCourseRequirements(Pageable pageable);
 
-    CourseRequirementDTO updateCourseRequirement(UUID uuid, CourseRequirementDTO courseRequirementDTO);
+    CourseRequirementDTO updateCourseRequirement(UUID courseUuid, UUID uuid, CourseRequirementDTO courseRequirementDTO);
 
-    void deleteCourseRequirement(UUID uuid);
+    void deleteCourseRequirement(UUID courseUuid, UUID uuid);
 
     Page<CourseRequirementDTO> search(Map<String, String> searchParams, Pageable pageable);
 }
