@@ -35,6 +35,10 @@ import org.springframework.context.annotation.Configuration;
         servers = {
                 @Server(
                         description = "Development ENV",
+                        url = "https://api.elimika.staging.sarafrika.com"
+                ),
+                @Server(
+                        description = "Production ENV",
                         url = "https://api.elimika.sarafrika.com"
                 )
         },
