@@ -29,6 +29,7 @@ public class ClassDefinitionFactory {
                 entity.getLocationName(),
                 entity.getLocationLatitude(),
                 entity.getLocationLongitude(),
+                entity.getMeetingLink(),
                 entity.getMaxParticipants(),
                 entity.getAllowWaitlist(),
                 entity.getIsActive(),
@@ -61,6 +62,7 @@ public class ClassDefinitionFactory {
         entity.setLocationName(dto.locationName());
         entity.setLocationLatitude(dto.locationLatitude());
         entity.setLocationLongitude(dto.locationLongitude());
+        entity.setMeetingLink(dto.meetingLink());
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setAllowWaitlist(dto.allowWaitlist());
         entity.setIsActive(dto.isActive());
@@ -116,6 +118,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.locationLongitude() != null) {
             entity.setLocationLongitude(dto.locationLongitude());
+        }
+        if (dto.meetingLink() != null) {
+            entity.setMeetingLink(dto.meetingLink());
         }
         if (dto.maxParticipants() != null) {
             entity.setMaxParticipants(dto.maxParticipants());

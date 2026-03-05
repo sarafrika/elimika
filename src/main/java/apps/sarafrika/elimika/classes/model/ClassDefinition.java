@@ -60,6 +60,9 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "location_longitude")
     private BigDecimal locationLongitude;
 
+    @Column(name = "meeting_link")
+    private String meetingLink;
+
     @Column(name = "max_participants")
     private Integer maxParticipants = 50;
 
