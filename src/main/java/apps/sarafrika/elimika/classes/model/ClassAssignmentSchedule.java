@@ -32,9 +32,6 @@ public class ClassAssignmentSchedule extends BaseEntity {
     @Column(name = "assignment_uuid")
     private UUID assignmentUuid;
 
-    @Column(name = "class_lesson_plan_uuid")
-    private UUID classLessonPlanUuid;
-
     @Column(name = "visible_at")
     private LocalDateTime visibleAt;
 

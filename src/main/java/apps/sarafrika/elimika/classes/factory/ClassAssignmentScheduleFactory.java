@@ -18,7 +18,6 @@ public final class ClassAssignmentScheduleFactory {
                 entity.getClassDefinitionUuid(),
                 entity.getLessonUuid(),
                 entity.getAssignmentUuid(),
-                entity.getClassLessonPlanUuid(),
                 entity.getVisibleAt(),
                 entity.getDueAt(),
                 entity.getGradingDueAt(),
@@ -43,7 +42,6 @@ public final class ClassAssignmentScheduleFactory {
         entity.setClassDefinitionUuid(dto.classDefinitionUuid());
         entity.setLessonUuid(dto.lessonUuid());
         entity.setAssignmentUuid(dto.assignmentUuid());
-        entity.setClassLessonPlanUuid(dto.classLessonPlanUuid());
         entity.setVisibleAt(dto.visibleAt());
         entity.setDueAt(dto.dueAt());
         entity.setGradingDueAt(dto.gradingDueAt());
@@ -67,9 +65,6 @@ public final class ClassAssignmentScheduleFactory {
         }
         if (dto.assignmentUuid() != null) {
             entity.setAssignmentUuid(dto.assignmentUuid());
-        }
-        if (dto.classLessonPlanUuid() != null) {
-            entity.setClassLessonPlanUuid(dto.classLessonPlanUuid());
         }
         if (dto.visibleAt() != null) {
             entity.setVisibleAt(dto.visibleAt());

@@ -14,7 +14,6 @@ public record ClassQuizScheduleChangedEventDTO(
         UUID lessonUuid,
         UUID quizUuid,
         String quizTitle,
-        UUID classLessonPlanUuid,
         LocalDateTime visibleAt,
         LocalDateTime dueAt,
         String timezone,

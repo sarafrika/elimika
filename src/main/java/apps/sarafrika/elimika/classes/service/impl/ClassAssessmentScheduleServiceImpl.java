@@ -5,11 +5,9 @@ import apps.sarafrika.elimika.classes.dto.ClassQuizScheduleDTO;
 import apps.sarafrika.elimika.classes.factory.ClassAssignmentScheduleFactory;
 import apps.sarafrika.elimika.classes.factory.ClassQuizScheduleFactory;
 import apps.sarafrika.elimika.classes.model.ClassAssignmentSchedule;
-import apps.sarafrika.elimika.classes.model.ClassLessonPlan;
 import apps.sarafrika.elimika.classes.model.ClassQuizSchedule;
 import apps.sarafrika.elimika.classes.repository.ClassAssignmentScheduleRepository;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
-import apps.sarafrika.elimika.classes.repository.ClassLessonPlanRepository;
 import apps.sarafrika.elimika.classes.repository.ClassQuizScheduleRepository;
 import apps.sarafrika.elimika.classes.service.ClassAssessmentScheduleService;
 import apps.sarafrika.elimika.course.spi.CourseAssessmentLookupService;
@@ -42,13 +40,11 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
     private static final String CLASS_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String ASSIGNMENT_SCHEDULE_NOT_FOUND_TEMPLATE = "Assignment schedule with UUID %s not found";
     private static final String QUIZ_SCHEDULE_NOT_FOUND_TEMPLATE = "Quiz schedule with UUID %s not found";
-    private static final String LESSON_PLAN_NOT_FOUND_TEMPLATE = "Lesson plan entry with UUID %s not found";
     private static final String ASSIGNMENT_NOT_FOUND_TEMPLATE = "Assignment with UUID %s not found";
     private static final String QUIZ_NOT_FOUND_TEMPLATE = "Quiz with UUID %s not found";
     private static final String INSTRUCTOR_REQUIRED_MESSAGE = "Instructor UUID is required for class assessment schedules";
 
     private final ClassDefinitionRepository classDefinitionRepository;
-    private final ClassLessonPlanRepository classLessonPlanRepository;
     private final ClassAssignmentScheduleRepository classAssignmentScheduleRepository;
     private final ClassQuizScheduleRepository classQuizScheduleRepository;
     private final CourseAssessmentLookupService courseAssessmentLookupService;
@@ -72,7 +68,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
         ensureClassExists(classDefinitionUuid);
         CourseAssignmentSummary assignment = fetchAssignmentSummary(request.assignmentUuid());
         UUID resolvedLessonUuid = resolveLessonUuid(request.lessonUuid(), assignment.lessonUuid());
-        validateLessonPlanOwnership(classDefinitionUuid, request.classLessonPlanUuid(), resolvedLessonUuid);
         validateInstructor(request.instructorUuid());
 
         ClassAssignmentSchedule entity = ClassAssignmentScheduleFactory.toEntity(request);
@@ -104,14 +99,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
                 request.lessonUuid() != null ? request.lessonUuid() : existing.getLessonUuid(),
                 assignment.lessonUuid());
         existing.setLessonUuid(resolvedLessonUuid);
-
-        if (existing.getClassLessonPlanUuid() != null || request.classLessonPlanUuid() != null) {
-            UUID planUuidToValidate = request.classLessonPlanUuid() != null
-                    ? request.classLessonPlanUuid()
-                    : existing.getClassLessonPlanUuid();
-            validateLessonPlanOwnership(classDefinitionUuid, planUuidToValidate, resolvedLessonUuid);
-            existing.setClassLessonPlanUuid(planUuidToValidate);
-        }
 
         existing.setClassDefinitionUuid(classDefinitionUuid);
         validateInstructor(existing.getInstructorUuid());
@@ -153,7 +140,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
         ensureClassExists(classDefinitionUuid);
         CourseQuizSummary quiz = fetchQuizSummary(request.quizUuid());
         UUID resolvedLessonUuid = resolveLessonUuid(request.lessonUuid(), quiz.lessonUuid());
-        validateLessonPlanOwnership(classDefinitionUuid, request.classLessonPlanUuid(), resolvedLessonUuid);
         validateInstructor(request.instructorUuid());
 
         ClassQuizSchedule entity = ClassQuizScheduleFactory.toEntity(request);
@@ -185,14 +171,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
                 request.lessonUuid() != null ? request.lessonUuid() : existing.getLessonUuid(),
                 quiz.lessonUuid());
         existing.setLessonUuid(resolvedLessonUuid);
-
-        if (existing.getClassLessonPlanUuid() != null || request.classLessonPlanUuid() != null) {
-            UUID planUuidToValidate = request.classLessonPlanUuid() != null
-                    ? request.classLessonPlanUuid()
-                    : existing.getClassLessonPlanUuid();
-            validateLessonPlanOwnership(classDefinitionUuid, planUuidToValidate, resolvedLessonUuid);
-            existing.setClassLessonPlanUuid(planUuidToValidate);
-        }
 
         existing.setClassDefinitionUuid(classDefinitionUuid);
         validateInstructor(existing.getInstructorUuid());
@@ -260,22 +238,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
         return lessonUuid;
     }
 
-    private void validateLessonPlanOwnership(UUID classDefinitionUuid, UUID planUuid, UUID lessonUuid) {
-        if (planUuid == null) {
-            return;
-        }
-        ClassLessonPlan plan = classLessonPlanRepository.findByUuid(planUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(LESSON_PLAN_NOT_FOUND_TEMPLATE, planUuid)));
-
-        if (!plan.getClassDefinitionUuid().equals(classDefinitionUuid)) {
-            throw new ValidationException("Lesson plan entry does not belong to the specified class");
-        }
-        if (lessonUuid != null && plan.getLessonUuid() != null && !plan.getLessonUuid().equals(lessonUuid)) {
-            throw new ValidationException("Lesson plan entry lesson does not match the schedule lesson");
-        }
-    }
-
     private void validateInstructor(UUID instructorUuid) {
         if (instructorUuid == null) {
             throw new ValidationException(INSTRUCTOR_REQUIRED_MESSAGE);
@@ -293,7 +255,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
                 schedule.getLessonUuid(),
                 schedule.getAssignmentUuid(),
                 assignmentTitle,
-                schedule.getClassLessonPlanUuid(),
                 schedule.getVisibleAt(),
                 schedule.getDueAt(),
                 schedule.getGradingDueAt(),
@@ -321,7 +282,6 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
                 schedule.getLessonUuid(),
                 schedule.getQuizUuid(),
                 quizTitle,
-                schedule.getClassLessonPlanUuid(),
                 schedule.getVisibleAt(),
                 schedule.getDueAt(),
                 schedule.getTimezone(),

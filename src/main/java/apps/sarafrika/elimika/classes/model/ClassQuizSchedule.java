@@ -33,9 +33,6 @@ public class ClassQuizSchedule extends BaseEntity {
     @Column(name = "quiz_uuid")
     private UUID quizUuid;
 
-    @Column(name = "class_lesson_plan_uuid")
-    private UUID classLessonPlanUuid;
-
     @Column(name = "visible_at")
     private LocalDateTime visibleAt;
 

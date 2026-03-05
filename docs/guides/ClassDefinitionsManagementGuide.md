@@ -343,7 +343,7 @@ You can use the `activeOnly=true` query parameter to filter for active classes.
 -   **Update:** `PUT /api/v1/classes/{uuid}` -> `updateClassDefinition`
 -   **Deactivate:** `DELETE /api/v1/classes/{uuid}` -> `deactivateClassDefinition`
 
-> **Next Steps:** Instructors often need to control lesson ordering and assessment deadlines after the class definition exists. Pair this guide with **[Class & Assessment Scheduling: Frontend Integration Guide](./ClassAssessmentsFrontendGuide.md)** to implement the lesson plan UI and class-specific assignment/quiz scheduling workflows.
+> **Next Steps:** Instructors often need to control class-specific assessment deadlines and overrides after the class definition exists. Pair this guide with **[Class Assessment Scheduling: Frontend Integration Guide](./ClassAssessmentsFrontendGuide.md)** to implement assignment/quiz scheduling workflows.
 
 ---
 

@@ -18,7 +18,6 @@ public final class ClassQuizScheduleFactory {
                 entity.getClassDefinitionUuid(),
                 entity.getLessonUuid(),
                 entity.getQuizUuid(),
-                entity.getClassLessonPlanUuid(),
                 entity.getVisibleAt(),
                 entity.getDueAt(),
                 entity.getTimezone(),
@@ -44,7 +43,6 @@ public final class ClassQuizScheduleFactory {
         entity.setClassDefinitionUuid(dto.classDefinitionUuid());
         entity.setLessonUuid(dto.lessonUuid());
         entity.setQuizUuid(dto.quizUuid());
-        entity.setClassLessonPlanUuid(dto.classLessonPlanUuid());
         entity.setVisibleAt(dto.visibleAt());
         entity.setDueAt(dto.dueAt());
         entity.setTimezone(dto.timezone());
@@ -69,9 +67,6 @@ public final class ClassQuizScheduleFactory {
         }
         if (dto.quizUuid() != null) {
             entity.setQuizUuid(dto.quizUuid());
-        }
-        if (dto.classLessonPlanUuid() != null) {
-            entity.setClassLessonPlanUuid(dto.classLessonPlanUuid());
         }
         if (dto.visibleAt() != null) {
             entity.setVisibleAt(dto.visibleAt());
