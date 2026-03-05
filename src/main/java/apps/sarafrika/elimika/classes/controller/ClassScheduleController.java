@@ -1,10 +1,8 @@
 package apps.sarafrika.elimika.classes.controller;
 
 import apps.sarafrika.elimika.classes.dto.ClassAssignmentScheduleDTO;
-import apps.sarafrika.elimika.classes.dto.ClassLessonPlanDTO;
 import apps.sarafrika.elimika.classes.dto.ClassQuizScheduleDTO;
 import apps.sarafrika.elimika.classes.service.ClassAssessmentScheduleService;
-import apps.sarafrika.elimika.classes.service.ClassLessonPlanService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,35 +20,12 @@ import java.util.UUID;
 @RequestMapping(ClassScheduleController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Class Scheduling Management", description = "Manage lesson plans and assessment schedules for instructor-led classes.")
+@Tag(name = "Class Scheduling Management", description = "Manage assessment schedules for instructor-led classes.")
 public class ClassScheduleController {
 
     public static final String API_ROOT_PATH = "/api/v1/classes/{classUuid}";
 
-    private final ClassLessonPlanService classLessonPlanService;
     private final ClassAssessmentScheduleService classAssessmentScheduleService;
-
-    // Lesson plan endpoints
-    @Operation(summary = "Get the lesson plan for a class definition")
-    @GetMapping("/lesson-plan")
-    public ResponseEntity<ApiResponse<List<ClassLessonPlanDTO>>> getLessonPlan(
-            @Parameter(description = "Class definition UUID", required = true)
-            @PathVariable UUID classUuid) {
-        log.debug("Fetching lesson plan for class {}", classUuid);
-        List<ClassLessonPlanDTO> lessonPlan = classLessonPlanService.getLessonPlan(classUuid);
-        return ResponseEntity.ok(ApiResponse.success(lessonPlan, "Lesson plan retrieved successfully"));
-    }
-
-    @Operation(summary = "Replace the lesson plan for a class definition")
-    @PutMapping("/lesson-plan")
-    public ResponseEntity<ApiResponse<List<ClassLessonPlanDTO>>> saveLessonPlan(
-            @Parameter(description = "Class definition UUID", required = true)
-            @PathVariable UUID classUuid,
-            @RequestBody List<ClassLessonPlanDTO> request) {
-        log.debug("Updating lesson plan for class {} with {} entries", classUuid, request != null ? request.size() : 0);
-        List<ClassLessonPlanDTO> result = classLessonPlanService.saveLessonPlan(classUuid, request);
-        return ResponseEntity.ok(ApiResponse.success(result, "Lesson plan saved successfully"));
-    }
 
     // Assignment schedules
     @Operation(summary = "List assignment schedules for a class definition")

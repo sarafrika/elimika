@@ -17,7 +17,6 @@ import java.util.UUID;
             "class_definition_uuid": "cd123456-7890-abcd-ef01-234567890abc",
             "lesson_uuid": "lesson-1234-5678-90ab-cdef12345678",
             "quiz_uuid": "quiz-1234-5678-90ab-cdef12345678",
-            "class_lesson_plan_uuid": "clp-1234-5678-90ab-cdef12345678",
             "visible_at": "2024-05-09T07:00:00",
             "due_at": "2024-05-09T23:59:00",
             "timezone": "Africa/Nairobi",
@@ -64,13 +63,6 @@ public record ClassQuizScheduleDTO(
         )
         @JsonProperty("quiz_uuid")
         UUID quizUuid,
-
-        @Schema(
-                description = "**[OPTIONAL]** Linked lesson plan entry for ordering context.",
-                example = "clp-1234-5678-90ab-cdef12345678"
-        )
-        @JsonProperty("class_lesson_plan_uuid")
-        UUID classLessonPlanUuid,
 
         @Schema(
                 description = "**[OPTIONAL]** When the quiz is visible to students (UTC).",

@@ -13,7 +13,6 @@ public record ClassAssignmentScheduleChangedEventDTO(
         UUID lessonUuid,
         UUID assignmentUuid,
         String assignmentTitle,
-        UUID classLessonPlanUuid,
         LocalDateTime visibleAt,
         LocalDateTime dueAt,
         LocalDateTime gradingDueAt,

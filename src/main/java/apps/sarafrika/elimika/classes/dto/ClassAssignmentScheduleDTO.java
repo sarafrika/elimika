@@ -16,7 +16,6 @@ import java.util.UUID;
             "class_definition_uuid": "cd123456-7890-abcd-ef01-234567890abc",
             "lesson_uuid": "lesson-1234-5678-90ab-cdef12345678",
             "assignment_uuid": "assign-1234-5678-90ab-cdef12345678",
-            "class_lesson_plan_uuid": "clp-1234-5678-90ab-cdef12345678",
             "visible_at": "2024-05-08T07:00:00",
             "due_at": "2024-05-12T23:59:00",
             "grading_due_at": "2024-05-15T17:00:00",
@@ -62,13 +61,6 @@ public record ClassAssignmentScheduleDTO(
         )
         @JsonProperty("assignment_uuid")
         UUID assignmentUuid,
-
-        @Schema(
-                description = "**[OPTIONAL]** Lesson plan entry this schedule ties to.",
-                example = "clp-1234-5678-90ab-cdef12345678"
-        )
-        @JsonProperty("class_lesson_plan_uuid")
-        UUID classLessonPlanUuid,
 
         @Schema(
                 description = "**[OPTIONAL]** When the assignment becomes visible to students (UTC).",

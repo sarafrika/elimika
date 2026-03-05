@@ -1,11 +1,11 @@
-# Class & Assessment Scheduling: Frontend Integration Guide
+# Class Assessment Scheduling: Frontend Integration Guide
 
-This guide explains how frontend teams should integrate with the **class lesson plan** and **class-level assessment scheduling** APIs. It focuses on instructor and student experiences across web dashboards, highlighting required endpoints, payloads, UI states, and notification triggers.
+This guide explains how frontend teams should integrate with **class-level assessment scheduling** APIs. It focuses on instructor and student experiences across web dashboards, highlighting required endpoints, payloads, UI states, and notification triggers.
 
 ## Audience & Goals
 
-- **Instructors** manage lesson ordering, assessment release windows, deadlines, and overrides for their classes.
-- **Students** consume lesson plans and assessment deadlines that reflect class-specific overrides.
+- **Instructors** manage assessment release windows, deadlines, and overrides for their classes.
+- **Students** consume assignment and quiz deadlines that reflect class-specific overrides.
 - **Product/UX** teams ensure the UI mirrors business rules (permission checks, validation feedback, notifications).
 
 ## Architecture Overview
@@ -13,12 +13,10 @@ This guide explains how frontend teams should integrate with the **class lesson 
 ```mermaid
 flowchart LR
     subgraph "Class Experience"
-        UI[Instructor UI] -->|GET/PUT| LessonPlanAPI["Lesson Plan API"]
-        UI -->|GET/POST/PATCH| AssignmentAPI["Assignments API"]
+        UI[Instructor UI] -->|GET/POST/PATCH| AssignmentAPI["Assignments API"]
         UI -->|GET/POST/PATCH| QuizAPI["Quizzes API"]
     end
 
-    LessonPlanAPI --> ClassesService[(ClassLessonPlanService)]
     AssignmentAPI --> ClassSchedules[(ClassAssessmentScheduleService)]
     QuizAPI --> ClassSchedules
 
@@ -34,9 +32,8 @@ flowchart LR
 
 | Concept | Description | Notes for UI |
 |---|---|---|
-| `ClassLessonPlan` | Defines lesson ordering, optional planned start/end times, and instructor notes per class. | Primary view instructors use to structure their cohort. |
-| `ClassAssignmentSchedule` | Associates a class/lesson with an assignment (course template or class clone) and sets visibility/due windows. | Deadlines drive instructor notifications and student calendars. |
-| `ClassQuizSchedule` | Same as assignments but with quiz-specific overrides (time limit, attempts, passing score). | UI should highlight overrides vs inherited defaults. |
+| `ClassAssignmentSchedule` | Associates a class/lesson with an assignment and sets visibility/due windows. | Deadlines drive instructor notifications and student calendars. |
+| `ClassQuizSchedule` | Associates a class/lesson with a quiz and allows quiz-specific overrides. | Highlight overrides vs inherited defaults. |
 | `release_strategy` | `INHERITED`, `CUSTOM`, or `CLONE`. Signals how class values relate to course templates. | Display badges or tooltips explaining overrides. |
 
 ## API Endpoints
@@ -45,8 +42,6 @@ Base path: `/api/v1/classes/{classUuid}`
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/lesson-plan` | `GET` | Retrieve ordered lesson plan entries for a class. |
-| `/lesson-plan` | `PUT` | Replace the entire lesson plan (ordered array). |
 | `/assignments` | `GET` | List class assignment schedules. |
 | `/assignments` | `POST` | Create a schedule entry (inherit defaults or clone template). |
 | `/assignments/{scheduleUuid}` | `PATCH` | Update deadlines, release strategy, or overrides. |
@@ -54,30 +49,7 @@ Base path: `/api/v1/classes/{classUuid}`
 | `/quizzes` | `GET` | List class quiz schedules. |
 | `/quizzes` | `POST` | Create class quiz schedule. |
 | `/quizzes/{scheduleUuid}` | `PATCH` | Update quiz overrides or deadlines. |
-| `/quizzes/{scheduleUuid}` | `DELETE` | Remove quiz from class plan. |
-
-### Lesson Plan Payload
-
-```jsonc
-PUT /api/v1/classes/{classUuid}/lesson-plan
-[
-  {
-    "uuid": "optional-when-updating-existing",
-    "lesson_uuid": "lesson-uuid",
-    "scheduled_start": "2025-02-10T14:00:00",
-    "scheduled_end": "2025-02-10T15:30:00",
-    "scheduled_instance_uuid": null,
-    "instructor_uuid": "instructor-uuid",
-    "notes": "Focus on group project kick-off"
-  }
-]
-```
-
-**UI Guidance**
-- Use draggable lists for reordering.
-- Preserve `uuid` for existing entries; omit for new entries to create.
-- Validate `scheduled_start < scheduled_end` client-side.
-- Highlight conflicts returned from timetabling APIs (if integrated).
+| `/quizzes/{scheduleUuid}` | `DELETE` | Remove quiz from class schedules. |
 
 ### Assignment Schedule Payload
 
@@ -86,7 +58,6 @@ POST /api/v1/classes/{classUuid}/assignments
 {
   "assignment_uuid": "course-assignment-uuid",
   "lesson_uuid": "lesson-uuid",          // optional if template already set
-  "class_lesson_plan_uuid": "optional",
   "visible_at": "2025-02-12T06:00:00Z",
   "due_at": "2025-02-15T21:00:00Z",
   "grading_due_at": "2025-02-18T21:00:00Z",
@@ -126,7 +97,7 @@ PATCH /api/v1/classes/{classUuid}/quizzes/{scheduleUuid}
 **UI Considerations**
 - Time limit and attempt overrides should be constrained by course template maximums (validate on save based on API error response).
 - Display difference between template vs class override using chips or accordion sections.
-- Show historical updates (if available) using the schedule change notifications.
+- Show historical updates (if available) using schedule change notifications.
 
 ## Notifications & Event Flow
 
@@ -158,25 +129,20 @@ PATCH /api/v1/classes/{classUuid}/quizzes/{scheduleUuid}
 |---|---|---|
 | `400` | Validation failure (deadline order, missing lesson) | Show inline form errors from response `message`. |
 | `403` | Attempt to edit class not owned by instructor | Redirect to read-only view with “insufficient permissions”. |
-| `404` | Lesson plan or assessment not found | Refresh class data; show toast “Item removed by another instructor”. |
+| `404` | Assessment schedule or template not found | Refresh class data; show toast “Item removed by another instructor”. |
 | `409` | (Future) Scheduling conflict with timetabling | Display conflict modal with conflicting time slots. |
 
 ## Recommended UI Workflow
 
-1. **Lesson Plan Overview**
-   - Load `/lesson-plan` into reorderable list.
-   - Provide “Add Lesson” modal with search over course lessons.
+1. **Assessment Scheduler**
+   - Load assignments and quizzes for a class.
+   - Provide create/update/delete controls for both schedule types.
 
-2. **Assessment Scheduler Drawer**
-   - Trigger from lesson plan row (“Manage Assessments”).
-   - Show tabs for assignments/quizzes with existing schedules.
-   - Include “Import course templates” action (future bulk API).
-
-3. **Deadline Calendar**
+2. **Deadline Calendar**
    - Visual calendar heatmap highlighting `visible_at` and `due_at`.
    - Supports drag-to-adjust (PATCH endpoint on drop).
 
-4. **Audit Log Panel**
+3. **Audit Log Panel**
    - Use notification event payloads to display “Updated by [user] on [time]”.
    - Helps instructors track collaborative edits.
 
@@ -190,8 +156,7 @@ PATCH /api/v1/classes/{classUuid}/quizzes/{scheduleUuid}
 
 ## Frontend Checklist
 
-- [ ] Update instructor dashboard navigation with “Lesson Plan & Deadlines”.
-- [ ] Build lesson plan reorder & inline notes UI.
+- [ ] Update instructor dashboard navigation with “Assessment Deadlines”.
 - [ ] Implement assessment scheduler with create/update/delete flows.
 - [ ] Show release strategy badges and tooltip explanations.
 - [ ] Surface email notifications in UI (badge for recent changes).
@@ -200,7 +165,7 @@ PATCH /api/v1/classes/{classUuid}/quizzes/{scheduleUuid}
 
 ## Appendix
 
-- **DTOs:** `ClassLessonPlanDTO`, `ClassAssignmentScheduleDTO`, `ClassQuizScheduleDTO`.
+- **DTOs:** `ClassAssignmentScheduleDTO`, `ClassQuizScheduleDTO`.
 - **Events:** `ClassAssignmentScheduleChangedEventDTO`, `ClassQuizScheduleChangedEventDTO`.
 - **Notification Type:** `CLASS_SCHEDULE_UPDATED`.
 - **Enums:** `AssignmentScope`, `QuizScope`, `ClassAssessmentReleaseStrategy`.
