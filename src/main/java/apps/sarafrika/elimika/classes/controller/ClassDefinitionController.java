@@ -89,6 +89,7 @@ public class ClassDefinitionController {
                 request.locationName(),
                 request.locationLatitude(),
                 request.locationLongitude(),
+                request.meetingLink(),
                 request.maxParticipants(),
                 request.allowWaitlist(),
                 request.isActive(),

@@ -51,6 +51,7 @@ import java.util.UUID;
             "location_name": "Nairobi HQ – Room 101",
             "location_latitude": -1.292066,
             "location_longitude": 36.821945,
+            "meeting_link": "https://meet.google.com/abc-defg-hij",
             "max_participants": 25,
             "allow_waitlist": true,
             "session_templates": [
@@ -240,6 +241,17 @@ public record ClassDefinitionDTO(
         )
         @JsonProperty("location_longitude")
         BigDecimal locationLongitude,
+
+        @Schema(
+                description = "**[OPTIONAL]** Virtual meeting URL for online participation (e.g., Zoom, Google Meet, Teams).",
+                example = "https://meet.google.com/abc-defg-hij",
+                maxLength = 1000,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 1000, message = "Meeting link must not exceed 1000 characters")
+        @JsonProperty("meeting_link")
+        String meetingLink,
 
         @Schema(
                 description = "**[OPTIONAL]** Maximum number of participants allowed in the class.",
