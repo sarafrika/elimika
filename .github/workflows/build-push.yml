@@ -1,11 +1,9 @@
 name: Docker Build and Push
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-    types:
-      - closed
   workflow_dispatch:
     inputs:
       force_build:
@@ -46,16 +44,13 @@ jobs:
             exit 0
           fi
           
-          echo "trigger-type=pull_request" >> $GITHUB_OUTPUT
+          echo "trigger-type=push" >> $GITHUB_OUTPUT
           
-          # Get the list of changed files in the PR
-          if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
-            # For merged PRs, compare against the base branch
-            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          # Get the list of files introduced by the push to main
+          if [ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]; then
+            changed_files=$(git ls-files)
           else
-            echo "PR was closed but not merged, skipping build"
-            echo "should-build=false" >> $GITHUB_OUTPUT
-            exit 0
+            changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
           fi
           
           echo "Changed files:"
@@ -87,8 +82,8 @@ jobs:
             echo "Reason: ${{ github.event.inputs.build_reason }}"
             echo "Force build: ${{ github.event.inputs.force_build }}"
           else
-            echo "🔄 PR Merge Build"
-            echo "Changed files detected, proceeding with build"
+            echo "🔄 Push Build"
+            echo "Changes detected on main, proceeding with build"
           fi
 
       - name: Checkout code
@@ -144,7 +139,7 @@ jobs:
             echo "🚀 Trigger: Manual workflow dispatch"
             echo "📝 Reason: ${{ github.event.inputs.build_reason }}"
           else
-            echo "🔄 Trigger: PR merge to main"
+            echo "🔄 Trigger: Push to main"
           fi
 
   skip-build:
@@ -154,7 +149,7 @@ jobs:
     steps:
       - name: Skip Build Notification
         run: |
-          echo "⏭️  Build skipped - only workflow/documentation changes detected"
+          echo "⏭️  Build skipped - only .github changes detected"
           echo ""
           echo "Changed files:"
           echo "${{ needs.check-changes.outputs.changed-files }}"
