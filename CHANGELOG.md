@@ -1,3 +1,17 @@
+# [2.67.0](https://github.com/sarafrika/elimika/compare/v2.66.1...v2.67.0) (2026-03-16)
+
+
+### Bug Fixes
+
+* trigger docker build workflow from main push history ([2752513](https://github.com/sarafrika/elimika/commit/27525132be1704fe4ff9a1386cca349799585e82))
+
+
+### Features
+
+* add weighted course gradebook components and line items ([ffcf858](https://github.com/sarafrika/elimika/commit/ffcf858c6fcb76f1d484fc111d9d2578999de0d4))
+* support optional meeting link in class definition payloads ([72f92fb](https://github.com/sarafrika/elimika/commit/72f92fbc5dfcb13b0bb4b94feea2321a902a44b8))
+* sync class attendance into the weighted course gradebook ([f13bd66](https://github.com/sarafrika/elimika/commit/f13bd6672346333260045839e549776d8725d6bb))
+
 ## [2.66.1](https://github.com/sarafrika/elimika/compare/v2.66.0...v2.66.1) (2026-03-02)
 
 
