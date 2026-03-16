@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
+import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradebookDTO;
 import apps.sarafrika.elimika.course.service.CourseGradebookService;
@@ -99,6 +100,42 @@ public class CourseGradebookController {
                 scoreDTO
         );
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedScore, "Gradebook line item score saved successfully"));
+    }
+
+    @Operation(summary = "Get line item rubric evaluation", description = "Returns the rubric evaluation for a learner against a rubric-backed gradebook line item.")
+    @GetMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/rubric-evaluations/{enrollmentUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentLineItemRubricEvaluationDTO>> getLineItemRubricEvaluation(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID assessmentUuid,
+            @PathVariable UUID lineItemUuid,
+            @PathVariable UUID enrollmentUuid
+    ) {
+        CourseAssessmentLineItemRubricEvaluationDTO evaluation = courseGradebookService.getLineItemRubricEvaluation(
+                courseUuid,
+                assessmentUuid,
+                lineItemUuid,
+                enrollmentUuid
+        );
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(evaluation, "Gradebook line item rubric evaluation retrieved successfully"));
+    }
+
+    @Operation(summary = "Upsert line item rubric evaluation", description = "Completes or updates the rubric evaluation for a learner against a rubric-backed gradebook line item.")
+    @PutMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/rubric-evaluations/{enrollmentUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentLineItemRubricEvaluationDTO>> upsertLineItemRubricEvaluation(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID assessmentUuid,
+            @PathVariable UUID lineItemUuid,
+            @PathVariable UUID enrollmentUuid,
+            @Valid @RequestBody CourseAssessmentLineItemRubricEvaluationDTO evaluationDTO
+    ) {
+        CourseAssessmentLineItemRubricEvaluationDTO savedEvaluation = courseGradebookService.upsertLineItemRubricEvaluation(
+                courseUuid,
+                assessmentUuid,
+                lineItemUuid,
+                enrollmentUuid,
+                evaluationDTO
+        );
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedEvaluation, "Gradebook line item rubric evaluation saved successfully"));
     }
 
     @Operation(summary = "Get enrollment gradebook", description = "Returns the weighted gradebook view for a learner in a course.")

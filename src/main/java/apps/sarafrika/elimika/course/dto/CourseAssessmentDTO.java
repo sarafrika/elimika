@@ -128,6 +128,14 @@ public record CourseAssessmentDTO(
         UUID rubricUuid,
 
         @Schema(
+                description = "**[OPTIONAL]** Indicates that this component should auto-sync attendance marks from class sessions under the course.",
+                example = "false",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("sync_class_attendance")
+        Boolean syncClassAttendance,
+
+        @Schema(
                 description = "**[OPTIONAL]** Indicates if this assessment is required for course completion.",
                 example = "true",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

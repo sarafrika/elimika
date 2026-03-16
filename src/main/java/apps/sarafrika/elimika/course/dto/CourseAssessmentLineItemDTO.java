@@ -63,6 +63,9 @@ public record CourseAssessmentLineItemDTO(
         @JsonProperty("rubric_uuid")
         UUID rubricUuid,
 
+        @JsonProperty("scheduled_instance_uuid")
+        UUID scheduledInstanceUuid,
+
         @JsonProperty("max_score")
         @DecimalMin(value = "0.01", message = "Maximum score must be positive when provided")
         BigDecimal maxScore,
