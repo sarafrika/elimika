@@ -20,6 +20,7 @@ public class CourseAssessmentFactory {
                 courseAssessment.getTitle(),
                 courseAssessment.getDescription(),
                 courseAssessment.getWeightPercentage(),
+                courseAssessment.getAggregationStrategy(),
                 courseAssessment.getRubricUuid(),
                 courseAssessment.getIsRequired(),
                 courseAssessment.getCreatedDate(),
@@ -41,6 +42,7 @@ public class CourseAssessmentFactory {
         courseAssessment.setTitle(dto.title());
         courseAssessment.setDescription(dto.description());
         courseAssessment.setWeightPercentage(dto.weightPercentage());
+        courseAssessment.setAggregationStrategy(dto.aggregationStrategy());
         courseAssessment.setRubricUuid(dto.rubricUuid());
         courseAssessment.setIsRequired(dto.isRequired());
         courseAssessment.setCreatedDate(dto.createdDate());

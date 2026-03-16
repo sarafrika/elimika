@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.dto;
 
+import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -29,6 +30,7 @@ import java.util.UUID;
             "title": "Class Attendance and Participation",
             "description": "Regular attendance and active participation in class discussions and activities",
             "weight_percentage": 20.00,
+            "aggregation_strategy": "weighted_average",
             "rubric_uuid": "a1s2s3r4-5u6b-7r8i-9c10-abcdefghijkl",
             "is_required": true,
             "created_date": "2024-04-01T12:00:00",
@@ -106,6 +108,15 @@ public record CourseAssessmentDTO(
         @DecimalMax(value = "100.00", message = "Weight percentage cannot exceed 100%")
         @JsonProperty("weight_percentage")
         BigDecimal weightPercentage,
+
+        @Schema(
+                description = "**[OPTIONAL]** Strategy used to aggregate gradebook line items for this assessment component.",
+                example = "weighted_average",
+                allowableValues = {"points_sum", "weighted_average"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("aggregation_strategy")
+        CourseAssessmentAggregationStrategy aggregationStrategy,
 
         @Schema(
                 description = "**[OPTIONAL]** Reference to assessment rubric UUID for detailed grading criteria.",
@@ -259,5 +270,22 @@ public record CourseAssessmentDTO(
         } else {
             return "Minor Contribution";
         }
+    }
+
+    @JsonProperty(value = "aggregation_strategy_display", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Human-readable description of how line items are combined for this component.",
+            example = "Weighted line items",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public String getAggregationStrategyDisplay() {
+        if (aggregationStrategy == null) {
+            return "Points sum";
+        }
+
+        return switch (aggregationStrategy) {
+            case POINTS_SUM -> "Points sum";
+            case WEIGHTED_AVERAGE -> "Weighted line items";
+        };
     }
 }

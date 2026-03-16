@@ -1,8 +1,17 @@
 package apps.sarafrika.elimika.course.model;
 
+import apps.sarafrika.elimika.course.util.converter.CourseAssessmentAggregationStrategyConverter;
+import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -28,6 +37,10 @@ public class CourseAssessment extends BaseEntity {
 
     @Column(name = "weight_percentage")
     private BigDecimal weightPercentage;
+
+    @Column(name = "aggregation_strategy")
+    @Convert(converter = CourseAssessmentAggregationStrategyConverter.class)
+    private CourseAssessmentAggregationStrategy aggregationStrategy;
 
     @Column(name = "rubric_uuid")
     private UUID rubricUuid;

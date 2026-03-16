@@ -20,6 +20,8 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
         JpaSpecificationExecutor<CourseEnrollment> {
     Optional<CourseEnrollment> findByUuid(UUID uuid);
 
+    Optional<CourseEnrollment> findByUuidAndCourseUuid(UUID uuid, UUID courseUuid);
+
     void deleteByUuid(UUID uuid);
 
     boolean existsByUuid(UUID uuid);
@@ -29,6 +31,8 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
     boolean existsByStudentUuidAndCourseUuidAndStatus(UUID studentUuid, UUID courseUuid, EnrollmentStatus enrollmentStatus);
 
     Optional<CourseEnrollment> findByStudentUuidAndCourseUuid(UUID studentUuid, UUID courseUuid);
+
+    List<CourseEnrollment> findByCourseUuid(UUID courseUuid);
 
     boolean existsByCourseUuidAndStatusIn(UUID courseUuid, List<EnrollmentStatus> statuses);
 

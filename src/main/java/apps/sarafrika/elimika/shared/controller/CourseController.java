@@ -893,7 +893,7 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentDTO>> addCourseAssessment(
             @PathVariable UUID courseUuid,
             @Valid @RequestBody CourseAssessmentDTO assessmentDTO) {
-        CourseAssessmentDTO createdAssessment = courseAssessmentService.createCourseAssessment(assessmentDTO);
+        CourseAssessmentDTO createdAssessment = courseAssessmentService.createCourseAssessment(courseUuid, assessmentDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdAssessment, "Assessment added successfully"));
@@ -924,7 +924,7 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid,
             @Valid @RequestBody CourseAssessmentDTO assessmentDTO) {
-        CourseAssessmentDTO updatedAssessment = courseAssessmentService.updateCourseAssessment(assessmentUuid, assessmentDTO);
+        CourseAssessmentDTO updatedAssessment = courseAssessmentService.updateCourseAssessment(courseUuid, assessmentUuid, assessmentDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedAssessment, "Assessment updated successfully"));
     }

@@ -5,8 +5,11 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentDTO;
 import apps.sarafrika.elimika.course.factory.CourseAssessmentFactory;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
+import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
 import apps.sarafrika.elimika.course.service.CourseAssessmentService;
+import apps.sarafrika.elimika.course.service.CourseGradebookService;
+import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,13 +27,20 @@ import java.util.UUID;
 public class CourseAssessmentServiceImpl implements CourseAssessmentService {
 
     private final CourseAssessmentRepository courseAssessmentRepository;
+    private final CourseAssessmentLineItemRepository courseAssessmentLineItemRepository;
     private final GenericSpecificationBuilder<CourseAssessment> specificationBuilder;
+    private final CourseGradebookService courseGradebookService;
 
     private static final String COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE = "Course assessment with ID %s not found";
 
     @Override
-    public CourseAssessmentDTO createCourseAssessment(CourseAssessmentDTO courseAssessmentDTO) {
+    public CourseAssessmentDTO createCourseAssessment(UUID courseUuid, CourseAssessmentDTO courseAssessmentDTO) {
         CourseAssessment courseAssessment = CourseAssessmentFactory.toEntity(courseAssessmentDTO);
+        courseAssessment.setCourseUuid(courseUuid);
+        if (courseAssessment.getAggregationStrategy() == null) {
+            courseAssessment.setAggregationStrategy(CourseAssessmentAggregationStrategy.POINTS_SUM);
+        }
+        validateCourseWeight(courseUuid, null, courseAssessment.getWeightPercentage());
 
         // Set defaults
         if (courseAssessment.getIsRequired() == null) {
@@ -56,14 +67,18 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
     }
 
     @Override
-    public CourseAssessmentDTO updateCourseAssessment(UUID uuid, CourseAssessmentDTO courseAssessmentDTO) {
-        CourseAssessment existingCourseAssessment = courseAssessmentRepository.findByUuid(uuid)
+    public CourseAssessmentDTO updateCourseAssessment(UUID courseUuid, UUID uuid, CourseAssessmentDTO courseAssessmentDTO) {
+        CourseAssessment existingCourseAssessment = courseAssessmentRepository.findByUuidAndCourseUuid(uuid, courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE, uuid)));
 
         updateCourseAssessmentFields(existingCourseAssessment, courseAssessmentDTO);
+        existingCourseAssessment.setCourseUuid(courseUuid);
+        validateCourseWeight(courseUuid, uuid, existingCourseAssessment.getWeightPercentage());
+        validateAggregationConfiguration(existingCourseAssessment);
 
         CourseAssessment updatedCourseAssessment = courseAssessmentRepository.save(existingCourseAssessment);
+        courseGradebookService.recalculateCourseAssessment(courseUuid, uuid);
         return CourseAssessmentFactory.toDTO(updatedCourseAssessment);
     }
 
@@ -100,11 +115,41 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         if (dto.weightPercentage() != null) {
             existingCourseAssessment.setWeightPercentage(dto.weightPercentage());
         }
+        if (dto.aggregationStrategy() != null) {
+            existingCourseAssessment.setAggregationStrategy(dto.aggregationStrategy());
+        }
         if (dto.rubricUuid() != null) {
             existingCourseAssessment.setRubricUuid(dto.rubricUuid());
         }
         if (dto.isRequired() != null) {
             existingCourseAssessment.setIsRequired(dto.isRequired());
+        }
+    }
+
+    private void validateCourseWeight(UUID courseUuid, UUID assessmentUuid, BigDecimal assessmentWeight) {
+        BigDecimal otherWeightTotal = courseAssessmentRepository.sumWeightPercentageByCourseUuidExcluding(courseUuid, assessmentUuid);
+        BigDecimal totalWeight = otherWeightTotal.add(assessmentWeight != null ? assessmentWeight : BigDecimal.ZERO);
+        if (totalWeight.compareTo(new BigDecimal("100.00")) > 0) {
+            throw new IllegalArgumentException("Course assessment weights cannot exceed 100% for a single course");
+        }
+    }
+
+    private void validateAggregationConfiguration(CourseAssessment assessment) {
+        CourseAssessmentAggregationStrategy strategy = assessment.getAggregationStrategy() != null
+                ? assessment.getAggregationStrategy()
+                : CourseAssessmentAggregationStrategy.POINTS_SUM;
+        if (strategy != CourseAssessmentAggregationStrategy.WEIGHTED_AVERAGE) {
+            return;
+        }
+
+        boolean hasUnweightedLineItem = courseAssessmentLineItemRepository
+                .findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(assessment.getUuid())
+                .stream()
+                .filter(lineItem -> !Boolean.FALSE.equals(lineItem.getActive()))
+                .anyMatch(lineItem -> lineItem.getWeightPercentage() == null || lineItem.getWeightPercentage().compareTo(BigDecimal.ZERO) <= 0);
+
+        if (hasUnweightedLineItem) {
+            throw new IllegalArgumentException("Weighted assessment components require all active linked tasks to have positive weights");
         }
     }
 }
