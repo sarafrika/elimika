@@ -8,13 +8,13 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface CourseAssessmentService {
-    CourseAssessmentDTO createCourseAssessment(CourseAssessmentDTO courseAssessmentDTO);
+    CourseAssessmentDTO createCourseAssessment(UUID courseUuid, CourseAssessmentDTO courseAssessmentDTO);
 
     CourseAssessmentDTO getCourseAssessmentByUuid(UUID uuid);
 
     Page<CourseAssessmentDTO> getAllCourseAssessments(Pageable pageable);
 
-    CourseAssessmentDTO updateCourseAssessment(UUID uuid, CourseAssessmentDTO courseAssessmentDTO);
+    CourseAssessmentDTO updateCourseAssessment(UUID courseUuid, UUID uuid, CourseAssessmentDTO courseAssessmentDTO);
 
     void deleteCourseAssessment(UUID uuid);
 

@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.service.AssignmentSubmissionService;
+import apps.sarafrika.elimika.course.service.CourseGradebookService;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +36,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     private final AssignmentRepository assignmentRepository;
     private final GenericSpecificationBuilder<AssignmentSubmission> specificationBuilder;
     private final AssignmentMediaValidationService assignmentMediaValidationService;
+    private final CourseGradebookService courseGradebookService;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
 
@@ -178,6 +180,15 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         submission.setStatus(SubmissionStatus.GRADED);
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
+        courseGradebookService.syncAssignmentGrade(
+                savedSubmission.getAssignmentUuid(),
+                savedSubmission.getEnrollmentUuid(),
+                savedSubmission.getScore(),
+                savedSubmission.getMaxScore(),
+                savedSubmission.getInstructorComments(),
+                savedSubmission.getGradedAt(),
+                savedSubmission.getGradedByUuid()
+        );
         return AssignmentSubmissionFactory.toDTO(savedSubmission);
     }
 

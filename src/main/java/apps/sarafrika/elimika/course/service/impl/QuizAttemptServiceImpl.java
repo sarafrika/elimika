@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.QuizResponseRepository;
 import apps.sarafrika.elimika.course.service.QuizAttemptService;
+import apps.sarafrika.elimika.course.service.CourseGradebookService;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,6 +38,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     private final QuizRepository quizRepository;
     private final QuizResponseRepository quizResponseRepository;
     private final QuizQuestionRepository quizQuestionRepository;
+    private final CourseGradebookService courseGradebookService;
 
     private static final String ATTEMPT_NOT_FOUND_TEMPLATE = "Quiz attempt with ID %s not found";
 
@@ -53,6 +55,16 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         QuizAttempt savedAttempt = quizAttemptRepository.save(attempt);
+        courseGradebookService.syncQuizAttemptGrade(
+                savedAttempt.getQuizUuid(),
+                savedAttempt.getEnrollmentUuid(),
+                savedAttempt.getScore(),
+                savedAttempt.getMaxScore(),
+                null,
+                savedAttempt.getSubmittedAt(),
+                null,
+                savedAttempt.getStatus()
+        );
         return QuizAttemptFactory.toDTO(savedAttempt);
     }
 
@@ -80,6 +92,16 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         updateAttemptFields(existingAttempt, quizAttemptDTO);
 
         QuizAttempt updatedAttempt = quizAttemptRepository.save(existingAttempt);
+        courseGradebookService.syncQuizAttemptGrade(
+                updatedAttempt.getQuizUuid(),
+                updatedAttempt.getEnrollmentUuid(),
+                updatedAttempt.getScore(),
+                updatedAttempt.getMaxScore(),
+                null,
+                updatedAttempt.getSubmittedAt(),
+                null,
+                updatedAttempt.getStatus()
+        );
         return QuizAttemptFactory.toDTO(updatedAttempt);
     }
 
