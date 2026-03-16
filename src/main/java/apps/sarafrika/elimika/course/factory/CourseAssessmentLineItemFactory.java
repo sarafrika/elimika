@@ -22,6 +22,7 @@ public class CourseAssessmentLineItemFactory {
                 entity.getAssignmentUuid(),
                 entity.getQuizUuid(),
                 entity.getRubricUuid(),
+                entity.getScheduledInstanceUuid(),
                 entity.getMaxScore(),
                 entity.getWeightPercentage(),
                 entity.getDisplayOrder(),
@@ -48,6 +49,7 @@ public class CourseAssessmentLineItemFactory {
         entity.setAssignmentUuid(dto.assignmentUuid());
         entity.setQuizUuid(dto.quizUuid());
         entity.setRubricUuid(dto.rubricUuid());
+        entity.setScheduledInstanceUuid(dto.scheduledInstanceUuid());
         entity.setMaxScore(dto.maxScore());
         entity.setWeightPercentage(dto.weightPercentage());
         entity.setDisplayOrder(dto.displayOrder());

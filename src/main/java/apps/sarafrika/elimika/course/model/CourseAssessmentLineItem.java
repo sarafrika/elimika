@@ -46,6 +46,9 @@ public class CourseAssessmentLineItem extends BaseEntity {
     @Column(name = "rubric_uuid")
     private UUID rubricUuid;
 
+    @Column(name = "scheduled_instance_uuid")
+    private UUID scheduledInstanceUuid;
+
     @Column(name = "max_score")
     private BigDecimal maxScore;
 

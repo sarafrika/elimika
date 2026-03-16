@@ -45,6 +45,9 @@ public class CourseAssessment extends BaseEntity {
     @Column(name = "rubric_uuid")
     private UUID rubricUuid;
 
+    @Column(name = "sync_class_attendance")
+    private Boolean syncClassAttendance;
+
     @Column(name = "is_required")
     private Boolean isRequired;
 }

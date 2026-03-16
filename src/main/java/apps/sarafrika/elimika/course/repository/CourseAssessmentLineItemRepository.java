@@ -20,6 +20,8 @@ public interface CourseAssessmentLineItemRepository extends JpaRepository<Course
 
     List<CourseAssessmentLineItem> findByCourseAssessmentUuidInOrderByDisplayOrderAscCreatedDateAsc(Collection<UUID> courseAssessmentUuids);
 
+    Optional<CourseAssessmentLineItem> findByCourseAssessmentUuidAndScheduledInstanceUuid(UUID courseAssessmentUuid, UUID scheduledInstanceUuid);
+
     Optional<CourseAssessmentLineItem> findByAssignmentUuid(UUID assignmentUuid);
 
     Optional<CourseAssessmentLineItem> findByQuizUuid(UUID quizUuid);

@@ -1,9 +1,11 @@
 package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
+import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradebookDTO;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
+import apps.sarafrika.elimika.course.util.enums.CourseAttendanceStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -33,6 +35,21 @@ public interface CourseGradebookService {
             CourseAssessmentLineItemScoreDTO scoreDTO
     );
 
+    CourseAssessmentLineItemRubricEvaluationDTO getLineItemRubricEvaluation(
+            UUID courseUuid,
+            UUID assessmentUuid,
+            UUID lineItemUuid,
+            UUID enrollmentUuid
+    );
+
+    CourseAssessmentLineItemRubricEvaluationDTO upsertLineItemRubricEvaluation(
+            UUID courseUuid,
+            UUID assessmentUuid,
+            UUID lineItemUuid,
+            UUID enrollmentUuid,
+            CourseAssessmentLineItemRubricEvaluationDTO evaluationDTO
+    );
+
     CourseGradebookDTO getEnrollmentGradebook(UUID courseUuid, UUID enrollmentUuid);
 
     void recalculateCourseAssessment(UUID courseUuid, UUID assessmentUuid);
@@ -56,5 +73,14 @@ public interface CourseGradebookService {
             LocalDateTime gradedAt,
             UUID gradedByUuid,
             AttemptStatus status
+    );
+
+    void syncAttendanceMark(
+            UUID scheduledInstanceUuid,
+            UUID classDefinitionUuid,
+            UUID studentUuid,
+            String classTitle,
+            LocalDateTime markedAt,
+            CourseAttendanceStatus attendanceStatus
     );
 }

@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -41,10 +42,14 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
             courseAssessment.setAggregationStrategy(CourseAssessmentAggregationStrategy.POINTS_SUM);
         }
         validateCourseWeight(courseUuid, null, courseAssessment.getWeightPercentage());
+        validateAttendanceConfiguration(courseUuid, null, courseAssessment);
 
         // Set defaults
         if (courseAssessment.getIsRequired() == null) {
             courseAssessment.setIsRequired(false);
+        }
+        if (courseAssessment.getSyncClassAttendance() == null) {
+            courseAssessment.setSyncClassAttendance(false);
         }
 
         CourseAssessment savedCourseAssessment = courseAssessmentRepository.save(courseAssessment);
@@ -75,6 +80,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         updateCourseAssessmentFields(existingCourseAssessment, courseAssessmentDTO);
         existingCourseAssessment.setCourseUuid(courseUuid);
         validateCourseWeight(courseUuid, uuid, existingCourseAssessment.getWeightPercentage());
+        validateAttendanceConfiguration(courseUuid, uuid, existingCourseAssessment);
         validateAggregationConfiguration(existingCourseAssessment);
 
         CourseAssessment updatedCourseAssessment = courseAssessmentRepository.save(existingCourseAssessment);
@@ -121,6 +127,9 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         if (dto.rubricUuid() != null) {
             existingCourseAssessment.setRubricUuid(dto.rubricUuid());
         }
+        if (dto.syncClassAttendance() != null) {
+            existingCourseAssessment.setSyncClassAttendance(dto.syncClassAttendance());
+        }
         if (dto.isRequired() != null) {
             existingCourseAssessment.setIsRequired(dto.isRequired());
         }
@@ -150,6 +159,28 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
 
         if (hasUnweightedLineItem) {
             throw new IllegalArgumentException("Weighted assessment components require all active linked tasks to have positive weights");
+        }
+    }
+
+    private void validateAttendanceConfiguration(UUID courseUuid, UUID assessmentUuid, CourseAssessment assessment) {
+        if (!Boolean.TRUE.equals(assessment.getSyncClassAttendance())) {
+            return;
+        }
+
+        CourseAssessmentAggregationStrategy strategy = assessment.getAggregationStrategy() != null
+                ? assessment.getAggregationStrategy()
+                : CourseAssessmentAggregationStrategy.POINTS_SUM;
+        if (strategy != CourseAssessmentAggregationStrategy.POINTS_SUM) {
+            throw new IllegalArgumentException("Class attendance sync components must use points_sum aggregation");
+        }
+
+        boolean duplicateAttendanceSyncComponent = courseAssessmentRepository
+                .findByCourseUuidAndSyncClassAttendanceTrueOrderByCreatedDateAsc(courseUuid)
+                .stream()
+                .anyMatch(existing -> !Objects.equals(existing.getUuid(), assessmentUuid));
+
+        if (duplicateAttendanceSyncComponent) {
+            throw new IllegalArgumentException("Only one course assessment component can sync class attendance for a course");
         }
     }
 }
