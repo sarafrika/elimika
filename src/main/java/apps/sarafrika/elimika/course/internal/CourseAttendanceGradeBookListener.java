@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.course.internal;
 
-import apps.sarafrika.elimika.course.service.CourseGradebookService;
+import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.util.enums.CourseAttendanceStatus;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CourseAttendanceGradebookListener {
+public class CourseAttendanceGradeBookListener {
 
-    private final CourseGradebookService courseGradebookService;
+    private final CourseGradeBookService courseGradeBookService;
 
     @EventListener
     public void handleAttendanceMarked(AttendanceMarkedEventDTO event) {
@@ -25,7 +25,7 @@ public class CourseAttendanceGradebookListener {
             return;
         }
 
-        courseGradebookService.syncAttendanceMark(
+        courseGradeBookService.syncAttendanceMark(
                 event.instanceUuid(),
                 event.classDefinitionUuid(),
                 event.studentUuid(),

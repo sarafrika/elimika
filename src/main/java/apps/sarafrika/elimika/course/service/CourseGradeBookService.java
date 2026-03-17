@@ -3,7 +3,7 @@ package apps.sarafrika.elimika.course.service;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
-import apps.sarafrika.elimika.course.dto.CourseGradebookDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseAttendanceStatus;
 
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-public interface CourseGradebookService {
+public interface CourseGradeBookService {
 
     CourseAssessmentLineItemDTO createLineItem(UUID courseUuid, UUID assessmentUuid, CourseAssessmentLineItemDTO lineItemDTO);
 
@@ -50,7 +50,7 @@ public interface CourseGradebookService {
             CourseAssessmentLineItemRubricEvaluationDTO evaluationDTO
     );
 
-    CourseGradebookDTO getEnrollmentGradebook(UUID courseUuid, UUID enrollmentUuid);
+    CourseGradeBookDTO getEnrollmentGradeBook(UUID courseUuid, UUID enrollmentUuid);
 
     void recalculateCourseAssessment(UUID courseUuid, UUID assessmentUuid);
 

@@ -8,10 +8,10 @@ import java.util.List;
 import java.util.UUID;
 
 @Schema(
-        name = "CourseGradebook",
+        name = "CourseGradeBook",
         description = "Enrollment-gradebook view showing weighted components, line items, and aggregate grade"
 )
-public record CourseGradebookDTO(
+public record CourseGradeBookDTO(
 
         @JsonProperty("course_uuid")
         UUID courseUuid,

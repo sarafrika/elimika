@@ -3,8 +3,8 @@ package apps.sarafrika.elimika.course.controller;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
-import apps.sarafrika.elimika.course.dto.CourseGradebookDTO;
-import apps.sarafrika.elimika.course.service.CourseGradebookService;
+import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
+import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,14 +24,14 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping(CourseGradebookController.API_ROOT_PATH)
+@RequestMapping(CourseGradeBookController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Course Gradebook", description = "Weighted gradebook components, linked tasks, and learner grade views")
-public class CourseGradebookController {
+public class CourseGradeBookController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
 
-    private final CourseGradebookService courseGradebookService;
+    private final CourseGradeBookService courseGradeBookService;
 
     @Operation(summary = "Create gradebook line item", description = "Adds a linked task under a weighted course assessment component.")
     @PostMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items")
@@ -40,7 +40,7 @@ public class CourseGradebookController {
             @PathVariable UUID assessmentUuid,
             @Valid @RequestBody CourseAssessmentLineItemDTO lineItemDTO
     ) {
-        CourseAssessmentLineItemDTO createdLineItem = courseGradebookService.createLineItem(courseUuid, assessmentUuid, lineItemDTO);
+        CourseAssessmentLineItemDTO createdLineItem = courseGradeBookService.createLineItem(courseUuid, assessmentUuid, lineItemDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(createdLineItem, "Gradebook line item created successfully"));
     }
@@ -51,7 +51,7 @@ public class CourseGradebookController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid
     ) {
-        List<CourseAssessmentLineItemDTO> lineItems = courseGradebookService.getLineItems(courseUuid, assessmentUuid);
+        List<CourseAssessmentLineItemDTO> lineItems = courseGradeBookService.getLineItems(courseUuid, assessmentUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(lineItems, "Gradebook line items retrieved successfully"));
     }
 
@@ -63,7 +63,7 @@ public class CourseGradebookController {
             @PathVariable UUID lineItemUuid,
             @Valid @RequestBody CourseAssessmentLineItemDTO lineItemDTO
     ) {
-        CourseAssessmentLineItemDTO updatedLineItem = courseGradebookService.updateLineItem(
+        CourseAssessmentLineItemDTO updatedLineItem = courseGradeBookService.updateLineItem(
                 courseUuid,
                 assessmentUuid,
                 lineItemUuid,
@@ -79,7 +79,7 @@ public class CourseGradebookController {
             @PathVariable UUID assessmentUuid,
             @PathVariable UUID lineItemUuid
     ) {
-        courseGradebookService.deleteLineItem(courseUuid, assessmentUuid, lineItemUuid);
+        courseGradeBookService.deleteLineItem(courseUuid, assessmentUuid, lineItemUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -92,7 +92,7 @@ public class CourseGradebookController {
             @PathVariable UUID enrollmentUuid,
             @Valid @RequestBody CourseAssessmentLineItemScoreDTO scoreDTO
     ) {
-        CourseAssessmentLineItemScoreDTO savedScore = courseGradebookService.upsertLineItemScore(
+        CourseAssessmentLineItemScoreDTO savedScore = courseGradeBookService.upsertLineItemScore(
                 courseUuid,
                 assessmentUuid,
                 lineItemUuid,
@@ -110,7 +110,7 @@ public class CourseGradebookController {
             @PathVariable UUID lineItemUuid,
             @PathVariable UUID enrollmentUuid
     ) {
-        CourseAssessmentLineItemRubricEvaluationDTO evaluation = courseGradebookService.getLineItemRubricEvaluation(
+        CourseAssessmentLineItemRubricEvaluationDTO evaluation = courseGradeBookService.getLineItemRubricEvaluation(
                 courseUuid,
                 assessmentUuid,
                 lineItemUuid,
@@ -128,7 +128,7 @@ public class CourseGradebookController {
             @PathVariable UUID enrollmentUuid,
             @Valid @RequestBody CourseAssessmentLineItemRubricEvaluationDTO evaluationDTO
     ) {
-        CourseAssessmentLineItemRubricEvaluationDTO savedEvaluation = courseGradebookService.upsertLineItemRubricEvaluation(
+        CourseAssessmentLineItemRubricEvaluationDTO savedEvaluation = courseGradeBookService.upsertLineItemRubricEvaluation(
                 courseUuid,
                 assessmentUuid,
                 lineItemUuid,
@@ -140,11 +140,11 @@ public class CourseGradebookController {
 
     @Operation(summary = "Get enrollment gradebook", description = "Returns the weighted gradebook view for a learner in a course.")
     @GetMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}")
-    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseGradebookDTO>> getEnrollmentGradebook(
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseGradeBookDTO>> getEnrollmentGradeBook(
             @PathVariable UUID courseUuid,
             @PathVariable UUID enrollmentUuid
     ) {
-        CourseGradebookDTO gradebook = courseGradebookService.getEnrollmentGradebook(courseUuid, enrollmentUuid);
-        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(gradebook, "Course gradebook retrieved successfully"));
+        CourseGradeBookDTO gradeBook = courseGradeBookService.getEnrollmentGradeBook(courseUuid, enrollmentUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(gradeBook, "Course gradebook retrieved successfully"));
     }
 }

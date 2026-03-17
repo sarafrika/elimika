@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class CourseGradebookServiceImplTest {
+class CourseGradeBookServiceImplTest {
 
     @Mock
     private CourseAssessmentRepository courseAssessmentRepository;
@@ -110,11 +110,11 @@ class CourseGradebookServiceImplTest {
     @Mock
     private ClassDefinitionLookupService classDefinitionLookupService;
 
-    private CourseGradebookServiceImpl service;
+    private CourseGradeBookServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CourseGradebookServiceImpl(
+        service = new CourseGradeBookServiceImpl(
                 courseAssessmentRepository,
                 lineItemRepository,
                 lineItemScoreRepository,

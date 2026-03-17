@@ -4,7 +4,7 @@ import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationRowDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
-import apps.sarafrika.elimika.course.dto.CourseGradebookDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
 import apps.sarafrika.elimika.course.factory.CourseAssessmentFactory;
 import apps.sarafrika.elimika.course.factory.CourseAssessmentLineItemFactory;
 import apps.sarafrika.elimika.course.factory.CourseAssessmentLineItemRubricEvaluationFactory;
@@ -37,7 +37,7 @@ import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
-import apps.sarafrika.elimika.course.service.CourseGradebookService;
+import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemRubricEvaluationStatus;
@@ -69,7 +69,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class CourseGradebookServiceImpl implements CourseGradebookService {
+public class CourseGradeBookServiceImpl implements CourseGradeBookService {
 
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100.00");
     private static final BigDecimal ATTENDANCE_MAX_SCORE = BigDecimal.ONE.setScale(2, RoundingMode.HALF_UP);
@@ -269,7 +269,7 @@ public class CourseGradebookServiceImpl implements CourseGradebookService {
 
     @Override
     @Transactional(readOnly = true)
-    public CourseGradebookDTO getEnrollmentGradebook(UUID courseUuid, UUID enrollmentUuid) {
+    public CourseGradeBookDTO getEnrollmentGradeBook(UUID courseUuid, UUID enrollmentUuid) {
         CourseEnrollment enrollment = getEnrollmentOrThrow(courseUuid, enrollmentUuid);
         List<CourseAssessment> assessments = courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid);
         List<UUID> assessmentUuids = assessments.stream()
@@ -299,7 +299,7 @@ public class CourseGradebookServiceImpl implements CourseGradebookService {
                 : courseAssessmentScoreRepository.findByEnrollmentUuidAndAssessmentUuidIn(enrollmentUuid, assessmentUuids).stream()
                 .collect(Collectors.toMap(CourseAssessmentScore::getAssessmentUuid, Function.identity()));
 
-        List<CourseGradebookDTO.ComponentDTO> components = new ArrayList<>();
+        List<CourseGradeBookDTO.ComponentDTO> components = new ArrayList<>();
         BigDecimal configuredWeightPercentage = BigDecimal.ZERO;
         BigDecimal gradedWeightPercentage = BigDecimal.ZERO;
 
@@ -312,12 +312,12 @@ public class CourseGradebookServiceImpl implements CourseGradebookService {
                 gradedWeightPercentage = gradedWeightPercentage.add(componentWeight);
             }
 
-            List<CourseGradebookDTO.LineItemEntryDTO> entries = lineItemsByAssessment
+            List<CourseGradeBookDTO.LineItemEntryDTO> entries = lineItemsByAssessment
                     .getOrDefault(assessment.getUuid(), List.of())
                     .stream()
                     .sorted(Comparator.comparing(CourseAssessmentLineItem::getDisplayOrder, Comparator.nullsLast(Integer::compareTo))
                             .thenComparing(CourseAssessmentLineItem::getCreatedDate, Comparator.nullsLast(LocalDateTime::compareTo)))
-                    .map(lineItem -> new CourseGradebookDTO.LineItemEntryDTO(
+                    .map(lineItem -> new CourseGradeBookDTO.LineItemEntryDTO(
                             CourseAssessmentLineItemFactory.toDTO(lineItem),
                             CourseAssessmentLineItemScoreFactory.toDTO(lineItemScoresByItemUuid.get(lineItem.getUuid()))
                     ))
@@ -330,7 +330,7 @@ public class CourseGradebookServiceImpl implements CourseGradebookService {
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            components.add(new CourseGradebookDTO.ComponentDTO(
+            components.add(new CourseGradeBookDTO.ComponentDTO(
                     CourseAssessmentFactory.toDTO(assessment),
                     CourseAssessmentScoreFactory.toDTO(aggregateScore),
                     lineItemWeightTotal,
@@ -338,7 +338,7 @@ public class CourseGradebookServiceImpl implements CourseGradebookService {
             ));
         }
 
-        return new CourseGradebookDTO(
+        return new CourseGradeBookDTO(
                 enrollment.getCourseUuid(),
                 enrollment.getUuid(),
                 enrollment.getFinalGrade(),
