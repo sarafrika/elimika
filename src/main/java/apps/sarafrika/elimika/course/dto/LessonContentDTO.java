@@ -137,12 +137,11 @@ public record LessonContentDTO(
         String mimeType,
 
         @Schema(
-                description = "**[REQUIRED]** Display order of content within the lesson for sequential presentation.",
+                description = "**[OPTIONAL]** Display order of content within the lesson for sequential presentation. If omitted, the system appends the content at the end.",
                 example = "1",
-                requiredMode = Schema.RequiredMode.REQUIRED,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 minimum = "1"
         )
-        @NotNull(message = "Display order is required")
         @Min(value = 1, message = "Display order must be at least 1")
         @JsonProperty("display_order")
         Integer displayOrder,
