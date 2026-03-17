@@ -31,8 +31,8 @@ public record AdminDashboardStatsDTO(
     @JsonProperty("user_metrics")
     UserMetrics userMetrics,
 
-    @Schema(description = "Organization-related metrics")
-    @JsonProperty("organization_metrics")
+    @Schema(description = "Organisation-related metrics")
+    @JsonProperty("organisation_metrics")
     OrganizationMetrics organizationMetrics,
 
     @Schema(description = "Content-related metrics")
@@ -87,15 +87,15 @@ public record AdminDashboardStatsDTO(
         long suspendedAccounts
     ) {}
 
-    @Schema(description = "Organization metrics for dashboard")
+    @Schema(description = "Organisation metrics for dashboard")
     public record OrganizationMetrics(
-        @JsonProperty("total_organizations")
+        @JsonProperty("total_organisations")
         long totalOrganizations,
         @JsonProperty("pending_approvals")
         long pendingApprovals,
-        @JsonProperty("active_organizations")
+        @JsonProperty("active_organisations")
         long activeOrganizations,
-        @JsonProperty("suspended_organizations")
+        @JsonProperty("suspended_organisations")
         long suspendedOrganizations
     ) {}
 
@@ -133,7 +133,7 @@ public record AdminDashboardStatsDTO(
         long adminActionsToday,
         @JsonProperty("system_admins")
         long systemAdmins,
-        @JsonProperty("organization_admins")
+        @JsonProperty("organisation_admins")
         long organizationAdmins
     ) {}
 

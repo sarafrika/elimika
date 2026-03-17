@@ -29,7 +29,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("api/v1/organisations")
 @RequiredArgsConstructor
-@Tag(name = "Organisations API", description = "Complete organization management including users and training branches within organizational hierarchy")
+@Tag(name = "Organisations API", description = "Complete organisation management including users and training branches within organisational hierarchy")
 class OrganisationController {
     private final OrganisationService organisationService;
     private final UserService userService;
@@ -173,12 +173,12 @@ class OrganisationController {
     // TRAINING BRANCHES MANAGEMENT
     // ================================
 
-    @Operation(summary = "Create a new training branch within organization")
+    @Operation(summary = "Create a new training branch within organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Training branch created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/{uuid}/training-branches")
     public ResponseEntity<ApiResponse<TrainingBranchDTO>> createTrainingBranch(
-            @Parameter(description = "UUID of the organization to create the training branch in. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation to create the training branch in. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
             @Valid @RequestBody TrainingBranchDTO trainingBranchDTO) {
@@ -214,31 +214,31 @@ class OrganisationController {
                 "Training branches retrieved successfully"));
     }
 
-    @Operation(summary = "Get a training branch by UUID within organization")
+    @Operation(summary = "Get a training branch by UUID within organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Training branch retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @GetMapping("/{uuid}/training-branches/{branchUuid}")
     public ResponseEntity<ApiResponse<TrainingBranchDTO>> getTrainingBranchByUuid(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to retrieve. Must be a branch within the specified organization.",
+            @Parameter(description = "UUID of the training branch to retrieve. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid) {
         TrainingBranchDTO trainingBranch = trainingBranchService.getTrainingBranchByUuid(branchUuid);
         return ResponseEntity.ok(ApiResponse.success(trainingBranch, "Training branch retrieved successfully"));
     }
 
-    @Operation(summary = "Update a training branch by UUID within organization")
+    @Operation(summary = "Update a training branch by UUID within organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Training branch updated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}/training-branches/{branchUuid}")
     public ResponseEntity<ApiResponse<TrainingBranchDTO>> updateTrainingBranch(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to update. Must be a branch within the specified organization.",
+            @Parameter(description = "UUID of the training branch to update. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid,
             @Valid @RequestBody TrainingBranchDTO trainingBranchDTO) {
@@ -246,12 +246,12 @@ class OrganisationController {
         return ResponseEntity.ok(ApiResponse.success(updated, "Training branch updated successfully"));
     }
 
-    @Operation(summary = "Delete a training branch by UUID within organization")
+    @Operation(summary = "Delete a training branch by UUID within organisation")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Training branch deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @DeleteMapping("/{uuid}/training-branches/{branchUuid}")
     public ResponseEntity<ApiResponse<Void>> deleteTrainingBranch(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
             @Parameter(description = "UUID of the training branch to delete. This will soft-delete the branch and remove all user assignments.",
@@ -263,17 +263,17 @@ class OrganisationController {
 
     @Operation(
             summary = "Get users assigned to training branch",
-            description = "Retrieves all users that are assigned to a specific training branch within the organization. " +
+            description = "Retrieves all users that are assigned to a specific training branch within the organisation. " +
                     "This includes users with any role/domain within the branch."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Branch users retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @GetMapping("/{uuid}/training-branches/{branchUuid}/users")
     public ResponseEntity<ApiResponse<List<UserDTO>>> getBranchUsers(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to get users for. Must be a branch within the specified organization.",
+            @Parameter(description = "UUID of the training branch to get users for. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid) {
         List<UserDTO> users = trainingBranchService.getBranchUsers(branchUuid);
@@ -290,10 +290,10 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @GetMapping("/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}")
     public ResponseEntity<ApiResponse<List<UserDTO>>> getBranchUsersByDomain(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to get users for. Must be a branch within the specified organization.",
+            @Parameter(description = "UUID of the training branch to get users for. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid,
             @Parameter(description = "Domain name to filter users by. Valid values: 'student', 'instructor', 'admin', 'organisation_user'",
@@ -306,18 +306,18 @@ class OrganisationController {
     @Operation(
             summary = "Assign user to training branch",
             description = "Assigns a user to a specific training branch with a defined role. " +
-                    "If the user is not already in the parent organization, creates organization membership first. " +
-                    "If the user is already in the organization, updates their branch assignment."
+                    "If the user is not already in the parent organisation, creates organisation membership first. " +
+                    "If the user is already in the organisation, updates their branch assignment."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User assigned to branch successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch or user not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @PostMapping("/{uuid}/training-branches/{branchUuid}/users/{userUuid}")
     public ResponseEntity<ApiResponse<Void>> assignUserToBranch(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to assign the user to. Must be a branch within the specified organization.",
+            @Parameter(description = "UUID of the training branch to assign the user to. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid,
             @Parameter(description = "UUID of the user to assign to the training branch. Must be an existing user.",
@@ -333,16 +333,16 @@ class OrganisationController {
     @Operation(
             summary = "Remove user from training branch",
             description = "Removes a user from a training branch. " +
-                    "The user remains in the parent organization but loses branch-specific assignment."
+                    "The user remains in the parent organisation but loses branch-specific assignment."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User removed from branch successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch or user not found, or user not assigned to branch")
     @DeleteMapping("/{uuid}/training-branches/{branchUuid}/users/{userUuid}")
     public ResponseEntity<ApiResponse<Void>> removeUserFromBranch(
-            @Parameter(description = "UUID of the organization that owns the training branch. Must be an existing organization.",
+            @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
-            @Parameter(description = "UUID of the training branch to remove the user from. Must be a branch within the specified organization.",
+            @Parameter(description = "UUID of the training branch to remove the user from. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid,
             @Parameter(description = "UUID of the user to remove from the training branch. Must be currently assigned to the branch.",

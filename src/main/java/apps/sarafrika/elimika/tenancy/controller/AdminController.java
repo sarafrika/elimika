@@ -60,7 +60,7 @@ public class AdminController {
     @Operation(
             summary = "Assign admin domain to user",
             description = "Assigns admin domain privileges to a user. This grants the user administrative access " +
-                    "either globally (system admin) or within specific organizational contexts. " +
+                    "either globally (system admin) or within specific organisational contexts. " +
                     "Only existing system administrators can perform this operation."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Admin domain assigned successfully")
@@ -155,7 +155,7 @@ public class AdminController {
     @Operation(
             summary = "Get all admin users",
             description = "Retrieves a paginated list of all users with administrative privileges. " +
-                    "Includes both system administrators and organization administrators. " +
+                    "Includes both system administrators and organisation administrators. " +
                     "Supports filtering by admin level, status, and other criteria."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Admin users retrieved successfully")
@@ -204,24 +204,24 @@ public class AdminController {
     }
 
     @Operation(
-            summary = "Get organization admin users",
-            description = "Retrieves a paginated list of users with organization administrator privileges. " +
-                    "These users have administrative access within specific organizational contexts."
+            summary = "Get organisation admin users",
+            description = "Retrieves a paginated list of users with organisation administrator privileges. " +
+                    "These users have administrative access within specific organisational contexts."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization admin users retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation admin users retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
-    @GetMapping("/users/organization-admins")
+    @GetMapping("/users/organisation-admins")
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getOrganizationAdminUsers(
             @PageableDefault(size = 20) Pageable pageable) {
 
-        log.debug("Getting organization admin users");
+        log.debug("Getting organisation admin users");
         var orgAdmins = adminService.getOrganizationAdminUsers(pageable);
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(orgAdmins, ServletUriComponentsBuilder
                         .fromCurrentRequestUri()
                         .build()
                         .toUriString()),
-                "Organization admin users retrieved successfully"
+                "Organisation admin users retrieved successfully"
         ));
     }
 
@@ -256,7 +256,7 @@ public class AdminController {
     @Operation(
             summary = "Get admin dashboard statistics",
             description = "Retrieves comprehensive statistics for the admin dashboard including user metrics, " +
-                    "organization metrics, content metrics, system performance, and admin-specific data."
+                    "organisation metrics, content metrics, system performance, and admin-specific data."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Dashboard statistics retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
@@ -294,7 +294,7 @@ public class AdminController {
     @Operation(
             summary = "Check if user is admin",
             description = "Checks whether a specific user has any type of administrative privileges. " +
-                    "Returns true if the user has either system admin or organization admin roles."
+                    "Returns true if the user has either system admin or organisation admin roles."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Admin status check completed")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
@@ -334,12 +334,12 @@ public class AdminController {
     // ================================
 
     @Operation(
-            summary = "Get pending organization approvals",
-            description = "Retrieves a paginated list of organizations that are awaiting admin verification. " +
+            summary = "Get pending organisation approvals",
+            description = "Retrieves a paginated list of organisations that are awaiting admin verification. " +
                     "Results include organisations where the admin_verified flag is false or not yet set."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending organizations retrieved successfully")
-    @GetMapping("/organizations/pending")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending organisations retrieved successfully")
+    @GetMapping("/organisations/pending")
     public ResponseEntity<ApiResponse<PagedDTO<OrganisationDTO>>> getPendingOrganisations(
             @PageableDefault(size = 20) Pageable pageable) {
 
@@ -350,22 +350,22 @@ public class AdminController {
                         .fromCurrentRequestUri()
                         .build()
                         .toUriString()),
-                "Pending organizations retrieved successfully"
+                "Pending organisations retrieved successfully"
         ));
     }
 
     @Operation(
-            summary = "Moderate organization verification",
-            description = "Handles organization approval workflows using a single endpoint. " +
+            summary = "Moderate organisation verification",
+            description = "Handles organisation approval workflows using a single endpoint. " +
                     "Supports approving, rejecting, or revoking admin verification status."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization moderation completed successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation moderation completed successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid moderation action supplied")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
-    @PostMapping("/organizations/{uuid}/moderate")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @PostMapping("/organisations/{uuid}/moderate")
     public ResponseEntity<ApiResponse<OrganisationDTO>> moderateOrganisation(
-            @Parameter(description = "UUID of the organization to moderate. Must be an existing organization identifier.",
+            @Parameter(description = "UUID of the organisation to moderate. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
             @Parameter(description = "Moderation action to perform",
@@ -375,7 +375,7 @@ public class AdminController {
             @RequestParam(required = false) String reason) {
 
         String normalizedAction = action.toLowerCase();
-        log.info("Admin moderating organization {} with action '{}' and reason: {}", uuid, normalizedAction, reason);
+        log.info("Admin moderating organisation {} with action '{}' and reason: {}", uuid, normalizedAction, reason);
 
         OrganisationDTO organisationDTO;
         String message;
@@ -383,15 +383,15 @@ public class AdminController {
         switch (normalizedAction) {
             case "approve" -> {
                 organisationDTO = organisationService.verifyOrganisation(uuid, reason);
-                message = "Organization approved successfully";
+                message = "Organisation approved successfully";
             }
             case "reject" -> {
                 organisationDTO = organisationService.unverifyOrganisation(uuid, reason);
-                message = "Organization rejected successfully";
+                message = "Organisation rejected successfully";
             }
             case "revoke" -> {
                 organisationDTO = organisationService.unverifyOrganisation(uuid, reason);
-                message = "Organization verification revoked";
+                message = "Organisation verification revoked";
             }
             default -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -403,22 +403,22 @@ public class AdminController {
     }
 
     @Operation(
-            summary = "Check if organization is verified",
-            description = "Checks whether a specific organization has been verified by an admin. " +
-                    "Returns true if the organization has admin verification status."
+            summary = "Check if organisation is verified",
+            description = "Checks whether a specific organisation has been verified by an admin. " +
+                    "Returns true if the organisation has admin verification status."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification status check completed")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization not found")
-    @GetMapping("/organizations/{uuid}/verification-status")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @GetMapping("/organisations/{uuid}/verification-status")
     public ResponseEntity<ApiResponse<Boolean>> isOrganisationVerified(
-            @Parameter(description = "UUID of the organization to check verification status for.",
+            @Parameter(description = "UUID of the organisation to check verification status for.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid) {
 
-        log.debug("Checking verification status for organization: {}", uuid);
+        log.debug("Checking verification status for organisation: {}", uuid);
         boolean isVerified = organisationService.isOrganisationVerified(uuid);
         return ResponseEntity.ok(ApiResponse.success(isVerified,
-                isVerified ? "Organization is verified" : "Organization is not verified"));
+                isVerified ? "Organisation is verified" : "Organisation is not verified"));
     }
 
     // ================================

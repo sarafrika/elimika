@@ -20,7 +20,7 @@ import java.util.UUID;
         {
             "uuid": "memb1234-5678-abcd-ef01-234567890abc",
             "course_creator_uuid": "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
-            "organization_name": "International Society for Technology in Education",
+            "organisation_name": "International Society for Technology in Education",
             "membership_number": "ISTE-2024-991",
             "start_date": "2022-01-01",
             "end_date": null,
@@ -37,9 +37,9 @@ public record CourseCreatorProfessionalMembershipDTO(
         @JsonProperty("course_creator_uuid")
         UUID courseCreatorUuid,
 
-        @NotBlank(message = "Organization name is required")
-        @Size(max = 255, message = "Organization name must not exceed 255 characters")
-        @JsonProperty("organization_name")
+        @NotBlank(message = "Organisation name is required")
+        @Size(max = 255, message = "Organisation name must not exceed 255 characters")
+        @JsonProperty("organisation_name")
         String organizationName,
 
         @Size(max = 100, message = "Membership number must not exceed 100 characters")

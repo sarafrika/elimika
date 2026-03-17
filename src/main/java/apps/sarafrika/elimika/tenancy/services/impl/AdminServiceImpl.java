@@ -610,7 +610,7 @@ public class AdminServiceImpl implements AdminService {
         String method = log.getHttpMethod() == null ? "" : log.getHttpMethod().toUpperCase();
         String uri = log.getRequestUri() == null ? "" : log.getRequestUri();
 
-        if (uri.contains("/organizations") && uri.contains("/moderate")) {
+        if (uri.contains("/organisations") && uri.contains("/moderate")) {
             String action = extractQueryParam(log.getQueryString(), "action");
             return switch (action != null ? action.toLowerCase() : "moderate") {
                 case "approve" -> "Approved organisation";

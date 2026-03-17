@@ -124,7 +124,7 @@ public record ClassDefinitionDTO(
         UUID defaultInstructorUuid,
 
         @Schema(
-                description = "**[OPTIONAL]** Reference to the organization UUID that owns this class definition.",
+                description = "**[OPTIONAL]** Reference to the organisation UUID that owns this class definition.",
                 example = "org12345-6789-abcd-ef01-234567890abc",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

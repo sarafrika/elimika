@@ -24,7 +24,7 @@ import java.util.UUID;
             "uuid": "exp12345-6789-abcd-ef01-234567890abc",
             "course_creator_uuid": "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
             "position": "Lead Content Strategist",
-            "organization_name": "Digital Learning Labs",
+            "organisation_name": "Digital Learning Labs",
             "responsibilities": "Designed blended learning experiences for enterprise teams.",
             "years_of_experience": 5.5,
             "start_date": "2019-01-01",
@@ -46,9 +46,9 @@ public record CourseCreatorExperienceDTO(
         @JsonProperty("position")
         String position,
 
-        @NotBlank(message = "Organization name is required")
-        @Size(max = 255, message = "Organization name must not exceed 255 characters")
-        @JsonProperty("organization_name")
+        @NotBlank(message = "Organisation name is required")
+        @Size(max = 255, message = "Organisation name must not exceed 255 characters")
+        @JsonProperty("organisation_name")
         String organizationName,
 
         @JsonProperty("responsibilities")

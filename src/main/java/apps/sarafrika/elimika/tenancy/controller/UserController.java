@@ -150,7 +150,7 @@ class UserController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @DeleteMapping("/{uuid}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
-            @Parameter(description = "UUID of the user to delete. This will remove the user and all their organization relationships.",
+            @Parameter(description = "UUID of the user to delete. This will remove the user and all their organisation relationships.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid) {
         userService.deleteUser(uuid);
