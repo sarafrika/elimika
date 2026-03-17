@@ -12,7 +12,7 @@ import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.QuizResponseRepository;
 import apps.sarafrika.elimika.course.service.QuizAttemptService;
-import apps.sarafrika.elimika.course.service.CourseGradebookService;
+import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,7 +38,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     private final QuizRepository quizRepository;
     private final QuizResponseRepository quizResponseRepository;
     private final QuizQuestionRepository quizQuestionRepository;
-    private final CourseGradebookService courseGradebookService;
+    private final CourseGradeBookService courseGradeBookService;
 
     private static final String ATTEMPT_NOT_FOUND_TEMPLATE = "Quiz attempt with ID %s not found";
 
@@ -55,7 +55,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         QuizAttempt savedAttempt = quizAttemptRepository.save(attempt);
-        courseGradebookService.syncQuizAttemptGrade(
+        courseGradeBookService.syncQuizAttemptGrade(
                 savedAttempt.getQuizUuid(),
                 savedAttempt.getEnrollmentUuid(),
                 savedAttempt.getScore(),
@@ -92,7 +92,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         updateAttemptFields(existingAttempt, quizAttemptDTO);
 
         QuizAttempt updatedAttempt = quizAttemptRepository.save(existingAttempt);
-        courseGradebookService.syncQuizAttemptGrade(
+        courseGradeBookService.syncQuizAttemptGrade(
                 updatedAttempt.getQuizUuid(),
                 updatedAttempt.getEnrollmentUuid(),
                 updatedAttempt.getScore(),

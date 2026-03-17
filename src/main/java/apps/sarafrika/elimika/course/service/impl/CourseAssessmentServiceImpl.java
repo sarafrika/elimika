@@ -8,7 +8,7 @@ import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
 import apps.sarafrika.elimika.course.service.CourseAssessmentService;
-import apps.sarafrika.elimika.course.service.CourseGradebookService;
+import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,7 +30,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
     private final CourseAssessmentRepository courseAssessmentRepository;
     private final CourseAssessmentLineItemRepository courseAssessmentLineItemRepository;
     private final GenericSpecificationBuilder<CourseAssessment> specificationBuilder;
-    private final CourseGradebookService courseGradebookService;
+    private final CourseGradeBookService courseGradeBookService;
 
     private static final String COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE = "Course assessment with ID %s not found";
 
@@ -84,7 +84,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         validateAggregationConfiguration(existingCourseAssessment);
 
         CourseAssessment updatedCourseAssessment = courseAssessmentRepository.save(existingCourseAssessment);
-        courseGradebookService.recalculateCourseAssessment(courseUuid, uuid);
+        courseGradeBookService.recalculateCourseAssessment(courseUuid, uuid);
         return CourseAssessmentFactory.toDTO(updatedCourseAssessment);
     }
 
