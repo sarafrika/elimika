@@ -26,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.HashMap;
@@ -618,6 +619,50 @@ public class CourseController {
         }
     }
 
+    @Operation(
+            summary = "Get uploaded lesson content media",
+            description = """
+                Retrieves uploaded lesson content files by their stored relative path.
+                This is the canonical preview endpoint for course content media such as images,
+                PDFs, audio, and video attached during lesson authoring.
+                """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Lesson content media retrieved successfully",
+                            content = @Content(mediaType = "application/octet-stream")
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Lesson content media not found",
+                            content = @Content(schema = @Schema(implementation = apps.sarafrika.elimika.shared.dto.ApiResponse.class))
+                    )
+            }
+    )
+    @GetMapping("/content-media/{*filePath}")
+    public ResponseEntity<Resource> getCourseContentMedia(
+            @Parameter(
+                    description = "Stored relative path of the lesson content media file.",
+                    example = "course_materials/course-uuid/lessons/lesson-uuid/file.pdf",
+                    required = true
+            )
+            @PathVariable String filePath) {
+
+        try {
+            Resource resource = storageService.load(filePath);
+            String contentType = storageService.getContentType(filePath);
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // ===== COURSE LESSONS =====
 
     @Operation(
@@ -800,9 +845,7 @@ public class CourseController {
                 + "/lessons/" + lessonUuid;
 
         String storedFileName = storageService.store(file, folder);
-        String fileUrl = storageProperties.getBaseUrl() != null
-                ? storageProperties.getBaseUrl() + "/" + storedFileName
-                : storedFileName;
+        String fileUrl = buildLessonContentMediaUrl(storedFileName);
 
         LessonContentDTO requestDto = new LessonContentDTO(
                 null,
@@ -1355,5 +1398,21 @@ public class CourseController {
         } else {
             return storageProperties.getFolders().getCourseMaterials() + "/" + fileName;
         }
+    }
+
+    private String buildLessonContentMediaUrl(String storedFilePath) {
+        String encodedPath = UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
+        String mediaPath = "/api/v1/courses/content-media/" + encodedPath;
+
+        if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
+            return storageProperties.getBaseUrl() + mediaPath;
+        }
+
+        return ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .scheme("https")
+                .path(mediaPath)
+                .build()
+                .toUriString();
     }
 }
