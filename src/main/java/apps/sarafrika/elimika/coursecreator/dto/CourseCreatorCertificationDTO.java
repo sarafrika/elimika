@@ -22,7 +22,7 @@ import java.util.UUID;
             "uuid": "cert1234-5678-abcd-ef01-234567890abc",
             "course_creator_uuid": "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
             "certification_name": "Adobe Captivate Specialist",
-            "issuing_organization": "Adobe",
+            "issuing_organisation": "Adobe",
             "issued_date": "2023-04-01",
             "expiry_date": "2025-04-01",
             "credential_id": "ADCAP-2023-8891",
@@ -46,9 +46,9 @@ public record CourseCreatorCertificationDTO(
         @JsonProperty("certification_name")
         String certificationName,
 
-        @NotBlank(message = "Issuing organization is required")
-        @Size(max = 255, message = "Issuing organization must not exceed 255 characters")
-        @JsonProperty("issuing_organization")
+        @NotBlank(message = "Issuing organisation is required")
+        @Size(max = 255, message = "Issuing organisation must not exceed 255 characters")
+        @JsonProperty("issuing_organisation")
         String issuingOrganization,
 
         @JsonProperty("issued_date")

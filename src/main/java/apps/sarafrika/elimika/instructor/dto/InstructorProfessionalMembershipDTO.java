@@ -28,7 +28,7 @@ import java.util.UUID;
         {
             "uuid": "mem12345-6789-abcd-ef01-234567890abc",
             "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
-            "organization_name": "Institute of Electrical and Electronics Engineers (IEEE)",
+            "organisation_name": "Institute of Electrical and Electronics Engineers (IEEE)",
             "membership_number": "IEEE-92345678",
             "start_date": "2020-03-15",
             "end_date": null,
@@ -43,7 +43,7 @@ import java.util.UUID;
             "is_long_standing_member": true,
             "has_membership_number": true,
             "membership_status": "ACTIVE",
-            "organization_type": "PROFESSIONAL_INSTITUTE",
+            "organisation_type": "PROFESSIONAL_INSTITUTE",
             "years_of_membership": 4.25,
             "is_recent_membership": true
         }
@@ -70,18 +70,18 @@ public record InstructorProfessionalMembershipDTO(
         UUID instructorUuid,
 
         @Schema(
-                description = "**[REQUIRED]** Full name of the professional organization, association, or certification body.",
+                description = "**[REQUIRED]** Full name of the professional organisation, association, or certification body.",
                 example = "Institute of Electrical and Electronics Engineers (IEEE)",
                 maxLength = 255,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "Organization name is required")
-        @Size(max = 255, message = "Organization name must not exceed 255 characters")
-        @JsonProperty("organization_name")
+        @NotBlank(message = "Organisation name is required")
+        @Size(max = 255, message = "Organisation name must not exceed 255 characters")
+        @JsonProperty("organisation_name")
         String organizationName,
 
         @Schema(
-                description = "**[OPTIONAL]** Official membership number or identifier issued by the organization.",
+                description = "**[OPTIONAL]** Official membership number or identifier issued by the organisation.",
                 example = "IEEE-92345678",
                 maxLength = 100,
                 nullable = true,
@@ -311,9 +311,9 @@ public record InstructorProfessionalMembershipDTO(
      *
      * @return Organization type classification
      */
-    @JsonProperty(value = "organization_type", access = JsonProperty.Access.READ_ONLY)
+    @JsonProperty(value = "organisation_type", access = JsonProperty.Access.READ_ONLY)
     @Schema(
-            description = "**[READ-ONLY]** Classification of organization type based on name keywords.",
+            description = "**[READ-ONLY]** Classification of organisation type based on name keywords.",
             example = "PROFESSIONAL_INSTITUTE",
             allowableValues = {"PROFESSIONAL_INSTITUTE", "CERTIFICATION_BODY", "INDUSTRY_ASSOCIATION", "ACADEMIC_SOCIETY", "TRADE_ORGANIZATION", "OTHER"},
             accessMode = Schema.AccessMode.READ_ONLY

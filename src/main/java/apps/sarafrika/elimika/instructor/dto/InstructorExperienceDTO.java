@@ -30,7 +30,7 @@ import java.util.UUID;
             "uuid": "exp12345-6789-abcd-ef01-234567890abc",
             "instructor_uuid": "i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl",
             "position": "Senior Software Developer",
-            "organization_name": "Safaricom PLC",
+            "organisation_name": "Safaricom PLC",
             "responsibilities": "Led development of mobile banking applications, mentored junior developers, implemented DevOps practices, and collaborated with cross-functional teams to deliver high-quality software solutions.",
             "years_of_experience": 5.5,
             "start_date": "2019-01-15",
@@ -83,14 +83,14 @@ public record InstructorExperienceDTO(
         String position,
 
         @Schema(
-                description = "**[REQUIRED]** Name of the organization, company, or institution where the instructor worked.",
+                description = "**[REQUIRED]** Name of the organisation, company, or institution where the instructor worked.",
                 example = "Safaricom PLC",
                 maxLength = 255,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotBlank(message = "Organization name is required")
-        @Size(max = 255, message = "Organization name must not exceed 255 characters")
-        @JsonProperty("organization_name")
+        @NotBlank(message = "Organisation name is required")
+        @Size(max = 255, message = "Organisation name must not exceed 255 characters")
+        @JsonProperty("organisation_name")
         String organizationName,
 
         @Schema(
