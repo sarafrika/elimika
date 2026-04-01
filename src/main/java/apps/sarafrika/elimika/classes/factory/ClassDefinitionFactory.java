@@ -25,6 +25,12 @@ public class ClassDefinitionFactory {
                 entity.getSessionFormat(),
                 entity.getDefaultStartTime(),
                 entity.getDefaultEndTime(),
+                entity.getAcademicPeriodStartDate(),
+                entity.getAcademicPeriodEndDate(),
+                entity.getRegistrationPeriodStartDate(),
+                entity.getRegistrationPeriodEndDate(),
+                entity.getClassReminderMinutes(),
+                entity.getClassColor(),
                 entity.getLocationType(),
                 entity.getLocationName(),
                 entity.getLocationLatitude(),
@@ -58,6 +64,12 @@ public class ClassDefinitionFactory {
         entity.setSessionFormat(dto.sessionFormat());
         entity.setDefaultStartTime(dto.defaultStartTime());
         entity.setDefaultEndTime(dto.defaultEndTime());
+        entity.setAcademicPeriodStartDate(dto.academicPeriodStartDate());
+        entity.setAcademicPeriodEndDate(dto.academicPeriodEndDate());
+        entity.setRegistrationPeriodStartDate(dto.registrationPeriodStartDate());
+        entity.setRegistrationPeriodEndDate(dto.registrationPeriodEndDate());
+        entity.setClassReminderMinutes(dto.classReminderMinutes());
+        entity.setClassColor(dto.classColor());
         entity.setLocationType(dto.locationType());
         entity.setLocationName(dto.locationName());
         entity.setLocationLatitude(dto.locationLatitude());
@@ -106,6 +118,24 @@ public class ClassDefinitionFactory {
         }
         if (dto.defaultEndTime() != null) {
             entity.setDefaultEndTime(dto.defaultEndTime());
+        }
+        if (dto.academicPeriodStartDate() != null) {
+            entity.setAcademicPeriodStartDate(dto.academicPeriodStartDate());
+        }
+        if (dto.academicPeriodEndDate() != null) {
+            entity.setAcademicPeriodEndDate(dto.academicPeriodEndDate());
+        }
+        if (dto.registrationPeriodStartDate() != null) {
+            entity.setRegistrationPeriodStartDate(dto.registrationPeriodStartDate());
+        }
+        if (dto.registrationPeriodEndDate() != null) {
+            entity.setRegistrationPeriodEndDate(dto.registrationPeriodEndDate());
+        }
+        if (dto.classReminderMinutes() != null) {
+            entity.setClassReminderMinutes(dto.classReminderMinutes());
+        }
+        if (dto.classColor() != null) {
+            entity.setClassColor(dto.classColor());
         }
         if (dto.locationType() != null) {
             entity.setLocationType(dto.locationType());

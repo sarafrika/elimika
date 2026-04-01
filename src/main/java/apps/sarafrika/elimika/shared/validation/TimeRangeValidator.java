@@ -4,22 +4,27 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
  * Validator implementation for {@link ValidTimeRange} annotation.
- * Validates that a start time is before an end time.
+ * Validates that a start temporal value is before an end temporal value.
  */
 public class TimeRangeValidator implements ConstraintValidator<ValidTimeRange, Object> {
 
     private String startFieldName;
     private String endFieldName;
+    private boolean allowEqual;
+    private String messageTemplate;
 
     @Override
     public void initialize(ValidTimeRange constraintAnnotation) {
         this.startFieldName = constraintAnnotation.startField();
         this.endFieldName = constraintAnnotation.endField();
+        this.allowEqual = constraintAnnotation.allowEqual();
+        this.messageTemplate = constraintAnnotation.message();
     }
 
     @Override
@@ -41,11 +46,9 @@ public class TimeRangeValidator implements ConstraintValidator<ValidTimeRange, O
             boolean isValid = isBefore(start, end);
 
             if (!isValid) {
-                // Customize the error message
                 context.disableDefaultConstraintViolation();
                 context.buildConstraintViolationWithTemplate(
-                        String.format("End time must be after start time. Start: %s, End: %s",
-                                     start, end))
+                        messageTemplate)
                        .addPropertyNode(endFieldName)
                        .addConstraintViolation();
             }
@@ -84,11 +87,15 @@ public class TimeRangeValidator implements ConstraintValidator<ValidTimeRange, O
      */
     private boolean isBefore(Object start, Object end) {
         if (start instanceof LocalDateTime startDateTime && end instanceof LocalDateTime endDateTime) {
-            return startDateTime.isBefore(endDateTime);
+            return allowEqual ? !startDateTime.isAfter(endDateTime) : startDateTime.isBefore(endDateTime);
         }
 
         if (start instanceof LocalTime startTime && end instanceof LocalTime endTime) {
-            return startTime.isBefore(endTime);
+            return allowEqual ? !startTime.isAfter(endTime) : startTime.isBefore(endTime);
+        }
+
+        if (start instanceof LocalDate startDate && end instanceof LocalDate endDate) {
+            return allowEqual ? !startDate.isAfter(endDate) : startDate.isBefore(endDate);
         }
 
         // Unsupported types – don't block validation; delegate to other constraints
