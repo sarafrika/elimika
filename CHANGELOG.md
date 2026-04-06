@@ -1,3 +1,11 @@
+## [2.67.1](https://github.com/sarafrika/elimika/compare/v2.67.0...v2.67.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* serve uploaded lesson content media through preview endpoint ([c4f5b1d](https://github.com/sarafrika/elimika/commit/c4f5b1db9ecf787c22ac05b32de2fae775aaf7bb))
+* standardise organisation spelling in public api ([e73f360](https://github.com/sarafrika/elimika/commit/e73f360e01d06890e2106db99181902b47ce70d0))
+
 # [2.67.0](https://github.com/sarafrika/elimika/compare/v2.66.1...v2.67.0) (2026-03-16)
 
 

@@ -1411,6 +1411,6 @@ public class CourseController {
 
     private String buildLessonContentMediaUrl(String storedFilePath) {
         String encodedPath = UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
-        return "/api/v1/courses/content-media/" + encodedPath;
+        return API_ROOT_PATH + "/content-media/" + encodedPath;
     }
 }
