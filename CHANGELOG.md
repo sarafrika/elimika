@@ -1,3 +1,18 @@
+# [2.68.0](https://github.com/sarafrika/elimika/compare/v2.67.1...v2.68.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* resolve main branch conflicts for unified file handling ([dbb1f7c](https://github.com/sarafrika/elimika/commit/dbb1f7c9101c2f0b6eaa50a5c036d8857c22b5c0))
+* serve uploaded lesson content media through preview endpoint ([45dc2f4](https://github.com/sarafrika/elimika/commit/45dc2f408852b24ee80739374539ecb534a43cec))
+* standardise organisation spelling in public api ([7364fc8](https://github.com/sarafrika/elimika/commit/7364fc8952e13675eae6d1fc556ca3e2d67d32c3))
+* unify api-backed file handling across application uploads ([411cdd8](https://github.com/sarafrika/elimika/commit/411cdd8c627aa248555d14dff9bcd17ee21b7bb1))
+
+
+### Features
+
+* add missing class creation metadata fields ([61b0ae4](https://github.com/sarafrika/elimika/commit/61b0ae42c9d0234aef4492dca35220e82f95f049))
+
 ## [2.67.1](https://github.com/sarafrika/elimika/compare/v2.67.0...v2.67.1) (2026-03-17)
 
 
