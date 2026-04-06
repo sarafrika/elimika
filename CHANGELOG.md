@@ -1,3 +1,10 @@
+## [2.68.1](https://github.com/sarafrika/elimika/compare/v2.68.0...v2.68.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* pin vulnerable pnpm transitive dependencies ([e3c90c2](https://github.com/sarafrika/elimika/commit/e3c90c2ed28144dc85bec32ba4cf80657f4fdc54))
+
 # [2.68.0](https://github.com/sarafrika/elimika/compare/v2.67.1...v2.68.0) (2026-04-06)
 
 
