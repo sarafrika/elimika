@@ -10,10 +10,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -46,6 +49,12 @@ import java.util.UUID;
             "session_format": "GROUP",
             "default_start_time": "2025-01-15T14:00:00Z",
             "default_end_time": "2025-01-15T15:30:00Z",
+            "academic_period_start_date": "2025-01-15",
+            "academic_period_end_date": "2025-03-15",
+            "registration_period_start_date": "2024-12-15",
+            "registration_period_end_date": "2025-01-10",
+            "class_reminder_minutes": 30,
+            "class_color": "#1F6FEB",
             "duration_minutes": 90,
             "location_type": "HYBRID",
             "location_name": "Nairobi HQ – Room 101",
@@ -80,6 +89,18 @@ import java.util.UUID;
         startField = "defaultStartTime",
         endField = "defaultEndTime",
         message = "Class end time must be after start time"
+)
+@ValidTimeRange(
+        startField = "academicPeriodStartDate",
+        endField = "academicPeriodEndDate",
+        allowEqual = true,
+        message = "Academic period end date must be on or after start date"
+)
+@ValidTimeRange(
+        startField = "registrationPeriodStartDate",
+        endField = "registrationPeriodEndDate",
+        allowEqual = true,
+        message = "Registration period end date must be on or after start date"
 )
 public record ClassDefinitionDTO(
 
@@ -200,6 +221,71 @@ public record ClassDefinitionDTO(
         @NotNull(message = "Default end time is required")
         @JsonProperty("default_end_time")
         LocalDateTime defaultEndTime,
+
+        @Schema(
+                description = "**[OPTIONAL]** Academic period start date for the class lifecycle.",
+                example = "2025-01-15",
+                format = "date",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("academic_period_start_date")
+        LocalDate academicPeriodStartDate,
+
+        @Schema(
+                description = "**[OPTIONAL]** Academic period end date for the class lifecycle.",
+                example = "2025-03-15",
+                format = "date",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("academic_period_end_date")
+        LocalDate academicPeriodEndDate,
+
+        @Schema(
+                description = "**[OPTIONAL]** Registration period start date for learner enrollment.",
+                example = "2024-12-15",
+                format = "date",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("registration_period_start_date")
+        LocalDate registrationPeriodStartDate,
+
+        @Schema(
+                description = "**[OPTIONAL]** Registration period end date for learner enrollment.",
+                example = "2025-01-10",
+                format = "date",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("registration_period_end_date")
+        LocalDate registrationPeriodEndDate,
+
+        @Schema(
+                description = "**[OPTIONAL]** Number of minutes before class start when reminders should be triggered.",
+                example = "30",
+                minimum = "0",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @PositiveOrZero(message = "Class reminder minutes cannot be negative")
+        @JsonProperty("class_reminder_minutes")
+        Integer classReminderMinutes,
+
+        @Schema(
+                description = "**[OPTIONAL]** Hex color code used to visually distinguish the class in UI surfaces.",
+                example = "#1F6FEB",
+                pattern = "^#[0-9A-Fa-f]{6}$",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Pattern(
+                regexp = "^#[0-9A-Fa-f]{6}$",
+                message = "Class color must be a valid hex color code in the format #RRGGBB"
+        )
+        @JsonProperty("class_color")
+        String classColor,
 
         @Schema(
                 description = "**[REQUIRED]** Default delivery format for the class.",

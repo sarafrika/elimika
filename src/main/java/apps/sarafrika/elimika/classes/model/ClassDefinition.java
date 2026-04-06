@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -47,6 +48,24 @@ public class ClassDefinition extends BaseEntity {
 
     @Column(name = "default_end_time")
     private LocalDateTime defaultEndTime;
+
+    @Column(name = "academic_period_start_date")
+    private LocalDate academicPeriodStartDate;
+
+    @Column(name = "academic_period_end_date")
+    private LocalDate academicPeriodEndDate;
+
+    @Column(name = "registration_period_start_date")
+    private LocalDate registrationPeriodStartDate;
+
+    @Column(name = "registration_period_end_date")
+    private LocalDate registrationPeriodEndDate;
+
+    @Column(name = "class_reminder_minutes")
+    private Integer classReminderMinutes;
+
+    @Column(name = "class_color")
+    private String classColor;
 
     @Column(name = "location_type")
     private LocationType locationType;

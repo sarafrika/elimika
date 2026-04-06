@@ -28,7 +28,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -654,20 +653,7 @@ public class UserServiceImpl implements UserService {
             String storedPath = storageService.store(file, profileImageFolder);
 
             String fileName = storedPath.substring(storedPath.lastIndexOf('/') + 1);
-
-            String imageUrl;
-
-            if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
-                imageUrl = storageProperties.getBaseUrl() + "/api/v1/users/profile-image/" + fileName;
-            } else {
-                imageUrl = ServletUriComponentsBuilder
-                        .fromCurrentContextPath()
-                        .scheme("https")
-                        .path("/api/v1/users/profile-image/")
-                        .path(fileName)
-                        .build()
-                        .toUriString();
-            }
+            String imageUrl = "/api/v1/users/profile-image/" + fileName;
 
             log.debug("Generated profile image URL: {}", imageUrl);
             return imageUrl;

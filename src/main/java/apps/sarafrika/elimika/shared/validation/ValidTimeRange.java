@@ -6,13 +6,14 @@ import jakarta.validation.Payload;
 import java.lang.annotation.*;
 
 /**
- * Validation annotation to ensure that a start time is before an end time.
+ * Validation annotation to ensure that a start value is before an end value.
  * This annotation should be placed at the class level.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = TimeRangeValidator.class)
 @Documented
+@Repeatable(ValidTimeRanges.class)
 public @interface ValidTimeRange {
 
     String message() default "Start time must be before end time";
@@ -30,4 +31,9 @@ public @interface ValidTimeRange {
      * Field name for the end time
      */
     String endField();
+
+    /**
+     * Whether equal start/end values should be treated as valid.
+     */
+    boolean allowEqual() default false;
 }

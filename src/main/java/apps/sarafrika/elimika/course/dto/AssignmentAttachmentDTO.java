@@ -115,4 +115,31 @@ public record AssignmentAttachmentDTO(
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
         String updatedBy
 ) {
+    @Override
+    public String fileUrl() {
+        String storedPath = resolveStoredPath(storedFilename, fileUrl, "/api/v1/assignments/media/");
+        return storedPath == null ? fileUrl : "/api/v1/assignments/media/" + storedPath;
+    }
+
+    private static String resolveStoredPath(String storedFilename, String fileUrl, String apiPrefix) {
+        if (storedFilename != null && !storedFilename.isBlank()) {
+            return storedFilename;
+        }
+
+        if (fileUrl == null || fileUrl.isBlank()) {
+            return null;
+        }
+
+        int apiIndex = fileUrl.indexOf(apiPrefix);
+        if (apiIndex >= 0) {
+            return fileUrl.substring(apiIndex + apiPrefix.length());
+        }
+
+        int storedPathIndex = fileUrl.indexOf("assignments/");
+        if (storedPathIndex >= 0) {
+            return fileUrl.substring(storedPathIndex);
+        }
+
+        return null;
+    }
 }

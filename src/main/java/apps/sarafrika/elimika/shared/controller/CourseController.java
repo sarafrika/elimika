@@ -594,20 +594,21 @@ public class CourseController {
                     )
             }
     )
-    @GetMapping("/media/{fileName}")
+    @GetMapping("/media/{*filePath}")
     public ResponseEntity<Resource> getCourseMedia(
             @Parameter(
-                    description = "Name of the media file to retrieve. This is typically returned from the upload endpoints.",
-                    example = "course_thumbnails_550e8400-e29b-41d4-a716-446655440001.jpg",
+                    description = "Stored relative path of the course media file, or a legacy flat filename from older records.",
+                    example = "course_thumbnails/550e8400-e29b-41d4-a716-446655440001.jpg",
                     required = true
             )
-            @PathVariable String fileName) {
+            @PathVariable String filePath) {
 
         try {
-            String fullPath = determineMediaPath(fileName);
+            String fullPath = resolveCourseMediaPath(filePath);
 
             Resource resource = storageService.load(fullPath);
             String contentType = storageService.getContentType(fullPath);
+            String fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
@@ -1384,7 +1385,15 @@ public class CourseController {
      * Determines the full storage path for a course media file
      * This method tries different folders based on file patterns or types
      */
-    private String determineMediaPath(String fileName) {
+    private String resolveCourseMediaPath(String filePath) {
+        if (filePath.contains("/")) {
+            return filePath;
+        }
+
+        return determineLegacyCourseMediaPath(filePath);
+    }
+
+    private String determineLegacyCourseMediaPath(String fileName) {
         String lowerFileName = fileName.toLowerCase();
 
         if (lowerFileName.contains("thumbnail")) {
@@ -1402,17 +1411,6 @@ public class CourseController {
 
     private String buildLessonContentMediaUrl(String storedFilePath) {
         String encodedPath = UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
-        String mediaPath = "/api/v1/courses/content-media/" + encodedPath;
-
-        if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
-            return storageProperties.getBaseUrl() + mediaPath;
-        }
-
-        return ServletUriComponentsBuilder
-                .fromCurrentContextPath()
-                .scheme("https")
-                .path(mediaPath)
-                .build()
-                .toUriString();
+        return API_ROOT_PATH + "/content-media/" + encodedPath;
     }
 }

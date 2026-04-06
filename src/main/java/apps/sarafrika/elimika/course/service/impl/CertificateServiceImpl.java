@@ -291,6 +291,9 @@ public class CertificateServiceImpl implements CertificateService {
         if (dto.finalGrade() != null) {
             existingCertificate.setFinalGrade(dto.finalGrade());
         }
+        if (dto.certificateUrl() != null) {
+            existingCertificate.setCertificateUrl(dto.certificateUrl());
+        }
         if (dto.isValid() != null) {
             existingCertificate.setIsValid(dto.isValid());
         }
