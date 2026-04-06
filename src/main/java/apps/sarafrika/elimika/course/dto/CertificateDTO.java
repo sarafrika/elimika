@@ -214,6 +214,28 @@ public record CertificateDTO(
         String updatedBy
 
 ) {
+    public String certificateUrl() {
+        String storedPath = resolveStoredPath(certificateUrl, "/api/v1/certificates/files/");
+        return storedPath == null ? certificateUrl : "/api/v1/certificates/files/" + storedPath;
+    }
+
+    private static String resolveStoredPath(String certificateUrl, String apiPrefix) {
+        if (certificateUrl == null || certificateUrl.isBlank()) {
+            return null;
+        }
+
+        int apiIndex = certificateUrl.indexOf(apiPrefix);
+        if (apiIndex >= 0) {
+            return certificateUrl.substring(apiIndex + apiPrefix.length());
+        }
+
+        int storedPathIndex = certificateUrl.indexOf("certificates/");
+        if (storedPathIndex >= 0) {
+            return certificateUrl.substring(storedPathIndex);
+        }
+
+        return null;
+    }
 
     /**
      * Returns the type of certificate based on what was completed.

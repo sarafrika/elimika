@@ -25,8 +25,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -607,6 +609,33 @@ public class CourseCreatorController {
         List<CourseCreatorDocumentDTO> documents = courseCreatorDocumentService.getDocumentsByCourseCreatorUuid(courseCreatorUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(documents, "Documents fetched successfully"));
+    }
+
+    @Operation(summary = "Get course creator document media", description = "Streams an uploaded course creator document by stored relative path.")
+    @GetMapping("/{courseCreatorUuid}/documents/files/{*filePath}")
+    public ResponseEntity<Resource> getCourseCreatorDocumentMedia(
+            @PathVariable UUID courseCreatorUuid,
+            @PathVariable String filePath) {
+        String expectedPrefix = storageProperties.getFolders().getProfileDocuments()
+                + "/course-creators/" + courseCreatorUuid + "/";
+
+        if (!filePath.startsWith(expectedPrefix)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            Resource resource = storageService.load(filePath);
+            String contentType = storageService.getContentType(filePath);
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(summary = "Update course creator document", description = "Updates a specific course creator document")

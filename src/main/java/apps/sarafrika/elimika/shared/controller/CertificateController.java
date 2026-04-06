@@ -15,14 +15,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -85,10 +88,7 @@ public class CertificateController {
     ) {
         String folder = storageProperties.getFolders().getCertificates();
         String storedFileName = storageService.store(file, folder);
-
-        String fileUrl = storageProperties.getBaseUrl() != null
-                ? storageProperties.getBaseUrl() + "/" + storedFileName
-                : storedFileName;
+        String fileUrl = buildCertificateFileUrl(storedFileName);
 
         CertificateDTO existing = certificateService.getCertificateByUuid(uuid);
 
@@ -117,6 +117,29 @@ public class CertificateController {
                 apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(updated, "Certificate PDF uploaded successfully")
         );
+    }
+
+    @Operation(
+            summary = "Get certificate PDF by file path",
+            description = "Retrieves a certificate PDF by its stored relative path."
+    )
+    @GetMapping("/files/{*filePath}")
+    public ResponseEntity<Resource> getCertificateFile(
+            @PathVariable String filePath
+    ) {
+        try {
+            Resource resource = storageService.load(filePath);
+            String contentType = storageService.getContentType(filePath);
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(
@@ -476,5 +499,9 @@ public class CertificateController {
                 .success(PagedDTO.from(templates, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Template search completed successfully"));
+    }
+
+    private String buildCertificateFileUrl(String storedFilePath) {
+        return API_ROOT_PATH + "/files/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
     }
 }

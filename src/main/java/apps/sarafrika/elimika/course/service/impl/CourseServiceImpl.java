@@ -26,7 +26,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -523,22 +523,8 @@ public class CourseServiceImpl implements CourseService {
     private String storeCourseImage(MultipartFile file, String folder) {
         try {
             String storedPath = storageService.store(file, folder);
-
-            String fileName = storedPath.substring(storedPath.lastIndexOf('/') + 1);
-
-            String imageUrl;
-
-            if (storageProperties.getBaseUrl() != null && !storageProperties.getBaseUrl().isEmpty()) {
-                imageUrl = storageProperties.getBaseUrl() + "/api/v1/courses/media/" + fileName;
-            } else {
-                imageUrl = ServletUriComponentsBuilder
-                        .fromCurrentContextPath()
-                        .scheme("https")
-                        .path("/api/v1/courses/media/")
-                        .path(fileName)
-                        .build()
-                        .toUriString();
-            }
+            String encodedPath = UriUtils.encodePath(storedPath, java.nio.charset.StandardCharsets.UTF_8);
+            String imageUrl = "/api/v1/courses/media/" + encodedPath;
 
             log.debug("Generated course media URL: {}", imageUrl);
             return imageUrl;

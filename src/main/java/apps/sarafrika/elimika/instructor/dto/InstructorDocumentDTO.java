@@ -333,6 +333,19 @@ public record InstructorDocumentDTO(
         return String.format("%.1f %s", size, units[unitIndex]);
     }
 
+    @JsonProperty(value = "file_url", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** API-relative URL for previewing or downloading the uploaded document.",
+            example = "/api/v1/instructors/i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl/documents/files/profile_documents/instructors/i1s2t3r4-5u6c-7t8o-9r10-abcdefghijkl/550e8400-e29b-41d4-a716-446655440000.pdf",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public String getFileUrl() {
+        if (instructorUuid == null || storedFilename == null || storedFilename.isBlank()) {
+            return null;
+        }
+        return "/api/v1/instructors/" + instructorUuid + "/documents/files/" + storedFilename;
+    }
+
     /**
      * Checks if the document is expired based on expiry date.
      *

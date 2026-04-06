@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -70,4 +71,16 @@ public record CourseCreatorDocumentDTO(
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
         String updatedBy
 ) {
+    @JsonProperty(value = "file_url", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** API-relative URL for previewing or downloading the uploaded document.",
+            example = "/api/v1/course-creators/c1e2a3t4-5o6r-7c8r-9e10-abcdefghijkl/documents/files/profile_documents/course-creators/c1e2a3t4-5o6r-7c8r-9e10-abcdefghijkl/550e8400-e29b-41d4-a716-446655440000.pdf",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public String getFileUrl() {
+        if (courseCreatorUuid == null || storedFilename == null || storedFilename.isBlank()) {
+            return null;
+        }
+        return "/api/v1/course-creators/" + courseCreatorUuid + "/documents/files/" + storedFilename;
+    }
 }

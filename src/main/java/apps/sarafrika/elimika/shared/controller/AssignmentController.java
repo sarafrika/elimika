@@ -25,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -159,9 +160,7 @@ public class AssignmentController {
                 + "/attachments";
 
         String storedFileName = storageService.store(file, folder);
-        String fileUrl = storageProperties.getBaseUrl() != null
-                ? storageProperties.getBaseUrl() + "/" + storedFileName
-                : storedFileName;
+        String fileUrl = buildAssignmentMediaUrl(storedFileName);
 
         AssignmentAttachmentDTO requestDto = new AssignmentAttachmentDTO(
                 null,
@@ -211,15 +210,16 @@ public class AssignmentController {
 
     @Operation(
             summary = "Get assignment media by file name",
-            description = "Retrieves assignment media files by their stored filename."
+            description = "Retrieves assignment attachment files by their stored relative path."
     )
-    @GetMapping("/media/{fileName}")
+    @GetMapping("/media/{*filePath}")
     public ResponseEntity<Resource> getAssignmentMedia(
-            @PathVariable String fileName
+            @PathVariable String filePath
     ) {
         try {
-            Resource resource = storageService.load(fileName);
-            String contentType = storageService.getContentType(fileName);
+            Resource resource = storageService.load(filePath);
+            String contentType = storageService.getContentType(filePath);
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
@@ -277,9 +277,7 @@ public class AssignmentController {
                 + "/submissions/" + submissionUuid;
 
         String storedFileName = storageService.store(file, folder);
-        String fileUrl = storageProperties.getBaseUrl() != null
-                ? storageProperties.getBaseUrl() + "/" + storedFileName
-                : storedFileName;
+        String fileUrl = buildSubmissionMediaUrl(storedFileName);
 
         AssignmentSubmissionAttachmentDTO requestDto = new AssignmentSubmissionAttachmentDTO(
                 null,
@@ -299,6 +297,29 @@ public class AssignmentController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(created, "Submission attachment uploaded successfully"));
+    }
+
+    @Operation(
+            summary = "Get assignment submission media by file path",
+            description = "Retrieves assignment submission attachment files by their stored relative path."
+    )
+    @GetMapping("/submission-media/{*filePath}")
+    public ResponseEntity<Resource> getSubmissionMedia(
+            @PathVariable String filePath
+    ) {
+        try {
+            Resource resource = storageService.load(filePath);
+            String contentType = storageService.getContentType(filePath);
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(
@@ -494,5 +515,13 @@ public class AssignmentController {
                 .success(PagedDTO.from(submissions, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Submission search completed successfully"));
+    }
+
+    private String buildAssignmentMediaUrl(String storedFilePath) {
+        return API_ROOT_PATH + "/media/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String buildSubmissionMediaUrl(String storedFilePath) {
+        return API_ROOT_PATH + "/submission-media/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
     }
 }
