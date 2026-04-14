@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -650,9 +651,11 @@ public class CourseController {
             @PathVariable String filePath) {
 
         try {
-            Resource resource = storageService.load(filePath);
-            String contentType = storageService.getContentType(filePath);
-            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
+
+            Resource resource = storageService.load(normalizedFilePath);
+            String contentType = storageService.getContentType(normalizedFilePath);
+            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
@@ -1386,11 +1389,13 @@ public class CourseController {
      * This method tries different folders based on file patterns or types
      */
     private String resolveCourseMediaPath(String filePath) {
-        if (filePath.contains("/")) {
-            return filePath;
+        String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
+
+        if (normalizedFilePath.contains("/")) {
+            return normalizedFilePath;
         }
 
-        return determineLegacyCourseMediaPath(filePath);
+        return determineLegacyCourseMediaPath(normalizedFilePath);
     }
 
     private String determineLegacyCourseMediaPath(String fileName) {

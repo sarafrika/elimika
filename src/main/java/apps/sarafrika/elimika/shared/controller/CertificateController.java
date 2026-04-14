@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -128,9 +129,11 @@ public class CertificateController {
             @PathVariable String filePath
     ) {
         try {
-            Resource resource = storageService.load(filePath);
-            String contentType = storageService.getContentType(filePath);
-            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
+
+            Resource resource = storageService.load(normalizedFilePath);
+            String contentType = storageService.getContentType(normalizedFilePath);
+            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))

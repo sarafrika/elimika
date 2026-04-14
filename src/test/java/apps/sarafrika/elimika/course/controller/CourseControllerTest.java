@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
@@ -17,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.UUID;
 
@@ -24,7 +27,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class CourseControllerTest {
@@ -136,7 +142,7 @@ class CourseControllerTest {
         assertNotNull(response.getBody());
         assertNotNull(response.getBody().data());
         assertEquals(
-                "https://api.elimika.sarafrika.com/api/v1/courses/content-media/" + storedPath,
+                "/api/v1/courses/content-media/" + storedPath,
                 response.getBody().data().fileUrl()
         );
         assertEquals(MediaType.APPLICATION_PDF_VALUE, response.getBody().data().mimeType());
@@ -160,5 +166,21 @@ class CourseControllerTest {
                 response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)
         );
         assertSame(resource, response.getBody());
+    }
+
+    @Test
+    void getCourseMediaResolvesCatchAllPathWithinStorageRoot() throws Exception {
+        ByteArrayResource resource = new ByteArrayResource("image".getBytes());
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(courseController).build();
+
+        when(storageService.load(any())).thenReturn(resource);
+        when(storageService.getContentType(any())).thenReturn(MediaType.IMAGE_PNG_VALUE);
+
+        mockMvc.perform(get("/api/v1/courses/media/course_thumbnails/test-image.png"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<String> filePathCaptor = ArgumentCaptor.forClass(String.class);
+        verify(storageService).load(filePathCaptor.capture());
+        assertEquals("course_thumbnails/test-image.png", filePathCaptor.getValue());
     }
 }

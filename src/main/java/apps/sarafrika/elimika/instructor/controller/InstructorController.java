@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -310,17 +311,18 @@ public class InstructorController {
     public ResponseEntity<Resource> getInstructorDocumentMedia(
             @PathVariable UUID instructorUuid,
             @PathVariable String filePath) {
+        String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
         String expectedPrefix = storageProperties.getFolders().getProfileDocuments()
                 + "/instructors/" + instructorUuid + "/";
 
-        if (!filePath.startsWith(expectedPrefix)) {
+        if (!normalizedFilePath.startsWith(expectedPrefix)) {
             return ResponseEntity.notFound().build();
         }
 
         try {
-            Resource resource = storageService.load(filePath);
-            String contentType = storageService.getContentType(filePath);
-            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            Resource resource = storageService.load(normalizedFilePath);
+            String contentType = storageService.getContentType(normalizedFilePath);
+            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))

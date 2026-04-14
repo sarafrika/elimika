@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.config.exception.StorageException;
 import apps.sarafrika.elimika.shared.storage.config.exception.StorageFileNotFoundException;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -130,28 +131,29 @@ public class FileSystemStorageServiceImpl implements StorageService {
      */
     @Override
     public String getContentType(String fileName) {
-        if (fileName == null || fileName.trim().isEmpty()) {
+        String normalizedFileName = StoragePathUtils.normalizeRelativePath(fileName);
+
+        if (normalizedFileName == null || normalizedFileName.isEmpty()) {
             return "application/octet-stream";
         }
 
         String contentType = "application/octet-stream";
 
         try {
-            // Handle files in subfolders (e.g., "course_thumbnails/file.jpg")
-            Path filePath = rootLocation.resolve(fileName).normalize().toAbsolutePath();
+            Path filePath = rootLocation.resolve(normalizedFileName).normalize().toAbsolutePath();
 
             if (Files.exists(filePath)) {
                 String detectedType = Files.probeContentType(filePath);
                 if (detectedType != null && !detectedType.isEmpty()) {
                     contentType = detectedType;
                 } else {
-                    contentType = getContentTypeByExtension(fileName);
+                    contentType = getContentTypeByExtension(normalizedFileName);
                 }
             } else {
-                contentType = getContentTypeByExtension(fileName);
+                contentType = getContentTypeByExtension(normalizedFileName);
             }
         } catch (Exception e) {
-            contentType = getContentTypeByExtension(fileName);
+            contentType = getContentTypeByExtension(normalizedFileName);
         }
 
         return contentType;
@@ -310,12 +312,17 @@ public class FileSystemStorageServiceImpl implements StorageService {
     }
 
     private Resource getResource(String fileName) throws MalformedURLException {
-        // Allow files in subfolders but still prevent directory traversal
-        if (fileName.contains("..")) {
+        String normalizedFileName = StoragePathUtils.normalizeRelativePath(fileName);
+
+        if (normalizedFileName == null || normalizedFileName.isEmpty()) {
             throw new StorageFileNotFoundException("Invalid file name: " + fileName);
         }
 
-        Path targetLocation = rootLocation.resolve(fileName).normalize().toAbsolutePath();
+        if (normalizedFileName.contains("..")) {
+            throw new StorageFileNotFoundException("Invalid file name: " + fileName);
+        }
+
+        Path targetLocation = rootLocation.resolve(normalizedFileName).normalize().toAbsolutePath();
 
         if (!targetLocation.startsWith(rootLocation.toAbsolutePath())) {
             throw new StorageFileNotFoundException("File access denied: " + fileName);

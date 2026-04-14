@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -616,17 +617,18 @@ public class CourseCreatorController {
     public ResponseEntity<Resource> getCourseCreatorDocumentMedia(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable String filePath) {
+        String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
         String expectedPrefix = storageProperties.getFolders().getProfileDocuments()
                 + "/course-creators/" + courseCreatorUuid + "/";
 
-        if (!filePath.startsWith(expectedPrefix)) {
+        if (!normalizedFilePath.startsWith(expectedPrefix)) {
             return ResponseEntity.notFound().build();
         }
 
         try {
-            Resource resource = storageService.load(filePath);
-            String contentType = storageService.getContentType(filePath);
-            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            Resource resource = storageService.load(normalizedFilePath);
+            String contentType = storageService.getContentType(normalizedFilePath);
+            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
