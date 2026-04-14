@@ -1,3 +1,10 @@
+## [2.68.2](https://github.com/sarafrika/elimika/compare/v2.68.1...v2.68.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* normalize catch-all storage paths before serving uploaded media ([acd882b](https://github.com/sarafrika/elimika/commit/acd882bafb33745b95126f0fc0c10a0164df6aaf))
+
 ## [2.68.1](https://github.com/sarafrika/elimika/compare/v2.68.0...v2.68.1) (2026-04-06)
 
 
