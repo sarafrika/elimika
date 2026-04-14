@@ -183,4 +183,21 @@ class CourseControllerTest {
         verify(storageService).load(filePathCaptor.capture());
         assertEquals("course_thumbnails/test-image.png", filePathCaptor.getValue());
     }
+
+    @Test
+    void getCourseMediaResolvesLegacyFlatImageNameToCourseThumbnailFolder() throws Exception {
+        ByteArrayResource resource = new ByteArrayResource("image".getBytes());
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(courseController).build();
+
+        when(storageService.load(any())).thenReturn(resource);
+        when(storageService.getContentType(any())).thenReturn(MediaType.IMAGE_PNG_VALUE);
+        when(storageService.isImage("deb57188-94a2-4483-8ab6-f071ac02b3b0.png")).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/courses/media/deb57188-94a2-4483-8ab6-f071ac02b3b0.png"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<String> filePathCaptor = ArgumentCaptor.forClass(String.class);
+        verify(storageService).load(filePathCaptor.capture());
+        assertEquals("course_thumbnails/deb57188-94a2-4483-8ab6-f071ac02b3b0.png", filePathCaptor.getValue());
+    }
 }
