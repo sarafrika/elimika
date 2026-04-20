@@ -22,6 +22,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
 
     List<Enrollment> findByStudentUuid(UUID studentUuid);
 
+    @Query("SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE e.studentUuid = :studentUuid " +
+           "ORDER BY si.startTime ASC, COALESCE(e.lastModifiedDate, e.createdDate) ASC, e.uuid ASC")
+    List<Enrollment> findByStudentUuidOrderByScheduledInstanceStartTime(@Param("studentUuid") UUID studentUuid);
+
     List<Enrollment> findByScheduledInstanceUuid(UUID scheduledInstanceUuid);
 
     List<Enrollment> findByStatus(EnrollmentStatus status);

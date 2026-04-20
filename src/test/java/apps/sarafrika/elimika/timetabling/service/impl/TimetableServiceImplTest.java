@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
@@ -30,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -138,6 +140,31 @@ class TimetableServiceImplTest {
                 .first()
                 .extracting(StudentScheduleDTO::scheduledInstanceUuid)
                 .isEqualTo(activeInstance.getUuid());
+    }
+
+    @Test
+    void getEnrollmentsForStudentReturnsEnrollmentDtos() {
+        UUID studentUuid = UUID.randomUUID();
+
+        Enrollment firstEnrollment = buildEnrollment(EnrollmentStatus.WAITLISTED);
+        firstEnrollment.setStudentUuid(studentUuid);
+
+        Enrollment secondEnrollment = buildEnrollment(EnrollmentStatus.ATTENDED);
+        secondEnrollment.setStudentUuid(studentUuid);
+
+        when(enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid))
+                .thenReturn(List.of(firstEnrollment, secondEnrollment));
+
+        List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
+
+        assertThat(result)
+                .hasSize(2)
+                .extracting(EnrollmentDTO::uuid)
+                .containsExactly(firstEnrollment.getUuid(), secondEnrollment.getUuid());
+        assertThat(result)
+                .extracting(EnrollmentDTO::status)
+                .containsExactly(EnrollmentStatus.WAITLISTED, EnrollmentStatus.ATTENDED);
+        verify(enrollmentRepository).findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid);
     }
 
     @Test

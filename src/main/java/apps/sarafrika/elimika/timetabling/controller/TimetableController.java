@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -111,6 +112,23 @@ public class TimetableController {
         
         List<ScheduledInstanceDTO> result = timetableService.getScheduleForInstructor(instructorUuid, start, end);
         return ResponseEntity.ok(ApiResponse.success(result, "Instructor schedule retrieved successfully"));
+    }
+
+    @Operation(summary = "Get schedule for a specific student within a date range")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student schedule retrieved successfully")
+    @GetMapping("/student/{studentUuid}")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<List<StudentScheduleDTO>>> getStudentSchedule(
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid,
+            @Parameter(description = "Start date of the range (YYYY-MM-DD)")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @Parameter(description = "End date of the range (YYYY-MM-DD)")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        log.debug("REST request to get schedule for student: {} from {} to {}", studentUuid, start, end);
+
+        List<StudentScheduleDTO> result = timetableService.getScheduleForStudent(studentUuid, start, end);
+        return ResponseEntity.ok(ApiResponse.success(result, "Student schedule retrieved successfully"));
     }
 
     // ================================

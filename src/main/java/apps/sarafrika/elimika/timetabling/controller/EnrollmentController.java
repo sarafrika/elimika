@@ -4,7 +4,6 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
-import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,13 +13,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -156,21 +153,17 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(results, baseUrl), "Enrollment search completed successfully"));
     }
 
-    @Operation(summary = "Get schedule for a specific student within a date range")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student schedule retrieved successfully")
+    @Operation(summary = "Get all class enrollments for a specific student")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrollments retrieved successfully")
     @GetMapping("/student/{studentUuid}")
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
-    public ResponseEntity<ApiResponse<List<StudentScheduleDTO>>> getStudentSchedule(
+    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
-            @PathVariable UUID studentUuid,
-            @Parameter(description = "Start date of the range (YYYY-MM-DD)")
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @Parameter(description = "End date of the range (YYYY-MM-DD)")
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
-        log.debug("REST request to get schedule for student: {} from {} to {}", studentUuid, start, end);
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request to get enrollments for student: {}", studentUuid);
 
-        List<StudentScheduleDTO> result = timetableService.getScheduleForStudent(studentUuid, start, end);
-        return ResponseEntity.ok(ApiResponse.success(result, "Student schedule retrieved successfully"));
+        List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Student enrollments retrieved successfully"));
     }
 
     // ================================

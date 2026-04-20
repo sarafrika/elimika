@@ -123,6 +123,15 @@ public interface TimetableService {
     List<ScheduledInstanceDTO> getScheduleForInstructor(UUID instructorUuid, LocalDate start, LocalDate end);
 
     /**
+     * Retrieves all enrollments for a specific student ordered by scheduled start time.
+     *
+     * @param studentUuid The UUID of the student
+     * @return List of enrollments for the student (empty list if none found)
+     * @throws IllegalArgumentException if studentUuid is null
+     */
+    List<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid);
+
+    /**
      * Retrieves the schedule for a specific student within a date range.
      * This includes enrollment information and attendance status.
      *

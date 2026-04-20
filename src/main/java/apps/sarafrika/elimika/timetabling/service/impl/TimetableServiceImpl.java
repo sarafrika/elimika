@@ -450,6 +450,19 @@ public class TimetableServiceImpl implements TimetableService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid) {
+        log.debug("Getting enrollments for student: {}", studentUuid);
+
+        if (studentUuid == null) {
+            throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid);
+        return EnrollmentFactory.toDTOList(enrollments);
+    }
+
+    @Override
     public List<StudentScheduleDTO> getScheduleForStudent(UUID studentUuid, LocalDate start, LocalDate end) {
         log.debug("Getting schedule for student: {} from {} to {}", studentUuid, start, end);
         
