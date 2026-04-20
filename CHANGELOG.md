@@ -1,3 +1,10 @@
+## [2.68.3](https://github.com/sarafrika/elimika/compare/v2.68.2...v2.68.3) (2026-04-20)
+
+
+### Bug Fixes
+
+* restore student class enrollments endpoint contract ([23805ab](https://github.com/sarafrika/elimika/commit/23805abe61d3739edafa0fd994a897eeb819e2c7))
+
 ## [2.68.2](https://github.com/sarafrika/elimika/compare/v2.68.1...v2.68.2) (2026-04-14)
 
 
