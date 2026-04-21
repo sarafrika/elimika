@@ -32,6 +32,27 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
     private final TrainingProgramRepository trainingProgramRepository;
 
     @Override
+    public List<LearnerCourseProgressView> findCourseProgress(UUID studentUuid) {
+        if (studentUuid == null) {
+            return List.of();
+        }
+
+        List<CourseEnrollment> enrollments = courseEnrollmentRepository.findByStudentUuid(studentUuid, Pageable.unpaged())
+                .getContent()
+                .stream()
+                .sorted(Comparator.comparing(
+                        this::resolveCourseEnrollmentActivityAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        Map<UUID, String> courseNameCache = new HashMap<>();
+        return enrollments.stream()
+                .map(enrollment -> toCourseView(enrollment, courseNameCache))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    @Override
     public List<LearnerCourseProgressView> findRecentCourseProgress(UUID studentUuid, int limit) {
         if (studentUuid == null) {
             return List.of();
@@ -112,5 +133,14 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
                 enrollment.getProgressPercentage(),
                 enrollment.getLastModifiedDate()
         );
+    }
+
+    private java.time.LocalDateTime resolveCourseEnrollmentActivityAt(CourseEnrollment enrollment) {
+        if (enrollment == null) {
+            return null;
+        }
+        return enrollment.getLastModifiedDate() != null
+                ? enrollment.getLastModifiedDate()
+                : enrollment.getCreatedDate();
     }
 }

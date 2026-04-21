@@ -21,6 +21,8 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
 
     Optional<ScheduledInstance> findByUuid(UUID uuid);
 
+    List<ScheduledInstance> findByUuidIn(Collection<UUID> uuids);
+
     List<ScheduledInstance> findByInstructorUuid(UUID instructorUuid);
 
     List<ScheduledInstance> findByClassDefinitionUuid(UUID classDefinitionUuid);

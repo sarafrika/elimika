@@ -9,6 +9,14 @@ import java.util.UUID;
 public interface LearnerProgressLookupService {
 
     /**
+     * Returns all course enrollments for a learner ordered from most recent to oldest.
+     *
+     * @param studentUuid learner identifier
+     * @return ordered list of course progress snapshots
+     */
+    List<LearnerCourseProgressView> findCourseProgress(UUID studentUuid);
+
+    /**
      * Returns the most recent course enrollments for a learner.
      *
      * @param studentUuid learner identifier

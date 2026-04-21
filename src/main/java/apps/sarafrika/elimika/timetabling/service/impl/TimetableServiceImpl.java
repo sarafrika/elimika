@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
+import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
@@ -14,6 +16,9 @@ import apps.sarafrika.elimika.timetabling.dto.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
@@ -39,9 +44,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -60,6 +68,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final CourseInfoService courseInfoService;
+    private final LearnerProgressLookupService learnerProgressLookupService;
     private final AgeVerificationService ageVerificationService;
     private final CommercePaywallService commercePaywallService;
     private final AvailabilityService availabilityService;
@@ -463,6 +472,49 @@ public class TimetableServiceImpl implements TimetableService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<StudentClassEnrollmentSummaryDTO> getClassEnrollmentsForStudent(UUID studentUuid) {
+        log.debug("Getting class enrollments for student: {}", studentUuid);
+
+        if (studentUuid == null) {
+            throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid);
+        return buildClassEnrollmentSummaries(enrollments);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid) {
+        log.debug("Getting course enrollments for student: {}", studentUuid);
+
+        if (studentUuid == null) {
+            throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        return learnerProgressLookupService.findCourseProgress(studentUuid).stream()
+                .map(this::toCourseEnrollmentSummary)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StudentEnrollmentOverviewDTO getEnrollmentOverviewForStudent(UUID studentUuid) {
+        log.debug("Getting enrollment overview for student: {}", studentUuid);
+
+        if (studentUuid == null) {
+            throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        return new StudentEnrollmentOverviewDTO(
+                studentUuid,
+                getClassEnrollmentsForStudent(studentUuid),
+                getCourseEnrollmentsForStudent(studentUuid)
+        );
+    }
+
+    @Override
     public List<StudentScheduleDTO> getScheduleForStudent(UUID studentUuid, LocalDate start, LocalDate end) {
         log.debug("Getting schedule for student: {} from {} to {}", studentUuid, start, end);
         
@@ -610,6 +662,121 @@ public class TimetableServiceImpl implements TimetableService {
             throw new IllegalArgumentException("Class definition UUID cannot be null");
         }
         return scheduledInstanceRepository.countByClassDefinitionUuid(classDefinitionUuid);
+    }
+
+    private List<StudentClassEnrollmentSummaryDTO> buildClassEnrollmentSummaries(List<Enrollment> enrollments) {
+        if (enrollments == null || enrollments.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, ScheduledInstance> scheduledInstanceByUuid = scheduledInstanceRepository.findByUuidIn(
+                        enrollments.stream()
+                                .map(Enrollment::getScheduledInstanceUuid)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(ScheduledInstance::getUuid, instance -> instance));
+
+        Map<UUID, AggregatedClassEnrollment> grouped = new LinkedHashMap<>();
+
+        for (Enrollment enrollment : enrollments) {
+            ScheduledInstance scheduledInstance = scheduledInstanceByUuid.get(enrollment.getScheduledInstanceUuid());
+            if (scheduledInstance == null || scheduledInstance.getClassDefinitionUuid() == null) {
+                continue;
+            }
+
+            UUID classDefinitionUuid = scheduledInstance.getClassDefinitionUuid();
+            grouped.computeIfAbsent(classDefinitionUuid, ignored -> new AggregatedClassEnrollment())
+                    .include(enrollment, scheduledInstance);
+        }
+
+        return grouped.entrySet().stream()
+                .map(entry -> toClassEnrollmentSummary(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparing(
+                                StudentClassEnrollmentSummaryDTO::latest_activity_date,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(StudentClassEnrollmentSummaryDTO::class_title,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+    }
+
+    private StudentClassEnrollmentSummaryDTO toClassEnrollmentSummary(
+            UUID classDefinitionUuid,
+            AggregatedClassEnrollment aggregate) {
+        return new StudentClassEnrollmentSummaryDTO(
+                classDefinitionUuid,
+                aggregate.classTitle,
+                aggregate.latestEnrollmentUuid,
+                aggregate.latestEnrollmentStatus,
+                aggregate.scheduledInstanceCount,
+                aggregate.latestScheduledInstanceStartTime,
+                aggregate.latestActivityDate
+        );
+    }
+
+    private StudentCourseEnrollmentSummaryDTO toCourseEnrollmentSummary(LearnerCourseProgressView view) {
+        return new StudentCourseEnrollmentSummaryDTO(
+                view.enrollmentUuid(),
+                view.courseUuid(),
+                view.courseName(),
+                view.status(),
+                view.progressPercentage(),
+                view.updatedDate()
+        );
+    }
+
+    private static LocalDateTime resolveEnrollmentActivityAt(Enrollment enrollment) {
+        if (enrollment == null) {
+            return null;
+        }
+        return enrollment.getLastModifiedDate() != null
+                ? enrollment.getLastModifiedDate()
+                : enrollment.getCreatedDate();
+    }
+
+    private static final class AggregatedClassEnrollment {
+        private String classTitle;
+        private UUID latestEnrollmentUuid;
+        private EnrollmentStatus latestEnrollmentStatus;
+        private LocalDateTime latestScheduledInstanceStartTime;
+        private LocalDateTime latestActivityDate;
+        private int scheduledInstanceCount;
+
+        private void include(Enrollment enrollment, ScheduledInstance scheduledInstance) {
+            scheduledInstanceCount++;
+            if (classTitle == null) {
+                classTitle = scheduledInstance.getTitle();
+            }
+
+            LocalDateTime candidateActivityDate = resolveEnrollmentActivityAt(enrollment);
+            LocalDateTime candidateStartTime = scheduledInstance.getStartTime();
+            if (isMoreRecent(candidateActivityDate, candidateStartTime)) {
+                latestEnrollmentUuid = enrollment.getUuid();
+                latestEnrollmentStatus = enrollment.getStatus();
+                latestScheduledInstanceStartTime = candidateStartTime;
+                latestActivityDate = candidateActivityDate;
+                if (scheduledInstance.getTitle() != null && !scheduledInstance.getTitle().isBlank()) {
+                    classTitle = scheduledInstance.getTitle();
+                }
+            }
+        }
+
+        private boolean isMoreRecent(LocalDateTime candidateActivityDate, LocalDateTime candidateStartTime) {
+            if (latestActivityDate == null && latestScheduledInstanceStartTime == null) {
+                return true;
+            }
+            if (candidateActivityDate != null && (latestActivityDate == null || candidateActivityDate.isAfter(latestActivityDate))) {
+                return true;
+            }
+            if (candidateActivityDate != null && candidateActivityDate.equals(latestActivityDate)) {
+                return candidateStartTime != null
+                        && (latestScheduledInstanceStartTime == null || candidateStartTime.isAfter(latestScheduledInstanceStartTime));
+            }
+            return candidateActivityDate == null
+                    && latestActivityDate == null
+                    && candidateStartTime != null
+                    && (latestScheduledInstanceStartTime == null || candidateStartTime.isAfter(latestScheduledInstanceStartTime));
+        }
     }
 
     @Override

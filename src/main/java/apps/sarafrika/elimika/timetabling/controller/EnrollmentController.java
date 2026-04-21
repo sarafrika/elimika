@@ -4,6 +4,9 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -153,7 +156,7 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(results, baseUrl), "Enrollment search completed successfully"));
     }
 
-    @Operation(summary = "Get all class enrollments for a specific student")
+    @Operation(summary = "Get scheduled instance enrollments for a specific student")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrollments retrieved successfully")
     @GetMapping("/student/{studentUuid}")
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
@@ -164,6 +167,61 @@ public class EnrollmentController {
 
         List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Student enrollments retrieved successfully"));
+    }
+
+    @Operation(summary = "Get scheduled instance enrollments for a specific student")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student scheduled instance enrollments retrieved successfully")
+    @GetMapping("/student/{studentUuid}/scheduled-instances")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getScheduledInstanceEnrollmentsForStudent(
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request to get scheduled instance enrollments for student: {}", studentUuid);
+
+        List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Student scheduled instance enrollments retrieved successfully"));
+    }
+
+    @Operation(summary = "Get class enrollments for a specific student")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student class enrollments retrieved successfully")
+    @GetMapping("/student/{studentUuid}/classes")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<List<StudentClassEnrollmentSummaryDTO>>> getClassEnrollmentsForStudent(
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request to get class enrollments for student: {}", studentUuid);
+
+        List<StudentClassEnrollmentSummaryDTO> result = timetableService.getClassEnrollmentsForStudent(studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Student class enrollments retrieved successfully"));
+    }
+
+    @Operation(summary = "Get course enrollments for a specific student")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student course enrollments retrieved successfully")
+    @GetMapping("/student/{studentUuid}/courses")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<List<StudentCourseEnrollmentSummaryDTO>>> getCourseEnrollmentsForStudent(
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request to get course enrollments for student: {}", studentUuid);
+
+        List<StudentCourseEnrollmentSummaryDTO> result = timetableService.getCourseEnrollmentsForStudent(studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Student course enrollments retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get overall student enrollment overview",
+            description = "Retrieves overall class and course enrollments for a student without requiring scheduled-instance inspection."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrollment overview retrieved successfully")
+    @GetMapping("/student/{studentUuid}/overview")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<StudentEnrollmentOverviewDTO>> getEnrollmentOverviewForStudent(
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request to get overall enrollment overview for student: {}", studentUuid);
+
+        StudentEnrollmentOverviewDTO result = timetableService.getEnrollmentOverviewForStudent(studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Student enrollment overview retrieved successfully"));
     }
 
     // ================================

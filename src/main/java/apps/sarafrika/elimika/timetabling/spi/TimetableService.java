@@ -132,6 +132,34 @@ public interface TimetableService {
     List<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid);
 
     /**
+     * Retrieves the student's enrollments at class-definition level.
+     *
+     * @param studentUuid The UUID of the student
+     * @return Overall class enrollment data grouped by class definition
+     * @throws IllegalArgumentException if studentUuid is null
+     */
+    List<StudentClassEnrollmentSummaryDTO> getClassEnrollmentsForStudent(UUID studentUuid);
+
+    /**
+     * Retrieves the student's enrollments at course level.
+     *
+     * @param studentUuid The UUID of the student
+     * @return Overall course enrollment data
+     * @throws IllegalArgumentException if studentUuid is null
+     */
+    List<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid);
+
+    /**
+     * Retrieves the student's overall class and course enrollments without requiring
+     * consumers to derive them from scheduled instances.
+     *
+     * @param studentUuid The UUID of the student
+     * @return Aggregated class and course enrollment data for the student
+     * @throws IllegalArgumentException if studentUuid is null
+     */
+    StudentEnrollmentOverviewDTO getEnrollmentOverviewForStudent(UUID studentUuid);
+
+    /**
      * Retrieves the schedule for a specific student within a date range.
      * This includes enrollment information and attendance status.
      *
