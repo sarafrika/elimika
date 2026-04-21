@@ -1,3 +1,15 @@
+# [2.69.0](https://github.com/sarafrika/elimika/compare/v2.68.3...v2.69.0) (2026-04-21)
+
+
+### Bug Fixes
+
+* remove ambiguous student enrollment route ([23a5d0c](https://github.com/sarafrika/elimika/commit/23a5d0ca55d76862fd54d35db8958b7133b96869))
+
+
+### Features
+
+* add student enrollment views for instances classes and courses ([c6cfb3b](https://github.com/sarafrika/elimika/commit/c6cfb3b82c05d6c0d8543ebfd5ea12a5d50a17c7))
+
 ## [2.68.3](https://github.com/sarafrika/elimika/compare/v2.68.2...v2.68.3) (2026-04-20)
 
 
