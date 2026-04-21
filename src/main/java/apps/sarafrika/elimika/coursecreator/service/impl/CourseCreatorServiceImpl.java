@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
+import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
@@ -37,14 +38,15 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
 
     @Override
     public CourseCreatorDTO createCourseCreator(CourseCreatorDTO courseCreatorDTO) {
-        CourseCreator courseCreator = CourseCreatorFactory.toEntity(courseCreatorDTO);
-
+        CourseCreator courseCreator = courseCreatorRepository.findByUserUuid(courseCreatorDTO.userUuid())
+                .orElseGet(CourseCreator::new);
+        applyCourseCreatorProfile(courseCreator, courseCreatorDTO);
         courseCreator.setAdminVerified(false);
 
         CourseCreator savedCourseCreator = courseCreatorRepository.save(courseCreator);
 
         applicationEventPublisher.publishEvent(
-                new UserDomainMappingEvent(courseCreator.getUserUuid(), UserDomain.course_creator.name())
+                new UserDomainMappingEvent(savedCourseCreator.getUserUuid(), UserDomain.course_creator.name())
         );
 
         return CourseCreatorFactory.toDTO(savedCourseCreator);
@@ -81,6 +83,9 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_CREATOR_NOT_FOUND_TEMPLATE, uuid)));
 
         courseCreatorRepository.delete(courseCreator);
+        applicationEventPublisher.publishEvent(
+                new UserDomainRemovedEvent(courseCreator.getUserUuid(), UserDomain.course_creator.name())
+        );
     }
 
     @Override
@@ -174,17 +179,22 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
      * Note: Read-only fields like uuid, createdDate, createdBy, fullName, verified, etc. are not updated.
      */
     private void updateCourseCreatorFields(CourseCreator existingCourseCreator, CourseCreatorDTO courseCreatorDTO) {
+        applyCourseCreatorProfile(existingCourseCreator, courseCreatorDTO);
+    }
+
+    private void applyCourseCreatorProfile(CourseCreator courseCreator, CourseCreatorDTO courseCreatorDTO) {
+        courseCreator.setUserUuid(courseCreatorDTO.userUuid());
         if (courseCreatorDTO.fullName() != null) {
-            existingCourseCreator.setFullName(courseCreatorDTO.fullName());
+            courseCreator.setFullName(courseCreatorDTO.fullName());
         }
         if (courseCreatorDTO.website() != null) {
-            existingCourseCreator.setWebsite(courseCreatorDTO.website());
+            courseCreator.setWebsite(courseCreatorDTO.website());
         }
         if (courseCreatorDTO.bio() != null) {
-            existingCourseCreator.setBio(courseCreatorDTO.bio());
+            courseCreator.setBio(courseCreatorDTO.bio());
         }
         if (courseCreatorDTO.professionalHeadline() != null) {
-            existingCourseCreator.setProfessionalHeadline(courseCreatorDTO.professionalHeadline());
+            courseCreator.setProfessionalHeadline(courseCreatorDTO.professionalHeadline());
         }
     }
 }

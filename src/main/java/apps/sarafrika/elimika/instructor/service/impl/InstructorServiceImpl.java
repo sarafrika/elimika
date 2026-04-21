@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.instructor.service.impl;
 
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
+import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -39,14 +40,15 @@ public class InstructorServiceImpl implements InstructorService {
 
     @Override
     public InstructorDTO createInstructor(InstructorDTO instructorDTO) {
-        Instructor instructor = InstructorFactory.toEntity(instructorDTO);
-
+        Instructor instructor = instructorRepository.findByUserUuid(instructorDTO.userUuid())
+                .orElseGet(Instructor::new);
+        applyInstructorProfile(instructor, instructorDTO);
         instructor.setAdminVerified(false);
 
         Instructor savedInstructor = instructorRepository.save(instructor);
 
         applicationEventPublisher.publishEvent(
-                new UserDomainMappingEvent(instructor.getUserUuid(), UserDomain.instructor.name())
+                new UserDomainMappingEvent(savedInstructor.getUserUuid(), UserDomain.instructor.name())
         );
 
         return InstructorFactory.toDTO(savedInstructor);
@@ -83,6 +85,9 @@ public class InstructorServiceImpl implements InstructorService {
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
 
         instructorRepository.delete(instructor);
+        applicationEventPublisher.publishEvent(
+                new UserDomainRemovedEvent(instructor.getUserUuid(), UserDomain.instructor.name())
+        );
     }
 
     @Override
@@ -170,20 +175,25 @@ public class InstructorServiceImpl implements InstructorService {
      * Note: Read-only fields like uuid, createdDate, createdBy, fullName, verified, etc. are not updated.
      */
     private void updateInstructorFields(Instructor existingInstructor, InstructorDTO instructorDTO) {
+        applyInstructorProfile(existingInstructor, instructorDTO);
+    }
+
+    private void applyInstructorProfile(Instructor instructor, InstructorDTO instructorDTO) {
+        instructor.setUserUuid(instructorDTO.userUuid());
         if (instructorDTO.latitude() != null) {
-            existingInstructor.setLatitude(instructorDTO.latitude());
+            instructor.setLatitude(instructorDTO.latitude());
         }
         if (instructorDTO.longitude() != null) {
-            existingInstructor.setLongitude(instructorDTO.longitude());
+            instructor.setLongitude(instructorDTO.longitude());
         }
         if (instructorDTO.website() != null) {
-            existingInstructor.setWebsite(instructorDTO.website());
+            instructor.setWebsite(instructorDTO.website());
         }
         if (instructorDTO.bio() != null) {
-            existingInstructor.setBio(instructorDTO.bio());
+            instructor.setBio(instructorDTO.bio());
         }
         if (instructorDTO.professionalHeadline() != null) {
-            existingInstructor.setProfessionalHeadline(instructorDTO.professionalHeadline());
+            instructor.setProfessionalHeadline(instructorDTO.professionalHeadline());
         }
     }
 }

@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.student.service.impl;
 
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import apps.sarafrika.elimika.student.factory.StudentFactory;
@@ -25,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -91,6 +93,7 @@ class StudentServiceImplTest {
                 .thenReturn(AgeGateDecision.allow());
         when(userLookupService.getUserDateOfBirth(request.userUuid()))
                 .thenReturn(Optional.of(LocalDate.of(2010, 5, 12)));
+        when(studentRepository.findByUserUuid(request.userUuid())).thenReturn(Optional.empty());
         Student persisted = StudentFactory.toEntity(request);
         persisted.setUuid(UUID.randomUUID());
         when(studentRepository.save(any(Student.class))).thenReturn(persisted);
@@ -99,5 +102,49 @@ class StudentServiceImplTest {
 
         assertThat(response.demographicTag()).isEqualTo(request.demographicTag());
         verify(studentRepository).save(any(Student.class));
+    }
+
+    @Test
+    void shouldReuseExistingStudentProfileWhenUserAlreadyHasStudentRecord() {
+        when(ruleEvaluationService.evaluateAgeGate(any(), any()))
+                .thenReturn(AgeGateDecision.allow());
+        when(userLookupService.getUserDateOfBirth(request.userUuid()))
+                .thenReturn(Optional.of(LocalDate.of(2010, 5, 12)));
+
+        Student existing = new Student();
+        UUID existingStudentUuid = UUID.randomUUID();
+        existing.setUuid(existingStudentUuid);
+        existing.setUserUuid(request.userUuid());
+        existing.setFullName("Student Full Name");
+        existing.setDemographicTag("legacy_tag");
+
+        when(studentRepository.findByUserUuid(request.userUuid())).thenReturn(Optional.of(existing));
+        when(studentRepository.save(any(Student.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StudentDTO response = studentService.createStudent(request);
+
+        assertThat(response.uuid()).isEqualTo(existingStudentUuid);
+        assertThat(response.demographicTag()).isEqualTo(request.demographicTag());
+        assertThat(existing.getFirstGuardianName()).isEqualTo(request.firstGuardianName());
+        verify(studentRepository).findByUserUuid(request.userUuid());
+        verify(studentRepository).save(existing);
+    }
+
+    @Test
+    void shouldDeleteStudentAndPublishDomainRemovalEvent() {
+        UUID studentUuid = UUID.randomUUID();
+        Student existing = new Student();
+        existing.setUuid(studentUuid);
+        existing.setUserUuid(request.userUuid());
+
+        when(studentRepository.findByUuid(studentUuid)).thenReturn(Optional.of(existing));
+
+        studentService.deleteStudent(studentUuid);
+
+        verify(studentRepository).deleteByUuid(studentUuid);
+        verify(applicationEventPublisher).publishEvent((Object) argThat(event ->
+                event instanceof UserDomainRemovedEvent removedEvent
+                        && request.userUuid().equals(removedEvent.userUuid())
+                        && "student".equals(removedEvent.userDomain())));
     }
 }

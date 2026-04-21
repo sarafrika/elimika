@@ -681,6 +681,21 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @EventListener
+    @Transactional
+    void removeUserDomain(UserDomainRemovedEvent event) {
+
+        UUID domainUuid = userDomainRepository.findByDomainName(event.userDomain())
+                .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name"))
+                .getUuid();
+
+        List<UserDomainMapping> mappings = userDomainMappingRepository
+                .findByUserUuidAndUserDomainUuid(event.userUuid(), domainUuid);
+        if (!mappings.isEmpty()) {
+            userDomainMappingRepository.deleteAll(mappings);
+        }
+    }
+
     private String getAttributeValue(Map<String, List<String>> attributes, String key) {
         List<String> values = attributes.get(key);
         return (values != null && !values.isEmpty()) ? values.get(0) : null;

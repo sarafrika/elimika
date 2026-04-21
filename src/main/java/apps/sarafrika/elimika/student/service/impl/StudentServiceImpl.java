@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.student.service.impl;
 
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
+import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -48,10 +49,12 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     public StudentDTO createStudent(StudentDTO studentDTO) {
         enforceAgeGate(studentDTO);
-        Student student = StudentFactory.toEntity(studentDTO);
+        Student student = studentRepository.findByUserUuid(studentDTO.userUuid())
+                .orElseGet(Student::new);
+        applyStudentProfile(student, studentDTO);
         Student savedStudent = studentRepository.save(student);
         applicationEventPublisher.publishEvent(
-                new UserDomainMappingEvent(student.getUserUuid(), UserDomain.student.name())
+                new UserDomainMappingEvent(savedStudent.getUserUuid(), UserDomain.student.name())
         );
         return StudentFactory.toDTO(savedStudent);
     }
@@ -76,13 +79,7 @@ public class StudentServiceImpl implements StudentService {
         enforceAgeGate(studentDTO);
         Student existingStudent = studentRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RuntimeException(String.format(STUDENT_NOT_FOUND_TEMPLATE, uuid)));
-        existingStudent.setUserUuid(studentDTO.userUuid());
-        existingStudent.setDemographicTag(studentDTO.demographicTag());
-        existingStudent.setFirstGuardianName(studentDTO.firstGuardianName());
-        existingStudent.setFirstGuardianMobile(studentDTO.firstGuardianMobile());
-        existingStudent.setSecondGuardianName(studentDTO.secondGuardianName());
-        existingStudent.setSecondGuardianMobile(studentDTO.secondGuardianMobile());
-        existingStudent.setBio(studentDTO.bio());
+        applyStudentProfile(existingStudent, studentDTO);
 
         Student updatedStudent = studentRepository.save(existingStudent);
         return StudentFactory.toDTO(updatedStudent);
@@ -91,10 +88,12 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     public void deleteStudent(UUID uuid) {
-        if (!studentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException("Student not found with ID: " + uuid);
-        }
+        Student student = studentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + uuid));
         studentRepository.deleteByUuid(uuid);
+        applicationEventPublisher.publishEvent(
+                new UserDomainRemovedEvent(student.getUserUuid(), UserDomain.student.name())
+        );
     }
 
     @Override
@@ -123,5 +122,15 @@ public class StudentServiceImpl implements StudentService {
             builder.demographicTags(Set.of(studentDTO.demographicTag().trim().toLowerCase(Locale.ROOT)));
         }
         return builder.build();
+    }
+
+    private void applyStudentProfile(Student student, StudentDTO studentDTO) {
+        student.setUserUuid(studentDTO.userUuid());
+        student.setDemographicTag(studentDTO.demographicTag());
+        student.setFirstGuardianName(studentDTO.firstGuardianName());
+        student.setFirstGuardianMobile(studentDTO.firstGuardianMobile());
+        student.setSecondGuardianName(studentDTO.secondGuardianName());
+        student.setSecondGuardianMobile(studentDTO.secondGuardianMobile());
+        student.setBio(studentDTO.bio());
     }
 }
