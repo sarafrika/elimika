@@ -157,19 +157,6 @@ public class EnrollmentController {
     }
 
     @Operation(summary = "Get scheduled instance enrollments for a specific student")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrollments retrieved successfully")
-    @GetMapping("/student/{studentUuid}")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
-    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getEnrollmentsForStudent(
-            @Parameter(description = "UUID of the student")
-            @PathVariable UUID studentUuid) {
-        log.debug("REST request to get enrollments for student: {}", studentUuid);
-
-        List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Student enrollments retrieved successfully"));
-    }
-
-    @Operation(summary = "Get scheduled instance enrollments for a specific student")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student scheduled instance enrollments retrieved successfully")
     @GetMapping("/student/{studentUuid}/scheduled-instances")
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")

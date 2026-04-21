@@ -37,7 +37,7 @@ class EnrollmentControllerTest {
     }
 
     @Test
-    void getEnrollmentsForStudentDoesNotRequireDateParameters() throws Exception {
+    void getScheduledInstanceEnrollmentsForStudentDoesNotRequireDateParameters() throws Exception {
         UUID studentUuid = UUID.randomUUID();
         UUID enrollmentUuid = UUID.randomUUID();
         UUID instanceUuid = UUID.randomUUID();
@@ -56,9 +56,9 @@ class EnrollmentControllerTest {
 
         when(timetableService.getEnrollmentsForStudent(studentUuid)).thenReturn(List.of(enrollment));
 
-        mockMvc.perform(get("/api/v1/enrollment/student/{studentUuid}", studentUuid))
+        mockMvc.perform(get("/api/v1/enrollment/student/{studentUuid}/scheduled-instances", studentUuid))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Student enrollments retrieved successfully"))
+                .andExpect(jsonPath("$.message").value("Student scheduled instance enrollments retrieved successfully"))
                 .andExpect(jsonPath("$.data[0].uuid").value(enrollmentUuid.toString()))
                 .andExpect(jsonPath("$.data[0].scheduled_instance_uuid").value(instanceUuid.toString()))
                 .andExpect(jsonPath("$.data[0].student_uuid").value(studentUuid.toString()))
