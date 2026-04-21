@@ -18,7 +18,6 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
-import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
@@ -36,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -44,7 +44,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -460,58 +459,51 @@ public class TimetableServiceImpl implements TimetableService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid) {
+    public Page<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid, Pageable pageable) {
         log.debug("Getting enrollments for student: {}", studentUuid);
 
         if (studentUuid == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
         }
 
-        List<Enrollment> enrollments = enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid);
-        return EnrollmentFactory.toDTOList(enrollments);
+        return enrollmentRepository.findPageByStudentUuidOrderByScheduledInstanceStartTime(studentUuid, pageable)
+                .map(EnrollmentFactory::toDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<StudentClassEnrollmentSummaryDTO> getClassEnrollmentsForStudent(UUID studentUuid) {
+    public Page<StudentClassEnrollmentSummaryDTO> getClassEnrollmentsForStudent(UUID studentUuid, Pageable pageable) {
         log.debug("Getting class enrollments for student: {}", studentUuid);
 
         if (studentUuid == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
         }
 
-        List<Enrollment> enrollments = enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid);
-        return buildClassEnrollmentSummaries(enrollments);
+        Page<UUID> classDefinitionUuids =
+                enrollmentRepository.findClassDefinitionUuidsByStudentUuid(studentUuid, pageable);
+        if (classDefinitionUuids.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentUuidAndClassDefinitionUuidIn(
+                studentUuid,
+                classDefinitionUuids.getContent());
+        List<StudentClassEnrollmentSummaryDTO> summaries =
+                buildClassEnrollmentSummaries(enrollments, classDefinitionUuids.getContent());
+        return new PageImpl<>(summaries, pageable, classDefinitionUuids.getTotalElements());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid) {
+    public Page<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid, Pageable pageable) {
         log.debug("Getting course enrollments for student: {}", studentUuid);
 
         if (studentUuid == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
         }
 
-        return learnerProgressLookupService.findCourseProgress(studentUuid).stream()
-                .map(this::toCourseEnrollmentSummary)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public StudentEnrollmentOverviewDTO getEnrollmentOverviewForStudent(UUID studentUuid) {
-        log.debug("Getting enrollment overview for student: {}", studentUuid);
-
-        if (studentUuid == null) {
-            throw new IllegalArgumentException("Student UUID cannot be null");
-        }
-
-        return new StudentEnrollmentOverviewDTO(
-                studentUuid,
-                getClassEnrollmentsForStudent(studentUuid),
-                getCourseEnrollmentsForStudent(studentUuid)
-        );
+        return learnerProgressLookupService.findCourseProgress(studentUuid, pageable)
+                .map(this::toCourseEnrollmentSummary);
     }
 
     @Override
@@ -664,7 +656,9 @@ public class TimetableServiceImpl implements TimetableService {
         return scheduledInstanceRepository.countByClassDefinitionUuid(classDefinitionUuid);
     }
 
-    private List<StudentClassEnrollmentSummaryDTO> buildClassEnrollmentSummaries(List<Enrollment> enrollments) {
+    private List<StudentClassEnrollmentSummaryDTO> buildClassEnrollmentSummaries(
+            List<Enrollment> enrollments,
+            List<UUID> classDefinitionOrder) {
         if (enrollments == null || enrollments.isEmpty()) {
             return List.of();
         }
@@ -690,19 +684,20 @@ public class TimetableServiceImpl implements TimetableService {
                     .include(enrollment, scheduledInstance);
         }
 
-        return grouped.entrySet().stream()
-                .map(entry -> toClassEnrollmentSummary(entry.getKey(), entry.getValue()))
-                .sorted(Comparator.comparing(
-                                StudentClassEnrollmentSummaryDTO::latest_activity_date,
-                                Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(StudentClassEnrollmentSummaryDTO::class_title,
-                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+        return classDefinitionOrder.stream()
+                .map(classDefinitionUuid -> toClassEnrollmentSummary(
+                        classDefinitionUuid,
+                        grouped.get(classDefinitionUuid)))
+                .filter(Objects::nonNull)
                 .toList();
     }
 
     private StudentClassEnrollmentSummaryDTO toClassEnrollmentSummary(
             UUID classDefinitionUuid,
             AggregatedClassEnrollment aggregate) {
+        if (aggregate == null) {
+            return null;
+        }
         return new StudentClassEnrollmentSummaryDTO(
                 classDefinitionUuid,
                 aggregate.classTitle,

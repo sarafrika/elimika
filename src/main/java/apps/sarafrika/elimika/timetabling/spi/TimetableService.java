@@ -123,41 +123,34 @@ public interface TimetableService {
     List<ScheduledInstanceDTO> getScheduleForInstructor(UUID instructorUuid, LocalDate start, LocalDate end);
 
     /**
-     * Retrieves all enrollments for a specific student ordered by scheduled start time.
+     * Retrieves scheduled-instance enrollments for a specific student ordered by scheduled start time.
      *
      * @param studentUuid The UUID of the student
-     * @return List of enrollments for the student (empty list if none found)
+     * @param pageable pagination information
+     * @return Page of scheduled-instance enrollments for the student
      * @throws IllegalArgumentException if studentUuid is null
      */
-    List<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid);
+    Page<EnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid, Pageable pageable);
 
     /**
      * Retrieves the student's enrollments at class-definition level.
      *
      * @param studentUuid The UUID of the student
-     * @return Overall class enrollment data grouped by class definition
+     * @param pageable pagination information
+     * @return Page of overall class enrollment data grouped by class definition
      * @throws IllegalArgumentException if studentUuid is null
      */
-    List<StudentClassEnrollmentSummaryDTO> getClassEnrollmentsForStudent(UUID studentUuid);
+    Page<StudentClassEnrollmentSummaryDTO> getClassEnrollmentsForStudent(UUID studentUuid, Pageable pageable);
 
     /**
      * Retrieves the student's enrollments at course level.
      *
      * @param studentUuid The UUID of the student
-     * @return Overall course enrollment data
+     * @param pageable pagination information
+     * @return Page of overall course enrollment data
      * @throws IllegalArgumentException if studentUuid is null
      */
-    List<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid);
-
-    /**
-     * Retrieves the student's overall class and course enrollments without requiring
-     * consumers to derive them from scheduled instances.
-     *
-     * @param studentUuid The UUID of the student
-     * @return Aggregated class and course enrollment data for the student
-     * @throws IllegalArgumentException if studentUuid is null
-     */
-    StudentEnrollmentOverviewDTO getEnrollmentOverviewForStudent(UUID studentUuid);
+    Page<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid, Pageable pageable);
 
     /**
      * Retrieves the schedule for a specific student within a date range.

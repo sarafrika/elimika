@@ -17,7 +17,6 @@ import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
-import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +24,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,6 +38,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -154,6 +158,7 @@ class TimetableServiceImplTest {
     @Test
     void getEnrollmentsForStudentReturnsEnrollmentDtos() {
         UUID studentUuid = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 20);
 
         Enrollment firstEnrollment = buildEnrollment(EnrollmentStatus.WAITLISTED);
         firstEnrollment.setStudentUuid(studentUuid);
@@ -161,25 +166,27 @@ class TimetableServiceImplTest {
         Enrollment secondEnrollment = buildEnrollment(EnrollmentStatus.ATTENDED);
         secondEnrollment.setStudentUuid(studentUuid);
 
-        when(enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid))
-                .thenReturn(List.of(firstEnrollment, secondEnrollment));
+        when(enrollmentRepository.findPageByStudentUuidOrderByScheduledInstanceStartTime(studentUuid, pageable))
+                .thenReturn(new PageImpl<>(List.of(firstEnrollment, secondEnrollment), pageable, 2));
 
-        List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
+        Page<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid, pageable);
 
-        assertThat(result)
+        assertThat(result.getContent())
                 .hasSize(2)
                 .extracting(EnrollmentDTO::uuid)
                 .containsExactly(firstEnrollment.getUuid(), secondEnrollment.getUuid());
-        assertThat(result)
+        assertThat(result.getContent())
                 .extracting(EnrollmentDTO::status)
                 .containsExactly(EnrollmentStatus.WAITLISTED, EnrollmentStatus.ATTENDED);
-        verify(enrollmentRepository).findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid);
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(enrollmentRepository).findPageByStudentUuidOrderByScheduledInstanceStartTime(studentUuid, pageable);
     }
 
     @Test
     void getClassEnrollmentsForStudentGroupsEnrollmentsByClassDefinition() {
         UUID studentUuid = UUID.randomUUID();
         UUID classDefinitionUuid = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 20);
 
         Enrollment firstEnrollment = buildEnrollment(EnrollmentStatus.ATTENDED);
         firstEnrollment.setStudentUuid(studentUuid);
@@ -201,14 +208,16 @@ class TimetableServiceImplTest {
         secondInstance.setTitle("Java Fundamentals");
         secondInstance.setStartTime(LocalDateTime.of(2026, 4, 12, 9, 0));
 
-        when(enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid))
+        when(enrollmentRepository.findClassDefinitionUuidsByStudentUuid(studentUuid, pageable))
+                .thenReturn(new PageImpl<>(List.of(classDefinitionUuid), pageable, 1));
+        when(enrollmentRepository.findByStudentUuidAndClassDefinitionUuidIn(eq(studentUuid), anyCollection()))
                 .thenReturn(List.of(firstEnrollment, secondEnrollment));
-        when(scheduledInstanceRepository.findByUuidIn(org.mockito.ArgumentMatchers.anySet()))
+        when(scheduledInstanceRepository.findByUuidIn(anyCollection()))
                 .thenReturn(List.of(firstInstance, secondInstance));
 
-        List<StudentClassEnrollmentSummaryDTO> result = timetableService.getClassEnrollmentsForStudent(studentUuid);
+        Page<StudentClassEnrollmentSummaryDTO> result = timetableService.getClassEnrollmentsForStudent(studentUuid, pageable);
 
-        assertThat(result)
+        assertThat(result.getContent())
                 .hasSize(1)
                 .first()
                 .satisfies(summary -> {
@@ -219,26 +228,28 @@ class TimetableServiceImplTest {
                     assertThat(summary.latest_scheduled_instance_start_time())
                             .isEqualTo(LocalDateTime.of(2026, 4, 12, 9, 0));
                 });
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test
     void getCourseEnrollmentsForStudentReturnsCourseSummaries() {
         UUID studentUuid = UUID.randomUUID();
         UUID courseUuid = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 20);
 
-        when(learnerProgressLookupService.findCourseProgress(studentUuid))
-                .thenReturn(List.of(new LearnerCourseProgressView(
+        when(learnerProgressLookupService.findCourseProgress(studentUuid, pageable))
+                .thenReturn(new PageImpl<>(List.of(new LearnerCourseProgressView(
                         UUID.randomUUID(),
                         courseUuid,
                         "Backend Engineering",
                         "ACTIVE",
                         null,
                         LocalDateTime.of(2026, 4, 12, 10, 0)
-                )));
+                )), pageable, 1));
 
-        List<StudentCourseEnrollmentSummaryDTO> result = timetableService.getCourseEnrollmentsForStudent(studentUuid);
+        Page<StudentCourseEnrollmentSummaryDTO> result = timetableService.getCourseEnrollmentsForStudent(studentUuid, pageable);
 
-        assertThat(result)
+        assertThat(result.getContent())
                 .hasSize(1)
                 .first()
                 .satisfies(summary -> {
@@ -246,43 +257,7 @@ class TimetableServiceImplTest {
                     assertThat(summary.course_name()).isEqualTo("Backend Engineering");
                     assertThat(summary.enrollment_status()).isEqualTo("ACTIVE");
                 });
-    }
-
-    @Test
-    void getEnrollmentOverviewForStudentCombinesClassAndCourseViews() {
-        UUID studentUuid = UUID.randomUUID();
-        UUID classDefinitionUuid = UUID.randomUUID();
-        UUID courseUuid = UUID.randomUUID();
-
-        Enrollment enrollment = buildEnrollment(EnrollmentStatus.ENROLLED);
-        enrollment.setStudentUuid(studentUuid);
-        enrollment.setCreatedDate(LocalDateTime.of(2026, 4, 12, 8, 0));
-
-        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.SCHEDULED);
-        instance.setUuid(enrollment.getScheduledInstanceUuid());
-        instance.setClassDefinitionUuid(classDefinitionUuid);
-        instance.setTitle("Java Fundamentals");
-        instance.setStartTime(LocalDateTime.of(2026, 4, 12, 9, 0));
-
-        when(enrollmentRepository.findByStudentUuidOrderByScheduledInstanceStartTime(studentUuid))
-                .thenReturn(List.of(enrollment));
-        when(scheduledInstanceRepository.findByUuidIn(org.mockito.ArgumentMatchers.anySet()))
-                .thenReturn(List.of(instance));
-        when(learnerProgressLookupService.findCourseProgress(studentUuid))
-                .thenReturn(List.of(new LearnerCourseProgressView(
-                        UUID.randomUUID(),
-                        courseUuid,
-                        "Backend Engineering",
-                        "ACTIVE",
-                        null,
-                        LocalDateTime.of(2026, 4, 12, 10, 0)
-                )));
-
-        StudentEnrollmentOverviewDTO result = timetableService.getEnrollmentOverviewForStudent(studentUuid);
-
-        assertThat(result.student_uuid()).isEqualTo(studentUuid);
-        assertThat(result.class_enrollments()).hasSize(1);
-        assertThat(result.course_enrollments()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test

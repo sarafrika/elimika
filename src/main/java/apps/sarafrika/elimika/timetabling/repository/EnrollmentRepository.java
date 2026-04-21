@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.timetabling.repository;
 
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +29,32 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            "WHERE e.studentUuid = :studentUuid " +
            "ORDER BY si.startTime ASC, COALESCE(e.lastModifiedDate, e.createdDate) ASC, e.uuid ASC")
     List<Enrollment> findByStudentUuidOrderByScheduledInstanceStartTime(@Param("studentUuid") UUID studentUuid);
+
+    @Query(value = "SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE e.studentUuid = :studentUuid " +
+           "ORDER BY si.startTime ASC, COALESCE(e.lastModifiedDate, e.createdDate) ASC, e.uuid ASC",
+           countQuery = "SELECT COUNT(e) FROM Enrollment e WHERE e.studentUuid = :studentUuid")
+    Page<Enrollment> findPageByStudentUuidOrderByScheduledInstanceStartTime(
+            @Param("studentUuid") UUID studentUuid,
+            Pageable pageable);
+
+    @Query(value = "SELECT si.classDefinitionUuid FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE e.studentUuid = :studentUuid " +
+           "AND si.classDefinitionUuid IS NOT NULL " +
+           "GROUP BY si.classDefinitionUuid " +
+           "ORDER BY MAX(COALESCE(e.lastModifiedDate, e.createdDate)) DESC, MAX(si.startTime) DESC, si.classDefinitionUuid ASC",
+           countQuery = "SELECT COUNT(DISTINCT si.classDefinitionUuid) FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE e.studentUuid = :studentUuid " +
+           "AND si.classDefinitionUuid IS NOT NULL")
+    Page<UUID> findClassDefinitionUuidsByStudentUuid(@Param("studentUuid") UUID studentUuid, Pageable pageable);
+
+    @Query("SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE e.studentUuid = :studentUuid " +
+           "AND si.classDefinitionUuid IN :classDefinitionUuids " +
+           "ORDER BY si.startTime ASC, COALESCE(e.lastModifiedDate, e.createdDate) ASC, e.uuid ASC")
+    List<Enrollment> findByStudentUuidAndClassDefinitionUuidIn(
+            @Param("studentUuid") UUID studentUuid,
+            @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids);
 
     List<Enrollment> findByScheduledInstanceUuid(UUID scheduledInstanceUuid);
 

@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgramProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -32,24 +33,14 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
     private final TrainingProgramRepository trainingProgramRepository;
 
     @Override
-    public List<LearnerCourseProgressView> findCourseProgress(UUID studentUuid) {
+    public Page<LearnerCourseProgressView> findCourseProgress(UUID studentUuid, Pageable pageable) {
         if (studentUuid == null) {
-            return List.of();
+            return Page.empty(resolveCourseProgressPageable(pageable));
         }
 
-        List<CourseEnrollment> enrollments = courseEnrollmentRepository.findByStudentUuid(studentUuid, Pageable.unpaged())
-                .getContent()
-                .stream()
-                .sorted(Comparator.comparing(
-                        this::resolveCourseEnrollmentActivityAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
-
         Map<UUID, String> courseNameCache = new HashMap<>();
-        return enrollments.stream()
-                .map(enrollment -> toCourseView(enrollment, courseNameCache))
-                .filter(Objects::nonNull)
-                .toList();
+        return courseEnrollmentRepository.findByStudentUuid(studentUuid, resolveCourseProgressPageable(pageable))
+                .map(enrollment -> toCourseView(enrollment, courseNameCache));
     }
 
     @Override
@@ -89,6 +80,19 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
     private Pageable buildPageable(int limit) {
         int pageSize = limit > 0 ? limit : DEFAULT_LIMIT;
         return PageRequest.of(0, pageSize, Sort.by(Sort.Direction.DESC, "lastModifiedDate"));
+    }
+
+    private Pageable resolveCourseProgressPageable(Pageable pageable) {
+        if (pageable == null || pageable.isUnpaged()) {
+            return PageRequest.of(0, DEFAULT_LIMIT, Sort.by(Sort.Direction.DESC, "lastModifiedDate"));
+        }
+        if (pageable.getSort().isSorted()) {
+            return pageable;
+        }
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "lastModifiedDate"));
     }
 
     private LearnerCourseProgressView toCourseView(CourseEnrollment enrollment, Map<UUID, String> cache) {
@@ -135,12 +139,4 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
         );
     }
 
-    private java.time.LocalDateTime resolveCourseEnrollmentActivityAt(CourseEnrollment enrollment) {
-        if (enrollment == null) {
-            return null;
-        }
-        return enrollment.getLastModifiedDate() != null
-                ? enrollment.getLastModifiedDate()
-                : enrollment.getCreatedDate();
-    }
 }

@@ -160,39 +160,51 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student scheduled instance enrollments retrieved successfully")
     @GetMapping("/student/{studentUuid}/scheduled-instances")
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
-    public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getScheduledInstanceEnrollmentsForStudent(
+    public ResponseEntity<ApiResponse<PagedDTO<EnrollmentDTO>>> getScheduledInstanceEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
-            @PathVariable UUID studentUuid) {
+            @PathVariable UUID studentUuid,
+            Pageable pageable) {
         log.debug("REST request to get scheduled instance enrollments for student: {}", studentUuid);
 
-        List<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Student scheduled instance enrollments retrieved successfully"));
+        Page<EnrollmentDTO> result = timetableService.getEnrollmentsForStudent(studentUuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(result, baseUrl),
+                "Student scheduled instance enrollments retrieved successfully"));
     }
 
     @Operation(summary = "Get class enrollments for a specific student")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student class enrollments retrieved successfully")
     @GetMapping("/student/{studentUuid}/classes")
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
-    public ResponseEntity<ApiResponse<List<StudentClassEnrollmentSummaryDTO>>> getClassEnrollmentsForStudent(
+    public ResponseEntity<ApiResponse<PagedDTO<StudentClassEnrollmentSummaryDTO>>> getClassEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
-            @PathVariable UUID studentUuid) {
+            @PathVariable UUID studentUuid,
+            Pageable pageable) {
         log.debug("REST request to get class enrollments for student: {}", studentUuid);
 
-        List<StudentClassEnrollmentSummaryDTO> result = timetableService.getClassEnrollmentsForStudent(studentUuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Student class enrollments retrieved successfully"));
+        Page<StudentClassEnrollmentSummaryDTO> result = timetableService.getClassEnrollmentsForStudent(studentUuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(result, baseUrl),
+                "Student class enrollments retrieved successfully"));
     }
 
     @Operation(summary = "Get course enrollments for a specific student")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student course enrollments retrieved successfully")
     @GetMapping("/student/{studentUuid}/courses")
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
-    public ResponseEntity<ApiResponse<List<StudentCourseEnrollmentSummaryDTO>>> getCourseEnrollmentsForStudent(
+    public ResponseEntity<ApiResponse<PagedDTO<StudentCourseEnrollmentSummaryDTO>>> getCourseEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
-            @PathVariable UUID studentUuid) {
+            @PathVariable UUID studentUuid,
+            Pageable pageable) {
         log.debug("REST request to get course enrollments for student: {}", studentUuid);
 
-        List<StudentCourseEnrollmentSummaryDTO> result = timetableService.getCourseEnrollmentsForStudent(studentUuid);
-        return ResponseEntity.ok(ApiResponse.success(result, "Student course enrollments retrieved successfully"));
+        Page<StudentCourseEnrollmentSummaryDTO> result = timetableService.getCourseEnrollmentsForStudent(studentUuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(result, baseUrl),
+                "Student course enrollments retrieved successfully"));
     }
 
     @Operation(
@@ -204,10 +216,23 @@ public class EnrollmentController {
     @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
     public ResponseEntity<ApiResponse<StudentEnrollmentOverviewDTO>> getEnrollmentOverviewForStudent(
             @Parameter(description = "UUID of the student")
-            @PathVariable UUID studentUuid) {
+            @PathVariable UUID studentUuid,
+            Pageable pageable) {
         log.debug("REST request to get overall enrollment overview for student: {}", studentUuid);
 
-        StudentEnrollmentOverviewDTO result = timetableService.getEnrollmentOverviewForStudent(studentUuid);
+        String studentEnrollmentBaseUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/enrollment/student/{studentUuid}")
+                .buildAndExpand(studentUuid)
+                .toUriString();
+        StudentEnrollmentOverviewDTO result = new StudentEnrollmentOverviewDTO(
+                studentUuid,
+                PagedDTO.from(
+                        timetableService.getClassEnrollmentsForStudent(studentUuid, pageable),
+                        studentEnrollmentBaseUrl + "/classes"),
+                PagedDTO.from(
+                        timetableService.getCourseEnrollmentsForStudent(studentUuid, pageable),
+                        studentEnrollmentBaseUrl + "/courses")
+        );
         return ResponseEntity.ok(ApiResponse.success(result, "Student enrollment overview retrieved successfully"));
     }
 

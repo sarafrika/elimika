@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.util.List;
 import java.util.UUID;
 
 @Schema(
@@ -16,12 +16,12 @@ public record StudentEnrollmentOverviewDTO(
         @JsonProperty("student_uuid")
         UUID student_uuid,
 
-        @Schema(description = "Overall class enrollments grouped by class definition")
+        @Schema(description = "Paged overall class enrollments grouped by class definition")
         @JsonProperty("class_enrollments")
-        List<StudentClassEnrollmentSummaryDTO> class_enrollments,
+        PagedDTO<StudentClassEnrollmentSummaryDTO> class_enrollments,
 
-        @Schema(description = "Overall course enrollments independent of scheduled instances")
+        @Schema(description = "Paged overall course enrollments independent of scheduled instances")
         @JsonProperty("course_enrollments")
-        List<StudentCourseEnrollmentSummaryDTO> course_enrollments
+        PagedDTO<StudentCourseEnrollmentSummaryDTO> course_enrollments
 ) {
 }
