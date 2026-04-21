@@ -1,3 +1,11 @@
+## [2.69.1](https://github.com/sarafrika/elimika/compare/v2.69.0...v2.69.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* keep standalone domain mappings in sync with role profiles ([e5367ee](https://github.com/sarafrika/elimika/commit/e5367ee89db54fe48913f6d6746866f88ff16343))
+* paginate student enrollment views ([283ebd5](https://github.com/sarafrika/elimika/commit/283ebd5b8db0f8cadee40befffa0ab15d1cee5bf))
+
 # [2.69.0](https://github.com/sarafrika/elimika/compare/v2.68.3...v2.69.0) (2026-04-21)
 
 
