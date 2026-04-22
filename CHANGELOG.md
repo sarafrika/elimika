@@ -1,3 +1,15 @@
+# [2.70.0](https://github.com/sarafrika/elimika/compare/v2.69.1...v2.70.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* align marketplace job pagination and status filters ([4f60d71](https://github.com/sarafrika/elimika/commit/4f60d71e24b581a15870d25cee2472d4d8333a06))
+
+
+### Features
+
+* add organisation marketplace class job workflow ([fee9f47](https://github.com/sarafrika/elimika/commit/fee9f470b780b5074b37d1094f0d9e2f65e09447))
+
 ## [2.69.1](https://github.com/sarafrika/elimika/compare/v2.69.0...v2.69.1) (2026-04-21)
 
 
