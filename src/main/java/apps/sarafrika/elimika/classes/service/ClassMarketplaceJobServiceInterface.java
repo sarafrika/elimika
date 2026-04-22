@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseD
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,9 +31,12 @@ public interface ClassMarketplaceJobServiceInterface {
 
     ClassMarketplaceJobApplicationDTO applyToJob(UUID jobUuid, ClassMarketplaceJobApplicationRequestDTO request);
 
-    Page<ClassMarketplaceJobApplicationDTO> listJobApplications(UUID jobUuid, Pageable pageable);
+    Page<ClassMarketplaceJobApplicationDTO> listJobApplications(UUID jobUuid,
+                                                                ClassMarketplaceJobApplicationStatus status,
+                                                                Pageable pageable);
 
-    Page<ClassMarketplaceJobApplicationDTO> listMyApplications(Pageable pageable);
+    Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
+                                                               Pageable pageable);
 
     ClassMarketplaceJobApplicationDTO approveApplication(UUID jobUuid,
                                                          UUID applicationUuid,

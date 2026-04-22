@@ -108,8 +108,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                  UUID courseUuid,
                                                  ClassMarketplaceJobStatus status,
                                                  org.springframework.data.domain.Pageable pageable) {
-        ClassMarketplaceJobStatus effectiveStatus = status != null ? status : ClassMarketplaceJobStatus.OPEN;
-        return jobRepository.search(organisationUuid, courseUuid, effectiveStatus, pageable)
+        return jobRepository.search(organisationUuid, courseUuid, status, pageable)
                 .map(this::toJobDTO);
     }
 
@@ -143,18 +142,28 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     @Override
     @Transactional(readOnly = true)
     public Page<ClassMarketplaceJobApplicationDTO> listJobApplications(UUID jobUuid,
+                                                                       ClassMarketplaceJobApplicationStatus status,
                                                                        org.springframework.data.domain.Pageable pageable) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         requireOrganisationManagerAccess(job.getOrganisationUuid());
-        return applicationRepository.findByJobUuidOrderByCreatedDateDesc(jobUuid, pageable)
+        if (status == null) {
+            return applicationRepository.findByJobUuidOrderByCreatedDateDesc(jobUuid, pageable)
+                    .map(this::toApplicationDTO);
+        }
+        return applicationRepository.findByJobUuidAndStatusOrderByCreatedDateDesc(jobUuid, status, pageable)
                 .map(this::toApplicationDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ClassMarketplaceJobApplicationDTO> listMyApplications(org.springframework.data.domain.Pageable pageable) {
+    public Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
+                                                                      org.springframework.data.domain.Pageable pageable) {
         UUID instructorUuid = resolveCurrentInstructorUuid();
-        return applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable)
+        if (status == null) {
+            return applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable)
+                    .map(this::toApplicationDTO);
+        }
+        return applicationRepository.findByInstructorUuidAndStatusOrderByCreatedDateDesc(instructorUuid, status, pageable)
                 .map(this::toApplicationDTO);
     }
 

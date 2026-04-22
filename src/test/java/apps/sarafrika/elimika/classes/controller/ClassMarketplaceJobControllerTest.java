@@ -26,6 +26,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,9 +40,11 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -116,6 +120,37 @@ class ClassMarketplaceJobControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Scheduling conflicts detected"))
                 .andExpect(jsonPath("$.error[0].reasons[0]").value("Instructor has overlapping scheduled instances"));
+    }
+
+    @Test
+    void listJobsAcceptsLowercaseStatusFilter() throws Exception {
+        ClassMarketplaceJobRequestDTO request = sampleRequest();
+        ClassMarketplaceJobDTO response = sampleResponse(request);
+
+        when(classMarketplaceJobService.listJobs(
+                eq(request.organisationUuid()),
+                eq(request.courseUuid()),
+                eq(ClassMarketplaceJobStatus.OPEN),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/v1/classes/jobs")
+                        .param("organisation_uuid", request.organisationUuid().toString())
+                        .param("course_uuid", request.courseUuid().toString())
+                        .param("status", "open")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].uuid").value(response.uuid().toString()))
+                .andExpect(jsonPath("$.data.metadata.pageNumber").value(0))
+                .andExpect(jsonPath("$.data.metadata.pageSize").value(20));
+
+        verify(classMarketplaceJobService).listJobs(
+                eq(request.organisationUuid()),
+                eq(request.courseUuid()),
+                eq(ClassMarketplaceJobStatus.OPEN),
+                any(org.springframework.data.domain.Pageable.class)
+        );
     }
 
     private ClassMarketplaceJobRequestDTO sampleRequest() {

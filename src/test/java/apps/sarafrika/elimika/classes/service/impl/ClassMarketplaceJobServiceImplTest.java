@@ -32,6 +32,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -194,6 +196,34 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(result.status()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
         assertThat(result.applicationNote()).isEqualTo("Available for the revised dates");
         assertThat(application.getReviewNotes()).isNull();
+    }
+
+    @Test
+    void listJobsDoesNotApplyHiddenStatusFilterWhenStatusMissing() {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+
+        when(jobRepository.search(
+                organisationUuid,
+                courseUuid,
+                null,
+                PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of(sampleJob()), PageRequest.of(0, 20), 1));
+
+        var page = service.listJobs(
+                organisationUuid,
+                courseUuid,
+                null,
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        verify(jobRepository).search(
+                organisationUuid,
+                courseUuid,
+                null,
+                PageRequest.of(0, 20)
+        );
     }
 
     private ClassMarketplaceJob sampleJob() {

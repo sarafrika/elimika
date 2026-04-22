@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
@@ -31,14 +32,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/classes/jobs")
+@RequestMapping(ClassMarketplaceJobController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Class Marketplace Jobs", description = "Marketplace class adverts posted by organisations before a final instructor is assigned")
 public class ClassMarketplaceJobController {
+
+    public static final String API_ROOT_PATH = "/api/v1/classes/jobs";
 
     private final ClassMarketplaceJobServiceInterface classMarketplaceJobService;
 
@@ -56,9 +60,18 @@ public class ClassMarketplaceJobController {
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobDTO>>> listJobs(
             @RequestParam(value = "organisation_uuid", required = false) UUID organisationUuid,
             @RequestParam(value = "course_uuid", required = false) UUID courseUuid,
-            @RequestParam(value = "status", required = false) ClassMarketplaceJobStatus status,
+            @RequestParam(value = "status", required = false) String status,
             Pageable pageable) {
-        Page<ClassMarketplaceJobDTO> page = classMarketplaceJobService.listJobs(organisationUuid, courseUuid, status, pageable);
+        Optional<ClassMarketplaceJobStatus> statusFilter = Optional.ofNullable(status)
+                .filter(value -> !value.isBlank())
+                .map(ClassMarketplaceJobStatus::fromValue);
+
+        Page<ClassMarketplaceJobDTO> page = classMarketplaceJobService.listJobs(
+                organisationUuid,
+                courseUuid,
+                statusFilter.orElse(null),
+                pageable
+        );
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
                 "Marketplace class jobs retrieved successfully"));
@@ -109,8 +122,17 @@ public class ClassMarketplaceJobController {
     @GetMapping("/{jobUuid}/applications")
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobApplicationDTO>>> listJobApplications(
             @PathVariable UUID jobUuid,
+            @RequestParam(value = "status", required = false) String status,
             Pageable pageable) {
-        Page<ClassMarketplaceJobApplicationDTO> page = classMarketplaceJobService.listJobApplications(jobUuid, pageable);
+        Optional<ClassMarketplaceJobApplicationStatus> statusFilter = Optional.ofNullable(status)
+                .filter(value -> !value.isBlank())
+                .map(ClassMarketplaceJobApplicationStatus::fromValue);
+
+        Page<ClassMarketplaceJobApplicationDTO> page = classMarketplaceJobService.listJobApplications(
+                jobUuid,
+                statusFilter.orElse(null),
+                pageable
+        );
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
                 "Marketplace class job applications retrieved successfully"));
@@ -118,8 +140,17 @@ public class ClassMarketplaceJobController {
 
     @Operation(summary = "List my marketplace class job applications")
     @GetMapping("/applications/mine")
-    public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobApplicationDTO>>> listMyApplications(Pageable pageable) {
-        Page<ClassMarketplaceJobApplicationDTO> page = classMarketplaceJobService.listMyApplications(pageable);
+    public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobApplicationDTO>>> listMyApplications(
+            @RequestParam(value = "status", required = false) String status,
+            Pageable pageable) {
+        Optional<ClassMarketplaceJobApplicationStatus> statusFilter = Optional.ofNullable(status)
+                .filter(value -> !value.isBlank())
+                .map(ClassMarketplaceJobApplicationStatus::fromValue);
+
+        Page<ClassMarketplaceJobApplicationDTO> page = classMarketplaceJobService.listMyApplications(
+                statusFilter.orElse(null),
+                pageable
+        );
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
                 "Marketplace class job applications retrieved successfully"));
