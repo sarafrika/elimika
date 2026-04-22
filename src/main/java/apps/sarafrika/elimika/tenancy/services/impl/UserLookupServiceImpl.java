@@ -128,6 +128,19 @@ public class UserLookupServiceImpl implements UserLookupService {
     }
 
     @Override
+    public boolean userBelongsToOrganizationWithDomain(UUID userUuid, UUID organizationUuid, UserDomain domain) {
+        if (domain == null) {
+            return false;
+        }
+
+        return userOrganisationDomainMappingRepository.existsActiveByUserOrganisationAndDomainName(
+                userUuid,
+                organizationUuid,
+                domain.name()
+        );
+    }
+
+    @Override
     public boolean existsByKeycloakId(String keycloakId) {
         return userRepository.existsByKeycloakId(keycloakId);
     }

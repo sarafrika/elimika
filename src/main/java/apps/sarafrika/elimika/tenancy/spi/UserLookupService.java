@@ -112,6 +112,16 @@ public interface UserLookupService {
     boolean userBelongsToOrganization(UUID userUuid, UUID organizationUuid);
 
     /**
+     * Checks if a user belongs to a specific organization with a specific organization-scoped domain.
+     *
+     * @param userUuid The UUID of the user
+     * @param organizationUuid The UUID of the organization
+     * @param domain The organization-scoped domain to check
+     * @return true if the user belongs to the organization with the requested domain
+     */
+    boolean userBelongsToOrganizationWithDomain(UUID userUuid, UUID organizationUuid, UserDomain domain);
+
+    /**
      * Checks if a user exists by their Keycloak ID.
      *
      * @param keycloakId The Keycloak subject ID

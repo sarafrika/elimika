@@ -415,4 +415,24 @@ public interface UserOrganisationDomainMappingRepository extends JpaRepository<U
             "AND uodm.active = true " +
             "AND uodm.deleted = false")
     long countActiveByDomainName(@Param("domainName") String domainName);
+
+    /**
+     * Checks whether a user belongs to an organisation with a specific active domain.
+     *
+     * @param userUuid user identifier
+     * @param organisationUuid organisation identifier
+     * @param domainName domain name to validate
+     * @return true if an active, non-deleted mapping exists for the requested domain
+     */
+    @Query("SELECT CASE WHEN COUNT(uodm) > 0 THEN true ELSE false END " +
+            "FROM UserOrganisationDomainMapping uodm " +
+            "JOIN UserDomain ud ON ud.uuid = uodm.domainUuid " +
+            "WHERE uodm.userUuid = :userUuid " +
+            "AND uodm.organisationUuid = :organisationUuid " +
+            "AND uodm.active = true " +
+            "AND uodm.deleted = false " +
+            "AND UPPER(ud.domainName) = UPPER(:domainName)")
+    boolean existsActiveByUserOrganisationAndDomainName(@Param("userUuid") UUID userUuid,
+                                                        @Param("organisationUuid") UUID organisationUuid,
+                                                        @Param("domainName") String domainName);
 }
