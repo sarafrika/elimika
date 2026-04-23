@@ -2,10 +2,12 @@ package apps.sarafrika.elimika.instructor.controller;
 
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.instructor.dto.*;
-import apps.sarafrika.elimika.instructor.internal.InstructorDocumentValidationService;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,7 +57,7 @@ public class InstructorController {
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final InstructorReviewService instructorReviewService;
-    private final InstructorDocumentValidationService instructorDocumentValidationService;
+    private final ProfileDocumentUploadService profileDocumentUploadService;
 
     // ===== INSTRUCTOR BASIC OPERATIONS =====
 
@@ -249,19 +251,12 @@ public class InstructorController {
             @RequestParam(value = "expiry_date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
     ) {
-        instructorDocumentValidationService.validateDocument(file);
-
-        String folder = storageProperties.getFolders().getProfileDocuments()
-                + "/instructors/" + instructorUuid;
-
-        String storedFileName = storageService.store(file, folder);
-        String filePath = storedFileName;
-        String originalFilename = file.getOriginalFilename();
-        String resolvedTitle = (title != null && !title.isBlank())
-                ? title
-                : (originalFilename != null ? originalFilename : "Instructor Document");
-
-        String mimeType = storageService.getContentType(storedFileName);
+        ProfileDocumentUploadResult upload = profileDocumentUploadService.upload(
+                ProfileDocumentOwner.INSTRUCTOR,
+                instructorUuid,
+                file,
+                title
+        );
 
         InstructorDocumentDTO requestDto = new InstructorDocumentDTO(
                 null,
@@ -270,13 +265,13 @@ public class InstructorController {
                 educationUuid,
                 experienceUuid,
                 membershipUuid,
-                originalFilename,
-                storedFileName,
-                filePath,
-                file.getSize(),
-                mimeType,
+                upload.originalFilename(),
+                upload.storedFilename(),
+                upload.filePath(),
+                upload.fileSizeBytes(),
+                upload.mimeType(),
                 null,
-                resolvedTitle,
+                upload.resolvedTitle(),
                 description,
                 null,
                 null,

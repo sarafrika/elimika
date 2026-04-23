@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorEducationDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorExperienceDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorProfessionalMembershipDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorSkillDTO;
-import apps.sarafrika.elimika.coursecreator.internal.CourseCreatorDocumentValidationService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorCertificationService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorDocumentService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorEducationService;
@@ -17,6 +16,9 @@ import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -38,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -67,7 +71,7 @@ public class CourseCreatorController {
     private final CourseCreatorDocumentService courseCreatorDocumentService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
-    private final CourseCreatorDocumentValidationService courseCreatorDocumentValidationService;
+    private final ProfileDocumentUploadService profileDocumentUploadService;
 
     // ===== COURSE CREATOR BASIC OPERATIONS =====
 
@@ -553,7 +557,8 @@ public class CourseCreatorController {
                     Uploads a PDF document for a course creator and creates a document record.
                     
                     **Use cases:**
-                    - Uploading certificates for course creator education records.
+                    - Uploading certificates, credentials, and other creator verification documents.
+                    - Attaching supporting documents to education, experience, or membership records.
                     
                     **File requirements:**
                     - Must be a PDF file (`application/pdf`).
@@ -565,32 +570,43 @@ public class CourseCreatorController {
             @PathVariable UUID courseCreatorUuid,
             @RequestParam("file") MultipartFile file,
             @RequestParam("document_type_uuid") UUID documentTypeUuid,
-            @RequestParam(value = "education_uuid", required = false) UUID educationUuid
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "education_uuid", required = false) UUID educationUuid,
+            @RequestParam(value = "experience_uuid", required = false) UUID experienceUuid,
+            @RequestParam(value = "membership_uuid", required = false) UUID membershipUuid,
+            @RequestParam(value = "expiry_date", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
     ) {
-        courseCreatorDocumentValidationService.validateDocument(file);
-
-        String folder = storageProperties.getFolders().getProfileDocuments()
-                + "/course-creators/" + courseCreatorUuid;
-        String storedFileName = storageService.store(file, folder);
-        String filePath = storedFileName;
-        String originalFilename = file.getOriginalFilename();
-
-        String mimeType = storageService.getContentType(storedFileName);
+        ProfileDocumentUploadResult upload = profileDocumentUploadService.upload(
+                ProfileDocumentOwner.COURSE_CREATOR,
+                courseCreatorUuid,
+                file,
+                title
+        );
 
         CourseCreatorDocumentDTO requestDto = new CourseCreatorDocumentDTO(
                 null,
                 courseCreatorUuid,
                 documentTypeUuid,
                 educationUuid,
-                originalFilename,
-                storedFileName,
-                filePath,
-                file.getSize(),
-                mimeType,
+                experienceUuid,
+                membershipUuid,
+                upload.originalFilename(),
+                upload.storedFilename(),
+                upload.filePath(),
+                upload.fileSizeBytes(),
+                upload.mimeType(),
+                null,
+                upload.resolvedTitle(),
+                description,
                 null,
                 null,
                 null,
                 null,
+                null,
+                null,
+                expiryDate,
                 null,
                 null,
                 null,

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
+import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -7,7 +8,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -29,6 +33,12 @@ public record CourseCreatorDocumentDTO(
         @JsonProperty("education_uuid")
         UUID educationUuid,
 
+        @JsonProperty("experience_uuid")
+        UUID experienceUuid,
+
+        @JsonProperty("membership_uuid")
+        UUID membershipUuid,
+
         @NotBlank(message = "Original filename is required")
         @Size(max = 255, message = "Original filename must not exceed 255 characters")
         @JsonProperty("original_filename")
@@ -47,6 +57,20 @@ public record CourseCreatorDocumentDTO(
         @JsonProperty(value = "mime_type", access = JsonProperty.Access.READ_ONLY)
         String mimeType,
 
+        @JsonProperty(value = "file_hash", access = JsonProperty.Access.READ_ONLY)
+        String fileHash,
+
+        @Size(max = 255, message = "Title must not exceed 255 characters")
+        @JsonProperty("title")
+        String title,
+
+        @Size(max = 2000, message = "Description must not exceed 2000 characters")
+        @JsonProperty("description")
+        String description,
+
+        @JsonProperty(value = "upload_date", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime uploadDate,
+
         @JsonProperty(value = "is_verified", access = JsonProperty.Access.READ_ONLY)
         Boolean isVerified,
 
@@ -58,6 +82,12 @@ public record CourseCreatorDocumentDTO(
 
         @JsonProperty(value = "verification_notes", access = JsonProperty.Access.READ_ONLY)
         String verificationNotes,
+
+        @JsonProperty(value = "status", access = JsonProperty.Access.READ_ONLY)
+        DocumentStatus status,
+
+        @JsonProperty("expiry_date")
+        LocalDate expiryDate,
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate,
@@ -82,5 +112,86 @@ public record CourseCreatorDocumentDTO(
             return null;
         }
         return "/api/v1/course-creators/" + courseCreatorUuid + "/documents/files/" + storedFilename;
+    }
+
+    @JsonProperty(value = "file_size_formatted", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Human-readable formatted file size.",
+            example = "2.0 MB",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public String getFileSizeFormatted() {
+        if (fileSizeBytes == null || fileSizeBytes <= 0) {
+            return "0 B";
+        }
+
+        final String[] units = {"B", "KB", "MB", "GB", "TB"};
+        int unitIndex = 0;
+        double size = fileSizeBytes.doubleValue();
+
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+
+        return String.format("%.1f %s", size, units[unitIndex]);
+    }
+
+    @JsonProperty(value = "is_expired", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the document has expired based on the expiry date.",
+            example = "false",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean isExpired() {
+        return expiryDate != null && expiryDate.isBefore(LocalDate.now(ZoneOffset.UTC));
+    }
+
+    @JsonProperty(value = "days_until_expiry", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Number of days until document expiry. Returns null if no expiry date or already expired.",
+            example = "1095",
+            nullable = true,
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public Integer getDaysUntilExpiry() {
+        if (expiryDate == null || isExpired()) {
+            return null;
+        }
+        return Math.toIntExact(ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), expiryDate));
+    }
+
+    @JsonProperty(value = "is_pending_verification", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the document is pending verification.",
+            example = "false",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean isPendingVerification() {
+        return isVerified == null || !isVerified;
+    }
+
+    @JsonProperty(value = "has_expiry_date", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the document has an expiry date configured.",
+            example = "true",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean hasExpiryDate() {
+        return expiryDate != null;
+    }
+
+    @JsonProperty(value = "verification_status", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Human-readable verification status of the document.",
+            example = "VERIFIED",
+            allowableValues = {"VERIFIED", "PENDING", "REJECTED"},
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public String getVerificationStatus() {
+        if (isVerified == null) {
+            return "PENDING";
+        }
+        return isVerified ? "VERIFIED" : "REJECTED";
     }
 }
