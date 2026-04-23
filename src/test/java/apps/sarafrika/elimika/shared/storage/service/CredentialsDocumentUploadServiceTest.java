@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ProfileDocumentUploadServiceTest {
+class CredentialsDocumentUploadServiceTest {
 
     @Mock
     private StorageService storageService;
@@ -54,7 +54,7 @@ class ProfileDocumentUploadServiceTest {
         UUID educationUuid = UUID.randomUUID();
         LocalDate expiryDate = LocalDate.of(2027, 6, 15);
 
-        ProfileDocumentUploadResult result = uploadService.upload(new ProfileDocumentUploadRequest(
+        ProfileDocumentUploadResult result = uploadService.upload(new CredentialsDocumentUploadRequest(
                 ProfileDocumentOwner.INSTRUCTOR,
                 instructorUuid,
                 file,
@@ -96,7 +96,7 @@ class ProfileDocumentUploadServiceTest {
         when(storageService.store(file, folder)).thenReturn(storedPath);
         when(storageService.getContentType(storedPath)).thenReturn(MediaType.APPLICATION_PDF_VALUE);
 
-        ProfileDocumentUploadResult result = uploadService.upload(new ProfileDocumentUploadRequest(
+        ProfileDocumentUploadResult result = uploadService.upload(new CredentialsDocumentUploadRequest(
                 ProfileDocumentOwner.COURSE_CREATOR,
                 courseCreatorUuid,
                 file,
@@ -121,7 +121,7 @@ class ProfileDocumentUploadServiceTest {
                 "png".getBytes()
         );
 
-        assertThatThrownBy(() -> uploadService.upload(new ProfileDocumentUploadRequest(
+        assertThatThrownBy(() -> uploadService.upload(new CredentialsDocumentUploadRequest(
                 ProfileDocumentOwner.COURSE_CREATOR,
                 UUID.randomUUID(),
                 file,
@@ -146,7 +146,7 @@ class ProfileDocumentUploadServiceTest {
                 "pdf".getBytes()
         );
 
-        assertThatThrownBy(() -> uploadService.upload(new ProfileDocumentUploadRequest(
+        assertThatThrownBy(() -> uploadService.upload(new CredentialsDocumentUploadRequest(
                 ProfileDocumentOwner.INSTRUCTOR,
                 UUID.randomUUID(),
                 file,

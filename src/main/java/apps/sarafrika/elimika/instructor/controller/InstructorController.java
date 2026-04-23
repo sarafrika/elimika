@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.CredentialsDocumentUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
@@ -253,7 +253,7 @@ public class InstructorController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
     ) {
         ProfileDocumentUploadResult upload = profileDocumentUploadService.upload(
-                new ProfileDocumentUploadRequest(
+                new CredentialsDocumentUploadRequest(
                         ProfileDocumentOwner.INSTRUCTOR,
                         instructorUuid,
                         file,

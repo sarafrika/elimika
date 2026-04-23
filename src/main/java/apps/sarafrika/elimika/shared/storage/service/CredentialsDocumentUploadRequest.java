@@ -6,7 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.util.UUID;
 
-public record ProfileDocumentUploadRequest(
+public record CredentialsDocumentUploadRequest(
         ProfileDocumentOwner owner,
         UUID ownerUuid,
         MultipartFile file,

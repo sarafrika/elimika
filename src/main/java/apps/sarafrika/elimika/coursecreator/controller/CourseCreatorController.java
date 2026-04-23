@@ -16,7 +16,7 @@ import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.CredentialsDocumentUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
@@ -580,7 +580,7 @@ public class CourseCreatorController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate
     ) {
         ProfileDocumentUploadResult upload = profileDocumentUploadService.upload(
-                new ProfileDocumentUploadRequest(
+                new CredentialsDocumentUploadRequest(
                         ProfileDocumentOwner.COURSE_CREATOR,
                         courseCreatorUuid,
                         file,

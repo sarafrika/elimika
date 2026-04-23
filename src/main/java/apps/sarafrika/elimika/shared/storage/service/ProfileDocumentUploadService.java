@@ -15,7 +15,7 @@ public class ProfileDocumentUploadService {
     private final StorageService storageService;
     private final StorageProperties storageProperties;
 
-    public ProfileDocumentUploadResult upload(ProfileDocumentUploadRequest request) {
+    public ProfileDocumentUploadResult upload(CredentialsDocumentUploadRequest request) {
         validateRequest(request);
 
         ProfileDocumentOwner owner = request.owner();
@@ -47,7 +47,7 @@ public class ProfileDocumentUploadService {
         );
     }
 
-    private void validateRequest(ProfileDocumentUploadRequest request) {
+    private void validateRequest(CredentialsDocumentUploadRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Profile document upload request is required");
         }
