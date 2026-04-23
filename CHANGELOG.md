@@ -1,3 +1,10 @@
+# [2.71.0](https://github.com/sarafrika/elimika/compare/v2.70.0...v2.71.0) (2026-04-23)
+
+
+### Features
+
+* centralize instructor and course creator document uploads ([1fee486](https://github.com/sarafrika/elimika/commit/1fee4866ea5efb8efa3e757480c852cf22621754))
+
 # [2.70.0](https://github.com/sarafrika/elimika/compare/v2.69.1...v2.70.0) (2026-04-22)
 
 
