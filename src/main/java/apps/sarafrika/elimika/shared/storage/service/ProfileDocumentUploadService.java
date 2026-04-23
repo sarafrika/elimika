@@ -5,8 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 public class ProfileDocumentUploadService {
@@ -17,23 +15,51 @@ public class ProfileDocumentUploadService {
     private final StorageService storageService;
     private final StorageProperties storageProperties;
 
-    public ProfileDocumentUploadResult upload(ProfileDocumentOwner owner, UUID ownerUuid, MultipartFile file, String title) {
+    public ProfileDocumentUploadResult upload(ProfileDocumentUploadRequest request) {
+        validateRequest(request);
+
+        ProfileDocumentOwner owner = request.owner();
+        MultipartFile file = request.file();
+
         validateDocument(file, owner.documentLabel());
 
         String folder = storageProperties.getFolders().getProfileDocuments()
-                + "/" + owner.folderName() + "/" + ownerUuid;
+                + "/" + owner.folderName() + "/" + request.ownerUuid();
         String storedFilename = storageService.store(file, folder);
         String originalFilename = resolveOriginalFilename(file.getOriginalFilename(), storedFilename);
-        String resolvedTitle = resolveTitle(title, originalFilename, owner.defaultTitle());
+        String resolvedTitle = resolveTitle(request.title(), originalFilename, owner.defaultTitle());
 
         return new ProfileDocumentUploadResult(
+                owner,
+                request.ownerUuid(),
+                request.documentTypeUuid(),
+                request.educationUuid(),
+                request.experienceUuid(),
+                request.membershipUuid(),
                 originalFilename,
                 storedFilename,
                 storedFilename,
                 file.getSize(),
                 storageService.getContentType(storedFilename),
-                resolvedTitle
+                resolvedTitle,
+                request.description(),
+                request.expiryDate()
         );
+    }
+
+    private void validateRequest(ProfileDocumentUploadRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Profile document upload request is required");
+        }
+        if (request.owner() == null) {
+            throw new IllegalArgumentException("Profile document owner is required");
+        }
+        if (request.ownerUuid() == null) {
+            throw new IllegalArgumentException("Profile document owner UUID is required");
+        }
+        if (request.documentTypeUuid() == null) {
+            throw new IllegalArgumentException("Document type UUID is required");
+        }
     }
 
     private void validateDocument(MultipartFile file, String documentLabel) {

@@ -1,24 +1,21 @@
 package apps.sarafrika.elimika.shared.storage.service;
 
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
-public record ProfileDocumentUploadResult(
+public record ProfileDocumentUploadRequest(
         ProfileDocumentOwner owner,
         UUID ownerUuid,
+        MultipartFile file,
         UUID documentTypeUuid,
+        String title,
+        String description,
         UUID educationUuid,
         UUID experienceUuid,
         UUID membershipUuid,
-        String originalFilename,
-        String storedFilename,
-        String filePath,
-        Long fileSizeBytes,
-        String mimeType,
-        String resolvedTitle,
-        String description,
         LocalDate expiryDate
 ) {
 }
