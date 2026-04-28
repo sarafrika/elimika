@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -22,7 +23,6 @@ public enum LocationType {
     static {
         for (LocationType type : LocationType.values()) {
             VALUE_MAP.put(type.value, type);
-            VALUE_MAP.put(type.value.toLowerCase(), type);
         }
     }
     
@@ -47,7 +47,12 @@ public enum LocationType {
     
     @JsonCreator
     public static LocationType fromValue(String value) {
-        LocationType type = VALUE_MAP.get(value);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("location_type is required");
+        }
+
+        String normalizedValue = value.trim().toUpperCase(Locale.ROOT);
+        LocationType type = VALUE_MAP.get(normalizedValue);
         if (type == null) {
             throw new IllegalArgumentException("Unknown LocationType: " + value);
         }

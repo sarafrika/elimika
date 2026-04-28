@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
+import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -47,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(value = ClassDefinitionController.class, properties = "app.keycloak.realm=test-realm")
 @AutoConfigureMockMvc(addFilters = false)
 @ExtendWith(SpringExtension.class)
-@Import(ClassDefinitionControllerTest.MockConfig.class)
+@Import({ClassDefinitionControllerTest.MockConfig.class, GlobalExceptionHandler.class})
 class ClassDefinitionControllerTest {
 
     @Autowired
@@ -169,6 +170,28 @@ class ClassDefinitionControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(classDefinitionService);
+    }
+
+    @Test
+    void createClassDefinitionRejectsBlankLocationTypeAsBadRequest() throws Exception {
+        ClassDefinitionDTO request = sampleRequest(
+                UUID.randomUUID(),
+                null,
+                30,
+                "#1F6FEB"
+        );
+        String payload = objectMapper.writeValueAsString(request)
+                .replace("\"location_type\":\"HYBRID\"", "\"location_type\":\"\"");
+
+        mockMvc.perform(post("/api/v1/classes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.error.location_type")
+                        .value("location_type must be one of ONLINE, IN_PERSON, HYBRID"));
 
         verifyNoInteractions(classDefinitionService);
     }

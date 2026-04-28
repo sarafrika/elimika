@@ -21,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -97,6 +98,25 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = ValidationErrorUtil.buildValidationErrorMap(ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error("Validation failed", errors));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        log.debug("Unreadable request payload", ex);
+
+        String message = "Request body contains invalid or malformed JSON";
+        Object error = null;
+
+        if (containsCauseMessage(ex, "LocationType")) {
+            message = "Validation failed";
+            error = Map.of("location_type", "location_type must be one of ONLINE, IN_PERSON, HYBRID");
+        }
+
+        ApiResponse<Void> response = error == null
+                ? ApiResponse.error(message)
+                : ApiResponse.error(message, error);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(SmtpAuthenticationException.class)
@@ -242,5 +262,17 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(status)
                 .body(ApiResponse.error("Operation failed", message));
+    }
+
+    private boolean containsCauseMessage(Throwable throwable, String value) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.contains(value)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }
