@@ -1,3 +1,10 @@
+## [2.72.1](https://github.com/sarafrika/elimika/compare/v2.72.0...v2.72.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* validate class location type payloads ([5095220](https://github.com/sarafrika/elimika/commit/5095220628c07ec640699f9c88e47bd00c491c34))
+
 # [2.72.0](https://github.com/sarafrika/elimika/compare/v2.71.0...v2.72.0) (2026-04-28)
 
 
