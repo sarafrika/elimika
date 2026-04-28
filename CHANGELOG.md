@@ -1,3 +1,10 @@
+# [2.72.0](https://github.com/sarafrika/elimika/compare/v2.71.0...v2.72.0) (2026-04-28)
+
+
+### Features
+
+* track scheduled class lifecycle and progress ([f206368](https://github.com/sarafrika/elimika/commit/f206368395fabb0a8a61f05859060891923eddef))
+
 # [2.71.0](https://github.com/sarafrika/elimika/compare/v2.70.0...v2.71.0) (2026-04-23)
 
 
