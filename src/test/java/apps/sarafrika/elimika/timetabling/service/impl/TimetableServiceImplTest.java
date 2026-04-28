@@ -7,6 +7,8 @@ import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceCompletedEvent;
+import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceStartedEvent;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
@@ -42,6 +44,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -97,6 +100,92 @@ class TimetableServiceImplTest {
                 commercePaywallService,
                 availabilityService
         );
+    }
+
+    @Test
+    void startScheduledInstanceSetsOngoingStatusAndActualStartTime() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ScheduledInstanceDTO result = timetableService.startScheduledInstance(instanceUuid);
+
+        assertThat(result.status()).isEqualTo(SchedulingStatus.ONGOING);
+        assertThat(result.startedAt()).isNotNull();
+        assertThat(instance.getStatus()).isEqualTo(SchedulingStatus.ONGOING);
+        assertThat(instance.getStartedAt()).isNotNull();
+        verify(applicationEventPublisher).publishEvent(any(ScheduledInstanceStartedEvent.class));
+    }
+
+    @Test
+    void startScheduledInstanceDoesNotOverwriteExistingStartTime() {
+        UUID instanceUuid = UUID.randomUUID();
+        LocalDateTime existingStart = LocalDateTime.of(2026, 4, 28, 9, 0);
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.ONGOING);
+        instance.setUuid(instanceUuid);
+        instance.setStartedAt(existingStart);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+
+        ScheduledInstanceDTO result = timetableService.startScheduledInstance(instanceUuid);
+
+        assertThat(result.startedAt()).isEqualTo(existingStart);
+        verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
+        verify(applicationEventPublisher, never()).publishEvent(any(ScheduledInstanceStartedEvent.class));
+    }
+
+    @Test
+    void startScheduledInstanceRejectsCancelledInstance() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.CANCELLED);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+
+        assertThatThrownBy(() -> timetableService.startScheduledInstance(instanceUuid))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot be started");
+
+        verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
+    }
+
+    @Test
+    void endScheduledInstanceSetsCompletedStatusAndActualConclusionTime() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.ONGOING);
+        instance.setUuid(instanceUuid);
+        instance.setStartedAt(LocalDateTime.of(2026, 4, 28, 9, 0));
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ScheduledInstanceDTO result = timetableService.endScheduledInstance(instanceUuid);
+
+        assertThat(result.status()).isEqualTo(SchedulingStatus.COMPLETED);
+        assertThat(result.concludedAt()).isNotNull();
+        assertThat(instance.getStatus()).isEqualTo(SchedulingStatus.COMPLETED);
+        assertThat(instance.getConcludedAt()).isNotNull();
+        verify(applicationEventPublisher).publishEvent(any(ScheduledInstanceCompletedEvent.class));
+    }
+
+    @Test
+    void endScheduledInstanceRequiresExplicitStart() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.ONGOING);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+
+        assertThatThrownBy(() -> timetableService.endScheduledInstance(instanceUuid))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must be started");
+
+        verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
     }
 
     @Test

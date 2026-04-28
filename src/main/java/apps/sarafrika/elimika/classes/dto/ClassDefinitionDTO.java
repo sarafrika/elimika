@@ -76,6 +76,9 @@ import java.util.UUID;
                 "conflict_resolution": "FAIL"
               }
             ],
+            "scheduled_session_count": 8,
+            "completed_session_count": 2,
+            "class_progress_percentage": 25.00,
             "is_active": true,
             "created_date": "2024-09-05T10:00:00",
             "updated_date": "2024-09-05T15:30:00",
@@ -385,6 +388,33 @@ public record ClassDefinitionDTO(
         List<ClassSessionTemplateDTO> sessionTemplates,
 
         @Schema(
+                description = "**[READ-ONLY]** Number of non-cancelled scheduled sessions for this class.",
+                example = "8",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "scheduled_session_count", access = JsonProperty.Access.READ_ONLY)
+        Long scheduledSessionCount,
+
+        @Schema(
+                description = "**[READ-ONLY]** Number of non-cancelled scheduled sessions completed for this class.",
+                example = "2",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "completed_session_count", access = JsonProperty.Access.READ_ONLY)
+        Long completedSessionCount,
+
+        @Schema(
+                description = "**[READ-ONLY]** Class delivery progress percentage based on completed scheduled sessions.",
+                example = "25.00",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "class_progress_percentage", access = JsonProperty.Access.READ_ONLY)
+        BigDecimal classProgressPercentage,
+
+        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the class definition was first created. Automatically set by the system.",
                 example = "2024-09-05T10:00:00",
                 format = "date-time",
@@ -423,6 +453,118 @@ public record ClassDefinitionDTO(
         String updatedBy
 
 ) {
+
+    public ClassDefinitionDTO(
+            UUID uuid,
+            String title,
+            String description,
+            UUID defaultInstructorUuid,
+            UUID organisationUuid,
+            UUID courseUuid,
+            UUID programUuid,
+            BigDecimal trainingFee,
+            ClassVisibility classVisibility,
+            SessionFormat sessionFormat,
+            LocalDateTime defaultStartTime,
+            LocalDateTime defaultEndTime,
+            LocalDate academicPeriodStartDate,
+            LocalDate academicPeriodEndDate,
+            LocalDate registrationPeriodStartDate,
+            LocalDate registrationPeriodEndDate,
+            Integer classReminderMinutes,
+            String classColor,
+            LocationType locationType,
+            String locationName,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            String meetingLink,
+            Integer maxParticipants,
+            Boolean allowWaitlist,
+            Boolean isActive,
+            List<ClassSessionTemplateDTO> sessionTemplates,
+            LocalDateTime createdDate,
+            LocalDateTime updatedDate,
+            String createdBy,
+            String updatedBy
+    ) {
+        this(
+                uuid,
+                title,
+                description,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                trainingFee,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                null,
+                null,
+                null,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy
+        );
+    }
+
+    public ClassDefinitionDTO withScheduleProgress(long scheduledSessions,
+                                                   long completedSessions,
+                                                   BigDecimal progressPercentage) {
+        return new ClassDefinitionDTO(
+                uuid,
+                title,
+                description,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                trainingFee,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                scheduledSessions,
+                completedSessions,
+                progressPercentage != null ? progressPercentage : BigDecimal.ZERO,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy
+        );
+    }
 
     /**
      * Returns the computed duration in minutes based on start and end times.

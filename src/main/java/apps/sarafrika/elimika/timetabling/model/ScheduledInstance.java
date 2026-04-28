@@ -70,4 +70,10 @@ public class ScheduledInstance extends BaseEntity {
     
     @Column(name = "cancellation_reason")
     private String cancellationReason;
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "concluded_at")
+    private LocalDateTime concludedAt;
 }

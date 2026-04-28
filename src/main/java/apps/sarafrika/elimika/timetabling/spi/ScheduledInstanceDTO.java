@@ -40,6 +40,8 @@ import java.util.UUID;
             "max_participants": 25,
             "status": "SCHEDULED",
             "cancellation_reason": null,
+            "started_at": null,
+            "concluded_at": null,
             "created_date": "2024-09-05T10:00:00",
             "updated_date": "2024-09-05T15:30:00",
             "created_by": "instructor@sarafrika.com",
@@ -163,7 +165,7 @@ public record ScheduledInstanceDTO(
         @Schema(
                 description = "**[OPTIONAL]** Current status of the scheduled instance.",
                 example = "SCHEDULED",
-                allowableValues = {"SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED"},
+                allowableValues = {"SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED", "BLOCKED"},
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty("status")
@@ -177,6 +179,28 @@ public record ScheduledInstanceDTO(
         )
         @JsonProperty("cancellation_reason")
         String cancellationReason,
+
+        @Schema(
+                description = "**[READ-ONLY]** Actual UTC timestamp when the instructor explicitly started the class session.",
+                example = "2024-09-15T09:03:00",
+                format = "date-time",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "started_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime startedAt,
+
+        @Schema(
+                description = "**[READ-ONLY]** Actual UTC timestamp when the instructor explicitly concluded the class session.",
+                example = "2024-09-15T10:31:00",
+                format = "date-time",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "concluded_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime concludedAt,
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the scheduled instance was first created. Automatically set by the system.",
@@ -217,6 +241,50 @@ public record ScheduledInstanceDTO(
         String updatedBy
 
 ) {
+
+    public ScheduledInstanceDTO(
+            UUID uuid,
+            UUID classDefinitionUuid,
+            UUID instructorUuid,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String timezone,
+            String title,
+            String locationType,
+            String locationName,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            Integer maxParticipants,
+            SchedulingStatus status,
+            String cancellationReason,
+            LocalDateTime createdDate,
+            LocalDateTime updatedDate,
+            String createdBy,
+            String updatedBy
+    ) {
+        this(
+                uuid,
+                classDefinitionUuid,
+                instructorUuid,
+                startTime,
+                endTime,
+                timezone,
+                title,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                maxParticipants,
+                status,
+                cancellationReason,
+                null,
+                null,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy
+        );
+    }
 
     /**
      * Returns the duration of this scheduled instance in minutes.
@@ -313,5 +381,41 @@ public record ScheduledInstanceDTO(
     )
     public boolean canBeCancelled() {
         return SchedulingStatus.SCHEDULED.equals(status) || SchedulingStatus.ONGOING.equals(status);
+    }
+
+    /**
+     * Checks if this scheduled instance can be explicitly started by an instructor.
+     *
+     * @return true if the instance can be started, false otherwise
+     */
+    @JsonProperty(value = "can_be_started", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the scheduled instance can be explicitly started.",
+            example = "true",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean canBeStarted() {
+        if (status == null || concludedAt != null) {
+            return false;
+        }
+        return SchedulingStatus.SCHEDULED.equals(status)
+                || (SchedulingStatus.ONGOING.equals(status) && startedAt == null);
+    }
+
+    /**
+     * Checks if this scheduled instance can be explicitly ended by an instructor.
+     *
+     * @return true if the instance can be ended, false otherwise
+     */
+    @JsonProperty(value = "can_be_ended", access = JsonProperty.Access.READ_ONLY)
+    @Schema(
+            description = "**[READ-ONLY]** Indicates if the scheduled instance can be explicitly concluded.",
+            example = "false",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    public boolean canBeEnded() {
+        return startedAt != null
+                && concludedAt == null
+                && (SchedulingStatus.ONGOING.equals(status) || SchedulingStatus.COMPLETED.equals(status));
     }
 }

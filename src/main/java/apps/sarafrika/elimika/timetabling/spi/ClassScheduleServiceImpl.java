@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.timetabling.spi;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -33,9 +35,14 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
 
         long totalMinutes = 0;
         long instanceCount = 0;
+        long completedSessions = 0;
         for (ScheduledInstance instance : instances) {
             if (!isCountableStatus(instance)) {
                 continue;
+            }
+            instanceCount++;
+            if (SchedulingStatus.COMPLETED.equals(instance.getStatus())) {
+                completedSessions++;
             }
             if (instance.getStartTime() == null || instance.getEndTime() == null) {
                 continue;
@@ -49,10 +56,14 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
                 continue;
             }
             totalMinutes += minutes;
-            instanceCount++;
         }
 
-        return new ClassScheduleSummary(totalMinutes, instanceCount);
+        return new ClassScheduleSummary(
+                totalMinutes,
+                instanceCount,
+                completedSessions,
+                calculateProgressPercentage(completedSessions, instanceCount)
+        );
     }
 
     private boolean isCountableStatus(ScheduledInstance instance) {
@@ -63,5 +74,14 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
         return SchedulingStatus.SCHEDULED.equals(status)
                 || SchedulingStatus.ONGOING.equals(status)
                 || SchedulingStatus.COMPLETED.equals(status);
+    }
+
+    private BigDecimal calculateProgressPercentage(long completedSessions, long scheduledInstances) {
+        if (scheduledInstances <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(completedSessions)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(scheduledInstances), 2, RoundingMode.HALF_UP);
     }
 }

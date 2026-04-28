@@ -73,12 +73,40 @@ public class TimetableController {
     public ResponseEntity<ApiResponse<Void>> updateScheduledInstanceStatus(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid,
-            @Parameter(description = "New status (SCHEDULED, ONGOING, COMPLETED, CANCELLED)")
+            @Parameter(description = "New status (SCHEDULED, ONGOING, COMPLETED, CANCELLED, BLOCKED)")
             @RequestParam String status) {
         log.debug("REST request to update status of scheduled instance: {} to: {}", instanceUuid, status);
         
         timetableService.updateScheduledInstanceStatus(instanceUuid, status);
         return ResponseEntity.ok(ApiResponse.success(null, "Status updated successfully"));
+    }
+
+    @Operation(summary = "Start a scheduled class instance")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Scheduled instance started successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Scheduled instance cannot be started")
+    @PostMapping("/schedule/{instanceUuid}/start")
+    public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> startScheduledInstance(
+            @Parameter(description = "UUID of the scheduled instance")
+            @PathVariable UUID instanceUuid) {
+        log.debug("REST request to start scheduled instance: {}", instanceUuid);
+
+        ScheduledInstanceDTO result = timetableService.startScheduledInstance(instanceUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Class started successfully"));
+    }
+
+    @Operation(summary = "End a scheduled class instance")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Scheduled instance ended successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Scheduled instance cannot be ended")
+    @PostMapping("/schedule/{instanceUuid}/end")
+    public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> endScheduledInstance(
+            @Parameter(description = "UUID of the scheduled instance")
+            @PathVariable UUID instanceUuid) {
+        log.debug("REST request to end scheduled instance: {}", instanceUuid);
+
+        ScheduledInstanceDTO result = timetableService.endScheduledInstance(instanceUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Class ended successfully"));
     }
 
     // ================================

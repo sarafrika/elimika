@@ -19,6 +19,7 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -52,6 +53,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final ObjectProvider<TimetableService> timetableServiceProvider;
+    private final ObjectProvider<ClassScheduleService> classScheduleServiceProvider;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
@@ -442,7 +444,26 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     private ClassDefinitionResponseDTO buildResponse(ClassDefinitionDTO classDefinition) {
-        return new ClassDefinitionResponseDTO(classDefinition);
+        return new ClassDefinitionResponseDTO(enrichWithScheduleProgress(classDefinition));
+    }
+
+    private ClassDefinitionDTO enrichWithScheduleProgress(ClassDefinitionDTO classDefinition) {
+        if (classDefinition == null || classDefinition.uuid() == null) {
+            return classDefinition;
+        }
+        ClassScheduleService scheduleService = classScheduleServiceProvider.getIfAvailable();
+        if (scheduleService == null) {
+            return classDefinition;
+        }
+        ClassScheduleService.ClassScheduleSummary summary = scheduleService.getScheduleSummary(classDefinition.uuid());
+        if (summary == null) {
+            return classDefinition;
+        }
+        return classDefinition.withScheduleProgress(
+                summary.scheduledInstances(),
+                summary.completedSessions(),
+                summary.classProgressPercentage()
+        );
     }
 
     private boolean isConflictResolved(ClassDefinitionDTO classDefinition,

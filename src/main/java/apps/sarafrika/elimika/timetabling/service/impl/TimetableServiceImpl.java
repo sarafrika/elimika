@@ -24,6 +24,8 @@ import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.factory.EnrollmentFactory;
 import apps.sarafrika.elimika.timetabling.factory.ScheduledInstanceFactory;
 import apps.sarafrika.elimika.timetabling.factory.StudentScheduleFactory;
+import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceCompletedEvent;
+import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceStartedEvent;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
@@ -43,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -175,6 +178,86 @@ public class TimetableServiceImpl implements TimetableService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid scheduling status: " + newStatus);
         }
+    }
+
+    @Override
+    public ScheduledInstanceDTO startScheduledInstance(UUID instanceUuid) {
+        log.debug("Starting scheduled instance: {}", instanceUuid);
+
+        ScheduledInstance entity = findScheduledInstanceOrThrow(instanceUuid);
+        SchedulingStatus currentStatus = entity.getStatus();
+
+        if (entity.getConcludedAt() != null || SchedulingStatus.COMPLETED.equals(currentStatus)) {
+            throw new IllegalArgumentException("Completed scheduled instances cannot be started");
+        }
+        if (SchedulingStatus.CANCELLED.equals(currentStatus) || SchedulingStatus.BLOCKED.equals(currentStatus)) {
+            throw new IllegalArgumentException("Cancelled or blocked scheduled instances cannot be started");
+        }
+        if (SchedulingStatus.ONGOING.equals(currentStatus) && entity.getStartedAt() != null) {
+            return ScheduledInstanceFactory.toDTO(entity);
+        }
+        if (!SchedulingStatus.SCHEDULED.equals(currentStatus) && !SchedulingStatus.ONGOING.equals(currentStatus)) {
+            throw new IllegalArgumentException("Only scheduled instances can be started");
+        }
+
+        LocalDateTime transitionTime = currentUtcTime();
+        entity.setStatus(SchedulingStatus.ONGOING);
+        if (entity.getStartedAt() == null) {
+            entity.setStartedAt(transitionTime);
+        }
+
+        ScheduledInstance savedEntity = scheduledInstanceRepository.save(entity);
+        eventPublisher.publishEvent(new ScheduledInstanceStartedEvent(
+                savedEntity.getUuid(),
+                savedEntity.getClassDefinitionUuid(),
+                savedEntity.getInstructorUuid(),
+                savedEntity.getTitle(),
+                savedEntity.getStartTime(),
+                savedEntity.getEndTime(),
+                savedEntity.getStartedAt()
+        ));
+
+        log.debug("Started scheduled instance: {}", instanceUuid);
+        return ScheduledInstanceFactory.toDTO(savedEntity);
+    }
+
+    @Override
+    public ScheduledInstanceDTO endScheduledInstance(UUID instanceUuid) {
+        log.debug("Ending scheduled instance: {}", instanceUuid);
+
+        ScheduledInstance entity = findScheduledInstanceOrThrow(instanceUuid);
+        SchedulingStatus currentStatus = entity.getStatus();
+
+        if (entity.getConcludedAt() != null) {
+            return ScheduledInstanceFactory.toDTO(entity);
+        }
+        if (entity.getStartedAt() == null) {
+            throw new IllegalArgumentException("Scheduled instance must be started before it can be ended");
+        }
+        if (SchedulingStatus.CANCELLED.equals(currentStatus) || SchedulingStatus.BLOCKED.equals(currentStatus)) {
+            throw new IllegalArgumentException("Cancelled or blocked scheduled instances cannot be ended");
+        }
+        if (!SchedulingStatus.ONGOING.equals(currentStatus) && !SchedulingStatus.COMPLETED.equals(currentStatus)) {
+            throw new IllegalArgumentException("Only ongoing scheduled instances can be ended");
+        }
+
+        LocalDateTime transitionTime = currentUtcTime();
+        entity.setStatus(SchedulingStatus.COMPLETED);
+        entity.setConcludedAt(transitionTime);
+
+        ScheduledInstance savedEntity = scheduledInstanceRepository.save(entity);
+        eventPublisher.publishEvent(new ScheduledInstanceCompletedEvent(
+                savedEntity.getUuid(),
+                savedEntity.getClassDefinitionUuid(),
+                savedEntity.getInstructorUuid(),
+                savedEntity.getTitle(),
+                savedEntity.getStartTime(),
+                savedEntity.getEndTime(),
+                savedEntity.getConcludedAt()
+        ));
+
+        log.debug("Ended scheduled instance: {}", instanceUuid);
+        return ScheduledInstanceFactory.toDTO(savedEntity);
     }
 
     // ===== Enrollment Operations =====
@@ -900,6 +983,19 @@ public class TimetableServiceImpl implements TimetableService {
     }
 
     // ===== Validation Helper Methods =====
+
+    private ScheduledInstance findScheduledInstanceOrThrow(UUID instanceUuid) {
+        if (instanceUuid == null) {
+            throw new IllegalArgumentException("Instance UUID cannot be null");
+        }
+        return scheduledInstanceRepository.findByUuid(instanceUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
+    }
+
+    private LocalDateTime currentUtcTime() {
+        return LocalDateTime.now(ZoneOffset.UTC);
+    }
 
     private void validateScheduleRequest(ScheduleRequestDTO request) {
         if (request == null) {

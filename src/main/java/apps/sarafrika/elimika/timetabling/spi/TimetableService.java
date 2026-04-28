@@ -63,6 +63,26 @@ public interface TimetableService {
      */
     void updateScheduledInstanceStatus(UUID instanceUuid, String newStatus);
 
+    /**
+     * Explicitly starts a scheduled class instance and records the actual start timestamp.
+     *
+     * @param instanceUuid The UUID of the scheduled instance to start
+     * @return Updated scheduled instance
+     * @throws IllegalArgumentException if the instance cannot be started
+     * @throws RuntimeException if scheduled instance is not found
+     */
+    ScheduledInstanceDTO startScheduledInstance(UUID instanceUuid);
+
+    /**
+     * Explicitly concludes a scheduled class instance and records the actual conclusion timestamp.
+     *
+     * @param instanceUuid The UUID of the scheduled instance to end
+     * @return Updated scheduled instance
+     * @throws IllegalArgumentException if the instance cannot be ended
+     * @throws RuntimeException if scheduled instance is not found
+     */
+    ScheduledInstanceDTO endScheduledInstance(UUID instanceUuid);
+
     // ===== Enrollment Operations =====
 
     /**

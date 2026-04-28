@@ -32,6 +32,8 @@ public class ScheduledInstanceFactory {
                 entity.getMaxParticipants(),
                 entity.getStatus(),
                 entity.getCancellationReason(),
+                entity.getStartedAt(),
+                entity.getConcludedAt(),
                 entity.getCreatedDate(),
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),
@@ -72,6 +74,8 @@ public class ScheduledInstanceFactory {
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setStatus(dto.status());
         entity.setCancellationReason(dto.cancellationReason());
+        entity.setStartedAt(dto.startedAt());
+        entity.setConcludedAt(dto.concludedAt());
         return entity;
     }
 
@@ -118,6 +122,12 @@ public class ScheduledInstanceFactory {
         }
         if (dto.cancellationReason() != null) {
             entity.setCancellationReason(dto.cancellationReason());
+        }
+        if (dto.startedAt() != null) {
+            entity.setStartedAt(dto.startedAt());
+        }
+        if (dto.concludedAt() != null) {
+            entity.setConcludedAt(dto.concludedAt());
         }
     }
 

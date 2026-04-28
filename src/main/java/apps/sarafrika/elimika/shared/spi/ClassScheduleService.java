@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.spi;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -15,5 +16,14 @@ public interface ClassScheduleService {
      */
     ClassScheduleSummary getScheduleSummary(UUID classDefinitionUuid);
 
-    record ClassScheduleSummary(long scheduledMinutes, long scheduledInstances) { }
+    record ClassScheduleSummary(
+            long scheduledMinutes,
+            long scheduledInstances,
+            long completedSessions,
+            BigDecimal classProgressPercentage
+    ) {
+        public ClassScheduleSummary(long scheduledMinutes, long scheduledInstances) {
+            this(scheduledMinutes, scheduledInstances, 0, BigDecimal.ZERO);
+        }
+    }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -51,7 +52,7 @@ public enum SchedulingStatus {
     
     @JsonCreator
     public static SchedulingStatus fromValue(String value) {
-        SchedulingStatus status = VALUE_MAP.get(value);
+        SchedulingStatus status = value == null ? null : VALUE_MAP.get(value.toUpperCase(Locale.ROOT));
         if (status == null) {
             throw new IllegalArgumentException("Unknown SchedulingStatus: " + value);
         }
