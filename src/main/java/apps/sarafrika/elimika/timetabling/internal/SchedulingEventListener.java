@@ -5,8 +5,8 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEve
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentStatusChangedEventDTO;
-import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentStatusChangedEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.StudentEnrolledEventDTO;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
@@ -162,7 +162,7 @@ public class SchedulingEventListener {
                             instance.getUuid(),
                             savedEnrollment.getStudentUuid(),
                             instance.getClassDefinitionUuid(),
-                            savedEnrollment.getStatus(),
+                            savedEnrollment.getStatus().getValue(),
                             LocalDateTime.now()
                     );
                     eventPublisher.publishEvent(statusEvent);

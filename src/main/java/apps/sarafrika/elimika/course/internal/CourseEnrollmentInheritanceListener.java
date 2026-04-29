@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.course.internal;
 
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentStatusChangedEventDTO;
-import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentStatusChangedEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.StudentEnrolledEventDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;

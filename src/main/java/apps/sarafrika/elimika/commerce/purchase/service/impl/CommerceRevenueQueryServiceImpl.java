@@ -1,12 +1,12 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommercePlatformFeeSummary;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueQueryService;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView;
+import apps.sarafrika.elimika.shared.spi.revenue.CommercePlatformFeeSummary;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueQueryService;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;

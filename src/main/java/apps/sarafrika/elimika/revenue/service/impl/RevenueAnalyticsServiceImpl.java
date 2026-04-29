@@ -1,14 +1,7 @@
 package apps.sarafrika.elimika.revenue.service.impl;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
-import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.commerce.internal.spi.CommercePaymentQueryService;
 import apps.sarafrika.elimika.commerce.internal.spi.CommercePaymentView;
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommercePlatformFeeSummary;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueQueryService;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService.RevenueShare;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
@@ -23,10 +16,15 @@ import apps.sarafrika.elimika.revenue.dto.RevenueScopeBreakdownDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueTimeSeriesPointDTO;
 import apps.sarafrika.elimika.revenue.service.RevenueAnalyticsService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.revenue.CommercePlatformFeeSummary;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueQueryService;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
-import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -63,7 +61,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private final CommerceRevenueQueryService revenueQueryService;
     private final CommercePaymentQueryService paymentQueryService;
     private final CourseInfoService courseInfoService;
-    private final ClassDefinitionService classDefinitionService;
+    private final ClassDefinitionLookupService classDefinitionLookupService;
     private final InstructorLookupService instructorLookupService;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final StudentLookupService studentLookupService;
@@ -434,12 +432,8 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         if (guardianUserUuid == null) {
             return List.of();
         }
-        List<UUID> studentUuids = studentGuardianLookupService.findActiveGuardianStudents(guardianUserUuid).stream()
-                .filter(access -> GuardianShareScope.FULL.equals(access.shareScope()))
-                .map(StudentGuardianLookupService.GuardianStudentAccess::studentUuid)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        List<UUID> studentUuids =
+                studentGuardianLookupService.findActiveGuardianStudentUuidsWithFullAccess(guardianUserUuid);
         if (studentUuids.isEmpty()) {
             return List.of();
         }
@@ -476,13 +470,8 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         if (instructorUuid == null) {
             return List.of();
         }
-        List<UUID> classDefinitionUuids = classDefinitionService.findClassesForInstructor(instructorUuid).stream()
-                .map(ClassDefinitionResponseDTO::classDefinition)
-                .filter(Objects::nonNull)
-                .map(dto -> dto.uuid())
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        List<UUID> classDefinitionUuids =
+                classDefinitionLookupService.findClassDefinitionUuidsByInstructorUuid(instructorUuid);
         return revenueQueryService.findCapturedRevenueLinesByClassDefinitionUuids(
                 range.startDateTime(),
                 range.endDateTime(),
@@ -504,12 +493,8 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
             if (organisationUuid == null) {
                 continue;
             }
-            classDefinitionService.findClassesForOrganisation(organisationUuid).stream()
-                    .map(ClassDefinitionResponseDTO::classDefinition)
-                    .filter(Objects::nonNull)
-                    .map(dto -> dto.uuid())
-                    .filter(Objects::nonNull)
-                    .forEach(classDefinitionUuids::add);
+            classDefinitionUuids.addAll(
+                    classDefinitionLookupService.findClassDefinitionUuidsByOrganisationUuid(organisationUuid));
         }
         return revenueQueryService.findCapturedRevenueLinesByClassDefinitionUuids(
                 range.startDateTime(),
@@ -720,13 +705,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         if (instructorUuid == null) {
             return List.of();
         }
-        return classDefinitionService.findClassesForInstructor(instructorUuid).stream()
-                .map(ClassDefinitionResponseDTO::classDefinition)
-                .filter(Objects::nonNull)
-                .map(dto -> dto.uuid())
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        return classDefinitionLookupService.findClassDefinitionUuidsByInstructorUuid(instructorUuid);
     }
 
     private List<UUID> resolveOrganisationClassDefinitionUuids() {
@@ -743,12 +722,8 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
             if (organisationUuid == null) {
                 continue;
             }
-            classDefinitionService.findClassesForOrganisation(organisationUuid).stream()
-                    .map(ClassDefinitionResponseDTO::classDefinition)
-                    .filter(Objects::nonNull)
-                    .map(dto -> dto.uuid())
-                    .filter(Objects::nonNull)
-                    .forEach(classDefinitionUuids::add);
+            classDefinitionUuids.addAll(
+                    classDefinitionLookupService.findClassDefinitionUuidsByOrganisationUuid(organisationUuid));
         }
         return new ArrayList<>(classDefinitionUuids);
     }
@@ -766,12 +741,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         if (guardianUserUuid == null) {
             return List.of();
         }
-        return studentGuardianLookupService.findActiveGuardianStudents(guardianUserUuid).stream()
-                .filter(access -> GuardianShareScope.FULL.equals(access.shareScope()))
-                .map(StudentGuardianLookupService.GuardianStudentAccess::studentUuid)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        return studentGuardianLookupService.findActiveGuardianStudentUuidsWithFullAccess(guardianUserUuid);
     }
 
     private void ensureContains(List<UUID> allowed, UUID requested, String fieldName) {

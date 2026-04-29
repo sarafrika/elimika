@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.commerce.purchase.converter;
 
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
 import apps.sarafrika.elimika.commerce.purchase.service.CommerceAccessService;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;

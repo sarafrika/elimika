@@ -2,11 +2,12 @@ package apps.sarafrika.elimika.course.internal;
 
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.util.enums.CourseAttendanceStatus;
-import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
-import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.shared.spi.enrollment.AttendanceMarkedEventDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+
+import java.util.Locale;
 
 @Component
 @RequiredArgsConstructor
@@ -35,10 +36,10 @@ public class CourseAttendanceGradeBookListener {
         );
     }
 
-    private CourseAttendanceStatus toCourseAttendanceStatus(EnrollmentStatus enrollmentStatus) {
-        return switch (enrollmentStatus) {
-            case ATTENDED -> CourseAttendanceStatus.ATTENDED;
-            case ABSENT -> CourseAttendanceStatus.ABSENT;
+    private CourseAttendanceStatus toCourseAttendanceStatus(String enrollmentStatus) {
+        return switch (enrollmentStatus.toUpperCase(Locale.ROOT)) {
+            case "ATTENDED" -> CourseAttendanceStatus.ATTENDED;
+            case "ABSENT" -> CourseAttendanceStatus.ABSENT;
             default -> null;
         };
     }

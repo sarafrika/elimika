@@ -1,9 +1,9 @@
 package apps.sarafrika.elimika.commerce.purchase.repository;
 
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem;
+import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,7 +27,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
     long countByScopeAndCreatedDateAfter(PurchaseScope scope, LocalDateTime createdDate);
 
     @Query("""
-            select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem(
+            select new apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem(
                 p.orderId,
                 p.orderCreatedAt,
                 p.orderCurrencyCode,
@@ -49,7 +49,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
     );
 
     @Query("""
-            select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem(
+            select new apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem(
                 p.orderId,
                 p.orderCreatedAt,
                 p.orderCurrencyCode,
@@ -73,7 +73,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
     );
 
     @Query("""
-            select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem(
+            select new apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem(
                 p.orderId,
                 p.orderCreatedAt,
                 p.orderCurrencyCode,
@@ -97,7 +97,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
     );
 
     @Query("""
-            select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceRevenueLineItem(
+            select new apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem(
                 p.orderId,
                 p.orderCreatedAt,
                 p.orderCurrencyCode,
@@ -122,7 +122,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
 
     @Query(
             value = """
-                select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView(
+                select new apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView(
                     p.orderId,
                     p.orderNumber,
                     p.orderCreatedAt,
@@ -174,7 +174,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
 
     @Query(
             value = """
-                select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView(
+                select new apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView(
                     p.orderId,
                     p.orderNumber,
                     p.orderCreatedAt,
@@ -229,7 +229,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
 
     @Query(
             value = """
-                select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView(
+                select new apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView(
                     p.orderId,
                     p.orderNumber,
                     p.orderCreatedAt,
@@ -284,7 +284,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
 
     @Query(
             value = """
-                select new apps.sarafrika.elimika.commerce.purchase.spi.CommerceSaleLineItemView(
+                select new apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView(
                     p.orderId,
                     p.orderNumber,
                     p.orderCreatedAt,

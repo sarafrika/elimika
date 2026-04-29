@@ -11,5 +11,7 @@ public interface StudentGuardianLookupService {
 
     List<GuardianStudentAccess> findActiveGuardianStudents(UUID guardianUserUuid);
 
+    List<UUID> findActiveGuardianStudentUuidsWithFullAccess(UUID guardianUserUuid);
+
     record GuardianStudentAccess(UUID studentUuid, GuardianShareScope shareScope) { }
 }

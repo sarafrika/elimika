@@ -10,12 +10,12 @@ import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.commerce.spi.paywall.CommercePaywallService;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
-import apps.sarafrika.elimika.timetabling.dto.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
-import apps.sarafrika.elimika.timetabling.dto.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
-import apps.sarafrika.elimika.timetabling.dto.StudentEnrolledEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.AttendanceMarkedEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentStatusChangedEventDTO;
+import apps.sarafrika.elimika.shared.spi.enrollment.StudentEnrolledEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
@@ -508,7 +508,7 @@ public class TimetableServiceImpl implements TimetableService {
                             savedEntity.getStudentUuid(),
                             instance.getClassDefinitionUuid(),
                             instance.getInstructorUuid(),
-                            savedEntity.getStatus(),
+                            savedEntity.getStatus().getValue(),
                             savedEntity.getAttendanceMarkedAt(),
                             instance.getTitle()
                     );
@@ -1116,7 +1116,7 @@ public class TimetableServiceImpl implements TimetableService {
                 instance.getUuid(),
                 enrollment.getStudentUuid(),
                 instance.getClassDefinitionUuid(),
-                enrollment.getStatus(),
+                enrollment.getStatus().getValue(),
                 LocalDateTime.now()
         );
         eventPublisher.publishEvent(event);

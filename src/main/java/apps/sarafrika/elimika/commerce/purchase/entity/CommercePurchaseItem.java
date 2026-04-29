@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.commerce.purchase.entity;
 
 import apps.sarafrika.elimika.commerce.purchase.converter.PurchaseScopeConverter;
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

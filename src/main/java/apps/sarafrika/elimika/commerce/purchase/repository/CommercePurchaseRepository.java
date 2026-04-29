@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.commerce.purchase.repository;
 
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
-import apps.sarafrika.elimika.commerce.purchase.spi.CommercePlatformFeeSummary;
+import apps.sarafrika.elimika.shared.spi.revenue.CommercePlatformFeeSummary;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -27,7 +27,7 @@ public interface CommercePurchaseRepository extends JpaRepository<CommercePurcha
     long countDistinctCustomersCreatedAfter(LocalDateTime createdAfter);
 
     @Query("""
-            select new apps.sarafrika.elimika.commerce.purchase.spi.CommercePlatformFeeSummary(
+            select new apps.sarafrika.elimika.shared.spi.revenue.CommercePlatformFeeSummary(
                 cp.platformFeeCurrency,
                 sum(cp.platformFeeAmount)
             )

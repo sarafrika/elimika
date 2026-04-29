@@ -2,9 +2,9 @@ package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
 import apps.sarafrika.elimika.commerce.purchase.spi.CommercePurchaseService;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;

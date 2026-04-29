@@ -1,10 +1,10 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
-import apps.sarafrika.elimika.commerce.purchase.enums.PurchaseScope;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsService;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsSnapshot;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
