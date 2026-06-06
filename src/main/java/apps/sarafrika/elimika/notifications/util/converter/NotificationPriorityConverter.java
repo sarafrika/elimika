@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.notifications.api.NotificationPriority;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
+import java.util.Locale;
+
 /**
  * Converts the NotificationPriority enum to its explicitly defined string value for the database,
  * and back to the enum from the database string.
@@ -34,6 +36,6 @@ public class NotificationPriorityConverter implements AttributeConverter<Notific
     @Override
     public NotificationPriority convertToEntityAttribute(String dbData) {
         // Uses the static factory method in the enum for safe and efficient lookup.
-        return dbData != null ? NotificationPriority.fromValue(dbData) : null;
+        return dbData != null ? NotificationPriority.fromValue(dbData.toUpperCase(Locale.ROOT)) : null;
     }
 }

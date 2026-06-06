@@ -7,12 +7,16 @@ import apps.sarafrika.elimika.course.factory.AssignmentSubmissionFactory;
 import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
+import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.service.AssignmentSubmissionService;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
+import apps.sarafrika.elimika.course.spi.AssessmentCompletedNotificationRequestedEvent;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -37,6 +41,8 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     private final GenericSpecificationBuilder<AssignmentSubmission> specificationBuilder;
     private final AssignmentMediaValidationService assignmentMediaValidationService;
     private final CourseGradeBookService courseGradeBookService;
+    private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
 
@@ -65,6 +71,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         }
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
+        publishAssessmentCompletedNotification(savedSubmission, assignment.getTitle(), "assignment");
         return AssignmentSubmissionFactory.toDTO(savedSubmission);
     }
 
@@ -294,5 +301,28 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         if (dto.gradedByUuid() != null) {
             existingSubmission.setGradedByUuid(dto.gradedByUuid());
         }
+    }
+
+    private void publishAssessmentCompletedNotification(AssignmentSubmission submission,
+                                                        String assessmentTitle,
+                                                        String assessmentType) {
+        if (submission.getEnrollmentUuid() == null) {
+            return;
+        }
+        CourseEnrollment enrollment = courseEnrollmentRepository.findByUuid(submission.getEnrollmentUuid()).orElse(null);
+        if (enrollment == null || enrollment.getStudentUuid() == null) {
+            return;
+        }
+
+        String title = assessmentTitle == null || assessmentTitle.isBlank() ? "Assessment" : assessmentTitle;
+        eventPublisher.publishEvent(new AssessmentCompletedNotificationRequestedEvent(
+                enrollment.getStudentUuid(),
+                enrollment.getCourseUuid(),
+                submission.getEnrollmentUuid(),
+                submission.getAssignmentUuid(),
+                submission.getUuid(),
+                title,
+                assessmentType
+        ));
     }
 }

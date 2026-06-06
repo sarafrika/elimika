@@ -126,11 +126,9 @@ public class UserNotificationPreferences extends BaseEntity {
         }
         
         if (quietHoursStart.isBefore(quietHoursEnd)) {
-            // Same day quiet hours (e.g., 22:00 - 08:00 next day)
-            return currentTime.isAfter(quietHoursStart) || currentTime.isBefore(quietHoursEnd);
-        } else {
-            // Overnight quiet hours (e.g., 10:00 - 16:00 same day)
             return currentTime.isAfter(quietHoursStart) && currentTime.isBefore(quietHoursEnd);
+        } else {
+            return currentTime.isAfter(quietHoursStart) || currentTime.isBefore(quietHoursEnd);
         }
     }
     

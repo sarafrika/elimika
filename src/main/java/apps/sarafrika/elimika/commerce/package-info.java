@@ -11,7 +11,7 @@
                 "systemconfig",
                 "notifications",
                 "notifications :: notifications-spi",
-                "notifications :: events-api",
+                "notifications::events-api",
                 "commerce.purchase :: commerce-purchase-spi"
         }
 )

@@ -60,7 +60,13 @@
  * @since 1.0.0
  */
 @ApplicationModule(
-    allowedDependencies = {"shared", "coursecreator :: coursecreator-spi", "tenancy :: tenancy-spi"}
+    allowedDependencies = {
+            "shared",
+            "coursecreator :: coursecreator-spi",
+            "instructor :: instructor-spi",
+            "tenancy :: tenancy-spi",
+            "notifications::events-api"
+    }
 )
 package apps.sarafrika.elimika.course;
 

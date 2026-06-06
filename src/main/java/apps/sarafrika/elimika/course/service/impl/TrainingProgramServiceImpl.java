@@ -14,7 +14,10 @@ import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.service.TrainingProgramService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -38,6 +41,8 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final ProgramEnrollmentRepository programEnrollmentRepository;
     private final ProgramCourseRepository programCourseRepository;
     private final CourseRepository courseRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final CourseCreatorLookupService courseCreatorLookupService;
 
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with ID %s not found";
 
@@ -241,6 +246,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (!Boolean.TRUE.equals(program.getAdminApproved())) {
             program.setAdminApproved(true);
             trainingProgramRepository.save(program);
+            publishProgramModerationNotification(program, true, reason);
         }
 
         return TrainingProgramFactory.toDTO(program);
@@ -255,6 +261,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (!Boolean.FALSE.equals(program.getAdminApproved())) {
             program.setAdminApproved(false);
             trainingProgramRepository.save(program);
+            publishProgramModerationNotification(program, false, reason);
         }
 
         return TrainingProgramFactory.toDTO(program);
@@ -323,5 +330,35 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (dto.active() != null) {
             existingProgram.setActive(dto.active());
         }
+    }
+
+    private void publishProgramModerationNotification(TrainingProgram program, boolean approved, String reason) {
+        if (program.getCourseCreatorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = courseCreatorLookupService.getCourseCreatorUserUuid(program.getCourseCreatorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+        String type = approved ? "PROGRAM_CONTENT_APPROVED" : "PROGRAM_CONTENT_REJECTED";
+        String programTitle = program.getTitle() == null ? "Your program" : program.getTitle();
+        String body = approved
+                ? programTitle + " has been approved by admin."
+                : programTitle + " was rejected by admin.";
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                type,
+                "INBOX",
+                approved ? "Program approved" : "Program rejected",
+                body,
+                "/dashboard/programs/" + program.getUuid(),
+                Map.of(
+                        "program_uuid", program.getUuid(),
+                        "program_title", programTitle,
+                        "reason", reason == null ? "" : reason
+                ),
+                "program-moderation:" + program.getUuid() + ":" + type
+        ));
     }
 }

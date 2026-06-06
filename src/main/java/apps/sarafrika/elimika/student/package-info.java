@@ -34,7 +34,7 @@
  * @since 1.0.0
  */
 @ApplicationModule(
-    allowedDependencies = {"shared", "systemconfig", "tenancy :: tenancy-spi", "course :: course-spi"}
+    allowedDependencies = {"shared", "systemconfig", "tenancy :: tenancy-spi", "course :: course-spi", "notifications::events-api"}
 )
 package apps.sarafrika.elimika.student;
 

@@ -63,6 +63,12 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
     @Query("SELECT si FROM ScheduledInstance si WHERE si.status = 'SCHEDULED' AND si.startTime <= :currentTime")
     List<ScheduledInstance> findScheduledInstancesPastStartTime(@Param("currentTime") LocalDateTime currentTime);
 
+    @Query("SELECT si FROM ScheduledInstance si WHERE si.status = 'SCHEDULED' " +
+           "AND si.startTime > :startTime AND si.startTime <= :endTime " +
+           "ORDER BY si.startTime ASC")
+    List<ScheduledInstance> findScheduledInstancesStartingBetween(@Param("startTime") LocalDateTime startTime,
+                                                                  @Param("endTime") LocalDateTime endTime);
+
     @Query("SELECT si FROM ScheduledInstance si WHERE si.status = 'ONGOING' AND si.endTime <= :currentTime")
     List<ScheduledInstance> findOngoingInstancesPastEndTime(@Param("currentTime") LocalDateTime currentTime);
 

@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.notifications.api.NotificationCategory;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
+import java.util.Locale;
+
 /**
  * Converts the NotificationCategory enum to its explicitly defined string value for the database,
  * and back to the enum from the database string.
@@ -34,6 +36,6 @@ public class NotificationCategoryConverter implements AttributeConverter<Notific
     @Override
     public NotificationCategory convertToEntityAttribute(String dbData) {
         // Uses the static factory method in the enum for safe and efficient lookup.
-        return dbData != null ? NotificationCategory.fromValue(dbData) : null;
+        return dbData != null ? NotificationCategory.fromValue(dbData.toUpperCase(Locale.ROOT)) : null;
     }
 }

@@ -52,6 +52,14 @@ public interface CourseInfoService {
     Optional<String> getCourseName(UUID courseUuid);
 
     /**
+     * Gets the base user UUID for the course creator who owns a course.
+     *
+     * @param courseUuid The UUID of the course
+     * @return Optional containing the owner user UUID, or empty if unavailable
+     */
+    Optional<UUID> getCourseCreatorUserUuid(UUID courseUuid);
+
+    /**
      * Retrieves the configured age limits for a course, if any.
      *
      * @param courseUuid The UUID of the course
@@ -98,6 +106,14 @@ public interface CourseInfoService {
      * @return Optional containing the training program title, or empty if not found
      */
     Optional<String> getTrainingProgramTitle(UUID programUuid);
+
+    /**
+     * Gets the base user UUID for the course creator who owns a training program.
+     *
+     * @param programUuid The UUID of the training program
+     * @return Optional containing the owner user UUID, or empty if unavailable
+     */
+    Optional<UUID> getTrainingProgramCreatorUserUuid(UUID programUuid);
 
     /**
      * Retrieves course UUIDs owned by a course creator.

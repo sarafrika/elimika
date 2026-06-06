@@ -45,7 +45,7 @@
 @ApplicationModule(
         allowedDependencies = {
         "notifications :: preferences-spi",
-        "notifications :: events-api",
+        "notifications::events-api",
         "notifications :: notifications-spi",
         "instructor :: instructor-spi",
         "course :: course-spi",

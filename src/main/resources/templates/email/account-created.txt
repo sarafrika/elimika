@@ -1,0 +1,24 @@
+Powered by Sarafrika
+
+Account created
+
+
+WELCOME TO ELIMIKA
+
+Hello [[${recipientName}]],
+
+Your Elimika account has been created successfully. You can now sign in, complete your profile, and continue with the learning or training workspace available to your account.
+
+Created on
+
+[[${createdAt}]] UTC
+
+Open Elimika [[${frontendUrl}]]
+
+If you did not create this account, contact support immediately so the account can be reviewed.
+
+----------------------------------------
+
+Need help? Contact [[${supportEmail}]].
+
+Copyright [[${currentYear}]] [[${companyName}]]. All rights reserved.

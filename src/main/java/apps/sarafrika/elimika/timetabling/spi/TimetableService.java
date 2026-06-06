@@ -232,6 +232,15 @@ public interface TimetableService {
     List<EnrollmentDTO> getEnrollmentsForClass(UUID classDefinitionUuid);
 
     /**
+     * Retrieves distinct active student UUIDs enrolled in a class definition.
+     *
+     * @param classDefinitionUuid The UUID of the class definition
+     * @return distinct active student UUIDs for the class
+     * @throws IllegalArgumentException if classDefinitionUuid is null
+     */
+    List<UUID> getActiveStudentUuidsForClass(UUID classDefinitionUuid);
+
+    /**
      * Retrieves all scheduled instances for a class definition.
      *
      * @param classDefinitionUuid The UUID of the class definition

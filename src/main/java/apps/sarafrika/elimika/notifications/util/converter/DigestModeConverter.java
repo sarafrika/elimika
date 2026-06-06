@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.notifications.model.UserNotificationPreferences.Di
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
+import java.util.Locale;
+
 /**
  * Converts the DigestMode enum to its explicitly defined string value for the database,
  * and back to the enum from the database string.
@@ -34,6 +36,6 @@ public class DigestModeConverter implements AttributeConverter<DigestMode, Strin
     @Override
     public DigestMode convertToEntityAttribute(String dbData) {
         // Uses the static factory method in the enum for safe and efficient lookup.
-        return dbData != null ? DigestMode.fromValue(dbData) : null;
+        return dbData != null ? DigestMode.fromValue(dbData.toUpperCase(Locale.ROOT)) : null;
     }
 }

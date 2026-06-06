@@ -43,4 +43,13 @@ public class InstructorLookupServiceImpl implements InstructorLookupService {
                 .map(Instructor::getUserUuid);
     }
 
+    @Override
+    public Optional<Boolean> getInstructorProfileCompleteByUserUuid(UUID userUuid) {
+        return instructorRepository.findByUserUuid(userUuid)
+                .map(instructor -> hasText(instructor.getBio()) && hasText(instructor.getProfessionalHeadline()));
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
 }

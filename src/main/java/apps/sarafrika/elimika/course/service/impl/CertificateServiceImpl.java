@@ -9,8 +9,11 @@ import apps.sarafrika.elimika.course.repository.CertificateRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.service.CertificateService;
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.course.spi.LearningCertificateIssuedNotificationRequestedEvent;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -33,6 +36,8 @@ public class CertificateServiceImpl implements CertificateService {
     private final GenericSpecificationBuilder<Certificate> specificationBuilder;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final ProgramEnrollmentRepository programEnrollmentRepository;
+    private final CourseInfoService courseInfoService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String CERTIFICATE_NOT_FOUND_TEMPLATE = "Certificate with ID %s not found";
 
@@ -54,6 +59,7 @@ public class CertificateServiceImpl implements CertificateService {
         }
 
         Certificate savedCertificate = certificateRepository.save(certificate);
+        publishCertificateIssuedNotification(savedCertificate);
         return CertificateFactory.toDTO(savedCertificate);
     }
 
@@ -125,6 +131,7 @@ public class CertificateServiceImpl implements CertificateService {
         certificate.setCreatedDate(LocalDateTime.now());
 
         Certificate savedCertificate = certificateRepository.save(certificate);
+        publishCertificateIssuedNotification(savedCertificate);
         return CertificateFactory.toDTO(savedCertificate);
     }
 
@@ -150,6 +157,7 @@ public class CertificateServiceImpl implements CertificateService {
         certificate.setIsValid(true);
 
         Certificate savedCertificate = certificateRepository.save(certificate);
+        publishCertificateIssuedNotification(savedCertificate);
         return CertificateFactory.toDTO(savedCertificate);
     }
 
@@ -297,5 +305,24 @@ public class CertificateServiceImpl implements CertificateService {
         if (dto.isValid() != null) {
             existingCertificate.setIsValid(dto.isValid());
         }
+    }
+
+    private void publishCertificateIssuedNotification(Certificate certificate) {
+        if (certificate.getStudentUuid() == null) {
+            return;
+        }
+
+        String learningTitle = certificate.getCourseUuid() != null
+                ? courseInfoService.getCourseName(certificate.getCourseUuid()).orElse("your course")
+                : courseInfoService.getTrainingProgramTitle(certificate.getProgramUuid()).orElse("your program");
+
+        eventPublisher.publishEvent(new LearningCertificateIssuedNotificationRequestedEvent(
+                certificate.getStudentUuid(),
+                certificate.getUuid(),
+                certificate.getCertificateNumber(),
+                certificate.getCourseUuid(),
+                certificate.getProgramUuid(),
+                learningTitle
+        ));
     }
 }

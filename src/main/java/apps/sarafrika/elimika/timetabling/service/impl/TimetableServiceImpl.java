@@ -3,11 +3,14 @@ package apps.sarafrika.elimika.timetabling.service.impl;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.commerce.spi.paywall.CommercePaywallService;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
@@ -74,6 +77,8 @@ public class TimetableServiceImpl implements TimetableService {
     private final AgeVerificationService ageVerificationService;
     private final CommercePaywallService commercePaywallService;
     private final AvailabilityService availabilityService;
+    private final StudentLookupService studentLookupService;
+    private final InstructorLookupService instructorLookupService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -336,6 +341,10 @@ public class TimetableServiceImpl implements TimetableService {
             createdEnrollments.add(savedEntity);
         }
 
+        if (!createdEnrollments.isEmpty()) {
+            publishClassEnrollmentNotifications(createdEnrollments.get(0), instancesToEnroll.get(0));
+        }
+
         log.debug("Enrolled student into {} scheduled instances for class definition: {}", createdEnrollments.size(), classDefinitionUuid);
         return EnrollmentFactory.toDTOList(createdEnrollments);
     }
@@ -400,6 +409,7 @@ public class TimetableServiceImpl implements TimetableService {
         );
         eventPublisher.publishEvent(event);
         publishEnrollmentStatusChanged(savedEnrollment, instance);
+        publishClassEnrollmentNotifications(savedEnrollment, instance);
 
         log.debug("Enrolled student {} into scheduled instance {}", studentUuid, instanceUuid);
         return EnrollmentFactory.toDTO(savedEnrollment);
@@ -700,6 +710,24 @@ public class TimetableServiceImpl implements TimetableService {
 
         List<Enrollment> enrollments = enrollmentRepository.findByClassDefinitionUuid(classDefinitionUuid);
         return EnrollmentFactory.toDTOList(enrollments);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> getActiveStudentUuidsForClass(UUID classDefinitionUuid) {
+        log.debug("Getting active student UUIDs for class definition: {}", classDefinitionUuid);
+
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+
+        return enrollmentRepository.findByClassDefinitionUuid(classDefinitionUuid)
+                .stream()
+                .filter(enrollment -> EnrollmentStatus.ENROLLED.equals(enrollment.getStatus()))
+                .map(Enrollment::getStudentUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     @Override
@@ -1120,6 +1148,169 @@ public class TimetableServiceImpl implements TimetableService {
                 LocalDateTime.now()
         );
         eventPublisher.publishEvent(event);
+    }
+
+    private void publishClassEnrollmentNotifications(Enrollment enrollment, ScheduledInstance instance) {
+        if (enrollment == null || instance == null || enrollment.getStudentUuid() == null) {
+            return;
+        }
+
+        ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = instance.getClassDefinitionUuid() == null
+                ? null
+                : classDefinitionLookupService.findByUuid(instance.getClassDefinitionUuid()).orElse(null);
+        String classTitle = resolveClassTitle(instance, snapshot);
+        long enrollmentCount = resolveClassEnrollmentCount(instance);
+        boolean milestone = isEnrollmentMilestone(enrollmentCount);
+
+        publishStudentEnrollmentNotification(enrollment, instance, classTitle);
+        publishInstructorEnrollmentNotification(enrollment, instance, classTitle, enrollmentCount, milestone);
+        publishCourseCreatorEnrollmentNotification(enrollment, instance, snapshot, classTitle, enrollmentCount, milestone);
+    }
+
+    private void publishStudentEnrollmentNotification(Enrollment enrollment, ScheduledInstance instance, String classTitle) {
+        UUID recipientUserUuid = studentLookupService.getStudentUserUuid(enrollment.getStudentUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                "CLASS_ENROLLMENT_CONFIRMED",
+                "POPUP",
+                "Class enrollment confirmed",
+                "You have been enrolled in " + classTitle + ".",
+                resolveClassActionUrl(instance),
+                enrollmentMetadata(enrollment, instance, 0),
+                "class-enrollment-student:" + classEnrollmentScope(instance) + ":" + enrollment.getStudentUuid()
+        ));
+    }
+
+    private void publishInstructorEnrollmentNotification(Enrollment enrollment,
+                                                         ScheduledInstance instance,
+                                                         String classTitle,
+                                                         long enrollmentCount,
+                                                         boolean milestone) {
+        if (instance.getInstructorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(instance.getInstructorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String type = milestone
+                ? "INSTRUCTOR_CLASS_ENROLLMENT_MILESTONE"
+                : "INSTRUCTOR_CLASS_ENROLLMENT_NOTICE";
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                type,
+                milestone ? "POPUP" : "INBOX",
+                milestone ? "Enrollment milestone reached" : "New class enrollment",
+                enrollmentNoticeBody(classTitle, enrollmentCount, milestone),
+                resolveClassActionUrl(instance),
+                enrollmentMetadata(enrollment, instance, enrollmentCount),
+                "class-enrollment-instructor:" + classEnrollmentScope(instance) + ":" + type + ":" + enrollmentCount
+        ));
+    }
+
+    private void publishCourseCreatorEnrollmentNotification(Enrollment enrollment,
+                                                            ScheduledInstance instance,
+                                                            ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot,
+                                                            String classTitle,
+                                                            long enrollmentCount,
+                                                            boolean milestone) {
+        UUID recipientUserUuid = resolveCourseCreatorUserUuid(snapshot);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String type = milestone
+                ? "COURSE_ENROLLMENT_MILESTONE"
+                : "COURSE_ENROLLMENT_NOTICE";
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                type,
+                milestone ? "POPUP" : "INBOX",
+                milestone ? "Enrollment milestone reached" : "New course enrollment",
+                enrollmentNoticeBody(classTitle, enrollmentCount, milestone),
+                resolveClassActionUrl(instance),
+                enrollmentMetadata(enrollment, instance, enrollmentCount),
+                "class-enrollment-creator:" + classEnrollmentScope(instance) + ":" + type + ":" + enrollmentCount
+        ));
+    }
+
+    private UUID resolveCourseCreatorUserUuid(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        if (snapshot.courseUuid() != null) {
+            return courseInfoService.getCourseCreatorUserUuid(snapshot.courseUuid()).orElse(null);
+        }
+        if (snapshot.programUuid() != null) {
+            return courseInfoService.getTrainingProgramCreatorUserUuid(snapshot.programUuid()).orElse(null);
+        }
+        return null;
+    }
+
+    private long resolveClassEnrollmentCount(ScheduledInstance instance) {
+        if (instance.getClassDefinitionUuid() != null) {
+            return enrollmentRepository.countDistinctStudentsByClassDefinitionUuidAndStatus(
+                    instance.getClassDefinitionUuid(),
+                    EnrollmentStatus.ENROLLED
+            );
+        }
+        return enrollmentRepository.countActiveEnrollmentsByScheduledInstance(instance.getUuid());
+    }
+
+    private boolean isEnrollmentMilestone(long enrollmentCount) {
+        return enrollmentCount == 1 || (enrollmentCount > 0 && enrollmentCount % 10 == 0);
+    }
+
+    private String enrollmentNoticeBody(String classTitle, long enrollmentCount, boolean milestone) {
+        if (!milestone) {
+            return "A new student enrolled in " + classTitle + ".";
+        }
+        if (enrollmentCount == 1) {
+            return "The first student has enrolled in " + classTitle + ".";
+        }
+        return enrollmentCount + " students have enrolled in " + classTitle + ".";
+    }
+
+    private Map<String, Object> enrollmentMetadata(Enrollment enrollment, ScheduledInstance instance, long enrollmentCount) {
+        return Map.of(
+                "enrollment_uuid", enrollment.getUuid() == null ? "" : enrollment.getUuid().toString(),
+                "scheduled_instance_uuid", instance.getUuid() == null ? "" : instance.getUuid().toString(),
+                "class_definition_uuid", instance.getClassDefinitionUuid() == null ? "" : instance.getClassDefinitionUuid().toString(),
+                "student_uuid", enrollment.getStudentUuid() == null ? "" : enrollment.getStudentUuid().toString(),
+                "instructor_uuid", instance.getInstructorUuid() == null ? "" : instance.getInstructorUuid().toString(),
+                "enrollment_count", enrollmentCount
+        );
+    }
+
+    private String resolveClassTitle(ScheduledInstance instance, ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        if (snapshot != null && snapshot.title() != null && !snapshot.title().isBlank()) {
+            return snapshot.title();
+        }
+        if (instance.getTitle() != null && !instance.getTitle().isBlank()) {
+            return instance.getTitle();
+        }
+        return "your class";
+    }
+
+    private String resolveClassActionUrl(ScheduledInstance instance) {
+        if (instance.getClassDefinitionUuid() != null) {
+            return "/dashboard/classes/" + instance.getClassDefinitionUuid();
+        }
+        return "/dashboard/classes/schedule/" + instance.getUuid();
+    }
+
+    private String classEnrollmentScope(ScheduledInstance instance) {
+        if (instance.getClassDefinitionUuid() != null) {
+            return instance.getClassDefinitionUuid().toString();
+        }
+        return instance.getUuid() == null ? "unknown" : instance.getUuid().toString();
     }
 
     private void validateDateRange(UUID uuid, LocalDate start, LocalDate end) {

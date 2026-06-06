@@ -70,7 +70,8 @@ class CatalogueProvisioningServiceImplTest {
                         new BigDecimal("2400.00"),
                         ClassVisibility.PUBLIC,
                         30,
-                        true
+                        true,
+                        null
                 );
 
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid)).thenReturn(Optional.of(snapshot));

@@ -40,4 +40,12 @@ public interface InstructorLookupService {
      */
     Optional<UUID> getInstructorUserUuid(UUID instructorUuid);
 
+    /**
+     * Gets the instructor profile completion state for a base user UUID.
+     *
+     * @param userUuid The base user UUID
+     * @return Optional containing completion state, or empty if the user has no instructor profile
+     */
+    Optional<Boolean> getInstructorProfileCompleteByUserUuid(UUID userUuid);
+
 }

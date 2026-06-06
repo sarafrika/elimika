@@ -42,4 +42,14 @@ public class CourseCreatorLookupServiceImpl implements CourseCreatorLookupServic
         return courseCreatorRepository.findByUuid(courseCreatorUuid)
                 .map(CourseCreator::getUserUuid);
     }
+
+    @Override
+    public Optional<Boolean> getCourseCreatorProfileCompleteByUserUuid(UUID userUuid) {
+        return courseCreatorRepository.findByUserUuid(userUuid)
+                .map(courseCreator -> hasText(courseCreator.getBio()) && hasText(courseCreator.getProfessionalHeadline()));
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
 }

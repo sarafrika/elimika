@@ -13,14 +13,18 @@ import apps.sarafrika.elimika.course.service.CourseTrainingApplicationService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -57,6 +61,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final CurrencyService currencyService;
     private final DomainSecurityService domainSecurityService;
     private final CourseTrainingRateCardValidator rateCardValidator;
+    private final CourseCreatorLookupService courseCreatorLookupService;
+    private final InstructorLookupService instructorLookupService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -89,6 +96,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         try {
             CourseTrainingApplication saved = applicationRepository.save(application);
+            publishCourseTrainingApplicationSubmitted(course, saved);
             return CourseTrainingApplicationFactory.toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
             String exceptionMessage = ex.getMessage();
@@ -116,6 +124,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.APPROVED, decisionRequest.reviewNotes());
         return CourseTrainingApplicationFactory.toDTO(saved);
     }
 
@@ -139,6 +148,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REJECTED, decisionRequest.reviewNotes());
         return CourseTrainingApplicationFactory.toDTO(saved);
     }
 
@@ -159,6 +169,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REVOKED, decisionRequest.reviewNotes());
         return CourseTrainingApplicationFactory.toDTO(saved);
     }
 
@@ -340,5 +351,90 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             return SYSTEM_USER;
         }
         return authentication.getName();
+    }
+
+    private void publishCourseTrainingApplicationSubmitted(Course course, CourseTrainingApplication application) {
+        if (course.getCourseCreatorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = courseCreatorLookupService.getCourseCreatorUserUuid(course.getCourseCreatorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String courseName = course.getName() == null ? "your course" : course.getName();
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                "COURSE_TRAINING_APPLICATION_SUBMITTED",
+                "INBOX",
+                "Training application received",
+                "An instructor applied to train " + courseName + ".",
+                "/dashboard/course-management/preview/" + course.getUuid() + "?tab=applications",
+                Map.of(
+                        "course_uuid", course.getUuid(),
+                        "course_name", courseName,
+                        "application_uuid", application.getUuid(),
+                        "applicant_type", application.getApplicantType().getValue(),
+                        "applicant_uuid", application.getApplicantUuid()
+                ),
+                "course-training-application-submitted:" + application.getUuid() + ":" + application.getStatus().getValue()
+        ));
+    }
+
+    private void publishCourseTrainingApplicationDecision(CourseTrainingApplication application,
+                                                          CourseTrainingApplicationStatus status,
+                                                          String reviewNotes) {
+        if (!CourseTrainingApplicantType.INSTRUCTOR.equals(application.getApplicantType())
+                || application.getApplicantUuid() == null) {
+            return;
+        }
+
+        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(application.getApplicantUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        Course course = courseRepository.findByUuid(application.getCourseUuid()).orElse(null);
+        String courseName = course == null || course.getName() == null ? "the course" : course.getName();
+        String type = switch (status) {
+            case APPROVED -> "COURSE_TRAINING_APPLICATION_APPROVED";
+            case REJECTED -> "COURSE_TRAINING_APPLICATION_REJECTED";
+            case REVOKED -> "COURSE_TRAINING_APPLICATION_REVOKED";
+            default -> null;
+        };
+        if (type == null) {
+            return;
+        }
+
+        String title = switch (status) {
+            case APPROVED -> "Training application approved";
+            case REJECTED -> "Training application rejected";
+            case REVOKED -> "Training approval revoked";
+            default -> "Training application updated";
+        };
+        String body = switch (status) {
+            case APPROVED -> "You have been approved to train " + courseName + ".";
+            case REJECTED -> "Your application to train " + courseName + " was rejected.";
+            case REVOKED -> "Your approval to train " + courseName + " was revoked.";
+            default -> "Your training application for " + courseName + " was updated.";
+        };
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                type,
+                "INBOX",
+                title,
+                body,
+                "/dashboard/instructor/applications",
+                Map.of(
+                        "course_uuid", application.getCourseUuid(),
+                        "course_name", courseName,
+                        "application_uuid", application.getUuid(),
+                        "review_notes", reviewNotes == null ? "" : reviewNotes
+                ),
+                "course-training-application-decision:" + application.getUuid() + ":" + type
+        ));
     }
 }

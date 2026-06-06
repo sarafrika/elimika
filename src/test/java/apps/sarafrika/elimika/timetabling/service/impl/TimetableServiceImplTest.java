@@ -4,9 +4,11 @@ import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceCompletedEvent;
 import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceStartedEvent;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
@@ -83,6 +85,12 @@ class TimetableServiceImplTest {
     @Mock
     private AvailabilityService availabilityService;
 
+    @Mock
+    private StudentLookupService studentLookupService;
+
+    @Mock
+    private InstructorLookupService instructorLookupService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -98,7 +106,9 @@ class TimetableServiceImplTest {
                 learnerProgressLookupService,
                 ageVerificationService,
                 commercePaywallService,
-                availabilityService
+                availabilityService,
+                studentLookupService,
+                instructorLookupService
         );
     }
 
@@ -365,7 +375,8 @@ class TimetableServiceImplTest {
                         null,
                         null,
                         20,
-                        true
+                        true,
+                        null
                 )));
         when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(false);
 
