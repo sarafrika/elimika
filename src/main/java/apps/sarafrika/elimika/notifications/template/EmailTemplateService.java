@@ -61,6 +61,8 @@ public class EmailTemplateService {
                 String.format("Receipt for Order %s",
                         event.getTemplateVariables().getOrDefault("orderDisplayId",
                                 event.getTemplateVariables().getOrDefault("orderId", "payment")));
+            case "account-created" ->
+                "Welcome to " + applicationName;
             default -> 
                 String.format("[%s] %s", applicationName, event.getNotificationType().getDisplayName());
         };

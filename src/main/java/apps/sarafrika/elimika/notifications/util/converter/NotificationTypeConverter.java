@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
+import java.util.Locale;
+
 /**
  * Converts the NotificationType enum to its explicitly defined string value for the database,
  * and back to the enum from the database string.
@@ -34,6 +36,6 @@ public class NotificationTypeConverter implements AttributeConverter<Notificatio
     @Override
     public NotificationType convertToEntityAttribute(String dbData) {
         // Uses the static factory method in the enum for safe and efficient lookup.
-        return dbData != null ? NotificationType.fromValue(dbData) : null;
+        return dbData != null ? NotificationType.fromValue(dbData.toUpperCase(Locale.ROOT)) : null;
     }
 }

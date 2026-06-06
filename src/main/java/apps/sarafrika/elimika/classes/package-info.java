@@ -31,7 +31,9 @@
             "availability :: availability-spi",
             "course :: course-spi",
             "instructor :: instructor-spi",
-            "tenancy :: tenancy-spi"
+            "student :: student-spi",
+            "tenancy :: tenancy-spi",
+            "notifications::events-api"
     }
 )
 package apps.sarafrika.elimika.classes;

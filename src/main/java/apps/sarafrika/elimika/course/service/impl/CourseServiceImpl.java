@@ -16,10 +16,13 @@ import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.CourseSpecificationBuilder;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -50,6 +53,8 @@ public class CourseServiceImpl implements CourseService {
     private final StorageService storageService;
     private final CourseMediaValidationService validationService;
     private final StorageProperties storageProperties;
+    private final ApplicationEventPublisher eventPublisher;
+    private final CourseCreatorLookupService courseCreatorLookupService;
 
     public static final String COURSE_THUMBNAILS_FOLDER = "course_thumbnails";
     public static final String COURSE_BANNERS_FOLDER = "course_banners";
@@ -217,6 +222,7 @@ public class CourseServiceImpl implements CourseService {
         if (!Boolean.TRUE.equals(course.getAdminApproved())) {
             course.setAdminApproved(true);
             courseRepository.save(course);
+            publishCourseModerationNotification(course, true, reason);
             log.info("Approved course {} for reason {}", uuid, reason);
         }
 
@@ -234,6 +240,7 @@ public class CourseServiceImpl implements CourseService {
         if (!Boolean.FALSE.equals(course.getAdminApproved())) {
             course.setAdminApproved(false);
             courseRepository.save(course);
+            publishCourseModerationNotification(course, false, reason);
             log.info("Removed course approval {} for reason {}", uuid, reason);
         }
 
@@ -533,5 +540,35 @@ public class CourseServiceImpl implements CourseService {
             log.error("Failed to store course media file", e);
             throw new RuntimeException("Failed to store course media: " + e.getMessage(), e);
         }
+    }
+
+    private void publishCourseModerationNotification(Course course, boolean approved, String reason) {
+        if (course.getCourseCreatorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = courseCreatorLookupService.getCourseCreatorUserUuid(course.getCourseCreatorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+        String type = approved ? "COURSE_CONTENT_APPROVED" : "COURSE_CONTENT_REJECTED";
+        String courseName = course.getName() == null ? "Your course" : course.getName();
+        String body = approved
+                ? courseName + " has been approved by admin."
+                : courseName + " was rejected by admin.";
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                type,
+                "INBOX",
+                approved ? "Course approved" : "Course rejected",
+                body,
+                "/dashboard/course-management/preview/" + course.getUuid(),
+                Map.of(
+                        "course_uuid", course.getUuid(),
+                        "course_name", courseName,
+                        "reason", reason == null ? "" : reason
+                ),
+                "course-moderation:" + course.getUuid() + ":" + type
+        ));
     }
 }

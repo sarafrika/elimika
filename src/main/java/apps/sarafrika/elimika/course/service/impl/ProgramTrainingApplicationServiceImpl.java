@@ -18,14 +18,18 @@ import apps.sarafrika.elimika.course.service.ProgramTrainingApplicationService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -67,6 +71,9 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final CurrencyService currencyService;
     private final DomainSecurityService domainSecurityService;
     private final CourseTrainingRateCardValidator rateCardValidator;
+    private final CourseCreatorLookupService courseCreatorLookupService;
+    private final InstructorLookupService instructorLookupService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ProgramTrainingApplicationDTO submitApplication(UUID programUuid, ProgramTrainingApplicationRequest request) {
@@ -101,6 +108,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         try {
             ProgramTrainingApplication saved = applicationRepository.save(application);
+            publishProgramTrainingApplicationSubmitted(program, saved);
             return ProgramTrainingApplicationFactory.toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
             String exceptionMessage = ex.getMessage();
@@ -130,6 +138,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.APPROVED, decisionRequest.reviewNotes());
         return ProgramTrainingApplicationFactory.toDTO(saved);
     }
 
@@ -153,6 +162,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REJECTED, decisionRequest.reviewNotes());
         return ProgramTrainingApplicationFactory.toDTO(saved);
     }
 
@@ -173,6 +183,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REVOKED, decisionRequest.reviewNotes());
         return ProgramTrainingApplicationFactory.toDTO(saved);
     }
 
@@ -345,5 +356,90 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             return SYSTEM_USER;
         }
         return authentication.getName();
+    }
+
+    private void publishProgramTrainingApplicationSubmitted(TrainingProgram program, ProgramTrainingApplication application) {
+        if (program.getCourseCreatorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = courseCreatorLookupService.getCourseCreatorUserUuid(program.getCourseCreatorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String programTitle = program.getTitle() == null ? "your program" : program.getTitle();
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                "PROGRAM_TRAINING_APPLICATION_SUBMITTED",
+                "INBOX",
+                "Program training application received",
+                "An instructor applied to train " + programTitle + ".",
+                "/dashboard/programs/" + program.getUuid() + "?tab=applications",
+                Map.of(
+                        "program_uuid", program.getUuid(),
+                        "program_title", programTitle,
+                        "application_uuid", application.getUuid(),
+                        "applicant_type", application.getApplicantType().getValue(),
+                        "applicant_uuid", application.getApplicantUuid()
+                ),
+                "program-training-application-submitted:" + application.getUuid() + ":" + application.getStatus().getValue()
+        ));
+    }
+
+    private void publishProgramTrainingApplicationDecision(ProgramTrainingApplication application,
+                                                           CourseTrainingApplicationStatus status,
+                                                           String reviewNotes) {
+        if (!CourseTrainingApplicantType.INSTRUCTOR.equals(application.getApplicantType())
+                || application.getApplicantUuid() == null) {
+            return;
+        }
+
+        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(application.getApplicantUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        TrainingProgram program = trainingProgramRepository.findByUuid(application.getProgramUuid()).orElse(null);
+        String programTitle = program == null || program.getTitle() == null ? "the program" : program.getTitle();
+        String type = switch (status) {
+            case APPROVED -> "PROGRAM_TRAINING_APPLICATION_APPROVED";
+            case REJECTED -> "PROGRAM_TRAINING_APPLICATION_REJECTED";
+            case REVOKED -> "PROGRAM_TRAINING_APPLICATION_REVOKED";
+            default -> null;
+        };
+        if (type == null) {
+            return;
+        }
+
+        String title = switch (status) {
+            case APPROVED -> "Program training approved";
+            case REJECTED -> "Program training rejected";
+            case REVOKED -> "Program training approval revoked";
+            default -> "Program training application updated";
+        };
+        String body = switch (status) {
+            case APPROVED -> "You have been approved to train " + programTitle + ".";
+            case REJECTED -> "Your application to train " + programTitle + " was rejected.";
+            case REVOKED -> "Your approval to train " + programTitle + " was revoked.";
+            default -> "Your training application for " + programTitle + " was updated.";
+        };
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                type,
+                "INBOX",
+                title,
+                body,
+                "/dashboard/instructor/applications",
+                Map.of(
+                        "program_uuid", application.getProgramUuid(),
+                        "program_title", programTitle,
+                        "application_uuid", application.getUuid(),
+                        "review_notes", reviewNotes == null ? "" : reviewNotes
+                ),
+                "program-training-application-decision:" + application.getUuid() + ":" + type
+        ));
     }
 }

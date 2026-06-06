@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.shared.event.user.*;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -510,7 +512,8 @@ public class UserServiceImpl implements UserService {
         try {
             User user = findUserOrThrow(event.userId());
             user.setKeycloakId(event.keycloakId());
-            userRepository.save(user);
+            User savedUser = userRepository.save(user);
+            publishAccountCreatedNotification(savedUser);
             log.info("Successfully processed user creation event for UUID: {}", event.userId());
         } catch (Exception e) {
             log.error("Failed to process user creation event for UUID: {}", event.userId(), e);
@@ -539,6 +542,27 @@ public class UserServiceImpl implements UserService {
     private User findUserOrThrow(UUID uuid) {
         return userRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for UUID: " + uuid));
+    }
+
+    private void publishAccountCreatedNotification(User user) {
+        if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            return;
+        }
+        String fullName = Arrays.asList(user.getFirstName(), user.getMiddleName(), user.getLastName()).stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(name -> !name.isBlank())
+                .collect(Collectors.joining(" "));
+        applicationEventPublisher.publishEvent(NotificationRequestedEvent.email(
+                user.getUuid(),
+                user.getEmail(),
+                fullName.isBlank() ? user.getEmail() : fullName,
+                "ACCOUNT_CREATED",
+                Map.of(
+                        "recipientName", fullName.isBlank() ? user.getEmail() : fullName,
+                        "createdAt", LocalDateTime.now()
+                )
+        ));
     }
 
     private UserDomain findDomainByNameOrThrow(String domainName) {

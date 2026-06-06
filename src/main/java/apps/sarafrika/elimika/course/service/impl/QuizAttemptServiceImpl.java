@@ -4,17 +4,21 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizAttemptDTO;
 import apps.sarafrika.elimika.course.factory.QuizAttemptFactory;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.QuizAttempt;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
 import apps.sarafrika.elimika.course.model.QuizResponse;
+import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
 import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.QuizResponseRepository;
 import apps.sarafrika.elimika.course.service.QuizAttemptService;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
+import apps.sarafrika.elimika.course.spi.AssessmentCompletedNotificationRequestedEvent;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -39,6 +43,8 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     private final QuizResponseRepository quizResponseRepository;
     private final QuizQuestionRepository quizQuestionRepository;
     private final CourseGradeBookService courseGradeBookService;
+    private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String ATTEMPT_NOT_FOUND_TEMPLATE = "Quiz attempt with ID %s not found";
 
@@ -65,6 +71,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
                 null,
                 savedAttempt.getStatus()
         );
+        publishQuizCompletedNotification(savedAttempt, null);
         return QuizAttemptFactory.toDTO(savedAttempt);
     }
 
@@ -89,6 +96,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ATTEMPT_NOT_FOUND_TEMPLATE, uuid)));
 
+        AttemptStatus previousStatus = existingAttempt.getStatus();
         updateAttemptFields(existingAttempt, quizAttemptDTO);
 
         QuizAttempt updatedAttempt = quizAttemptRepository.save(existingAttempt);
@@ -102,6 +110,11 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
                 null,
                 updatedAttempt.getStatus()
         );
+        if ((previousStatus == null || !previousStatus.isCompleted())
+                && updatedAttempt.getStatus() != null
+                && updatedAttempt.getStatus().isCompleted()) {
+            publishQuizCompletedNotification(updatedAttempt, null);
+        }
         return QuizAttemptFactory.toDTO(updatedAttempt);
     }
 
@@ -174,5 +187,34 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         if (dto.status() != null) {
             existingAttempt.setStatus(dto.status());
         }
+    }
+
+    private void publishQuizCompletedNotification(QuizAttempt attempt, String fallbackTitle) {
+        if (attempt.getStatus() == null || !attempt.getStatus().isCompleted()) {
+            return;
+        }
+        if (attempt.getEnrollmentUuid() == null) {
+            return;
+        }
+
+        CourseEnrollment enrollment = courseEnrollmentRepository.findByUuid(attempt.getEnrollmentUuid()).orElse(null);
+        if (enrollment == null || enrollment.getStudentUuid() == null) {
+            return;
+        }
+
+        String quizTitle = quizRepository.findByUuid(attempt.getQuizUuid())
+                .map(quiz -> quiz.getTitle() == null || quiz.getTitle().isBlank() ? null : quiz.getTitle())
+                .orElse(fallbackTitle);
+        String title = quizTitle == null ? "Quiz" : quizTitle;
+
+        eventPublisher.publishEvent(new AssessmentCompletedNotificationRequestedEvent(
+                enrollment.getStudentUuid(),
+                enrollment.getCourseUuid(),
+                attempt.getEnrollmentUuid(),
+                attempt.getQuizUuid(),
+                attempt.getUuid(),
+                title,
+                "quiz"
+        ));
     }
 }

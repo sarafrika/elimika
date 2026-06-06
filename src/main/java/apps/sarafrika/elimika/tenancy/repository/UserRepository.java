@@ -49,4 +49,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     long countByCreatedDateAfter(LocalDateTime createdDate);
 
     long countByLastModifiedDateAfter(LocalDateTime lastModifiedDate);
+
+    List<User> findByCreatedDateBetween(LocalDateTime start, LocalDateTime end);
 }

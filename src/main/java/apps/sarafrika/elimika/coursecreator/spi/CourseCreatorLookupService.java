@@ -39,4 +39,12 @@ public interface CourseCreatorLookupService {
      * @return Optional containing the user UUID, or empty if course creator not found
      */
     Optional<UUID> getCourseCreatorUserUuid(UUID courseCreatorUuid);
+
+    /**
+     * Gets the course creator profile completion state for a base user UUID.
+     *
+     * @param userUuid The base user UUID
+     * @return Optional containing completion state, or empty if the user has no course creator profile
+     */
+    Optional<Boolean> getCourseCreatorProfileCompleteByUserUuid(UUID userUuid);
 }

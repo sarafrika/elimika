@@ -5,15 +5,19 @@ import apps.sarafrika.elimika.coursecreator.factory.CourseCreatorDocumentFactory
 import apps.sarafrika.elimika.coursecreator.model.CourseCreatorDocument;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorDocumentRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorDocumentService;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -24,6 +28,8 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
     private static final String DOCUMENT_NOT_FOUND_TEMPLATE = "Course creator document with ID %s not found";
 
     private final CourseCreatorDocumentRepository documentRepository;
+    private final CourseCreatorLookupService courseCreatorLookupService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public CourseCreatorDocumentDTO createCourseCreatorDocument(CourseCreatorDocumentDTO documentDTO) {
@@ -142,7 +148,9 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
         existing.setVerificationNotes(verificationNotes);
         existing.setStatus(DocumentStatus.APPROVED);
 
-        return CourseCreatorDocumentFactory.toDTO(documentRepository.save(existing));
+        CourseCreatorDocument saved = documentRepository.save(existing);
+        publishDocumentVerifiedNotification(saved);
+        return CourseCreatorDocumentFactory.toDTO(saved);
     }
 
     @Override
@@ -151,5 +159,32 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
             throw new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid));
         }
         documentRepository.deleteByUuid(uuid);
+    }
+
+    private void publishDocumentVerifiedNotification(CourseCreatorDocument document) {
+        if (document.getCourseCreatorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = courseCreatorLookupService.getCourseCreatorUserUuid(document.getCourseCreatorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String documentTitle = document.getTitle() == null ? "Your document" : document.getTitle();
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                "PROFILE_DOCUMENT_VERIFIED",
+                "POPUP",
+                "Document verified",
+                documentTitle + " has been verified.",
+                "/dashboard/profile/documents",
+                Map.of(
+                        "document_uuid", document.getUuid(),
+                        "document_title", documentTitle,
+                        "profile_type", "course_creator"
+                ),
+                "profile-document-verified:course-creator:" + document.getUuid()
+        ));
     }
 }

@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,7 @@ public class CourseInfoServiceImpl implements CourseInfoService {
 
     private final CourseRepository courseRepository;
     private final TrainingProgramRepository trainingProgramRepository;
+    private final CourseCreatorLookupService courseCreatorLookupService;
 
     @Override
     public Optional<BigDecimal> getMinimumTrainingFee(UUID courseUuid) {
@@ -58,6 +60,13 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     public Optional<String> getCourseName(UUID courseUuid) {
         return courseRepository.findByUuid(courseUuid)
                 .map(Course::getName);
+    }
+
+    @Override
+    public Optional<UUID> getCourseCreatorUserUuid(UUID courseUuid) {
+        return courseRepository.findByUuid(courseUuid)
+                .map(Course::getCourseCreatorUuid)
+                .flatMap(courseCreatorLookupService::getCourseCreatorUserUuid);
     }
 
     @Override
@@ -104,6 +113,13 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     public Optional<String> getTrainingProgramTitle(UUID programUuid) {
         return trainingProgramRepository.findByUuid(programUuid)
                 .map(TrainingProgram::getTitle);
+    }
+
+    @Override
+    public Optional<UUID> getTrainingProgramCreatorUserUuid(UUID programUuid) {
+        return trainingProgramRepository.findByUuid(programUuid)
+                .map(TrainingProgram::getCourseCreatorUuid)
+                .flatMap(courseCreatorLookupService::getCourseCreatorUserUuid);
     }
 
     @Override

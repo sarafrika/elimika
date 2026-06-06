@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.notifications.api.events;
 
 import apps.sarafrika.elimika.notifications.api.NotificationEvent;
+import apps.sarafrika.elimika.notifications.api.NotificationPresentation;
 import apps.sarafrika.elimika.notifications.api.NotificationPriority;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -113,5 +115,37 @@ public record OrderPaymentReceiptEvent(
     @Override
     public Map<String, Object> getTemplateVariables() {
         return templateVariables;
+    }
+
+    @Override
+    public Set<String> getDeliveryChannels() {
+        return Set.of("email", "in_app");
+    }
+
+    @Override
+    public NotificationPresentation getPresentation() {
+        return NotificationPresentation.POPUP;
+    }
+
+    @Override
+    public String getTitle() {
+        return "Payment received";
+    }
+
+    @Override
+    public String getBody() {
+        Object total = templateVariables.getOrDefault("total", "your order");
+        Object currency = templateVariables.getOrDefault("currencyCode", "");
+        return "Your payment for " + currency + " " + total + " was completed successfully.";
+    }
+
+    @Override
+    public String getActionUrl() {
+        return "/dashboard/transactions";
+    }
+
+    @Override
+    public String getDedupeKey() {
+        return "order-payment-receipt:" + templateVariables.getOrDefault("orderId", notificationId);
     }
 }

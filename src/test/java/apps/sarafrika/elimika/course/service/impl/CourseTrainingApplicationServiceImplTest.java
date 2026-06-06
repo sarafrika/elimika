@@ -9,6 +9,8 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -50,6 +53,15 @@ class CourseTrainingApplicationServiceImplTest {
     @Mock
     private DomainSecurityService domainSecurityService;
 
+    @Mock
+    private CourseCreatorLookupService courseCreatorLookupService;
+
+    @Mock
+    private InstructorLookupService instructorLookupService;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
+
     private CourseTrainingRateCardValidator rateCardValidator;
 
     private CourseTrainingApplicationServiceImpl service;
@@ -63,7 +75,10 @@ class CourseTrainingApplicationServiceImplTest {
                 specificationBuilder,
                 currencyService,
                 domainSecurityService,
-                rateCardValidator
+                rateCardValidator,
+                courseCreatorLookupService,
+                instructorLookupService,
+                applicationEventPublisher
         );
     }
 

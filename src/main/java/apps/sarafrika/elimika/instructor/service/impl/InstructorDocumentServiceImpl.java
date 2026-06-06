@@ -8,7 +8,10 @@ import apps.sarafrika.elimika.instructor.factory.InstructorDocumentFactory;
 import apps.sarafrika.elimika.instructor.model.InstructorDocument;
 import apps.sarafrika.elimika.instructor.repository.InstructorDocumentRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorDocumentService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,6 +32,8 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
 
     private final InstructorDocumentRepository instructorDocumentRepository;
     private final GenericSpecificationBuilder<InstructorDocument> specificationBuilder;
+    private final InstructorLookupService instructorLookupService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE = "Instructor document with ID %s not found";
 
@@ -130,6 +135,7 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
         document.setStatus(DocumentStatus.APPROVED);
 
         InstructorDocument updatedDocument = instructorDocumentRepository.save(document);
+        publishDocumentVerifiedNotification(updatedDocument);
         return InstructorDocumentFactory.toDTO(updatedDocument);
     }
 
@@ -219,5 +225,32 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
         if (dto.verificationNotes() != null) {
             existingDocument.setVerificationNotes(dto.verificationNotes());
         }
+    }
+
+    private void publishDocumentVerifiedNotification(InstructorDocument document) {
+        if (document.getInstructorUuid() == null) {
+            return;
+        }
+        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(document.getInstructorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String documentTitle = document.getTitle() == null ? "Your document" : document.getTitle();
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                "PROFILE_DOCUMENT_VERIFIED",
+                "POPUP",
+                "Document verified",
+                documentTitle + " has been verified.",
+                "/dashboard/profile/documents",
+                Map.of(
+                        "document_uuid", document.getUuid(),
+                        "document_title", documentTitle,
+                        "profile_type", "instructor"
+                ),
+                "profile-document-verified:instructor:" + document.getUuid()
+        ));
     }
 }

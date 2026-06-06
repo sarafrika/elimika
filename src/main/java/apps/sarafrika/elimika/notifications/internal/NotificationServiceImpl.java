@@ -5,9 +5,11 @@ import apps.sarafrika.elimika.notifications.model.NotificationPreferencesReposit
 import apps.sarafrika.elimika.notifications.model.UserNotificationPreferences;
 import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
 import apps.sarafrika.elimika.notifications.service.EmailNotificationService;
+import apps.sarafrika.elimika.notifications.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalTime;
 import java.util.UUID;
@@ -23,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 public class NotificationServiceImpl implements NotificationService {
     
     private final EmailNotificationService emailNotificationService;
+    private final UserNotificationService userNotificationService;
     private final NotificationPreferencesRepository preferencesRepository;
     private final NotificationPreferencesService preferencesService;
     
@@ -38,24 +41,40 @@ public class NotificationServiceImpl implements NotificationService {
         
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Check if user has enabled notifications for this category
-                if (!options.bypassPreferences() && !isNotificationAllowed(event, options)) {
-                    log.debug("Notification {} blocked by user preferences", event.getNotificationId());
-                    return NotificationResult.blocked(event.getNotificationId(), "email");
+                boolean delivered = false;
+                NotificationResult lastResult = NotificationResult.pending(event.getNotificationId(), "notification");
+
+                if (event.getDeliveryChannels().contains("in_app")) {
+                    if (options.bypassPreferences() || isNotificationAllowed(event, "in_app", options)) {
+                        userNotificationService.createFromEvent(event);
+                        delivered = true;
+                        lastResult = NotificationResult.success(event.getNotificationId(), "in_app");
+                    } else {
+                        log.debug("In-app notification {} blocked by user preferences", event.getNotificationId());
+                        lastResult = NotificationResult.blocked(event.getNotificationId(), "in_app");
+                    }
                 }
-                
-                // Check quiet hours
-                if (options.respectQuietHours() && isInQuietHours(event.getRecipientId())) {
-                    log.debug("Notification {} blocked by quiet hours", event.getNotificationId());
-                    return NotificationResult.blocked(event.getNotificationId(), "email");
+
+                if (event.getDeliveryChannels().contains("email")) {
+                    if (!StringUtils.hasText(event.getRecipientEmail())) {
+                        log.warn("Email notification {} skipped because recipient email is missing", event.getNotificationId());
+                    } else if (!options.bypassPreferences() && !isNotificationAllowed(event, "email", options)) {
+                        log.debug("Email notification {} blocked by user preferences", event.getNotificationId());
+                        lastResult = NotificationResult.blocked(event.getNotificationId(), "email");
+                    } else if (options.respectQuietHours() && isInQuietHours(event.getRecipientId())) {
+                        log.debug("Email notification {} blocked by quiet hours", event.getNotificationId());
+                        lastResult = NotificationResult.blocked(event.getNotificationId(), "email");
+                    } else {
+                        lastResult = sendEmailNotification(event).join();
+                        delivered = delivered || lastResult.isSuccessful();
+                    }
                 }
-                
-                // For MVP, we only support email notifications
-                return sendEmailNotification(event).join();
+
+                return delivered ? NotificationResult.success(event.getNotificationId(), lastResult.channel()) : lastResult;
                 
             } catch (Exception e) {
                 log.error("Failed to process notification {}: {}", event.getNotificationId(), e.getMessage(), e);
-                return NotificationResult.failed(event.getNotificationId(), "email", e.getMessage());
+                return NotificationResult.failed(event.getNotificationId(), "notification", e.getMessage());
             }
         });
     }
@@ -82,9 +101,9 @@ public class NotificationServiceImpl implements NotificationService {
     /**
      * Check if notification is allowed based on user preferences
      */
-    private boolean isNotificationAllowed(NotificationEvent event, DeliveryOptions options) {
+    private boolean isNotificationAllowed(NotificationEvent event, String channel, DeliveryOptions options) {
         // If specific channels are forced, allow it
-        if (options.forceChannels().contains("email")) {
+        if (options.forceChannels().contains(channel)) {
             return true;
         }
         
@@ -92,7 +111,7 @@ public class NotificationServiceImpl implements NotificationService {
         return preferencesService.isNotificationEnabled(
             event.getRecipientId(), 
             event.getNotificationType(), 
-            "email"
+            channel
         );
     }
     

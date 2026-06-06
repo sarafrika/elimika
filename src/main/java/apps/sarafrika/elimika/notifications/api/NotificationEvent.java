@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.notifications.api;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 
@@ -59,6 +60,48 @@ public interface NotificationEvent {
      * Template variables for dynamic content generation
      */
     Map<String, Object> getTemplateVariables();
+
+    /**
+     * Delivery channels requested by this event. Existing events default to email.
+     */
+    default Set<String> getDeliveryChannels() {
+        return Set.of("email");
+    }
+
+    /**
+     * How the notification should be presented in-app.
+     */
+    default NotificationPresentation getPresentation() {
+        return NotificationPresentation.INBOX;
+    }
+
+    /**
+     * In-app title. Defaults to the notification type display name.
+     */
+    default String getTitle() {
+        return getNotificationType().getDisplayName();
+    }
+
+    /**
+     * In-app body. Events should override this for user-facing inbox content.
+     */
+    default String getBody() {
+        return getNotificationType().getDisplayName();
+    }
+
+    /**
+     * Optional frontend route for click-through navigation.
+     */
+    default String getActionUrl() {
+        return null;
+    }
+
+    /**
+     * Stable idempotency key. Defaults to this event's notification identifier.
+     */
+    default String getDedupeKey() {
+        return getNotificationId() != null ? getNotificationId().toString() : null;
+    }
     
     /**
      * Optional: Organization context for branding and templates
