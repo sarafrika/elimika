@@ -1,3 +1,10 @@
+# [2.74.0](https://github.com/sarafrika/elimika/compare/v2.73.0...v2.74.0) (2026-06-06)
+
+
+### Features
+
+* add notification inbox and delivery workflows ([605c0df](https://github.com/sarafrika/elimika/commit/605c0df3aa431a0a63758ada0b42891a27d9144c))
+
 # [2.73.0](https://github.com/sarafrika/elimika/compare/v2.72.1...v2.73.0) (2026-04-29)
 
 
