@@ -1,3 +1,10 @@
+## [2.75.1](https://github.com/sarafrika/elimika/compare/v2.75.0...v2.75.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* repair student assignment submission flow ([7896204](https://github.com/sarafrika/elimika/commit/78962048b50ba792e497c8e8851924eaf69faec4))
+
 # [2.75.0](https://github.com/sarafrika/elimika/compare/v2.74.1...v2.75.0) (2026-06-11)
 
 
