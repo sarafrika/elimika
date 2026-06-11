@@ -44,6 +44,7 @@ public class TrainingProgramController {
     private final ProgramRequirementService programRequirementService;
     private final CertificateService certificateService;
     private final ProgramTrainingApplicationService programTrainingApplicationService;
+    private final ProgramReviewService programReviewService;
 
     // ===== PROGRAM BASIC OPERATIONS =====
 
@@ -298,6 +299,69 @@ public class TrainingProgramController {
         double completionRate = trainingProgramService.getProgramCompletionRate(programUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(completionRate, "Program completion rate retrieved successfully"));
+    }
+
+    // ===== PROGRAM REVIEWS =====
+
+    @Operation(
+            summary = "Submit or update a program review",
+            description = """
+                    Allows students with an active or completed program enrollment to leave a review.
+                    Each student can leave one review per program and may update it anytime.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Program review saved successfully",
+                            content = @Content(schema = @Schema(implementation = ProgramReviewDTO.class))),
+                    @ApiResponse(responseCode = "400", description = "Invalid review payload"),
+                    @ApiResponse(responseCode = "404", description = "Program not found"),
+                    @ApiResponse(responseCode = "409", description = "Student is not eligible to review this program")
+            }
+    )
+    @PostMapping("/{programUuid}/reviews")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramReviewDTO>> submitProgramReview(
+            @PathVariable UUID programUuid,
+            @Valid @RequestBody ProgramReviewRequest reviewRequest) {
+        ProgramReviewDTO savedReview = programReviewService.saveProgramReview(programUuid, reviewRequest);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(savedReview, "Program review saved successfully"));
+    }
+
+    @Operation(
+            summary = "Get reviews for a program",
+            description = "Returns paginated public reviews for the specified training program.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Program reviews fetched successfully",
+                            content = @Content(schema = @Schema(implementation = PagedDTO.class))),
+                    @ApiResponse(responseCode = "404", description = "Program not found")
+            }
+    )
+    @GetMapping("/{programUuid}/reviews")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<ProgramReviewDTO>>> getProgramReviews(
+            @PathVariable UUID programUuid,
+            Pageable pageable) {
+        Page<ProgramReviewDTO> reviews = programReviewService.getReviewsForProgram(programUuid, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(reviews, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Program reviews fetched successfully"));
+    }
+
+    @Operation(
+            summary = "Get program rating summary",
+            description = "Returns the average rating and total review count for a training program.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Program rating summary fetched successfully",
+                            content = @Content(schema = @Schema(implementation = ProgramRatingSummaryDTO.class))),
+                    @ApiResponse(responseCode = "404", description = "Program not found")
+            }
+    )
+    @GetMapping("/{programUuid}/reviews/summary")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramRatingSummaryDTO>> getProgramRatingSummary(
+            @PathVariable UUID programUuid) {
+        ProgramRatingSummaryDTO summary = programReviewService.getRatingSummary(programUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(summary, "Program rating summary fetched successfully"));
     }
 
     // ===== PROGRAM REQUIREMENTS =====
