@@ -1,3 +1,10 @@
+## [2.74.1](https://github.com/sarafrika/elimika/compare/v2.74.0...v2.74.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* align document verification status with workflow status ([eadddd1](https://github.com/sarafrika/elimika/commit/eadddd1d003d9775b28a651ea67de19e3135ba52))
+
 # [2.74.0](https://github.com/sarafrika/elimika/compare/v2.73.0...v2.74.0) (2026-06-06)
 
 
