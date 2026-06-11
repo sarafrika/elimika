@@ -1,3 +1,10 @@
+# [2.76.0](https://github.com/sarafrika/elimika/compare/v2.75.1...v2.76.0) (2026-06-11)
+
+
+### Features
+
+* persist class session templates for schedule editing ([b66e9cc](https://github.com/sarafrika/elimika/commit/b66e9ccbd6b6e1f5a4b84f00e9be4a5e845694e0))
+
 ## [2.75.1](https://github.com/sarafrika/elimika/compare/v2.75.0...v2.75.1) (2026-06-11)
 
 
