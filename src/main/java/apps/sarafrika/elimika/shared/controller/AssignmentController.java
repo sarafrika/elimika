@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -240,17 +241,95 @@ public class AssignmentController {
             summary = "Submit assignment",
             description = "Creates a new submission for an assignment by a student."
     )
-    @PostMapping("/{assignmentUuid}/submit")
+    @PostMapping(
+            value = "/{assignmentUuid}/submit",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignment(
+            @PathVariable UUID assignmentUuid,
+            @Valid @RequestBody AssignmentSubmissionRequest request) {
+        AssignmentSubmissionDTO submission = assignmentSubmissionService.submitAssignment(
+                assignmentUuid, request, false);
+        return assignmentSubmittedResponse(submission);
+    }
+
+    @Operation(
+            summary = "Submit assignment with files",
+            description = "Creates or resubmits an assignment submission and stores uploaded files as submission attachments."
+    )
+    @PostMapping(
+            value = "/{assignmentUuid}/submit",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignmentMultipart(
+            @PathVariable UUID assignmentUuid,
+            @RequestParam(value = "enrollment_uuid", required = false) UUID enrollmentUuid,
+            @RequestParam(value = "student_uuid", required = false) UUID studentUuid,
+            @RequestParam(value = "submission_text", required = false) String submissionText,
+            @RequestParam(value = "file_urls", required = false) String[] fileUrls,
+            @RequestParam(value = "enrollmentUuid", required = false) UUID legacyEnrollmentUuid,
+            @RequestParam(value = "studentUuid", required = false) UUID legacyStudentUuid,
+            @RequestParam(value = "content", required = false) String legacyContent,
+            @RequestParam(value = "fileUrls", required = false) String[] legacyFileUrls,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
+            @RequestParam(value = "file", required = false) MultipartFile file) {
+        List<MultipartFile> uploadedFiles = collectUploadedFiles(files, file);
+        if (!uploadedFiles.isEmpty()) {
+            AssignmentDTO assignment = assignmentService.getAssignmentByUuid(assignmentUuid);
+            uploadedFiles.forEach(uploadedFile ->
+                    assignmentMediaValidationService.validateSubmissionAttachment(assignment.submissionTypes(), uploadedFile));
+        }
+
+        AssignmentSubmissionRequest request = new AssignmentSubmissionRequest(
+                enrollmentUuid != null ? enrollmentUuid : legacyEnrollmentUuid,
+                studentUuid != null ? studentUuid : legacyStudentUuid,
+                submissionText != null ? submissionText : legacyContent,
+                fileUrls != null ? fileUrls : legacyFileUrls
+        );
+
+        AssignmentSubmissionDTO submission = assignmentSubmissionService.submitAssignment(
+                assignmentUuid, request, !uploadedFiles.isEmpty());
+        storeSubmissionFiles(assignmentUuid, submission.uuid(), uploadedFiles);
+        return assignmentSubmittedResponse(submission);
+    }
+
+    @Operation(
+            summary = "Submit assignment using legacy query parameters",
+            description = "Creates a new submission for an assignment using the previous query-parameter contract."
+    )
+    @PostMapping(value = "/{assignmentUuid}/submit", params = "enrollmentUuid")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignmentLegacy(
             @PathVariable UUID assignmentUuid,
             @RequestParam UUID enrollmentUuid,
             @RequestParam(required = false) String content,
             @RequestParam(required = false) String[] fileUrls) {
         AssignmentSubmissionDTO submission = assignmentSubmissionService.submitAssignment(
                 enrollmentUuid, assignmentUuid, content, fileUrls);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
-                        .success(submission, "Assignment submitted successfully"));
+        return assignmentSubmittedResponse(submission);
+    }
+
+    @Operation(
+            summary = "Submit assignment using snake-case query parameters",
+            description = "Creates a new submission for an assignment using query parameters with API field names."
+    )
+    @PostMapping(
+            value = "/{assignmentUuid}/submit",
+            params = "enrollment_uuid",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
+    )
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignmentQuery(
+            @PathVariable UUID assignmentUuid,
+            @RequestParam("enrollment_uuid") UUID enrollmentUuid,
+            @RequestParam(value = "student_uuid", required = false) UUID studentUuid,
+            @RequestParam(value = "submission_text", required = false) String submissionText,
+            @RequestParam(value = "file_urls", required = false) String[] fileUrls) {
+        AssignmentSubmissionDTO submission = assignmentSubmissionService.submitAssignment(
+                assignmentUuid,
+                new AssignmentSubmissionRequest(enrollmentUuid, studentUuid, submissionText, fileUrls),
+                false);
+        return assignmentSubmittedResponse(submission);
     }
 
     @Operation(
@@ -528,5 +607,54 @@ public class AssignmentController {
 
     private String buildSubmissionMediaUrl(String storedFilePath) {
         return API_ROOT_PATH + "/submission-media/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> assignmentSubmittedResponse(
+            AssignmentSubmissionDTO submission) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(submission, "Assignment submitted successfully"));
+    }
+
+    private List<MultipartFile> collectUploadedFiles(List<MultipartFile> files, MultipartFile file) {
+        List<MultipartFile> uploadedFiles = new ArrayList<>();
+        if (files != null) {
+            uploadedFiles.addAll(files);
+        }
+        if (file != null) {
+            uploadedFiles.add(file);
+        }
+        return uploadedFiles;
+    }
+
+    private void storeSubmissionFiles(UUID assignmentUuid, UUID submissionUuid, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+
+        String folder = storageProperties.getFolders().getAssignments()
+                + "/" + assignmentUuid
+                + "/submissions/" + submissionUuid;
+
+        for (MultipartFile file : files) {
+            String storedFileName = storageService.store(file, folder);
+            String fileUrl = buildSubmissionMediaUrl(storedFileName);
+
+            AssignmentSubmissionAttachmentDTO requestDto = new AssignmentSubmissionAttachmentDTO(
+                    null,
+                    submissionUuid,
+                    file.getOriginalFilename(),
+                    storedFileName,
+                    fileUrl,
+                    file.getSize(),
+                    storageService.getContentType(storedFileName),
+                    null,
+                    null,
+                    null,
+                    null
+            );
+
+            assignmentSubmissionAttachmentService.createAttachment(requestDto);
+        }
     }
 }

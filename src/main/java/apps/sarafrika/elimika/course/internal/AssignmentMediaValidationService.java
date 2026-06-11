@@ -22,6 +22,12 @@ public class AssignmentMediaValidationService {
             "VIDEO",
             "URL"
     );
+    private static final Set<String> FILE_SUBMISSION_TYPES = Set.of(
+            "DOCUMENT",
+            "IMAGE",
+            "AUDIO",
+            "VIDEO"
+    );
 
     private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024;    // 10MB
     private static final long MAX_DOCUMENT_SIZE = 50 * 1024 * 1024; // 50MB
@@ -66,20 +72,28 @@ public class AssignmentMediaValidationService {
     }
 
     public void validateSubmissionRequest(String[] submissionTypes, String content, String[] fileUrls) {
+        validateSubmissionRequest(submissionTypes, content, fileUrls, false);
+    }
+
+    public void validateSubmissionRequest(String[] submissionTypes, String content, String[] fileUrls, boolean hasUploadedFiles) {
         Set<String> normalizedTypes = normalizeSubmissionTypeSet(submissionTypes);
+        boolean hasText = content != null && !content.isBlank();
+        boolean hasFiles = fileUrls != null && Arrays.stream(fileUrls).anyMatch(url -> url != null && !url.isBlank());
+
+        if (!hasText && !hasFiles && !hasUploadedFiles) {
+            throw new IllegalArgumentException("Submission must include text or file attachments.");
+        }
+
         if (normalizedTypes.isEmpty()) {
             return;
         }
 
-        boolean hasText = content != null && !content.isBlank();
-        boolean hasFiles = fileUrls != null && Arrays.stream(fileUrls).anyMatch(url -> url != null && !url.isBlank());
-
-        if (!hasText && !hasFiles) {
-            throw new IllegalArgumentException("Submission must include text or file attachments.");
-        }
-
         if (hasText && !normalizedTypes.contains("TEXT") && !normalizedTypes.contains("URL")) {
             throw new IllegalArgumentException("Text submissions are not allowed for this assignment.");
+        }
+
+        if (hasUploadedFiles && normalizedTypes.stream().noneMatch(FILE_SUBMISSION_TYPES::contains)) {
+            throw new IllegalArgumentException("File submissions are not allowed for this assignment.");
         }
 
         if (hasFiles) {

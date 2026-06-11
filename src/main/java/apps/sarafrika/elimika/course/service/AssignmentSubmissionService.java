@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
+import apps.sarafrika.elimika.course.dto.AssignmentSubmissionRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -27,15 +28,25 @@ public interface AssignmentSubmissionService {
     // ===== SUBMISSION WORKFLOW OPERATIONS =====
 
     /**
-     * Submit an assignment for a student
-     * @param enrollmentUuid The student's enrollment UUID
+     * Submit an assignment for a student.
+     *
      * @param assignmentUuid The assignment UUID
-     * @param content The submission content
-     * @param fileUrls Optional file URLs
-     * @return Created submission DTO
+     * @param request The submission request
+     * @param hasUploadedFiles Whether multipart files are attached to the same request
+     * @return Created or resubmitted submission DTO
      */
-    AssignmentSubmissionDTO submitAssignment(UUID enrollmentUuid, UUID assignmentUuid,
-                                             String content, String[] fileUrls);
+    AssignmentSubmissionDTO submitAssignment(UUID assignmentUuid,
+                                             AssignmentSubmissionRequest request,
+                                             boolean hasUploadedFiles);
+
+    default AssignmentSubmissionDTO submitAssignment(UUID enrollmentUuid, UUID assignmentUuid,
+                                                     String content, String[] fileUrls) {
+        return submitAssignment(
+                assignmentUuid,
+                new AssignmentSubmissionRequest(enrollmentUuid, null, content, fileUrls),
+                false
+        );
+    }
 
     /**
      * Get all submissions for a specific assignment
