@@ -26,7 +26,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Locale;
 import java.util.Map;
@@ -223,6 +225,37 @@ public class GlobalExceptionHandler {
         log.error("Identity provider error [errorId={}]", errorId, ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ApiResponse.error("Identity provider request failed", ex.getMessage()));
+    }
+
+    /**
+     * Handles requests for paths that do not match any endpoint.
+     * Without this, unknown routes fall into the generic handler and surface
+     * as 500 "unexpected error" instead of 404, hiding client-side URL bugs.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(NoResourceFoundException ex) {
+        log.debug("No endpoint for path: {}", ex.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Resource not found", "No endpoint: " + ex.getResourcePath()));
+    }
+
+    /**
+     * Handles request parameters/path variables that cannot be converted to
+     * the declared type (e.g. a datetime sent where a date is expected, or a
+     * non-UUID value in a UUID path segment). These are client errors and
+     * must surface as 400 with an actionable message, not a generic 500.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException ex) {
+        String requiredType = ex.getRequiredType() != null
+                ? ex.getRequiredType().getSimpleName()
+                : "the expected type";
+        String message = String.format("Parameter '%s' has invalid value '%s' (expected %s)",
+                ex.getName(), ex.getValue(), requiredType);
+        log.debug("Request parameter type mismatch: {}", message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Invalid request parameter", message));
     }
 
     /**
