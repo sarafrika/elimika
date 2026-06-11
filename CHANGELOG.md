@@ -1,3 +1,10 @@
+# [2.77.0](https://github.com/sarafrika/elimika/compare/v2.76.0...v2.77.0) (2026-06-11)
+
+
+### Features
+
+* add class thumbnail and promotional video uploads ([539db1d](https://github.com/sarafrika/elimika/commit/539db1d2ac944cc55060efcee9be3c0e92c5ab84))
+
 # [2.76.0](https://github.com/sarafrika/elimika/compare/v2.75.1...v2.76.0) (2026-06-11)
 
 
