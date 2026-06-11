@@ -1,3 +1,10 @@
+# [2.75.0](https://github.com/sarafrika/elimika/compare/v2.74.1...v2.75.0) (2026-06-11)
+
+
+### Features
+
+* add program review rating API ([3ac056a](https://github.com/sarafrika/elimika/commit/3ac056a4824640359ae34130433b3569f2634a66))
+
 ## [2.74.1](https://github.com/sarafrika/elimika/compare/v2.74.0...v2.74.1) (2026-06-11)
 
 
