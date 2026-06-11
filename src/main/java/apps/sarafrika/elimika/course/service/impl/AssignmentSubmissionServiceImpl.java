@@ -1,25 +1,31 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
+import apps.sarafrika.elimika.course.dto.AssignmentSubmissionRequest;
 import apps.sarafrika.elimika.course.factory.AssignmentSubmissionFactory;
 import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
+import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
+import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.service.AssignmentSubmissionService;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.spi.AssessmentCompletedNotificationRequestedEvent;
+import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +48,8 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     private final AssignmentMediaValidationService assignmentMediaValidationService;
     private final CourseGradeBookService courseGradeBookService;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final LessonRepository lessonRepository;
+    private final DomainSecurityService domainSecurityService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
@@ -124,33 +132,31 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     // ===== SUBMISSION WORKFLOW OPERATIONS =====
 
     @Override
-    public AssignmentSubmissionDTO submitAssignment(UUID enrollmentUuid, UUID assignmentUuid,
-                                                    String content, String[] fileUrls) {
-        Assignment assignment = assignmentRepository.findByUuid(assignmentUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format("Assignment with ID %s not found", assignmentUuid)));
+    public AssignmentSubmissionDTO submitAssignment(UUID assignmentUuid,
+                                                    AssignmentSubmissionRequest request,
+                                                    boolean hasUploadedFiles) {
+        if (request == null) {
+            throw new IllegalArgumentException("Submission request is required");
+        }
 
+        Assignment assignment = getAssignmentOrThrow(assignmentUuid);
+        enforcePublishedAssignment(assignment);
         assignmentMediaValidationService.validateSubmissionRequest(
                 assignment.getSubmissionTypes(),
-                content,
-                fileUrls
+                request.submissionText(),
+                request.fileUrls(),
+                hasUploadedFiles
         );
+        CourseEnrollment enrollment = resolveCourseEnrollment(request, assignment);
+        enforceSubmitterCanUseEnrollment(enrollment);
 
-        // Check if student already has a submission for this assignment
-        assignmentSubmissionRepository.findByEnrollmentUuidAndAssignmentUuid(enrollmentUuid, assignmentUuid)
-                .ifPresent(existing -> {
-                    throw new IllegalStateException("Student has already submitted this assignment");
-                });
-
-        AssignmentSubmission submission = new AssignmentSubmission();
-        submission.setEnrollmentUuid(enrollmentUuid);
-        submission.setAssignmentUuid(assignmentUuid);
-        submission.setSubmissionText(content);
-        submission.setFileUrls(fileUrls);
-        submission.setSubmittedAt(LocalDateTime.now());
-        submission.setStatus(SubmissionStatus.SUBMITTED);
+        AssignmentSubmission submission = assignmentSubmissionRepository
+                .findByEnrollmentUuidAndAssignmentUuid(enrollment.getUuid(), assignmentUuid)
+                .map(existing -> prepareResubmission(existing, request))
+                .orElseGet(() -> newSubmission(enrollment.getUuid(), assignmentUuid, request));
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
+        publishAssessmentCompletedNotification(savedSubmission, assignment.getTitle(), "assignment");
         return AssignmentSubmissionFactory.toDTO(savedSubmission);
     }
 
@@ -301,6 +307,98 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         if (dto.gradedByUuid() != null) {
             existingSubmission.setGradedByUuid(dto.gradedByUuid());
         }
+    }
+
+    private Assignment getAssignmentOrThrow(UUID assignmentUuid) {
+        return assignmentRepository.findByUuid(assignmentUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Assignment with ID %s not found", assignmentUuid)));
+    }
+
+    private void enforcePublishedAssignment(Assignment assignment) {
+        if (!Boolean.TRUE.equals(assignment.getIsPublished())) {
+            throw new IllegalStateException("Assignment is not published.");
+        }
+    }
+
+    private CourseEnrollment resolveCourseEnrollment(AssignmentSubmissionRequest request, Assignment assignment) {
+        UUID courseUuid = resolveAssignmentCourseUuid(assignment);
+
+        CourseEnrollment enrollment;
+        if (request.enrollmentUuid() != null) {
+            enrollment = courseEnrollmentRepository.findByUuid(request.enrollmentUuid())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format("Course enrollment with ID %s not found", request.enrollmentUuid())));
+            if (!courseUuid.equals(enrollment.getCourseUuid())) {
+                throw new IllegalArgumentException("Course enrollment does not belong to the assignment course.");
+            }
+            if (request.studentUuid() != null && !request.studentUuid().equals(enrollment.getStudentUuid())) {
+                throw new IllegalArgumentException("student_uuid does not match enrollment_uuid.");
+            }
+        } else {
+            if (request.studentUuid() == null) {
+                throw new IllegalArgumentException("Either enrollment_uuid or student_uuid is required.");
+            }
+            enrollment = courseEnrollmentRepository.findByStudentUuidAndCourseUuid(request.studentUuid(), courseUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format("Active course enrollment for student %s and assignment course not found",
+                                    request.studentUuid())));
+        }
+
+        if (!EnrollmentStatus.ACTIVE.equals(enrollment.getStatus())) {
+            throw new IllegalStateException("Course enrollment must be active to submit assignments.");
+        }
+
+        return enrollment;
+    }
+
+    private UUID resolveAssignmentCourseUuid(Assignment assignment) {
+        Lesson lesson = lessonRepository.findByUuid(assignment.getLessonUuid())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Lesson with ID %s not found", assignment.getLessonUuid())));
+        return lesson.getCourseUuid();
+    }
+
+    private void enforceSubmitterCanUseEnrollment(CourseEnrollment enrollment) {
+        if (domainSecurityService.isInstructorOrAdmin()) {
+            return;
+        }
+        if (!domainSecurityService.isStudentWithUuid(enrollment.getStudentUuid())) {
+            throw new AccessDeniedException("Students may only submit assignments for their own course enrollment.");
+        }
+    }
+
+    private AssignmentSubmission prepareResubmission(AssignmentSubmission existingSubmission,
+                                                    AssignmentSubmissionRequest request) {
+        SubmissionStatus status = existingSubmission.getStatus();
+        if (status != SubmissionStatus.DRAFT && status != SubmissionStatus.RETURNED) {
+            throw new IllegalStateException("Student has already submitted this assignment");
+        }
+
+        existingSubmission.setSubmissionText(request.submissionText());
+        existingSubmission.setFileUrls(request.fileUrls());
+        existingSubmission.setSubmittedAt(LocalDateTime.now());
+        existingSubmission.setStatus(SubmissionStatus.SUBMITTED);
+        existingSubmission.setScore(null);
+        existingSubmission.setMaxScore(null);
+        existingSubmission.setPercentage(null);
+        existingSubmission.setInstructorComments(null);
+        existingSubmission.setGradedAt(null);
+        existingSubmission.setGradedByUuid(null);
+        return existingSubmission;
+    }
+
+    private AssignmentSubmission newSubmission(UUID enrollmentUuid,
+                                               UUID assignmentUuid,
+                                               AssignmentSubmissionRequest request) {
+        AssignmentSubmission submission = new AssignmentSubmission();
+        submission.setEnrollmentUuid(enrollmentUuid);
+        submission.setAssignmentUuid(assignmentUuid);
+        submission.setSubmissionText(request.submissionText());
+        submission.setFileUrls(request.fileUrls());
+        submission.setSubmittedAt(LocalDateTime.now());
+        submission.setStatus(SubmissionStatus.SUBMITTED);
+        return submission;
     }
 
     private void publishAssessmentCompletedNotification(AssignmentSubmission submission,
