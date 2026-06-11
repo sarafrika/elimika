@@ -12,6 +12,8 @@ import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -21,12 +23,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -44,8 +48,11 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -73,9 +80,12 @@ class ClassDefinitionControllerTest {
     @Autowired
     private RequestAuditService requestAuditService;
 
+    @Autowired
+    private StorageService storageService;
+
     @BeforeEach
     void setUp() {
-        reset(classDefinitionService, timetableService, userManagementService, requestAuditService);
+        reset(classDefinitionService, timetableService, userManagementService, requestAuditService, storageService);
     }
 
     @Test
@@ -137,6 +147,128 @@ class ClassDefinitionControllerTest {
         ArgumentCaptor<ClassDefinitionDTO> captor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
         verify(classDefinitionService).updateClassDefinition(eq(classUuid), captor.capture());
         assertNull(captor.getValue().sessionTemplates());
+    }
+
+    @Test
+    void uploadClassThumbnailReturnsUpdatedClassDefinition() throws Exception {
+        UUID classUuid = UUID.randomUUID();
+        ClassDefinitionDTO responseDto = sampleRequest(UUID.randomUUID(), null, 30, "#1F6FEB");
+        responseDto = new ClassDefinitionDTO(
+                responseDto.uuid(),
+                responseDto.title(),
+                responseDto.description(),
+                "/api/v1/classes/media/class_thumbnails/" + classUuid + "/image.png",
+                responseDto.promotionalVideoUrl(),
+                responseDto.defaultInstructorUuid(),
+                responseDto.organisationUuid(),
+                responseDto.courseUuid(),
+                responseDto.programUuid(),
+                responseDto.trainingFee(),
+                responseDto.classVisibility(),
+                responseDto.sessionFormat(),
+                responseDto.defaultStartTime(),
+                responseDto.defaultEndTime(),
+                responseDto.academicPeriodStartDate(),
+                responseDto.academicPeriodEndDate(),
+                responseDto.registrationPeriodStartDate(),
+                responseDto.registrationPeriodEndDate(),
+                responseDto.classReminderMinutes(),
+                responseDto.classColor(),
+                responseDto.locationType(),
+                responseDto.locationName(),
+                responseDto.locationLatitude(),
+                responseDto.locationLongitude(),
+                responseDto.meetingLink(),
+                responseDto.maxParticipants(),
+                responseDto.allowWaitlist(),
+                responseDto.isActive(),
+                responseDto.sessionTemplates(),
+                responseDto.createdDate(),
+                responseDto.updatedDate(),
+                responseDto.createdBy(),
+                responseDto.updatedBy()
+        );
+        MockMultipartFile thumbnail = new MockMultipartFile(
+                "thumbnail",
+                "image.png",
+                MediaType.IMAGE_PNG_VALUE,
+                "image".getBytes()
+        );
+
+        when(classDefinitionService.uploadThumbnail(eq(classUuid), any()))
+                .thenReturn(new ClassDefinitionResponseDTO(responseDto));
+
+        mockMvc.perform(multipart("/api/v1/classes/{uuid}/thumbnail", classUuid)
+                        .file(thumbnail))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.class_definition.thumbnail_url").value(responseDto.thumbnailUrl()));
+    }
+
+    @Test
+    void uploadClassPromotionalVideoReturnsUpdatedClassDefinition() throws Exception {
+        UUID classUuid = UUID.randomUUID();
+        ClassDefinitionDTO responseDto = sampleRequest(UUID.randomUUID(), null, 30, "#1F6FEB");
+        responseDto = new ClassDefinitionDTO(
+                responseDto.uuid(),
+                responseDto.title(),
+                responseDto.description(),
+                responseDto.thumbnailUrl(),
+                "/api/v1/classes/media/class_promotional_videos/" + classUuid + "/promo.mp4",
+                responseDto.defaultInstructorUuid(),
+                responseDto.organisationUuid(),
+                responseDto.courseUuid(),
+                responseDto.programUuid(),
+                responseDto.trainingFee(),
+                responseDto.classVisibility(),
+                responseDto.sessionFormat(),
+                responseDto.defaultStartTime(),
+                responseDto.defaultEndTime(),
+                responseDto.academicPeriodStartDate(),
+                responseDto.academicPeriodEndDate(),
+                responseDto.registrationPeriodStartDate(),
+                responseDto.registrationPeriodEndDate(),
+                responseDto.classReminderMinutes(),
+                responseDto.classColor(),
+                responseDto.locationType(),
+                responseDto.locationName(),
+                responseDto.locationLatitude(),
+                responseDto.locationLongitude(),
+                responseDto.meetingLink(),
+                responseDto.maxParticipants(),
+                responseDto.allowWaitlist(),
+                responseDto.isActive(),
+                responseDto.sessionTemplates(),
+                responseDto.createdDate(),
+                responseDto.updatedDate(),
+                responseDto.createdBy(),
+                responseDto.updatedBy()
+        );
+        MockMultipartFile promotionalVideo = new MockMultipartFile(
+                "promotional_video",
+                "promo.mp4",
+                "video/mp4",
+                "video".getBytes()
+        );
+
+        when(classDefinitionService.uploadPromotionalVideo(eq(classUuid), any()))
+                .thenReturn(new ClassDefinitionResponseDTO(responseDto));
+
+        mockMvc.perform(multipart("/api/v1/classes/{uuid}/promotional-video", classUuid)
+                        .file(promotionalVideo))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.class_definition.promotional_video_url").value(responseDto.promotionalVideoUrl()));
+    }
+
+    @Test
+    void getClassMediaStreamsStoredMedia() throws Exception {
+        String storedPath = "class_thumbnails/class-uuid/image.png";
+        when(storageService.load(storedPath)).thenReturn(new ByteArrayResource("image".getBytes()));
+        when(storageService.getContentType(storedPath)).thenReturn(MediaType.IMAGE_PNG_VALUE);
+
+        mockMvc.perform(get("/api/v1/classes/media/" + storedPath))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", MediaType.IMAGE_PNG_VALUE))
+                .andExpect(header().string("Content-Disposition", "inline; filename=\"image.png\""));
     }
 
     @Test
@@ -330,6 +462,8 @@ class ClassDefinitionControllerTest {
         return new ClassDefinitionUpdateRequestDTO(
                 source.title(),
                 source.description(),
+                source.thumbnailUrl(),
+                source.promotionalVideoUrl(),
                 source.defaultInstructorUuid(),
                 source.organisationUuid(),
                 source.courseUuid(),
@@ -375,6 +509,21 @@ class ClassDefinitionControllerTest {
         @Bean
         RequestAuditService requestAuditService() {
             return Mockito.mock(RequestAuditService.class);
+        }
+
+        @Bean
+        StorageService storageService() {
+            return Mockito.mock(StorageService.class);
+        }
+
+        @Bean
+        StorageProperties storageProperties() {
+            StorageProperties storageProperties = new StorageProperties();
+            StorageProperties.Folders folders = new StorageProperties.Folders();
+            folders.setClassThumbnails("class_thumbnails");
+            folders.setClassPromotionalVideos("class_promotional_videos");
+            storageProperties.setFolders(folders);
+            return storageProperties;
         }
     }
 }

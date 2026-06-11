@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDT
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +28,10 @@ public interface ClassDefinitionServiceInterface {
     ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
 
     ClassDefinitionResponseDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
+
+    ClassDefinitionResponseDTO uploadThumbnail(UUID definitionUuid, MultipartFile thumbnail);
+
+    ClassDefinitionResponseDTO uploadPromotionalVideo(UUID definitionUuid, MultipartFile promotionalVideo);
 
     ClassSessionTemplateScheduleResponseDTO addSessionTemplate(UUID definitionUuid, ClassSessionTemplateDTO sessionTemplate);
 
