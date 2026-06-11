@@ -392,7 +392,10 @@ public record InstructorDocumentDTO(
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public boolean isPendingVerification() {
-        return isVerified == null || !isVerified;
+        if (status != null) {
+            return status == DocumentStatus.PENDING;
+        }
+        return !Boolean.TRUE.equals(isVerified);
     }
 
     /**
@@ -419,13 +422,22 @@ public record InstructorDocumentDTO(
     @Schema(
             description = "**[READ-ONLY]** Human-readable verification status of the document.",
             example = "VERIFIED",
-            allowableValues = {"VERIFIED", "PENDING", "REJECTED"},
+            allowableValues = {"VERIFIED", "PENDING", "REJECTED", "EXPIRED"},
             accessMode = Schema.AccessMode.READ_ONLY
     )
     public String getVerificationStatus() {
-        if (isVerified == null) {
+        if (status == DocumentStatus.APPROVED) {
+            return "VERIFIED";
+        }
+        if (status == DocumentStatus.REJECTED) {
+            return "REJECTED";
+        }
+        if (status == DocumentStatus.EXPIRED) {
+            return "EXPIRED";
+        }
+        if (status == DocumentStatus.PENDING) {
             return "PENDING";
         }
-        return isVerified ? "VERIFIED" : "REJECTED";
+        return Boolean.TRUE.equals(isVerified) ? "VERIFIED" : "PENDING";
     }
 }
