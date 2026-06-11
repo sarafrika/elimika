@@ -526,4 +526,20 @@ class ClassDefinitionControllerTest {
             return storageProperties;
         }
     }
+    @Test
+    void invalidUuidPathSegmentReturnsBadRequestNotServerError() throws Exception {
+        mockMvc.perform(get("/api/v1/classes/instructor/{instructorUuid}", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Invalid request parameter"));
+    }
+
+    @Test
+    void unknownPathReturnsNotFoundNotServerError() throws Exception {
+        mockMvc.perform(get("/api/v1/classes/{uuid}/no-such-resource/extra", UUID.randomUUID()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Resource not found"));
+    }
+
 }
