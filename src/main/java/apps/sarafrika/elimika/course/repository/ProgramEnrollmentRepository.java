@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +24,11 @@ public interface ProgramEnrollmentRepository extends JpaRepository<ProgramEnroll
     long countByProgramUuidAndStatus(UUID programUuid, EnrollmentStatus status);
 
     boolean existsByStudentUuidAndProgramUuidAndStatus(UUID studentUuid, UUID programUuid, EnrollmentStatus status);
+
+    boolean existsByStudentUuidAndProgramUuidAndStatusIn(
+            UUID studentUuid,
+            UUID programUuid,
+            Collection<EnrollmentStatus> statuses);
 
     boolean existsByUuid(UUID uuid);
 
