@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
@@ -159,6 +160,82 @@ class TimetableServiceImplTest {
         assertThatThrownBy(() -> timetableService.startScheduledInstance(instanceUuid))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot be started");
+
+        verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
+    }
+
+    @Test
+    void rescheduleScheduledInstanceUpdatesScheduledTimeAndIgnoresSelfOverlap() {
+        UUID instanceUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+        LocalDateTime newStart = LocalDateTime.of(2026, 6, 12, 9, 0);
+        LocalDateTime newEnd = LocalDateTime.of(2026, 6, 12, 11, 0);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(availabilityService.isInstructorAvailable(instructorUuid, newStart, newEnd)).thenReturn(true);
+        when(scheduledInstanceRepository.findOverlappingInstancesForInstructor(instructorUuid, newStart, newEnd))
+                .thenReturn(List.of(instance));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ScheduledInstanceDTO result = timetableService.rescheduleScheduledInstance(
+                instanceUuid,
+                new ScheduledInstanceRescheduleRequestDTO(newStart, newEnd, "Africa/Nairobi")
+        );
+
+        assertThat(result.uuid()).isEqualTo(instanceUuid);
+        assertThat(result.startTime()).isEqualTo(newStart);
+        assertThat(result.endTime()).isEqualTo(newEnd);
+        assertThat(result.timezone()).isEqualTo("Africa/Nairobi");
+        assertThat(instance.getStartTime()).isEqualTo(newStart);
+        assertThat(instance.getEndTime()).isEqualTo(newEnd);
+    }
+
+    @Test
+    void rescheduleScheduledInstanceRejectsCompletedInstance() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.COMPLETED);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+
+        assertThatThrownBy(() -> timetableService.rescheduleScheduledInstance(
+                instanceUuid,
+                new ScheduledInstanceRescheduleRequestDTO(
+                        LocalDateTime.of(2026, 6, 12, 9, 0),
+                        LocalDateTime.of(2026, 6, 12, 11, 0),
+                        null
+                )))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only scheduled instances can be rescheduled");
+
+        verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
+        verifyNoInteractions(availabilityService);
+    }
+
+    @Test
+    void rescheduleScheduledInstanceRejectsOtherInstructorOverlap() {
+        UUID instanceUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+        ScheduledInstance overlapping = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+        LocalDateTime newStart = LocalDateTime.of(2026, 6, 12, 9, 0);
+        LocalDateTime newEnd = LocalDateTime.of(2026, 6, 12, 11, 0);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(availabilityService.isInstructorAvailable(instructorUuid, newStart, newEnd)).thenReturn(true);
+        when(scheduledInstanceRepository.findOverlappingInstancesForInstructor(instructorUuid, newStart, newEnd))
+                .thenReturn(List.of(instance, overlapping));
+
+        assertThatThrownBy(() -> timetableService.rescheduleScheduledInstance(
+                instanceUuid,
+                new ScheduledInstanceRescheduleRequestDTO(newStart, newEnd, null)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overlap");
 
         verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
     }

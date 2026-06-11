@@ -1,8 +1,11 @@
 package apps.sarafrika.elimika.classes.controller;
 
-import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -45,11 +48,11 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinition(
-            @Valid @RequestBody ClassDefinitionDTO request) {
+            @Valid @RequestBody ClassDefinitionCreateRequestDTO request) {
         log.debug("REST request to create class definition: {}", request.title());
 
         try {
-            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(request);
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(request.toClassDefinitionDTO());
             return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
         } catch (SchedulingConflictException e) {
             log.warn("Scheduling conflicts while creating class definition {}: {}", request.title(), e.getMessage());
@@ -64,7 +67,7 @@ public class ClassDefinitionController {
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinitionForProgram(
             @Parameter(description = "UUID of the training program", required = true)
             @PathVariable UUID programUuid,
-            @Valid @RequestBody ClassDefinitionDTO request) {
+            @Valid @RequestBody ClassDefinitionCreateRequestDTO request) {
         log.debug("REST request to create class definition: {} for training program: {}", request.title(), programUuid);
 
         if (request.courseUuid() != null) {
@@ -72,42 +75,9 @@ public class ClassDefinitionController {
                     "course_uuid is not allowed when creating a class under /api/v1/classes/program/{programUuid}"));
         }
 
-        ClassDefinitionDTO programScopedRequest = new ClassDefinitionDTO(
-                request.uuid(),
-                request.title(),
-                request.description(),
-                request.defaultInstructorUuid(),
-                request.organisationUuid(),
-                null,
-                programUuid,
-                request.trainingFee(),
-                request.classVisibility(),
-                request.sessionFormat(),
-                request.defaultStartTime(),
-                request.defaultEndTime(),
-                request.academicPeriodStartDate(),
-                request.academicPeriodEndDate(),
-                request.registrationPeriodStartDate(),
-                request.registrationPeriodEndDate(),
-                request.classReminderMinutes(),
-                request.classColor(),
-                request.locationType(),
-                request.locationName(),
-                request.locationLatitude(),
-                request.locationLongitude(),
-                request.meetingLink(),
-                request.maxParticipants(),
-                request.allowWaitlist(),
-                request.isActive(),
-                request.sessionTemplates(),
-                request.createdDate(),
-                request.updatedDate(),
-                request.createdBy(),
-                request.updatedBy()
-        );
-
         try {
-            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(programScopedRequest);
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(
+                    request.toClassDefinitionDTO(null, programUuid));
             return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
         } catch (SchedulingConflictException e) {
             log.warn("Scheduling conflicts while creating class definition {} for program {}: {}",
@@ -149,11 +119,32 @@ public class ClassDefinitionController {
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> updateClassDefinition(
             @Parameter(description = "UUID of the class definition to update", required = true)
             @PathVariable UUID uuid,
-            @Valid @RequestBody ClassDefinitionDTO request) {
+            @Valid @RequestBody ClassDefinitionUpdateRequestDTO request) {
         log.debug("REST request to update class definition: {}", uuid);
         
-        ClassDefinitionResponseDTO result = classDefinitionService.updateClassDefinition(uuid, request);
+        ClassDefinitionResponseDTO result = classDefinitionService.updateClassDefinition(uuid, request.toClassDefinitionDTO());
         return ResponseEntity.ok(ApiResponse.success(result, "Class definition updated successfully"));
+    }
+
+    @Operation(summary = "Add a session template to an existing class definition")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class session template applied successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid session template")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Scheduling conflicts detected")
+    @PostMapping("/{uuid}/session-templates")
+    public ResponseEntity<ApiResponse<ClassSessionTemplateScheduleResponseDTO>> addSessionTemplate(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            @Valid @RequestBody ClassSessionTemplateDTO request) {
+        log.debug("REST request to add session template to class definition: {}", uuid);
+
+        try {
+            ClassSessionTemplateScheduleResponseDTO result = classDefinitionService.addSessionTemplate(uuid, request);
+            return ResponseEntity.status(201).body(ApiResponse.success(result, "Class session template applied successfully"));
+        } catch (SchedulingConflictException e) {
+            log.warn("Scheduling conflicts while adding session template to class definition {}: {}", uuid, e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        }
     }
 
     @Operation(summary = "Deactivate a class definition by UUID")

@@ -6,12 +6,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Schema(
         name = "ClassSessionTemplate",
         description = "Time slot template used during class creation to generate scheduled instances with optional recurrence"
 )
 public record ClassSessionTemplateDTO(
+
+        @Schema(description = "**[READ-ONLY]** Unique identifier for this persisted class session template.")
+        @JsonProperty(value = "uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID uuid,
 
         @Schema(description = "Start time for the first occurrence (UTC)", example = "2025-01-15T14:00:00")
         @NotNull(message = "Session start time is required")
@@ -31,4 +36,12 @@ public record ClassSessionTemplateDTO(
         @JsonProperty("conflict_resolution")
         ConflictResolutionStrategy conflictResolution
 ) {
+        public ClassSessionTemplateDTO(
+                LocalDateTime startTime,
+                LocalDateTime endTime,
+                ClassRecurrenceDTO recurrence,
+                ConflictResolutionStrategy conflictResolution
+        ) {
+                this(null, startTime, endTime, recurrence, conflictResolution);
+        }
 }

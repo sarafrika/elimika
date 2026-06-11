@@ -2,8 +2,10 @@ package apps.sarafrika.elimika.classes.controller;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDTO;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
@@ -37,11 +39,13 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -113,6 +117,61 @@ class ClassDefinitionControllerTest {
         assertEquals(request.registrationPeriodEndDate(), forwarded.registrationPeriodEndDate());
         assertEquals(request.classReminderMinutes(), forwarded.classReminderMinutes());
         assertEquals(request.classColor(), forwarded.classColor());
+    }
+
+    @Test
+    void updateClassDefinitionDoesNotRequireSessionTemplates() throws Exception {
+        UUID classUuid = UUID.randomUUID();
+        ClassDefinitionDTO existing = sampleRequest(UUID.randomUUID(), null, 30, "#1F6FEB");
+        ClassDefinitionUpdateRequestDTO request = sampleUpdateRequest(existing);
+
+        when(classDefinitionService.updateClassDefinition(any(UUID.class), any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(existing));
+
+        mockMvc.perform(put("/api/v1/classes/{uuid}", classUuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.class_definition.title").value(existing.title()));
+
+        ArgumentCaptor<ClassDefinitionDTO> captor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
+        verify(classDefinitionService).updateClassDefinition(eq(classUuid), captor.capture());
+        assertNull(captor.getValue().sessionTemplates());
+    }
+
+    @Test
+    void addSessionTemplateAppliesTemplateToExistingClass() throws Exception {
+        UUID classUuid = UUID.randomUUID();
+        ClassSessionTemplateDTO request = new ClassSessionTemplateDTO(
+                LocalDateTime.of(2026, 5, 12, 9, 0),
+                LocalDateTime.of(2026, 5, 12, 11, 0),
+                null,
+                ConflictResolutionStrategy.FAIL
+        );
+        ClassSessionTemplateDTO persistedTemplate = new ClassSessionTemplateDTO(
+                UUID.randomUUID(),
+                request.startTime(),
+                request.endTime(),
+                request.recurrence(),
+                request.conflictResolution()
+        );
+
+        when(classDefinitionService.addSessionTemplate(eq(classUuid), any(ClassSessionTemplateDTO.class)))
+                .thenReturn(new ClassSessionTemplateScheduleResponseDTO(
+                        classUuid,
+                        persistedTemplate,
+                        List.of(),
+                        List.of()
+                ));
+
+        mockMvc.perform(post("/api/v1/classes/{uuid}/session-templates", classUuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.class_definition_uuid").value(classUuid.toString()))
+                .andExpect(jsonPath("$.data.session_template.uuid").value(persistedTemplate.uuid().toString()));
+
+        verify(classDefinitionService).addSessionTemplate(eq(classUuid), any(ClassSessionTemplateDTO.class));
     }
 
     @Test
@@ -264,6 +323,36 @@ class ClassDefinitionControllerTest {
                 null,
                 null,
                 null
+        );
+    }
+
+    private ClassDefinitionUpdateRequestDTO sampleUpdateRequest(ClassDefinitionDTO source) {
+        return new ClassDefinitionUpdateRequestDTO(
+                source.title(),
+                source.description(),
+                source.defaultInstructorUuid(),
+                source.organisationUuid(),
+                source.courseUuid(),
+                source.programUuid(),
+                source.trainingFee(),
+                source.classVisibility(),
+                source.sessionFormat(),
+                source.defaultStartTime(),
+                source.defaultEndTime(),
+                source.academicPeriodStartDate(),
+                source.academicPeriodEndDate(),
+                source.registrationPeriodStartDate(),
+                source.registrationPeriodEndDate(),
+                source.classReminderMinutes(),
+                source.classColor(),
+                source.locationType(),
+                source.locationName(),
+                source.locationLatitude(),
+                source.locationLongitude(),
+                source.meetingLink(),
+                source.maxParticipants(),
+                source.allowWaitlist(),
+                source.isActive()
         );
     }
 

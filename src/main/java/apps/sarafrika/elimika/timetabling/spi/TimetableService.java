@@ -64,6 +64,17 @@ public interface TimetableService {
     void updateScheduledInstanceStatus(UUID instanceUuid, String newStatus);
 
     /**
+     * Reschedules a scheduled class instance while keeping the same UUID and enrollments.
+     *
+     * @param instanceUuid The UUID of the scheduled instance to reschedule
+     * @param request The new time window
+     * @return Updated scheduled instance
+     * @throws IllegalArgumentException if the request is invalid, conflicts exist, or the instance is not reschedulable
+     * @throws RuntimeException if scheduled instance is not found
+     */
+    ScheduledInstanceDTO rescheduleScheduledInstance(UUID instanceUuid, ScheduledInstanceRescheduleRequestDTO request);
+
+    /**
      * Explicitly starts a scheduled class instance and records the actual start timestamp.
      *
      * @param instanceUuid The UUID of the scheduled instance to start

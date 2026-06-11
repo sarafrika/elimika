@@ -374,17 +374,16 @@ public record ClassDefinitionDTO(
 
         @Schema(
                 description = """
-                        **[REQUIRED]** Inline session templates with time slots and recurrence rules to schedule class instances during creation.
+                        **[READ-ONLY]** Persisted session templates originally used to generate scheduled class instances.
+                        Legacy classes created before template persistence may return an empty list.
                         conflict_resolution per template:
                         - FAIL: stop scheduling if any conflict; response 409 with conflicts.
                         - SKIP: schedule non-conflicting occurrences; return conflicts for skipped dates.
                         - ROLLOVER: push conflicting dates forward by the recurrence interval (bounded retries) and extend the series; return unrecoverable conflicts.
                         """,
-                requiredMode = Schema.RequiredMode.REQUIRED
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @JsonProperty("session_templates")
-        @NotNull(message = "session_templates is required")
-        @Size(min = 1, message = "At least one session template is required")
+        @JsonProperty(value = "session_templates", access = JsonProperty.Access.READ_ONLY)
         List<ClassSessionTemplateDTO> sessionTemplates,
 
         @Schema(
@@ -559,6 +558,45 @@ public record ClassDefinitionDTO(
                 scheduledSessions,
                 completedSessions,
                 progressPercentage != null ? progressPercentage : BigDecimal.ZERO,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy
+        );
+    }
+
+    public ClassDefinitionDTO withSessionTemplates(List<ClassSessionTemplateDTO> persistedSessionTemplates) {
+        return new ClassDefinitionDTO(
+                uuid,
+                title,
+                description,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                trainingFee,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                persistedSessionTemplates == null ? List.of() : persistedSessionTemplates,
+                scheduledSessionCount,
+                completedSessionCount,
+                classProgressPercentage,
                 createdDate,
                 updatedDate,
                 createdBy,

@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.classes.service;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +27,8 @@ public interface ClassDefinitionServiceInterface {
     ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
 
     ClassDefinitionResponseDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
+
+    ClassSessionTemplateScheduleResponseDTO addSessionTemplate(UUID definitionUuid, ClassSessionTemplateDTO sessionTemplate);
 
     void deactivateClassDefinition(UUID definitionUuid);
 
