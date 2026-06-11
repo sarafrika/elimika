@@ -55,6 +55,16 @@ public record ClassDefinitionCreateRequestDTO(
         @JsonProperty("description")
         String description,
 
+        @Schema(description = "**[OPTIONAL]** URL to class thumbnail image.", maxLength = 500)
+        @Size(max = 500, message = "Thumbnail URL must not exceed 500 characters")
+        @JsonProperty("thumbnail_url")
+        String thumbnailUrl,
+
+        @Schema(description = "**[OPTIONAL]** URL to class promotional video.", maxLength = 500)
+        @Size(max = 500, message = "Promotional video URL must not exceed 500 characters")
+        @JsonProperty("promotional_video_url")
+        String promotionalVideoUrl,
+
         @Schema(description = "**[REQUIRED]** Default instructor UUID for the class.")
         @NotNull(message = "Default instructor UUID is required")
         @JsonProperty("default_instructor_uuid")
@@ -178,6 +188,8 @@ public record ClassDefinitionCreateRequestDTO(
                 null,
                 title,
                 description,
+                thumbnailUrl,
+                promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
                 effectiveCourseUuid,

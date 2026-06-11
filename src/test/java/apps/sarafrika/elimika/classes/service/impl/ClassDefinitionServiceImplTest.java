@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
+import apps.sarafrika.elimika.classes.internal.ClassMediaValidationService;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
@@ -18,6 +19,8 @@ import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
@@ -29,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,10 +79,24 @@ class ClassDefinitionServiceImplTest {
     @Mock
     private TimetableService timetableService;
 
+    @Mock
+    private StorageService storageService;
+
+    @Mock
+    private ClassMediaValidationService classMediaValidationService;
+
+    private StorageProperties storageProperties;
+
     private ClassDefinitionServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        storageProperties = new StorageProperties();
+        StorageProperties.Folders folders = new StorageProperties.Folders();
+        folders.setClassThumbnails("class_thumbnails");
+        folders.setClassPromotionalVideos("class_promotional_videos");
+        storageProperties.setFolders(folders);
+
         service = new ClassDefinitionServiceImpl(
                 classDefinitionRepository,
                 classSchedulingConflictRepository,
@@ -88,7 +106,10 @@ class ClassDefinitionServiceImplTest {
                 courseInfoService,
                 courseTrainingApprovalSpi,
                 timetableServiceProvider,
-                classScheduleServiceProvider
+                classScheduleServiceProvider,
+                storageService,
+                storageProperties,
+                classMediaValidationService
         );
     }
 
@@ -157,6 +178,52 @@ class ClassDefinitionServiceImplTest {
         ClassSessionTemplateDTO resultTemplate = response.classDefinition().sessionTemplates().getFirst();
         assertThat(resultTemplate.uuid()).isEqualTo(template.getUuid());
         assertThat(resultTemplate.recurrence().recurrenceType()).isEqualTo(ClassRecurrenceDTO.RecurrenceType.WEEKLY);
+    }
+
+    @Test
+    void uploadThumbnailStoresInClassFolderAndPersistsMediaUrl() {
+        UUID classUuid = UUID.randomUUID();
+        ClassDefinition entity = sampleClassDefinitionEntity();
+        entity.setUuid(classUuid);
+        MockMultipartFile file = new MockMultipartFile("thumbnail", "image.png", "image/png", "image".getBytes());
+        String storedPath = "class_thumbnails/" + classUuid + "/generated.png";
+
+        when(classDefinitionRepository.findByUuid(classUuid)).thenReturn(Optional.of(entity));
+        when(storageService.store(file, "class_thumbnails/" + classUuid)).thenReturn(storedPath);
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(classUuid))
+                .thenReturn(List.of());
+
+        ClassDefinitionResponseDTO response = service.uploadThumbnail(classUuid, file);
+
+        assertThat(response.classDefinition().thumbnailUrl())
+                .isEqualTo("/api/v1/classes/media/class_thumbnails/" + classUuid + "/generated.png");
+        assertThat(entity.getThumbnailUrl()).isEqualTo(response.classDefinition().thumbnailUrl());
+        verify(classMediaValidationService).validateThumbnail(file);
+        verify(storageService).store(file, "class_thumbnails/" + classUuid);
+    }
+
+    @Test
+    void uploadPromotionalVideoStoresInClassFolderAndPersistsMediaUrl() {
+        UUID classUuid = UUID.randomUUID();
+        ClassDefinition entity = sampleClassDefinitionEntity();
+        entity.setUuid(classUuid);
+        MockMultipartFile file = new MockMultipartFile("promotional_video", "promo.mp4", "video/mp4", "video".getBytes());
+        String storedPath = "class_promotional_videos/" + classUuid + "/generated.mp4";
+
+        when(classDefinitionRepository.findByUuid(classUuid)).thenReturn(Optional.of(entity));
+        when(storageService.store(file, "class_promotional_videos/" + classUuid)).thenReturn(storedPath);
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(classUuid))
+                .thenReturn(List.of());
+
+        ClassDefinitionResponseDTO response = service.uploadPromotionalVideo(classUuid, file);
+
+        assertThat(response.classDefinition().promotionalVideoUrl())
+                .isEqualTo("/api/v1/classes/media/class_promotional_videos/" + classUuid + "/generated.mp4");
+        assertThat(entity.getPromotionalVideoUrl()).isEqualTo(response.classDefinition().promotionalVideoUrl());
+        verify(classMediaValidationService).validatePromotionalVideo(file);
+        verify(storageService).store(file, "class_promotional_videos/" + classUuid);
     }
 
     private ClassDefinitionDTO sampleClassDefinition() {

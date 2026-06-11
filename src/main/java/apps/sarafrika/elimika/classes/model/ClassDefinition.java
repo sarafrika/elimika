@@ -31,6 +31,12 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
+    @Column(name = "promotional_video_url")
+    private String promotionalVideoUrl;
+
     @Column(name = "default_instructor_uuid")
     private UUID defaultInstructorUuid;
 

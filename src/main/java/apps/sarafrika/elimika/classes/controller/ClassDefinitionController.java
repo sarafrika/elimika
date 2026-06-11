@@ -10,6 +10,9 @@ import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -19,10 +22,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
@@ -38,6 +45,8 @@ public class ClassDefinitionController {
 
     private final ClassDefinitionServiceInterface classDefinitionService;
     private final TimetableService timetableService;
+    private final StorageService storageService;
+    private final StorageProperties storageProperties;
 
     // ================================
     // CORE CLASS DEFINITION MANAGEMENT
@@ -124,6 +133,61 @@ public class ClassDefinitionController {
         
         ClassDefinitionResponseDTO result = classDefinitionService.updateClassDefinition(uuid, request.toClassDefinitionDTO());
         return ResponseEntity.ok(ApiResponse.success(result, "Class definition updated successfully"));
+    }
+
+    @Operation(summary = "Upload class thumbnail")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class thumbnail uploaded successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid thumbnail file")
+    @PostMapping(value = "/{uuid}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> uploadClassThumbnail(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Thumbnail image file. Supported formats: JPG, PNG, GIF, WebP. Maximum size: 5MB.", required = true)
+            @RequestParam("thumbnail") MultipartFile thumbnail) {
+        log.debug("REST request to upload thumbnail for class definition: {}", uuid);
+
+        ClassDefinitionResponseDTO result = classDefinitionService.uploadThumbnail(uuid, thumbnail);
+        return ResponseEntity.ok(ApiResponse.success(result, "Class thumbnail uploaded successfully"));
+    }
+
+    @Operation(summary = "Upload class promotional video")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class promotional video uploaded successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid promotional video file")
+    @PostMapping(value = "/{uuid}/promotional-video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> uploadClassPromotionalVideo(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Promotional video file. Supported formats: MP4, WebM, MOV, AVI. Maximum size: 100MB.", required = true)
+            @RequestParam("promotional_video") MultipartFile promotionalVideo) {
+        log.debug("REST request to upload promotional video for class definition: {}", uuid);
+
+        ClassDefinitionResponseDTO result = classDefinitionService.uploadPromotionalVideo(uuid, promotionalVideo);
+        return ResponseEntity.ok(ApiResponse.success(result, "Class promotional video uploaded successfully"));
+    }
+
+    @Operation(summary = "Get uploaded class media")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class media retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class media not found")
+    @GetMapping("/media/{*filePath}")
+    public ResponseEntity<Resource> getClassMedia(
+            @Parameter(description = "Stored relative path of the class media file.", required = true)
+            @PathVariable String filePath) {
+        try {
+            String fullPath = resolveClassMediaPath(filePath);
+            Resource resource = storageService.load(fullPath);
+            String contentType = storageService.getContentType(fullPath);
+            String fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(summary = "Add a session template to an existing class definition")
@@ -275,6 +339,17 @@ public class ClassDefinitionController {
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(conflicts, baseUrl),
                 "Class scheduling conflicts retrieved successfully"));
+    }
+
+    private String resolveClassMediaPath(String filePath) {
+        String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
+        if (normalizedFilePath == null || normalizedFilePath.contains("/")) {
+            return normalizedFilePath;
+        }
+        if (storageService.isVideo(normalizedFilePath)) {
+            return storageProperties.getFolders().getClassPromotionalVideos() + "/" + normalizedFilePath;
+        }
+        return storageProperties.getFolders().getClassThumbnails() + "/" + normalizedFilePath;
     }
 
 }

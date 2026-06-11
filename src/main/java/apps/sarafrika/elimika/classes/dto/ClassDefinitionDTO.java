@@ -40,6 +40,8 @@ import java.util.UUID;
             "uuid": "cd123456-7890-abcd-ef01-234567890abc",
             "title": "Introduction to Java Programming",
             "description": "Comprehensive introduction to Java programming covering basics, OOP concepts, and practical application development.",
+            "thumbnail_url": "/api/v1/classes/media/class_thumbnails/cd123456-7890-abcd-ef01-234567890abc/thumbnail.jpg",
+            "promotional_video_url": "/api/v1/classes/media/class_promotional_videos/cd123456-7890-abcd-ef01-234567890abc/promo.mp4",
             "default_instructor_uuid": "inst1234-5678-90ab-cdef-123456789abc",
             "organisation_uuid": "org12345-6789-abcd-ef01-234567890abc",
             "course_uuid": "course123-4567-89ab-cdef-123456789abc",
@@ -137,6 +139,28 @@ public record ClassDefinitionDTO(
         @Size(max = 2000, message = "Description must not exceed 2000 characters")
         @JsonProperty("description")
         String description,
+
+        @Schema(
+                description = "**[OPTIONAL]** URL to class thumbnail image for class listings and previews.",
+                example = "/api/v1/classes/media/class_thumbnails/cd123456-7890-abcd-ef01-234567890abc/thumbnail.jpg",
+                maxLength = 500,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 500, message = "Thumbnail URL must not exceed 500 characters")
+        @JsonProperty("thumbnail_url")
+        String thumbnailUrl,
+
+        @Schema(
+                description = "**[OPTIONAL]** URL to class promotional video for marketing and preview purposes.",
+                example = "/api/v1/classes/media/class_promotional_videos/cd123456-7890-abcd-ef01-234567890abc/promo.mp4",
+                maxLength = 500,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 500, message = "Promotional video URL must not exceed 500 characters")
+        @JsonProperty("promotional_video_url")
+        String promotionalVideoUrl,
 
         @Schema(
                 description = "**[REQUIRED]** Reference to the default instructor UUID for this class definition.",
@@ -457,6 +481,8 @@ public record ClassDefinitionDTO(
             UUID uuid,
             String title,
             String description,
+            String thumbnailUrl,
+            String promotionalVideoUrl,
             UUID defaultInstructorUuid,
             UUID organisationUuid,
             UUID courseUuid,
@@ -490,6 +516,8 @@ public record ClassDefinitionDTO(
                 uuid,
                 title,
                 description,
+                thumbnailUrl,
+                promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
                 courseUuid,
@@ -524,6 +552,76 @@ public record ClassDefinitionDTO(
         );
     }
 
+    public ClassDefinitionDTO(
+            UUID uuid,
+            String title,
+            String description,
+            UUID defaultInstructorUuid,
+            UUID organisationUuid,
+            UUID courseUuid,
+            UUID programUuid,
+            BigDecimal trainingFee,
+            ClassVisibility classVisibility,
+            SessionFormat sessionFormat,
+            LocalDateTime defaultStartTime,
+            LocalDateTime defaultEndTime,
+            LocalDate academicPeriodStartDate,
+            LocalDate academicPeriodEndDate,
+            LocalDate registrationPeriodStartDate,
+            LocalDate registrationPeriodEndDate,
+            Integer classReminderMinutes,
+            String classColor,
+            LocationType locationType,
+            String locationName,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            String meetingLink,
+            Integer maxParticipants,
+            Boolean allowWaitlist,
+            Boolean isActive,
+            List<ClassSessionTemplateDTO> sessionTemplates,
+            LocalDateTime createdDate,
+            LocalDateTime updatedDate,
+            String createdBy,
+            String updatedBy
+    ) {
+        this(
+                uuid,
+                title,
+                description,
+                null,
+                null,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                trainingFee,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy
+        );
+    }
+
     public ClassDefinitionDTO withScheduleProgress(long scheduledSessions,
                                                    long completedSessions,
                                                    BigDecimal progressPercentage) {
@@ -531,6 +629,8 @@ public record ClassDefinitionDTO(
                 uuid,
                 title,
                 description,
+                thumbnailUrl,
+                promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
                 courseUuid,
@@ -570,6 +670,8 @@ public record ClassDefinitionDTO(
                 uuid,
                 title,
                 description,
+                thumbnailUrl,
+                promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
                 courseUuid,

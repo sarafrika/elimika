@@ -46,6 +46,16 @@ public class StorageProperties {
         private String courseMaterials = "course_materials";
 
         /**
+         * Folder for class thumbnails
+         */
+        private String classThumbnails = "class_thumbnails";
+
+        /**
+         * Folder for class promotional videos
+         */
+        private String classPromotionalVideos = "class_promotional_videos";
+
+        /**
          * Folder for organization logos
          */
         private String organizationLogos = "organization_logos";

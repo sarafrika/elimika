@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
+import apps.sarafrika.elimika.classes.internal.ClassMediaValidationService;
 import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
@@ -23,6 +24,8 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEve
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -34,7 +37,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -58,9 +64,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final ObjectProvider<TimetableService> timetableServiceProvider;
     private final ObjectProvider<ClassScheduleService> classScheduleServiceProvider;
+    private final StorageService storageService;
+    private final StorageProperties storageProperties;
+    private final ClassMediaValidationService classMediaValidationService;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
+    private static final String CLASS_MEDIA_URL_PREFIX = "/api/v1/classes/media/";
     private static final int MAX_SCHEDULING_ITERATIONS = 2000;
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
 
@@ -585,6 +595,15 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                         String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, classDefinitionUuid)));
     }
 
+    private ClassDefinition requireClassDefinition(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            throw new IllegalArgumentException("Class definition UUID cannot be null");
+        }
+        return classDefinitionRepository.findByUuid(classDefinitionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, classDefinitionUuid)));
+    }
+
     private ClassDefinitionDTO toDTOWithSessionTemplates(ClassDefinition entity) {
         ClassDefinitionDTO dto = ClassDefinitionFactory.toDTO(entity);
         if (dto == null || dto.uuid() == null) {
@@ -615,6 +634,20 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         int templateOrder = Math.toIntExact(classSessionTemplateRepository.countByClassDefinitionUuid(classDefinitionUuid));
         ClassSessionTemplate entity = ClassSessionTemplateFactory.toEntity(classDefinitionUuid, sessionTemplate, templateOrder);
         return ClassSessionTemplateFactory.toDTO(classSessionTemplateRepository.save(entity));
+    }
+
+    private String storeClassMedia(MultipartFile file, String folder) {
+        String storedPath = storageService.store(file, folder);
+        String encodedPath = UriUtils.encodePath(storedPath, StandardCharsets.UTF_8);
+        return CLASS_MEDIA_URL_PREFIX + encodedPath;
+    }
+
+    private void publishClassDefinitionUpdated(ClassDefinitionDTO result) {
+        ClassDefinitionUpdatedEventDTO event = new ClassDefinitionUpdatedEventDTO(
+                result.uuid(),
+                result.title()
+        );
+        eventPublisher.publishEvent(event);
     }
 
     private void persistSchedulingConflicts(UUID classDefinitionUuid, List<ClassSchedulingConflictDTO> conflicts) {
@@ -656,15 +689,50 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         ClassDefinition savedEntity = classDefinitionRepository.save(existingEntity);
         ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
         
-        // Publish domain event
-        ClassDefinitionUpdatedEventDTO event = new ClassDefinitionUpdatedEventDTO(
-                result.uuid(),
-                result.title()
-        );
-        eventPublisher.publishEvent(event);
+        publishClassDefinitionUpdated(result);
         
         log.info("Updated class definition with UUID: {} and published ClassDefinitionUpdatedEvent", definitionUuid);
         return buildResponse(result);
+    }
+
+    @Override
+    public ClassDefinitionResponseDTO uploadThumbnail(UUID definitionUuid, MultipartFile thumbnail) {
+        log.debug("Uploading thumbnail for class definition: {}", definitionUuid);
+
+        classMediaValidationService.validateThumbnail(thumbnail);
+        ClassDefinition entity = requireClassDefinition(definitionUuid);
+
+        try {
+            String folder = storageProperties.getFolders().getClassThumbnails() + "/" + definitionUuid;
+            entity.setThumbnailUrl(storeClassMedia(thumbnail, folder));
+            ClassDefinition savedEntity = classDefinitionRepository.save(entity);
+            ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
+            publishClassDefinitionUpdated(result);
+            return buildResponse(result);
+        } catch (Exception ex) {
+            log.error("Failed to upload class thumbnail for UUID: {}", definitionUuid, ex);
+            throw new RuntimeException("Failed to upload class thumbnail: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public ClassDefinitionResponseDTO uploadPromotionalVideo(UUID definitionUuid, MultipartFile promotionalVideo) {
+        log.debug("Uploading promotional video for class definition: {}", definitionUuid);
+
+        classMediaValidationService.validatePromotionalVideo(promotionalVideo);
+        ClassDefinition entity = requireClassDefinition(definitionUuid);
+
+        try {
+            String folder = storageProperties.getFolders().getClassPromotionalVideos() + "/" + definitionUuid;
+            entity.setPromotionalVideoUrl(storeClassMedia(promotionalVideo, folder));
+            ClassDefinition savedEntity = classDefinitionRepository.save(entity);
+            ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
+            publishClassDefinitionUpdated(result);
+            return buildResponse(result);
+        } catch (Exception ex) {
+            log.error("Failed to upload class promotional video for UUID: {}", definitionUuid, ex);
+            throw new RuntimeException("Failed to upload class promotional video: " + ex.getMessage(), ex);
+        }
     }
 
     @Override

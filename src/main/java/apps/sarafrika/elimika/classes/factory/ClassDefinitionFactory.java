@@ -16,6 +16,8 @@ public class ClassDefinitionFactory {
                 entity.getUuid(),
                 entity.getTitle(),
                 entity.getDescription(),
+                entity.getThumbnailUrl(),
+                entity.getPromotionalVideoUrl(),
                 entity.getDefaultInstructorUuid(),
                 entity.getOrganisationUuid(),
                 entity.getCourseUuid(),
@@ -55,6 +57,8 @@ public class ClassDefinitionFactory {
         entity.setUuid(dto.uuid());
         entity.setTitle(dto.title());
         entity.setDescription(dto.description());
+        entity.setThumbnailUrl(dto.thumbnailUrl());
+        entity.setPromotionalVideoUrl(dto.promotionalVideoUrl());
         entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
         entity.setOrganisationUuid(dto.organisationUuid());
         entity.setCourseUuid(dto.courseUuid());
@@ -91,6 +95,12 @@ public class ClassDefinitionFactory {
         }
         if (dto.description() != null) {
             entity.setDescription(dto.description());
+        }
+        if (dto.thumbnailUrl() != null) {
+            entity.setThumbnailUrl(dto.thumbnailUrl());
+        }
+        if (dto.promotionalVideoUrl() != null) {
+            entity.setPromotionalVideoUrl(dto.promotionalVideoUrl());
         }
         if (dto.defaultInstructorUuid() != null) {
             entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
