@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.factory.EnrollmentFactory;
 import apps.sarafrika.elimika.timetabling.factory.ScheduledInstanceFactory;
@@ -183,6 +184,49 @@ public class TimetableServiceImpl implements TimetableService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid scheduling status: " + newStatus);
         }
+    }
+
+    @Override
+    public ScheduledInstanceDTO rescheduleScheduledInstance(UUID instanceUuid,
+                                                           ScheduledInstanceRescheduleRequestDTO request) {
+        log.debug("Rescheduling scheduled instance: {}", instanceUuid);
+
+        if (request == null) {
+            throw new IllegalArgumentException("Reschedule request cannot be null");
+        }
+
+        ScheduledInstance entity = findScheduledInstanceOrThrow(instanceUuid);
+        if (!SchedulingStatus.SCHEDULED.equals(entity.getStatus())) {
+            throw new IllegalArgumentException("Only scheduled instances can be rescheduled");
+        }
+
+        String timezone = request.timezone() == null || request.timezone().isBlank()
+                ? Optional.ofNullable(entity.getTimezone()).orElse("UTC")
+                : request.timezone().trim();
+        ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
+                entity.getClassDefinitionUuid(),
+                entity.getInstructorUuid(),
+                request.startTime(),
+                request.endTime(),
+                timezone
+        );
+
+        validateScheduleRequest(scheduleRequest);
+        List<String> conflicts = resolveInstructorConflicts(
+                entity.getInstructorUuid(),
+                scheduleRequest,
+                entity.getUuid());
+        if (!conflicts.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", conflicts));
+        }
+
+        entity.setStartTime(request.startTime());
+        entity.setEndTime(request.endTime());
+        entity.setTimezone(timezone);
+
+        ScheduledInstance savedEntity = scheduledInstanceRepository.save(entity);
+        log.debug("Rescheduled instance {} to {} - {}", instanceUuid, request.startTime(), request.endTime());
+        return ScheduledInstanceFactory.toDTO(savedEntity);
     }
 
     @Override
@@ -1047,6 +1091,12 @@ public class TimetableServiceImpl implements TimetableService {
     }
 
     private List<String> resolveInstructorConflicts(UUID instructorUuid, ScheduleRequestDTO request) {
+        return resolveInstructorConflicts(instructorUuid, request, null);
+    }
+
+    private List<String> resolveInstructorConflicts(UUID instructorUuid,
+                                                    ScheduleRequestDTO request,
+                                                    UUID excludedInstanceUuid) {
         List<String> conflicts = new java.util.ArrayList<>();
 
         if (!availabilityService.isInstructorAvailable(instructorUuid, request.startTime(), request.endTime())) {
@@ -1054,7 +1104,10 @@ public class TimetableServiceImpl implements TimetableService {
         }
 
         List<ScheduledInstance> overlapping = scheduledInstanceRepository
-                .findOverlappingInstancesForInstructor(instructorUuid, request.startTime(), request.endTime());
+                .findOverlappingInstancesForInstructor(instructorUuid, request.startTime(), request.endTime())
+                .stream()
+                .filter(instance -> excludedInstanceUuid == null || !Objects.equals(instance.getUuid(), excludedInstanceUuid))
+                .toList();
         if (!overlapping.isEmpty()) {
             conflicts.add("Instructor has existing scheduled instances that overlap this time");
         }

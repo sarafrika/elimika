@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.timetabling.controller;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -79,6 +80,21 @@ public class TimetableController {
         
         timetableService.updateScheduledInstanceStatus(instanceUuid, status);
         return ResponseEntity.ok(ApiResponse.success(null, "Status updated successfully"));
+    }
+
+    @Operation(summary = "Reschedule a scheduled class instance")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Scheduled instance rescheduled successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid time range, scheduling conflict, or instance is not reschedulable")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
+    @PatchMapping("/schedule/{instanceUuid}/time")
+    public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> rescheduleScheduledInstance(
+            @Parameter(description = "UUID of the scheduled instance")
+            @PathVariable UUID instanceUuid,
+            @Valid @RequestBody ScheduledInstanceRescheduleRequestDTO request) {
+        log.debug("REST request to reschedule scheduled instance: {}", instanceUuid);
+
+        ScheduledInstanceDTO result = timetableService.rescheduleScheduledInstance(instanceUuid, request);
+        return ResponseEntity.ok(ApiResponse.success(result, "Scheduled instance rescheduled successfully"));
     }
 
     @Operation(summary = "Start a scheduled class instance")

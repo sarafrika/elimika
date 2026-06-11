@@ -3,10 +3,13 @@ package apps.sarafrika.elimika.classes.service.impl;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
+import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
 import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
+import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.ClassSchedulingConflictRepository;
+import apps.sarafrika.elimika.classes.repository.ClassSessionTemplateRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
@@ -48,6 +51,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     private final ClassDefinitionRepository classDefinitionRepository;
     private final ClassSchedulingConflictRepository classSchedulingConflictRepository;
+    private final ClassSessionTemplateRepository classSessionTemplateRepository;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
@@ -90,9 +94,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         validateTrainingFee(entity);
 
         ClassDefinition savedEntity = classDefinitionRepository.save(entity);
-        ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
+        List<ClassSessionTemplateDTO> persistedTemplates = saveSessionTemplates(
+                savedEntity.getUuid(),
+                classDefinitionDTO.sessionTemplates());
+        ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity)
+                .withSessionTemplates(persistedTemplates);
 
-        ClassSchedulingOutcome schedulingOutcome = applySessionTemplates(result, classDefinitionDTO.sessionTemplates());
+        ClassSchedulingOutcome schedulingOutcome = applySessionTemplates(result, persistedTemplates);
         persistSchedulingConflicts(result.uuid(), schedulingOutcome.conflicts());
         if (schedulingOutcome.blockingConflict()) {
             throw new SchedulingConflictException(
@@ -117,6 +125,33 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         
         log.info("Created class definition with UUID: {} and published ClassDefinedEvent", result.uuid());
         return buildResponse(result);
+    }
+
+    @Override
+    public ClassSessionTemplateScheduleResponseDTO addSessionTemplate(UUID definitionUuid,
+                                                                     ClassSessionTemplateDTO sessionTemplate) {
+        log.debug("Adding session template to class definition with UUID: {}", definitionUuid);
+
+        if (sessionTemplate == null) {
+            throw new IllegalArgumentException("Session template cannot be null");
+        }
+
+        ClassDefinitionDTO classDefinition = getClassDefinitionDTO(definitionUuid);
+        ClassSchedulingOutcome schedulingOutcome = applySessionTemplates(classDefinition, List.of(sessionTemplate));
+        persistSchedulingConflicts(definitionUuid, schedulingOutcome.conflicts());
+        if (schedulingOutcome.blockingConflict()) {
+            throw new SchedulingConflictException(
+                    String.format("Conflicts detected for class %s", classDefinition.title()),
+                    schedulingOutcome.conflicts());
+        }
+
+        ClassSessionTemplateDTO persistedTemplate = saveSessionTemplate(definitionUuid, sessionTemplate);
+        return new ClassSessionTemplateScheduleResponseDTO(
+                definitionUuid,
+                persistedTemplate,
+                schedulingOutcome.scheduledInstances(),
+                schedulingOutcome.conflicts()
+        );
     }
 
     private ClassSchedulingOutcome applySessionTemplates(ClassDefinitionDTO classDefinition,
@@ -545,9 +580,41 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             throw new IllegalArgumentException("Class definition UUID cannot be null");
         }
         return classDefinitionRepository.findByUuid(classDefinitionUuid)
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, classDefinitionUuid)));
+    }
+
+    private ClassDefinitionDTO toDTOWithSessionTemplates(ClassDefinition entity) {
+        ClassDefinitionDTO dto = ClassDefinitionFactory.toDTO(entity);
+        if (dto == null || dto.uuid() == null) {
+            return dto;
+        }
+        return dto.withSessionTemplates(loadSessionTemplates(dto.uuid()));
+    }
+
+    private List<ClassSessionTemplateDTO> loadSessionTemplates(UUID classDefinitionUuid) {
+        return ClassSessionTemplateFactory.toDTOList(classSessionTemplateRepository
+                .findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(classDefinitionUuid));
+    }
+
+    private List<ClassSessionTemplateDTO> saveSessionTemplates(UUID classDefinitionUuid,
+                                                               List<ClassSessionTemplateDTO> sessionTemplates) {
+        if (sessionTemplates == null || sessionTemplates.isEmpty()) {
+            return List.of();
+        }
+        List<ClassSessionTemplate> entities = new ArrayList<>();
+        for (int i = 0; i < sessionTemplates.size(); i++) {
+            entities.add(ClassSessionTemplateFactory.toEntity(classDefinitionUuid, sessionTemplates.get(i), i));
+        }
+        return ClassSessionTemplateFactory.toDTOList(classSessionTemplateRepository.saveAll(entities));
+    }
+
+    private ClassSessionTemplateDTO saveSessionTemplate(UUID classDefinitionUuid,
+                                                        ClassSessionTemplateDTO sessionTemplate) {
+        int templateOrder = Math.toIntExact(classSessionTemplateRepository.countByClassDefinitionUuid(classDefinitionUuid));
+        ClassSessionTemplate entity = ClassSessionTemplateFactory.toEntity(classDefinitionUuid, sessionTemplate, templateOrder);
+        return ClassSessionTemplateFactory.toDTO(classSessionTemplateRepository.save(entity));
     }
 
     private void persistSchedulingConflicts(UUID classDefinitionUuid, List<ClassSchedulingConflictDTO> conflicts) {
@@ -587,7 +654,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         validateTrainingFee(existingEntity);
         
         ClassDefinition savedEntity = classDefinitionRepository.save(existingEntity);
-        ClassDefinitionDTO result = ClassDefinitionFactory.toDTO(savedEntity);
+        ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
         
         // Publish domain event
         ClassDefinitionUpdatedEventDTO event = new ClassDefinitionUpdatedEventDTO(
@@ -627,7 +694,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Retrieving class definition with UUID: {}", definitionUuid);
 
         ClassDefinitionDTO classDefinition = classDefinitionRepository.findByUuid(definitionUuid)
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
         return buildResponse(classDefinition);
     }
@@ -639,7 +706,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findByCourseUuid(courseUuid)
                 .stream()
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -656,7 +723,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findActiveClassesForCourse(courseUuid)
                 .stream()
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -668,7 +735,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findByProgramUuid(programUuid)
                 .stream()
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -685,7 +752,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findActiveClassesForProgram(programUuid)
                 .stream()
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -697,7 +764,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findByDefaultInstructorUuid(instructorUuid)
                 .stream()
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -710,7 +777,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)
                 .stream()
                 .filter(this::isLinkedContentApproved)
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -722,7 +789,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         return classDefinitionRepository.findByOrganisationUuid(organisationUuid)
                 .stream()
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
@@ -733,7 +800,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Finding all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
 
         return classDefinitionRepository.findAll(pageable)
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse);
     }
 
@@ -745,7 +812,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return classDefinitionRepository.findByIsActiveTrue()
                 .stream()
                 .filter(this::isLinkedContentApproved)
-                .map(ClassDefinitionFactory::toDTO)
+                .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
