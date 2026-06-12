@@ -1,3 +1,10 @@
+## [2.77.1](https://github.com/sarafrika/elimika/compare/v2.77.0...v2.77.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* return 404 for unknown routes and 400 for parameter type mismatches instead of 500 ([3590fdc](https://github.com/sarafrika/elimika/commit/3590fdc99beea592778de0219c020869f47b628f))
+
 # [2.77.0](https://github.com/sarafrika/elimika/compare/v2.76.0...v2.77.0) (2026-06-11)
 
 
