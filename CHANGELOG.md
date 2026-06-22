@@ -1,3 +1,10 @@
+## [2.77.3](https://github.com/sarafrika/elimika/compare/v2.77.2...v2.77.3) (2026-06-22)
+
+
+### Bug Fixes
+
+* read spring profile from deployment env ([39575e6](https://github.com/sarafrika/elimika/commit/39575e65143b6eaaceaedc5ddc8db1cc7c59b92f))
+
 ## [2.77.2](https://github.com/sarafrika/elimika/compare/v2.77.1...v2.77.2) (2026-06-22)
 
 
