@@ -16,10 +16,16 @@ import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -28,11 +34,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -47,6 +58,8 @@ public class ClassDefinitionController {
     private final TimetableService timetableService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     // ================================
     // CORE CLASS DEFINITION MANAGEMENT
@@ -55,7 +68,7 @@ public class ClassDefinitionController {
     @Operation(summary = "Create a new class definition")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinition(
             @Valid @RequestBody ClassDefinitionCreateRequestDTO request) {
         log.debug("REST request to create class definition: {}", request.title());
@@ -69,10 +82,38 @@ public class ClassDefinitionController {
         }
     }
 
+    @Operation(summary = "Create a new class definition with media")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinitionMultipart(
+            @RequestPart(value = "request", required = false) String requestPart,
+            @RequestPart(value = "class_definition", required = false) String classDefinitionPart,
+            @RequestParam MultiValueMap<String, String> formFields,
+            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "promotional_video", required = false) MultipartFile promotionalVideo,
+            @RequestParam(value = "promotionalVideo", required = false) MultipartFile camelCasePromotionalVideo,
+            @RequestParam(value = "marketing_video", required = false) MultipartFile marketingVideo,
+            @RequestParam(value = "marketingVideo", required = false) MultipartFile camelCaseMarketingVideo) {
+        ClassDefinitionCreateRequestDTO request = resolveMultipartCreateRequest(requestPart, classDefinitionPart, formFields);
+        log.debug("REST multipart request to create class definition: {}", request.title());
+
+        try {
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(
+                    request.toClassDefinitionDTO(),
+                    fileOrNull(thumbnail),
+                    fileOrNull(promotionalVideo, camelCasePromotionalVideo, marketingVideo, camelCaseMarketingVideo));
+            return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
+        } catch (SchedulingConflictException e) {
+            log.warn("Scheduling conflicts while creating class definition {}: {}", request.title(), e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        }
+    }
+
     @Operation(summary = "Create a new class definition for a training program")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
-    @PostMapping("/program/{programUuid}")
+    @PostMapping(value = "/program/{programUuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinitionForProgram(
             @Parameter(description = "UUID of the training program", required = true)
             @PathVariable UUID programUuid,
@@ -87,6 +128,43 @@ public class ClassDefinitionController {
         try {
             ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(
                     request.toClassDefinitionDTO(null, programUuid));
+            return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
+        } catch (SchedulingConflictException e) {
+            log.warn("Scheduling conflicts while creating class definition {} for program {}: {}",
+                    request.title(), programUuid, e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        }
+    }
+
+    @Operation(summary = "Create a new class definition with media for a training program")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
+    @PostMapping(value = "/program/{programUuid}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinitionForProgramMultipart(
+            @Parameter(description = "UUID of the training program", required = true)
+            @PathVariable UUID programUuid,
+            @RequestPart(value = "request", required = false) String requestPart,
+            @RequestPart(value = "class_definition", required = false) String classDefinitionPart,
+            @RequestParam MultiValueMap<String, String> formFields,
+            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "promotional_video", required = false) MultipartFile promotionalVideo,
+            @RequestParam(value = "promotionalVideo", required = false) MultipartFile camelCasePromotionalVideo,
+            @RequestParam(value = "marketing_video", required = false) MultipartFile marketingVideo,
+            @RequestParam(value = "marketingVideo", required = false) MultipartFile camelCaseMarketingVideo) {
+        ClassDefinitionCreateRequestDTO request = resolveMultipartCreateRequest(requestPart, classDefinitionPart, formFields);
+        log.debug("REST multipart request to create class definition: {} for training program: {}",
+                request.title(), programUuid);
+
+        if (request.courseUuid() != null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(
+                    "course_uuid is not allowed when creating a class under /api/v1/classes/program/{programUuid}"));
+        }
+
+        try {
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(
+                    request.toClassDefinitionDTO(null, programUuid),
+                    fileOrNull(thumbnail),
+                    fileOrNull(promotionalVideo, camelCasePromotionalVideo, marketingVideo, camelCaseMarketingVideo));
             return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
         } catch (SchedulingConflictException e) {
             log.warn("Scheduling conflicts while creating class definition {} for program {}: {}",
@@ -350,6 +428,107 @@ public class ClassDefinitionController {
             return storageProperties.getFolders().getClassPromotionalVideos() + "/" + normalizedFilePath;
         }
         return storageProperties.getFolders().getClassThumbnails() + "/" + normalizedFilePath;
+    }
+
+    private ClassDefinitionCreateRequestDTO resolveMultipartCreateRequest(String requestPart,
+                                                                          String classDefinitionPart,
+                                                                          MultiValueMap<String, String> formFields) {
+        String jsonPayload = firstText(
+                requestPart,
+                classDefinitionPart,
+                formFields.getFirst("request"),
+                formFields.getFirst("class_definition"),
+                formFields.getFirst("classDefinition"),
+                formFields.getFirst("payload")
+        );
+
+        ClassDefinitionCreateRequestDTO request = jsonPayload == null
+                ? objectMapper.convertValue(toClassDefinitionFieldMap(formFields), ClassDefinitionCreateRequestDTO.class)
+                : readCreateRequest(jsonPayload);
+
+        Set<ConstraintViolation<ClassDefinitionCreateRequestDTO>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+        return request;
+    }
+
+    private ClassDefinitionCreateRequestDTO readCreateRequest(String jsonPayload) {
+        try {
+            return objectMapper.readValue(jsonPayload, ClassDefinitionCreateRequestDTO.class);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalArgumentException("Invalid class definition JSON payload: " + ex.getOriginalMessage(), ex);
+        }
+    }
+
+    private Map<String, Object> toClassDefinitionFieldMap(MultiValueMap<String, String> formFields) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        formFields.forEach((fieldName, fieldValues) -> {
+            if (fieldValues == null || fieldValues.isEmpty() || isMultipartControlField(fieldName)) {
+                return;
+            }
+            String fieldValue = firstText(fieldValues.toArray(String[]::new));
+            if (fieldValue == null) {
+                return;
+            }
+
+            String jsonFieldName = normalizeFormFieldName(fieldName);
+            if ("session_templates".equals(jsonFieldName)) {
+                values.put(jsonFieldName, readSessionTemplates(fieldValue));
+            } else {
+                values.put(jsonFieldName, fieldValue);
+            }
+        });
+        return values;
+    }
+
+    private List<ClassSessionTemplateDTO> readSessionTemplates(String fieldValue) {
+        try {
+            return objectMapper.readValue(fieldValue, new TypeReference<>() {
+            });
+        } catch (JsonProcessingException ex) {
+            throw new IllegalArgumentException("Invalid session_templates JSON payload: " + ex.getOriginalMessage(), ex);
+        }
+    }
+
+    private boolean isMultipartControlField(String fieldName) {
+        return "request".equals(fieldName)
+                || "class_definition".equals(fieldName)
+                || "classDefinition".equals(fieldName)
+                || "payload".equals(fieldName)
+                || "thumbnail".equals(fieldName)
+                || "promotional_video".equals(fieldName)
+                || "promotionalVideo".equals(fieldName)
+                || "marketing_video".equals(fieldName)
+                || "marketingVideo".equals(fieldName);
+    }
+
+    private String normalizeFormFieldName(String fieldName) {
+        if (fieldName.contains("_")) {
+            return fieldName;
+        }
+        return fieldName
+                .replace("UUID", "Uuid")
+                .replaceAll("([a-z])([A-Z])", "$1_$2")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private MultipartFile fileOrNull(MultipartFile... files) {
+        for (MultipartFile file : files) {
+            if (file != null && !file.isEmpty()) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
 }

@@ -38,6 +38,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,6 +158,57 @@ class ClassDefinitionServiceImplTest {
             return true;
         }));
         verify(timetableService).scheduleClass(any(ScheduleRequestDTO.class));
+    }
+
+    @Test
+    void createClassDefinitionWithMediaStoresFilesUnderCreatedClassFolder() {
+        UUID classUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition();
+        MockMultipartFile thumbnail = new MockMultipartFile("thumbnail", "image.png", "image/png", "image".getBytes());
+        MockMultipartFile promotionalVideo = new MockMultipartFile("promotional_video", "promo.mp4", "video/mp4", "video".getBytes());
+        AtomicReference<ClassDefinition> savedEntity = new AtomicReference<>();
+
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> {
+            ClassDefinition entity = invocation.getArgument(0);
+            if (entity.getUuid() == null) {
+                entity.setUuid(classUuid);
+            }
+            savedEntity.set(entity);
+            return entity;
+        });
+        when(classDefinitionRepository.findByUuid(classUuid)).thenAnswer(invocation -> Optional.of(savedEntity.get()));
+        when(classSessionTemplateRepository.saveAll(any())).thenAnswer(invocation -> {
+            List<ClassSessionTemplate> templates = invocation.getArgument(0);
+            templates.forEach(template -> template.setUuid(UUID.randomUUID()));
+            return templates;
+        });
+        when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(classUuid))
+                .thenReturn(List.of());
+        when(availabilityService.getAvailabilityForInstructor(request.defaultInstructorUuid())).thenReturn(List.of());
+        when(availabilityService.isInstructorAvailable(
+                request.defaultInstructorUuid(),
+                request.sessionTemplates().getFirst().startTime(),
+                request.sessionTemplates().getFirst().endTime()))
+                .thenReturn(true);
+        when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
+        when(classScheduleServiceProvider.getIfAvailable()).thenReturn(null);
+        when(timetableService.hasInstructorConflict(any(UUID.class), any(ScheduleRequestDTO.class))).thenReturn(false);
+        when(timetableService.scheduleClass(any(ScheduleRequestDTO.class))).thenReturn(sampleScheduledInstance(classUuid));
+        when(storageService.store(thumbnail, "class_thumbnails/" + classUuid))
+                .thenReturn("class_thumbnails/" + classUuid + "/generated.png");
+        when(storageService.store(promotionalVideo, "class_promotional_videos/" + classUuid))
+                .thenReturn("class_promotional_videos/" + classUuid + "/generated.mp4");
+
+        ClassDefinitionResponseDTO response = service.createClassDefinition(request, thumbnail, promotionalVideo);
+
+        assertThat(response.classDefinition().thumbnailUrl())
+                .isEqualTo("/api/v1/classes/media/class_thumbnails/" + classUuid + "/generated.png");
+        assertThat(response.classDefinition().promotionalVideoUrl())
+                .isEqualTo("/api/v1/classes/media/class_promotional_videos/" + classUuid + "/generated.mp4");
+        verify(classMediaValidationService).validateThumbnail(thumbnail);
+        verify(classMediaValidationService).validatePromotionalVideo(promotionalVideo);
+        verify(storageService).store(thumbnail, "class_thumbnails/" + classUuid);
+        verify(storageService).store(promotionalVideo, "class_promotional_videos/" + classUuid);
     }
 
     @Test

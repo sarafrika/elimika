@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.controller;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
@@ -127,6 +128,98 @@ class ClassDefinitionControllerTest {
         assertEquals(request.registrationPeriodEndDate(), forwarded.registrationPeriodEndDate());
         assertEquals(request.classReminderMinutes(), forwarded.classReminderMinutes());
         assertEquals(request.classColor(), forwarded.classColor());
+    }
+
+    @Test
+    void createClassDefinitionMultipartAcceptsFormFieldsAndMedia() throws Exception {
+        ClassDefinitionDTO source = sampleRequest(null, null, 30, "#1F6FEB");
+        ClassDefinitionCreateRequestDTO request = sampleCreateRequest(source);
+        ClassDefinitionDTO responseDto = new ClassDefinitionDTO(
+                source.uuid(),
+                source.title(),
+                source.description(),
+                "/api/v1/classes/media/class_thumbnails/" + source.uuid() + "/image.png",
+                "/api/v1/classes/media/class_promotional_videos/" + source.uuid() + "/promo.mp4",
+                source.defaultInstructorUuid(),
+                source.organisationUuid(),
+                source.courseUuid(),
+                source.programUuid(),
+                source.trainingFee(),
+                source.classVisibility(),
+                source.sessionFormat(),
+                source.defaultStartTime(),
+                source.defaultEndTime(),
+                source.academicPeriodStartDate(),
+                source.academicPeriodEndDate(),
+                source.registrationPeriodStartDate(),
+                source.registrationPeriodEndDate(),
+                source.classReminderMinutes(),
+                source.classColor(),
+                source.locationType(),
+                source.locationName(),
+                source.locationLatitude(),
+                source.locationLongitude(),
+                source.meetingLink(),
+                source.maxParticipants(),
+                source.allowWaitlist(),
+                source.isActive(),
+                source.sessionTemplates(),
+                source.createdDate(),
+                source.updatedDate(),
+                source.createdBy(),
+                source.updatedBy()
+        );
+        MockMultipartFile thumbnail = new MockMultipartFile(
+                "thumbnail",
+                "image.png",
+                MediaType.IMAGE_PNG_VALUE,
+                "image".getBytes()
+        );
+        MockMultipartFile promotionalVideo = new MockMultipartFile(
+                "promotional_video",
+                "promo.mp4",
+                "video/mp4",
+                "video".getBytes()
+        );
+
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class), any(), any()))
+                .thenReturn(new ClassDefinitionResponseDTO(responseDto));
+
+        mockMvc.perform(multipart("/api/v1/classes")
+                        .file(thumbnail)
+                        .file(promotionalVideo)
+                        .param("title", request.title())
+                        .param("description", request.description())
+                        .param("default_instructor_uuid", request.defaultInstructorUuid().toString())
+                        .param("organisation_uuid", request.organisationUuid().toString())
+                        .param("training_fee", request.trainingFee().toPlainString())
+                        .param("class_visibility", request.classVisibility().name())
+                        .param("session_format", request.sessionFormat().name())
+                        .param("default_start_time", request.defaultStartTime().toString())
+                        .param("default_end_time", request.defaultEndTime().toString())
+                        .param("academic_period_start_date", request.academicPeriodStartDate().toString())
+                        .param("academic_period_end_date", request.academicPeriodEndDate().toString())
+                        .param("registration_period_start_date", request.registrationPeriodStartDate().toString())
+                        .param("registration_period_end_date", request.registrationPeriodEndDate().toString())
+                        .param("class_reminder_minutes", request.classReminderMinutes().toString())
+                        .param("class_color", request.classColor())
+                        .param("location_type", request.locationType().name())
+                        .param("location_name", request.locationName())
+                        .param("location_latitude", request.locationLatitude().toPlainString())
+                        .param("location_longitude", request.locationLongitude().toPlainString())
+                        .param("meeting_link", request.meetingLink())
+                        .param("max_participants", request.maxParticipants().toString())
+                        .param("allow_waitlist", request.allowWaitlist().toString())
+                        .param("is_active", request.isActive().toString())
+                        .param("session_templates", objectMapper.writeValueAsString(request.sessionTemplates())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.class_definition.thumbnail_url").value(responseDto.thumbnailUrl()))
+                .andExpect(jsonPath("$.data.class_definition.promotional_video_url").value(responseDto.promotionalVideoUrl()));
+
+        ArgumentCaptor<ClassDefinitionDTO> captor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
+        verify(classDefinitionService).createClassDefinition(captor.capture(), any(), any());
+        assertEquals(request.title(), captor.getValue().title());
+        assertEquals(request.sessionTemplates().size(), captor.getValue().sessionTemplates().size());
     }
 
     @Test
@@ -455,6 +548,39 @@ class ClassDefinitionControllerTest {
                 null,
                 null,
                 null
+        );
+    }
+
+    private ClassDefinitionCreateRequestDTO sampleCreateRequest(ClassDefinitionDTO source) {
+        return new ClassDefinitionCreateRequestDTO(
+                source.title(),
+                source.description(),
+                source.thumbnailUrl(),
+                source.promotionalVideoUrl(),
+                source.defaultInstructorUuid(),
+                source.organisationUuid(),
+                source.courseUuid(),
+                source.programUuid(),
+                source.trainingFee(),
+                source.classVisibility(),
+                source.sessionFormat(),
+                source.defaultStartTime(),
+                source.defaultEndTime(),
+                source.academicPeriodStartDate(),
+                source.academicPeriodEndDate(),
+                source.registrationPeriodStartDate(),
+                source.registrationPeriodEndDate(),
+                source.classReminderMinutes(),
+                source.classColor(),
+                source.locationType(),
+                source.locationName(),
+                source.locationLatitude(),
+                source.locationLongitude(),
+                source.meetingLink(),
+                source.maxParticipants(),
+                source.allowWaitlist(),
+                source.isActive(),
+                source.sessionTemplates()
         );
     }
 

@@ -27,6 +27,10 @@ public interface ClassDefinitionServiceInterface {
 
     ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
 
+    ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition,
+                                                     MultipartFile thumbnail,
+                                                     MultipartFile promotionalVideo);
+
     ClassDefinitionResponseDTO updateClassDefinition(UUID definitionUuid, ClassDefinitionDTO classDefinition);
 
     ClassDefinitionResponseDTO uploadThumbnail(UUID definitionUuid, MultipartFile thumbnail);

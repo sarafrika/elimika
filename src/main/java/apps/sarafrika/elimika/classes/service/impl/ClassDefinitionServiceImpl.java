@@ -138,6 +138,34 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     @Override
+    public ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO,
+                                                           MultipartFile thumbnail,
+                                                           MultipartFile promotionalVideo) {
+        if (!hasFile(thumbnail) && !hasFile(promotionalVideo)) {
+            return createClassDefinition(classDefinitionDTO);
+        }
+
+        if (hasFile(thumbnail)) {
+            classMediaValidationService.validateThumbnail(thumbnail);
+        }
+        if (hasFile(promotionalVideo)) {
+            classMediaValidationService.validatePromotionalVideo(promotionalVideo);
+        }
+
+        ClassDefinitionResponseDTO response = createClassDefinition(classDefinitionDTO);
+        UUID definitionUuid = response.classDefinition().uuid();
+
+        if (hasFile(thumbnail)) {
+            response = uploadThumbnailValidated(definitionUuid, thumbnail);
+        }
+        if (hasFile(promotionalVideo)) {
+            response = uploadPromotionalVideoValidated(definitionUuid, promotionalVideo);
+        }
+
+        return response;
+    }
+
+    @Override
     public ClassSessionTemplateScheduleResponseDTO addSessionTemplate(UUID definitionUuid,
                                                                      ClassSessionTemplateDTO sessionTemplate) {
         log.debug("Adding session template to class definition with UUID: {}", definitionUuid);
@@ -700,6 +728,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Uploading thumbnail for class definition: {}", definitionUuid);
 
         classMediaValidationService.validateThumbnail(thumbnail);
+        return uploadThumbnailValidated(definitionUuid, thumbnail);
+    }
+
+    private ClassDefinitionResponseDTO uploadThumbnailValidated(UUID definitionUuid, MultipartFile thumbnail) {
         ClassDefinition entity = requireClassDefinition(definitionUuid);
 
         try {
@@ -720,6 +752,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Uploading promotional video for class definition: {}", definitionUuid);
 
         classMediaValidationService.validatePromotionalVideo(promotionalVideo);
+        return uploadPromotionalVideoValidated(definitionUuid, promotionalVideo);
+    }
+
+    private ClassDefinitionResponseDTO uploadPromotionalVideoValidated(UUID definitionUuid, MultipartFile promotionalVideo) {
         ClassDefinition entity = requireClassDefinition(definitionUuid);
 
         try {
@@ -733,6 +769,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             log.error("Failed to upload class promotional video for UUID: {}", definitionUuid, ex);
             throw new RuntimeException("Failed to upload class promotional video: " + ex.getMessage(), ex);
         }
+    }
+
+    private boolean hasFile(MultipartFile file) {
+        return file != null && !file.isEmpty();
     }
 
     @Override
