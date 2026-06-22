@@ -1,3 +1,10 @@
+# [2.78.0](https://github.com/sarafrika/elimika/compare/v2.77.5...v2.78.0) (2026-06-22)
+
+
+### Features
+
+* add class ratings and reviews ([8ec2398](https://github.com/sarafrika/elimika/commit/8ec23988f29c839bcf84025da772a7671d57658a))
+
 ## [2.77.5](https://github.com/sarafrika/elimika/compare/v2.77.4...v2.77.5) (2026-06-22)
 
 
