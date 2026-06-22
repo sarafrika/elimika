@@ -1,3 +1,10 @@
+## [2.77.4](https://github.com/sarafrika/elimika/compare/v2.77.3...v2.77.4) (2026-06-22)
+
+
+### Bug Fixes
+
+* support class creation with media uploads ([47236d5](https://github.com/sarafrika/elimika/commit/47236d552a60ce574948cf55e6c390b111ad8ad5))
+
 ## [2.77.3](https://github.com/sarafrika/elimika/compare/v2.77.2...v2.77.3) (2026-06-22)
 
 
