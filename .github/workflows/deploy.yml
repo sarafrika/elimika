@@ -162,20 +162,29 @@ jobs:
           echo "Use this option only for emergency deployments or when you're certain the configuration is correct."
           echo ""
 
-      - name: Copy Compose File to Deployment Directory
+      - name: Ensure Compose File Exists in Deployment Directory
         run: |
           WORKSPACE_DIR="${GITHUB_WORKSPACE}"
           DEPLOY_DIR="$HOME/products/elimika"
           
-          # Simple copy of compose.yaml from repository to deployment directory
+          # The deployment compose file is server-local configuration. Seed it
+          # from the repository only once so manual operational changes are not
+          # overwritten on every deployment.
           if [ ! -f "$WORKSPACE_DIR/docker/compose.yaml" ]; then
             echo "❌ docker/compose.yaml not found in repository!"
             echo "Expected location: $WORKSPACE_DIR/docker/compose.yaml"
             exit 1
           fi
           
-          cp "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"
-          echo "✅ Copied compose.yaml from repository to deployment directory."
+          if [ ! -f "$DEPLOY_DIR/compose.yaml" ]; then
+            cp "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"
+            echo "✅ Seeded compose.yaml in deployment directory from repository template."
+          elif ! cmp -s "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"; then
+            echo "⚠️  Existing deployment compose.yaml differs from repository template."
+            echo "Keeping $DEPLOY_DIR/compose.yaml unchanged. Update it manually if the template change is intentional."
+          else
+            echo "✅ Existing deployment compose.yaml matches repository template."
+          fi
 
       - name: Pull Latest Docker Image
         run: |
