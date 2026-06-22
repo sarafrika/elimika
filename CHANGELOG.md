@@ -1,3 +1,10 @@
+## [2.77.5](https://github.com/sarafrika/elimika/compare/v2.77.4...v2.77.5) (2026-06-22)
+
+
+### Bug Fixes
+
+* patch dependency and workflow security vulnerabilities ([829ff1c](https://github.com/sarafrika/elimika/commit/829ff1cc9c2c746ffc75fdbc92adce44c652fc59))
+
 ## [2.77.4](https://github.com/sarafrika/elimika/compare/v2.77.3...v2.77.4) (2026-06-22)
 
 
