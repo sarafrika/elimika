@@ -30,28 +30,35 @@ jobs:
 
     steps:
       - name: Release Context
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_RELEASE: ${{ github.event.inputs.force_release }}
+          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
-          case "${{ github.event_name }}" in
+          case "$EVENT_NAME" in
             "workflow_dispatch")
               echo "🚀 Manual Release Triggered"
-              echo "Force release: ${{ github.event.inputs.force_release }}"
+              echo "Force release: $FORCE_RELEASE"
               ;;
             "workflow_run")
               echo "🔄 Automatic Release (triggered by successful Docker build)"
-              echo "Triggering workflow: ${{ github.event.workflow_run.name }}"
-              echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+              echo "Triggering workflow: $WORKFLOW_RUN_NAME"
+              echo "Workflow conclusion: $WORKFLOW_RUN_CONCLUSION"
               ;;
             *)
-              echo "⚠️ Unexpected trigger: ${{ github.event_name }}"
+              echo "⚠️ Unexpected trigger: $EVENT_NAME"
               ;;
           esac
           echo ""
 
       - name: Skip Release Notification
         if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
+        env:
+          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           echo "⏭️ Release skipped - build workflow did not succeed"
-          echo "Build workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Build workflow conclusion: $WORKFLOW_RUN_CONCLUSION"
           echo "💡 To force a release, use the 'Run workflow' button with 'Force release' option"
           exit 1
       - name: Checkout repository

@@ -6,6 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import jakarta.persistence.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.util.Set;
@@ -101,14 +105,13 @@ public class DatabaseAuditListener {
         if (entityManager == null) return;
 
         try {
-            String entityName = entity.getClass().getSimpleName();
             java.lang.reflect.Field[] fields = entity.getClass().getDeclaredFields();
 
             for (java.lang.reflect.Field field : fields) {
                 if (field.isAnnotationPresent(Column.class)) {
                     Column column = field.getAnnotation(Column.class);
                     if (column.unique()) {
-                        checkUniqueField(entity, field, entityName);
+                        checkUniqueField(entity, field);
                     }
                 }
             }
@@ -149,7 +152,7 @@ public class DatabaseAuditListener {
         }
     }
 
-    private void checkUniqueField(Object entity, java.lang.reflect.Field field, String entityName) {
+    private void checkUniqueField(Object entity, java.lang.reflect.Field field) {
         try {
             field.setAccessible(true);
             Object fieldValue = field.get(entity);
@@ -157,22 +160,21 @@ public class DatabaseAuditListener {
             if (fieldValue != null) {
                 Object entityId = getEntityId(entity);
 
-                String query = String.format(
-                        "SELECT COUNT(e) FROM %s e WHERE e.%s = :fieldValue",
-                        entityName, field.getName()
-                );
+                CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+                CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
+                Root<?> root = criteriaQuery.from(entity.getClass());
+                Predicate predicate = criteriaBuilder.equal(root.get(field.getName()), fieldValue);
 
                 if (entityId != null) {
-                    query += " AND e.id != :entityId";
+                    predicate = criteriaBuilder.and(
+                            predicate,
+                            criteriaBuilder.notEqual(root.get("id"), entityId)
+                    );
                 }
 
-                TypedQuery<Long> countQuery = entityManager.createQuery(query, Long.class);
-                countQuery.setParameter("fieldValue", fieldValue);
+                criteriaQuery.select(criteriaBuilder.count(root)).where(predicate);
 
-                if (entityId != null) {
-                    countQuery.setParameter("entityId", entityId);
-                }
-
+                TypedQuery<Long> countQuery = entityManager.createQuery(criteriaQuery);
                 Long count = countQuery.getSingleResult();
 
                 if (count > 0) {

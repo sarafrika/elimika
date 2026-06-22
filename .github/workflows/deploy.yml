@@ -30,15 +30,21 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Deployment Context
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DEPLOYMENT_REASON: ${{ github.event.inputs.deployment_reason }}
+          SKIP_VALIDATION: ${{ github.event.inputs.skip_validation }}
+          FORCE_RECREATE: ${{ github.event.inputs.force_recreate }}
+          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
             echo "🚀 Manual Deployment Triggered"
-            echo "Reason: ${{ github.event.inputs.deployment_reason }}"
-            echo "Skip validation: ${{ github.event.inputs.skip_validation }}"
-            echo "Force recreate: ${{ github.event.inputs.force_recreate }}"
+            echo "Reason: $DEPLOYMENT_REASON"
+            echo "Skip validation: $SKIP_VALIDATION"
+            echo "Force recreate: $FORCE_RECREATE"
           else
             echo "🔄 Automatic Deployment (triggered by successful build)"
-            echo "Triggering workflow: ${{ github.event.workflow_run.name }}"
+            echo "Triggering workflow: $WORKFLOW_RUN_NAME"
           fi
           echo ""
 
@@ -207,12 +213,17 @@ jobs:
           docker compose -f compose.yaml down
 
       - name: Start Services with Docker Compose
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_RECREATE: ${{ github.event.inputs.force_recreate }}
+          DEPLOYMENT_REASON: ${{ github.event.inputs.deployment_reason }}
+          SKIP_VALIDATION: ${{ github.event.inputs.skip_validation }}
         run: |
           cd ~/products/elimika
           echo "🚀 Starting services..."
           
           # Use force recreate option based on input (default true for manual, always true for auto)
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.force_recreate }}" == "false" ]; then
+          if [ "$EVENT_NAME" == "workflow_dispatch" ] && [ "$FORCE_RECREATE" == "false" ]; then
             docker compose -f compose.yaml up -d
             echo "Started with existing containers (no force recreate)"
           else
@@ -224,10 +235,10 @@ jobs:
           echo "✅ Deployment completed successfully!"
           echo "🌍 Service should be available on port 30000"
           
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
             echo ""
             echo "🚀 Manual deployment details:"
-            echo "  Reason: ${{ github.event.inputs.deployment_reason }}"
-            echo "  Validation skipped: ${{ github.event.inputs.skip_validation }}"
-            echo "  Force recreate: ${{ github.event.inputs.force_recreate }}"
+            echo "  Reason: $DEPLOYMENT_REASON"
+            echo "  Validation skipped: $SKIP_VALIDATION"
+            echo "  Force recreate: $FORCE_RECREATE"
           fi
