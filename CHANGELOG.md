@@ -1,3 +1,10 @@
+## [2.77.2](https://github.com/sarafrika/elimika/compare/v2.77.1...v2.77.2) (2026-06-22)
+
+
+### Bug Fixes
+
+* preserve server compose file during deployment ([53e87a3](https://github.com/sarafrika/elimika/commit/53e87a3f2acb4cd70c0ac90b0d5132a2d690171f))
+
 ## [2.77.1](https://github.com/sarafrika/elimika/compare/v2.77.0...v2.77.1) (2026-06-12)
 
 
