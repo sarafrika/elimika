@@ -64,6 +64,16 @@ public interface EnrollmentLookupService {
     Optional<ClassEnrollmentStatusSnapshot> findMostRecentEnrollmentForCourse(UUID studentUuid, UUID courseUuid);
 
     /**
+     * Returns the most recent class enrollment for a student in a given class definition.
+     *
+     * @param studentUuid The UUID of the student
+     * @param classDefinitionUuid The UUID of the class definition
+     * @return Optional containing the most recent class enrollment status snapshot
+     */
+    Optional<ClassEnrollmentStatusSnapshot> findMostRecentEnrollmentForClassDefinition(UUID studentUuid,
+                                                                                       UUID classDefinitionUuid);
+
+    /**
      * Returns the most recent active class enrollment for a student in a given course.
      * Active enrollments are those still in-progress for the course.
      *

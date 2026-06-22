@@ -124,6 +124,17 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     @Query(value = "SELECT ce.* " +
                    "FROM class_enrollments ce " +
                    "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "WHERE ce.student_uuid = :studentUuid " +
+                   "AND si.class_definition_uuid = :classDefinitionUuid " +
+                   "ORDER BY COALESCE(ce.updated_date, ce.created_date) DESC " +
+                   "LIMIT 1",
+           nativeQuery = true)
+    Optional<Enrollment> findLatestByStudentAndClassDefinitionUuid(@Param("studentUuid") UUID studentUuid,
+                                                                    @Param("classDefinitionUuid") UUID classDefinitionUuid);
+
+    @Query(value = "SELECT ce.* " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
                    "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
                    "WHERE ce.student_uuid = :studentUuid " +
                    "AND cd.course_uuid = :courseUuid " +

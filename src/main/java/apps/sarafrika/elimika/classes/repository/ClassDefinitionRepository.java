@@ -15,6 +15,8 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
 
     Optional<ClassDefinition> findByUuid(UUID uuid);
 
+    boolean existsByUuid(UUID uuid);
+
     List<ClassDefinition> findByCourseUuid(UUID courseUuid);
 
     List<ClassDefinition> findByProgramUuid(UUID programUuid);

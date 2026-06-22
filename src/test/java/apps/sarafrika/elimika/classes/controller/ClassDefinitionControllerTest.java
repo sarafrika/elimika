@@ -4,10 +4,14 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdateRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassRatingSummaryDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
+import apps.sarafrika.elimika.classes.dto.ClassReviewDTO;
+import apps.sarafrika.elimika.classes.dto.ClassReviewRequest;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDTO;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
+import apps.sarafrika.elimika.classes.service.ClassReviewService;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
@@ -24,6 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -84,9 +91,13 @@ class ClassDefinitionControllerTest {
     @Autowired
     private StorageService storageService;
 
+    @Autowired
+    private ClassReviewService classReviewService;
+
     @BeforeEach
     void setUp() {
-        reset(classDefinitionService, timetableService, userManagementService, requestAuditService, storageService);
+        reset(classDefinitionService, timetableService, userManagementService, requestAuditService, storageService,
+                classReviewService);
     }
 
     @Test
@@ -400,6 +411,62 @@ class ClassDefinitionControllerTest {
     }
 
     @Test
+    void submitClassReviewUsesPathClassUuidAndReturnsCreated() throws Exception {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        ClassReviewRequest request = reviewRequest(studentUuid);
+        ClassReviewDTO response = review(classDefinitionUuid, studentUuid, 5);
+
+        when(classReviewService.saveClassReview(eq(classDefinitionUuid), any(ClassReviewRequest.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/classes/{uuid}/reviews", classDefinitionUuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.class_definition_uuid").value(classDefinitionUuid.toString()))
+                .andExpect(jsonPath("$.data.student_uuid").value(studentUuid.toString()))
+                .andExpect(jsonPath("$.data.rating").value(5));
+
+        ArgumentCaptor<ClassReviewRequest> captor = ArgumentCaptor.forClass(ClassReviewRequest.class);
+        verify(classReviewService).saveClassReview(eq(classDefinitionUuid), captor.capture());
+        assertEquals(studentUuid, captor.getValue().studentUuid());
+    }
+
+    @Test
+    void getClassReviewsReturnsPagedResponse() throws Exception {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(classReviewService.getReviewsForClass(eq(classDefinitionUuid), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(review(classDefinitionUuid, studentUuid, 4)), pageable, 1));
+
+        mockMvc.perform(get("/api/v1/classes/{uuid}/reviews?page=0&size=20", classDefinitionUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content[0].class_definition_uuid").value(classDefinitionUuid.toString()))
+                .andExpect(jsonPath("$.data.content[0].rating").value(4))
+                .andExpect(jsonPath("$.data.metadata.totalElements").value(1));
+    }
+
+    @Test
+    void getClassRatingSummaryReturnsAverageAndCount() throws Exception {
+        UUID classDefinitionUuid = UUID.randomUUID();
+
+        when(classReviewService.getRatingSummary(classDefinitionUuid))
+                .thenReturn(new ClassRatingSummaryDTO(classDefinitionUuid, 4.5, 2L));
+
+        mockMvc.perform(get("/api/v1/classes/{uuid}/reviews/summary", classDefinitionUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.class_definition_uuid").value(classDefinitionUuid.toString()))
+                .andExpect(jsonPath("$.data.average_rating").value(4.5))
+                .andExpect(jsonPath("$.data.review_count").value(2));
+    }
+
+    @Test
     void createClassDefinitionRejectsInvalidAcademicPeriod() throws Exception {
         ClassDefinitionDTO request = sampleRequest(
                 UUID.randomUUID(),
@@ -616,6 +683,32 @@ class ClassDefinitionControllerTest {
         );
     }
 
+    private ClassReviewRequest reviewRequest(UUID studentUuid) {
+        return new ClassReviewRequest(
+                studentUuid,
+                5,
+                "Practical class",
+                "The class session was clear and hands-on.",
+                false
+        );
+    }
+
+    private ClassReviewDTO review(UUID classDefinitionUuid, UUID studentUuid, int rating) {
+        return new ClassReviewDTO(
+                UUID.randomUUID(),
+                classDefinitionUuid,
+                studentUuid,
+                rating,
+                "Practical class",
+                "The class session was clear and hands-on.",
+                false,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
     static class MockConfig {
         @Bean
         ClassDefinitionServiceInterface classDefinitionService() {
@@ -640,6 +733,11 @@ class ClassDefinitionControllerTest {
         @Bean
         StorageService storageService() {
             return Mockito.mock(StorageService.class);
+        }
+
+        @Bean
+        ClassReviewService classReviewService() {
+            return Mockito.mock(ClassReviewService.class);
         }
 
         @Bean

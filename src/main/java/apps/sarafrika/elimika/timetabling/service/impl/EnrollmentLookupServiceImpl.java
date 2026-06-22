@@ -60,6 +60,16 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
     }
 
     @Override
+    public Optional<ClassEnrollmentStatusSnapshot> findMostRecentEnrollmentForClassDefinition(UUID studentUuid,
+                                                                                              UUID classDefinitionUuid) {
+        if (studentUuid == null || classDefinitionUuid == null) {
+            return Optional.empty();
+        }
+        return enrollmentRepository.findLatestByStudentAndClassDefinitionUuid(studentUuid, classDefinitionUuid)
+                .map(this::toSnapshot);
+    }
+
+    @Override
     public Optional<ClassEnrollmentStatusSnapshot> findMostRecentActiveEnrollmentForCourse(UUID studentUuid, UUID courseUuid) {
         if (studentUuid == null || courseUuid == null) {
             return Optional.empty();

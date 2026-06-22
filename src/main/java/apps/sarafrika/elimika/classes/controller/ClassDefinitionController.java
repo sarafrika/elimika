@@ -3,11 +3,15 @@ package apps.sarafrika.elimika.classes.controller;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdateRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassRatingSummaryDTO;
+import apps.sarafrika.elimika.classes.dto.ClassReviewDTO;
+import apps.sarafrika.elimika.classes.dto.ClassReviewRequest;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
+import apps.sarafrika.elimika.classes.service.ClassReviewService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
@@ -60,6 +64,7 @@ public class ClassDefinitionController {
     private final StorageProperties storageProperties;
     private final ObjectMapper objectMapper;
     private final Validator validator;
+    private final ClassReviewService classReviewService;
 
     // ================================
     // CORE CLASS DEFINITION MANAGEMENT
@@ -183,6 +188,45 @@ public class ClassDefinitionController {
 
         List<EnrollmentDTO> enrollments = timetableService.getEnrollmentsForClass(uuid);
         return ResponseEntity.ok(ApiResponse.success(enrollments, "Enrollments retrieved successfully"));
+    }
+
+    @Operation(summary = "Submit or update a class review")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class review saved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid review payload")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Student is not eligible to review this class")
+    @PostMapping("/{uuid}/reviews")
+    public ResponseEntity<ApiResponse<ClassReviewDTO>> submitClassReview(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            @Valid @RequestBody ClassReviewRequest reviewRequest) {
+        ClassReviewDTO savedReview = classReviewService.saveClassReview(uuid, reviewRequest);
+        return ResponseEntity.status(201).body(ApiResponse.success(savedReview, "Class review saved successfully"));
+    }
+
+    @Operation(summary = "Get reviews for a class")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class reviews fetched successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
+    @GetMapping("/{uuid}/reviews")
+    public ResponseEntity<ApiResponse<PagedDTO<ClassReviewDTO>>> getClassReviews(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid,
+            Pageable pageable) {
+        Page<ClassReviewDTO> reviews = classReviewService.getReviewsForClass(uuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(reviews, baseUrl),
+                "Class reviews fetched successfully"));
+    }
+
+    @Operation(summary = "Get class rating summary")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class rating summary fetched successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
+    @GetMapping("/{uuid}/reviews/summary")
+    public ResponseEntity<ApiResponse<ClassRatingSummaryDTO>> getClassRatingSummary(
+            @Parameter(description = "UUID of the class definition", required = true)
+            @PathVariable UUID uuid) {
+        ClassRatingSummaryDTO summary = classReviewService.getRatingSummary(uuid);
+        return ResponseEntity.ok(ApiResponse.success(summary, "Class rating summary fetched successfully"));
     }
 
     @Operation(summary = "Get a class definition by UUID")
