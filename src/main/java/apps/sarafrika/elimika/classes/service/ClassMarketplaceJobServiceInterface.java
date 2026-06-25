@@ -24,6 +24,7 @@ public interface ClassMarketplaceJobServiceInterface {
 
     Page<ClassMarketplaceJobDTO> listJobs(UUID organisationUuid,
                                           UUID courseUuid,
+                                          UUID programUuid,
                                           ClassMarketplaceJobStatus status,
                                           Pageable pageable);
 

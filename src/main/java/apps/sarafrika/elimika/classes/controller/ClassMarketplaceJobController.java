@@ -60,6 +60,7 @@ public class ClassMarketplaceJobController {
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobDTO>>> listJobs(
             @RequestParam(value = "organisation_uuid", required = false) UUID organisationUuid,
             @RequestParam(value = "course_uuid", required = false) UUID courseUuid,
+            @RequestParam(value = "program_uuid", required = false) UUID programUuid,
             @RequestParam(value = "status", required = false) String status,
             Pageable pageable) {
         Optional<ClassMarketplaceJobStatus> statusFilter = Optional.ofNullable(status)
@@ -69,6 +70,7 @@ public class ClassMarketplaceJobController {
         Page<ClassMarketplaceJobDTO> page = classMarketplaceJobService.listJobs(
                 organisationUuid,
                 courseUuid,
+                programUuid,
                 statusFilter.orElse(null),
                 pageable
         );

@@ -106,9 +106,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     @Transactional(readOnly = true)
     public Page<ClassMarketplaceJobDTO> listJobs(UUID organisationUuid,
                                                  UUID courseUuid,
+                                                 UUID programUuid,
                                                  ClassMarketplaceJobStatus status,
                                                  org.springframework.data.domain.Pageable pageable) {
-        return jobRepository.search(organisationUuid, courseUuid, status, pageable)
+        return jobRepository.search(organisationUuid, courseUuid, programUuid, status, pageable)
                 .map(this::toJobDTO);
     }
 
@@ -178,11 +179,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
         ensureApplicationReviewable(application);
 
-        if (!courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), application.getInstructorUuid())) {
+        if (!isInstructorApprovedForJob(job, application.getInstructorUuid())) {
             throw new IllegalStateException(String.format(
-                    "Instructor %s is not approved to deliver course %s. Only instructors with approved course delivery access can be approved for this job.",
+                    "Instructor %s is not approved to deliver %s %s. Only instructors with approved %s delivery access can be approved for this job.",
                     application.getInstructorUuid(),
-                    job.getCourseUuid()));
+                    learningContextType(job),
+                    learningContextUuid(job),
+                    learningContextType(job)));
         }
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
@@ -224,11 +227,12 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             throw new IllegalStateException("Only approved applications can be assigned to create a class.");
         }
 
-        if (!courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), application.getInstructorUuid())) {
+        if (!isInstructorApprovedForJob(job, application.getInstructorUuid())) {
             throw new IllegalStateException(String.format(
-                    "Instructor %s is no longer approved to deliver course %s.",
+                    "Instructor %s is no longer approved to deliver %s %s.",
                     application.getInstructorUuid(),
-                    job.getCourseUuid()));
+                    learningContextType(job),
+                    learningContextUuid(job)));
         }
 
         ClassDefinitionDTO classDefinition = classDefinitionService
@@ -256,6 +260,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private void applyJobDraft(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
         job.setOrganisationUuid(request.organisationUuid());
         job.setCourseUuid(request.courseUuid());
+        job.setProgramUuid(request.programUuid());
         job.setTitle(request.title());
         job.setDescription(request.description());
         job.setClassVisibility(request.classVisibility());
@@ -278,10 +283,30 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
+        validateLearningContext(request);
+        validateLocationRequirements(request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude());
+        validateSessionTemplates(request.sessionTemplates());
+    }
+
+    private void validateLearningContext(ClassMarketplaceJobRequestDTO request) {
+        boolean hasCourse = request.courseUuid() != null;
+        boolean hasProgram = request.programUuid() != null;
+        if (hasCourse == hasProgram) {
+            throw new IllegalArgumentException("Exactly one of course_uuid or program_uuid is required for marketplace class jobs");
+        }
+
+        if (hasCourse) {
+            validateCourseLearningContext(request);
+            return;
+        }
+
+        validateProgramLearningContext(request);
+    }
+
+    private void validateCourseLearningContext(ClassMarketplaceJobRequestDTO request) {
         if (!courseInfoService.courseExists(request.courseUuid())) {
             throw new ResourceNotFoundException(String.format("Course with UUID %s not found", request.courseUuid()));
         }
-
         if (!courseInfoService.isCourseApproved(request.courseUuid())) {
             throw new IllegalStateException(String.format(
                     "Course %s is not approved for delivery. Organisations may only advertise classes for approved courses.",
@@ -294,9 +319,25 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     request.organisationUuid(),
                     request.courseUuid()));
         }
+    }
 
-        validateLocationRequirements(request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude());
-        validateSessionTemplates(request.sessionTemplates());
+    private void validateProgramLearningContext(ClassMarketplaceJobRequestDTO request) {
+        if (!courseInfoService.trainingProgramExists(request.programUuid())) {
+            throw new ResourceNotFoundException(String.format("Training program with UUID %s not found", request.programUuid()));
+        }
+
+        if (!courseInfoService.isTrainingProgramApproved(request.programUuid())) {
+            throw new IllegalStateException(String.format(
+                    "Training program %s is not approved for delivery. Organisations may only advertise classes for approved training programs.",
+                    request.programUuid()));
+        }
+
+        if (!courseTrainingApprovalSpi.isOrganisationApprovedForProgram(request.programUuid(), request.organisationUuid())) {
+            throw new IllegalStateException(String.format(
+                    "Organisation %s is not approved to deliver training program %s. Approve the organisation's program training application before posting marketplace class jobs.",
+                    request.organisationUuid(),
+                    request.programUuid()));
+        }
     }
 
     private void validateLocationRequirements(LocationType locationType,
@@ -498,7 +539,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 instructorUuid,
                 job.getOrganisationUuid(),
                 job.getCourseUuid(),
-                null,
+                job.getProgramUuid(),
                 null,
                 job.getClassVisibility(),
                 job.getSessionFormat(),
@@ -561,6 +602,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getUuid(),
                 job.getOrganisationUuid(),
                 job.getCourseUuid(),
+                job.getProgramUuid(),
                 job.getTitle(),
                 job.getDescription(),
                 job.getStatus(),
@@ -615,5 +657,20 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             return "Application selected for class assignment.";
         }
         return existingReviewNotes;
+    }
+
+    private boolean isInstructorApprovedForJob(ClassMarketplaceJob job, UUID instructorUuid) {
+        if (job.getCourseUuid() != null) {
+            return courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid);
+        }
+        return courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), instructorUuid);
+    }
+
+    private UUID learningContextUuid(ClassMarketplaceJob job) {
+        return job.getCourseUuid() != null ? job.getCourseUuid() : job.getProgramUuid();
+    }
+
+    private String learningContextType(ClassMarketplaceJob job) {
+        return job.getCourseUuid() != null ? "course" : "training program";
     }
 }

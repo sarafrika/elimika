@@ -19,11 +19,13 @@ public interface ClassMarketplaceJobRepository extends JpaRepository<ClassMarket
             SELECT job FROM ClassMarketplaceJob job
             WHERE (:organisationUuid IS NULL OR job.organisationUuid = :organisationUuid)
               AND (:courseUuid IS NULL OR job.courseUuid = :courseUuid)
+              AND (:programUuid IS NULL OR job.programUuid = :programUuid)
               AND (:status IS NULL OR job.status = :status)
             ORDER BY job.createdDate DESC
             """)
     Page<ClassMarketplaceJob> search(@Param("organisationUuid") UUID organisationUuid,
                                      @Param("courseUuid") UUID courseUuid,
+                                     @Param("programUuid") UUID programUuid,
                                      @Param("status") ClassMarketplaceJobStatus status,
                                      Pageable pageable);
 }

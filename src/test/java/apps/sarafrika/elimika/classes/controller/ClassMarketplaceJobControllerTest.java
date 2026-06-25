@@ -41,6 +41,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -98,6 +99,29 @@ class ClassMarketplaceJobControllerTest {
     }
 
     @Test
+    void createProgramJobReturnsCreatedAndForwardsRequest() throws Exception {
+        ClassMarketplaceJobRequestDTO request = sampleProgramRequest();
+        ClassMarketplaceJobDTO response = sampleResponse(request);
+
+        when(classMarketplaceJobService.createJob(any(ClassMarketplaceJobRequestDTO.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/classes/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.uuid").value(response.uuid().toString()))
+                .andExpect(jsonPath("$.data.status").value("open"))
+                .andExpect(jsonPath("$.data.program_uuid").value(request.programUuid().toString()))
+                .andExpect(jsonPath("$.data.course_uuid").doesNotExist());
+
+        ArgumentCaptor<ClassMarketplaceJobRequestDTO> captor =
+                ArgumentCaptor.forClass(ClassMarketplaceJobRequestDTO.class);
+        verify(classMarketplaceJobService).createJob(captor.capture());
+        assertEquals(request.organisationUuid(), captor.getValue().organisationUuid());
+        assertEquals(request.programUuid(), captor.getValue().programUuid());
+    }
+
+    @Test
     void assignInstructorReturnsConflictWhenSchedulingFails() throws Exception {
         UUID jobUuid = UUID.randomUUID();
         UUID applicationUuid = UUID.randomUUID();
@@ -130,6 +154,7 @@ class ClassMarketplaceJobControllerTest {
         when(classMarketplaceJobService.listJobs(
                 eq(request.organisationUuid()),
                 eq(request.courseUuid()),
+                isNull(),
                 eq(ClassMarketplaceJobStatus.OPEN),
                 any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
@@ -148,6 +173,40 @@ class ClassMarketplaceJobControllerTest {
         verify(classMarketplaceJobService).listJobs(
                 eq(request.organisationUuid()),
                 eq(request.courseUuid()),
+                isNull(),
+                eq(ClassMarketplaceJobStatus.OPEN),
+                any(org.springframework.data.domain.Pageable.class)
+        );
+    }
+
+    @Test
+    void listJobsAcceptsProgramFilter() throws Exception {
+        ClassMarketplaceJobRequestDTO request = sampleProgramRequest();
+        ClassMarketplaceJobDTO response = sampleResponse(request);
+
+        when(classMarketplaceJobService.listJobs(
+                eq(request.organisationUuid()),
+                isNull(),
+                eq(request.programUuid()),
+                eq(ClassMarketplaceJobStatus.OPEN),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/v1/classes/jobs")
+                        .param("organisation_uuid", request.organisationUuid().toString())
+                        .param("program_uuid", request.programUuid().toString())
+                        .param("status", "open")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].uuid").value(response.uuid().toString()))
+                .andExpect(jsonPath("$.data.content[0].program_uuid").value(request.programUuid().toString()))
+                .andExpect(jsonPath("$.data.content[0].course_uuid").doesNotExist());
+
+        verify(classMarketplaceJobService).listJobs(
+                eq(request.organisationUuid()),
+                isNull(),
+                eq(request.programUuid()),
                 eq(ClassMarketplaceJobStatus.OPEN),
                 any(org.springframework.data.domain.Pageable.class)
         );
@@ -157,8 +216,49 @@ class ClassMarketplaceJobControllerTest {
         return new ClassMarketplaceJobRequestDTO(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
+                null,
                 "Weekend Data Analysis Bootcamp",
                 "School advert for an approved class slot",
+                ClassVisibility.PUBLIC,
+                SessionFormat.GROUP,
+                LocalDateTime.of(2026, 5, 2, 9, 0),
+                LocalDateTime.of(2026, 5, 2, 12, 0),
+                LocalDate.of(2026, 5, 2),
+                LocalDate.of(2026, 6, 6),
+                LocalDate.of(2026, 4, 20),
+                LocalDate.of(2026, 5, 1),
+                30,
+                "#1F6FEB",
+                LocationType.HYBRID,
+                "Nairobi Campus - Lab 2",
+                new BigDecimal("-1.292066"),
+                new BigDecimal("36.821945"),
+                "https://meet.google.com/abc-defg-hij",
+                24,
+                true,
+                List.of(new ClassSessionTemplateDTO(
+                        LocalDateTime.of(2026, 5, 2, 9, 0),
+                        LocalDateTime.of(2026, 5, 2, 12, 0),
+                        new ClassRecurrenceDTO(
+                                ClassRecurrenceDTO.RecurrenceType.WEEKLY,
+                                1,
+                                "SATURDAY",
+                                null,
+                                null,
+                                6
+                        ),
+                        ConflictResolutionStrategy.FAIL
+                ))
+        );
+    }
+
+    private ClassMarketplaceJobRequestDTO sampleProgramRequest() {
+        return new ClassMarketplaceJobRequestDTO(
+                UUID.randomUUID(),
+                null,
+                UUID.randomUUID(),
+                "Weekend Data Analysis Program",
+                "School advert for an approved program class slot",
                 ClassVisibility.PUBLIC,
                 SessionFormat.GROUP,
                 LocalDateTime.of(2026, 5, 2, 9, 0),
@@ -197,6 +297,7 @@ class ClassMarketplaceJobControllerTest {
                 UUID.randomUUID(),
                 request.organisationUuid(),
                 request.courseUuid(),
+                request.programUuid(),
                 request.title(),
                 request.description(),
                 ClassMarketplaceJobStatus.OPEN,

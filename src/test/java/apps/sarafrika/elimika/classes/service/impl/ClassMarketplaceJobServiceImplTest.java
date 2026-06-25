@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
@@ -118,6 +119,82 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void createJobAcceptsProgramTarget() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        var result = service.createJob(request);
+
+        assertThat(result.courseUuid()).isNull();
+        assertThat(result.programUuid()).isEqualTo(programUuid);
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getCourseUuid()).isNull();
+        assertThat(jobCaptor.getValue().getProgramUuid()).isEqualTo(programUuid);
+    }
+
+    @Test
+    void createJobRejectsMissingLearningContext() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, null);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Exactly one of course_uuid or program_uuid is required");
+    }
+
+    @Test
+    void createJobRejectsMultipleLearningContexts() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(UUID.randomUUID(), UUID.randomUUID());
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Exactly one of course_uuid or program_uuid is required");
+    }
+
+    @Test
+    void approveApplicationRejectsInstructorWithoutProgramApproval() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleProgramJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), UUID.randomUUID());
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, job.getOrganisationUuid(), UserDomain.organisation_user))
+                .thenReturn(true);
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid())).thenReturn(Optional.of(application));
+        when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), application.getInstructorUuid())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.approveApplication(
+                job.getUuid(),
+                application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Needs program approval first")
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Only instructors with approved training program delivery access can be approved");
+    }
+
+    @Test
     void assignInstructorCreatesClassAndClosesJob() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
@@ -170,8 +247,59 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(forwarded.defaultInstructorUuid()).isEqualTo(instructorUuid);
         assertThat(forwarded.organisationUuid()).isEqualTo(job.getOrganisationUuid());
         assertThat(forwarded.courseUuid()).isEqualTo(job.getCourseUuid());
+        assertThat(forwarded.programUuid()).isNull();
         assertThat(forwarded.trainingFee()).isNull();
         assertThat(forwarded.sessionTemplates()).hasSize(1);
+    }
+
+    @Test
+    void assignInstructorCreatesProgramClassAndClosesJob() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleProgramJob();
+        ClassMarketplaceJobApplication approvedApplication = sampleApplication(job.getUuid(), instructorUuid);
+        approvedApplication.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        ClassMarketplaceJobSessionTemplate sessionTemplate = sampleSessionTemplate(job.getUuid());
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
+                .thenReturn(Optional.of(approvedApplication));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, job.getOrganisationUuid(), UserDomain.organisation_user))
+                .thenReturn(true);
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid())).thenReturn(List.of(sessionTemplate));
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(
+                job.getUuid(),
+                List.of(ClassMarketplaceJobApplicationStatus.PENDING, ClassMarketplaceJobApplicationStatus.APPROVED)))
+                .thenReturn(List.of());
+
+        var response = service.assignInstructor(
+                job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid())
+        );
+
+        assertThat(response.classDefinition().uuid()).isEqualTo(classDefinitionUuid);
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(response.job().programUuid()).isEqualTo(job.getProgramUuid());
+
+        ArgumentCaptor<ClassDefinitionDTO> classCaptor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
+        verify(classDefinitionService).createClassDefinition(classCaptor.capture());
+        ClassDefinitionDTO forwarded = classCaptor.getValue();
+        assertThat(forwarded.defaultInstructorUuid()).isEqualTo(instructorUuid);
+        assertThat(forwarded.organisationUuid()).isEqualTo(job.getOrganisationUuid());
+        assertThat(forwarded.courseUuid()).isNull();
+        assertThat(forwarded.programUuid()).isEqualTo(job.getProgramUuid());
     }
 
     @Test
@@ -207,12 +335,14 @@ class ClassMarketplaceJobServiceImplTest {
                 organisationUuid,
                 courseUuid,
                 null,
+                null,
                 PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of(sampleJob()), PageRequest.of(0, 20), 1));
 
         var page = service.listJobs(
                 organisationUuid,
                 courseUuid,
+                null,
                 null,
                 PageRequest.of(0, 20)
         );
@@ -222,7 +352,48 @@ class ClassMarketplaceJobServiceImplTest {
                 organisationUuid,
                 courseUuid,
                 null,
+                null,
                 PageRequest.of(0, 20)
+        );
+    }
+
+    private ClassMarketplaceJobRequestDTO sampleRequest(UUID courseUuid, UUID programUuid) {
+        return new ClassMarketplaceJobRequestDTO(
+                UUID.randomUUID(),
+                courseUuid,
+                programUuid,
+                "Weekend Data Analysis Bootcamp",
+                "School advert for an approved class slot",
+                ClassVisibility.PUBLIC,
+                SessionFormat.GROUP,
+                LocalDateTime.of(2026, 5, 2, 9, 0),
+                LocalDateTime.of(2026, 5, 2, 12, 0),
+                LocalDate.of(2026, 5, 2),
+                LocalDate.of(2026, 6, 6),
+                LocalDate.of(2026, 4, 20),
+                LocalDate.of(2026, 5, 1),
+                30,
+                "#1F6FEB",
+                LocationType.HYBRID,
+                "Nairobi Campus - Lab 2",
+                new BigDecimal("-1.292066"),
+                new BigDecimal("36.821945"),
+                "https://meet.google.com/abc-defg-hij",
+                24,
+                true,
+                List.of(new ClassSessionTemplateDTO(
+                        LocalDateTime.of(2026, 5, 2, 9, 0),
+                        LocalDateTime.of(2026, 5, 2, 12, 0),
+                        new ClassRecurrenceDTO(
+                                ClassRecurrenceDTO.RecurrenceType.WEEKLY,
+                                1,
+                                "SATURDAY",
+                                null,
+                                null,
+                                6
+                        ),
+                        ConflictResolutionStrategy.FAIL
+                ))
         );
     }
 
@@ -252,6 +423,19 @@ class ClassMarketplaceJobServiceImplTest {
         job.setMaxParticipants(24);
         job.setAllowWaitlist(true);
         return job;
+    }
+
+    private ClassMarketplaceJob sampleProgramJob() {
+        ClassMarketplaceJob job = sampleJob();
+        job.setCourseUuid(null);
+        job.setProgramUuid(UUID.randomUUID());
+        return job;
+    }
+
+    private void allowOrganisationAccess(UUID currentUserUuid, UUID organisationUuid) {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, organisationUuid, UserDomain.organisation_user))
+                .thenReturn(true);
     }
 
     private ClassMarketplaceJobApplication sampleApplication(UUID jobUuid, UUID instructorUuid) {
@@ -288,7 +472,7 @@ class ClassMarketplaceJobServiceImplTest {
                 instructorUuid,
                 job.getOrganisationUuid(),
                 job.getCourseUuid(),
-                null,
+                job.getProgramUuid(),
                 new BigDecimal("2500.00"),
                 job.getClassVisibility(),
                 job.getSessionFormat(),

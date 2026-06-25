@@ -30,6 +30,9 @@ public record ClassMarketplaceJobDTO(
         @JsonProperty(value = "course_uuid", access = JsonProperty.Access.READ_ONLY)
         UUID courseUuid,
 
+        @JsonProperty(value = "program_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID programUuid,
+
         @JsonProperty(value = "title", access = JsonProperty.Access.READ_ONLY)
         String title,
 

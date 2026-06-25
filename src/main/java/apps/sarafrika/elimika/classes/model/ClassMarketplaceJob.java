@@ -37,6 +37,9 @@ public class ClassMarketplaceJob extends BaseEntity {
     @Column(name = "course_uuid")
     private UUID courseUuid;
 
+    @Column(name = "program_uuid")
+    private UUID programUuid;
+
     @Column(name = "title")
     private String title;
 

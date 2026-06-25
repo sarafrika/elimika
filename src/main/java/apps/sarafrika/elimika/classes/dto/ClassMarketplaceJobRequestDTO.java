@@ -4,10 +4,12 @@ import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -82,10 +84,13 @@ public record ClassMarketplaceJobRequestDTO(
         @NotNull(message = "organisation_uuid is required")
         UUID organisationUuid,
 
-        @Schema(description = "**[REQUIRED]** Course backing the advertised class.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "**[OPTIONAL]** Course backing the advertised class. Required when program_uuid is not provided.", nullable = true)
         @JsonProperty("course_uuid")
-        @NotNull(message = "course_uuid is required")
         UUID courseUuid,
+
+        @Schema(description = "**[OPTIONAL]** Training program backing the advertised class. Required when course_uuid is not provided.", nullable = true)
+        @JsonProperty("program_uuid")
+        UUID programUuid,
 
         @Schema(description = "**[REQUIRED]** Advert title for the class job.", requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("title")
@@ -186,4 +191,10 @@ public record ClassMarketplaceJobRequestDTO(
         @Valid
         List<ClassSessionTemplateDTO> sessionTemplates
 ) {
+
+    @JsonIgnore
+    @AssertTrue(message = "Exactly one of course_uuid or program_uuid is required")
+    public boolean hasSingleLearningContext() {
+        return (courseUuid == null) != (programUuid == null);
+    }
 }
