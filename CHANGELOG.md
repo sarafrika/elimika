@@ -1,3 +1,10 @@
+## [2.78.1](https://github.com/sarafrika/elimika/compare/v2.78.0...v2.78.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* prevent student quiz answer key exposure ([381a4af](https://github.com/sarafrika/elimika/commit/381a4af1e1a11618fa263eab6203dd637a044852))
+
 # [2.78.0](https://github.com/sarafrika/elimika/compare/v2.77.5...v2.78.0) (2026-06-22)
 
 
