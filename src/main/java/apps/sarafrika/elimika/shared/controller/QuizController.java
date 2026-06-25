@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -34,11 +35,47 @@ import java.util.UUID;
 public class QuizController {
 
     public static final String API_ROOT_PATH = "/api/v1/quizzes";
+    private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
+    private static final String MANAGEMENT_ACCESS = "!@domainSecurityService.isStudent() && @domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    private static final String STUDENT_QUIZ_ACCESS = "@domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".student, " + USER_DOMAIN + ".course_creator, "
+            + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
 
     private final QuizService quizService;
     private final QuizQuestionService quizQuestionService;
     private final QuizQuestionOptionService quizQuestionOptionService;
     private final QuizAttemptService quizAttemptService;
+    private final StudentQuizViewService studentQuizViewService;
+
+    @Operation(
+            summary = "Get student-safe quiz view",
+            description = "Retrieves a quiz payload for students without configured answer keys."
+    )
+    @GetMapping("/{quizUuid}/student-view")
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentQuizDTO>> getStudentQuizView(
+            @PathVariable UUID quizUuid,
+            @RequestParam("enrollment_uuid") UUID enrollmentUuid) {
+        StudentQuizDTO quiz = studentQuizViewService.getStudentQuiz(quizUuid, enrollmentUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(quiz, "Student quiz retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get graded student quiz review",
+            description = "Retrieves a student's graded quiz review, including correct answers after grading."
+    )
+    @GetMapping("/{quizUuid}/attempts/{attemptUuid}/review")
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentQuizReviewDTO>> getStudentQuizReview(
+            @PathVariable UUID quizUuid,
+            @PathVariable UUID attemptUuid,
+            @RequestParam("enrollment_uuid") UUID enrollmentUuid) {
+        StudentQuizReviewDTO review = studentQuizViewService.getStudentQuizReview(quizUuid, attemptUuid, enrollmentUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(review, "Student quiz review retrieved successfully"));
+    }
 
     @Operation(
             summary = "Create a new quiz",
@@ -50,6 +87,7 @@ public class QuizController {
             }
     )
     @PostMapping
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizDTO>> createQuiz(
             @Valid @RequestBody QuizDTO quizDTO) {
         QuizDTO createdQuiz = quizService.createQuiz(quizDTO);
@@ -67,6 +105,7 @@ public class QuizController {
             }
     )
     @GetMapping("/{uuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizDTO>> getQuizByUuid(
             @PathVariable UUID uuid) {
         QuizDTO quizDTO = quizService.getQuizByUuid(uuid);
@@ -79,6 +118,7 @@ public class QuizController {
             description = "Retrieves paginated list of all quizzes with filtering support."
     )
     @GetMapping
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizDTO>>> getAllQuizzes(
             Pageable pageable) {
         Page<QuizDTO> quizzes = quizService.getAllQuizzes(pageable);
@@ -97,6 +137,7 @@ public class QuizController {
             }
     )
     @PutMapping("/{uuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizDTO>> updateQuiz(
             @PathVariable UUID uuid,
             @Valid @RequestBody QuizDTO quizDTO) {
@@ -114,6 +155,7 @@ public class QuizController {
             }
     )
     @DeleteMapping("/{uuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<Void> deleteQuiz(@PathVariable UUID uuid) {
         quizService.deleteQuiz(uuid);
         return ResponseEntity.noContent().build();
@@ -126,6 +168,7 @@ public class QuizController {
             description = "Creates a new question for the specified quiz with automatic ordering."
     )
     @PostMapping("/{quizUuid}/questions")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionDTO>> addQuizQuestion(
             @PathVariable UUID quizUuid,
             @Valid @RequestBody QuizQuestionDTO questionDTO) {
@@ -140,6 +183,7 @@ public class QuizController {
             description = "Retrieves all questions for a quiz in display order with computed properties."
     )
     @GetMapping("/{quizUuid}/questions")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<QuizQuestionDTO>>> getQuizQuestions(
             @PathVariable UUID quizUuid) {
         List<QuizQuestionDTO> questions = quizQuestionService.getQuestionsByQuiz(quizUuid);
@@ -152,6 +196,7 @@ public class QuizController {
             description = "Updates a specific question within a quiz."
     )
     @PutMapping("/{quizUuid}/questions/{questionUuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionDTO>> updateQuizQuestion(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
@@ -166,6 +211,7 @@ public class QuizController {
             description = "Removes a question from a quiz including all options and responses."
     )
     @DeleteMapping("/{quizUuid}/questions/{questionUuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<Void> deleteQuizQuestion(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid) {
@@ -178,6 +224,7 @@ public class QuizController {
             description = "Updates the display order of questions within a quiz."
     )
     @PostMapping("/{quizUuid}/questions/reorder")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> reorderQuizQuestions(
             @PathVariable UUID quizUuid,
             @RequestBody List<UUID> questionUuids) {
@@ -193,6 +240,7 @@ public class QuizController {
             description = "Creates a new option for a multiple choice or true/false question."
     )
     @PostMapping("/{quizUuid}/questions/{questionUuid}/options")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionOptionDTO>> addQuestionOption(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
@@ -208,6 +256,7 @@ public class QuizController {
             description = "Retrieves all options for a specific question."
     )
     @GetMapping("/{quizUuid}/questions/{questionUuid}/options")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizQuestionOptionDTO>>> getQuestionOptions(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
@@ -225,6 +274,7 @@ public class QuizController {
             description = "Updates a specific option for a question."
     )
     @PutMapping("/{quizUuid}/questions/{questionUuid}/options/{optionUuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionOptionDTO>> updateQuestionOption(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
@@ -240,6 +290,7 @@ public class QuizController {
             description = "Removes an option from a question."
     )
     @DeleteMapping("/{quizUuid}/questions/{questionUuid}/options/{optionUuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<Void> deleteQuestionOption(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
@@ -255,6 +306,7 @@ public class QuizController {
             description = "Retrieves all attempts for a specific quiz with scoring data."
     )
     @GetMapping("/{quizUuid}/attempts")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizAttemptDTO>>> getQuizAttempts(
             @PathVariable UUID quizUuid,
             Pageable pageable) {
@@ -273,6 +325,7 @@ public class QuizController {
             description = "Returns the maximum possible points for a quiz."
     )
     @GetMapping("/{quizUuid}/total-points")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<BigDecimal>> getQuizTotalPoints(
             @PathVariable UUID quizUuid) {
         BigDecimal totalPoints = quizQuestionService.getTotalQuizPoints(quizUuid);
@@ -285,6 +338,7 @@ public class QuizController {
             description = "Returns distribution of question types within a quiz."
     )
     @GetMapping("/{quizUuid}/question-distribution")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<Map<String, Long>>> getQuestionDistribution(
             @PathVariable UUID quizUuid) {
         Map<String, Long> distribution = quizQuestionService.getQuestionCategoryDistribution(quizUuid);
@@ -310,6 +364,7 @@ public class QuizController {
                     """
     )
     @GetMapping("/search")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizDTO>>> searchQuizzes(
             @Parameter(
                     description = "Optional search parameters for filtering",
@@ -338,6 +393,7 @@ public class QuizController {
                     """
     )
     @GetMapping("/questions/search")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizQuestionDTO>>> searchQuestions(
             @Parameter(
                     description = "Optional search parameters for filtering",
@@ -368,6 +424,7 @@ public class QuizController {
                     """
     )
     @GetMapping("/attempts/search")
+    @PreAuthorize(MANAGEMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizAttemptDTO>>> searchAttempts(
             @Parameter(
                     description = "Optional search parameters for filtering",
