@@ -1,3 +1,10 @@
+# [2.79.0](https://github.com/sarafrika/elimika/compare/v2.78.1...v2.79.0) (2026-06-25)
+
+
+### Features
+
+* support program-backed class marketplace jobs ([80200d0](https://github.com/sarafrika/elimika/commit/80200d0b27174f36cefdaaf1f8dbdb55af8a127f))
+
 ## [2.78.1](https://github.com/sarafrika/elimika/compare/v2.78.0...v2.78.1) (2026-06-25)
 
 
