@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventSummary;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsService;
 import apps.sarafrika.elimika.shared.spi.analytics.CommerceAnalyticsSnapshot;
 import apps.sarafrika.elimika.shared.spi.analytics.CourseAnalyticsService;
@@ -23,6 +25,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminUserActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
@@ -42,6 +45,7 @@ import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.shared.tracking.entity.RequestAuditLog;
 import apps.sarafrika.elimika.shared.tracking.repository.RequestAuditLogRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +54,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
@@ -61,6 +66,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
@@ -87,6 +93,8 @@ public class AdminServiceImpl implements AdminService {
     private final UserService userService;
     private final UserNumberService userNumberService;
     private final InstructorManagementService instructorManagementService;
+    private final InstructorLookupService instructorLookupService;
+    private final CourseCreatorLookupService courseCreatorLookupService;
     private final CourseAnalyticsService courseAnalyticsService;
     private final TimetablingAnalyticsService timetablingAnalyticsService;
     private final CommerceAnalyticsService commerceAnalyticsService;
@@ -543,6 +551,37 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<AdminUserActivityEventDTO> getUserActivity(UUID userUuid,
+                                                          String scope,
+                                                          String category,
+                                                          String targetUuids,
+                                                          Pageable pageable) {
+        log.debug("Fetching user activity feed for user {} with scope {}, category {}, pageable {}",
+                userUuid, scope, category, pageable);
+
+        findUserOrThrow(userUuid);
+
+        UserActivityTarget target = buildUserActivityTarget(userUuid, targetUuids);
+        String normalizedScope = normalizeActivityScope(scope);
+        String normalizedCategory = normalizeActivityCategory(category);
+        Sort sort = pageable.getSort().isSorted()
+                ? pageable.getSort()
+                : Sort.by(Sort.Direction.DESC, "createdDate");
+        PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+
+        Specification<RequestAuditLog> specification = buildUserActivitySpecification(
+                userUuid,
+                target,
+                normalizedScope,
+                normalizedCategory
+        );
+
+        return requestAuditLogRepository.findAll(specification, pageRequest)
+                .map(log -> toAdminUserActivityEventDTO(log, userUuid, target));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<UserDTO> getAdminEligibleUsers(String searchTerm, Pageable pageable) {
         // Get all users who are not already admins
         // This is a simplified implementation
@@ -606,6 +645,37 @@ public class AdminServiceImpl implements AdminService {
         );
     }
 
+    private AdminUserActivityEventDTO toAdminUserActivityEventDTO(RequestAuditLog log,
+                                                                  UUID userUuid,
+                                                                  UserActivityTarget target) {
+        boolean actorMatch = userUuid.equals(log.getUserUuid());
+        TargetMatch targetMatch = resolveTargetMatch(log, target);
+        String scope = actorMatch && targetMatch.matched()
+                ? "actor_target"
+                : actorMatch ? "actor" : "target";
+
+        return new AdminUserActivityEventDTO(
+                log.getUuid(),
+                log.getCreatedDate(),
+                deriveSummary(log),
+                deriveActivityCategory(log),
+                scope,
+                log.getHttpMethod(),
+                log.getRequestUri(),
+                log.getQueryString(),
+                log.getResponseStatus(),
+                log.getProcessingTimeMs(),
+                log.getUserFullName(),
+                log.getUserEmail(),
+                log.getUserUuid(),
+                log.getUserDomains(),
+                userUuid,
+                targetMatch.entityType(),
+                targetMatch.entityUuid(),
+                log.getRequestId()
+        );
+    }
+
     private String deriveSummary(RequestAuditLog log) {
         String method = log.getHttpMethod() == null ? "" : log.getHttpMethod().toUpperCase();
         String uri = log.getRequestUri() == null ? "" : log.getRequestUri();
@@ -656,6 +726,10 @@ public class AdminServiceImpl implements AdminService {
             return "Viewed dashboard activity";
         }
 
+        if (uri.contains("/activity-feed")) {
+            return "Viewed user audit trail";
+        }
+
         if (uri.contains("/instructors") && uri.contains("/verify")) {
             return "Verified instructor";
         }
@@ -664,7 +738,194 @@ public class AdminServiceImpl implements AdminService {
             return "Unverified instructor";
         }
 
+        if (uri.contains("/classes/jobs") && uri.contains("/applications")) {
+            return "Reviewed marketplace class application";
+        }
+
+        if (uri.contains("/training-applications")) {
+            return "Reviewed training application";
+        }
+
         return (method + " " + uri).trim();
+    }
+
+    private UserActivityTarget buildUserActivityTarget(UUID userUuid, String targetUuids) {
+        Map<UUID, String> tokens = new LinkedHashMap<>();
+        tokens.put(userUuid, "user");
+
+        instructorLookupService.findInstructorUuidByUserUuid(userUuid)
+                .ifPresent(uuid -> tokens.put(uuid, "instructor"));
+        courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid)
+                .ifPresent(uuid -> tokens.put(uuid, "course_creator"));
+
+        for (UserOrganisationDomainMapping mapping : userOrganisationDomainMappingRepository.findByUserUuid(userUuid)) {
+            if (mapping.getOrganisationUuid() != null) {
+                tokens.put(mapping.getOrganisationUuid(), "organisation");
+            }
+            if (mapping.getBranchUuid() != null) {
+                tokens.put(mapping.getBranchUuid(), "branch");
+            }
+        }
+
+        for (UUID relatedUuid : parseTargetUuids(targetUuids)) {
+            tokens.putIfAbsent(relatedUuid, "related");
+        }
+
+        return new UserActivityTarget(tokens);
+    }
+
+    private List<UUID> parseTargetUuids(String targetUuids) {
+        if (targetUuids == null || targetUuids.isBlank()) {
+            return List.of();
+        }
+        List<UUID> uuids = new ArrayList<>();
+        for (String token : targetUuids.split(",")) {
+            if (token == null || token.isBlank()) {
+                continue;
+            }
+            try {
+                uuids.add(UUID.fromString(token.trim()));
+            } catch (IllegalArgumentException ex) {
+                log.warn("Ignoring invalid target_uuids token '{}'", token);
+            }
+        }
+        return uuids;
+    }
+
+    private Specification<RequestAuditLog> buildUserActivitySpecification(UUID userUuid,
+                                                                          UserActivityTarget target,
+                                                                          String scope,
+                                                                          String category) {
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            Predicate successStatus = criteriaBuilder.or(
+                    criteriaBuilder.isNull(root.get("responseStatus")),
+                    criteriaBuilder.between(root.get("responseStatus"), 200, 499)
+            );
+            predicates.add(successStatus);
+
+            Predicate actorPredicate = criteriaBuilder.equal(root.get("userUuid"), userUuid);
+            Predicate targetPredicate = buildTargetPredicate(target, root, criteriaBuilder);
+
+            predicates.add(switch (scope) {
+                case "actor" -> actorPredicate;
+                case "target" -> targetPredicate;
+                default -> criteriaBuilder.or(actorPredicate, targetPredicate);
+            });
+
+            Predicate categoryPredicate = buildCategoryPredicate(category, root, criteriaBuilder);
+            if (categoryPredicate != null) {
+                predicates.add(categoryPredicate);
+            }
+
+            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    private Predicate buildTargetPredicate(UserActivityTarget target,
+                                           jakarta.persistence.criteria.Root<RequestAuditLog> root,
+                                           jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder) {
+        List<Predicate> predicates = new ArrayList<>();
+        for (UUID token : target.entityTypes().keySet()) {
+            String value = token.toString();
+            predicates.add(criteriaBuilder.like(root.get("requestUri"), "%" + value + "%"));
+            predicates.add(criteriaBuilder.like(root.get("queryString"), "%" + value + "%"));
+        }
+        if (predicates.isEmpty()) {
+            return criteriaBuilder.disjunction();
+        }
+        return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+    }
+
+    private Predicate buildCategoryPredicate(String category,
+                                             jakarta.persistence.criteria.Root<RequestAuditLog> root,
+                                             jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder) {
+        if (category == null) {
+            return null;
+        }
+        String[] needles = switch (category) {
+            case "credentials" -> new String[]{"/documents", "/education", "/experience", "/memberships", "/skills", "/certifications", "/verify", "/unverify"};
+            case "content" -> new String[]{"/courses", "/programs", "/admin/courses", "/admin/programs"};
+            case "training" -> new String[]{"/classes", "/bookings", "/training-applications"};
+            case "learning" -> new String[]{"/enrollments", "/certificates", "/assignments", "/submissions"};
+            case "organisation" -> new String[]{"/organisations", "/training-branches"};
+            case "commerce" -> new String[]{"/wallets", "/commerce"};
+            case "security" -> new String[]{"/admin/users", "/users"};
+            case "admin" -> new String[]{"/api/v1/admin"};
+            default -> new String[0];
+        };
+        if (needles.length == 0) {
+            return null;
+        }
+        List<Predicate> predicates = new ArrayList<>();
+        for (String needle : needles) {
+            predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("requestUri")), "%" + needle.toLowerCase(Locale.ROOT) + "%"));
+        }
+        return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+    }
+
+    private TargetMatch resolveTargetMatch(RequestAuditLog log, UserActivityTarget target) {
+        String requestText = ((log.getRequestUri() == null ? "" : log.getRequestUri()) + "?" +
+                (log.getQueryString() == null ? "" : log.getQueryString()));
+
+        for (Map.Entry<UUID, String> entry : target.entityTypes().entrySet()) {
+            if (requestText.contains(entry.getKey().toString())) {
+                return new TargetMatch(true, entry.getValue(), entry.getKey());
+            }
+        }
+
+        return new TargetMatch(false, null, null);
+    }
+
+    private String deriveActivityCategory(RequestAuditLog log) {
+        String uri = log.getRequestUri() == null ? "" : log.getRequestUri().toLowerCase(Locale.ROOT);
+        if (uri.contains("/documents") || uri.contains("/education") || uri.contains("/experience")
+                || uri.contains("/memberships") || uri.contains("/skills") || uri.contains("/certifications")
+                || uri.contains("/verify") || uri.contains("/unverify")) {
+            return "credentials";
+        }
+        if (uri.contains("/admin/courses") || uri.contains("/admin/programs")
+                || uri.contains("/courses") || uri.contains("/programs")) {
+            return "content";
+        }
+        if (uri.contains("/classes") || uri.contains("/bookings") || uri.contains("/training-applications")) {
+            return "training";
+        }
+        if (uri.contains("/enrollments") || uri.contains("/certificates")
+                || uri.contains("/assignments") || uri.contains("/submissions")) {
+            return "learning";
+        }
+        if (uri.contains("/organisations") || uri.contains("/training-branches")) {
+            return "organisation";
+        }
+        if (uri.contains("/wallets") || uri.contains("/commerce")) {
+            return "commerce";
+        }
+        if (uri.contains("/admin/users") || uri.contains("/users")) {
+            return "security";
+        }
+        if (uri.contains("/api/v1/admin")) {
+            return "admin";
+        }
+        return "system";
+    }
+
+    private String normalizeActivityScope(String scope) {
+        if (scope == null || scope.isBlank()) {
+            return "all";
+        }
+        String normalized = scope.toLowerCase(Locale.ROOT);
+        if ("actor".equals(normalized) || "target".equals(normalized) || "all".equals(normalized)) {
+            return normalized;
+        }
+        return "all";
+    }
+
+    private String normalizeActivityCategory(String category) {
+        if (category == null || category.isBlank() || "all".equalsIgnoreCase(category)) {
+            return null;
+        }
+        return category.toLowerCase(Locale.ROOT);
     }
 
     private String extractQueryParam(String query, String key) {
@@ -697,6 +958,12 @@ public class AdminServiceImpl implements AdminService {
     private UserDomain findDomainByNameOrThrow(String domainName) {
         return userDomainRepository.findByDomainName(domainName)
                 .orElseThrow(() -> new ResourceNotFoundException("Domain not found: " + domainName));
+    }
+
+    private record UserActivityTarget(Map<UUID, String> entityTypes) {
+    }
+
+    private record TargetMatch(boolean matched, String entityType, UUID entityUuid) {
     }
 
     private void validateAdminDomain(String domainName) {

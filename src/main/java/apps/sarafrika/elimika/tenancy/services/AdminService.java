@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminUserActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
@@ -121,6 +122,22 @@ public interface AdminService {
      * @return paginated list of recent admin activities
      */
     Page<AdminActivityEventDTO> getDashboardActivity(Pageable pageable);
+
+    /**
+     * Get activity feed entries related to a specific user dossier.
+     *
+     * @param userUuid selected user UUID
+     * @param scope actor, target, or all
+     * @param category optional endpoint category
+     * @param targetUuids optional comma-separated related UUIDs resolved by the caller
+     * @param pageable pagination information
+     * @return paginated list of user-specific audit activities
+     */
+    Page<AdminUserActivityEventDTO> getUserActivity(UUID userUuid,
+                                                    String scope,
+                                                    String category,
+                                                    String targetUuids,
+                                                    Pageable pageable);
 
     /**
      * Get list of users eligible for admin promotion

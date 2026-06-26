@@ -97,6 +97,34 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void listInstructorApplicationsUsesInstructorRepositoryLookup() {
+        UUID instructorUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        ClassMarketplaceJobApplication application = sampleApplication(UUID.randomUUID(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.PENDING);
+
+        when(applicationRepository.findByInstructorUuidAndStatusOrderByCreatedDateDesc(
+                instructorUuid,
+                ClassMarketplaceJobApplicationStatus.PENDING,
+                pageable
+        )).thenReturn(new PageImpl<>(List.of(application), pageable, 1));
+
+        var result = service.listInstructorApplications(
+                instructorUuid,
+                ClassMarketplaceJobApplicationStatus.PENDING,
+                pageable
+        );
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().getFirst().instructorUuid()).isEqualTo(instructorUuid);
+        verify(applicationRepository).findByInstructorUuidAndStatusOrderByCreatedDateDesc(
+                instructorUuid,
+                ClassMarketplaceJobApplicationStatus.PENDING,
+                pageable
+        );
+    }
+
+    @Test
     void approveApplicationRejectsInstructorWithoutCourseApproval() {
         UUID currentUserUuid = UUID.randomUUID();
         ClassMarketplaceJob job = sampleJob();

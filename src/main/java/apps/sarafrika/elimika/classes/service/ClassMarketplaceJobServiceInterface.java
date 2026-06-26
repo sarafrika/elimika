@@ -39,6 +39,10 @@ public interface ClassMarketplaceJobServiceInterface {
     Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
                                                                Pageable pageable);
 
+    Page<ClassMarketplaceJobApplicationDTO> listInstructorApplications(UUID instructorUuid,
+                                                                       ClassMarketplaceJobApplicationStatus status,
+                                                                       Pageable pageable);
+
     ClassMarketplaceJobApplicationDTO approveApplication(UUID jobUuid,
                                                          UUID applicationUuid,
                                                          ClassMarketplaceJobDecisionRequestDTO request);

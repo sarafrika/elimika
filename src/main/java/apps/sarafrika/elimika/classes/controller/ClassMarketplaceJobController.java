@@ -158,6 +158,26 @@ public class ClassMarketplaceJobController {
                 "Marketplace class job applications retrieved successfully"));
     }
 
+    @Operation(summary = "List marketplace class job applications for an instructor")
+    @GetMapping("/applications/instructor/{instructorUuid}")
+    public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobApplicationDTO>>> listInstructorApplications(
+            @PathVariable UUID instructorUuid,
+            @RequestParam(value = "status", required = false) String status,
+            Pageable pageable) {
+        Optional<ClassMarketplaceJobApplicationStatus> statusFilter = Optional.ofNullable(status)
+                .filter(value -> !value.isBlank())
+                .map(ClassMarketplaceJobApplicationStatus::fromValue);
+
+        Page<ClassMarketplaceJobApplicationDTO> page = classMarketplaceJobService.listInstructorApplications(
+                instructorUuid,
+                statusFilter.orElse(null),
+                pageable
+        );
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
+                "Marketplace class job applications retrieved successfully"));
+    }
+
     @Operation(summary = "Approve or reject a marketplace class job application")
     @PostMapping("/{jobUuid}/applications/{applicationUuid}")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> reviewApplication(

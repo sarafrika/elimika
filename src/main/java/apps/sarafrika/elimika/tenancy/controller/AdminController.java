@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminUserActivityEventDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
@@ -284,6 +285,36 @@ public class AdminController {
                         .build()
                         .toUriString()),
                 "Dashboard activity retrieved successfully"
+        ));
+    }
+
+    @Operation(
+            summary = "Get a user-specific admin activity feed",
+            description = "Retrieves request audit events where the selected user was the actor, the target, or both. " +
+                    "Target events are derived from user, profile, organisation, and branch UUIDs seen in request paths or query strings."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User activity retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
+    @GetMapping("/users/{uuid}/activity-feed")
+    public ResponseEntity<ApiResponse<PagedDTO<AdminUserActivityEventDTO>>> getUserActivity(
+            @Parameter(description = "UUID of the user dossier to inspect", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Audit scope to return", schema = @Schema(allowableValues = {"actor", "target", "all"}))
+            @RequestParam(defaultValue = "all") String scope,
+            @Parameter(description = "Optional endpoint category filter")
+            @RequestParam(required = false) String category,
+            @Parameter(description = "Optional comma-separated related profile UUIDs resolved by the caller")
+            @RequestParam(name = "target_uuids", required = false) String targetUuids,
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        log.debug("Getting activity feed for user {} with scope {}, category {}, pagination {}", uuid, scope, category, pageable);
+        Page<AdminUserActivityEventDTO> activity = adminService.getUserActivity(uuid, scope, category, targetUuids, pageable);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(activity, ServletUriComponentsBuilder
+                        .fromCurrentRequestUri()
+                        .build()
+                        .toUriString()),
+                "User activity retrieved successfully"
         ));
     }
 

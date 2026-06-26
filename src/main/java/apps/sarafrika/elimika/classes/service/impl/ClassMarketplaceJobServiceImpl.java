@@ -160,6 +160,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
                                                                       org.springframework.data.domain.Pageable pageable) {
         UUID instructorUuid = resolveCurrentInstructorUuid();
+        return listInstructorApplications(instructorUuid, status, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ClassMarketplaceJobApplicationDTO> listInstructorApplications(UUID instructorUuid,
+                                                                              ClassMarketplaceJobApplicationStatus status,
+                                                                              org.springframework.data.domain.Pageable pageable) {
         if (status == null) {
             return applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable)
                     .map(this::toApplicationDTO);
