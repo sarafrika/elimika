@@ -1,3 +1,10 @@
+# [2.80.0](https://github.com/sarafrika/elimika/compare/v2.79.0...v2.80.0) (2026-06-26)
+
+
+### Features
+
+* add admin user activity audit endpoints ([f9ed148](https://github.com/sarafrika/elimika/commit/f9ed148a79e8413646e9963d08511609ac657c9c))
+
 # [2.79.0](https://github.com/sarafrika/elimika/compare/v2.78.1...v2.79.0) (2026-06-25)
 
 
