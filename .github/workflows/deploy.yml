@@ -1,4 +1,5 @@
-name: Deploy to Self-Hosted Server
+name: Deploy to Staging VPS
+
 on:
   workflow_run:
     workflows: ["Docker Build and Push"]
@@ -27,223 +28,184 @@ jobs:
     # For workflow_run: only deploy if the triggering workflow succeeded
     # For workflow_dispatch: always deploy
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - name: Deployment Context
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Copy Files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USERNAME }}
+          password: ${{ secrets.STAGING_SSH_PASSWORD }}
+          source: "docker/*"
+          target: "products/elimika"
+
+      - name: Run Deployment over SSH
+        uses: appleboy/ssh-action@v1.0.3
         env:
           EVENT_NAME: ${{ github.event_name }}
           DEPLOYMENT_REASON: ${{ github.event.inputs.deployment_reason }}
           SKIP_VALIDATION: ${{ github.event.inputs.skip_validation }}
           FORCE_RECREATE: ${{ github.event.inputs.force_recreate }}
           WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
-        run: |
-          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
-            echo "🚀 Manual Deployment Triggered"
-            echo "Reason: $DEPLOYMENT_REASON"
-            echo "Skip validation: $SKIP_VALIDATION"
-            echo "Force recreate: $FORCE_RECREATE"
-          else
-            echo "🔄 Automatic Deployment (triggered by successful build)"
-            echo "Triggering workflow: $WORKFLOW_RUN_NAME"
-          fi
-          echo ""
-
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Ensure Deployment Directory Exists
-        run: |
-          mkdir -p ~/products/elimika
-
-      - name: Validate Environment Configuration
-        if: ${{ github.event_name == 'workflow_run' || github.event.inputs.skip_validation == 'false' }}
-        run: |
-          # Work in the GitHub workspace where files are checked out
-          WORKSPACE_DIR="${GITHUB_WORKSPACE}"
-          DEPLOY_DIR="$HOME/products/elimika"
-          
-          echo "🔍 Working from: $WORKSPACE_DIR"
-          echo "🏠 Deploying to: $DEPLOY_DIR"
-          
-          # Check if .env.sample exists in workspace
-          if [ ! -f "$WORKSPACE_DIR/docker/.env.sample" ]; then
-            echo "❌ docker/.env.sample not found in repository!"
-            echo "Repository structure:"
-            ls -la "$WORKSPACE_DIR"
-            if [ -d "$WORKSPACE_DIR/docker" ]; then
-              echo "Docker folder contents:"
-              ls -la "$WORKSPACE_DIR/docker"
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USERNAME }}
+          password: ${{ secrets.STAGING_SSH_PASSWORD }}
+          envs: EVENT_NAME,DEPLOYMENT_REASON,SKIP_VALIDATION,FORCE_RECREATE,WORKFLOW_RUN_NAME
+          script: |
+            # Ensure Deployment Directory exists
+            mkdir -p ~/products/elimika
+            
+            DEPLOY_DIR="$HOME/products/elimika"
+            WORKSPACE_DIR="$DEPLOY_DIR"
+            
+            if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+              echo "🚀 Manual Deployment Triggered"
+              echo "Reason: $DEPLOYMENT_REASON"
+              echo "Skip validation: $SKIP_VALIDATION"
+              echo "Force recreate: $FORCE_RECREATE"
+            else
+              echo "🔄 Automatic Deployment (triggered by successful build)"
+              echo "Triggering workflow: $WORKFLOW_RUN_NAME"
             fi
-            exit 1
-          fi
-          
-          echo "✅ Found docker/.env.sample in repository"
-          
-          # Check if .env exists in deployment directory
-          if [ ! -f "$DEPLOY_DIR/.env" ]; then
-            echo "📋 .env file not found in deployment directory. Creating from sample..."
-            cp "$WORKSPACE_DIR/docker/.env.sample" "$DEPLOY_DIR/.env"
-            echo "✅ Created .env file from repository sample"
             echo ""
-            echo "⚠️  DEPLOYMENT PAUSED: Please configure the following environment variables in $DEPLOY_DIR/.env:"
-            echo ""
-            grep -E '^[A-Z_]+=<.*>$' "$DEPLOY_DIR/.env" | sed 's/=<.*>//' | sed 's/^/  - /'
-            echo ""
-            echo "After updating the .env file, re-run this workflow."
-            exit 1
-          fi
-          
-          # Validate existing .env against .env.sample from repository
-          echo "🔍 Validating existing .env file against repository sample..."
-          
-          # Extract property names from repository .env.sample (all defined keys)
-          sample_props=$(grep -E '^[A-Z_]+=' "$WORKSPACE_DIR/docker/.env.sample" | cut -d'=' -f1 | sort)
-          
-          # Extract property names from deployment .env
-          existing_props=$(grep -E '^[A-Z_]+=' "$DEPLOY_DIR/.env" | cut -d'=' -f1 | sort)
-          
-          # Find missing properties
-          missing_props=""
-          for prop in $sample_props; do
-            if ! echo "$existing_props" | grep -q "^$prop$"; then
-              missing_props="$missing_props $prop"
-            fi
-          done
-          
-          # Find properties with placeholder values (still containing <...>)
-          placeholder_props=""
-          sample_placeholder_regex='^([A-Z_]+)=.*<[^>]+>'
-          val_placeholder_regex='<[^>]+>'
-          
-          while IFS= read -r line; do
-            if [[ "$line" =~ $sample_placeholder_regex ]]; then
-              prop_name="${BASH_REMATCH[1]}"
-              # Get the value of the property in the deployed .env
-              val=$(grep "^$prop_name=" "$DEPLOY_DIR/.env" | cut -d'=' -f2-)
-              if [[ "$val" =~ $val_placeholder_regex ]]; then
-                placeholder_props="$placeholder_props $prop_name"
+            
+            # Validation
+            if [ "$EVENT_NAME" == "workflow_run" ] || [ "$SKIP_VALIDATION" == "false" ]; then
+              echo "🔍 Validating existing .env file against repository sample..."
+              
+              # Check if .env exists in deployment directory
+              if [ ! -f "$DEPLOY_DIR/.env" ]; then
+                echo "📋 .env file not found in deployment directory. Creating from sample..."
+                cp "$WORKSPACE_DIR/docker/.env.sample" "$DEPLOY_DIR/.env"
+                echo "✅ Created .env file from repository sample"
+                echo ""
+                echo "⚠️  DEPLOYMENT PAUSED: Please configure the following environment variables in $DEPLOY_DIR/.env:"
+                echo ""
+                grep -E '^[A-Z_]+=<.*>$' "$DEPLOY_DIR/.env" | sed 's/=<.*>//' | sed 's/^/  - /'
+                echo ""
+                echo "After updating the .env file, re-run this workflow."
+                exit 1
               fi
-            fi
-          done < "$WORKSPACE_DIR/docker/.env.sample"
-          
-          # Check for any issues
-          if [ -n "$missing_props" ] || [ -n "$placeholder_props" ]; then
-            echo ""
-            echo "❌ DEPLOYMENT FAILED: Environment configuration issues found!"
-            echo ""
-          
-            if [ -n "$missing_props" ]; then
-              echo "📝 Missing properties in .env file:"
-              for prop in $missing_props; do
-                sample_value=$(grep "^$prop=" "$WORKSPACE_DIR/docker/.env.sample" | cut -d'=' -f2-)
-                echo "  - $prop=$sample_value"
+              
+              # Extract property names from repository .env.sample (all defined keys)
+              sample_props=$(grep -E '^[A-Z_]+=' "$WORKSPACE_DIR/docker/.env.sample" | cut -d'=' -f1 | sort)
+              
+              # Extract property names from deployment .env
+              existing_props=$(grep -E '^[A-Z_]+=' "$DEPLOY_DIR/.env" | cut -d'=' -f1 | sort)
+              
+              # Find missing properties
+              missing_props=""
+              for prop in $sample_props; do
+                if ! echo "$existing_props" | grep -q "^$prop$"; then
+                  missing_props="$missing_props $prop"
+                fi
               done
+              
+              # Find properties with placeholder values (still containing <...>)
+              placeholder_props=""
+              sample_placeholder_regex='^([A-Z_]+)=.*<[^>]+>'
+              val_placeholder_regex='<[^>]+>'
+              
+              while IFS= read -r line; do
+                if [[ "$line" =~ $sample_placeholder_regex ]]; then
+                  prop_name="${BASH_REMATCH[1]}"
+                  # Get the value of the property in the deployed .env
+                  val=$(grep "^$prop_name=" "$DEPLOY_DIR/.env" | cut -d'=' -f2-)
+                  if [[ "$val" =~ $val_placeholder_regex ]]; then
+                    placeholder_props="$placeholder_props $prop_name"
+                  fi
+                fi
+              done < "$WORKSPACE_DIR/docker/.env.sample"
+              
+              # Check for any issues
+              if [ -n "$missing_props" ] || [ -n "$placeholder_props" ]; then
+                echo ""
+                echo "❌ DEPLOYMENT FAILED: Environment configuration issues found!"
+                echo ""
+              
+                if [ -n "$missing_props" ]; then
+                  echo "📝 Missing properties in .env file:"
+                  for prop in $missing_props; do
+                    sample_value=$(grep "^$prop=" "$WORKSPACE_DIR/docker/.env.sample" | cut -d'=' -f2-)
+                    echo "  - $prop=$sample_value"
+                  done
+                  echo ""
+                fi
+              
+                if [ -n "$placeholder_props" ]; then
+                  echo "🔧 Properties with placeholder values (need real values):"
+                  for prop in $placeholder_props; do
+                    echo "  - $prop"
+                  done
+                  echo ""
+                fi
+              
+                echo "📍 Please update $DEPLOY_DIR/.env with the missing/placeholder values and re-run this workflow."
+                echo ""
+                echo "💡 Tip: You can copy missing properties from the repository's docker/.env.sample"
+                echo "🚀 Alternative: Use manual trigger with 'Skip validation' option for emergency deployments"
+                exit 1
+              fi
+              
+              # Validation successful
+              echo "✅ Environment validation passed!"
+              echo "📊 Found $(echo "$existing_props" | wc -w) configured properties"
+              
+              # Show configured properties (without values for security)
+              echo ""
+              echo "🔧 Configured environment variables:"
+              echo "$existing_props" | sed 's/^/  ✓ /'
+            fi
+            
+            if [ "$EVENT_NAME" == "workflow_dispatch" ] && [ "$SKIP_VALIDATION" == "true" ]; then
+              echo "⚠️  WARNING: Environment validation was skipped!"
+              echo "This deployment may fail if environment configuration is incomplete."
+              echo "Use this option only for emergency deployments or when you're certain the configuration is correct."
               echo ""
             fi
-          
-            if [ -n "$placeholder_props" ]; then
-              echo "🔧 Properties with placeholder values (need real values):"
-              for prop in $placeholder_props; do
-                echo "  - $prop"
-              done
-              echo ""
+            
+            # Ensure compose.yaml exists in deployment directory
+            if [ ! -f "$DEPLOY_DIR/compose.yaml" ]; then
+              cp "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"
+              echo "✅ Seeded compose.yaml in deployment directory from repository template."
+            elif ! cmp -s "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"; then
+              echo "⚠️  Existing deployment compose.yaml differs from repository template."
+              echo "Keeping $DEPLOY_DIR/compose.yaml unchanged. Update it manually if the template change is intentional."
+            else
+              echo "✅ Existing deployment compose.yaml matches repository template."
             fi
-          
-            echo "📍 Please update $DEPLOY_DIR/.env with the missing/placeholder values and re-run this workflow."
+            
+            # Pull Latest Docker Image
+            echo "📥 Pulling latest Docker image..."
+            docker pull sarafrika/elimika:latest
+            
+            # Ensure Network Exists
+            if ! docker network ls | grep -q sarafrika; then
+              echo "🌐 Creating sarafrika network..."
+              docker network create sarafrika
+            else
+              echo "✅ sarafrika network already exists."
+            fi
+            
+            # Stop and Remove Existing Containers
+            cd $DEPLOY_DIR
+            echo "🛑 Stopping existing containers..."
+            docker compose -f compose.yaml down
+            
+            # Start Services with Docker Compose
+            echo "🚀 Starting services..."
+            if [ "$EVENT_NAME" == "workflow_dispatch" ] && [ "$FORCE_RECREATE" == "false" ]; then
+              docker compose -f compose.yaml up -d
+              echo "Started with existing containers (no force recreate)"
+            else
+              docker compose -f compose.yaml up -d --force-recreate --remove-orphans
+              echo "Started with force recreate and orphan removal"
+            fi
+            
             echo ""
-            echo "💡 Tip: You can copy missing properties from the repository's docker/.env.sample"
-            echo "🚀 Alternative: Use manual trigger with 'Skip validation' option for emergency deployments"
-            exit 1
-          fi
-          
-          # Validation successful
-          echo "✅ Environment validation passed!"
-          echo "📊 Found $(echo "$existing_props" | wc -w) configured properties"
-          
-          # Show configured properties (without values for security)
-          echo ""
-          echo "🔧 Configured environment variables:"
-          echo "$existing_props" | sed 's/^/  ✓ /'
-
-      - name: Skip Validation Warning
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.skip_validation == 'true' }}
-        run: |
-          echo "⚠️  WARNING: Environment validation was skipped!"
-          echo "This deployment may fail if environment configuration is incomplete."
-          echo "Use this option only for emergency deployments or when you're certain the configuration is correct."
-          echo ""
-
-      - name: Ensure Compose File Exists in Deployment Directory
-        run: |
-          WORKSPACE_DIR="${GITHUB_WORKSPACE}"
-          DEPLOY_DIR="$HOME/products/elimika"
-          
-          # The deployment compose file is server-local configuration. Seed it
-          # from the repository only once so manual operational changes are not
-          # overwritten on every deployment.
-          if [ ! -f "$WORKSPACE_DIR/docker/compose.yaml" ]; then
-            echo "❌ docker/compose.yaml not found in repository!"
-            echo "Expected location: $WORKSPACE_DIR/docker/compose.yaml"
-            exit 1
-          fi
-          
-          if [ ! -f "$DEPLOY_DIR/compose.yaml" ]; then
-            cp "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"
-            echo "✅ Seeded compose.yaml in deployment directory from repository template."
-          elif ! cmp -s "$WORKSPACE_DIR/docker/compose.yaml" "$DEPLOY_DIR/compose.yaml"; then
-            echo "⚠️  Existing deployment compose.yaml differs from repository template."
-            echo "Keeping $DEPLOY_DIR/compose.yaml unchanged. Update it manually if the template change is intentional."
-          else
-            echo "✅ Existing deployment compose.yaml matches repository template."
-          fi
-
-      - name: Pull Latest Docker Image
-        run: |
-          echo "📥 Pulling latest Docker image..."
-          docker pull sarafrika/elimika:latest
-
-      - name: Ensure Network Exists
-        run: |
-          if ! docker network ls | grep -q sarafrika; then
-            echo "🌐 Creating sarafrika network..."
-            docker network create sarafrika
-          else
-            echo "✅ sarafrika network already exists."
-          fi
-
-      - name: Stop and Remove Existing Containers
-        run: |
-          cd ~/products/elimika
-          echo "🛑 Stopping existing containers..."
-          docker compose -f compose.yaml down
-
-      - name: Start Services with Docker Compose
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          FORCE_RECREATE: ${{ github.event.inputs.force_recreate }}
-          DEPLOYMENT_REASON: ${{ github.event.inputs.deployment_reason }}
-          SKIP_VALIDATION: ${{ github.event.inputs.skip_validation }}
-        run: |
-          cd ~/products/elimika
-          echo "🚀 Starting services..."
-          
-          # Use force recreate option based on input (default true for manual, always true for auto)
-          if [ "$EVENT_NAME" == "workflow_dispatch" ] && [ "$FORCE_RECREATE" == "false" ]; then
-            docker compose -f compose.yaml up -d
-            echo "Started with existing containers (no force recreate)"
-          else
-            docker compose -f compose.yaml up -d --force-recreate --remove-orphans
-            echo "Started with force recreate and orphan removal"
-          fi
-          
-          echo ""
-          echo "✅ Deployment completed successfully!"
-          echo "🌍 Service should be available on port 30000"
-          
-          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
-            echo ""
-            echo "🚀 Manual deployment details:"
-            echo "  Reason: $DEPLOYMENT_REASON"
-            echo "  Validation skipped: $SKIP_VALIDATION"
-            echo "  Force recreate: $FORCE_RECREATE"
-          fi
+            echo "✅ Deployment completed successfully!"
+            echo "🌍 Service should be available on port 30000"
