@@ -96,8 +96,8 @@ jobs:
           # Validate existing .env against .env.sample from repository
           echo "🔍 Validating existing .env file against repository sample..."
           
-          # Extract property names from repository .env.sample
-          sample_props=$(grep -E '^[A-Z_]+=<.*>$' "$WORKSPACE_DIR/docker/.env.sample" | cut -d'=' -f1 | sort)
+          # Extract property names from repository .env.sample (all defined keys)
+          sample_props=$(grep -E '^[A-Z_]+=' "$WORKSPACE_DIR/docker/.env.sample" | cut -d'=' -f1 | sort)
           
           # Extract property names from deployment .env
           existing_props=$(grep -E '^[A-Z_]+=' "$DEPLOY_DIR/.env" | cut -d'=' -f1 | sort)
@@ -110,12 +110,17 @@ jobs:
             fi
           done
           
-          # Find properties with placeholder values
+          # Find properties with placeholder values (still containing <...>)
           placeholder_props=""
+          sample_placeholder_regex='^([A-Z_]+)=.*<[^>]+>'
+          val_placeholder_regex='<[^>]+>'
+          
           while IFS= read -r line; do
-            if [[ $line =~ ^([A-Z_]+)=\<.*\>$ ]]; then
+            if [[ "$line" =~ $sample_placeholder_regex ]]; then
               prop_name="${BASH_REMATCH[1]}"
-              if grep -q "^$prop_name=<.*>$" "$DEPLOY_DIR/.env"; then
+              # Get the value of the property in the deployed .env
+              val=$(grep "^$prop_name=" "$DEPLOY_DIR/.env" | cut -d'=' -f2-)
+              if [[ "$val" =~ $val_placeholder_regex ]]; then
                 placeholder_props="$placeholder_props $prop_name"
               fi
             fi
