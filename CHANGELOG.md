@@ -1,3 +1,10 @@
+# [2.81.0](https://github.com/sarafrika/elimika/compare/v2.80.1...v2.81.0) (2026-07-08)
+
+
+### Features
+
+* migrate deployment pipeline to GitHub-hosted runner with SSH ([bf045ac](https://github.com/sarafrika/elimika/commit/bf045aceaba1e533280cbe734ef55da9a96389bf))
+
 ## [2.80.1](https://github.com/sarafrika/elimika/compare/v2.80.0...v2.80.1) (2026-07-08)
 
 
