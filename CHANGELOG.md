@@ -1,3 +1,10 @@
+# [2.82.0](https://github.com/sarafrika/elimika/compare/v2.81.0...v2.82.0) (2026-07-08)
+
+
+### Features
+
+* simplify deployment workflow to run compose pull/up on VPS ([25a59e1](https://github.com/sarafrika/elimika/commit/25a59e1f2ec2f98f16f0ff61130b3a8c3fe0749e))
+
 # [2.81.0](https://github.com/sarafrika/elimika/compare/v2.80.1...v2.81.0) (2026-07-08)
 
 
