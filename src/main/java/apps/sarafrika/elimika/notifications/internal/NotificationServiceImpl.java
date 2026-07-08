@@ -39,43 +39,55 @@ public class NotificationServiceImpl implements NotificationService {
         log.debug("Processing notification {} of type {} for user {}", 
             event.getNotificationId(), event.getNotificationType(), event.getRecipientId());
         
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                boolean delivered = false;
-                NotificationResult lastResult = NotificationResult.pending(event.getNotificationId(), "notification");
-
-                if (event.getDeliveryChannels().contains("in_app")) {
-                    if (options.bypassPreferences() || isNotificationAllowed(event, "in_app", options)) {
-                        userNotificationService.createFromEvent(event);
-                        delivered = true;
-                        lastResult = NotificationResult.success(event.getNotificationId(), "in_app");
-                    } else {
-                        log.debug("In-app notification {} blocked by user preferences", event.getNotificationId());
-                        lastResult = NotificationResult.blocked(event.getNotificationId(), "in_app");
-                    }
-                }
-
-                if (event.getDeliveryChannels().contains("email")) {
-                    if (!StringUtils.hasText(event.getRecipientEmail())) {
-                        log.warn("Email notification {} skipped because recipient email is missing", event.getNotificationId());
-                    } else if (!options.bypassPreferences() && !isNotificationAllowed(event, "email", options)) {
-                        log.debug("Email notification {} blocked by user preferences", event.getNotificationId());
-                        lastResult = NotificationResult.blocked(event.getNotificationId(), "email");
-                    } else if (options.respectQuietHours() && isInQuietHours(event.getRecipientId())) {
-                        log.debug("Email notification {} blocked by quiet hours", event.getNotificationId());
-                        lastResult = NotificationResult.blocked(event.getNotificationId(), "email");
-                    } else {
-                        lastResult = sendEmailNotification(event).join();
-                        delivered = delivered || lastResult.isSuccessful();
-                    }
-                }
-
-                return delivered ? NotificationResult.success(event.getNotificationId(), lastResult.channel()) : lastResult;
-                
-            } catch (Exception e) {
-                log.error("Failed to process notification {}: {}", event.getNotificationId(), e.getMessage(), e);
-                return NotificationResult.failed(event.getNotificationId(), "notification", e.getMessage());
+        record ProcessingState(boolean delivered, NotificationResult lastResult) {
+            ProcessingState withResult(NotificationResult result) {
+                return new ProcessingState(delivered, result);
             }
+            NotificationResult toResult(UUID notificationId) {
+                return delivered ? NotificationResult.success(notificationId, lastResult.channel()) : lastResult;
+            }
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            boolean delivered = false;
+            NotificationResult lastResult = NotificationResult.pending(event.getNotificationId(), "notification");
+
+            if (event.getDeliveryChannels().contains("in_app")) {
+                if (options.bypassPreferences() || isNotificationAllowed(event, "in_app", options)) {
+                    userNotificationService.createFromEvent(event);
+                    delivered = true;
+                    lastResult = NotificationResult.success(event.getNotificationId(), "in_app");
+                } else {
+                    log.debug("In-app notification {} blocked by user preferences", event.getNotificationId());
+                    lastResult = NotificationResult.blocked(event.getNotificationId(), "in_app");
+                }
+            }
+            return new ProcessingState(delivered, lastResult);
+        }).thenCompose(state -> {
+            if (event.getDeliveryChannels().contains("email")) {
+                if (!StringUtils.hasText(event.getRecipientEmail())) {
+                    log.warn("Email notification {} skipped because recipient email is missing", event.getNotificationId());
+                    return CompletableFuture.completedFuture(state.toResult(event.getNotificationId()));
+                } else if (!options.bypassPreferences() && !isNotificationAllowed(event, "email", options)) {
+                    log.debug("Email notification {} blocked by user preferences", event.getNotificationId());
+                    NotificationResult blockedResult = NotificationResult.blocked(event.getNotificationId(), "email");
+                    return CompletableFuture.completedFuture(state.withResult(blockedResult).toResult(event.getNotificationId()));
+                } else if (options.respectQuietHours() && isInQuietHours(event.getRecipientId())) {
+                    log.debug("Email notification {} blocked by quiet hours", event.getNotificationId());
+                    NotificationResult quietResult = NotificationResult.blocked(event.getNotificationId(), "email");
+                    return CompletableFuture.completedFuture(state.withResult(quietResult).toResult(event.getNotificationId()));
+                } else {
+                    return sendEmailNotification(event).thenApply(emailResult -> {
+                        boolean finalDelivered = state.delivered() || emailResult.isSuccessful();
+                        return finalDelivered ? NotificationResult.success(event.getNotificationId(), emailResult.channel()) : emailResult;
+                    });
+                }
+            }
+            return CompletableFuture.completedFuture(state.toResult(event.getNotificationId()));
+        }).exceptionally(throwable -> {
+            Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+            log.error("Failed to process notification {}: {}", event.getNotificationId(), cause.getMessage(), cause);
+            return NotificationResult.failed(event.getNotificationId(), "notification", cause.getMessage());
         });
     }
     
