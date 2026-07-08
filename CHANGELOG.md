@@ -1,3 +1,11 @@
+## [2.80.1](https://github.com/sarafrika/elimika/compare/v2.80.0...v2.80.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* prevent database thread lockups by correcting SMTP properties and making email dispatch asynchronous and non-blocking ([6f2d759](https://github.com/sarafrika/elimika/commit/6f2d7595494420f395202248a1b175e265897907))
+* resolve environment validation regex issues in deployment workflow ([e3adedf](https://github.com/sarafrika/elimika/commit/e3adedfbc266e26df10c01b654a2ad6ac508bf28))
+
 # [2.80.0](https://github.com/sarafrika/elimika/compare/v2.79.0...v2.80.0) (2026-06-26)
 
 
