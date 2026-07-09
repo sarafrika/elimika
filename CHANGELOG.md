@@ -1,3 +1,11 @@
+# [2.88.0](https://github.com/sarafrika/elimika/compare/v2.87.0...v2.88.0) (2026-07-09)
+
+
+### Features
+
+* **classes:** add organisation instructor payables endpoint ([a4517fe](https://github.com/sarafrika/elimika/commit/a4517fe7390728c7bbc1ff14c3194eaa9e1ef3e4))
+* **commerce:** capture orders on completion and compute platform fee ([43706aa](https://github.com/sarafrika/elimika/commit/43706aae818e2f7671212071d6e1e3b90dc68066))
+
 # [2.87.0](https://github.com/sarafrika/elimika/compare/v2.86.0...v2.87.0) (2026-07-09)
 
 
