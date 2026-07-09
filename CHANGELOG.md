@@ -1,3 +1,15 @@
+# [2.85.0](https://github.com/sarafrika/elimika/compare/v2.84.0...v2.85.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **course:** accept standard audio MIME types for lesson content uploads ([d88d396](https://github.com/sarafrika/elimika/commit/d88d396a7142716b442b1096142bb3489480db68))
+
+
+### Features
+
+* **availability:** expose instructor availability slot create, update and delete endpoints ([7669791](https://github.com/sarafrika/elimika/commit/76697913b5884b1c7df3d0ec0ca6b28e1666de5d))
+
 # [2.84.0](https://github.com/sarafrika/elimika/compare/v2.83.0...v2.84.0) (2026-07-09)
 
 
