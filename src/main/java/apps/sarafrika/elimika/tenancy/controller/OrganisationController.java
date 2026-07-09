@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -195,6 +196,37 @@ class OrganisationController {
         );
         TrainingBranchDTO created = trainingBranchService.createTrainingBranch(branchWithOrgUuid);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Training branch created successfully"));
+    }
+
+    @Operation(summary = "Get organisation-scoped dashboard statistics",
+            description = "Returns statistics limited strictly to the given organisation — its members, " +
+                    "students, instructors, administrators and training branches. Never platform-wide.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation statistics retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @GetMapping("/{uuid}/statistics")
+    public ResponseEntity<ApiResponse<OrganisationDashboardStatsDTO>> getOrganisationStatistics(
+            @Parameter(description = "UUID of the organisation to get statistics for. Must be an existing organisation.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
+        // Validate the organisation exists (throws 404 if not).
+        organisationService.getOrganisationByUuid(uuid);
+
+        long totalMembers = userService.getUsersByOrganisation(uuid, Pageable.ofSize(1)).getTotalElements();
+        long totalStudents = userService.getUsersByOrganisationAndDomain(uuid, "student").size();
+        long totalInstructors = userService.getUsersByOrganisationAndDomain(uuid, "instructor").size();
+        long totalAdmins = userService.getUsersByOrganisationAndDomain(uuid, "organisation_user").size();
+        long totalBranches = trainingBranchService.getTrainingBranchesByOrganisation(uuid, Pageable.ofSize(1)).getTotalElements();
+
+        OrganisationDashboardStatsDTO stats = new OrganisationDashboardStatsDTO(
+                java.time.LocalDateTime.now(),
+                uuid,
+                totalMembers,
+                totalStudents,
+                totalInstructors,
+                totalAdmins,
+                totalBranches
+        );
+        return ResponseEntity.ok(ApiResponse.success(stats, "Organisation statistics retrieved successfully"));
     }
 
     @Operation(summary = "Get training branches by organisation UUID")
