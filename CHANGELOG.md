@@ -1,3 +1,11 @@
+# [2.86.0](https://github.com/sarafrika/elimika/compare/v2.85.0...v2.86.0) (2026-07-09)
+
+
+### Features
+
+* **notifications:** email and in-app alerts for unsuccessful training applicants ([c1871d8](https://github.com/sarafrika/elimika/commit/c1871d8d9ba0f4c8973b1486eda4498d74345d5e))
+* **organisation:** add organisation-scoped dashboard statistics endpoint ([1665749](https://github.com/sarafrika/elimika/commit/1665749c72e769d4d0da7f392c6421d98038f165))
+
 # [2.85.0](https://github.com/sarafrika/elimika/compare/v2.84.0...v2.85.0) (2026-07-09)
 
 
