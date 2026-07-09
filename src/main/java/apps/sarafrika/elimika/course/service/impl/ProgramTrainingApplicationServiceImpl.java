@@ -27,6 +27,7 @@ import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -73,6 +74,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final CourseTrainingRateCardValidator rateCardValidator;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final InstructorLookupService instructorLookupService;
+    private final UserLookupService userLookupService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -441,5 +443,38 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 ),
                 "program-training-application-decision:" + application.getUuid() + ":" + type
         ));
+
+        if (status == CourseTrainingApplicationStatus.REJECTED) {
+            emailUnsuccessfulApplicant(recipientUserUuid, programTitle, reviewNotes);
+        }
+    }
+
+    /**
+     * Sends the rejected instructor an email in addition to the in-app notice. Delivery
+     * problems are swallowed so they never break the review workflow.
+     */
+    private void emailUnsuccessfulApplicant(UUID recipientUserUuid, String programTitle, String reviewNotes) {
+        try {
+            String recipientEmail = userLookupService.getUserEmail(recipientUserUuid).orElse(null);
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                return;
+            }
+            String recipientName = userLookupService.getUserFullName(recipientUserUuid).orElse(recipientEmail);
+            eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                    recipientUserUuid,
+                    recipientEmail,
+                    recipientName,
+                    "PROGRAM_TRAINING_APPLICATION_REJECTED",
+                    Map.of(
+                            "recipientName", recipientName,
+                            "contextType", "programme",
+                            "contextName", programTitle,
+                            "statusLabel", "was not successful",
+                            "reviewNotes", reviewNotes == null ? "" : reviewNotes
+                    )
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to email unsuccessful applicant {}: {}", recipientUserUuid, e.getMessage());
+        }
     }
 }

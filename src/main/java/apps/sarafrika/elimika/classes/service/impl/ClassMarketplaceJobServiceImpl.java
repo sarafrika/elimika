@@ -22,6 +22,8 @@ import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationS
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
+import apps.sarafrika.elimika.notifications.api.NotificationType;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -30,6 +32,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,6 +66,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final InstructorLookupService instructorLookupService;
     private final DomainSecurityService domainSecurityService;
     private final ClassDefinitionServiceInterface classDefinitionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
@@ -220,7 +225,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
-        return toApplicationDTO(applicationRepository.save(application));
+        ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        notifyApplicantUnsuccessful(job, saved,
+                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED, "was not successful");
+        return toApplicationDTO(saved);
     }
 
     @Override
@@ -537,6 +545,75 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         if (!toUpdate.isEmpty()) {
             applicationRepository.saveAll(toUpdate);
+            ClassMarketplaceJob job = jobRepository.findByUuid(jobUuid).orElse(null);
+            for (ClassMarketplaceJobApplication application : toUpdate) {
+                notifyApplicantUnsuccessful(job, application,
+                        NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED,
+                        "was not selected");
+            }
+        }
+    }
+
+    /**
+     * Notifies an instructor whose class marketplace job application did not succeed,
+     * both in-app and by email. Delivery failures never block the review workflow.
+     */
+    private void notifyApplicantUnsuccessful(ClassMarketplaceJob job,
+                                             ClassMarketplaceJobApplication application,
+                                             NotificationType type,
+                                             String statusLabel) {
+        try {
+            if (application.getInstructorUuid() == null) {
+                return;
+            }
+            UUID recipientUserUuid = instructorLookupService
+                    .getInstructorUserUuid(application.getInstructorUuid())
+                    .orElse(null);
+            if (recipientUserUuid == null) {
+                return;
+            }
+
+            String contextName = job != null && job.getTitle() != null ? job.getTitle() : "the class";
+            String reviewNotes = application.getReviewNotes() == null ? "" : application.getReviewNotes();
+            UUID jobUuid = job != null ? job.getUuid() : null;
+
+            eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                    recipientUserUuid,
+                    type.getValue(),
+                    "INBOX",
+                    type.getDisplayName(),
+                    "Your application to train " + contextName + " " + statusLabel + ".",
+                    "/dashboard/instructor/applications",
+                    Map.of(
+                            "job_uuid", jobUuid == null ? "" : jobUuid,
+                            "application_uuid", application.getUuid(),
+                            "context_name", contextName,
+                            "review_notes", reviewNotes
+                    ),
+                    "class-marketplace-job-application-decision:" + application.getUuid() + ":" + type.getValue()
+            ));
+
+            String recipientEmail = userLookupService.getUserEmail(recipientUserUuid).orElse(null);
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                return;
+            }
+            String recipientName = userLookupService.getUserFullName(recipientUserUuid).orElse(recipientEmail);
+            eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                    recipientUserUuid,
+                    recipientEmail,
+                    recipientName,
+                    type.getValue(),
+                    Map.of(
+                            "recipientName", recipientName,
+                            "contextType", "class",
+                            "contextName", contextName,
+                            "statusLabel", statusLabel,
+                            "reviewNotes", reviewNotes
+                    )
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to publish unsuccessful-applicant notification for application {}: {}",
+                    application.getUuid(), e.getMessage());
         }
     }
 

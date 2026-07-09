@@ -63,6 +63,9 @@ public class EmailTemplateService {
                                 event.getTemplateVariables().getOrDefault("orderId", "payment")));
             case "account-created" ->
                 "Welcome to " + applicationName;
+            case "training-application-status" ->
+                String.format("Update on your training application: %s",
+                        event.getTemplateVariables().getOrDefault("contextName", "training"));
             default -> 
                 String.format("[%s] %s", applicationName, event.getNotificationType().getDisplayName());
         };

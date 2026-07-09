@@ -45,7 +45,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +81,9 @@ class ClassMarketplaceJobServiceImplTest {
     @Mock
     private ClassDefinitionServiceInterface classDefinitionService;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private ClassMarketplaceJobServiceImpl service;
 
     @BeforeEach
@@ -92,7 +97,8 @@ class ClassMarketplaceJobServiceImplTest {
                 userLookupService,
                 instructorLookupService,
                 domainSecurityService,
-                classDefinitionService
+                classDefinitionService,
+                eventPublisher
         );
     }
 
@@ -306,6 +312,46 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(forwarded.programUuid()).isNull();
         assertThat(forwarded.trainingFee()).isNull();
         assertThat(forwarded.sessionTemplates()).hasSize(1);
+    }
+
+    @Test
+    void rejectApplicationNotifiesUnsuccessfulInstructor() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID recipientUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid))
+                .thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(recipientUserUuid));
+        when(userLookupService.getUserEmail(recipientUserUuid))
+                .thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.getUserFullName(recipientUserUuid))
+                .thenReturn(Optional.of("Jane Instructor"));
+
+        service.rejectApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Not a fit this time"));
+
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.REJECTED);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED".equals(e.notificationType())
+                        && e.deliveryChannels().contains("in_app"));
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED".equals(e.notificationType())
+                        && e.deliveryChannels().contains("email"));
     }
 
     @Test

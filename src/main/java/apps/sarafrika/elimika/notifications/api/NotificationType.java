@@ -39,12 +39,14 @@ public enum NotificationType {
     PROGRAM_CONTENT_REJECTED("PROGRAM_CONTENT_REJECTED", "program-content-rejected", "Program Rejected", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_TRAINING_APPLICATION_SUBMITTED("COURSE_TRAINING_APPLICATION_SUBMITTED", "course-training-application-submitted", "Training Application", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_TRAINING_APPLICATION_APPROVED("COURSE_TRAINING_APPLICATION_APPROVED", "course-training-application-approved", "Training Approved", NotificationCategory.COURSE_MANAGEMENT),
-    COURSE_TRAINING_APPLICATION_REJECTED("COURSE_TRAINING_APPLICATION_REJECTED", "course-training-application-rejected", "Training Rejected", NotificationCategory.COURSE_MANAGEMENT),
+    COURSE_TRAINING_APPLICATION_REJECTED("COURSE_TRAINING_APPLICATION_REJECTED", "training-application-status", "Training Rejected", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_TRAINING_APPLICATION_REVOKED("COURSE_TRAINING_APPLICATION_REVOKED", "course-training-application-revoked", "Training Revoked", NotificationCategory.COURSE_MANAGEMENT),
     PROGRAM_TRAINING_APPLICATION_SUBMITTED("PROGRAM_TRAINING_APPLICATION_SUBMITTED", "program-training-application-submitted", "Program Training Application", NotificationCategory.COURSE_MANAGEMENT),
     PROGRAM_TRAINING_APPLICATION_APPROVED("PROGRAM_TRAINING_APPLICATION_APPROVED", "program-training-application-approved", "Program Training Approved", NotificationCategory.COURSE_MANAGEMENT),
-    PROGRAM_TRAINING_APPLICATION_REJECTED("PROGRAM_TRAINING_APPLICATION_REJECTED", "program-training-application-rejected", "Program Training Rejected", NotificationCategory.COURSE_MANAGEMENT),
+    PROGRAM_TRAINING_APPLICATION_REJECTED("PROGRAM_TRAINING_APPLICATION_REJECTED", "training-application-status", "Program Training Rejected", NotificationCategory.COURSE_MANAGEMENT),
     PROGRAM_TRAINING_APPLICATION_REVOKED("PROGRAM_TRAINING_APPLICATION_REVOKED", "program-training-application-revoked", "Program Training Revoked", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED("CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED", "training-application-status", "Class Application Rejected", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED("CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED", "training-application-status", "Class Application Not Selected", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_ENROLLMENT_CONFIRMED("CLASS_ENROLLMENT_CONFIRMED", "class-enrollment-confirmed", "Class Enrollment", NotificationCategory.LEARNING_PROGRESS),
     COURSE_ENROLLMENT_MILESTONE("COURSE_ENROLLMENT_MILESTONE", "course-enrollment-milestone", "Enrollment Milestone", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_ENROLLMENT_NOTICE("COURSE_ENROLLMENT_NOTICE", "course-enrollment-notice", "Enrollment Notice", NotificationCategory.COURSE_MANAGEMENT),
@@ -180,7 +182,9 @@ public enum NotificationType {
                  COURSE_TRAINING_APPLICATION_REVOKED,
                  PROGRAM_TRAINING_APPLICATION_APPROVED,
                  PROGRAM_TRAINING_APPLICATION_REJECTED,
-                 PROGRAM_TRAINING_APPLICATION_REVOKED -> "instructor";
+                 PROGRAM_TRAINING_APPLICATION_REVOKED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED -> "instructor";
 
             case COURSE_CONTENT_APPROVED,
                  COURSE_CONTENT_REJECTED,

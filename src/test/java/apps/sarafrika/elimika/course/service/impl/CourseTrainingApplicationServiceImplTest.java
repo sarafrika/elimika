@@ -60,6 +60,9 @@ class CourseTrainingApplicationServiceImplTest {
     private InstructorLookupService instructorLookupService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
+
+    @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
     private CourseTrainingRateCardValidator rateCardValidator;
@@ -78,6 +81,7 @@ class CourseTrainingApplicationServiceImplTest {
                 rateCardValidator,
                 courseCreatorLookupService,
                 instructorLookupService,
+                userLookupService,
                 applicationEventPublisher
         );
     }
