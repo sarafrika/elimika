@@ -1,3 +1,10 @@
+# [2.84.0](https://github.com/sarafrika/elimika/compare/v2.83.0...v2.84.0) (2026-07-09)
+
+
+### Features
+
+* **classes:** add per-session training fee to marketplace class jobs ([940dffc](https://github.com/sarafrika/elimika/commit/940dffc437e2cfcfe026dbb11175e9c098e1993a))
+
 # [2.83.0](https://github.com/sarafrika/elimika/compare/v2.82.0...v2.83.0) (2026-07-09)
 
 
