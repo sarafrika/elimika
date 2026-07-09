@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.commerce.internal.service.impl;
 import apps.sarafrika.elimika.commerce.cart.dto.SelectPaymentSessionRequest;
 import apps.sarafrika.elimika.commerce.cart.dto.UpdateCartRequest;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrder;
+import apps.sarafrika.elimika.commerce.internal.enums.PaymentStatus;
 import apps.sarafrika.elimika.commerce.internal.mapper.InternalCommerceMapper;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderRepository;
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
@@ -47,6 +48,18 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         UUID uuid = parseUuid(orderId);
         CommerceOrder order = orderRepository.findByUuid(uuid)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        return mapper.toOrderResponse(order);
+    }
+
+    @Override
+    public OrderResponse markOrderCaptured(String orderId) {
+        UUID uuid = parseUuid(orderId);
+        CommerceOrder order = orderRepository.findByUuid(uuid)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        if (order.getPaymentStatus() != PaymentStatus.CAPTURED) {
+            order.setPaymentStatus(PaymentStatus.CAPTURED);
+            order = orderRepository.save(order);
+        }
         return mapper.toOrderResponse(order);
     }
 
