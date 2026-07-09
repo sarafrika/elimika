@@ -68,6 +68,7 @@ public class UserNotificationServiceImpl implements UserNotificationService {
 
         UserNotification notification = UserNotification.create(
                 event.getRecipientId(),
+                resolveRecipientDomain(event),
                 event.getNotificationId(),
                 event.getNotificationType(),
                 event.getPriority() != null ? event.getPriority() : NotificationPriority.NORMAL,
@@ -87,6 +88,7 @@ public class UserNotificationServiceImpl implements UserNotificationService {
     @Transactional(readOnly = true)
     public Page<NotificationDTO> listNotifications(
             UUID recipientUuid,
+            String domain,
             UserNotificationStatus status,
             NotificationPresentation presentation,
             NotificationType type,
@@ -94,22 +96,19 @@ public class UserNotificationServiceImpl implements UserNotificationService {
             Pageable pageable
     ) {
         return userNotificationRepository.findAll(
-                filter(recipientUuid, status, presentation, type, popupSeen),
+                filter(recipientUuid, domain, status, presentation, type, popupSeen),
                 pageable
         ).map(this::toDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public NotificationCountsDTO getCounts(UUID recipientUuid) {
-        long unreadCount = userNotificationRepository.countByRecipientUuidAndStatus(
-                recipientUuid,
-                UserNotificationStatus.UNREAD
+    public NotificationCountsDTO getCounts(UUID recipientUuid, String domain) {
+        long unreadCount = userNotificationRepository.count(
+                filter(recipientUuid, domain, UserNotificationStatus.UNREAD, null, null, null)
         );
-        long popupCount = userNotificationRepository.countByRecipientUuidAndStatusAndPresentationAndPopupSeenAtIsNull(
-                recipientUuid,
-                UserNotificationStatus.UNREAD,
-                NotificationPresentation.POPUP
+        long popupCount = userNotificationRepository.count(
+                filter(recipientUuid, domain, UserNotificationStatus.UNREAD, NotificationPresentation.POPUP, null, false)
         );
         return new NotificationCountsDTO(unreadCount, popupCount);
     }
@@ -134,6 +133,7 @@ public class UserNotificationServiceImpl implements UserNotificationService {
     @Override
     public NotificationActionResultDTO applyBulkAction(
             UUID recipientUuid,
+            String domain,
             String action,
             UserNotificationStatus status,
             NotificationPresentation presentation,
@@ -146,6 +146,7 @@ public class UserNotificationServiceImpl implements UserNotificationService {
 
         int affected = userNotificationRepository.markUnreadAsRead(
                 recipientUuid,
+                normalizeDomain(domain),
                 type,
                 presentation,
                 UserNotificationStatus.UNREAD,
@@ -157,14 +158,24 @@ public class UserNotificationServiceImpl implements UserNotificationService {
 
     private Specification<UserNotification> filter(
             UUID recipientUuid,
+            String domain,
             UserNotificationStatus status,
             NotificationPresentation presentation,
             NotificationType type,
             Boolean popupSeen
     ) {
+        String normalizedDomain = normalizeDomain(domain);
         return (root, query, criteriaBuilder) -> {
             var predicates = new ArrayList<Predicate>();
             predicates.add(criteriaBuilder.equal(root.get("recipientUuid"), recipientUuid));
+            if (normalizedDomain != null) {
+                // Domain-scoped inbox: show this domain's notifications plus
+                // account-level ones (null domain) that apply everywhere.
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.equal(root.get("recipientDomain"), normalizedDomain),
+                        criteriaBuilder.isNull(root.get("recipientDomain"))
+                ));
+            }
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
             }
@@ -189,6 +200,7 @@ public class UserNotificationServiceImpl implements UserNotificationService {
         return new NotificationDTO(
                 notification.getUuid(),
                 notification.getNotificationId(),
+                notification.getRecipientDomain(),
                 notification.getNotificationType(),
                 notification.getCategory(),
                 notification.getPriority(),
@@ -213,6 +225,29 @@ public class UserNotificationServiceImpl implements UserNotificationService {
      */
     private OffsetDateTime toUtcOffset(LocalDateTime value) {
         return value == null ? null : value.atOffset(ZoneOffset.UTC);
+    }
+
+    /**
+     * The dashboard domain this notification is addressed to: an explicit
+     * per-event override when present, otherwise the notification type's
+     * default audience. {@code null} means the notification applies to every
+     * domain the recipient holds.
+     */
+    private String resolveRecipientDomain(NotificationEvent event) {
+        String override = normalizeDomain(event.getRecipientDomain());
+        if (override != null) {
+            return override;
+        }
+        return normalizeDomain(event.getNotificationType().getRecipientDomain());
+    }
+
+    private String normalizeDomain(String domain) {
+        if (!StringUtils.hasText(domain)) {
+            return null;
+        }
+        String normalized = domain.trim().toLowerCase();
+        // Tolerate the British/American spelling split used across the app.
+        return "organization".equals(normalized) ? "organisation" : normalized;
     }
 
     private String resolveDedupeKey(NotificationEvent event) {

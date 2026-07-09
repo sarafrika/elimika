@@ -38,6 +38,9 @@ public class UserNotification extends BaseEntity {
     @Column(name = "recipient_uuid")
     private UUID recipientUuid;
 
+    @Column(name = "recipient_domain")
+    private String recipientDomain;
+
     @Column(name = "notification_id")
     private UUID notificationId;
 
@@ -91,6 +94,7 @@ public class UserNotification extends BaseEntity {
 
     public static UserNotification create(
             UUID recipientUuid,
+            String recipientDomain,
             UUID notificationId,
             NotificationType notificationType,
             NotificationPriority priority,
@@ -104,6 +108,7 @@ public class UserNotification extends BaseEntity {
     ) {
         UserNotification notification = new UserNotification();
         notification.setRecipientUuid(recipientUuid);
+        notification.setRecipientDomain(recipientDomain);
         notification.setNotificationId(notificationId);
         notification.setNotificationType(notificationType);
         notification.setCategory(notificationType.getCategory());

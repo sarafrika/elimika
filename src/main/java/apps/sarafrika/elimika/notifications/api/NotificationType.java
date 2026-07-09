@@ -141,4 +141,63 @@ public enum NotificationType {
     public String getEmailTemplatePath() {
         return "email/" + templateName + ".html";
     }
+
+    /**
+     * The user domain (dashboard role) this notification type is addressed to.
+     * <p>
+     * A user may hold several domains (e.g. student and instructor) but share a
+     * single recipient identity. This mapping lets the inbox be scoped to the
+     * active dashboard and lets the UI build click-through links against the
+     * correct domain. Account-level types that are relevant regardless of the
+     * active dashboard return {@code null}, meaning "all domains".
+     */
+    public String getRecipientDomain() {
+        return switch (this) {
+            case COURSE_ENROLLMENT_WELCOME,
+                 COURSE_COMPLETION_CERTIFICATE,
+                 LEARNING_MILESTONE_ACHIEVED,
+                 ASSIGNMENT_DUE_REMINDER,
+                 ASSIGNMENT_SUBMITTED_CONFIRMATION,
+                 ASSIGNMENT_GRADED,
+                 ASSIGNMENT_RETURNED_FOR_REVISION,
+                 ASSIGNMENT_DEADLINE_REMINDER,
+                 ASSESSMENT_COMPLETED,
+                 CLASS_ENROLLMENT_CONFIRMED,
+                 UPCOMING_CLASS_REMINDER,
+                 LEARNING_CERTIFICATE_ISSUED,
+                 WEEKLY_PROGRESS_SUMMARY,
+                 LEARNING_STREAK_ACHIEVEMENT,
+                 PEER_ACHIEVEMENT_CELEBRATION -> "student";
+
+            case NEW_STUDENT_ENROLLMENT,
+                 NEW_ASSIGNMENT_SUBMISSION,
+                 CLASS_SCHEDULE_UPDATED,
+                 GRADING_REMINDER,
+                 INSTRUCTOR_CLASS_ENROLLMENT_MILESTONE,
+                 INSTRUCTOR_CLASS_ENROLLMENT_NOTICE,
+                 COURSE_TRAINING_APPLICATION_APPROVED,
+                 COURSE_TRAINING_APPLICATION_REJECTED,
+                 COURSE_TRAINING_APPLICATION_REVOKED,
+                 PROGRAM_TRAINING_APPLICATION_APPROVED,
+                 PROGRAM_TRAINING_APPLICATION_REJECTED,
+                 PROGRAM_TRAINING_APPLICATION_REVOKED -> "instructor";
+
+            case COURSE_CONTENT_APPROVED,
+                 COURSE_CONTENT_REJECTED,
+                 PROGRAM_CONTENT_APPROVED,
+                 PROGRAM_CONTENT_REJECTED,
+                 COURSE_TRAINING_APPLICATION_SUBMITTED,
+                 PROGRAM_TRAINING_APPLICATION_SUBMITTED,
+                 COURSE_ENROLLMENT_MILESTONE,
+                 COURSE_ENROLLMENT_NOTICE -> "course_creator";
+
+            // Account-level notifications are relevant in every dashboard.
+            case ACCOUNT_CREATED,
+                 PASSWORD_RESET_REQUEST,
+                 SECURITY_ALERT,
+                 ORDER_PAYMENT_RECEIPT,
+                 PROFILE_DOCUMENT_VERIFIED,
+                 PROFILE_COMPLETION_REMINDER -> null;
+        };
+    }
 }

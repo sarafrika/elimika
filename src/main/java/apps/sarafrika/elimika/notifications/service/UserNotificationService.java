@@ -17,6 +17,7 @@ public interface UserNotificationService {
 
     Page<NotificationDTO> listNotifications(
             UUID recipientUuid,
+            String domain,
             UserNotificationStatus status,
             NotificationPresentation presentation,
             NotificationType type,
@@ -24,12 +25,13 @@ public interface UserNotificationService {
             Pageable pageable
     );
 
-    NotificationCountsDTO getCounts(UUID recipientUuid);
+    NotificationCountsDTO getCounts(UUID recipientUuid, String domain);
 
     NotificationDTO applyAction(UUID recipientUuid, UUID notificationUuid, String action);
 
     NotificationActionResultDTO applyBulkAction(
             UUID recipientUuid,
+            String domain,
             String action,
             UserNotificationStatus status,
             NotificationPresentation presentation,

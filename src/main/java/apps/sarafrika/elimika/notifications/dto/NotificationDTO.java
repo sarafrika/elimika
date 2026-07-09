@@ -16,6 +16,8 @@ public record NotificationDTO(
         UUID uuid,
         @JsonProperty("notification_id")
         UUID notificationId,
+        @JsonProperty("recipient_domain")
+        String recipientDomain,
         @JsonProperty("type")
         NotificationType type,
         @JsonProperty("category")
