@@ -60,6 +60,7 @@ public class CourseController {
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
     private final CourseReviewService courseReviewService;
+    private final CourseRecommendationService courseRecommendationService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final LessonMediaValidationService lessonMediaValidationService;
@@ -101,6 +102,30 @@ public class CourseController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdCourse, "Course created successfully"));
+    }
+
+    @Operation(
+            summary = "Get course recommendations for a user",
+            description = """
+                Returns published courses recommended for the given user, ranked by topic and
+                level overlap with the user's past courses (authored and/or approved-to-train),
+                excluding courses already taken. Falls back to the most recently published courses
+                when the user has no usable history. Each result carries a short reason.
+                """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Recommendations retrieved successfully")
+            }
+    )
+    @GetMapping("/recommendations")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<java.util.List<RecommendedCourseDTO>>> getCourseRecommendations(
+            @Parameter(description = "UUID of the user to recommend for", required = true)
+            @RequestParam("user_uuid") java.util.UUID userUuid,
+            @Parameter(description = "Maximum number of recommendations to return (default 6, max 50)")
+            @RequestParam(value = "limit", defaultValue = "6") int limit) {
+        java.util.List<RecommendedCourseDTO> recommendations =
+                courseRecommendationService.recommendForUser(userUuid, limit);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(recommendations, "Course recommendations retrieved successfully"));
     }
 
     @Operation(

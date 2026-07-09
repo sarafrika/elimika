@@ -56,6 +56,8 @@ class CourseControllerTest {
     @Mock
     private CourseReviewService courseReviewService;
     @Mock
+    private apps.sarafrika.elimika.course.service.CourseRecommendationService courseRecommendationService;
+    @Mock
     private StorageService storageService;
     @Mock
     private LessonMediaValidationService lessonMediaValidationService;
@@ -83,6 +85,7 @@ class CourseControllerTest {
                 courseEnrollmentService,
                 courseCategoryService,
                 courseReviewService,
+                courseRecommendationService,
                 storageService,
                 storageProperties,
                 lessonMediaValidationService
