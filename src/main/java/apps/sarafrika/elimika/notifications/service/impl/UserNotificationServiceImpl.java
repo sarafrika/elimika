@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -197,12 +198,21 @@ public class UserNotificationServiceImpl implements UserNotificationService {
                 notification.getBody(),
                 notification.getActionUrl(),
                 readMetadata(notification.getMetadataJson()),
-                notification.getOccurredAt(),
-                notification.getPopupSeenAt(),
-                notification.getReadAt(),
-                notification.getArchivedAt(),
-                notification.getCreatedDate()
+                toUtcOffset(notification.getOccurredAt()),
+                toUtcOffset(notification.getPopupSeenAt()),
+                toUtcOffset(notification.getReadAt()),
+                toUtcOffset(notification.getArchivedAt()),
+                toUtcOffset(notification.getCreatedDate())
         );
+    }
+
+    /**
+     * Stamp a stored {@link LocalDateTime} (persisted in UTC) with an explicit
+     * UTC offset so the API emits an unambiguous instant (e.g. {@code ...Z})
+     * instead of a zone-less timestamp that clients would misread as local time.
+     */
+    private OffsetDateTime toUtcOffset(LocalDateTime value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 
     private String resolveDedupeKey(NotificationEvent event) {

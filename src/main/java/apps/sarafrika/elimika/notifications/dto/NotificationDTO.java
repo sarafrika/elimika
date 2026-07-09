@@ -7,7 +7,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.notifications.api.UserNotificationStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,14 +35,14 @@ public record NotificationDTO(
         @JsonProperty("metadata")
         Map<String, Object> metadata,
         @JsonProperty("occurred_at")
-        LocalDateTime occurredAt,
+        OffsetDateTime occurredAt,
         @JsonProperty("popup_seen_at")
-        LocalDateTime popupSeenAt,
+        OffsetDateTime popupSeenAt,
         @JsonProperty("read_at")
-        LocalDateTime readAt,
+        OffsetDateTime readAt,
         @JsonProperty("archived_at")
-        LocalDateTime archivedAt,
+        OffsetDateTime archivedAt,
         @JsonProperty("created_at")
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }
