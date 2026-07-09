@@ -1,3 +1,10 @@
+# [2.87.0](https://github.com/sarafrika/elimika/compare/v2.86.0...v2.87.0) (2026-07-09)
+
+
+### Features
+
+* **course:** add past-courses recommendation endpoint ([cd9b309](https://github.com/sarafrika/elimika/commit/cd9b309ef4e1c4c642cd47b72909492c6dcd74fa))
+
 # [2.86.0](https://github.com/sarafrika/elimika/compare/v2.85.0...v2.86.0) (2026-07-09)
 
 
