@@ -9,9 +9,11 @@ import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleLookupSer
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -122,6 +124,76 @@ public class AvailabilityController {
         boolean isAvailable = availabilityService.isInstructorAvailable(instructorUuid, start, end);
         return ResponseEntity.ok(ApiResponse.success(isAvailable,
                 isAvailable ? "Instructor is available" : "Instructor is not available"));
+    }
+
+    // ================================
+    // AVAILABILITY SLOT CRUD
+    // ================================
+
+    @Operation(
+        summary = "List availability slots for an instructor",
+        description = "Returns all availability slots configured for the instructor."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slots retrieved successfully")
+    @GetMapping("/slots")
+    public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getAvailabilitySlots(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid) {
+        log.debug("REST request to list availability slots for instructor: {}", instructorUuid);
+        List<AvailabilitySlotDTO> slots = availabilityService.getAvailabilityForInstructor(instructorUuid);
+        return ResponseEntity.ok(ApiResponse.success(slots, "Availability slots retrieved successfully"));
+    }
+
+    @Operation(
+        summary = "Create an availability slot for an instructor",
+        description = "Creates a new availability slot for the instructor."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Availability slot created successfully")
+    @PostMapping("/slots")
+    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> createAvailabilitySlot(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Valid @RequestBody AvailabilitySlotDTO slot) {
+        log.debug("REST request to create availability slot for instructor: {}", instructorUuid);
+        validateInstructorMatch(instructorUuid, slot.instructorUuid());
+        AvailabilitySlotDTO created = availabilityService.createAvailabilitySlot(slot);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(created, "Availability slot created successfully"));
+    }
+
+    @Operation(
+        summary = "Update an availability slot",
+        description = "Updates an existing availability slot for the instructor."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slot updated successfully")
+    @PutMapping("/slots/{slotUuid}")
+    public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> updateAvailabilitySlot(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid,
+            @Valid @RequestBody AvailabilitySlotDTO slot) {
+        log.debug("REST request to update availability slot {} for instructor: {}", slotUuid, instructorUuid);
+        validateInstructorMatch(instructorUuid, slot.instructorUuid());
+        AvailabilitySlotDTO updated = availabilityService.updateAvailabilitySlot(slotUuid, slot);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Availability slot updated successfully"));
+    }
+
+    @Operation(
+        summary = "Delete a single availability slot",
+        description = "Removes one availability slot belonging to the instructor."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Availability slot deleted successfully")
+    @DeleteMapping("/slots/{slotUuid}")
+    public ResponseEntity<ApiResponse<Void>> deleteAvailabilitySlot(
+            @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
+            @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid) {
+        log.debug("REST request to delete availability slot {} for instructor: {}", slotUuid, instructorUuid);
+        availabilityService.deleteAvailabilitySlot(slotUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    private void validateInstructorMatch(UUID pathInstructorUuid, UUID bodyInstructorUuid) {
+        if (bodyInstructorUuid != null && !bodyInstructorUuid.equals(pathInstructorUuid)) {
+            throw new IllegalArgumentException(
+                    "instructor_uuid in the request body must match the instructor in the path");
+        }
     }
 
     private InstructorCalendarEntryDTO mapAvailabilityEntry(LocalDate date, AvailabilitySlotDTO slot) {
