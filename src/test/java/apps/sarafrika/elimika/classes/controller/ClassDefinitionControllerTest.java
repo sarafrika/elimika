@@ -766,4 +766,22 @@ class ClassDefinitionControllerTest {
                 .andExpect(jsonPath("$.message").value("Resource not found"));
     }
 
+    @Test
+    void getInstructorPayablesForOrganisationReturnsPayables() throws Exception {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        when(classDefinitionService.getInstructorPayablesForOrganisation(organisationUuid))
+                .thenReturn(List.of(new apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO(
+                        instructorUuid, new BigDecimal("480.00"), 2L, 6L)));
+
+        mockMvc.perform(get("/api/v1/classes/organisation/{organisationUuid}/instructor-payables", organisationUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].instructor_uuid").value(instructorUuid.toString()))
+                .andExpect(jsonPath("$.data[0].amount_owed").value(480.00))
+                .andExpect(jsonPath("$.data[0].class_count").value(2))
+                .andExpect(jsonPath("$.data[0].session_count").value(6));
+
+        verify(classDefinitionService).getInstructorPayablesForOrganisation(organisationUuid);
+    }
+
 }

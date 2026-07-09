@@ -904,6 +904,43 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     @Override
     @Transactional(readOnly = true)
+    public List<OrganisationInstructorPayableDTO> getInstructorPayablesForOrganisation(UUID organisationUuid) {
+        log.debug("Computing instructor payables for organisation UUID: {}", organisationUuid);
+
+        record Accumulator(BigDecimal amount, long classes, long sessions) {}
+        Map<UUID, Accumulator> byInstructor = new LinkedHashMap<>();
+
+        for (ClassDefinitionResponseDTO response : findClassesForOrganisation(organisationUuid)) {
+            ClassDefinitionDTO definition = response.classDefinition();
+            if (definition == null || definition.defaultInstructorUuid() == null) {
+                continue;
+            }
+            BigDecimal fee = definition.trainingFee() == null ? BigDecimal.ZERO : definition.trainingFee();
+            long completedSessions = definition.completedSessionCount() == null
+                    ? 0L
+                    : definition.completedSessionCount();
+            BigDecimal owed = fee.multiply(BigDecimal.valueOf(completedSessions));
+
+            byInstructor.merge(
+                    definition.defaultInstructorUuid(),
+                    new Accumulator(owed, 1L, completedSessions),
+                    (existing, added) -> new Accumulator(
+                            existing.amount().add(added.amount()),
+                            existing.classes() + added.classes(),
+                            existing.sessions() + added.sessions()));
+        }
+
+        return byInstructor.entrySet().stream()
+                .map(entry -> new OrganisationInstructorPayableDTO(
+                        entry.getKey(),
+                        entry.getValue().amount(),
+                        entry.getValue().classes(),
+                        entry.getValue().sessions()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable) {
         log.debug("Finding all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
 

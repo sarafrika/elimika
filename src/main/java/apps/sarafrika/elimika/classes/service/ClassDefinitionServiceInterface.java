@@ -57,6 +57,9 @@ public interface ClassDefinitionServiceInterface {
 
     List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid);
 
+    List<apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO> getInstructorPayablesForOrganisation(
+            UUID organisationUuid);
+
     Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable);
 
     List<ClassDefinitionResponseDTO> findAllActiveClasses();

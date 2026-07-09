@@ -410,6 +410,21 @@ public class ClassDefinitionController {
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for organisation retrieved successfully"));
     }
 
+    @Operation(summary = "Get what an organisation owes each instructor",
+            description = "Payables per instructor = sum(per-class training_fee x completed sessions) across the " +
+                    "organisation's classes assigned to that instructor.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor payables retrieved successfully")
+    @GetMapping("/organisation/{organisationUuid}/instructor-payables")
+    public ResponseEntity<ApiResponse<List<apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO>>> getInstructorPayablesForOrganisation(
+            @Parameter(description = "UUID of the organisation", required = true)
+            @PathVariable UUID organisationUuid) {
+        log.debug("REST request to get instructor payables for organisation: {}", organisationUuid);
+
+        List<apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO> result =
+                classDefinitionService.getInstructorPayablesForOrganisation(organisationUuid);
+        return ResponseEntity.ok(ApiResponse.success(result, "Instructor payables retrieved successfully"));
+    }
+
     @Operation(summary = "Get all class definitions")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping
