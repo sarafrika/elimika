@@ -1,3 +1,15 @@
+# [2.83.0](https://github.com/sarafrika/elimika/compare/v2.82.0...v2.83.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **notifications:** emit inbox timestamps as UTC OffsetDateTime ([2f173be](https://github.com/sarafrika/elimika/commit/2f173bef4fa0a900e5df8300a52864250a0f18dd))
+
+
+### Features
+
+* **notifications:** scope inbox notifications by recipient domain ([2570141](https://github.com/sarafrika/elimika/commit/2570141f368bc2ea636f49733661f450718ec4cf))
+
 # [2.82.0](https://github.com/sarafrika/elimika/compare/v2.81.0...v2.82.0) (2026-07-08)
 
 
