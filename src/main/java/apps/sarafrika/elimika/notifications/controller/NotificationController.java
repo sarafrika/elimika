@@ -43,6 +43,7 @@ public class NotificationController {
     @GetMapping
     @Operation(summary = "List current user's notifications")
     public ResponseEntity<ApiResponse<PagedDTO<NotificationDTO>>> listNotifications(
+            @RequestParam(required = false) String domain,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String presentation,
             @RequestParam(required = false) String type,
@@ -52,6 +53,7 @@ public class NotificationController {
         UUID recipientUuid = userContextService.getCurrentUserUuid();
         Page<NotificationDTO> notifications = userNotificationService.listNotifications(
                 recipientUuid,
+                domain,
                 parseStatus(status),
                 parsePresentation(presentation),
                 parseType(type),
@@ -67,8 +69,10 @@ public class NotificationController {
 
     @GetMapping("/counts")
     @Operation(summary = "Get current user's notification counts")
-    public ResponseEntity<ApiResponse<NotificationCountsDTO>> getCounts() {
-        NotificationCountsDTO counts = userNotificationService.getCounts(userContextService.getCurrentUserUuid());
+    public ResponseEntity<ApiResponse<NotificationCountsDTO>> getCounts(
+            @RequestParam(required = false) String domain
+    ) {
+        NotificationCountsDTO counts = userNotificationService.getCounts(userContextService.getCurrentUserUuid(), domain);
         return ResponseEntity.ok(ApiResponse.success(counts, "Notification counts retrieved successfully"));
     }
 
@@ -90,12 +94,14 @@ public class NotificationController {
     @Operation(summary = "Apply a bulk notification action")
     public ResponseEntity<ApiResponse<NotificationActionResultDTO>> applyBulkAction(
             @RequestParam("action") String action,
+            @RequestParam(required = false) String domain,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String presentation,
             @RequestParam(required = false) String type
     ) {
         NotificationActionResultDTO result = userNotificationService.applyBulkAction(
                 userContextService.getCurrentUserUuid(),
+                domain,
                 action,
                 parseStatus(status),
                 parsePresentation(presentation),

@@ -25,14 +25,6 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
 
     Page<UserNotification> findByRecipientUuid(UUID recipientUuid, Pageable pageable);
 
-    long countByRecipientUuidAndStatus(UUID recipientUuid, UserNotificationStatus status);
-
-    long countByRecipientUuidAndStatusAndPresentationAndPopupSeenAtIsNull(
-            UUID recipientUuid,
-            UserNotificationStatus status,
-            NotificationPresentation presentation
-    );
-
     @Modifying
     @Query("""
             UPDATE UserNotification n
@@ -40,11 +32,13 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
                    n.readAt = COALESCE(n.readAt, :readAt)
              WHERE n.recipientUuid = :recipientUuid
                AND n.status = :unreadStatus
+               AND (:domain IS NULL OR n.recipientDomain = :domain OR n.recipientDomain IS NULL)
                AND (:type IS NULL OR n.notificationType = :type)
                AND (:presentation IS NULL OR n.presentation = :presentation)
             """)
     int markUnreadAsRead(
             @Param("recipientUuid") UUID recipientUuid,
+            @Param("domain") String domain,
             @Param("type") NotificationType type,
             @Param("presentation") NotificationPresentation presentation,
             @Param("unreadStatus") UserNotificationStatus unreadStatus,

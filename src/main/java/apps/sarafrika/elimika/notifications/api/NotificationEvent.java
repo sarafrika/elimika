@@ -76,6 +76,16 @@ public interface NotificationEvent {
     }
 
     /**
+     * The user domain (dashboard role) this notification is addressed to, so a
+     * multi-domain recipient's inbox can be scoped to the active dashboard.
+     * Defaults to {@code null}, in which case the notification type's default
+     * audience ({@link NotificationType#getRecipientDomain()}) is used.
+     */
+    default String getRecipientDomain() {
+        return null;
+    }
+
+    /**
      * In-app title. Defaults to the notification type display name.
      */
     default String getTitle() {
