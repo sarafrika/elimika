@@ -288,6 +288,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setMeetingLink(request.meetingLink());
         job.setMaxParticipants(request.maxParticipants() != null ? request.maxParticipants() : DEFAULT_MAX_PARTICIPANTS);
         job.setAllowWaitlist(request.allowWaitlist() != null ? request.allowWaitlist() : Boolean.TRUE);
+        job.setTrainingFee(request.trainingFee());
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
@@ -548,7 +549,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getOrganisationUuid(),
                 job.getCourseUuid(),
                 job.getProgramUuid(),
-                null,
+                job.getTrainingFee(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),
                 job.getDefaultStartTime(),
@@ -613,6 +614,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getProgramUuid(),
                 job.getTitle(),
                 job.getDescription(),
+                job.getTrainingFee(),
                 job.getStatus(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),

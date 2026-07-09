@@ -184,6 +184,11 @@ public record ClassMarketplaceJobRequestDTO(
         @JsonProperty("allow_waitlist")
         Boolean allowWaitlist,
 
+        @Schema(description = "**[OPTIONAL]** Fee charged per session for the advertised class (carried onto the class when an instructor is assigned).", nullable = true, example = "240.00")
+        @JsonProperty("training_fee")
+        @PositiveOrZero(message = "Training fee cannot be negative")
+        BigDecimal trainingFee,
+
         @Schema(description = "**[REQUIRED]** Session templates that will be used when the class is assigned and created.", requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("session_templates")
         @NotNull(message = "session_templates is required")

@@ -39,6 +39,9 @@ public record ClassMarketplaceJobDTO(
         @JsonProperty(value = "description", access = JsonProperty.Access.READ_ONLY)
         String description,
 
+        @JsonProperty(value = "training_fee", access = JsonProperty.Access.READ_ONLY)
+        BigDecimal trainingFee,
+
         @JsonProperty(value = "status", access = JsonProperty.Access.READ_ONLY)
         ClassMarketplaceJobStatus status,
 

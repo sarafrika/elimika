@@ -236,6 +236,7 @@ class ClassMarketplaceJobControllerTest {
                 "https://meet.google.com/abc-defg-hij",
                 24,
                 true,
+                new BigDecimal("240.00"),
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -276,6 +277,7 @@ class ClassMarketplaceJobControllerTest {
                 "https://meet.google.com/abc-defg-hij",
                 24,
                 true,
+                new BigDecimal("240.00"),
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -300,6 +302,7 @@ class ClassMarketplaceJobControllerTest {
                 request.programUuid(),
                 request.title(),
                 request.description(),
+                request.trainingFee(),
                 ClassMarketplaceJobStatus.OPEN,
                 request.classVisibility(),
                 request.sessionFormat(),

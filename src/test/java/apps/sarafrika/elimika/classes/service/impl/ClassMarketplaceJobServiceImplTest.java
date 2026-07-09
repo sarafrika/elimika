@@ -177,6 +177,34 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void createJobPersistsTrainingFee() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        var result = service.createJob(request);
+
+        assertThat(result.trainingFee()).isEqualByComparingTo(new BigDecimal("240.00"));
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getTrainingFee()).isEqualByComparingTo(new BigDecimal("240.00"));
+    }
+
+    @Test
     void createJobRejectsMissingLearningContext() {
         UUID currentUserUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = sampleRequest(null, null);
@@ -409,6 +437,7 @@ class ClassMarketplaceJobServiceImplTest {
                 "https://meet.google.com/abc-defg-hij",
                 24,
                 true,
+                new BigDecimal("240.00"),
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),

@@ -104,6 +104,9 @@ public class ClassMarketplaceJob extends BaseEntity {
     @Column(name = "allow_waitlist")
     private Boolean allowWaitlist;
 
+    @Column(name = "training_fee")
+    private BigDecimal trainingFee;
+
     @Column(name = "assigned_instructor_uuid")
     private UUID assignedInstructorUuid;
 
