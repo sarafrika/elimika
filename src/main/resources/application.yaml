@@ -116,8 +116,12 @@ mpesa:
   service:
     base-url: ${MPESA_SERVICE_BASE_URL:}
     shortcode-uuid: ${MPESA_SERVICE_SHORTCODE_UUID:}
-    username: ${MPESA_SERVICE_USERNAME:}
-    password: ${MPESA_SERVICE_PASSWORD:}
+    # OAuth2 client-credentials against Keycloak; the resulting bearer token authenticates
+    # elimika to the mpesa-service gateway (replaces the previous HTTP Basic credentials).
+    oauth:
+      token-uri: ${MPESA_OAUTH_TOKEN_URI:${app.keycloak.serverUrl}/realms/${app.keycloak.realm}/protocol/openid-connect/token}
+      client-id: ${MPESA_CLIENT_ID:}
+      client-secret: ${MPESA_CLIENT_SECRET:}
 
 # Actuator configuration
 management:

@@ -24,12 +24,31 @@ public class MpesaGatewayProperties {
     private UUID shortcodeUuid;
 
     /**
-     * HTTP Basic auth username for the mpesa-service.
+     * Keycloak client-credentials settings used to obtain a bearer token for the mpesa-service.
      */
-    private String username;
+    private OAuth oauth = new OAuth();
 
     /**
-     * HTTP Basic auth password for the mpesa-service.
+     * OAuth2 client-credentials configuration for authenticating to the mpesa-service.
      */
-    private String password;
+    @Getter
+    @Setter
+    public static class OAuth {
+
+        /**
+         * Keycloak token endpoint, e.g.
+         * {@code https://auth.sarafrika.com/realms/elimika/protocol/openid-connect/token}.
+         */
+        private String tokenUri;
+
+        /**
+         * Client id of the Keycloak client-credentials client provisioned for elimika&rarr;mpesa.
+         */
+        private String clientId;
+
+        /**
+         * Client secret of the Keycloak client-credentials client.
+         */
+        private String clientSecret;
+    }
 }
