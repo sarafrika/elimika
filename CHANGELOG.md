@@ -1,3 +1,10 @@
+# [2.93.0](https://github.com/sarafrika/elimika/compare/v2.92.0...v2.93.0) (2026-07-10)
+
+
+### Features
+
+* **commerce:** default mpesa oauth to existing elimika-backend keycloak client ([687de17](https://github.com/sarafrika/elimika/commit/687de174ff78fb3c2473411a00a279462a763337))
+
 # [2.92.0](https://github.com/sarafrika/elimika/compare/v2.91.0...v2.92.0) (2026-07-10)
 
 
