@@ -1,3 +1,10 @@
+# [2.92.0](https://github.com/sarafrika/elimika/compare/v2.91.0...v2.92.0) (2026-07-10)
+
+
+### Features
+
+* **commerce:** authenticate to mpesa gateway with keycloak client credentials ([4966fc1](https://github.com/sarafrika/elimika/commit/4966fc1af30c4867d7137d387a4f92c4819f2975))
+
 # [2.91.0](https://github.com/sarafrika/elimika/compare/v2.90.1...v2.91.0) (2026-07-10)
 
 
