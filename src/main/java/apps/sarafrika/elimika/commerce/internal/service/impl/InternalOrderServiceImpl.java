@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -61,6 +62,23 @@ public class InternalOrderServiceImpl implements InternalOrderService {
             order = orderRepository.save(order);
         }
         return mapper.toOrderResponse(order);
+    }
+
+    @Override
+    public void storeCheckoutRequestId(String orderId, String checkoutRequestId) {
+        UUID uuid = parseUuid(orderId);
+        CommerceOrder order = orderRepository.findByUuid(uuid)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        order.setCheckoutRequestId(checkoutRequestId);
+        orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> findCheckoutRequestId(String orderId) {
+        UUID uuid = parseUuid(orderId);
+        return orderRepository.findByUuid(uuid)
+                .map(CommerceOrder::getCheckoutRequestId);
     }
 
     private UUID parseUuid(String id) {

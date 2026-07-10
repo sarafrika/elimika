@@ -107,6 +107,17 @@ commerce:
   internal:
     enabled: ${COMMERCE_INTERNAL_ENABLED:false}
     default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:KES}
+  capture:
+    # Dev default true: checkout auto-captures without a gateway. In prod set false so
+    # capture is driven only by confirmed M-Pesa payments (COMMERCE_CAPTURE_AUTO_ON_COMPLETE=false).
+    auto-on-complete: ${COMMERCE_CAPTURE_AUTO_ON_COMPLETE:true}
+
+mpesa:
+  service:
+    base-url: ${MPESA_SERVICE_BASE_URL:}
+    shortcode-uuid: ${MPESA_SERVICE_SHORTCODE_UUID:}
+    username: ${MPESA_SERVICE_USERNAME:}
+    password: ${MPESA_SERVICE_PASSWORD:}
 
 # Actuator configuration
 management:

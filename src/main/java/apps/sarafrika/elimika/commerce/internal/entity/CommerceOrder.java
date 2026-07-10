@@ -87,6 +87,9 @@ public class CommerceOrder extends BaseEntity {
     @Column(name = "payment_provider_id")
     private String paymentProviderId;
 
+    @Column(name = "checkout_request_id")
+    private String checkoutRequestId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata_json")
     private String metadataJson;
