@@ -1,3 +1,10 @@
+## [2.90.1](https://github.com/sarafrika/elimika/compare/v2.90.0...v2.90.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **wallet:** add unique index guarding concurrent duplicate sale credits ([e377791](https://github.com/sarafrika/elimika/commit/e3777915a1d88e3517db87d9f0423ee5b82bbfa3))
+
 # [2.90.0](https://github.com/sarafrika/elimika/compare/v2.89.0...v2.90.0) (2026-07-10)
 
 
