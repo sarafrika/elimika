@@ -1,3 +1,10 @@
+# [2.91.0](https://github.com/sarafrika/elimika/compare/v2.90.1...v2.91.0) (2026-07-10)
+
+
+### Features
+
+* **course:** add update and withdraw for training applications ([2f6e037](https://github.com/sarafrika/elimika/commit/2f6e0378f8fb22cb460f559e7cb69e1074c2a9a1))
+
 ## [2.90.1](https://github.com/sarafrika/elimika/compare/v2.90.0...v2.90.1) (2026-07-10)
 
 
