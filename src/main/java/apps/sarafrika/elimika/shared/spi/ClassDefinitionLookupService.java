@@ -13,6 +13,14 @@ public interface ClassDefinitionLookupService {
 
     Optional<ClassDefinitionSnapshot> findByUuid(UUID classDefinitionUuid);
 
+    /**
+     * Resolves the default instructor UUID configured on a class definition.
+     *
+     * @param classDefinitionUuid the class definition UUID
+     * @return the default instructor UUID, or empty when the class is missing or has no instructor
+     */
+    Optional<UUID> findDefaultInstructorUuid(UUID classDefinitionUuid);
+
     List<UUID> findClassDefinitionUuidsByInstructorUuid(UUID instructorUuid);
 
     List<UUID> findClassDefinitionUuidsByOrganisationUuid(UUID organisationUuid);

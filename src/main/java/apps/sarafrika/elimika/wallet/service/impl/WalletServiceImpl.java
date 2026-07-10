@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -58,6 +59,17 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public UserWallet creditSale(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description) {
         return applyCredit(userUuid, amount, currencyCode, WalletTransactionType.SALE, reference, description, null);
+    }
+
+    @Override
+    @Transactional
+    public boolean creditSaleIdempotent(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description) {
+        if (StringUtils.hasText(reference) && transactionRepository.existsByReference(reference)) {
+            log.debug("Skipping duplicate sale credit for reference {}", reference);
+            return false;
+        }
+        creditSale(userUuid, amount, currencyCode, reference, description);
+        return true;
     }
 
     @Override

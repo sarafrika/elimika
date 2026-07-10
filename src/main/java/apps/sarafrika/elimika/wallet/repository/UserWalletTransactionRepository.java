@@ -12,4 +12,6 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
 
     @Query("select txn from UserWalletTransaction txn where txn.wallet.uuid = :walletUuid order by txn.id desc")
     Page<UserWalletTransaction> findByWalletUuid(@Param("walletUuid") UUID walletUuid, Pageable pageable);
+
+    boolean existsByReference(String reference);
 }

@@ -28,6 +28,15 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
     }
 
     @Override
+    public Optional<UUID> findDefaultInstructorUuid(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return Optional.empty();
+        }
+        return classDefinitionRepository.findByUuid(classDefinitionUuid)
+                .map(ClassDefinition::getDefaultInstructorUuid);
+    }
+
+    @Override
     public List<UUID> findClassDefinitionUuidsByInstructorUuid(UUID instructorUuid) {
         if (instructorUuid == null) {
             return List.of();
