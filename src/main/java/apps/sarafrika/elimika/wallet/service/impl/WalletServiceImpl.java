@@ -68,8 +68,15 @@ public class WalletServiceImpl implements WalletService {
             log.debug("Skipping duplicate sale credit for reference {}", reference);
             return false;
         }
-        creditSale(userUuid, amount, currencyCode, reference, description);
-        return true;
+        try {
+            creditSale(userUuid, amount, currencyCode, reference, description);
+            return true;
+        } catch (DataIntegrityViolationException ex) {
+            // Concurrent duplicate delivery raced past the existsByReference check; the
+            // unique index on (reference) for SALE transactions rejected the second insert.
+            log.debug("Sale credit for reference {} already recorded concurrently; skipping", reference);
+            return false;
+        }
     }
 
     @Override
