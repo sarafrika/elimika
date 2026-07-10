@@ -1246,6 +1246,40 @@ public class CourseController {
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(application, message));
     }
 
+    @Operation(
+            summary = "Update training application",
+            description = """
+                    Allows the applicant (instructor or organisation) to edit the rate card and notes on their own
+                    training application while it is still PENDING. Requests for applications that are not pending, or
+                    that are not owned by the caller, are rejected.
+                    """
+    )
+    @PutMapping("/{courseUuid}/training-applications/{applicationUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingApplicationDTO>> updateTrainingApplication(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid,
+            @Valid @RequestBody CourseTrainingApplicationUpdateRequest request) {
+        CourseTrainingApplicationDTO application =
+                courseTrainingApplicationService.updateApplication(courseUuid, applicationUuid, request);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(application, "Training application updated successfully"));
+    }
+
+    @Operation(
+            summary = "Withdraw training application",
+            description = """
+                    Allows the applicant (instructor or organisation) to withdraw their own training application while
+                    it is still PENDING. Only pending applications owned by the caller can be withdrawn.
+                    """
+    )
+    @DeleteMapping("/{courseUuid}/training-applications/{applicationUuid}")
+    public ResponseEntity<Void> withdrawTrainingApplication(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid) {
+        courseTrainingApplicationService.withdrawApplication(courseUuid, applicationUuid);
+        return ResponseEntity.noContent().build();
+    }
+
     // ===== COURSE ENROLLMENTS =====
 
     @Operation(

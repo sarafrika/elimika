@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
+import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
@@ -197,6 +198,178 @@ class CourseTrainingApplicationServiceImplTest {
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Instructors may only submit training applications for themselves");
+    }
+
+    @Test
+    void updateApplicationEditsPendingRateCard() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+
+        Course course = new Course();
+        course.setMinimumTrainingFee(new BigDecimal("2000.00"));
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        existing.setApplicantUuid(applicantUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.PENDING);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
+        when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
+        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
+        when(applicationRepository.save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
+                rateCard("KES", "2500.00"),
+                "Updated notes"
+        );
+
+        service.updateApplication(courseUuid, applicationUuid, request);
+
+        ArgumentCaptor<CourseTrainingApplication> captor = ArgumentCaptor.forClass(CourseTrainingApplication.class);
+        verify(applicationRepository).save(captor.capture());
+        CourseTrainingApplication saved = captor.getValue();
+        assertThat(saved.getPrivateOnlineRate()).isEqualByComparingTo("2500.00");
+        assertThat(saved.getApplicationNotes()).isEqualTo("Updated notes");
+        assertThat(saved.getStatus()).isEqualTo(CourseTrainingApplicationStatus.PENDING);
+    }
+
+    @Test
+    void updateApplicationRejectsNonPending() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        existing.setApplicantUuid(applicantUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.APPROVED);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
+
+        CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
+                rateCard("KES", "2500.00"),
+                null
+        );
+
+        assertThatThrownBy(() -> service.updateApplication(courseUuid, applicationUuid, request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Only pending applications can be updated");
+    }
+
+    @Test
+    void updateApplicationRejectsForeignInstructor() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        existing.setApplicantUuid(applicantUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.PENDING);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(false);
+
+        CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
+                rateCard("KES", "2500.00"),
+                null
+        );
+
+        assertThatThrownBy(() -> service.updateApplication(courseUuid, applicationUuid, request))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void withdrawApplicationDeletesPending() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        existing.setApplicantUuid(applicantUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.PENDING);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
+
+        service.withdrawApplication(courseUuid, applicationUuid);
+
+        verify(applicationRepository).delete(existing);
+    }
+
+    @Test
+    void withdrawApplicationRejectsNonPending() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        existing.setApplicantUuid(applicantUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.REJECTED);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.withdrawApplication(courseUuid, applicationUuid))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Only pending applications can be withdrawn");
+
+        verify(applicationRepository, org.mockito.Mockito.never())
+                .delete(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class));
+    }
+
+    @Test
+    void withdrawApplicationAllowsOrganisationOwner() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID organisationUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.ORGANISATION);
+        existing.setApplicantUuid(organisationUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.PENDING);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(true);
+
+        service.withdrawApplication(courseUuid, applicationUuid);
+
+        verify(applicationRepository).delete(existing);
+    }
+
+    @Test
+    void withdrawApplicationRejectsForeignOrganisation() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        UUID organisationUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
+
+        CourseTrainingApplication existing = new CourseTrainingApplication();
+        existing.setCourseUuid(courseUuid);
+        existing.setApplicantType(CourseTrainingApplicantType.ORGANISATION);
+        existing.setApplicantUuid(organisationUuid);
+        existing.setStatus(CourseTrainingApplicationStatus.PENDING);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.withdrawApplication(courseUuid, applicationUuid))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     private CourseTrainingRateCardDTO rateCard(String currency, String amount) {

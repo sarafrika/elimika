@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationRequest;
+import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,12 @@ import java.util.UUID;
 public interface ProgramTrainingApplicationService {
 
     ProgramTrainingApplicationDTO submitApplication(UUID programUuid, ProgramTrainingApplicationRequest request);
+
+    ProgramTrainingApplicationDTO updateApplication(UUID programUuid,
+                                                    UUID applicationUuid,
+                                                    ProgramTrainingApplicationUpdateRequest request);
+
+    void withdrawApplication(UUID programUuid, UUID applicationUuid);
 
     ProgramTrainingApplicationDTO approveApplication(UUID programUuid,
                                                      UUID applicationUuid,

@@ -722,4 +722,38 @@ public class TrainingProgramController {
 
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(application, message));
     }
+
+    @Operation(
+            summary = "Update program training application",
+            description = """
+                    Allows the applicant (instructor or organisation) to edit the rate card and notes on their own
+                    program training application while it is still PENDING. Requests for applications that are not
+                    pending, or that are not owned by the caller, are rejected.
+                    """
+    )
+    @PutMapping("/{programUuid}/training-applications/{applicationUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> updateProgramTrainingApplication(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid,
+            @Valid @RequestBody ProgramTrainingApplicationUpdateRequest request) {
+        ProgramTrainingApplicationDTO application =
+                programTrainingApplicationService.updateApplication(programUuid, applicationUuid, request);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(application, "Training application updated successfully"));
+    }
+
+    @Operation(
+            summary = "Withdraw program training application",
+            description = """
+                    Allows the applicant (instructor or organisation) to withdraw their own program training
+                    application while it is still PENDING. Only pending applications owned by the caller can be withdrawn.
+                    """
+    )
+    @DeleteMapping("/{programUuid}/training-applications/{applicationUuid}")
+    public ResponseEntity<Void> withdrawProgramTrainingApplication(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid) {
+        programTrainingApplicationService.withdrawApplication(programUuid, applicationUuid);
+        return ResponseEntity.noContent().build();
+    }
 }

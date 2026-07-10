@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationRequest;
+import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.factory.ProgramTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
@@ -119,6 +120,55 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             }
             throw ex;
         }
+    }
+
+    @Override
+    public ProgramTrainingApplicationDTO updateApplication(UUID programUuid,
+                                                           UUID applicationUuid,
+                                                           ProgramTrainingApplicationUpdateRequest request) {
+        log.debug("Updating training application {} for program {}", applicationUuid, programUuid);
+
+        ProgramTrainingApplication application = findApplication(programUuid, applicationUuid);
+        ensureApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
+
+        if (application.getStatus() != CourseTrainingApplicationStatus.PENDING) {
+            throw new IllegalStateException("Only pending applications can be updated.");
+        }
+
+        List<UUID> courseUuids = resolveProgramCourseUuids(programUuid);
+        if (courseUuids.isEmpty()) {
+            throw new IllegalStateException("Training program has no courses. Add courses before updating applications.");
+        }
+
+        CourseTrainingRateCardDTO rateCardRequest = request.rateCard();
+        if (rateCardRequest == null) {
+            throw new IllegalArgumentException("Rate card is required");
+        }
+        BigDecimal minimumTrainingFee = resolveProgramMinimumTrainingFee(courseUuids);
+        rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
+
+        PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
+        String rateCurrency = resolvedCurrency.getCode();
+
+        application.setApplicationNotes(request.applicationNotes());
+        applyRateCard(application, rateCardRequest, rateCurrency);
+
+        ProgramTrainingApplication saved = applicationRepository.save(application);
+        return ProgramTrainingApplicationFactory.toDTO(saved);
+    }
+
+    @Override
+    public void withdrawApplication(UUID programUuid, UUID applicationUuid) {
+        log.debug("Withdrawing training application {} for program {}", applicationUuid, programUuid);
+
+        ProgramTrainingApplication application = findApplication(programUuid, applicationUuid);
+        ensureApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
+
+        if (application.getStatus() != CourseTrainingApplicationStatus.PENDING) {
+            throw new IllegalStateException("Only pending applications can be withdrawn.");
+        }
+
+        applicationRepository.delete(application);
     }
 
     @Override
@@ -274,6 +324,26 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         target.setPrivateInpersonRate(rateCard.privateInpersonRate());
         target.setGroupOnlineRate(rateCard.groupOnlineRate());
         target.setGroupInpersonRate(rateCard.groupInpersonRate());
+    }
+
+    private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+        if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
+            if (!domainSecurityService.isInstructorWithUuid(applicantUuid)) {
+                throw new AccessDeniedException("You may only manage your own training applications.");
+            }
+            return;
+        }
+
+        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
+            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+            if (currentUserUuid == null
+                    || !userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid)) {
+                throw new AccessDeniedException("You may only manage training applications for your organisation.");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("You may only manage your own training applications.");
     }
 
     private ProgramTrainingApplication findApplication(UUID programUuid, UUID applicationUuid) {

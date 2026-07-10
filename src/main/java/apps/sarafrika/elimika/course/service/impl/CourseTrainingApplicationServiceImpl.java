@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
+import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.model.Course;
@@ -107,6 +108,53 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             }
             throw ex;
         }
+    }
+
+    @Override
+    public CourseTrainingApplicationDTO updateApplication(UUID courseUuid,
+                                                          UUID applicationUuid,
+                                                          CourseTrainingApplicationUpdateRequest request) {
+        log.debug("Updating training application {} for course {}", applicationUuid, courseUuid);
+
+        CourseTrainingApplication application = findApplication(courseUuid, applicationUuid);
+        ensureApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
+
+        if (application.getStatus() != CourseTrainingApplicationStatus.PENDING) {
+            throw new IllegalStateException("Only pending applications can be updated.");
+        }
+
+        Course course = courseRepository.findByUuid(courseUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
+
+        CourseTrainingRateCardDTO rateCardRequest = request.rateCard();
+        if (rateCardRequest == null) {
+            throw new IllegalArgumentException("Rate card is required");
+        }
+        BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(course);
+        rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
+
+        PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
+        String rateCurrency = resolvedCurrency.getCode();
+
+        application.setApplicationNotes(request.applicationNotes());
+        applyRateCard(application, rateCardRequest, rateCurrency);
+
+        CourseTrainingApplication saved = applicationRepository.save(application);
+        return CourseTrainingApplicationFactory.toDTO(saved);
+    }
+
+    @Override
+    public void withdrawApplication(UUID courseUuid, UUID applicationUuid) {
+        log.debug("Withdrawing training application {} for course {}", applicationUuid, courseUuid);
+
+        CourseTrainingApplication application = findApplication(courseUuid, applicationUuid);
+        ensureApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
+
+        if (application.getStatus() != CourseTrainingApplicationStatus.PENDING) {
+            throw new IllegalStateException("Only pending applications can be withdrawn.");
+        }
+
+        applicationRepository.delete(application);
     }
 
     @Override
@@ -313,6 +361,26 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         target.setPrivateInpersonRate(rateCard.privateInpersonRate());
         target.setGroupOnlineRate(rateCard.groupOnlineRate());
         target.setGroupInpersonRate(rateCard.groupInpersonRate());
+    }
+
+    private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+        if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
+            if (!domainSecurityService.isInstructorWithUuid(applicantUuid)) {
+                throw new AccessDeniedException("You may only manage your own training applications.");
+            }
+            return;
+        }
+
+        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
+            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+            if (currentUserUuid == null
+                    || !userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid)) {
+                throw new AccessDeniedException("You may only manage training applications for your organisation.");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("You may only manage your own training applications.");
     }
 
     private CourseTrainingApplication findApplication(UUID courseUuid, UUID applicationUuid) {
