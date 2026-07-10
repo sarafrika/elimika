@@ -1,3 +1,10 @@
+# [2.89.0](https://github.com/sarafrika/elimika/compare/v2.88.0...v2.89.0) (2026-07-10)
+
+
+### Features
+
+* **commerce:** credit instructor and creator wallets on order capture ([8369d90](https://github.com/sarafrika/elimika/commit/8369d90663a8ac82827161ce68bbb571507d7864))
+
 # [2.88.0](https://github.com/sarafrika/elimika/compare/v2.87.0...v2.88.0) (2026-07-09)
 
 
