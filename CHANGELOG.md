@@ -1,3 +1,10 @@
+# [2.90.0](https://github.com/sarafrika/elimika/compare/v2.89.0...v2.90.0) (2026-07-10)
+
+
+### Features
+
+* **commerce:** orchestrate m-pesa stk checkout and capture on confirmation ([a246568](https://github.com/sarafrika/elimika/commit/a24656855266a87971ab46d6abad14c4775d7ef1))
+
 # [2.89.0](https://github.com/sarafrika/elimika/compare/v2.88.0...v2.89.0) (2026-07-10)
 
 
