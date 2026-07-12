@@ -78,6 +78,17 @@ public interface UserLookupService {
     boolean userHasDomain(UUID userUuid, UserDomain domain);
 
     /**
+     * Checks if a user holds a domain at the GLOBAL (platform) level only,
+     * ignoring org-scoped role mappings. Use this to keep platform-admin-only
+     * endpoints distinct from org-scoped admins.
+     *
+     * @param userUuid The UUID of the user
+     * @param domain The domain to check
+     * @return true if the user has the global domain, false otherwise
+     */
+    boolean userHasGlobalDomain(UUID userUuid, UserDomain domain);
+
+    /**
      * Gets all domains for a user.
      *
      * @param userUuid The UUID of the user

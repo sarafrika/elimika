@@ -150,7 +150,7 @@ public class RevenueAnalyticsController {
     }
 
     @GetMapping("/platform-fees/summary")
-    @PreAuthorize("@domainSecurityService.isOrganizationAdmin()")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @Operation(summary = "Summarize platform fees withheld")
     public ResponseEntity<ApiResponse<List<RevenueAmountDTO>>> getPlatformFeeSummary(
             @RequestParam(value = "start_date", required = false)

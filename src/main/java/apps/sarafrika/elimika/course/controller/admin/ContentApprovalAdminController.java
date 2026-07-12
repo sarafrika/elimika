@@ -30,7 +30,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 @Tag(name = "Admin Content Moderation", description = "Approve or revoke course and training program availability")
-@PreAuthorize("@domainSecurityService.isOrganizationAdmin()")
+@PreAuthorize("@domainSecurityService.isPlatformAdmin()")
 public class ContentApprovalAdminController {
 
     private final CourseService courseService;

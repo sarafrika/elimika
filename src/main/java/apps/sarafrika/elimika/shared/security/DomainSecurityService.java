@@ -52,6 +52,23 @@ public class DomainSecurityService {
     }
 
     /**
+     * Checks if the current user is a PLATFORM admin, i.e. holds the {@code admin}
+     * domain at the global level (not merely as an org-scoped role). Use this to
+     * protect platform-infrastructure endpoints (e.g. currency and platform-fee
+     * configuration) from org-scoped admins, who legitimately manage their own
+     * organisation but must not administer platform-wide settings.
+     */
+    public boolean isPlatformAdmin() {
+        try {
+            UUID currentUserUuid = getCurrentUserUuid();
+            return currentUserUuid != null && userLookupService.userHasGlobalDomain(currentUserUuid, UserDomain.admin);
+        } catch (Exception e) {
+            log.error("Error checking platform admin status", e);
+            return false;
+        }
+    }
+
+    /**
      * Checks if the currently authenticated user is a course creator.
      */
     public boolean isCourseCreator() {

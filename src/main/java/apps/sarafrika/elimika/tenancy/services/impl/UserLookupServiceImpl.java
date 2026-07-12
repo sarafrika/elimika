@@ -73,16 +73,33 @@ public class UserLookupServiceImpl implements UserLookupService {
 
     @Override
     public boolean userHasDomain(UUID userUuid, UserDomain domain) {
-        List<UserDomainMapping> mappings = userDomainMappingRepository.findByUserUuid(userUuid);
-        return mappings.stream()
-                .anyMatch(mapping -> {
-                    String domainName = mapping.getUserDomain().getDomainName();
-                    try {
-                        return domain == UserDomain.valueOf(domainName);
-                    } catch (IllegalArgumentException e) {
-                        return false;
-                    }
-                });
+        // Global (platform-level) domain mappings.
+        if (userHasGlobalDomain(userUuid, domain)) {
+            return true;
+        }
+        // Org-scoped roles are the authoritative role of an org member; a user's
+        // real role inside an organisation lives in user_organisation_domain_mapping
+        // while globally they only carry the organisation_user umbrella. Count an
+        // active org-scoped role toward the domain check so e.g. an org instructor
+        // passes instructor guards and an org admin passes admin guards.
+        return userOrganisationDomainMappingRepository
+                .findByUserUuidAndActiveTrueAndDeletedFalse(userUuid)
+                .stream()
+                .anyMatch(mapping -> matchesDomain(mapping.getDomain().getDomainName(), domain));
+    }
+
+    @Override
+    public boolean userHasGlobalDomain(UUID userUuid, UserDomain domain) {
+        return userDomainMappingRepository.findByUserUuid(userUuid).stream()
+                .anyMatch(mapping -> matchesDomain(mapping.getUserDomain().getDomainName(), domain));
+    }
+
+    private boolean matchesDomain(String domainName, UserDomain domain) {
+        try {
+            return domain == UserDomain.valueOf(domainName);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     @Override

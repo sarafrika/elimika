@@ -19,7 +19,7 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/currencies")
 @Tag(name = "Admin Currency Management", description = "Administrative endpoints for managing platform currencies")
 @RequiredArgsConstructor
-@PreAuthorize("@domainSecurityService.isOrganizationAdmin()")
+@PreAuthorize("@domainSecurityService.isPlatformAdmin()")
 public class CurrencyAdminController {
 
     private final CurrencyService currencyService;
