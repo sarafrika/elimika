@@ -1,3 +1,10 @@
+## [2.94.1](https://github.com/sarafrika/elimika/compare/v2.94.0...v2.94.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* **security:** count org-scoped roles in domain checks; keep platform-admin endpoints global-only ([ec4bf94](https://github.com/sarafrika/elimika/commit/ec4bf94248f0395e70c9a7e1af9825a5038ebca3))
+
 # [2.94.0](https://github.com/sarafrika/elimika/compare/v2.93.0...v2.94.0) (2026-07-12)
 
 
