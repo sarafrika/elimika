@@ -1,3 +1,10 @@
+# [2.94.0](https://github.com/sarafrika/elimika/compare/v2.93.0...v2.94.0) (2026-07-12)
+
+
+### Features
+
+* **organisation:** add set-member-domain endpoint and backfill org managers ([d987d32](https://github.com/sarafrika/elimika/commit/d987d32166fe11eb229bb198ccab43d0ace06f3a))
+
 # [2.93.0](https://github.com/sarafrika/elimika/compare/v2.92.0...v2.93.0) (2026-07-10)
 
 
