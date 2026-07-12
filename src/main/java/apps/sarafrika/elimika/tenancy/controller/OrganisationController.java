@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
+import apps.sarafrika.elimika.tenancy.dto.SetOrganisationUserDomainRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
@@ -25,6 +26,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -168,6 +170,47 @@ class OrganisationController {
             @PathVariable String domainName) {
         List<UserDTO> users = userService.getUsersByOrganisationAndDomain(uuid, domainName);
         return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
+    }
+
+    /**
+     * Org-scoped domains a member may be assigned via this endpoint.
+     * Deliberately excludes platform-only domains such as {@code course_creator} and {@code parent}.
+     */
+    private static final Set<String> ORG_SCOPED_DOMAINS =
+            Set.of("organisation_user", "admin", "instructor", "student");
+
+    @Operation(
+            summary = "Set/replace an organisation member's org-scoped domain (role)",
+            description = "Upserts the member's org-scoped domain mapping for this organisation. " +
+                    "If the user already has an active mapping in the organisation, their role/branch is updated; " +
+                    "otherwise a new mapping is created. Valid domains: " +
+                    "'organisation_user', 'admin', 'instructor', 'student'."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Member domain updated successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation or user not found")
+    @PutMapping("/{uuid}/users/{userUuid}/domain")
+    public ResponseEntity<ApiResponse<UserDTO>> setOrganisationUserDomain(
+            @Parameter(description = "UUID of the organisation the member belongs to. Must be an existing organisation.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "UUID of the member whose org-scoped domain is being set. Must be an existing user.",
+                    example = "550e8400-e29b-41d4-a716-446655440003", required = true)
+            @PathVariable UUID userUuid,
+            @Valid @RequestBody SetOrganisationUserDomainRequestDTO request) {
+
+        // TODO(perms): re-introduce manager authorization once the permission model is defined.
+        // Previously this required the caller to hold an org-scoped organisation_user/admin mapping
+        // for {uuid} (else 403). Dropped pending the real permission model; authentication (401) still applies.
+
+        String domainName = request.domainName() == null ? null : request.domainName().trim();
+        if (domainName == null || !ORG_SCOPED_DOMAINS.contains(domainName)) {
+            throw new IllegalArgumentException(
+                    "Invalid domain_name. Must be one of: organisation_user, admin, instructor, student");
+        }
+
+        UserDTO updated = userService.assignUserToOrganisation(userUuid, uuid, domainName, request.branchUuid());
+        return ResponseEntity.ok(ApiResponse.success(updated, "Member domain updated successfully"));
     }
 
     // ================================

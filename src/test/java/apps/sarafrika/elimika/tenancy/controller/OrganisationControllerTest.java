@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -81,6 +83,39 @@ class OrganisationControllerTest {
                 .andExpect(jsonPath("$.data.total_instructors").value(2))
                 .andExpect(jsonPath("$.data.total_admins").value(1))
                 .andExpect(jsonPath("$.data.total_branches").value(3));
+    }
+
+    @Test
+    void setOrganisationUserDomainUpsertsMappingAndReturnsUser() throws Exception {
+        UUID userUuid = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UserDTO updated = new UserDTO(
+                userUuid, "000000001", "Jane", null, "Doe", "jane.doe@example.com", "janedoe",
+                null, java.time.LocalDate.of(1990, 1, 1), null, true, "kc-123",
+                null, null, "system", null, null, List.of("admin"), null);
+
+        when(userService.assignUserToOrganisation(eq(userUuid), eq(ORG_UUID), eq("admin"), any()))
+                .thenReturn(updated);
+
+        mockMvc.perform(put("/api/v1/organisations/{uuid}/users/{userUuid}/domain", ORG_UUID, userUuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"domain_name\":\"admin\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(userUuid.toString()));
+
+        Mockito.verify(userService).assignUserToOrganisation(userUuid, ORG_UUID, "admin", null);
+    }
+
+    @Test
+    void setOrganisationUserDomainRejectsInvalidDomainWith400() throws Exception {
+        UUID userUuid = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
+        mockMvc.perform(put("/api/v1/organisations/{uuid}/users/{userUuid}/domain", ORG_UUID, userUuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"domain_name\":\"course_creator\"}"))
+                .andExpect(status().isBadRequest());
+
+        Mockito.verify(userService, Mockito.never())
+                .assignUserToOrganisation(any(), any(), any(), any());
     }
 
     static class MockConfig {
