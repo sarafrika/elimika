@@ -1,3 +1,15 @@
+# [2.95.0](https://github.com/sarafrika/elimika/compare/v2.94.1...v2.95.0) (2026-07-13)
+
+
+### Bug Fixes
+
+* **timetabling:** denormalize real class title, location and capacity onto scheduled instances ([b4b1a0b](https://github.com/sarafrika/elimika/commit/b4b1a0bdc74a8561f92d896f64f3417f19aba787))
+
+
+### Features
+
+* **classes:** gate marketplace job applications on verification and training approval, add eligibility endpoint and applicant review enrichment ([e9c9bd3](https://github.com/sarafrika/elimika/commit/e9c9bd394b9a868ce363b1839085c27dba6f2140))
+
 ## [2.94.1](https://github.com/sarafrika/elimika/compare/v2.94.0...v2.94.1) (2026-07-12)
 
 
