@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.internal.CourseMediaValidationService;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.CourseCategoryService;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
@@ -16,6 +17,8 @@ import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.CourseSpecificationBuilder;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.course.util.enums.ModerationAction;
+import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
@@ -55,6 +58,7 @@ public class CourseServiceImpl implements CourseService {
     private final StorageProperties storageProperties;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final ContentModerationHistoryService contentModerationHistoryService;
 
     public static final String COURSE_THUMBNAILS_FOLDER = "course_thumbnails";
     public static final String COURSE_BANNERS_FOLDER = "course_banners";
@@ -222,6 +226,7 @@ public class CourseServiceImpl implements CourseService {
         if (!Boolean.TRUE.equals(course.getAdminApproved())) {
             course.setAdminApproved(true);
             courseRepository.save(course);
+            contentModerationHistoryService.record(ModerationContentType.COURSE, uuid, ModerationAction.APPROVED, reason);
             publishCourseModerationNotification(course, true, reason);
             log.info("Approved course {} for reason {}", uuid, reason);
         }
@@ -230,16 +235,22 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public CourseDTO unapproveCourse(UUID uuid, String reason) {
+    public CourseDTO unapproveCourse(UUID uuid, String reason, ModerationAction action) {
         log.debug("Removing approval from course {} with reason {}", uuid, reason);
 
         Course course = courseRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
 
-        if (!Boolean.FALSE.equals(course.getAdminApproved())) {
+        boolean wasApproved = !Boolean.FALSE.equals(course.getAdminApproved());
+        if (wasApproved) {
             course.setAdminApproved(false);
             courseRepository.save(course);
+        }
+
+        // A rejection of a still-pending course changes no state but must still be recorded and communicated
+        if (wasApproved || action == ModerationAction.REJECTED) {
+            contentModerationHistoryService.record(ModerationContentType.COURSE, uuid, action, reason);
             publishCourseModerationNotification(course, false, reason);
             log.info("Removed course approval {} for reason {}", uuid, reason);
         }

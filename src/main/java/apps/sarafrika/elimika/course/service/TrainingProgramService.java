@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.TrainingProgramDTO;
+import apps.sarafrika.elimika.course.util.enums.ModerationAction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -87,7 +88,7 @@ public interface TrainingProgramService {
 
     TrainingProgramDTO approveProgram(UUID programUuid, String reason);
 
-    TrainingProgramDTO unapproveProgram(UUID programUuid, String reason);
+    TrainingProgramDTO unapproveProgram(UUID programUuid, String reason, ModerationAction action);
 
     boolean isProgramApproved(UUID programUuid);
 

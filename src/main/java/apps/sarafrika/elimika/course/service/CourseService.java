@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.course.util.enums.ModerationAction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,7 +30,7 @@ public interface CourseService {
 
     CourseDTO approveCourse(UUID uuid, String reason);
 
-    CourseDTO unapproveCourse(UUID uuid, String reason);
+    CourseDTO unapproveCourse(UUID uuid, String reason, ModerationAction action);
 
     boolean isCourseApproved(UUID uuid);
 

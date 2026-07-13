@@ -11,9 +11,12 @@ import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
+import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.TrainingProgramService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.course.util.enums.ModerationAction;
+import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final CourseRepository courseRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final ContentModerationHistoryService contentModerationHistoryService;
 
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with ID %s not found";
 
@@ -246,6 +250,8 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (!Boolean.TRUE.equals(program.getAdminApproved())) {
             program.setAdminApproved(true);
             trainingProgramRepository.save(program);
+            contentModerationHistoryService.record(ModerationContentType.TRAINING_PROGRAM, programUuid,
+                    ModerationAction.APPROVED, reason);
             publishProgramModerationNotification(program, true, reason);
         }
 
@@ -253,14 +259,20 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     }
 
     @Override
-    public TrainingProgramDTO unapproveProgram(UUID programUuid, String reason) {
+    public TrainingProgramDTO unapproveProgram(UUID programUuid, String reason, ModerationAction action) {
         TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
 
-        if (!Boolean.FALSE.equals(program.getAdminApproved())) {
+        boolean wasApproved = !Boolean.FALSE.equals(program.getAdminApproved());
+        if (wasApproved) {
             program.setAdminApproved(false);
             trainingProgramRepository.save(program);
+        }
+
+        // A rejection of a still-pending program changes no state but must still be recorded and communicated
+        if (wasApproved || action == ModerationAction.REJECTED) {
+            contentModerationHistoryService.record(ModerationContentType.TRAINING_PROGRAM, programUuid, action, reason);
             publishProgramModerationNotification(program, false, reason);
         }
 

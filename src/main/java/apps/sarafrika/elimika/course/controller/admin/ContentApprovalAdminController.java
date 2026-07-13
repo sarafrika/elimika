@@ -1,9 +1,13 @@
 package apps.sarafrika.elimika.course.controller.admin;
 
+import apps.sarafrika.elimika.course.dto.ContentModerationHistoryDTO;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.TrainingProgramDTO;
+import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.TrainingProgramService;
+import apps.sarafrika.elimika.course.util.enums.ModerationAction;
+import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,11 +39,13 @@ public class ContentApprovalAdminController {
 
     private final CourseService courseService;
     private final TrainingProgramService trainingProgramService;
+    private final ContentModerationHistoryService contentModerationHistoryService;
 
     @GetMapping("/courses/pending")
     @Operation(summary = "List courses pending approval")
     public ResponseEntity<ApiResponse<PagedDTO<CourseDTO>>> listPendingCourses(Pageable pageable) {
-        Page<CourseDTO> pending = courseService.search(Map.of("admin_approved", "false"), pageable);
+        Page<CourseDTO> pending = courseService.search(
+                Map.of("admin_approved", "false", "status_in", "IN_REVIEW,PUBLISHED"), pageable);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(pending, baseUrl), "Pending courses retrieved successfully"));
     }
@@ -52,7 +58,8 @@ public class ContentApprovalAdminController {
         String normalizedAction = normalizeAction(action);
         CourseDTO course = switch (normalizedAction) {
             case "approve" -> courseService.approveCourse(uuid, reason);
-            case "reject", "revoke" -> courseService.unapproveCourse(uuid, reason);
+            case "reject" -> courseService.unapproveCourse(uuid, reason, ModerationAction.REJECTED);
+            case "revoke" -> courseService.unapproveCourse(uuid, reason, ModerationAction.REVOKED);
             default -> throw unsupportedAction(action);
         };
 
@@ -72,10 +79,22 @@ public class ContentApprovalAdminController {
         return ResponseEntity.ok(ApiResponse.success(approved, message));
     }
 
+    @GetMapping("/courses/{uuid}/moderation-history")
+    @Operation(operationId = "getCourseModerationHistory", summary = "Get course moderation history")
+    public ResponseEntity<ApiResponse<PagedDTO<ContentModerationHistoryDTO>>> getCourseModerationHistory(
+            @PathVariable UUID uuid, Pageable pageable) {
+        Page<ContentModerationHistoryDTO> history =
+                contentModerationHistoryService.getHistory(ModerationContentType.COURSE, uuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(history, baseUrl),
+                "Course moderation history retrieved successfully"));
+    }
+
     @GetMapping("/programs/pending")
     @Operation(summary = "List training programs pending approval")
     public ResponseEntity<ApiResponse<PagedDTO<TrainingProgramDTO>>> listPendingPrograms(Pageable pageable) {
-        Page<TrainingProgramDTO> pending = trainingProgramService.search(Map.of("admin_approved", "false"), pageable);
+        Page<TrainingProgramDTO> pending = trainingProgramService.search(
+                Map.of("admin_approved", "false", "status_in", "IN_REVIEW,PUBLISHED"), pageable);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(pending, baseUrl), "Pending training programs retrieved successfully"));
     }
@@ -88,7 +107,8 @@ public class ContentApprovalAdminController {
         String normalizedAction = normalizeAction(action);
         TrainingProgramDTO program = switch (normalizedAction) {
             case "approve" -> trainingProgramService.approveProgram(uuid, reason);
-            case "reject", "revoke" -> trainingProgramService.unapproveProgram(uuid, reason);
+            case "reject" -> trainingProgramService.unapproveProgram(uuid, reason, ModerationAction.REJECTED);
+            case "revoke" -> trainingProgramService.unapproveProgram(uuid, reason, ModerationAction.REVOKED);
             default -> throw unsupportedAction(action);
         };
 
@@ -106,6 +126,17 @@ public class ContentApprovalAdminController {
         boolean approved = trainingProgramService.isProgramApproved(uuid);
         String message = approved ? "Training program is approved" : "Training program is not approved";
         return ResponseEntity.ok(ApiResponse.success(approved, message));
+    }
+
+    @GetMapping("/programs/{uuid}/moderation-history")
+    @Operation(operationId = "getProgramModerationHistory", summary = "Get training program moderation history")
+    public ResponseEntity<ApiResponse<PagedDTO<ContentModerationHistoryDTO>>> getProgramModerationHistory(
+            @PathVariable UUID uuid, Pageable pageable) {
+        Page<ContentModerationHistoryDTO> history =
+                contentModerationHistoryService.getHistory(ModerationContentType.TRAINING_PROGRAM, uuid, pageable);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
+        return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(history, baseUrl),
+                "Training program moderation history retrieved successfully"));
     }
 
     private String normalizeAction(String action) {
