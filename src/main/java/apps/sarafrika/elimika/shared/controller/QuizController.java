@@ -36,7 +36,7 @@ public class QuizController {
 
     public static final String API_ROOT_PATH = "/api/v1/quizzes";
     private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
-    private static final String MANAGEMENT_ACCESS = "!@domainSecurityService.isStudent() && @domainSecurityService.hasAnyDomain("
+    private static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
     private static final String STUDENT_QUIZ_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".student, " + USER_DOMAIN + ".course_creator, "
