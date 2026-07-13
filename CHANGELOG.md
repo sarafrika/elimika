@@ -1,3 +1,10 @@
+# [2.96.0](https://github.com/sarafrika/elimika/compare/v2.95.1...v2.96.0) (2026-07-13)
+
+
+### Features
+
+* **moderation:** persist course and program moderation decisions with audit history, expose moderation-history endpoints and scope pending queues to in-review or published content ([f43ed83](https://github.com/sarafrika/elimika/commit/f43ed834bffeedf9be053fcf1cac36fa88c01340))
+
 ## [2.95.1](https://github.com/sarafrika/elimika/compare/v2.95.0...v2.95.1) (2026-07-13)
 
 
