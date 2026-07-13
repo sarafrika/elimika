@@ -1,3 +1,10 @@
+## [2.95.1](https://github.com/sarafrika/elimika/compare/v2.95.0...v2.95.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **quiz:** allow quiz management for creators and instructors who also hold the student domain ([101d5a5](https://github.com/sarafrika/elimika/commit/101d5a5992d716bc3dd57929c0ffd24d821dd54f))
+
 # [2.95.0](https://github.com/sarafrika/elimika/compare/v2.94.1...v2.95.0) (2026-07-13)
 
 
