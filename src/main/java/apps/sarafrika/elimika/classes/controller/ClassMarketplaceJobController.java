@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDT
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
@@ -118,6 +119,15 @@ public class ClassMarketplaceJobController {
         ClassMarketplaceJobApplicationDTO result = classMarketplaceJobService.applyToJob(jobUuid, payload);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(result, "Marketplace class job application submitted successfully"));
+    }
+
+    @Operation(summary = "Check current instructor's eligibility for a marketplace class job")
+    @GetMapping("/{jobUuid}/eligibility")
+    public ResponseEntity<ApiResponse<ClassMarketplaceJobEligibilityDTO>> getJobEligibility(@PathVariable UUID jobUuid) {
+        return ResponseEntity.ok(ApiResponse.success(
+                classMarketplaceJobService.getMyJobEligibility(jobUuid),
+                "Marketplace class job eligibility retrieved successfully"
+        ));
     }
 
     @Operation(summary = "List applications for a marketplace class job")

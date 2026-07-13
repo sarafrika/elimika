@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -417,6 +418,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(application));
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -426,6 +429,119 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(result.status()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
         assertThat(result.applicationNote()).isEqualTo("Available for the revised dates");
         assertThat(application.getReviewNotes()).isNull();
+    }
+
+    @Test
+    void applyToJobRejectsUnverifiedInstructor() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(false));
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen to teach")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("verified by an administrator");
+
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+    }
+
+    @Test
+    void applyToJobRejectsInstructorWithoutTrainingApproval() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen to teach")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not approved to deliver");
+
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+    }
+
+    @Test
+    void getMyJobEligibilityReturnsFlagsWithoutThrowing() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(false);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.instructorVerified()).isTrue();
+        assertThat(eligibility.trainingApproved()).isFalse();
+        assertThat(eligibility.alreadyApplied()).isFalse();
+        assertThat(eligibility.reason()).contains("not approved to deliver");
+    }
+
+    @Test
+    void getMyJobEligibilityReportsEligibleInstructor() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication existing = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(existing));
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isTrue();
+        assertThat(eligibility.instructorVerified()).isTrue();
+        assertThat(eligibility.trainingApproved()).isTrue();
+        assertThat(eligibility.alreadyApplied()).isTrue();
+        assertThat(eligibility.reason()).isNull();
+    }
+
+    @Test
+    void listJobApplicationsEnrichesVerificationApprovalAndRate() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidOrderByCreatedDateDesc(job.getUuid(), pageable))
+                .thenReturn(new PageImpl<>(List.of(application), pageable, 1));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType()))
+                .thenReturn(Optional.of(new BigDecimal("300.00")));
+
+        var page = service.listJobApplications(job.getUuid(), null, pageable);
+
+        assertThat(page.getContent()).hasSize(1);
+        var dto = page.getContent().getFirst();
+        assertThat(dto.instructorAdminVerified()).isTrue();
+        assertThat(dto.trainingApproved()).isTrue();
+        assertThat(dto.approvedRate()).isEqualByComparingTo(new BigDecimal("300.00"));
     }
 
     @Test

@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDT
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
@@ -31,6 +32,8 @@ public interface ClassMarketplaceJobServiceInterface {
     ClassMarketplaceJobDTO cancelJob(UUID jobUuid);
 
     ClassMarketplaceJobApplicationDTO applyToJob(UUID jobUuid, ClassMarketplaceJobApplicationRequestDTO request);
+
+    ClassMarketplaceJobEligibilityDTO getMyJobEligibility(UUID jobUuid);
 
     Page<ClassMarketplaceJobApplicationDTO> listJobApplications(UUID jobUuid,
                                                                 ClassMarketplaceJobApplicationStatus status,

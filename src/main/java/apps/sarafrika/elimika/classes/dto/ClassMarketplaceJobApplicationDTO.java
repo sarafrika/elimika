@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,6 +33,18 @@ public record ClassMarketplaceJobApplicationDTO(
 
         @JsonProperty(value = "review_notes", access = JsonProperty.Access.READ_ONLY)
         String reviewNotes,
+
+        @Schema(description = "Whether the applicant's instructor profile has been verified by an administrator", nullable = true)
+        @JsonProperty(value = "instructor_admin_verified", access = JsonProperty.Access.READ_ONLY)
+        Boolean instructorAdminVerified,
+
+        @Schema(description = "Whether the applicant is approved to deliver the job's course or training program", nullable = true)
+        @JsonProperty(value = "training_approved", access = JsonProperty.Access.READ_ONLY)
+        Boolean trainingApproved,
+
+        @Schema(description = "The applicant's approved training rate matching the job's session format and delivery modality", nullable = true)
+        @JsonProperty(value = "approved_rate", access = JsonProperty.Access.READ_ONLY)
+        BigDecimal approvedRate,
 
         @JsonProperty(value = "reviewed_by", access = JsonProperty.Access.READ_ONLY)
         String reviewedBy,

@@ -71,6 +71,7 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
                 entity.getDescription(),
                 entity.getTrainingFee(),
                 entity.getClassVisibility(),
+                entity.getLocationType(),
                 entity.getMaxParticipants(),
                 entity.getAllowWaitlist(),
                 entity.getClassReminderMinutes()

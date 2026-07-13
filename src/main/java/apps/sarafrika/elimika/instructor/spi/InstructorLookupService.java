@@ -48,4 +48,12 @@ public interface InstructorLookupService {
      */
     Optional<Boolean> getInstructorProfileCompleteByUserUuid(UUID userUuid);
 
+    /**
+     * Checks whether an instructor has been verified by an administrator.
+     *
+     * @param instructorUuid The UUID of the instructor
+     * @return Optional containing the verification flag, or empty if instructor not found
+     */
+    Optional<Boolean> isInstructorAdminVerified(UUID instructorUuid);
+
 }

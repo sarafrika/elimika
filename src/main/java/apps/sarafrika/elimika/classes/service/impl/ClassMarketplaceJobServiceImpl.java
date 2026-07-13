@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDT
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
@@ -136,13 +137,37 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ensureJobOpen(job);
 
         UUID instructorUuid = resolveCurrentInstructorUuid();
+        ensureInstructorEligibleToApply(job, instructorUuid);
 
         ClassMarketplaceJobApplication application = applicationRepository.findByJobUuidAndInstructorUuid(jobUuid, instructorUuid)
                 .map(existing -> reopenApplication(existing, request))
                 .orElseGet(() -> createApplication(jobUuid, instructorUuid, request));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
-        return toApplicationDTO(saved);
+        return toApplicationDTO(saved, job);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ClassMarketplaceJobEligibilityDTO getMyJobEligibility(UUID jobUuid) {
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        UUID instructorUuid = resolveCurrentInstructorUuid();
+
+        boolean instructorVerified = isInstructorAdminVerified(instructorUuid);
+        boolean trainingApproved = isInstructorApprovedForJob(job, instructorUuid);
+        boolean alreadyApplied = applicationRepository.findByJobUuidAndInstructorUuid(jobUuid, instructorUuid).isPresent();
+        boolean eligible = instructorVerified && trainingApproved;
+
+        String reason = null;
+        if (!instructorVerified) {
+            reason = "Your instructor profile must be verified by an administrator before applying to marketplace class jobs.";
+        } else if (!trainingApproved) {
+            reason = String.format(
+                    "You are not approved to deliver this %s. Submit a training application and wait for approval before applying.",
+                    learningContextType(job));
+        }
+
+        return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved, alreadyApplied, reason);
     }
 
     @Override
@@ -154,10 +179,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         requireOrganisationManagerAccess(job.getOrganisationUuid());
         if (status == null) {
             return applicationRepository.findByJobUuidOrderByCreatedDateDesc(jobUuid, pageable)
-                    .map(this::toApplicationDTO);
+                    .map(application -> toApplicationDTO(application, job));
         }
         return applicationRepository.findByJobUuidAndStatusOrderByCreatedDateDesc(jobUuid, status, pageable)
-                .map(this::toApplicationDTO);
+                .map(application -> toApplicationDTO(application, job));
     }
 
     @Override
@@ -206,7 +231,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
-        return toApplicationDTO(applicationRepository.save(application));
+        return toApplicationDTO(applicationRepository.save(application), job);
     }
 
     @Override
@@ -228,7 +253,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
         notifyApplicantUnsuccessful(job, saved,
                 NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED, "was not successful");
-        return toApplicationDTO(saved);
+        return toApplicationDTO(saved, job);
     }
 
     @Override
@@ -250,6 +275,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     learningContextType(job),
                     learningContextUuid(job)));
         }
+
+        resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
+            if (job.getTrainingFee() != null && job.getTrainingFee().compareTo(approvedRate) != 0) {
+                log.warn("Marketplace job {} fee {} differs from instructor {} approved rate {}",
+                        job.getUuid(), job.getTrainingFee(), application.getInstructorUuid(), approvedRate);
+            }
+        });
 
         ClassDefinitionDTO classDefinition = classDefinitionService
                 .createClassDefinition(buildClassDefinitionRequest(job, application.getInstructorUuid()))
@@ -447,6 +479,24 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setStatus(ClassMarketplaceJobApplicationStatus.PENDING);
         application.setApplicationNote(request == null ? null : request.applicationNote());
         return application;
+    }
+
+    private void ensureInstructorEligibleToApply(ClassMarketplaceJob job, UUID instructorUuid) {
+        if (!isInstructorAdminVerified(instructorUuid)) {
+            throw new IllegalStateException(
+                    "Your instructor profile must be verified by an administrator before applying to marketplace class jobs.");
+        }
+        if (!isInstructorApprovedForJob(job, instructorUuid)) {
+            throw new IllegalStateException(String.format(
+                    "You are not approved to deliver %s %s. Submit a training application for this %s and wait for approval before applying.",
+                    learningContextType(job),
+                    learningContextUuid(job),
+                    learningContextType(job)));
+        }
+    }
+
+    private boolean isInstructorAdminVerified(UUID instructorUuid) {
+        return instructorLookupService.isInstructorAdminVerified(instructorUuid).orElse(false);
     }
 
     private void ensureJobOpen(ClassMarketplaceJob job) {
@@ -723,6 +773,19 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private ClassMarketplaceJobApplicationDTO toApplicationDTO(ClassMarketplaceJobApplication application) {
+        return toApplicationDTO(application, null);
+    }
+
+    private ClassMarketplaceJobApplicationDTO toApplicationDTO(ClassMarketplaceJobApplication application,
+                                                               ClassMarketplaceJob job) {
+        Boolean instructorAdminVerified = null;
+        Boolean trainingApproved = null;
+        BigDecimal approvedRate = null;
+        if (job != null) {
+            instructorAdminVerified = isInstructorAdminVerified(application.getInstructorUuid());
+            trainingApproved = isInstructorApprovedForJob(job, application.getInstructorUuid());
+            approvedRate = resolveInstructorRateForJob(job, application.getInstructorUuid()).orElse(null);
+        }
         return new ClassMarketplaceJobApplicationDTO(
                 application.getUuid(),
                 application.getJobUuid(),
@@ -730,6 +793,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 application.getStatus(),
                 application.getApplicationNote(),
                 application.getReviewNotes(),
+                instructorAdminVerified,
+                trainingApproved,
+                approvedRate,
                 application.getReviewedBy(),
                 application.getReviewedAt(),
                 application.getCreatedDate(),
@@ -737,6 +803,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 application.getCreatedBy(),
                 application.getLastModifiedBy()
         );
+    }
+
+    private Optional<BigDecimal> resolveInstructorRateForJob(ClassMarketplaceJob job, UUID instructorUuid) {
+        if (job.getCourseUuid() != null) {
+            return courseTrainingApprovalSpi.resolveInstructorRate(
+                    job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType());
+        }
+        return courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                job.getProgramUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType());
     }
 
     private String resolveAssignedReviewNotes(String existingReviewNotes) {

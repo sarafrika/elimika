@@ -49,6 +49,12 @@ public class InstructorLookupServiceImpl implements InstructorLookupService {
                 .map(instructor -> hasText(instructor.getBio()) && hasText(instructor.getProfessionalHeadline()));
     }
 
+    @Override
+    public Optional<Boolean> isInstructorAdminVerified(UUID instructorUuid) {
+        return instructorRepository.findByUuid(instructorUuid)
+                .map(instructor -> Boolean.TRUE.equals(instructor.getAdminVerified()));
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
     }
