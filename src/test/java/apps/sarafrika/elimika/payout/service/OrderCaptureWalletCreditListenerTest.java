@@ -93,7 +93,7 @@ class OrderCaptureWalletCreditListenerTest {
 
         when(classDefinitionLookupService.findByUuid(classUuid)).thenReturn(Optional.of(
                 new ClassDefinitionSnapshot(classUuid, courseUuid, null, "T", null,
-                        null, null, null, null, null)));
+                        null, null, null, null, null, null)));
         when(classDefinitionLookupService.findDefaultInstructorUuid(classUuid))
                 .thenReturn(Optional.of(instructorUuid));
         when(instructorLookupService.getInstructorUserUuid(instructorUuid))

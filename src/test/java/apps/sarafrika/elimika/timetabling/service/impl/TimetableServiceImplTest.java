@@ -451,6 +451,7 @@ class TimetableServiceImplTest {
                         null,
                         null,
                         null,
+                        null,
                         20,
                         true,
                         null
@@ -463,6 +464,69 @@ class TimetableServiceImplTest {
                 .hasMessageContaining("not approved for enrollment");
 
         verifyNoInteractions(commercePaywallService);
+    }
+
+    @Test
+    void scheduleClassDenormalizesClassDetailsFromSnapshot() {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        var request = new apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO(
+                classDefinitionUuid,
+                instructorUuid,
+                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().plusDays(1).plusHours(2),
+                "UTC");
+
+        when(availabilityService.isInstructorAvailable(eq(instructorUuid), any(), any())).thenReturn(true);
+        when(scheduledInstanceRepository.findOverlappingInstancesForInstructor(eq(instructorUuid), any(), any()))
+                .thenReturn(List.of());
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
+                .thenReturn(Optional.of(new ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                        classDefinitionUuid,
+                        UUID.randomUUID(),
+                        null,
+                        "Weekend Data Analysis Bootcamp",
+                        null,
+                        null,
+                        null,
+                        apps.sarafrika.elimika.shared.enums.LocationType.HYBRID,
+                        24,
+                        true,
+                        null
+                )));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ScheduledInstanceDTO result = timetableService.scheduleClass(request);
+
+        assertThat(result.title()).isEqualTo("Weekend Data Analysis Bootcamp");
+        assertThat(result.locationType()).isEqualTo("HYBRID");
+        assertThat(result.maxParticipants()).isEqualTo(24);
+    }
+
+    @Test
+    void scheduleClassFallsBackToPlaceholdersWhenSnapshotMissing() {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        var request = new apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO(
+                classDefinitionUuid,
+                instructorUuid,
+                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().plusDays(1).plusHours(2),
+                "UTC");
+
+        when(availabilityService.isInstructorAvailable(eq(instructorUuid), any(), any())).thenReturn(true);
+        when(scheduledInstanceRepository.findOverlappingInstancesForInstructor(eq(instructorUuid), any(), any()))
+                .thenReturn(List.of());
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid)).thenReturn(Optional.empty());
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ScheduledInstanceDTO result = timetableService.scheduleClass(request);
+
+        assertThat(result.title()).startsWith("Class: ");
+        assertThat(result.locationType()).isEqualTo("ONLINE");
+        assertThat(result.maxParticipants()).isEqualTo(25);
     }
 
     private ScheduledInstance buildScheduledInstance(UUID instructorUuid, SchedulingStatus status) {

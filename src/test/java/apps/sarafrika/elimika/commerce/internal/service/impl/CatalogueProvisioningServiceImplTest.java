@@ -69,6 +69,7 @@ class CatalogueProvisioningServiceImplTest {
                         "Program class",
                         new BigDecimal("2400.00"),
                         ClassVisibility.PUBLIC,
+                        null,
                         30,
                         true,
                         null

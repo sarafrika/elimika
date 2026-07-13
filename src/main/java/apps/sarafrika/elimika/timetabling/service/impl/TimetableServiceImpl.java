@@ -98,11 +98,19 @@ public class TimetableServiceImpl implements TimetableService {
         
         ScheduledInstance entity = ScheduledInstanceFactory.toEntity(request);
         
-        // Get class definition details to populate denormalized fields
-        // For now, use default values - in full implementation would call classes module SPI
-        entity.setTitle("Class: " + request.classDefinitionUuid().toString().substring(0, 8));
-        entity.setLocationType("ONLINE"); // Default for now
-        entity.setMaxParticipants(25); // Default capacity
+        Optional<ClassDefinitionLookupService.ClassDefinitionSnapshot> classSnapshot =
+                classDefinitionLookupService.findByUuid(request.classDefinitionUuid());
+        entity.setTitle(classSnapshot
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::title)
+                .filter(title -> title != null && !title.isBlank())
+                .orElse("Class: " + request.classDefinitionUuid().toString().substring(0, 8)));
+        entity.setLocationType(classSnapshot
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::locationType)
+                .map(Enum::name)
+                .orElse("ONLINE"));
+        entity.setMaxParticipants(classSnapshot
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::maxParticipants)
+                .orElse(25));
         
         ScheduledInstance savedEntity = scheduledInstanceRepository.save(entity);
         

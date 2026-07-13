@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.shared.spi;
 
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ public interface ClassDefinitionLookupService {
                         snapshot.description(),
                         snapshot.trainingFee(),
                         snapshot.classVisibility(),
+                        snapshot.locationType(),
                         snapshot.maxParticipants(),
                         snapshot.allowWaitlist(),
                         snapshot.classReminderMinutes()));
@@ -48,6 +50,7 @@ public interface ClassDefinitionLookupService {
             String description,
             java.math.BigDecimal trainingFee,
             ClassVisibility classVisibility,
+            LocationType locationType,
             Integer maxParticipants,
             Boolean allowWaitlist,
             Integer classReminderMinutes
