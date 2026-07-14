@@ -36,26 +36,28 @@ public class MediaReconciliationService {
      * at read time via {@link FileUrlResolver#toKey}.
      */
     private static final List<MediaColumn> MEDIA_COLUMNS = List.of(
-            new MediaColumn("users", "profile_image_url"),
-            new MediaColumn("courses", "thumbnail_url"),
-            new MediaColumn("courses", "banner_url"),
-            new MediaColumn("courses", "intro_video_url"),
-            new MediaColumn("lesson_contents", "file_url"),
-            new MediaColumn("class_definitions", "thumbnail_url"),
-            new MediaColumn("class_definitions", "promotional_video_url"),
-            new MediaColumn("certificates", "certificate_url"),
-            new MediaColumn("certificate_templates", "background_image_url"),
-            new MediaColumn("assignment_attachments", "file_url"),
-            new MediaColumn("assignment_submission_attachments", "file_url"),
-            new MediaColumn("class_resources", "file_path"),
-            new MediaColumn("instructor_documents", "file_path"),
-            new MediaColumn("course_creator_documents", "file_path")
+            new MediaColumn("users", "profile_image_url", true),
+            new MediaColumn("courses", "thumbnail_url", true),
+            new MediaColumn("courses", "banner_url", true),
+            new MediaColumn("courses", "intro_video_url", true),
+            new MediaColumn("lesson_contents", "file_url", true),
+            new MediaColumn("class_definitions", "thumbnail_url", true),
+            new MediaColumn("class_definitions", "promotional_video_url", true),
+            new MediaColumn("certificates", "certificate_url", true),
+            new MediaColumn("certificate_templates", "background_image_url", true),
+            new MediaColumn("class_resources", "file_path", true),
+            // NOT NULL columns: the row is the file record, so a lost file means the
+            // row is pruned by deletion rather than nulling the reference.
+            new MediaColumn("assignment_attachments", "file_url", false),
+            new MediaColumn("assignment_submission_attachments", "file_url", false),
+            new MediaColumn("instructor_documents", "file_path", false),
+            new MediaColumn("course_creator_documents", "file_path", false)
     );
 
-    private record MediaColumn(String table, String column) {
+    private record MediaColumn(String table, String column, boolean nullable) {
     }
 
-    public record DeadReference(String table, String column, UUID rowUuid, String value) {
+    public record DeadReference(String table, String column, UUID rowUuid, String value, boolean nullable) {
     }
 
     public record ReconcileReport(
@@ -63,7 +65,8 @@ public class MediaReconciliationService {
             int registryMarkedMissing,
             int registryMetadataFilled,
             List<DeadReference> deadReferences,
-            int deadReferencesPruned
+            int deadReferencesPruned,
+            int orphanRowsDeleted
     ) {
     }
 
@@ -114,19 +117,33 @@ public class MediaReconciliationService {
 
         List<DeadReference> deadReferences = findDeadReferences(diskKeys);
         int pruned = 0;
+        int orphanRowsDeleted = 0;
         if (pruneDeadReferences) {
             for (DeadReference dead : deadReferences) {
-                jdbcTemplate.update(
-                        "UPDATE " + dead.table() + " SET " + dead.column() + " = NULL WHERE uuid = ?",
-                        dead.rowUuid());
-                pruned++;
+                if (dead.nullable()) {
+                    jdbcTemplate.update(
+                            "UPDATE " + dead.table() + " SET " + dead.column() + " = NULL WHERE uuid = ?",
+                            dead.rowUuid());
+                    pruned++;
+                } else {
+                    jdbcTemplate.update(
+                            "DELETE FROM " + dead.table() + " WHERE uuid = ?",
+                            dead.rowUuid());
+                    orphanRowsDeleted++;
+                }
+                String key = FileUrlResolver.toKey(dead.value());
+                if (key != null) {
+                    mediaFileRepository.deleteByFileKey(key);
+                }
             }
             pruned += pruneDeadSubmissionFileUrls(diskKeys);
         }
 
-        log.info("Media reconciliation: {} registry rows, {} marked missing, {} metadata filled, {} dead refs ({} pruned)",
-                registryRows.size(), markedMissing, metadataFilled, deadReferences.size(), pruned);
-        return new ReconcileReport(registryRows.size(), markedMissing, metadataFilled, deadReferences, pruned);
+        log.info("Media reconciliation: {} registry rows, {} marked missing, {} metadata filled, "
+                        + "{} dead refs ({} nulled, {} rows deleted)",
+                registryRows.size(), markedMissing, metadataFilled, deadReferences.size(), pruned, orphanRowsDeleted);
+        return new ReconcileReport(registryRows.size(), markedMissing, metadataFilled,
+                deadReferences, pruned, orphanRowsDeleted);
     }
 
     /**
@@ -187,7 +204,7 @@ public class MediaReconciliationService {
                         String key = FileUrlResolver.toKey(value);
                         if (key != null && !diskKeys.contains(key)) {
                             dead.add(new DeadReference(mediaColumn.table(), mediaColumn.column(),
-                                    UUID.fromString(rs.getString(1)), value));
+                                    UUID.fromString(rs.getString(1)), value, mediaColumn.nullable()));
                         }
                     });
         }
