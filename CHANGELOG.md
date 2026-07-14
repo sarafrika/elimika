@@ -1,3 +1,10 @@
+## [2.97.2](https://github.com/sarafrika/elimika/compare/v2.97.1...v2.97.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* **storage:** delete orphaned document and attachment rows when pruning dead file references ([9084b64](https://github.com/sarafrika/elimika/commit/9084b645cdf69ea0990492433b09b4e319ac86df))
+
 ## [2.97.1](https://github.com/sarafrika/elimika/compare/v2.97.0...v2.97.1) (2026-07-14)
 
 
