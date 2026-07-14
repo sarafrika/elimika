@@ -15,6 +15,11 @@ spring:
     detection-strategy: explicitly-annotated
     republish-outstanding-events-on-restart: true
 
+  # Allow migrations authored on parallel branches to apply even when their
+  # version predates an already-applied migration (out-of-order merges).
+  flyway:
+    out-of-order: true
+
   # Mail configuration
   mail:
     host: ${MAIL_SERVER}
