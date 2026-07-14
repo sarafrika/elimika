@@ -47,6 +47,7 @@ public enum NotificationType {
     PROGRAM_TRAINING_APPLICATION_REVOKED("PROGRAM_TRAINING_APPLICATION_REVOKED", "program-training-application-revoked", "Program Training Revoked", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED("CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED", "training-application-status", "Class Application Rejected", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED("CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED", "training-application-status", "Class Application Not Selected", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_EXPIRED("CLASS_MARKETPLACE_JOB_EXPIRED", "training-application-status", "Class Job Expired", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_ENROLLMENT_CONFIRMED("CLASS_ENROLLMENT_CONFIRMED", "class-enrollment-confirmed", "Class Enrollment", NotificationCategory.LEARNING_PROGRESS),
     COURSE_ENROLLMENT_MILESTONE("COURSE_ENROLLMENT_MILESTONE", "course-enrollment-milestone", "Enrollment Milestone", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_ENROLLMENT_NOTICE("COURSE_ENROLLMENT_NOTICE", "course-enrollment-notice", "Enrollment Notice", NotificationCategory.COURSE_MANAGEMENT),
@@ -194,6 +195,8 @@ public enum NotificationType {
                  PROGRAM_TRAINING_APPLICATION_SUBMITTED,
                  COURSE_ENROLLMENT_MILESTONE,
                  COURSE_ENROLLMENT_NOTICE -> "course_creator";
+
+            case CLASS_MARKETPLACE_JOB_EXPIRED -> "organisation_user";
 
             // Account-level notifications are relevant in every dashboard.
             case ACCOUNT_CREATED,

@@ -27,6 +27,14 @@ public record ClassMarketplaceJobEligibilityDTO(
         @JsonProperty(value = "already_applied", access = JsonProperty.Access.READ_ONLY)
         boolean alreadyApplied,
 
+        @Schema(description = "Whether the instructor's existing schedule is free for every session of this job")
+        @JsonProperty(value = "schedule_clear", access = JsonProperty.Access.READ_ONLY)
+        boolean scheduleClear,
+
+        @Schema(description = "Job session occurrences that clash with the instructor's existing schedule, with reasons", nullable = true)
+        @JsonProperty(value = "schedule_conflicts", access = JsonProperty.Access.READ_ONLY)
+        java.util.List<ClassSchedulingConflictDTO> scheduleConflicts,
+
         @Schema(description = "Human-readable explanation when the instructor is not eligible", nullable = true)
         @JsonProperty(value = "reason", access = JsonProperty.Access.READ_ONLY)
         String reason

@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.shared.storage.service.CredentialsDocumentUploadRe
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,7 +56,7 @@ public class InstructorController {
     private final InstructorExperienceService instructorExperienceService;
     private final InstructorProfessionalMembershipService instructorProfessionalMembershipService;
     private final InstructorSkillService instructorSkillService;
-    private final StorageService storageService;
+    private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
     private final InstructorReviewService instructorReviewService;
     private final ProfileDocumentUploadService profileDocumentUploadService;
@@ -323,19 +324,7 @@ public class InstructorController {
             return ResponseEntity.notFound().build();
         }
 
-        try {
-            Resource resource = storageService.load(normalizedFilePath);
-            String contentType = storageService.getContentType(normalizedFilePath);
-            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        return mediaServeService.serve(normalizedFilePath);
     }
 
     @Operation(summary = "Update instructor document", description = "Updates a specific document")

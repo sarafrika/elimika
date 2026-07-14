@@ -7,6 +7,8 @@ import apps.sarafrika.elimika.course.factory.LessonContentFactory;
 import apps.sarafrika.elimika.course.model.LessonContent;
 import apps.sarafrika.elimika.course.repository.LessonContentRepository;
 import apps.sarafrika.elimika.course.service.LessonContentService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +29,7 @@ public class LessonContentServiceImpl implements LessonContentService {
 
     private final LessonContentRepository lessonContentRepository;
     private final GenericSpecificationBuilder<LessonContent> specificationBuilder;
+    private final MediaStorageService mediaStorageService;
 
     private static final String LESSON_CONTENT_NOT_FOUND_TEMPLATE = "Lesson content with ID %s not found";
 
@@ -75,10 +78,10 @@ public class LessonContentServiceImpl implements LessonContentService {
 
     @Override
     public void deleteLessonContent(UUID uuid) {
-        if (!lessonContentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(
-                    String.format(LESSON_CONTENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        LessonContent lessonContent = lessonContentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(LESSON_CONTENT_NOT_FOUND_TEMPLATE, uuid)));
+        mediaStorageService.delete(lessonContent.getFileUrl());
         lessonContentRepository.deleteByUuid(uuid);
     }
 
@@ -241,7 +244,7 @@ public class LessonContentServiceImpl implements LessonContentService {
             existingLessonContent.setContentText(dto.contentText());
         }
         if (dto.fileUrl() != null) {
-            existingLessonContent.setFileUrl(dto.fileUrl());
+            existingLessonContent.setFileUrl(FileUrlResolver.toStorableValue(dto.fileUrl()));
         }
         if (dto.displayOrder() != null) {
             existingLessonContent.setDisplayOrder(dto.displayOrder());

@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.CertificateDTO;
 import apps.sarafrika.elimika.course.model.Certificate;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -23,7 +24,7 @@ public class CertificateFactory {
                 certificate.getIssuedDate(),
                 certificate.getCompletionDate(),
                 certificate.getFinalGrade(),
-                certificate.getCertificateUrl(),
+                FileUrlResolver.publicUrl(certificate.getCertificateUrl()),
                 certificate.getIsValid(),
                 certificate.getRevokedAt(),
                 certificate.getRevokedReason(),
@@ -49,7 +50,7 @@ public class CertificateFactory {
         certificate.setIssuedDate(dto.issuedDate());
         certificate.setCompletionDate(dto.completionDate());
         certificate.setFinalGrade(dto.finalGrade());
-        certificate.setCertificateUrl(dto.certificateUrl());
+        certificate.setCertificateUrl(FileUrlResolver.toStorableValue(dto.certificateUrl()));
         certificate.setIsValid(dto.isValid());
         certificate.setRevokedAt(dto.revokedAt());
         certificate.setRevokedReason(dto.revokedReason());

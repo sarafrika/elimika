@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -80,6 +81,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final AvailabilityService availabilityService;
     private final StudentLookupService studentLookupService;
     private final InstructorLookupService instructorLookupService;
+    private final ResourceBookingService resourceBookingService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -155,6 +157,8 @@ public class TimetableServiceImpl implements TimetableService {
         entity.setCancellationReason(reason.trim());
         scheduledInstanceRepository.save(entity);
 
+        resourceBookingService.releaseBookingsForInstance(instanceUuid, reason.trim());
+
         // Cancel all active enrollments for this instance
         List<Enrollment> activeEnrollments = enrollmentRepository.findByScheduledInstanceUuidAndStatus(
             instanceUuid, EnrollmentStatus.ENROLLED);
@@ -227,6 +231,8 @@ public class TimetableServiceImpl implements TimetableService {
         if (!conflicts.isEmpty()) {
             throw new IllegalArgumentException(String.join("; ", conflicts));
         }
+
+        resourceBookingService.rescheduleInstanceBookings(entity.getUuid(), request.startTime(), request.endTime());
 
         entity.setStartTime(request.startTime());
         entity.setEndTime(request.endTime());

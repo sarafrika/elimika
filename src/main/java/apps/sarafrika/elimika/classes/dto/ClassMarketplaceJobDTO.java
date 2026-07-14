@@ -111,6 +111,9 @@ public record ClassMarketplaceJobDTO(
         @JsonProperty(value = "session_templates", access = JsonProperty.Access.READ_ONLY)
         List<ClassSessionTemplateDTO> sessionTemplates,
 
+        @JsonProperty(value = "resources", access = JsonProperty.Access.READ_ONLY)
+        List<ClassMarketplaceJobResourceDTO> resources,
+
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate,
 

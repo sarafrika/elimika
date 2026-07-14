@@ -17,12 +17,15 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 public class FileSystemStorageServiceImpl implements StorageService {
 
     private final Path rootLocation;
+    private final String tempFolder;
 
     @Autowired
     public FileSystemStorageServiceImpl(StorageProperties properties) {
@@ -31,6 +34,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
         }
 
         this.rootLocation = Path.of(properties.getLocation());
+        this.tempFolder = properties.getFolders().getTemp();
     }
 
     @Override
@@ -119,6 +123,74 @@ public class FileSystemStorageServiceImpl implements StorageService {
             throw new StorageFileNotFoundException("Could not read file: " + fileName);
         } catch (MalformedURLException e) {
             throw new StorageFileNotFoundException("Could not read file: " + fileName, e);
+        }
+    }
+
+    @Override
+    public boolean exists(String fileName) {
+        Path path = resolveSafely(fileName);
+        return path != null && Files.isRegularFile(path);
+    }
+
+    @Override
+    public void delete(String fileName) {
+        Path path = resolveSafely(fileName);
+        if (path == null) {
+            throw new StorageException("Invalid file name: " + fileName);
+        }
+        try {
+            Files.deleteIfExists(path);
+            pruneEmptyParents(path.getParent());
+        } catch (IOException e) {
+            throw new StorageException("Failed to delete file: " + fileName, e);
+        }
+    }
+
+    @Override
+    public List<String> listAllKeys() {
+        Path root = rootLocation.toAbsolutePath().normalize();
+        if (!Files.isDirectory(root)) {
+            return List.of();
+        }
+        try (Stream<Path> paths = Files.walk(root)) {
+            return paths.filter(Files::isRegularFile)
+                    .map(p -> root.relativize(p).toString().replace('\\', '/'))
+                    .filter(key -> !key.startsWith(tempFolder + "/"))
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new StorageException("Failed to list storage contents.", e);
+        }
+    }
+
+    /**
+     * Resolves a relative key against the storage root, returning null when the key
+     * is blank, contains traversal segments or escapes the root.
+     */
+    private Path resolveSafely(String fileName) {
+        String normalized = StoragePathUtils.normalizeRelativePath(fileName);
+        if (normalized == null || normalized.isEmpty() || normalized.contains("..")) {
+            return null;
+        }
+        Path target = rootLocation.resolve(normalized).normalize().toAbsolutePath();
+        if (!target.startsWith(rootLocation.toAbsolutePath().normalize())) {
+            return null;
+        }
+        return target;
+    }
+
+    private void pruneEmptyParents(Path directory) throws IOException {
+        Path root = rootLocation.toAbsolutePath().normalize();
+        while (directory != null && directory.startsWith(root) && !directory.equals(root)) {
+            try (Stream<Path> entries = Files.list(directory)) {
+                if (entries.findAny().isPresent()) {
+                    return;
+                }
+            } catch (IOException e) {
+                return;
+            }
+            Files.deleteIfExists(directory);
+            directory = directory.getParent();
         }
     }
 

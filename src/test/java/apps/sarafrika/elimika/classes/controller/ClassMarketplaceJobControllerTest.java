@@ -249,7 +249,8 @@ class ClassMarketplaceJobControllerTest {
                                 6
                         ),
                         ConflictResolutionStrategy.FAIL
-                ))
+                )),
+                null
         );
     }
 
@@ -290,7 +291,8 @@ class ClassMarketplaceJobControllerTest {
                                 6
                         ),
                         ConflictResolutionStrategy.FAIL
-                ))
+                )),
+                null
         );
     }
 
@@ -326,6 +328,7 @@ class ClassMarketplaceJobControllerTest {
                 null,
                 null,
                 request.sessionTemplates(),
+                null,
                 null,
                 null,
                 null,

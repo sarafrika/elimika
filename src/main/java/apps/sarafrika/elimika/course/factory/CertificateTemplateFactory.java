@@ -19,7 +19,7 @@ public class CertificateTemplateFactory {
                 certificateTemplate.getTemplateType(),
                 certificateTemplate.getTemplateHtml(),
                 certificateTemplate.getTemplateCss(),
-                certificateTemplate.getBackgroundImageUrl(),
+                apps.sarafrika.elimika.shared.storage.util.FileUrlResolver.publicUrl(certificateTemplate.getBackgroundImageUrl()),
                 certificateTemplate.getIsActive(),
                 certificateTemplate.getCreatedDate(),
                 certificateTemplate.getCreatedBy(),
@@ -39,7 +39,7 @@ public class CertificateTemplateFactory {
         certificateTemplate.setTemplateType(dto.templateType());
         certificateTemplate.setTemplateHtml(dto.templateHtml());
         certificateTemplate.setTemplateCss(dto.templateCss());
-        certificateTemplate.setBackgroundImageUrl(dto.backgroundImageUrl());
+        certificateTemplate.setBackgroundImageUrl(apps.sarafrika.elimika.shared.storage.util.FileUrlResolver.toStorableValue(dto.backgroundImageUrl()));
         certificateTemplate.setIsActive(dto.active());
         certificateTemplate.setCreatedDate(dto.createdDate());
         certificateTemplate.setCreatedBy(dto.createdBy());

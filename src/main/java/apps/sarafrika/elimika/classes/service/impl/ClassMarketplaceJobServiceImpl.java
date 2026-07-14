@@ -8,19 +8,39 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseD
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
+import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
+import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
+import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
+import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobResource;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobSessionTemplate;
+import apps.sarafrika.elimika.classes.repository.ClassDefinitionResourceRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobApplicationRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
+import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobResourceRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobSessionTemplateRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
+import apps.sarafrika.elimika.classes.util.RecurrencePatterns;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
+import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
+import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
+import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
+import apps.sarafrika.elimika.resourcing.spi.ResourceType;
+import apps.sarafrika.elimika.shared.utils.recurrence.OccurrenceWindow;
+import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
+import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
@@ -33,6 +53,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.AccessDeniedException;
@@ -40,12 +61,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -61,12 +85,18 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final ClassMarketplaceJobRepository jobRepository;
     private final ClassMarketplaceJobApplicationRepository applicationRepository;
     private final ClassMarketplaceJobSessionTemplateRepository sessionTemplateRepository;
+    private final ClassMarketplaceJobResourceRepository jobResourceRepository;
+    private final ClassDefinitionResourceRepository classDefinitionResourceRepository;
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final UserLookupService userLookupService;
     private final InstructorLookupService instructorLookupService;
     private final DomainSecurityService domainSecurityService;
     private final ClassDefinitionServiceInterface classDefinitionService;
+    private final ResourceBookingService resourceBookingService;
+    private final ResourceLookupService resourceLookupService;
+    private final AvailabilityService availabilityService;
+    private final ObjectProvider<TimetableService> timetableServiceProvider;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -80,6 +110,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         ClassMarketplaceJob saved = jobRepository.save(job);
         replaceSessionTemplates(saved.getUuid(), request.sessionTemplates());
+        replaceJobResources(saved.getUuid(), request.resources());
+        holdJobResources(saved, request.resources());
 
         return toJobDTO(saved);
     }
@@ -98,6 +130,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         applyJobDraft(job, request);
         ClassMarketplaceJob saved = jobRepository.save(job);
         replaceSessionTemplates(saved.getUuid(), request.sessionTemplates());
+        resourceBookingService.releaseHoldsForJob(jobUuid, "Job updated; holds re-evaluated");
+        replaceJobResources(saved.getUuid(), request.resources());
+        holdJobResources(saved, request.resources());
 
         return toJobDTO(saved);
     }
@@ -127,6 +162,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         job.setStatus(ClassMarketplaceJobStatus.CANCELLED);
         ClassMarketplaceJob saved = jobRepository.save(job);
+        resourceBookingService.releaseHoldsForJob(jobUuid, "Job cancelled");
         markOtherApplicationsAsNotSelected(jobUuid, null);
         return toJobDTO(saved);
     }
@@ -156,7 +192,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         boolean instructorVerified = isInstructorAdminVerified(instructorUuid);
         boolean trainingApproved = isInstructorApprovedForJob(job, instructorUuid);
         boolean alreadyApplied = applicationRepository.findByJobUuidAndInstructorUuid(jobUuid, instructorUuid).isPresent();
-        boolean eligible = instructorVerified && trainingApproved;
+        List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
+        boolean scheduleClear = scheduleConflicts.isEmpty();
+        boolean eligible = instructorVerified && trainingApproved && scheduleClear;
 
         String reason = null;
         if (!instructorVerified) {
@@ -165,9 +203,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             reason = String.format(
                     "You are not approved to deliver this %s. Submit a training application and wait for approval before applying.",
                     learningContextType(job));
+        } else if (!scheduleClear) {
+            reason = String.format(
+                    "Your existing schedule conflicts with %d of this job's planned sessions.",
+                    scheduleConflicts.size());
         }
 
-        return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved, alreadyApplied, reason);
+        return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved, alreadyApplied,
+                scheduleClear, scheduleClear ? null : scheduleConflicts, reason);
     }
 
     @Override
@@ -276,6 +319,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     learningContextUuid(job)));
         }
 
+        List<ClassSchedulingConflictDTO> scheduleConflicts =
+                findInstructorScheduleConflicts(job, application.getInstructorUuid());
+        if (!scheduleConflicts.isEmpty()) {
+            throw new SchedulingConflictException(String.format(
+                    "Instructor %s has schedule conflicts with this job's planned sessions.",
+                    application.getInstructorUuid()),
+                    scheduleConflicts);
+        }
+
         resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
             if (job.getTrainingFee() != null && job.getTrainingFee().compareTo(approvedRate) != 0) {
                 log.warn("Marketplace job {} fee {} differs from instructor {} approved rate {}",
@@ -286,6 +338,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassDefinitionDTO classDefinition = classDefinitionService
                 .createClassDefinition(buildClassDefinitionRequest(job, application.getInstructorUuid()))
                 .classDefinition();
+
+        convertHoldsToConfirmedBookings(job, classDefinition.uuid());
+        copyJobResourcesToClassDefinition(job.getUuid(), classDefinition.uuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         application.setReviewNotes(resolveAssignedReviewNotes(application.getReviewNotes()));
@@ -335,6 +390,61 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         validateLearningContext(request);
         validateLocationRequirements(request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude());
         validateSessionTemplates(request.sessionTemplates());
+        validateJobResources(request);
+    }
+
+    private void validateJobResources(ClassMarketplaceJobRequestDTO request) {
+        List<ClassMarketplaceJobResourceDTO> resources = request.resources();
+        if (resources == null || resources.isEmpty()) {
+            return;
+        }
+
+        int effectiveMaxParticipants = request.maxParticipants() != null ? request.maxParticipants() : DEFAULT_MAX_PARTICIPANTS;
+        Set<UUID> seen = new HashSet<>();
+        int venueCount = 0;
+        for (ClassMarketplaceJobResourceDTO resource : resources) {
+            if (resource == null || resource.resourceUuid() == null) {
+                throw new IllegalArgumentException("Every job resource entry requires a resource_uuid");
+            }
+            if (!seen.add(resource.resourceUuid())) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource %s is listed more than once on the job", resource.resourceUuid()));
+            }
+
+            ResourceSummary summary = resourceLookupService.getResource(resource.resourceUuid())
+                    .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                            "Organisation resource with UUID %s not found", resource.resourceUuid())));
+            if (!summary.organisationUuid().equals(request.organisationUuid())) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource '%s' does not belong to organisation %s", summary.name(), request.organisationUuid()));
+            }
+            if (!summary.active()) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource '%s' is deactivated and cannot be attached to a job", summary.name()));
+            }
+
+            int quantity = resolveResourceQuantity(resource);
+            if (summary.resourceType() == ResourceType.VENUE) {
+                venueCount++;
+                if (quantity != 1) {
+                    throw new IllegalArgumentException(String.format(
+                            "Venue '%s' must be booked with quantity 1", summary.name()));
+                }
+                if (summary.seatCapacity() != null && effectiveMaxParticipants > summary.seatCapacity()) {
+                    throw new IllegalArgumentException(String.format(
+                            "max_participants %d exceeds the seat capacity %d of venue '%s'",
+                            effectiveMaxParticipants, summary.seatCapacity(), summary.name()));
+                }
+            } else if (summary.totalQuantity() != null && quantity > summary.totalQuantity()) {
+                throw new IllegalArgumentException(String.format(
+                        "Requested quantity %d exceeds the total %d units of equipment pool '%s'",
+                        quantity, summary.totalQuantity(), summary.name()));
+            }
+        }
+
+        if (venueCount > 1) {
+            throw new IllegalArgumentException("A marketplace job can reserve at most one venue");
+        }
     }
 
     private void validateLearningContext(ClassMarketplaceJobRequestDTO request) {
@@ -493,6 +603,107 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     learningContextUuid(job),
                     learningContextType(job)));
         }
+        List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
+        if (!scheduleConflicts.isEmpty()) {
+            throw new SchedulingConflictException(
+                    "Your existing schedule conflicts with this job's planned sessions.",
+                    scheduleConflicts);
+        }
+    }
+
+    /**
+     * Expands the job's session templates and reports every occurrence that clashes
+     * with the instructor's existing schedule (scheduled sessions and blocked time;
+     * cancelled and completed instances are ignored) or declared unavailability.
+     */
+    private List<ClassSchedulingConflictDTO> findInstructorScheduleConflicts(ClassMarketplaceJob job, UUID instructorUuid) {
+        List<OccurrenceWindow> occurrences = expandJobOccurrences(job.getUuid());
+        if (occurrences.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDate minDate = occurrences.stream().map(w -> w.start().toLocalDate()).min(LocalDate::compareTo).orElseThrow();
+        LocalDate maxDate = occurrences.stream().map(w -> w.end().toLocalDate()).max(LocalDate::compareTo).orElseThrow();
+        List<ScheduledInstanceDTO> existingSchedule = timetableService()
+                .getScheduleForInstructor(instructorUuid, minDate, maxDate)
+                .stream()
+                .filter(instance -> instance.status() != SchedulingStatus.COMPLETED)
+                .toList();
+
+        List<ClassSchedulingConflictDTO> conflicts = new ArrayList<>();
+        for (OccurrenceWindow occurrence : occurrences) {
+            List<String> reasons = new ArrayList<>();
+            boolean overlapsSchedule = existingSchedule.stream().anyMatch(instance ->
+                    instance.startTime().isBefore(occurrence.end()) && instance.endTime().isAfter(occurrence.start()));
+            if (overlapsSchedule) {
+                reasons.add("Instructor already has a scheduled session or blocked time overlapping this window");
+            }
+            if (!availabilityService.isInstructorAvailable(instructorUuid, occurrence.start(), occurrence.end())) {
+                reasons.add("Instructor is marked unavailable for this window");
+            }
+            if (!reasons.isEmpty()) {
+                conflicts.add(new ClassSchedulingConflictDTO(occurrence.start(), occurrence.end(), reasons));
+            }
+        }
+        return conflicts;
+    }
+
+    /**
+     * Expands every session template of the job into concrete occurrence windows
+     * using the same expander that class creation uses, so recruitment holds line
+     * up one-to-one with the scheduled instances created at assignment.
+     */
+    private List<OccurrenceWindow> expandJobOccurrences(UUID jobUuid) {
+        List<OccurrenceWindow> occurrences = new ArrayList<>();
+        for (ClassSessionTemplateDTO template : loadSessionTemplates(jobUuid)) {
+            occurrences.addAll(RecurrenceExpander.expand(
+                    template.startTime(),
+                    template.endTime(),
+                    RecurrencePatterns.fromRecurrenceDTO(template.recurrence())));
+        }
+        return occurrences;
+    }
+
+    private void holdJobResources(ClassMarketplaceJob job, List<ClassMarketplaceJobResourceDTO> resources) {
+        if (resources == null || resources.isEmpty()) {
+            return;
+        }
+        List<OccurrenceWindow> occurrences = expandJobOccurrences(job.getUuid());
+        List<ResourceBookingRequest> requests = resources.stream()
+                .map(resource -> new ResourceBookingRequest(
+                        resource.resourceUuid(),
+                        resolveResourceQuantity(resource),
+                        occurrences))
+                .toList();
+        resourceBookingService.holdResourcesForJob(job.getUuid(), job.getOrganisationUuid(), requests);
+    }
+
+    private void replaceJobResources(UUID jobUuid, List<ClassMarketplaceJobResourceDTO> resources) {
+        jobResourceRepository.deleteByJobUuid(jobUuid);
+        if (resources == null || resources.isEmpty()) {
+            return;
+        }
+        List<ClassMarketplaceJobResource> entities = new ArrayList<>();
+        for (ClassMarketplaceJobResourceDTO resource : resources) {
+            ClassMarketplaceJobResource entity = new ClassMarketplaceJobResource();
+            entity.setJobUuid(jobUuid);
+            entity.setResourceUuid(resource.resourceUuid());
+            entity.setQuantity(resolveResourceQuantity(resource));
+            entities.add(entity);
+        }
+        jobResourceRepository.saveAll(entities);
+    }
+
+    private int resolveResourceQuantity(ClassMarketplaceJobResourceDTO resource) {
+        return resource.quantity() != null ? resource.quantity() : 1;
+    }
+
+    private TimetableService timetableService() {
+        TimetableService service = timetableServiceProvider.getIfAvailable();
+        if (service == null) {
+            throw new IllegalStateException("TimetableService is not available");
+        }
+        return service;
     }
 
     private boolean isInstructorAdminVerified(UUID instructorUuid) {
@@ -667,6 +878,49 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         }
     }
 
+    /**
+     * Converts the job's recruitment holds into confirmed bookings linked to the
+     * scheduled instances the class creation just produced. Holds whose window was
+     * not scheduled (skipped or rolled over occurrences) are released.
+     */
+    private void convertHoldsToConfirmedBookings(ClassMarketplaceJob job, UUID classDefinitionUuid) {
+        List<InstanceWindow> instanceWindows = timetableService()
+                .getScheduledInstancesForClassDefinition(classDefinitionUuid)
+                .stream()
+                .map(instance -> new InstanceWindow(instance.uuid(), instance.startTime(), instance.endTime()))
+                .toList();
+        resourceBookingService.confirmHoldsForJob(job.getUuid(), classDefinitionUuid, instanceWindows);
+    }
+
+    private void copyJobResourcesToClassDefinition(UUID jobUuid, UUID classDefinitionUuid) {
+        List<ClassMarketplaceJobResource> jobResources = jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(jobUuid);
+        if (jobResources.isEmpty()) {
+            return;
+        }
+        List<ClassDefinitionResource> copies = new ArrayList<>();
+        for (ClassMarketplaceJobResource jobResource : jobResources) {
+            ClassDefinitionResource copy = new ClassDefinitionResource();
+            copy.setClassDefinitionUuid(classDefinitionUuid);
+            copy.setResourceUuid(jobResource.getResourceUuid());
+            copy.setQuantity(jobResource.getQuantity());
+            copies.add(copy);
+        }
+        classDefinitionResourceRepository.saveAll(copies);
+    }
+
+    /**
+     * The job's venue resource, when one is attached (jobs reserve at most one venue).
+     */
+    private UUID resolveJobVenueResourceUuid(UUID jobUuid) {
+        return jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(jobUuid).stream()
+                .map(ClassMarketplaceJobResource::getResourceUuid)
+                .filter(resourceUuid -> resourceLookupService.getResource(resourceUuid)
+                        .map(summary -> summary.resourceType() == ResourceType.VENUE)
+                        .orElse(false))
+                .findFirst()
+                .orElse(null);
+    }
+
     private ClassDefinitionDTO buildClassDefinitionRequest(ClassMarketplaceJob job, UUID instructorUuid) {
         return new ClassDefinitionDTO(
                 null,
@@ -700,13 +954,20 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 null,
                 null,
                 null
-        );
+        ).withResourceLinks(resolveJobVenueResourceUuid(job.getUuid()), job.getUuid());
     }
 
     private List<ClassSessionTemplateDTO> loadSessionTemplates(UUID jobUuid) {
         return sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(jobUuid)
                 .stream()
                 .map(this::toSessionTemplateDTO)
+                .toList();
+    }
+
+    private List<ClassMarketplaceJobResourceDTO> loadJobResources(UUID jobUuid) {
+        return jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(jobUuid)
+                .stream()
+                .map(resource -> new ClassMarketplaceJobResourceDTO(resource.getResourceUuid(), resource.getQuantity()))
                 .toList();
     }
 
@@ -765,6 +1026,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getAssignedClassDefinitionUuid(),
                 job.getFilledAt(),
                 loadSessionTemplates(job.getUuid()),
+                loadJobResources(job.getUuid()),
                 job.getCreatedDate(),
                 job.getLastModifiedDate(),
                 job.getCreatedBy(),

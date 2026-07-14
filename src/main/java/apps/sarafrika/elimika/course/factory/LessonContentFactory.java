@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.LessonContentDTO;
 import apps.sarafrika.elimika.course.model.LessonContent;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -20,7 +21,7 @@ public class LessonContentFactory {
                 lessonContent.getTitle(),
                 lessonContent.getDescription(),
                 lessonContent.getContentText(),
-                lessonContent.getFileUrl(),
+                FileUrlResolver.publicUrl(lessonContent.getFileUrl()),
                 lessonContent.getFileSizeBytes(),
                 lessonContent.getMimeType(),
                 lessonContent.getDisplayOrder(),
@@ -44,7 +45,7 @@ public class LessonContentFactory {
         lessonContent.setTitle(dto.title());
         lessonContent.setDescription(dto.description());
         lessonContent.setContentText(dto.contentText());
-        lessonContent.setFileUrl(dto.fileUrl());
+        lessonContent.setFileUrl(FileUrlResolver.toStorableValue(dto.fileUrl()));
         lessonContent.setFileSizeBytes(dto.fileSizeBytes());
         lessonContent.setMimeType(dto.mimeType());
         lessonContent.setDisplayOrder(dto.displayOrder());

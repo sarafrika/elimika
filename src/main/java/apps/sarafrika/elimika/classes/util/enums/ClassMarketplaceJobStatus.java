@@ -12,7 +12,8 @@ import java.util.Map;
 public enum ClassMarketplaceJobStatus {
     OPEN("open"),
     FILLED("filled"),
-    CANCELLED("cancelled");
+    CANCELLED("cancelled"),
+    EXPIRED("expired");
 
     private final String value;
     private static final Map<String, ClassMarketplaceJobStatus> VALUE_MAP = new HashMap<>();
@@ -43,6 +44,6 @@ public enum ClassMarketplaceJobStatus {
     }
 
     public boolean isTerminal() {
-        return this == FILLED || this == CANCELLED;
+        return this == FILLED || this == CANCELLED || this == EXPIRED;
     }
 }

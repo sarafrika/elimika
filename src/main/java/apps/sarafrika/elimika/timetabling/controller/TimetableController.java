@@ -86,6 +86,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Scheduled instance rescheduled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid time range, scheduling conflict, or instance is not reschedulable")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Linked venue or equipment is not available at the new time")
     @PatchMapping("/schedule/{instanceUuid}/time")
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> rescheduleScheduledInstance(
             @Parameter(description = "UUID of the scheduled instance")
@@ -93,8 +94,14 @@ public class TimetableController {
             @Valid @RequestBody ScheduledInstanceRescheduleRequestDTO request) {
         log.debug("REST request to reschedule scheduled instance: {}", instanceUuid);
 
-        ScheduledInstanceDTO result = timetableService.rescheduleScheduledInstance(instanceUuid, request);
-        return ResponseEntity.ok(ApiResponse.success(result, "Scheduled instance rescheduled successfully"));
+        try {
+            ScheduledInstanceDTO result = timetableService.rescheduleScheduledInstance(instanceUuid, request);
+            return ResponseEntity.ok(ApiResponse.success(result, "Scheduled instance rescheduled successfully"));
+        } catch (apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException e) {
+            log.warn("Resource conflicts while rescheduling instance {}: {}", instanceUuid, e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
+        }
     }
 
     @Operation(summary = "Start a scheduled class instance")

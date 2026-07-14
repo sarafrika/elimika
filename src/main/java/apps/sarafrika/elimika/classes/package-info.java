@@ -29,6 +29,7 @@
             "shared",
             "timetabling :: timetabling-spi",
             "availability :: availability-spi",
+            "resourcing :: resourcing-spi",
             "course :: course-spi",
             "instructor :: instructor-spi",
             "student :: student-spi",

@@ -278,7 +278,7 @@ public class CertificateServiceImpl implements CertificateService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(CERTIFICATE_NOT_FOUND_TEMPLATE, certificateUuid)));
 
-        certificate.setCertificateUrl(certificateUrl);
+        certificate.setCertificateUrl(apps.sarafrika.elimika.shared.storage.util.FileUrlResolver.toStorableValue(certificateUrl));
 
         Certificate updatedCertificate = certificateRepository.save(certificate);
         return CertificateFactory.toDTO(updatedCertificate);
@@ -336,7 +336,7 @@ public class CertificateServiceImpl implements CertificateService {
             existingCertificate.setFinalGrade(dto.finalGrade());
         }
         if (dto.certificateUrl() != null) {
-            existingCertificate.setCertificateUrl(dto.certificateUrl());
+            existingCertificate.setCertificateUrl(apps.sarafrika.elimika.shared.storage.util.FileUrlResolver.toStorableValue(dto.certificateUrl()));
         }
         if (dto.isValid() != null) {
             existingCertificate.setIsValid(dto.isValid());

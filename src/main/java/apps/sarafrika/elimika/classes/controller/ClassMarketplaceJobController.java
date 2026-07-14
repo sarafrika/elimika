@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -47,13 +48,20 @@ public class ClassMarketplaceJobController {
 
     private final ClassMarketplaceJobServiceInterface classMarketplaceJobService;
 
-    @Operation(summary = "Create a marketplace class job")
+    @Operation(summary = "Create a marketplace class job",
+            description = "Attached resources are validated against their calendars and reserved with HOLD bookings for every session occurrence; conflicts return 409 with a per-occurrence report")
     @PostMapping
     public ResponseEntity<ApiResponse<ClassMarketplaceJobDTO>> createJob(
             @Valid @RequestBody ClassMarketplaceJobRequestDTO request) {
-        ClassMarketplaceJobDTO result = classMarketplaceJobService.createJob(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(result, "Marketplace class job created successfully"));
+        try {
+            ClassMarketplaceJobDTO result = classMarketplaceJobService.createJob(request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(result, "Marketplace class job created successfully"));
+        } catch (ResourceBookingConflictException e) {
+            log.warn("Resource conflicts while creating marketplace class job: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
+        }
     }
 
     @Operation(summary = "List marketplace class jobs")
@@ -89,15 +97,22 @@ public class ClassMarketplaceJobController {
         ));
     }
 
-    @Operation(summary = "Update a marketplace class job")
+    @Operation(summary = "Update a marketplace class job",
+            description = "Existing resource holds are released and re-placed against the updated schedule; conflicts return 409 with a per-occurrence report and roll the update back")
     @PutMapping("/{jobUuid}")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobDTO>> updateJob(
             @PathVariable UUID jobUuid,
             @Valid @RequestBody ClassMarketplaceJobRequestDTO request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                classMarketplaceJobService.updateJob(jobUuid, request),
-                "Marketplace class job updated successfully"
-        ));
+        try {
+            return ResponseEntity.ok(ApiResponse.success(
+                    classMarketplaceJobService.updateJob(jobUuid, request),
+                    "Marketplace class job updated successfully"
+            ));
+        } catch (ResourceBookingConflictException e) {
+            log.warn("Resource conflicts while updating marketplace class job {}: {}", jobUuid, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
+        }
     }
 
     @Operation(summary = "Cancel a marketplace class job")
@@ -109,14 +124,22 @@ public class ClassMarketplaceJobController {
         ));
     }
 
-    @Operation(summary = "Apply to a marketplace class job")
+    @Operation(summary = "Apply to a marketplace class job",
+            description = "Applications are hard-blocked (409 with conflict details) when the instructor's existing schedule overlaps any of the job's planned session occurrences")
     @PostMapping("/{jobUuid}/applications")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> applyToJob(
             @PathVariable UUID jobUuid,
             @Valid @RequestBody(required = false) ClassMarketplaceJobApplicationRequestDTO request) {
         ClassMarketplaceJobApplicationRequestDTO payload =
                 request != null ? request : new ClassMarketplaceJobApplicationRequestDTO(null);
-        ClassMarketplaceJobApplicationDTO result = classMarketplaceJobService.applyToJob(jobUuid, payload);
+        ClassMarketplaceJobApplicationDTO result;
+        try {
+            result = classMarketplaceJobService.applyToJob(jobUuid, payload);
+        } catch (SchedulingConflictException e) {
+            log.warn("Schedule conflicts while applying to marketplace class job {}: {}", jobUuid, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Schedule conflicts detected", e.getConflicts()));
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(result, "Marketplace class job application submitted successfully"));
     }

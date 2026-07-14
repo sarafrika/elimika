@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.shared.storage.service;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 public interface StorageService {
 
     void init();
@@ -19,6 +21,30 @@ public interface StorageService {
     String store(MultipartFile file, String folder);
 
     Resource load(String fileName);
+
+    /**
+     * Checks whether a stored file exists for the given relative key.
+     *
+     * @param fileName relative storage key (folder/name)
+     * @return true if a readable regular file exists
+     */
+    boolean exists(String fileName);
+
+    /**
+     * Deletes a stored file. Idempotent: missing files are a no-op. Rejects paths
+     * outside the storage root.
+     *
+     * @param fileName relative storage key (folder/name)
+     */
+    void delete(String fileName);
+
+    /**
+     * Lists the relative keys of every regular file under the storage root,
+     * excluding the temp folder.
+     *
+     * @return relative keys using '/' separators
+     */
+    List<String> listAllKeys();
 
     /**
      * Determines the MIME content type for a given file.

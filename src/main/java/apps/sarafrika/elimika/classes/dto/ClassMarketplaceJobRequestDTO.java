@@ -194,7 +194,12 @@ public record ClassMarketplaceJobRequestDTO(
         @NotNull(message = "session_templates is required")
         @Size(min = 1, message = "At least one session template is required")
         @Valid
-        List<ClassSessionTemplateDTO> sessionTemplates
+        List<ClassSessionTemplateDTO> sessionTemplates,
+
+        @Schema(description = "**[OPTIONAL]** Organisation resources (venue, equipment pools) to reserve for every session while recruitment runs. At most one venue; posting fails with a per-occurrence conflict report if any resource is unavailable.", nullable = true)
+        @JsonProperty("resources")
+        @Valid
+        List<ClassMarketplaceJobResourceDTO> resources
 ) {
 
     @JsonIgnore

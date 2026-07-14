@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.instructor.repository.InstructorDocumentRepository
 import apps.sarafrika.elimika.instructor.service.InstructorDocumentService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
     private final GenericSpecificationBuilder<InstructorDocument> specificationBuilder;
     private final InstructorLookupService instructorLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final MediaStorageService mediaStorageService;
 
     private static final String INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE = "Instructor document with ID %s not found";
 
@@ -83,9 +85,10 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
 
     @Override
     public void deleteInstructorDocument(UUID uuid) {
-        if (!instructorDocumentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        InstructorDocument document = instructorDocumentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
+        mediaStorageService.delete(document.getFilePath() != null
+                ? document.getFilePath() : document.getStoredFilename());
         instructorDocumentRepository.deleteByUuid(uuid);
     }
 

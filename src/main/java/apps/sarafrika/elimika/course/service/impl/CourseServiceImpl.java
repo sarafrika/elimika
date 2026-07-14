@@ -4,7 +4,6 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
-import apps.sarafrika.elimika.course.internal.CourseMediaValidationService;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -22,7 +21,11 @@ import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -53,16 +56,11 @@ public class CourseServiceImpl implements CourseService {
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
     private final CourseTrainingRequirementService courseTrainingRequirementService;
-    private final StorageService storageService;
-    private final CourseMediaValidationService validationService;
+    private final MediaStorageService mediaStorageService;
     private final StorageProperties storageProperties;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ContentModerationHistoryService contentModerationHistoryService;
-
-    public static final String COURSE_THUMBNAILS_FOLDER = "course_thumbnails";
-    public static final String COURSE_BANNERS_FOLDER = "course_banners";
-    public static final String COURSE_INTRO_VIDEOS_FOLDER = "course_intro_videos";
 
     private static final String COURSE_NOT_FOUND_TEMPLATE = "Course with ID %s not found";
 
@@ -152,6 +150,10 @@ public class CourseServiceImpl implements CourseService {
 
         // Remove all category associations first
         courseCategoryService.removeAllCategoriesFromCourse(uuid);
+
+        mediaStorageService.deleteAllForOwner(MediaOwnerType.COURSE_THUMBNAIL, uuid);
+        mediaStorageService.deleteAllForOwner(MediaOwnerType.COURSE_BANNER, uuid);
+        mediaStorageService.deleteAllForOwner(MediaOwnerType.COURSE_INTRO_VIDEO, uuid);
 
         courseRepository.deleteByUuid(uuid);
         log.info("Successfully deleted course: {}", uuid);
@@ -310,15 +312,14 @@ public class CourseServiceImpl implements CourseService {
     public CourseDTO uploadThumbnail(UUID courseUuid, MultipartFile thumbnail) {
         log.debug("Uploading thumbnail for course: {}", courseUuid);
 
-        validationService.validateThumbnail(thumbnail);
-
         Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         try {
-            String thumbnailFolder = storageProperties.getFolders().getCourseThumbnails();
-            course.setThumbnailUrl(thumbnail != null ? storeCourseImage(thumbnail, thumbnailFolder) : null);
+            course.setThumbnailUrl(storeCourseMedia(thumbnail, MediaCategory.THUMBNAIL,
+                    storageProperties.getFolders().getCourseThumbnails(),
+                    MediaOwnerType.COURSE_THUMBNAIL, course.getUuid(), course.getThumbnailUrl()));
             Course savedCourse = courseRepository.save(course);
             return CourseFactory.toDTO(savedCourse);
         } catch (Exception ex) {
@@ -330,15 +331,15 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public CourseDTO uploadBanner(UUID courseUuid, MultipartFile banner) {
         log.debug("Uploading banner for course: {}", courseUuid);
-        validationService.validateBanner(banner);
 
         Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         try {
-            String bannerFolder = storageProperties.getFolders().getCourseThumbnails(); // Note: You might want to add a separate courseBanners property
-            course.setBannerUrl(banner != null ? storeCourseImage(banner, bannerFolder) : null);
+            course.setBannerUrl(storeCourseMedia(banner, MediaCategory.BANNER,
+                    storageProperties.getFolders().getCourseBanners(),
+                    MediaOwnerType.COURSE_BANNER, course.getUuid(), course.getBannerUrl()));
             courseRepository.save(course);
             return getCourseByUuid(courseUuid);
         } catch (Exception ex) {
@@ -350,15 +351,14 @@ public class CourseServiceImpl implements CourseService {
     public CourseDTO uploadIntroVideo(UUID courseUuid, MultipartFile introVideo) {
         log.debug("Uploading intro video for course: {}", courseUuid);
 
-        validationService.validateIntroVideo(introVideo);
-
         Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
         try {
-            String videoFolder = storageProperties.getFolders().getCourseMaterials(); // For intro videos
-            course.setIntroVideoUrl(introVideo != null ? storeCourseImage(introVideo, videoFolder) : null);
+            course.setIntroVideoUrl(storeCourseMedia(introVideo, MediaCategory.VIDEO,
+                    storageProperties.getFolders().getCourseMaterials(),
+                    MediaOwnerType.COURSE_INTRO_VIDEO, course.getUuid(), course.getIntroVideoUrl()));
             courseRepository.save(course);
             return getCourseByUuid(courseUuid);
         } catch (Exception ex) {
@@ -517,14 +517,17 @@ public class CourseServiceImpl implements CourseService {
         if (dto.ageUpperLimit() != null) {
             existingCourse.setAgeUpperLimit(dto.ageUpperLimit());
         }
+        // Media fields accept external URLs as-is but reduce our own resolved
+        // /api/v1/files/... URLs back to storage keys so round-tripped DTOs
+        // never persist a URL form.
         if (dto.thumbnailUrl() != null) {
-            existingCourse.setThumbnailUrl(dto.thumbnailUrl());
+            existingCourse.setThumbnailUrl(FileUrlResolver.toStorableValue(dto.thumbnailUrl()));
         }
         if (dto.introVideoUrl() != null) {
-            existingCourse.setIntroVideoUrl(dto.introVideoUrl());
+            existingCourse.setIntroVideoUrl(FileUrlResolver.toStorableValue(dto.introVideoUrl()));
         }
         if (dto.bannerUrl() != null) {
-            existingCourse.setBannerUrl(dto.bannerUrl());
+            existingCourse.setBannerUrl(FileUrlResolver.toStorableValue(dto.bannerUrl()));
         }
         if (dto.status() != null) {
             existingCourse.setStatus(dto.status());
@@ -535,22 +538,18 @@ public class CourseServiceImpl implements CourseService {
     }
 
     /**
-     * Stores a course-related file and returns the full URL
-     * Uses simple UUID-based filenames for cleaner URLs
+     * Stores a course media file and returns its canonical storage key, replacing the
+     * previous file on disk and in the media registry. A null file clears the field
+     * and removes the previous file.
      */
-    private String storeCourseImage(MultipartFile file, String folder) {
-        try {
-            String storedPath = storageService.store(file, folder);
-            String encodedPath = UriUtils.encodePath(storedPath, java.nio.charset.StandardCharsets.UTF_8);
-            String imageUrl = "/api/v1/courses/media/" + encodedPath;
-
-            log.debug("Generated course media URL: {}", imageUrl);
-            return imageUrl;
-
-        } catch (Exception e) {
-            log.error("Failed to store course media file", e);
-            throw new RuntimeException("Failed to store course media: " + e.getMessage(), e);
+    private String storeCourseMedia(MultipartFile file, MediaCategory category, String folder,
+                                    String ownerType, UUID ownerUuid, String previousValue) {
+        if (file == null) {
+            mediaStorageService.delete(previousValue);
+            return null;
         }
+        return mediaStorageService.store(new MediaUploadRequest(
+                file, category, folder, ownerType, ownerUuid, previousValue)).key();
     }
 
     private void publishCourseModerationNotification(Course course, boolean approved, String reason) {

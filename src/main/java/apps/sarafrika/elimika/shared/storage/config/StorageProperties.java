@@ -41,6 +41,11 @@ public class StorageProperties {
         private String courseThumbnails = "course_thumbnails";
 
         /**
+         * Folder for course banners
+         */
+        private String courseBanners = "course_banners";
+
+        /**
          * Folder for course materials (documents, videos, etc.)
          */
         private String courseMaterials = "course_materials";

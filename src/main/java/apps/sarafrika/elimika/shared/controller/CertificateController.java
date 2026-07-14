@@ -4,7 +4,11 @@ import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import apps.sarafrika.elimika.shared.utils.validation.PdfFile;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,7 +50,8 @@ public class CertificateController {
 
     private final CertificateService certificateService;
     private final CertificateTemplateService certificateTemplateService;
-    private final StorageService storageService;
+    private final MediaStorageService mediaStorageService;
+    private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
 
     // ===== CERTIFICATE BASIC OPERATIONS =====
@@ -87,11 +92,14 @@ public class CertificateController {
             @PathVariable UUID uuid,
             @RequestParam("file") @PdfFile MultipartFile file
     ) {
-        String folder = storageProperties.getFolders().getCertificates();
-        String storedFileName = storageService.store(file, folder);
-        String fileUrl = buildCertificateFileUrl(storedFileName);
-
         CertificateDTO existing = certificateService.getCertificateByUuid(uuid);
+
+        String fileUrl = mediaStorageService.store(new MediaUploadRequest(
+                file, MediaCategory.PDF_DOCUMENT,
+                storageProperties.getFolders().getCertificates(),
+                MediaOwnerType.CERTIFICATE, uuid,
+                existing.certificateUrl()
+        )).key();
 
         CertificateDTO updatePayload = new CertificateDTO(
                 existing.uuid(),
@@ -128,21 +136,17 @@ public class CertificateController {
     public ResponseEntity<Resource> getCertificateFile(
             @PathVariable String filePath
     ) {
-        try {
-            String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
-
-            Resource resource = storageService.load(normalizedFilePath);
-            String contentType = storageService.getContentType(normalizedFilePath);
-            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+        // Legacy double-nested URLs may carry a duplicated leading "certificates/";
+        // fall back to the deduplicated key when the literal path is absent.
+        String normalized = StoragePathUtils.normalizeRelativePath(filePath);
+        String fallback = null;
+        String certificatesFolder = storageProperties.getFolders().getCertificates() + "/";
+        if (normalized != null && normalized.startsWith(certificatesFolder + certificatesFolder)) {
+            fallback = normalized.substring(certificatesFolder.length());
+        } else if (normalized != null && !normalized.contains("/")) {
+            fallback = certificatesFolder + normalized;
         }
+        return mediaServeService.serve(normalized, fallback);
     }
 
     @Operation(
@@ -504,7 +508,4 @@ public class CertificateController {
                         "Template search completed successfully"));
     }
 
-    private String buildCertificateFileUrl(String storedFilePath) {
-        return API_ROOT_PATH + "/files/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
-    }
 }

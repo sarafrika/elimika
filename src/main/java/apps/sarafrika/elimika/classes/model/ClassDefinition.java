@@ -108,4 +108,10 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "session_format")
     private SessionFormat sessionFormat;
 
+    @Column(name = "venue_resource_uuid")
+    private UUID venueResourceUuid;
+
+    @Column(name = "marketplace_job_uuid")
+    private UUID marketplaceJobUuid;
+
 }

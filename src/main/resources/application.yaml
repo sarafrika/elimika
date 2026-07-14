@@ -80,6 +80,7 @@ storage:
   folders:
     profile-images: ${PROFILE_IMAGES_FOLDER:profile_images}
     course-thumbnails: ${COURSE_THUMBNAILS_FOLDER:course_thumbnails}
+    course-banners: ${COURSE_BANNERS_FOLDER:course_banners}
     course-materials: ${COURSE_MATERIALS_FOLDER:course_materials}
     class-thumbnails: ${CLASS_THUMBNAILS_FOLDER:class_thumbnails}
     class-promotional-videos: ${CLASS_PROMOTIONAL_VIDEOS_FOLDER:class_promotional_videos}

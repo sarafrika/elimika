@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.repository.AssignmentAttachmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.service.AssignmentAttachmentService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class AssignmentAttachmentServiceImpl implements AssignmentAttachmentServ
 
     private final AssignmentAttachmentRepository attachmentRepository;
     private final AssignmentRepository assignmentRepository;
+    private final MediaStorageService mediaStorageService;
 
     @Override
     public AssignmentAttachmentDTO createAttachment(AssignmentAttachmentDTO attachmentDTO) {
@@ -58,9 +60,11 @@ public class AssignmentAttachmentServiceImpl implements AssignmentAttachmentServ
 
     @Override
     public void deleteAttachment(UUID uuid) {
-        if (!attachmentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(String.format(ATTACHMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        AssignmentAttachment attachment = attachmentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ATTACHMENT_NOT_FOUND_TEMPLATE, uuid)));
+        mediaStorageService.delete(attachment.getStoredFilename() != null
+                ? attachment.getStoredFilename() : attachment.getFileUrl());
         attachmentRepository.deleteByUuid(uuid);
     }
 }

@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestD
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
+import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
@@ -26,7 +28,13 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
+import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
+import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,6 +72,27 @@ class ClassMarketplaceJobServiceImplTest {
 
     @Mock
     private ClassMarketplaceJobSessionTemplateRepository sessionTemplateRepository;
+
+    @Mock
+    private apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobResourceRepository jobResourceRepository;
+
+    @Mock
+    private apps.sarafrika.elimika.classes.repository.ClassDefinitionResourceRepository classDefinitionResourceRepository;
+
+    @Mock
+    private apps.sarafrika.elimika.resourcing.spi.ResourceBookingService resourceBookingService;
+
+    @Mock
+    private apps.sarafrika.elimika.resourcing.spi.ResourceLookupService resourceLookupService;
+
+    @Mock
+    private apps.sarafrika.elimika.availability.spi.AvailabilityService availabilityService;
+
+    @Mock
+    private org.springframework.beans.factory.ObjectProvider<apps.sarafrika.elimika.timetabling.spi.TimetableService> timetableServiceProvider;
+
+    @Mock
+    private apps.sarafrika.elimika.timetabling.spi.TimetableService timetableService;
 
     @Mock
     private CourseInfoService courseInfoService;
@@ -93,14 +123,27 @@ class ClassMarketplaceJobServiceImplTest {
                 jobRepository,
                 applicationRepository,
                 sessionTemplateRepository,
+                jobResourceRepository,
+                classDefinitionResourceRepository,
                 courseInfoService,
                 courseTrainingApprovalSpi,
                 userLookupService,
                 instructorLookupService,
                 domainSecurityService,
                 classDefinitionService,
+                resourceBookingService,
+                resourceLookupService,
+                availabilityService,
+                timetableServiceProvider,
                 eventPublisher
         );
+        org.mockito.Mockito.lenient().when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
+        org.mockito.Mockito.lenient()
+                .when(availabilityService.isInstructorAvailable(
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(true);
     }
 
     @Test
@@ -612,7 +655,8 @@ class ClassMarketplaceJobServiceImplTest {
                                 6
                         ),
                         ConflictResolutionStrategy.FAIL
-                ))
+                )),
+                null
         );
     }
 
@@ -649,6 +693,458 @@ class ClassMarketplaceJobServiceImplTest {
         job.setCourseUuid(null);
         job.setProgramUuid(UUID.randomUUID());
         return job;
+    }
+
+
+    // ===== resource holds on posting =====
+
+    @Test
+    void createJobWithResourcesPlacesHoldsForEveryExpandedOccurrence() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO base = sampleRequest(null, programUuid);
+        ClassMarketplaceJobRequestDTO request = withResources(base,
+                List.of(new ClassMarketplaceJobResourceDTO(venueUuid, null)));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                venueSummary(venueUuid, request.organisationUuid(), 30, true)));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class)))
+                .thenAnswer(invocation -> List.of(sampleSessionTemplate(invocation.getArgument(0))));
+
+        service.createJob(request);
+
+        ArgumentCaptor<List<ResourceBookingRequest>> requestsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(resourceBookingService).holdResourcesForJob(any(UUID.class), eq(request.organisationUuid()), requestsCaptor.capture());
+        List<ResourceBookingRequest> holdRequests = requestsCaptor.getValue();
+        assertThat(holdRequests).hasSize(1);
+        assertThat(holdRequests.getFirst().resourceUuid()).isEqualTo(venueUuid);
+        assertThat(holdRequests.getFirst().quantity()).isEqualTo(1);
+        // weekly Saturday template with occurrence_count 6 expands to 6 windows
+        assertThat(holdRequests.getFirst().windows()).hasSize(6);
+        assertThat(holdRequests.getFirst().windows().getFirst().start())
+                .isEqualTo(LocalDateTime.of(2026, 5, 2, 9, 0));
+    }
+
+    @Test
+    void createJobWithoutResourcesPlacesNoHolds() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        service.createJob(request);
+
+        verify(resourceBookingService, never()).holdResourcesForJob(any(), any(), any());
+    }
+
+    @Test
+    void createJobRejectsResourceOfAnotherOrganisation() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(venueUuid, null)));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                venueSummary(venueUuid, UUID.randomUUID(), 30, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not belong to organisation");
+        verify(jobRepository, never()).save(any());
+    }
+
+    @Test
+    void createJobRejectsDeactivatedResource() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(venueUuid, null)));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                venueSummary(venueUuid, request.organisationUuid(), 30, false)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("deactivated");
+    }
+
+    @Test
+    void createJobRejectsMoreThanOneVenue() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID venueA = UUID.randomUUID();
+        UUID venueB = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(venueA, null),
+                        new ClassMarketplaceJobResourceDTO(venueB, null)));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(resourceLookupService.getResource(venueA)).thenReturn(Optional.of(
+                venueSummary(venueA, request.organisationUuid(), 30, true)));
+        when(resourceLookupService.getResource(venueB)).thenReturn(Optional.of(
+                venueSummary(venueB, request.organisationUuid(), 30, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at most one venue");
+    }
+
+    @Test
+    void createJobRejectsVenueSmallerThanMaxParticipants() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        // sampleRequest uses max_participants 24
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(venueUuid, null)));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                venueSummary(venueUuid, request.organisationUuid(), 20, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds the seat capacity");
+    }
+
+    @Test
+    void createJobRejectsEquipmentQuantityAbovePoolTotal() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID poolUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(poolUuid, 40)));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(resourceLookupService.getResource(poolUuid)).thenReturn(Optional.of(new ResourceSummary(
+                poolUuid, request.organisationUuid(), null, ResourceType.EQUIPMENT_POOL, "Laptops", null, 25, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds the total");
+    }
+
+    @Test
+    void cancelJobReleasesResourceHolds() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid())).thenReturn(List.of());
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+
+        service.cancelJob(job.getUuid());
+
+        verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job cancelled");
+    }
+
+    // ===== application schedule hard-block =====
+
+    @Test
+    void applyToJobRejectsInstructorWithOverlappingSchedule() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        // existing session overlaps the first Saturday occurrence (2026-05-02 09:00-12:00)
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(scheduledInstance(
+                        LocalDateTime.of(2026, 5, 2, 10, 0),
+                        LocalDateTime.of(2026, 5, 2, 11, 0),
+                        SchedulingStatus.SCHEDULED)));
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen")))
+                .isInstanceOfSatisfying(SchedulingConflictException.class, ex -> {
+                    assertThat(ex.getConflicts()).hasSize(1);
+                    assertThat(ex.getConflicts().getFirst().requestedStart())
+                            .isEqualTo(LocalDateTime.of(2026, 5, 2, 9, 0));
+                });
+
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+    }
+
+    @Test
+    void applyToJobIgnoresCompletedAndBoundaryTouchingSessions() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(
+                        // completed session overlapping the window: ignored
+                        scheduledInstance(
+                                LocalDateTime.of(2026, 5, 2, 10, 0),
+                                LocalDateTime.of(2026, 5, 2, 11, 0),
+                                SchedulingStatus.COMPLETED),
+                        // back-to-back session ending exactly at the occurrence start: no overlap
+                        scheduledInstance(
+                                LocalDateTime.of(2026, 5, 2, 7, 0),
+                                LocalDateTime.of(2026, 5, 2, 9, 0),
+                                SchedulingStatus.SCHEDULED)));
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
+                .thenReturn(Optional.empty());
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen"));
+
+        assertThat(result.status()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
+    }
+
+    @Test
+    void applyToJobRejectsInstructorMarkedUnavailable() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(availabilityService.isInstructorAvailable(eq(instructorUuid), any(), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen")))
+                .isInstanceOfSatisfying(SchedulingConflictException.class, ex ->
+                        assertThat(ex.getConflicts()).hasSize(6));
+    }
+
+    @Test
+    void getMyJobEligibilityReportsScheduleConflicts() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(scheduledInstance(
+                        LocalDateTime.of(2026, 5, 9, 9, 0),
+                        LocalDateTime.of(2026, 5, 9, 12, 0),
+                        SchedulingStatus.BLOCKED)));
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.instructorVerified()).isTrue();
+        assertThat(eligibility.trainingApproved()).isTrue();
+        assertThat(eligibility.scheduleClear()).isFalse();
+        assertThat(eligibility.scheduleConflicts()).hasSize(1);
+        assertThat(eligibility.scheduleConflicts().getFirst().requestedStart())
+                .isEqualTo(LocalDateTime.of(2026, 5, 9, 9, 0));
+        assertThat(eligibility.reason()).contains("conflicts with 1");
+    }
+
+    // ===== assignment hold conversion =====
+
+    @Test
+    void assignInstructorConfirmsHoldsAndCopiesResources() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("manager@org.test"));
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
+        ScheduledInstanceDTO instance = scheduledInstance(
+                LocalDateTime.of(2026, 5, 2, 9, 0),
+                LocalDateTime.of(2026, 5, 2, 12, 0),
+                SchedulingStatus.SCHEDULED);
+        when(timetableService.getScheduledInstancesForClassDefinition(classDefinitionUuid))
+                .thenReturn(List.of(instance));
+        apps.sarafrika.elimika.classes.model.ClassMarketplaceJobResource jobResource =
+                new apps.sarafrika.elimika.classes.model.ClassMarketplaceJobResource();
+        jobResource.setJobUuid(job.getUuid());
+        jobResource.setResourceUuid(UUID.randomUUID());
+        jobResource.setQuantity(1);
+        when(jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(jobResource));
+        when(resourceLookupService.getResource(jobResource.getResourceUuid())).thenReturn(Optional.of(
+                venueSummary(jobResource.getResourceUuid(), job.getOrganisationUuid(), 30, true)));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+
+        var response = service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(application.getUuid()));
+
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+
+        ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(resourceBookingService).confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), windowsCaptor.capture());
+        assertThat(windowsCaptor.getValue()).hasSize(1);
+        assertThat(windowsCaptor.getValue().getFirst().scheduledInstanceUuid()).isEqualTo(instance.uuid());
+
+        ArgumentCaptor<List<apps.sarafrika.elimika.classes.model.ClassDefinitionResource>> copiesCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(classDefinitionResourceRepository).saveAll(copiesCaptor.capture());
+        assertThat(copiesCaptor.getValue()).hasSize(1);
+        assertThat(copiesCaptor.getValue().getFirst().getClassDefinitionUuid()).isEqualTo(classDefinitionUuid);
+        assertThat(copiesCaptor.getValue().getFirst().getResourceUuid()).isEqualTo(jobResource.getResourceUuid());
+
+        ArgumentCaptor<ClassDefinitionDTO> definitionCaptor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
+        verify(classDefinitionService).createClassDefinition(definitionCaptor.capture());
+        assertThat(definitionCaptor.getValue().venueResourceUuid()).isEqualTo(jobResource.getResourceUuid());
+        assertThat(definitionCaptor.getValue().marketplaceJobUuid()).isEqualTo(job.getUuid());
+    }
+
+    @Test
+    void assignInstructorRejectsWhenScheduleConflictsAppearedAfterApproval() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(scheduledInstance(
+                        LocalDateTime.of(2026, 5, 16, 9, 0),
+                        LocalDateTime.of(2026, 5, 16, 12, 0),
+                        SchedulingStatus.SCHEDULED)));
+
+        assertThatThrownBy(() -> service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(application.getUuid())))
+                .isInstanceOf(SchedulingConflictException.class);
+
+        verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
+        verify(resourceBookingService, never()).confirmHoldsForJob(any(), any(), any());
+    }
+
+    private ClassMarketplaceJobRequestDTO withResources(ClassMarketplaceJobRequestDTO base,
+                                                        List<ClassMarketplaceJobResourceDTO> resources) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), resources);
+    }
+
+    private ResourceSummary venueSummary(UUID resourceUuid, UUID organisationUuid, int seatCapacity, boolean active) {
+        return new ResourceSummary(resourceUuid, organisationUuid, null, ResourceType.VENUE,
+                "Physics Lab", seatCapacity, null, active);
+    }
+
+    private ScheduledInstanceDTO scheduledInstance(LocalDateTime start, LocalDateTime end, SchedulingStatus status) {
+        return new ScheduledInstanceDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                start,
+                end,
+                "UTC",
+                "Existing session",
+                "ONLINE",
+                null,
+                null,
+                null,
+                25,
+                status,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     private void allowOrganisationAccess(UUID currentUserUuid, UUID organisationUuid) {

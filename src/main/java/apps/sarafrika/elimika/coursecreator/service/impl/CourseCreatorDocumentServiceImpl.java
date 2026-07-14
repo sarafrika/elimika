@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
     private static final String DOCUMENT_NOT_FOUND_TEMPLATE = "Course creator document with ID %s not found";
 
     private final CourseCreatorDocumentRepository documentRepository;
+    private final MediaStorageService mediaStorageService;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -155,9 +157,10 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
 
     @Override
     public void deleteCourseCreatorDocument(UUID uuid) {
-        if (!documentRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid));
-        }
+        CourseCreatorDocument document = documentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
+        mediaStorageService.delete(document.getFilePath() != null
+                ? document.getFilePath() : document.getStoredFilename());
         documentRepository.deleteByUuid(uuid);
     }
 

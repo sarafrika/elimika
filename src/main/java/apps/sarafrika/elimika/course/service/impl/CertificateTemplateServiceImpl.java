@@ -97,7 +97,7 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
             existingCertificateTemplate.setTemplateCss(dto.templateCss());
         }
         if (dto.backgroundImageUrl() != null) {
-            existingCertificateTemplate.setBackgroundImageUrl(dto.backgroundImageUrl());
+            existingCertificateTemplate.setBackgroundImageUrl(apps.sarafrika.elimika.shared.storage.util.FileUrlResolver.toStorableValue(dto.backgroundImageUrl()));
         }
         if (dto.active() != null) {
             existingCertificateTemplate.setIsActive(dto.active());

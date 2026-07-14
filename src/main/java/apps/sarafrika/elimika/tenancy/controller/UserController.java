@@ -3,8 +3,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.config.exception.StorageFileNotFoundException;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,7 +37,7 @@ import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 @Tag(name = "Users API", description = "Complete user management including profile management and domain assignments")
 class UserController {
     private final UserService userService;
-    private final StorageService storageService;
+    private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
 
     // ================================
@@ -121,27 +120,10 @@ class UserController {
                     required = true
             )
             @PathVariable String fileName) {
-
-        try {
-            String profileImageFolder = storageProperties.getFolders().getProfileImages();
-            String fullPath = profileImageFolder + "/" + fileName;
-
-            Resource resource = storageService.load(fullPath);
-
-            String contentType = storageService.getContentType(fullPath);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-
-        } catch (StorageFileNotFoundException e) {
-            return ResponseEntity.notFound().build();
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        // Legacy endpoint: historical URLs carry only the bare filename, current keys
+        // include the folder. Serve either form.
+        String profileImageFolder = storageProperties.getFolders().getProfileImages();
+        return mediaServeService.serve(profileImageFolder + "/" + fileName, fileName);
     }
 
 

@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,4 +30,20 @@ public interface ClassMarketplaceJobRepository extends JpaRepository<ClassMarket
                                      @Param("programUuid") UUID programUuid,
                                      @Param("status") ClassMarketplaceJobStatus status,
                                      Pageable pageable);
+
+    /**
+     * Open jobs whose recruitment window has passed: the registration period (or,
+     * when none is set, the academic period) ended before the given date.
+     */
+    @Query("""
+            SELECT job FROM ClassMarketplaceJob job
+            WHERE job.status = apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus.OPEN
+              AND (
+                  (job.registrationPeriodEndDate IS NOT NULL AND job.registrationPeriodEndDate < :date)
+                  OR (job.registrationPeriodEndDate IS NULL
+                      AND job.academicPeriodEndDate IS NOT NULL
+                      AND job.academicPeriodEndDate < :date)
+              )
+            """)
+    List<ClassMarketplaceJob> findExpiredOpenJobs(@Param("date") LocalDate date);
 }

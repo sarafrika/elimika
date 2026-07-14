@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.shared.storage.service;
 
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,13 +16,14 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CredentialsDocumentUploadServiceTest {
 
     @Mock
-    private StorageService storageService;
+    private MediaStorageService mediaStorageService;
 
     private ProfileDocumentUploadService uploadService;
 
@@ -32,7 +34,7 @@ class CredentialsDocumentUploadServiceTest {
         folders.setProfileDocuments("profile_documents");
         storageProperties.setFolders(folders);
 
-        uploadService = new ProfileDocumentUploadService(storageService, storageProperties);
+        uploadService = new ProfileDocumentUploadService(mediaStorageService, storageProperties);
     }
 
     @Test
@@ -47,8 +49,8 @@ class CredentialsDocumentUploadServiceTest {
         String folder = "profile_documents/instructors/" + instructorUuid;
         String storedPath = folder + "/credential.pdf";
 
-        when(storageService.store(file, folder)).thenReturn(storedPath);
-        when(storageService.getContentType(storedPath)).thenReturn(MediaType.APPLICATION_PDF_VALUE);
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenReturn(new StoredMedia(storedPath, "credential.pdf", file.getSize(), MediaType.APPLICATION_PDF_VALUE));
 
         UUID documentTypeUuid = UUID.randomUUID();
         UUID educationUuid = UUID.randomUUID();
@@ -93,8 +95,8 @@ class CredentialsDocumentUploadServiceTest {
         String folder = "profile_documents/course-creators/" + courseCreatorUuid;
         String storedPath = folder + "/portfolio.pdf";
 
-        when(storageService.store(file, folder)).thenReturn(storedPath);
-        when(storageService.getContentType(storedPath)).thenReturn(MediaType.APPLICATION_PDF_VALUE);
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenReturn(new StoredMedia(storedPath, "portfolio.pdf", file.getSize(), MediaType.APPLICATION_PDF_VALUE));
 
         ProfileDocumentUploadResult result = uploadService.upload(new CredentialsDocumentUploadRequest(
                 ProfileDocumentOwner.COURSE_CREATOR,
@@ -113,15 +115,21 @@ class CredentialsDocumentUploadServiceTest {
     }
 
     @Test
-    void uploadRejectsNonPdfWithOwnerSpecificMessage() {
+    void uploadRoutesThroughFacadeWithPdfCategory() {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
-                "credential.png",
-                MediaType.IMAGE_PNG_VALUE,
-                "png".getBytes()
+                "credential.pdf",
+                MediaType.APPLICATION_PDF_VALUE,
+                "pdf".getBytes()
         );
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenAnswer(invocation -> {
+                    MediaUploadRequest request = invocation.getArgument(0);
+                    assertThat(request.category()).isEqualTo(MediaCategory.PDF_DOCUMENT);
+                    return new StoredMedia("profile_documents/x.pdf", "credential.pdf", 3, MediaType.APPLICATION_PDF_VALUE);
+                });
 
-        assertThatThrownBy(() -> uploadService.upload(new CredentialsDocumentUploadRequest(
+        uploadService.upload(new CredentialsDocumentUploadRequest(
                 ProfileDocumentOwner.COURSE_CREATOR,
                 UUID.randomUUID(),
                 file,
@@ -132,9 +140,7 @@ class CredentialsDocumentUploadServiceTest {
                 null,
                 null,
                 null
-        )))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Only PDF files are allowed for course creator documents");
+        ));
     }
 
     @Test

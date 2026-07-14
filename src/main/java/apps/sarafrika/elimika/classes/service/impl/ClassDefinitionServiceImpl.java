@@ -4,7 +4,6 @@ import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
-import apps.sarafrika.elimika.classes.internal.ClassMediaValidationService;
 import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
@@ -16,8 +15,16 @@ import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
+import apps.sarafrika.elimika.classes.repository.ClassDefinitionResourceRepository;
+import apps.sarafrika.elimika.classes.util.RecurrencePatterns;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
+import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.utils.recurrence.OccurrenceWindow;
+import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
@@ -25,7 +32,11 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDT
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.MediaValidationService;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -38,14 +49,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.util.UriUtils;
 
-import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -58,20 +65,21 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final ClassDefinitionRepository classDefinitionRepository;
     private final ClassSchedulingConflictRepository classSchedulingConflictRepository;
     private final ClassSessionTemplateRepository classSessionTemplateRepository;
+    private final ClassDefinitionResourceRepository classDefinitionResourceRepository;
+    private final ResourceBookingService resourceBookingService;
+    private final ResourceLookupService resourceLookupService;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final ObjectProvider<TimetableService> timetableServiceProvider;
     private final ObjectProvider<ClassScheduleService> classScheduleServiceProvider;
-    private final StorageService storageService;
+    private final MediaStorageService mediaStorageService;
+    private final MediaValidationService mediaValidationService;
     private final StorageProperties storageProperties;
-    private final ClassMediaValidationService classMediaValidationService;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
-    private static final String CLASS_MEDIA_URL_PREFIX = "/api/v1/classes/media/";
-    private static final int MAX_SCHEDULING_ITERATIONS = 2000;
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
 
     @Override
@@ -102,6 +110,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         validateLearningContext(entity);
         validateTrainingApprovals(entity);
         validateTrainingFee(entity);
+        validateVenueCapacity(entity);
 
         ClassDefinition savedEntity = classDefinitionRepository.save(entity);
         List<ClassSessionTemplateDTO> persistedTemplates = saveSessionTemplates(
@@ -117,6 +126,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     String.format("Conflicts detected for class %s", result.title()),
                     schedulingOutcome.conflicts());
         }
+        bookVenueForInstances(result, schedulingOutcome.scheduledInstances());
         
         // Publish domain event
         ClassDefinedEventDTO event = new ClassDefinedEventDTO(
@@ -145,11 +155,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             return createClassDefinition(classDefinitionDTO);
         }
 
+        // Validate before creating the definition so an invalid file doesn't leave a
+        // half-created class behind.
         if (hasFile(thumbnail)) {
-            classMediaValidationService.validateThumbnail(thumbnail);
+            mediaValidationService.validate(thumbnail, MediaCategory.THUMBNAIL);
         }
         if (hasFile(promotionalVideo)) {
-            classMediaValidationService.validatePromotionalVideo(promotionalVideo);
+            mediaValidationService.validate(promotionalVideo, MediaCategory.VIDEO);
         }
 
         ClassDefinitionResponseDTO response = createClassDefinition(classDefinitionDTO);
@@ -183,6 +195,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     schedulingOutcome.conflicts());
         }
 
+        bookClassResourcesForInstances(definitionUuid, schedulingOutcome.scheduledInstances());
+        bookVenueForInstances(classDefinition, schedulingOutcome.scheduledInstances());
+
         ClassSessionTemplateDTO persistedTemplate = saveSessionTemplate(definitionUuid, sessionTemplate);
         return new ClassSessionTemplateScheduleResponseDTO(
                 definitionUuid,
@@ -190,6 +205,74 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 schedulingOutcome.scheduledInstances(),
                 schedulingOutcome.conflicts()
         );
+    }
+
+    /**
+     * Books the class's copied resources (from its source marketplace job) for
+     * instances scheduled after class creation. No-op for classes without copied
+     * resources; validation failures surface as ResourceBookingConflictException.
+     */
+    private void bookClassResourcesForInstances(UUID classDefinitionUuid, List<ScheduledInstanceDTO> instances) {
+        if (instances == null || instances.isEmpty()) {
+            return;
+        }
+        List<ClassDefinitionResource> resources =
+                classDefinitionResourceRepository.findByClassDefinitionUuidOrderByCreatedDateAsc(classDefinitionUuid);
+        if (resources.isEmpty()) {
+            return;
+        }
+        List<ResourceBookingRequest> requests = resources.stream()
+                .map(resource -> new ResourceBookingRequest(
+                        resource.getResourceUuid(),
+                        resource.getQuantity() == null ? 1 : resource.getQuantity(),
+                        List.of()))
+                .toList();
+        for (ScheduledInstanceDTO instance : instances) {
+            resourceBookingService.createConfirmedBookingsForInstance(
+                    classDefinitionUuid, instance.uuid(), instance.startTime(), instance.endTime(), requests);
+        }
+    }
+
+    /**
+     * Books the venue for a directly created class (not from a marketplace job — job
+     * classes get their venue via hold conversion) that has no copied resource rows.
+     */
+    private void bookVenueForInstances(ClassDefinitionDTO classDefinition, List<ScheduledInstanceDTO> instances) {
+        if (classDefinition.venueResourceUuid() == null
+                || classDefinition.marketplaceJobUuid() != null
+                || instances == null || instances.isEmpty()) {
+            return;
+        }
+        boolean venueAlreadyCopied = classDefinitionResourceRepository
+                .findByClassDefinitionUuidOrderByCreatedDateAsc(classDefinition.uuid())
+                .stream()
+                .anyMatch(resource -> classDefinition.venueResourceUuid().equals(resource.getResourceUuid()));
+        if (venueAlreadyCopied) {
+            return;
+        }
+        List<ResourceBookingRequest> venueRequest = List.of(
+                new ResourceBookingRequest(classDefinition.venueResourceUuid(), 1, List.of()));
+        for (ScheduledInstanceDTO instance : instances) {
+            resourceBookingService.createConfirmedBookingsForInstance(
+                    classDefinition.uuid(), instance.uuid(), instance.startTime(), instance.endTime(), venueRequest);
+        }
+    }
+
+    /**
+     * A class using a managed venue cannot admit more participants than the venue seats.
+     */
+    private void validateVenueCapacity(ClassDefinition entity) {
+        if (entity.getVenueResourceUuid() == null) {
+            return;
+        }
+        resourceLookupService.getResource(entity.getVenueResourceUuid()).ifPresent(summary -> {
+            if (summary.seatCapacity() != null && entity.getMaxParticipants() != null
+                    && entity.getMaxParticipants() > summary.seatCapacity()) {
+                throw new IllegalArgumentException(String.format(
+                        "max_participants %d exceeds the seat capacity %d of venue '%s'",
+                        entity.getMaxParticipants(), summary.seatCapacity(), summary.name()));
+            }
+        });
     }
 
     private ClassSchedulingOutcome applySessionTemplates(ClassDefinitionDTO classDefinition,
@@ -202,22 +285,21 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             if (template == null) {
                 continue;
             }
-            if (template.startTime() == null || template.endTime() == null) {
-                throw new IllegalArgumentException("Session templates require both start_time and end_time");
-            }
-            if (!template.startTime().isBefore(template.endTime())) {
-                throw new IllegalArgumentException("Session template start_time must be before end_time");
-            }
 
             ConflictResolutionStrategy strategy = Optional.ofNullable(template.conflictResolution())
                     .orElse(ConflictResolutionStrategy.FAIL);
             int conflictCountBefore = conflicts.size();
 
-            ClassRecurrenceDTO recurrence = template.recurrence();
-            if (recurrence == null || recurrence.recurrenceType() == null) {
-                scheduleSingleSession(classDefinition, template.startTime(), template.endTime(), strategy, conflicts, scheduledInstances);
-            } else {
-                scheduleRecurringSessions(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances);
+            List<OccurrenceWindow> windows = RecurrenceExpander.expand(
+                    template.startTime(),
+                    template.endTime(),
+                    RecurrencePatterns.fromRecurrenceDTO(template.recurrence()));
+
+            for (OccurrenceWindow window : windows) {
+                boolean scheduled = attemptScheduleWindow(classDefinition, window.start(), window.end(), conflicts, scheduledInstances);
+                if (!scheduled && strategy == ConflictResolutionStrategy.ROLLOVER) {
+                    attemptRollover(classDefinition, window.start(), window.end(), template.recurrence(), conflicts, scheduledInstances);
+                }
             }
 
             if (strategy == ConflictResolutionStrategy.FAIL && conflicts.size() > conflictCountBefore) {
@@ -226,160 +308,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
 
         return new ClassSchedulingOutcome(scheduledInstances, conflicts, blockingConflict);
-    }
-
-    private void scheduleSingleSession(ClassDefinitionDTO classDefinition,
-                                       LocalDateTime start,
-                                       LocalDateTime end,
-                                       ConflictResolutionStrategy strategy,
-                                       List<ClassSchedulingConflictDTO> conflicts,
-                                       List<ScheduledInstanceDTO> scheduledInstances) {
-        List<String> reasons = detectConflicts(classDefinition, start, end);
-        if (reasons.isEmpty()) {
-            scheduledInstances.add(scheduleInstance(classDefinition, start, end));
-            return;
-        }
-
-        conflicts.add(new ClassSchedulingConflictDTO(start, end, reasons));
-        if (strategy == ConflictResolutionStrategy.ROLLOVER) {
-            attemptRollover(classDefinition, start, end, null, conflicts, scheduledInstances);
-        }
-    }
-
-    private void scheduleRecurringSessions(ClassDefinitionDTO classDefinition,
-                                           ClassSessionTemplateDTO template,
-                                           ClassRecurrenceDTO recurrence,
-                                           ConflictResolutionStrategy strategy,
-                                           List<ClassSchedulingConflictDTO> conflicts,
-                                           List<ScheduledInstanceDTO> scheduledInstances) {
-        ClassRecurrenceDTO.RecurrenceType type = recurrence.recurrenceType();
-        int targetOccurrences = recurrence.occurrenceCount() != null ? recurrence.occurrenceCount() : 0;
-        LocalDate endDateLimit = recurrence.endDate();
-
-        switch (type) {
-            case DAILY -> scheduleDaily(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances, targetOccurrences, endDateLimit);
-            case WEEKLY -> scheduleWeekly(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances, targetOccurrences, endDateLimit);
-            case MONTHLY -> scheduleMonthly(classDefinition, template, recurrence, strategy, conflicts, scheduledInstances, targetOccurrences, endDateLimit);
-            default -> scheduleSingleSession(classDefinition, template.startTime(), template.endTime(), strategy, conflicts, scheduledInstances);
-        }
-    }
-
-    private void scheduleDaily(ClassDefinitionDTO classDefinition,
-                               ClassSessionTemplateDTO template,
-                               ClassRecurrenceDTO recurrence,
-                               ConflictResolutionStrategy strategy,
-                               List<ClassSchedulingConflictDTO> conflicts,
-                               List<ScheduledInstanceDTO> scheduledInstances,
-                               int targetOccurrences,
-                               LocalDate endDateLimit) {
-        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
-        LocalDateTime cursorStart = template.startTime();
-        LocalDateTime cursorEnd = template.endTime();
-        int scheduledCount = 0;
-        int iterations = 0;
-
-        while (shouldContinueRecurrence(scheduledCount, targetOccurrences, cursorStart.toLocalDate(), endDateLimit) &&
-                iterations < MAX_SCHEDULING_ITERATIONS) {
-            iterations++;
-            boolean scheduled = attemptScheduleWindow(classDefinition, cursorStart, cursorEnd, conflicts, scheduledInstances);
-            if (scheduled) {
-                scheduledCount++;
-            } else if (strategy == ConflictResolutionStrategy.SKIP) {
-                scheduledCount++;
-            } else if (strategy == ConflictResolutionStrategy.ROLLOVER) {
-                if (attemptRollover(classDefinition, cursorStart, cursorEnd, recurrence, conflicts, scheduledInstances)) {
-                    scheduledCount++;
-                } else {
-                    scheduledCount++;
-                }
-            }
-
-            cursorStart = cursorStart.plusDays(interval);
-            cursorEnd = cursorEnd.plusDays(interval);
-        }
-    }
-
-    private void scheduleWeekly(ClassDefinitionDTO classDefinition,
-                                ClassSessionTemplateDTO template,
-                                ClassRecurrenceDTO recurrence,
-                                ConflictResolutionStrategy strategy,
-                                List<ClassSchedulingConflictDTO> conflicts,
-                                List<ScheduledInstanceDTO> scheduledInstances,
-                                int targetOccurrences,
-                                LocalDate endDateLimit) {
-        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
-        Set<DayOfWeek> allowedDays = parseDaysOfWeek(recurrence.daysOfWeek());
-        if (allowedDays.isEmpty()) {
-            allowedDays = Set.of(template.startTime().getDayOfWeek());
-        }
-
-        LocalDate cursorDate = template.startTime().toLocalDate();
-        LocalDate weekAnchor = cursorDate.minusDays(cursorDate.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue());
-        int scheduledCount = 0;
-        int iterations = 0;
-        while (shouldContinueRecurrence(scheduledCount, targetOccurrences, cursorDate, endDateLimit) &&
-                iterations < MAX_SCHEDULING_ITERATIONS) {
-            iterations++;
-            LocalDate currentWeekStart = cursorDate.minusDays(cursorDate.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue());
-            long weeksBetween = ChronoUnit.WEEKS.between(weekAnchor, currentWeekStart);
-
-            if (weeksBetween % interval == 0 && allowedDays.contains(cursorDate.getDayOfWeek())) {
-                LocalDateTime start = cursorDate.atTime(template.startTime().toLocalTime());
-                LocalDateTime end = cursorDate.atTime(template.endTime().toLocalTime());
-
-                boolean scheduled = attemptScheduleWindow(classDefinition, start, end, conflicts, scheduledInstances);
-                if (scheduled) {
-                    scheduledCount++;
-                } else if (strategy == ConflictResolutionStrategy.SKIP) {
-                    scheduledCount++;
-                } else if (strategy == ConflictResolutionStrategy.ROLLOVER) {
-                    if (attemptRollover(classDefinition, start, end, recurrence, conflicts, scheduledInstances)) {
-                        scheduledCount++;
-                    } else {
-                        scheduledCount++;
-                    }
-                }
-            }
-
-            cursorDate = cursorDate.plusDays(1);
-        }
-    }
-
-    private void scheduleMonthly(ClassDefinitionDTO classDefinition,
-                                 ClassSessionTemplateDTO template,
-                                 ClassRecurrenceDTO recurrence,
-                                 ConflictResolutionStrategy strategy,
-                                 List<ClassSchedulingConflictDTO> conflicts,
-                                 List<ScheduledInstanceDTO> scheduledInstances,
-                                 int targetOccurrences,
-                                 LocalDate endDateLimit) {
-        int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
-        int scheduledCount = 0;
-        int iterations = 0;
-
-        LocalDate cursorDate = template.startTime().toLocalDate();
-        while (shouldContinueRecurrence(scheduledCount, targetOccurrences, cursorDate, endDateLimit) &&
-                iterations < MAX_SCHEDULING_ITERATIONS) {
-            iterations++;
-            LocalDate targetDate = resolveMonthlyDate(cursorDate, recurrence.dayOfMonth());
-            LocalDateTime start = LocalDateTime.of(targetDate, template.startTime().toLocalTime());
-            LocalDateTime end = LocalDateTime.of(targetDate, template.endTime().toLocalTime());
-
-            boolean scheduled = attemptScheduleWindow(classDefinition, start, end, conflicts, scheduledInstances);
-            if (scheduled) {
-                scheduledCount++;
-            } else if (strategy == ConflictResolutionStrategy.SKIP) {
-                scheduledCount++;
-            } else if (strategy == ConflictResolutionStrategy.ROLLOVER) {
-                if (attemptRollover(classDefinition, start, end, recurrence, conflicts, scheduledInstances)) {
-                    scheduledCount++;
-                } else {
-                    scheduledCount++;
-                }
-            }
-
-            cursorDate = cursorDate.plusMonths(interval);
-        }
     }
 
     private boolean attemptScheduleWindow(ClassDefinitionDTO classDefinition,
@@ -434,44 +362,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         };
     }
 
-    private boolean shouldContinueRecurrence(int scheduledCount,
-                                             int targetOccurrences,
-                                             LocalDate currentDate,
-                                             LocalDate endDateLimit) {
-        if (targetOccurrences > 0 && scheduledCount < targetOccurrences) {
-            return true;
-        }
-        if (targetOccurrences <= 0 && endDateLimit != null) {
-            return !currentDate.isAfter(endDateLimit);
-        }
-        return targetOccurrences <= 0 && endDateLimit == null && scheduledCount == 0;
-    }
-
-    private LocalDate resolveMonthlyDate(LocalDate baseDate, Integer dayOfMonth) {
-        if (dayOfMonth == null) {
-            return baseDate;
-        }
-        int lastDay = baseDate.lengthOfMonth();
-        int safeDay = Math.min(dayOfMonth, lastDay);
-        return baseDate.withDayOfMonth(safeDay);
-    }
-
-    private Set<DayOfWeek> parseDaysOfWeek(String daysOfWeek) {
-        if (daysOfWeek == null || daysOfWeek.isBlank()) {
-            return Set.of();
-        }
-        String[] parts = daysOfWeek.split(",");
-        Set<DayOfWeek> results = new LinkedHashSet<>();
-        for (String part : parts) {
-            try {
-                results.add(DayOfWeek.valueOf(part.trim().toUpperCase(Locale.ROOT)));
-            } catch (IllegalArgumentException ignored) {
-                log.warn("Ignoring invalid day_of_week entry: {}", part);
-            }
-        }
-        return results;
-    }
-
     private List<String> detectConflicts(ClassDefinitionDTO classDefinition, LocalDateTime start, LocalDateTime end) {
         List<String> reasons = new ArrayList<>();
         UUID instructorUuid = classDefinition.defaultInstructorUuid();
@@ -488,6 +378,16 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         );
         if (timetableService().hasInstructorConflict(instructorUuid, requestDTO)) {
             reasons.add("Instructor has overlapping scheduled instances");
+        }
+        if (classDefinition.venueResourceUuid() != null) {
+            resourceBookingService.findConflicts(
+                            classDefinition.venueResourceUuid(),
+                            1,
+                            start,
+                            end,
+                            classDefinition.marketplaceJobUuid(),
+                            classDefinition.uuid())
+                    .forEach(conflict -> reasons.add("Venue conflict: " + conflict.description()));
         }
         return reasons;
     }
@@ -664,10 +564,14 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return ClassSessionTemplateFactory.toDTO(classSessionTemplateRepository.save(entity));
     }
 
-    private String storeClassMedia(MultipartFile file, String folder) {
-        String storedPath = storageService.store(file, folder);
-        String encodedPath = UriUtils.encodePath(storedPath, StandardCharsets.UTF_8);
-        return CLASS_MEDIA_URL_PREFIX + encodedPath;
+    /**
+     * Stores a class media file through the shared facade, returning the canonical
+     * storage key and cleaning up the file it replaces.
+     */
+    private String storeClassMedia(MultipartFile file, MediaCategory category, String folder,
+                                   String ownerType, UUID ownerUuid, String previousValue) {
+        return mediaStorageService.store(new MediaUploadRequest(
+                file, category, folder, ownerType, ownerUuid, previousValue)).key();
     }
 
     private void publishClassDefinitionUpdated(ClassDefinitionDTO result) {
@@ -713,6 +617,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         validateLearningContext(existingEntity);
         validateTrainingApprovals(existingEntity);
         validateTrainingFee(existingEntity);
+        validateVenueCapacity(existingEntity);
         
         ClassDefinition savedEntity = classDefinitionRepository.save(existingEntity);
         ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
@@ -727,7 +632,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public ClassDefinitionResponseDTO uploadThumbnail(UUID definitionUuid, MultipartFile thumbnail) {
         log.debug("Uploading thumbnail for class definition: {}", definitionUuid);
 
-        classMediaValidationService.validateThumbnail(thumbnail);
         return uploadThumbnailValidated(definitionUuid, thumbnail);
     }
 
@@ -736,7 +640,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         try {
             String folder = storageProperties.getFolders().getClassThumbnails() + "/" + definitionUuid;
-            entity.setThumbnailUrl(storeClassMedia(thumbnail, folder));
+            entity.setThumbnailUrl(storeClassMedia(thumbnail, MediaCategory.THUMBNAIL, folder,
+                    MediaOwnerType.CLASS_THUMBNAIL, definitionUuid, entity.getThumbnailUrl()));
             ClassDefinition savedEntity = classDefinitionRepository.save(entity);
             ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
             publishClassDefinitionUpdated(result);
@@ -751,7 +656,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public ClassDefinitionResponseDTO uploadPromotionalVideo(UUID definitionUuid, MultipartFile promotionalVideo) {
         log.debug("Uploading promotional video for class definition: {}", definitionUuid);
 
-        classMediaValidationService.validatePromotionalVideo(promotionalVideo);
         return uploadPromotionalVideoValidated(definitionUuid, promotionalVideo);
     }
 
@@ -760,7 +664,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         try {
             String folder = storageProperties.getFolders().getClassPromotionalVideos() + "/" + definitionUuid;
-            entity.setPromotionalVideoUrl(storeClassMedia(promotionalVideo, folder));
+            entity.setPromotionalVideoUrl(storeClassMedia(promotionalVideo, MediaCategory.VIDEO, folder,
+                    MediaOwnerType.CLASS_PROMO_VIDEO, definitionUuid, entity.getPromotionalVideoUrl()));
             ClassDefinition savedEntity = classDefinitionRepository.save(entity);
             ClassDefinitionDTO result = toDTOWithSessionTemplates(savedEntity);
             publishClassDefinitionUpdated(result);

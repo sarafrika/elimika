@@ -736,6 +736,11 @@ class ClassDefinitionControllerTest {
         }
 
         @Bean
+        apps.sarafrika.elimika.shared.storage.service.MediaServeService mediaServeService(StorageService storageService) {
+            return new apps.sarafrika.elimika.shared.storage.service.MediaServeService(storageService);
+        }
+
+        @Bean
         ClassReviewService classReviewService() {
             return Mockito.mock(ClassReviewService.class);
         }

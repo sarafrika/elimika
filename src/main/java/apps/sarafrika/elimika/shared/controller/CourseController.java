@@ -2,12 +2,17 @@ package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
-import apps.sarafrika.elimika.course.internal.LessonMediaValidationService;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,7 +32,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.util.UriUtils;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.HashMap;
@@ -63,7 +67,8 @@ public class CourseController {
     private final CourseRecommendationService courseRecommendationService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
-    private final LessonMediaValidationService lessonMediaValidationService;
+    private final MediaStorageService mediaStorageService;
+    private final MediaServeService mediaServeService;
 
     // ===== COURSE BASIC OPERATIONS =====
 
@@ -629,21 +634,7 @@ public class CourseController {
             )
             @PathVariable String filePath) {
 
-        try {
-            String fullPath = resolveCourseMediaPath(filePath);
-
-            Resource resource = storageService.load(fullPath);
-            String contentType = storageService.getContentType(fullPath);
-            String fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        return mediaServeService.serve(resolveCourseMediaPath(filePath));
     }
 
     @Operation(
@@ -675,21 +666,7 @@ public class CourseController {
             )
             @PathVariable String filePath) {
 
-        try {
-            String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
-
-            Resource resource = storageService.load(normalizedFilePath);
-            String contentType = storageService.getContentType(normalizedFilePath);
-            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        return mediaServeService.serve(filePath);
     }
 
     // ===== COURSE LESSONS =====
@@ -867,14 +844,12 @@ public class CourseController {
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "is_required", required = false) Boolean isRequired
     ) {
-        lessonMediaValidationService.validateForLessonContent(file);
-
         String folder = storageProperties.getFolders().getCourseMaterials()
                 + "/" + courseUuid
                 + "/lessons/" + lessonUuid;
 
-        String storedFileName = storageService.store(file, folder);
-        String fileUrl = buildLessonContentMediaUrl(storedFileName);
+        StoredMedia storedMedia = mediaStorageService.store(new MediaUploadRequest(
+                file, MediaCategory.DOCUMENT, folder, MediaOwnerType.LESSON_CONTENT, lessonUuid, null));
 
         LessonContentDTO requestDto = new LessonContentDTO(
                 null,
@@ -883,9 +858,9 @@ public class CourseController {
                 title,
                 description,
                 null,
-                fileUrl,
-                file.getSize(),
-                storageService.getContentType(storedFileName),
+                storedMedia.key(),
+                storedMedia.sizeBytes(),
+                storedMedia.mimeType(),
                 null,
                 isRequired,
                 null,
@@ -1473,8 +1448,4 @@ public class CourseController {
         }
     }
 
-    private String buildLessonContentMediaUrl(String storedFilePath) {
-        String encodedPath = UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
-        return API_ROOT_PATH + "/content-media/" + encodedPath;
-    }
 }

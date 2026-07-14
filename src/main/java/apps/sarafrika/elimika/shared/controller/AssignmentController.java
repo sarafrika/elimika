@@ -5,8 +5,12 @@ import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
-import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -50,7 +54,8 @@ public class AssignmentController {
     private final AssignmentAttachmentService assignmentAttachmentService;
     private final AssignmentSubmissionAttachmentService assignmentSubmissionAttachmentService;
     private final AssignmentMediaValidationService assignmentMediaValidationService;
-    private final StorageService storageService;
+    private final MediaStorageService mediaStorageService;
+    private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
 
     // ===== ASSIGNMENT BASIC OPERATIONS =====
@@ -161,17 +166,17 @@ public class AssignmentController {
                 + "/" + assignmentUuid
                 + "/attachments";
 
-        String storedFileName = storageService.store(file, folder);
-        String fileUrl = buildAssignmentMediaUrl(storedFileName);
+        StoredMedia storedMedia = mediaStorageService.store(new MediaUploadRequest(
+                file, MediaCategory.ANY, folder, MediaOwnerType.ASSIGNMENT_ATTACHMENT, assignmentUuid, null));
 
         AssignmentAttachmentDTO requestDto = new AssignmentAttachmentDTO(
                 null,
                 assignmentUuid,
                 file.getOriginalFilename(),
-                storedFileName,
-                fileUrl,
-                file.getSize(),
-                storageService.getContentType(storedFileName),
+                storedMedia.key(),
+                storedMedia.key(),
+                storedMedia.sizeBytes(),
+                storedMedia.mimeType(),
                 null,
                 null,
                 null,
@@ -218,21 +223,7 @@ public class AssignmentController {
     public ResponseEntity<Resource> getAssignmentMedia(
             @PathVariable String filePath
     ) {
-        try {
-            String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
-
-            Resource resource = storageService.load(normalizedFilePath);
-            String contentType = storageService.getContentType(normalizedFilePath);
-            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        return mediaServeService.serve(filePath);
     }
 
     // ===== ASSIGNMENT SUBMISSIONS =====
@@ -358,17 +349,17 @@ public class AssignmentController {
                 + "/" + assignmentUuid
                 + "/submissions/" + submissionUuid;
 
-        String storedFileName = storageService.store(file, folder);
-        String fileUrl = buildSubmissionMediaUrl(storedFileName);
+        StoredMedia storedMedia = mediaStorageService.store(new MediaUploadRequest(
+                file, MediaCategory.ANY, folder, MediaOwnerType.ASSIGNMENT_SUBMISSION_ATTACHMENT, submissionUuid, null));
 
         AssignmentSubmissionAttachmentDTO requestDto = new AssignmentSubmissionAttachmentDTO(
                 null,
                 submissionUuid,
                 file.getOriginalFilename(),
-                storedFileName,
-                fileUrl,
-                file.getSize(),
-                storageService.getContentType(storedFileName),
+                storedMedia.key(),
+                storedMedia.key(),
+                storedMedia.sizeBytes(),
+                storedMedia.mimeType(),
                 null,
                 null,
                 null,
@@ -389,21 +380,7 @@ public class AssignmentController {
     public ResponseEntity<Resource> getSubmissionMedia(
             @PathVariable String filePath
     ) {
-        try {
-            String normalizedFilePath = StoragePathUtils.normalizeRelativePath(filePath);
-
-            Resource resource = storageService.load(normalizedFilePath);
-            String contentType = storageService.getContentType(normalizedFilePath);
-            String fileName = normalizedFilePath.substring(normalizedFilePath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        return mediaServeService.serve(filePath);
     }
 
     @Operation(
@@ -601,14 +578,6 @@ public class AssignmentController {
                         "Submission search completed successfully"));
     }
 
-    private String buildAssignmentMediaUrl(String storedFilePath) {
-        return API_ROOT_PATH + "/media/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
-    }
-
-    private String buildSubmissionMediaUrl(String storedFilePath) {
-        return API_ROOT_PATH + "/submission-media/" + UriUtils.encodePath(storedFilePath, java.nio.charset.StandardCharsets.UTF_8);
-    }
-
     private ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> assignmentSubmittedResponse(
             AssignmentSubmissionDTO submission) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -637,17 +606,17 @@ public class AssignmentController {
                 + "/submissions/" + submissionUuid;
 
         for (MultipartFile file : files) {
-            String storedFileName = storageService.store(file, folder);
-            String fileUrl = buildSubmissionMediaUrl(storedFileName);
+            StoredMedia storedMedia = mediaStorageService.store(new MediaUploadRequest(
+                    file, MediaCategory.ANY, folder, MediaOwnerType.ASSIGNMENT_SUBMISSION_ATTACHMENT, submissionUuid, null));
 
             AssignmentSubmissionAttachmentDTO requestDto = new AssignmentSubmissionAttachmentDTO(
                     null,
                     submissionUuid,
                     file.getOriginalFilename(),
-                    storedFileName,
-                    fileUrl,
-                    file.getSize(),
-                    storageService.getContentType(storedFileName),
+                    storedMedia.key(),
+                    storedMedia.key(),
+                    storedMedia.sizeBytes(),
+                    storedMedia.mimeType(),
                     null,
                     null,
                     null,

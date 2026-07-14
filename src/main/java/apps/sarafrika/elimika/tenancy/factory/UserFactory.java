@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.factory;
 
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
@@ -33,7 +34,7 @@ public class UserFactory {
                 user.getLastName(),
                 user.getEmail(),
                 user.getUsername(),
-                user.getProfileImageUrl(),
+                FileUrlResolver.publicUrl(user.getProfileImageUrl()),
                 user.getDob(),
                 user.getPhoneNumber(),
                 user.isActive(),

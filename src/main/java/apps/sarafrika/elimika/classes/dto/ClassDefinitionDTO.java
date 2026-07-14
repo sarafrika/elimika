@@ -473,7 +473,24 @@ public record ClassDefinitionDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(
+                description = "**[OPTIONAL]** Organisation venue resource the class sessions are booked into. Null for classes without a managed venue.",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("venue_resource_uuid")
+        UUID venueResourceUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** Marketplace job this class was created from at instructor assignment. Null for directly created classes.",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "marketplace_job_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID marketplaceJobUuid
 
 ) {
 
@@ -548,7 +565,9 @@ public record ClassDefinitionDTO(
                 createdDate,
                 updatedDate,
                 createdBy,
-                updatedBy
+                updatedBy,
+                null,
+                null
         );
     }
 
@@ -661,7 +680,9 @@ public record ClassDefinitionDTO(
                 createdDate,
                 updatedDate,
                 createdBy,
-                updatedBy
+                updatedBy,
+                venueResourceUuid,
+                marketplaceJobUuid
         );
     }
 
@@ -702,7 +723,52 @@ public record ClassDefinitionDTO(
                 createdDate,
                 updatedDate,
                 createdBy,
-                updatedBy
+                updatedBy,
+                venueResourceUuid,
+                marketplaceJobUuid
+        );
+    }
+
+    public ClassDefinitionDTO withResourceLinks(UUID venueResourceUuid, UUID marketplaceJobUuid) {
+        return new ClassDefinitionDTO(
+                uuid,
+                title,
+                description,
+                thumbnailUrl,
+                promotionalVideoUrl,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                trainingFee,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                scheduledSessionCount,
+                completedSessionCount,
+                classProgressPercentage,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy,
+                venueResourceUuid,
+                marketplaceJobUuid
         );
     }
 

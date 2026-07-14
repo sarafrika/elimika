@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.classes.service.ClassReviewService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
@@ -61,6 +62,7 @@ public class ClassDefinitionController {
     private final ClassDefinitionServiceInterface classDefinitionService;
     private final TimetableService timetableService;
     private final StorageService storageService;
+    private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
     private final ObjectMapper objectMapper;
     private final Validator validator;
@@ -296,20 +298,7 @@ public class ClassDefinitionController {
     public ResponseEntity<Resource> getClassMedia(
             @Parameter(description = "Stored relative path of the class media file.", required = true)
             @PathVariable String filePath) {
-        try {
-            String fullPath = resolveClassMediaPath(filePath);
-            Resource resource = storageService.load(fullPath);
-            String contentType = storageService.getContentType(fullPath);
-            String fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600, must-revalidate")
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        return mediaServeService.serve(resolveClassMediaPath(filePath));
     }
 
     @Operation(summary = "Add a session template to an existing class definition")
@@ -330,6 +319,9 @@ public class ClassDefinitionController {
         } catch (SchedulingConflictException e) {
             log.warn("Scheduling conflicts while adding session template to class definition {}: {}", uuid, e.getMessage());
             return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        } catch (apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException e) {
+            log.warn("Resource conflicts while adding session template to class definition {}: {}", uuid, e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
         }
     }
 

@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionAttachmentDTO;
 import apps.sarafrika.elimika.course.model.AssignmentSubmissionAttachment;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 
 public class AssignmentSubmissionAttachmentFactory {
 
@@ -18,7 +19,7 @@ public class AssignmentSubmissionAttachmentFactory {
                 attachment.getSubmissionUuid(),
                 attachment.getOriginalFilename(),
                 attachment.getStoredFilename(),
-                attachment.getFileUrl(),
+                FileUrlResolver.publicUrl(attachment.getFileUrl() != null ? attachment.getFileUrl() : attachment.getStoredFilename()),
                 attachment.getFileSizeBytes(),
                 attachment.getMimeType(),
                 attachment.getCreatedDate(),
@@ -37,8 +38,8 @@ public class AssignmentSubmissionAttachmentFactory {
         attachment.setUuid(dto.uuid());
         attachment.setSubmissionUuid(dto.submissionUuid());
         attachment.setOriginalFilename(dto.originalFilename());
-        attachment.setStoredFilename(dto.storedFilename());
-        attachment.setFileUrl(dto.fileUrl());
+        attachment.setStoredFilename(FileUrlResolver.toStorableValue(dto.storedFilename()));
+        attachment.setFileUrl(FileUrlResolver.toStorableValue(dto.fileUrl()));
         attachment.setFileSizeBytes(dto.fileSizeBytes());
         attachment.setMimeType(dto.mimeType());
         return attachment;

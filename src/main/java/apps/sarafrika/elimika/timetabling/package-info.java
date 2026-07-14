@@ -63,6 +63,7 @@
             "course :: course-spi",
             "commerce :: commerce-paywall",
             "instructor :: instructor-spi",
+            "resourcing :: resourcing-spi",
             "notifications::events-api",
             "student :: student-spi",
             "tenancy"

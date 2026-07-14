@@ -12,7 +12,10 @@ import apps.sarafrika.elimika.course.service.AssignmentSubmissionService;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
 import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,7 +57,9 @@ class AssignmentControllerTest {
     @Mock
     private AssignmentMediaValidationService assignmentMediaValidationService;
     @Mock
-    private StorageService storageService;
+    private MediaStorageService mediaStorageService;
+    @Mock
+    private MediaServeService mediaServeService;
 
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
@@ -68,7 +73,8 @@ class AssignmentControllerTest {
                 assignmentAttachmentService,
                 assignmentSubmissionAttachmentService,
                 assignmentMediaValidationService,
-                storageService,
+                mediaStorageService,
+                mediaServeService,
                 storageProperties
         );
 
@@ -142,10 +148,10 @@ class AssignmentControllerTest {
                 .thenReturn(assignment(assignmentUuid, new String[]{"DOCUMENT"}));
         when(assignmentSubmissionService.submitAssignment(eq(assignmentUuid), any(AssignmentSubmissionRequest.class), eq(true)))
                 .thenReturn(submission(submissionUuid, enrollmentUuid, assignmentUuid));
-        when(storageService.store(any(MultipartFile.class), eq("assignments/" + assignmentUuid + "/submissions/" + submissionUuid)))
-                .thenReturn("assignments/" + assignmentUuid + "/submissions/" + submissionUuid + "/work.pdf");
-        when(storageService.getContentType("assignments/" + assignmentUuid + "/submissions/" + submissionUuid + "/work.pdf"))
-                .thenReturn(MediaType.APPLICATION_PDF_VALUE);
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenReturn(new StoredMedia(
+                        "assignments/" + assignmentUuid + "/submissions/" + submissionUuid + "/work.pdf",
+                        "work.pdf", 3, MediaType.APPLICATION_PDF_VALUE));
         when(assignmentSubmissionAttachmentService.createAttachment(any(AssignmentSubmissionAttachmentDTO.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 

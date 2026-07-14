@@ -1,11 +1,14 @@
 package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.course.dto.LessonContentDTO;
-import apps.sarafrika.elimika.course.internal.LessonMediaValidationService;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +63,7 @@ class CourseControllerTest {
     @Mock
     private StorageService storageService;
     @Mock
-    private LessonMediaValidationService lessonMediaValidationService;
+    private MediaStorageService mediaStorageService;
 
     private StorageProperties storageProperties;
     private CourseController courseController;
@@ -88,7 +91,8 @@ class CourseControllerTest {
                 courseRecommendationService,
                 storageService,
                 storageProperties,
-                lessonMediaValidationService
+                mediaStorageService,
+                new MediaServeService(storageService)
         );
     }
 
@@ -105,10 +109,8 @@ class CourseControllerTest {
         );
         String storedPath = "course_materials/" + courseUuid + "/lessons/" + lessonUuid + "/intro.pdf";
 
-        doNothing().when(lessonMediaValidationService).validateForLessonContent(file);
-        when(storageService.store(file, "course_materials/" + courseUuid + "/lessons/" + lessonUuid))
-                .thenReturn(storedPath);
-        when(storageService.getContentType(storedPath)).thenReturn(MediaType.APPLICATION_PDF_VALUE);
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenReturn(new StoredMedia(storedPath, "intro.pdf", 3, MediaType.APPLICATION_PDF_VALUE));
         when(lessonContentService.createLessonContent(any(LessonContentDTO.class)))
                 .thenAnswer(invocation -> {
                     LessonContentDTO request = invocation.getArgument(0);
@@ -144,11 +146,11 @@ class CourseControllerTest {
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
         assertNotNull(response.getBody().data());
-        assertEquals(
-                "/api/v1/courses/content-media/" + storedPath,
-                response.getBody().data().fileUrl()
-        );
+        // The controller persists the bare storage key; the service layer resolves it
+        // to a public /api/v1/files/... URL at serialization time.
+        assertEquals(storedPath, response.getBody().data().fileUrl());
         assertEquals(MediaType.APPLICATION_PDF_VALUE, response.getBody().data().mimeType());
+        verify(mediaStorageService).store(any(MediaUploadRequest.class));
     }
 
     @Test

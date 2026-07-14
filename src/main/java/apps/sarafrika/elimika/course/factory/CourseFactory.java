@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -64,9 +65,9 @@ public class CourseFactory {
                 course.getRevenueShareNotes(),
                 course.getAgeLowerLimit(),
                 course.getAgeUpperLimit(),
-                course.getThumbnailUrl(),
-                course.getIntroVideoUrl(),
-                course.getBannerUrl(),
+                FileUrlResolver.publicUrl(course.getThumbnailUrl()),
+                FileUrlResolver.publicUrl(course.getIntroVideoUrl()),
+                FileUrlResolver.publicUrl(course.getBannerUrl()),
                 course.getStatus(),
                 course.getActive(),
                 course.getAdminApproved(),
@@ -103,9 +104,9 @@ public class CourseFactory {
         course.setCreatorSharePercentage(dto.creatorSharePercentage());
         course.setInstructorSharePercentage(dto.instructorSharePercentage());
         course.setRevenueShareNotes(dto.revenueShareNotes());
-        course.setThumbnailUrl(dto.thumbnailUrl());
-        course.setIntroVideoUrl(dto.introVideoUrl());
-        course.setBannerUrl(dto.bannerUrl());
+        course.setThumbnailUrl(FileUrlResolver.toStorableValue(dto.thumbnailUrl()));
+        course.setIntroVideoUrl(FileUrlResolver.toStorableValue(dto.introVideoUrl()));
+        course.setBannerUrl(FileUrlResolver.toStorableValue(dto.bannerUrl()));
         course.setStatus(dto.status());
         course.setActive(dto.active());
         course.setAdminApproved(dto.adminApproved());

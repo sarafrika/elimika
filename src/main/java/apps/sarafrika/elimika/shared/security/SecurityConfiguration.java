@@ -55,11 +55,18 @@ public class SecurityConfiguration {
                                 .permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/organisations").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
+                                // Credential/profile documents stay authenticated; all other
+                                // stored media is public (UUID-named, unguessable keys)
+                                .requestMatchers(HttpMethod.GET, "/api/v1/files/profile_documents/**").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/users/profile-image/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/courses/media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/courses/content-media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/assignments/submission-media/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/classes/media/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/certificates/files/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/commerce/catalogue/**").permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS).permitAll() // Allow preflight requests
                                 .anyRequest()

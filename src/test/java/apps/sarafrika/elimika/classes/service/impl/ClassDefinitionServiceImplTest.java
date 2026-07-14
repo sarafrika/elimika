@@ -5,7 +5,6 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
-import apps.sarafrika.elimika.classes.internal.ClassMediaValidationService;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
@@ -20,7 +19,11 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.MediaValidationService;
+import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
@@ -81,12 +84,21 @@ class ClassDefinitionServiceImplTest {
     private TimetableService timetableService;
 
     @Mock
-    private StorageService storageService;
+    private MediaStorageService mediaStorageService;
 
     @Mock
-    private ClassMediaValidationService classMediaValidationService;
+    private MediaValidationService mediaValidationService;
 
     private StorageProperties storageProperties;
+
+    @org.mockito.Mock
+    private apps.sarafrika.elimika.classes.repository.ClassDefinitionResourceRepository classDefinitionResourceRepository;
+
+    @org.mockito.Mock
+    private apps.sarafrika.elimika.resourcing.spi.ResourceBookingService resourceBookingService;
+
+    @org.mockito.Mock
+    private apps.sarafrika.elimika.resourcing.spi.ResourceLookupService resourceLookupService;
 
     private ClassDefinitionServiceImpl service;
 
@@ -102,15 +114,18 @@ class ClassDefinitionServiceImplTest {
                 classDefinitionRepository,
                 classSchedulingConflictRepository,
                 classSessionTemplateRepository,
+                classDefinitionResourceRepository,
+                resourceBookingService,
+                resourceLookupService,
                 availabilityService,
                 eventPublisher,
                 courseInfoService,
                 courseTrainingApprovalSpi,
                 timetableServiceProvider,
                 classScheduleServiceProvider,
-                storageService,
-                storageProperties,
-                classMediaValidationService
+                mediaStorageService,
+                mediaValidationService,
+                storageProperties
         );
     }
 
@@ -194,21 +209,23 @@ class ClassDefinitionServiceImplTest {
         when(classScheduleServiceProvider.getIfAvailable()).thenReturn(null);
         when(timetableService.hasInstructorConflict(any(UUID.class), any(ScheduleRequestDTO.class))).thenReturn(false);
         when(timetableService.scheduleClass(any(ScheduleRequestDTO.class))).thenReturn(sampleScheduledInstance(classUuid));
-        when(storageService.store(thumbnail, "class_thumbnails/" + classUuid))
-                .thenReturn("class_thumbnails/" + classUuid + "/generated.png");
-        when(storageService.store(promotionalVideo, "class_promotional_videos/" + classUuid))
-                .thenReturn("class_promotional_videos/" + classUuid + "/generated.mp4");
+        when(mediaStorageService.store(argThat((MediaUploadRequest r) -> r != null && r.file() == thumbnail)))
+                .thenReturn(new StoredMedia("class_thumbnails/" + classUuid + "/generated.png", "image.png", 5, "image/png"));
+        when(mediaStorageService.store(argThat((MediaUploadRequest r) -> r != null && r.file() == promotionalVideo)))
+                .thenReturn(new StoredMedia("class_promotional_videos/" + classUuid + "/generated.mp4", "promo.mp4", 5, "video/mp4"));
 
         ClassDefinitionResponseDTO response = service.createClassDefinition(request, thumbnail, promotionalVideo);
 
         assertThat(response.classDefinition().thumbnailUrl())
-                .isEqualTo("/api/v1/classes/media/class_thumbnails/" + classUuid + "/generated.png");
+                .isEqualTo("/api/v1/files/class_thumbnails/" + classUuid + "/generated.png");
         assertThat(response.classDefinition().promotionalVideoUrl())
-                .isEqualTo("/api/v1/classes/media/class_promotional_videos/" + classUuid + "/generated.mp4");
-        verify(classMediaValidationService).validateThumbnail(thumbnail);
-        verify(classMediaValidationService).validatePromotionalVideo(promotionalVideo);
-        verify(storageService).store(thumbnail, "class_thumbnails/" + classUuid);
-        verify(storageService).store(promotionalVideo, "class_promotional_videos/" + classUuid);
+                .isEqualTo("/api/v1/files/class_promotional_videos/" + classUuid + "/generated.mp4");
+        verify(mediaValidationService).validate(thumbnail, MediaCategory.THUMBNAIL);
+        verify(mediaValidationService).validate(promotionalVideo, MediaCategory.VIDEO);
+        verify(mediaStorageService).store(argThat((MediaUploadRequest r) ->
+                r != null && r.file() == thumbnail && r.folder().equals("class_thumbnails/" + classUuid)));
+        verify(mediaStorageService).store(argThat((MediaUploadRequest r) ->
+                r != null && r.file() == promotionalVideo && r.folder().equals("class_promotional_videos/" + classUuid)));
     }
 
     @Test
@@ -241,7 +258,8 @@ class ClassDefinitionServiceImplTest {
         String storedPath = "class_thumbnails/" + classUuid + "/generated.png";
 
         when(classDefinitionRepository.findByUuid(classUuid)).thenReturn(Optional.of(entity));
-        when(storageService.store(file, "class_thumbnails/" + classUuid)).thenReturn(storedPath);
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenReturn(new StoredMedia(storedPath, "image.png", 5, "image/png"));
         when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(classUuid))
                 .thenReturn(List.of());
@@ -249,10 +267,11 @@ class ClassDefinitionServiceImplTest {
         ClassDefinitionResponseDTO response = service.uploadThumbnail(classUuid, file);
 
         assertThat(response.classDefinition().thumbnailUrl())
-                .isEqualTo("/api/v1/classes/media/class_thumbnails/" + classUuid + "/generated.png");
-        assertThat(entity.getThumbnailUrl()).isEqualTo(response.classDefinition().thumbnailUrl());
-        verify(classMediaValidationService).validateThumbnail(file);
-        verify(storageService).store(file, "class_thumbnails/" + classUuid);
+                .isEqualTo("/api/v1/files/class_thumbnails/" + classUuid + "/generated.png");
+        assertThat(entity.getThumbnailUrl()).isEqualTo(storedPath);
+        verify(mediaStorageService).store(argThat((MediaUploadRequest r) ->
+                r != null && r.file() == file && r.folder().equals("class_thumbnails/" + classUuid)
+                        && r.category() == MediaCategory.THUMBNAIL));
     }
 
     @Test
@@ -264,7 +283,8 @@ class ClassDefinitionServiceImplTest {
         String storedPath = "class_promotional_videos/" + classUuid + "/generated.mp4";
 
         when(classDefinitionRepository.findByUuid(classUuid)).thenReturn(Optional.of(entity));
-        when(storageService.store(file, "class_promotional_videos/" + classUuid)).thenReturn(storedPath);
+        when(mediaStorageService.store(any(MediaUploadRequest.class)))
+                .thenReturn(new StoredMedia(storedPath, "promo.mp4", 5, "video/mp4"));
         when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(classUuid))
                 .thenReturn(List.of());
@@ -272,10 +292,11 @@ class ClassDefinitionServiceImplTest {
         ClassDefinitionResponseDTO response = service.uploadPromotionalVideo(classUuid, file);
 
         assertThat(response.classDefinition().promotionalVideoUrl())
-                .isEqualTo("/api/v1/classes/media/class_promotional_videos/" + classUuid + "/generated.mp4");
-        assertThat(entity.getPromotionalVideoUrl()).isEqualTo(response.classDefinition().promotionalVideoUrl());
-        verify(classMediaValidationService).validatePromotionalVideo(file);
-        verify(storageService).store(file, "class_promotional_videos/" + classUuid);
+                .isEqualTo("/api/v1/files/class_promotional_videos/" + classUuid + "/generated.mp4");
+        assertThat(entity.getPromotionalVideoUrl()).isEqualTo(storedPath);
+        verify(mediaStorageService).store(argThat((MediaUploadRequest r) ->
+                r != null && r.file() == file && r.folder().equals("class_promotional_videos/" + classUuid)
+                        && r.category() == MediaCategory.VIDEO));
     }
 
     private ClassDefinitionDTO sampleClassDefinition() {

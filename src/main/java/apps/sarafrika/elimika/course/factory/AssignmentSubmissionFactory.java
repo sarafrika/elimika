@@ -2,8 +2,11 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+
+import java.util.Arrays;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class AssignmentSubmissionFactory {
@@ -18,7 +21,7 @@ public class AssignmentSubmissionFactory {
                 assignmentSubmission.getEnrollmentUuid(),
                 assignmentSubmission.getAssignmentUuid(),
                 assignmentSubmission.getSubmissionText(),
-                assignmentSubmission.getFileUrls(),
+                resolveFileUrls(assignmentSubmission.getFileUrls()),
                 assignmentSubmission.getSubmittedAt(),
                 assignmentSubmission.getStatus(),
                 assignmentSubmission.getScore(),
@@ -58,5 +61,14 @@ public class AssignmentSubmissionFactory {
         assignmentSubmission.setLastModifiedDate(dto.updatedDate());
         assignmentSubmission.setLastModifiedBy(dto.updatedBy());
         return assignmentSubmission;
+    }
+
+    private static String[] resolveFileUrls(String[] fileUrls) {
+        if (fileUrls == null) {
+            return null;
+        }
+        return Arrays.stream(fileUrls)
+                .map(FileUrlResolver::publicUrl)
+                .toArray(String[]::new);
     }
 }

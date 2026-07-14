@@ -6,13 +6,16 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
-import apps.sarafrika.elimika.shared.storage.service.StorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
-import apps.sarafrika.elimika.tenancy.internal.UserMediaValidationService;
 import apps.sarafrika.elimika.tenancy.repository.*;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.services.UserNumberService;
@@ -49,12 +52,11 @@ public class UserServiceImpl implements UserService {
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final TrainingBranchRepository trainingBranchRepository;
 
-    private final StorageService storageService;
+    private final MediaStorageService mediaStorageService;
     private final StorageProperties storageProperties;
     private final GenericSpecificationBuilder<User> specificationBuilder;
     private final UserSpecificationBuilder userSpecificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final UserMediaValidationService validationService;
     private final NotificationPreferencesService notificationPreferencesService;
     private final UserNumberService userNumberService;
 
@@ -306,13 +308,15 @@ public class UserServiceImpl implements UserService {
     public UserDTO uploadProfileImage(UUID userUuid, MultipartFile profileImage) {
         log.debug("Uploading profile image for user: {}", userUuid);
 
-        // Validate file
-        validationService.validateProfileImage(profileImage);
-
         User user = findUserOrThrow(userUuid);
 
         try {
-            user.setProfileImageUrl(profileImage != null ? storeProfileImage(profileImage) : null);
+            if (profileImage != null) {
+                user.setProfileImageUrl(storeProfileImage(user, profileImage));
+            } else {
+                mediaStorageService.delete(user.getProfileImageUrl());
+                user.setProfileImageUrl(null);
+            }
             User savedUser = userRepository.save(user);
             
             // Sync profile image URL to Keycloak
@@ -345,6 +349,8 @@ public class UserServiceImpl implements UserService {
             // Delete standalone domain mappings
             List<UserDomainMapping> domainMappings = userDomainMappingRepository.findByUserUuid(uuid);
             userDomainMappingRepository.deleteAll(domainMappings);
+
+            mediaStorageService.delete(user.getProfileImageUrl());
 
             // Delete user
             userRepository.delete(user);
@@ -622,7 +628,7 @@ public class UserServiceImpl implements UserService {
                         user.getPhoneNumber(),
                         user.getDob(),
                         user.getGender(),
-                        user.getProfileImageUrl(),
+                        FileUrlResolver.publicUrl(user.getProfileImageUrl()),
                         user.isActive(),
                         realm,
                         user.getUuid(),
@@ -667,25 +673,18 @@ public class UserServiceImpl implements UserService {
 
 
     /**
-     * Stores a profile image file and returns the full URL
-     * Uses simple UUID-based filenames for cleaner URLs
+     * Stores a profile image and returns its canonical storage key, replacing the
+     * user's previous image on disk and in the media registry.
      */
-    private String storeProfileImage(MultipartFile file) {
-        try {
-            String profileImageFolder = storageProperties.getFolders().getProfileImages();
-
-            String storedPath = storageService.store(file, profileImageFolder);
-
-            String fileName = storedPath.substring(storedPath.lastIndexOf('/') + 1);
-            String imageUrl = "/api/v1/users/profile-image/" + fileName;
-
-            log.debug("Generated profile image URL: {}", imageUrl);
-            return imageUrl;
-
-        } catch (Exception e) {
-            log.error("Failed to store profile image", e);
-            throw new RuntimeException("Failed to store profile image: " + e.getMessage(), e);
-        }
+    private String storeProfileImage(User user, MultipartFile file) {
+        return mediaStorageService.store(new MediaUploadRequest(
+                file,
+                MediaCategory.PROFILE_IMAGE,
+                storageProperties.getFolders().getProfileImages(),
+                MediaOwnerType.USER_PROFILE_IMAGE,
+                user.getUuid(),
+                user.getProfileImageUrl()
+        )).key();
     }
 
 

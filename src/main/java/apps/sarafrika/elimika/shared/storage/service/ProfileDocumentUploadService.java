@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.shared.storage.service;
 
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -9,10 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class ProfileDocumentUploadService {
 
-    private static final long MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
-    private static final String PDF_CONTENT_TYPE = "application/pdf";
-
-    private final StorageService storageService;
+    private final MediaStorageService mediaStorageService;
     private final StorageProperties storageProperties;
 
     public ProfileDocumentUploadResult upload(CredentialsDocumentUploadRequest request) {
@@ -21,11 +19,11 @@ public class ProfileDocumentUploadService {
         ProfileDocumentOwner owner = request.owner();
         MultipartFile file = request.file();
 
-        validateDocument(file, owner.documentLabel());
-
         String folder = storageProperties.getFolders().getProfileDocuments()
                 + "/" + owner.folderName() + "/" + request.ownerUuid();
-        String storedFilename = storageService.store(file, folder);
+        StoredMedia storedMedia = mediaStorageService.store(new MediaUploadRequest(
+                file, MediaCategory.PDF_DOCUMENT, folder, owner.mediaOwnerType(), request.ownerUuid(), null));
+        String storedFilename = storedMedia.key();
         String originalFilename = resolveOriginalFilename(file.getOriginalFilename(), storedFilename);
         String resolvedTitle = resolveTitle(request.title(), originalFilename, owner.defaultTitle());
 
@@ -39,8 +37,8 @@ public class ProfileDocumentUploadService {
                 originalFilename,
                 storedFilename,
                 storedFilename,
-                file.getSize(),
-                storageService.getContentType(storedFilename),
+                storedMedia.sizeBytes(),
+                storedMedia.mimeType(),
                 resolvedTitle,
                 request.description(),
                 request.expiryDate()
@@ -59,20 +57,6 @@ public class ProfileDocumentUploadService {
         }
         if (request.documentTypeUuid() == null) {
             throw new IllegalArgumentException("Document type UUID is required");
-        }
-    }
-
-    private void validateDocument(MultipartFile file, String documentLabel) {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Document file cannot be empty");
-        }
-        if (!PDF_CONTENT_TYPE.equals(file.getContentType())) {
-            throw new IllegalArgumentException("Only PDF files are allowed for " + documentLabel + " documents");
-        }
-        if (file.getSize() > MAX_DOCUMENT_SIZE) {
-            throw new IllegalArgumentException(
-                    String.format("Document file size cannot exceed %d MB", MAX_DOCUMENT_SIZE / (1024 * 1024))
-            );
         }
     }
 
@@ -95,17 +79,25 @@ public class ProfileDocumentUploadService {
     }
 
     public enum ProfileDocumentOwner {
-        INSTRUCTOR("instructors", "instructor", "Instructor Document"),
-        COURSE_CREATOR("course-creators", "course creator", "Course Creator Document");
+        INSTRUCTOR("instructors", "instructor", "Instructor Document",
+                apps.sarafrika.elimika.shared.storage.util.MediaOwnerType.INSTRUCTOR_DOCUMENT),
+        COURSE_CREATOR("course-creators", "course creator", "Course Creator Document",
+                apps.sarafrika.elimika.shared.storage.util.MediaOwnerType.COURSE_CREATOR_DOCUMENT);
 
         private final String folderName;
         private final String documentLabel;
         private final String defaultTitle;
+        private final String mediaOwnerType;
 
-        ProfileDocumentOwner(String folderName, String documentLabel, String defaultTitle) {
+        ProfileDocumentOwner(String folderName, String documentLabel, String defaultTitle, String mediaOwnerType) {
             this.folderName = folderName;
             this.documentLabel = documentLabel;
             this.defaultTitle = defaultTitle;
+            this.mediaOwnerType = mediaOwnerType;
+        }
+
+        public String mediaOwnerType() {
+            return mediaOwnerType;
         }
 
         public String folderName() {

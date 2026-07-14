@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.factory;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -16,8 +17,8 @@ public class ClassDefinitionFactory {
                 entity.getUuid(),
                 entity.getTitle(),
                 entity.getDescription(),
-                entity.getThumbnailUrl(),
-                entity.getPromotionalVideoUrl(),
+                FileUrlResolver.publicUrl(entity.getThumbnailUrl()),
+                FileUrlResolver.publicUrl(entity.getPromotionalVideoUrl()),
                 entity.getDefaultInstructorUuid(),
                 entity.getOrganisationUuid(),
                 entity.getCourseUuid(),
@@ -46,7 +47,7 @@ public class ClassDefinitionFactory {
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),
                 entity.getLastModifiedBy()
-        );
+        ).withResourceLinks(entity.getVenueResourceUuid(), entity.getMarketplaceJobUuid());
     }
 
     public static ClassDefinition toEntity(ClassDefinitionDTO dto) {
@@ -57,8 +58,8 @@ public class ClassDefinitionFactory {
         entity.setUuid(dto.uuid());
         entity.setTitle(dto.title());
         entity.setDescription(dto.description());
-        entity.setThumbnailUrl(dto.thumbnailUrl());
-        entity.setPromotionalVideoUrl(dto.promotionalVideoUrl());
+        entity.setThumbnailUrl(FileUrlResolver.toStorableValue(dto.thumbnailUrl()));
+        entity.setPromotionalVideoUrl(FileUrlResolver.toStorableValue(dto.promotionalVideoUrl()));
         entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
         entity.setOrganisationUuid(dto.organisationUuid());
         entity.setCourseUuid(dto.courseUuid());
@@ -82,6 +83,8 @@ public class ClassDefinitionFactory {
         entity.setMaxParticipants(dto.maxParticipants());
         entity.setAllowWaitlist(dto.allowWaitlist());
         entity.setIsActive(dto.isActive());
+        entity.setVenueResourceUuid(dto.venueResourceUuid());
+        entity.setMarketplaceJobUuid(dto.marketplaceJobUuid());
         return entity;
     }
 
@@ -97,10 +100,10 @@ public class ClassDefinitionFactory {
             entity.setDescription(dto.description());
         }
         if (dto.thumbnailUrl() != null) {
-            entity.setThumbnailUrl(dto.thumbnailUrl());
+            entity.setThumbnailUrl(FileUrlResolver.toStorableValue(dto.thumbnailUrl()));
         }
         if (dto.promotionalVideoUrl() != null) {
-            entity.setPromotionalVideoUrl(dto.promotionalVideoUrl());
+            entity.setPromotionalVideoUrl(FileUrlResolver.toStorableValue(dto.promotionalVideoUrl()));
         }
         if (dto.defaultInstructorUuid() != null) {
             entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
@@ -170,6 +173,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.isActive() != null) {
             entity.setIsActive(dto.isActive());
+        }
+        if (dto.venueResourceUuid() != null) {
+            entity.setVenueResourceUuid(dto.venueResourceUuid());
         }
     }
 }

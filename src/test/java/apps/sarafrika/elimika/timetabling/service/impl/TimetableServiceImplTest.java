@@ -92,6 +92,9 @@ class TimetableServiceImplTest {
     @Mock
     private InstructorLookupService instructorLookupService;
 
+    @Mock
+    private apps.sarafrika.elimika.resourcing.spi.ResourceBookingService resourceBookingService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -109,7 +112,8 @@ class TimetableServiceImplTest {
                 commercePaywallService,
                 availabilityService,
                 studentLookupService,
-                instructorLookupService
+                instructorLookupService,
+                resourceBookingService
         );
     }
 
@@ -191,6 +195,77 @@ class TimetableServiceImplTest {
         assertThat(result.timezone()).isEqualTo("Africa/Nairobi");
         assertThat(instance.getStartTime()).isEqualTo(newStart);
         assertThat(instance.getEndTime()).isEqualTo(newEnd);
+    }
+
+    @Test
+    void rescheduleScheduledInstancePropagatesNewWindowToResourceBookings() {
+        UUID instanceUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+        LocalDateTime newStart = LocalDateTime.of(2026, 6, 12, 9, 0);
+        LocalDateTime newEnd = LocalDateTime.of(2026, 6, 12, 11, 0);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(availabilityService.isInstructorAvailable(instructorUuid, newStart, newEnd)).thenReturn(true);
+        when(scheduledInstanceRepository.findOverlappingInstancesForInstructor(instructorUuid, newStart, newEnd))
+                .thenReturn(List.of());
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        timetableService.rescheduleScheduledInstance(
+                instanceUuid,
+                new ScheduledInstanceRescheduleRequestDTO(newStart, newEnd, "UTC")
+        );
+
+        org.mockito.Mockito.verify(resourceBookingService).rescheduleInstanceBookings(instanceUuid, newStart, newEnd);
+    }
+
+    @Test
+    void rescheduleScheduledInstanceAbortsWhenLinkedResourcesConflict() {
+        UUID instanceUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+        LocalDateTime originalStart = instance.getStartTime();
+        LocalDateTime newStart = LocalDateTime.of(2026, 6, 12, 9, 0);
+        LocalDateTime newEnd = LocalDateTime.of(2026, 6, 12, 11, 0);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(availabilityService.isInstructorAvailable(instructorUuid, newStart, newEnd)).thenReturn(true);
+        when(scheduledInstanceRepository.findOverlappingInstancesForInstructor(instructorUuid, newStart, newEnd))
+                .thenReturn(List.of());
+        org.mockito.Mockito.doThrow(new apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException(
+                        "Venue occupied",
+                        apps.sarafrika.elimika.resourcing.spi.ResourceValidationReport.withConflicts(List.of())))
+                .when(resourceBookingService).rescheduleInstanceBookings(instanceUuid, newStart, newEnd);
+
+        assertThatThrownBy(() -> timetableService.rescheduleScheduledInstance(
+                instanceUuid,
+                new ScheduledInstanceRescheduleRequestDTO(newStart, newEnd, "UTC")))
+                .isInstanceOf(apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException.class);
+
+        assertThat(instance.getStartTime()).isEqualTo(originalStart);
+        org.mockito.Mockito.verify(scheduledInstanceRepository, org.mockito.Mockito.never())
+                .save(any(ScheduledInstance.class));
+    }
+
+    @Test
+    void cancelScheduledInstanceReleasesLinkedResourceBookings() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(enrollmentRepository.findByScheduledInstanceUuidAndStatus(instanceUuid, EnrollmentStatus.ENROLLED))
+                .thenReturn(List.of());
+
+        timetableService.cancelScheduledInstance(instanceUuid, "Venue unavailable");
+
+        org.mockito.Mockito.verify(resourceBookingService)
+                .releaseBookingsForInstance(instanceUuid, "Venue unavailable");
     }
 
     @Test
