@@ -25,6 +25,8 @@ public interface CertificateRepository extends JpaRepository<Certificate, Long>,
 
     boolean existsByCertificateNumberAndIsValidTrue(String certificateNumber);
 
+    boolean existsByCertificateNumber(String certificateNumber);
+
     List<Certificate> findByStudentUuid(UUID studentUuid);
 
     List<Certificate> findByStudentUuidAndIsValidTrue(UUID studentUuid);

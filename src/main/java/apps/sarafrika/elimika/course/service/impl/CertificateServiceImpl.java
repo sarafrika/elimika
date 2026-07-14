@@ -5,13 +5,16 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CertificateDTO;
 import apps.sarafrika.elimika.course.factory.CertificateFactory;
 import apps.sarafrika.elimika.course.model.Certificate;
+import apps.sarafrika.elimika.course.model.CertificateTemplate;
 import apps.sarafrika.elimika.course.repository.CertificateRepository;
+import apps.sarafrika.elimika.course.repository.CertificateTemplateRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.service.CertificateService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.LearningCertificateIssuedNotificationRequestedEvent;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.course.util.enums.TemplateType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +37,7 @@ import java.util.stream.Collectors;
 public class CertificateServiceImpl implements CertificateService {
 
     private final CertificateRepository certificateRepository;
+    private final CertificateTemplateRepository certificateTemplateRepository;
     private final GenericSpecificationBuilder<Certificate> specificationBuilder;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final ProgramEnrollmentRepository programEnrollmentRepository;
@@ -40,9 +45,26 @@ public class CertificateServiceImpl implements CertificateService {
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String CERTIFICATE_NOT_FOUND_TEMPLATE = "Certificate with ID %s not found";
+    private static final SecureRandom CERTIFICATE_NUMBER_RANDOM = new SecureRandom();
+    private static final String CERTIFICATE_NUMBER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final int CERTIFICATE_NUMBER_ATTEMPTS = 5;
 
     @Override
     public CertificateDTO createCertificate(CertificateDTO certificateDTO) {
+        if (certificateDTO.templateUuid() != null
+                && !certificateTemplateRepository.existsByUuid(certificateDTO.templateUuid())) {
+            throw new ResourceNotFoundException(
+                    String.format("Certificate template with ID %s not found", certificateDTO.templateUuid()));
+        }
+        if (certificateDTO.courseUuid() != null && certificateRepository
+                .existsByStudentUuidAndCourseUuid(certificateDTO.studentUuid(), certificateDTO.courseUuid())) {
+            throw new IllegalStateException("Certificate already exists for this student and course");
+        }
+        if (certificateDTO.programUuid() != null && certificateRepository
+                .existsByStudentUuidAndProgramUuid(certificateDTO.studentUuid(), certificateDTO.programUuid())) {
+            throw new IllegalStateException("Certificate already exists for this student and program");
+        }
+
         Certificate certificate = CertificateFactory.toEntity(certificateDTO);
 
         // Set defaults based on CertificateDTO business logic
@@ -263,21 +285,35 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     private String generateCertificateNumber() {
-        // Generate unique certificate number - implement your logic
         String prefix = "CERT-" + java.time.LocalDate.now().getYear() + "-";
-        String suffix = String.format("%06d", System.currentTimeMillis() % 1000000);
-        return prefix + suffix;
+        for (int attempt = 0; attempt < CERTIFICATE_NUMBER_ATTEMPTS; attempt++) {
+            StringBuilder suffix = new StringBuilder(8);
+            for (int i = 0; i < 8; i++) {
+                suffix.append(CERTIFICATE_NUMBER_ALPHABET
+                        .charAt(CERTIFICATE_NUMBER_RANDOM.nextInt(CERTIFICATE_NUMBER_ALPHABET.length())));
+            }
+            String candidate = prefix + suffix;
+            if (!certificateRepository.existsByCertificateNumber(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Unable to generate a unique certificate number");
     }
 
     private UUID getDefaultCourseTemplateUuid() {
-        // Return default course certificate template UUID
-        // This should be configured or retrieved from a template service
-        return UUID.fromString("c1e2r3t4-5e6m-7p8l-9a10-coursecerttempl");
+        return getDefaultTemplateUuid(TemplateType.COURSE_COMPLETION);
     }
 
     private UUID getDefaultProgramTemplateUuid() {
-        // Return default program certificate template UUID
-        return UUID.fromString("p1r2o3g4-5r6a-7m8t-9e10-programcerttempl");
+        return getDefaultTemplateUuid(TemplateType.PROGRAM_COMPLETION);
+    }
+
+    private UUID getDefaultTemplateUuid(TemplateType templateType) {
+        return certificateTemplateRepository
+                .findFirstByTemplateTypeAndIsActiveTrueOrderByCreatedDateAsc(templateType)
+                .map(CertificateTemplate::getUuid)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No active " + templateType.getValue() + " certificate template configured"));
     }
 
     private void updateCertificateFields(Certificate existingCertificate, CertificateDTO dto) {
