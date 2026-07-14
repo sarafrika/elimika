@@ -1,3 +1,10 @@
+## [2.97.1](https://github.com/sarafrika/elimika/compare/v2.97.0...v2.97.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **config:** enable flyway out-of-order migrations to unblock startup ([268f6d4](https://github.com/sarafrika/elimika/commit/268f6d4123fda0763418e7d167bf5ecf34ce2f39))
+
 # [2.97.0](https://github.com/sarafrika/elimika/compare/v2.96.1...v2.97.0) (2026-07-14)
 
 
