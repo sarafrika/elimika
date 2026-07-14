@@ -1,3 +1,10 @@
+## [2.96.1](https://github.com/sarafrika/elimika/compare/v2.96.0...v2.96.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **certificates:** repoint student FK to students table, resolve default templates from repository and harden creation validation ([1e9d654](https://github.com/sarafrika/elimika/commit/1e9d6546d46960cf9cefd8a8a2ffcfa9f0d9c0b0))
+
 # [2.96.0](https://github.com/sarafrika/elimika/compare/v2.95.1...v2.96.0) (2026-07-13)
 
 
