@@ -82,6 +82,9 @@ public class ClassMarketplaceJob extends BaseEntity {
     @Column(name = "class_color")
     private String classColor;
 
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
     @Convert(converter = LocationTypeConverter.class)
     @Column(name = "location_type")
     private LocationType locationType;

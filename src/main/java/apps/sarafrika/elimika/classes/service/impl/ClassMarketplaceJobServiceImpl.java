@@ -47,6 +47,14 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.MediaValidationService;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
+import org.springframework.web.multipart.MultipartFile;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -98,6 +106,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final AvailabilityService availabilityService;
     private final ObjectProvider<TimetableService> timetableServiceProvider;
     private final ApplicationEventPublisher eventPublisher;
+    private final MediaStorageService mediaStorageService;
+    private final MediaValidationService mediaValidationService;
+    private final StorageProperties storageProperties;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
@@ -114,6 +125,28 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         holdJobResources(saved, request.resources());
 
         return toJobDTO(saved);
+    }
+
+    @Override
+    public ClassMarketplaceJobDTO uploadJobThumbnail(UUID jobUuid, MultipartFile thumbnail) {
+        log.debug("Uploading thumbnail for marketplace class job: {}", jobUuid);
+        ClassMarketplaceJob job = jobRepository.findByUuid(jobUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(JOB_NOT_FOUND_TEMPLATE, jobUuid)));
+        requireOrganisationManagerAccess(job.getOrganisationUuid());
+
+        mediaValidationService.validate(thumbnail, MediaCategory.THUMBNAIL);
+        try {
+            String folder = storageProperties.getFolders().getClassThumbnails() + "/jobs/" + jobUuid;
+            String key = mediaStorageService.store(new MediaUploadRequest(
+                    thumbnail, MediaCategory.THUMBNAIL, folder,
+                    MediaOwnerType.JOB_THUMBNAIL, jobUuid, job.getThumbnailUrl())).key();
+            job.setThumbnailUrl(key);
+            return toJobDTO(jobRepository.save(job));
+        } catch (Exception ex) {
+            log.error("Failed to upload marketplace job thumbnail for UUID: {}", jobUuid, ex);
+            throw new RuntimeException("Failed to upload job thumbnail: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -1014,6 +1047,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getRegistrationPeriodEndDate(),
                 job.getClassReminderMinutes(),
                 job.getClassColor(),
+                FileUrlResolver.publicUrl(job.getThumbnailUrl()),
                 job.getLocationType(),
                 job.getLocationName(),
                 job.getLocationLatitude(),

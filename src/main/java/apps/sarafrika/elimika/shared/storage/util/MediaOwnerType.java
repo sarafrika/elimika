@@ -20,6 +20,7 @@ public final class MediaOwnerType {
     public static final String CERTIFICATE = "CERTIFICATE";
     public static final String CERTIFICATE_TEMPLATE_BACKGROUND = "CERTIFICATE_TEMPLATE_BACKGROUND";
     public static final String CLASS_THUMBNAIL = "CLASS_THUMBNAIL";
+    public static final String JOB_THUMBNAIL = "JOB_THUMBNAIL";
     public static final String CLASS_PROMO_VIDEO = "CLASS_PROMO_VIDEO";
     public static final String CLASS_RESOURCE = "CLASS_RESOURCE";
     public static final String INSTRUCTOR_DOCUMENT = "INSTRUCTOR_DOCUMENT";

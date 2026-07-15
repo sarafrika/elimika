@@ -23,7 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,6 +64,16 @@ public class ClassMarketplaceJobController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
         }
+    }
+
+    @Operation(summary = "Upload a marketplace class job thumbnail",
+            description = "Attaches a thumbnail image to an organisation's class advert. Returns the updated job with a resolved thumbnail_url.")
+    @PostMapping(value = "/{uuid}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<ClassMarketplaceJobDTO>> uploadJobThumbnail(
+            @PathVariable UUID uuid,
+            @RequestParam("thumbnail") MultipartFile thumbnail) {
+        ClassMarketplaceJobDTO result = classMarketplaceJobService.uploadJobThumbnail(uuid, thumbnail);
+        return ResponseEntity.ok(ApiResponse.success(result, "Thumbnail uploaded successfully"));
     }
 
     @Operation(summary = "List marketplace class jobs")

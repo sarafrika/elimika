@@ -75,6 +75,10 @@ public record ClassMarketplaceJobDTO(
         @JsonProperty(value = "class_color", access = JsonProperty.Access.READ_ONLY)
         String classColor,
 
+        @Schema(description = "Public URL to the class advert thumbnail image, if uploaded.")
+        @JsonProperty(value = "thumbnail_url", access = JsonProperty.Access.READ_ONLY)
+        String thumbnailUrl,
+
         @JsonProperty(value = "location_type", access = JsonProperty.Access.READ_ONLY)
         LocationType locationType,
 

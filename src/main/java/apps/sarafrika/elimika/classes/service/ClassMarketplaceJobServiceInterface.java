@@ -12,12 +12,15 @@ import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationS
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
 public interface ClassMarketplaceJobServiceInterface {
 
     ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request);
+
+    ClassMarketplaceJobDTO uploadJobThumbnail(UUID jobUuid, MultipartFile thumbnail);
 
     ClassMarketplaceJobDTO updateJob(UUID jobUuid, ClassMarketplaceJobRequestDTO request);
 
