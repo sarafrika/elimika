@@ -1,3 +1,10 @@
+# [2.98.0](https://github.com/sarafrika/elimika/compare/v2.97.2...v2.98.0) (2026-07-15)
+
+
+### Features
+
+* **classes:** add thumbnail upload for organisation class jobs ([8e1dc43](https://github.com/sarafrika/elimika/commit/8e1dc4348e392fd280a93b6a4b3227681cd7381c))
+
 ## [2.97.2](https://github.com/sarafrika/elimika/compare/v2.97.1...v2.97.2) (2026-07-14)
 
 
