@@ -1,26 +1,26 @@
 # Elimika
 
 ## Overview
-Elimika is Sarafrika's modular learning platform backend. It orchestrates courses, classes, organizations, and learner experiences while handling authentication, scheduling, and commerce in one Spring Boot 3.5 service targeting Java 21. Publishing a course or class automatically syncs it to the public catalogue and Medusa commerce stack, keeping storefront data consistent without manual API calls.
+Elimika is Sarafrika's modular learning platform backend. It orchestrates courses, classes, organizations, and learner experiences while handling authentication, scheduling, and commerce in one Spring Boot 3.5 service targeting Java 21. Publishing a course or class automatically syncs it to the public catalogue, keeping storefront data consistent without manual API calls.
 
 ## Core Capabilities
 - Domain-driven modules for courses, class definitions, timetabling, availability, and assessments
 - Organization, instructor, and student domains with Keycloak-backed identity and role management
-- Commerce workflows that generate paywalls, track purchases, and push catalogue data to Medusa
+- Commerce workflows that generate paywalls, track purchases, and maintain the internal catalogue
 - Notification and email services for enrollment, invitations, and progress updates
 - Flyway-managed PostgreSQL schema migrations and storage helpers for media assets
 
 ## Architecture & Stack
-The service runs on Spring Boot with Spring Modulith, Jakarta Validation, and JPA/Hibernate. Authentication uses Keycloak 26+, while payments and catalogue operations integrate with Medusa. Persistent data lives in PostgreSQL; Flyway migrations under `src/main/resources/db/migration` execute on startup. Semantic-release (pnpm) automates versioning and changelog updates.
+The service runs on Spring Boot with Spring Modulith, Jakarta Validation, and JPA/Hibernate. Authentication uses Keycloak 26+. Payments and catalogue operations are handled in-house by the `commerce` module against internal tables (`commerce_product`, `commerce_product_variant`, `commerce_catalogue_item`); there is no external commerce dependency. Persistent data lives in PostgreSQL; Flyway migrations under `src/main/resources/db/migration` execute on startup. Semantic-release (pnpm) automates versioning and changelog updates.
 
 ## Prerequisites
 - Java 21 runtime (the Gradle wrapper manages builds)
-- Docker & Docker Compose for local infrastructure (PostgreSQL, Keycloak, Medusa)
+- Docker & Docker Compose for local infrastructure (PostgreSQL, Keycloak)
 - pnpm 10+ for release automation tasks
 - Node 20+/pnpm only required if you plan to run `pnpm release` locally
 
 ## Local Development
-1. Clone the repository and create a `.env` file with database, Keycloak, encryption, and Medusa credentials. Use `install.md` as a reference template.
+1. Clone the repository and create a `.env` file with database, Keycloak, and encryption credentials. Use `install.md` as a reference template.
 2. Provision dependencies with Docker (PostgreSQL + Keycloak + Elimika) or reuse existing infrastructure. The guide in `install.md` includes ready-to-run `docker-compose` instructions.
 3. Generate the external Docker network used by the stack if it does not already exist: `docker network create sarafrika`.
 4. Start the backing services: `docker compose -f docker/compose.yaml up -d` (or the extended compose file from `install.md`).
