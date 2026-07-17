@@ -32,8 +32,9 @@ jobs:
           password: ${{ secrets.STAGING_SSH_PASSWORD }}
           envs: EVENT_NAME,DEPLOYMENT_REASON,WORKFLOW_RUN_NAME
           script: |
+            set -euo pipefail
             cd /opt/sarafrika/elimika
-            
+
             if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
               echo "🚀 Manual Deployment Triggered"
               echo "Reason: $DEPLOYMENT_REASON"
@@ -42,13 +43,39 @@ jobs:
               echo "Triggering workflow: $WORKFLOW_RUN_NAME"
             fi
             echo ""
-            
-            echo "📥 Pulling latest Docker images..."
-            docker compose pull
-            
-            echo "🚀 Recreating and starting containers..."
-            docker compose up -d --remove-orphans
-            
+
+            echo "📥 Pulling backend image..."
+            docker compose pull elimika
+
+            echo "🚀 Recreating backend container..."
+            docker compose up -d --no-deps elimika
+
+            echo "🔍 Verifying the running container is the image we just pulled..."
+            LATEST_ID=$(docker image inspect sarafrika/elimika:latest -f '{{.Id}}')
+            RUNNING_ID=$(docker inspect elimika -f '{{.Image}}')
+            echo "  latest  = $LATEST_ID"
+            echo "  running = $RUNNING_ID"
+            if [ "$LATEST_ID" != "$RUNNING_ID" ]; then
+              echo "❌ Running image does not match the pulled :latest — deploy did not take effect"
+              exit 1
+            fi
+
+            echo "🩺 Waiting for the backend to report healthy..."
+            for i in $(seq 1 24); do
+              STATUS=$(docker inspect elimika -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')
+              echo "  attempt $i/24: $STATUS"
+              if [ "$STATUS" = "healthy" ]; then break; fi
+              if [ "$STATUS" = "unhealthy" ]; then
+                echo "❌ Backend reported unhealthy"; docker logs elimika --tail 60; exit 1
+              fi
+              sleep 5
+            done
+
+            STATUS=$(docker inspect elimika -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')
+            if [ "$STATUS" != "healthy" ]; then
+              echo "❌ Backend did not become healthy within ~2 minutes"; docker logs elimika --tail 60; exit 1
+            fi
+
             echo ""
-            echo "✅ Deployment completed successfully!"
-            echo "🌍 Service should be available on port 30000"
+            echo "✅ Deployment completed successfully — backend healthy on the latest image!"
+            echo "🌍 Service available on port 30000"
