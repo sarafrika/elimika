@@ -1,3 +1,18 @@
+# [2.100.0](https://github.com/sarafrika/elimika/compare/v2.99.0...v2.100.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **course:** use null weight for points-sum derived gradebook line items ([45984ee](https://github.com/sarafrika/elimika/commit/45984eec89e928f0f55d2544ef65bd53978d0d91))
+* **security:** enforce authorization on assignment, gradebook and rubric APIs ([be65391](https://github.com/sarafrika/elimika/commit/be65391f54f5e44f63bc9df439b3accf6623192d))
+
+
+### Features
+
+* **course:** add instructor manual grading for quiz text responses ([7613cc0](https://github.com/sarafrika/elimika/commit/7613cc0ef37e5a35d779abf75a1b3ee0578d6164))
+* **course:** add student quiz submission and auto-grading ([f4696b2](https://github.com/sarafrika/elimika/commit/f4696b23bfffef502455be47e8771a09bd85fe32))
+* **course:** auto-create gradebook line items and defer graded work to rubrics ([7a66d14](https://github.com/sarafrika/elimika/commit/7a66d14095e1c5132577c1e6d8fdf8639b912188))
+
 # [2.99.0](https://github.com/sarafrika/elimika/compare/v2.98.0...v2.99.0) (2026-07-17)
 
 
