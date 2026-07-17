@@ -226,6 +226,101 @@ class CourseGradeBookServiceImplTest {
     }
 
     @Test
+    void syncAssignmentGradeAutoCreatesLineItemWhenNoneConfigured() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID assessmentUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        UUID assignmentUuid = UUID.randomUUID();
+        UUID lessonUuid = UUID.randomUUID();
+
+        CourseAssessment assessment = assessment(courseUuid, assessmentUuid, "100.00", CourseAssessmentAggregationStrategy.POINTS_SUM);
+        CourseEnrollment enrollment = enrollment(courseUuid, enrollmentUuid);
+        Assignment assignment = new Assignment();
+        assignment.setUuid(assignmentUuid);
+        assignment.setLessonUuid(lessonUuid);
+        assignment.setTitle("Reflective essay");
+        Lesson lesson = new Lesson();
+        lesson.setUuid(lessonUuid);
+        lesson.setCourseUuid(courseUuid);
+
+        List<CourseAssessmentLineItem> lineItems = new ArrayList<>();
+        Map<String, CourseAssessmentLineItemScore> lineItemScores = new HashMap<>();
+        Map<UUID, CourseAssessmentScore> assessmentScores = new HashMap<>();
+
+        when(lineItemRepository.findByAssignmentUuid(assignmentUuid)).thenReturn(Optional.empty());
+        when(assignmentRepository.findByUuid(assignmentUuid)).thenReturn(Optional.of(assignment));
+        when(lessonRepository.findByUuid(lessonUuid)).thenReturn(Optional.of(lesson));
+        when(courseAssessmentRepository.findByUuid(assessmentUuid)).thenReturn(Optional.of(assessment));
+        when(courseEnrollmentRepository.findByUuid(enrollmentUuid)).thenReturn(Optional.of(enrollment));
+        stubAssessmentAndEnrollmentLookups(courseUuid, assessment, enrollment);
+        stubStatefulLineItemRepository(assessmentUuid, lineItems);
+        stubStatefulScoreRepositories(enrollmentUuid, lineItemScores, assessmentScores);
+
+        service.syncAssignmentGrade(
+                assignmentUuid,
+                enrollmentUuid,
+                new BigDecimal("40.00"),
+                new BigDecimal("50.00"),
+                "ok",
+                LocalDateTime.now(),
+                UUID.randomUUID()
+        );
+
+        assertThat(lineItems).anySatisfy(lineItem -> {
+            assertThat(lineItem.getAssignmentUuid()).isEqualTo(assignmentUuid);
+            assertThat(lineItem.getItemType()).isEqualTo(CourseAssessmentLineItemType.ASSIGNMENT);
+        });
+        CourseAssessmentScore aggregateScore = assessmentScores.get(assessmentUuid);
+        assertThat(aggregateScore).isNotNull();
+        assertThat(aggregateScore.getPercentage()).isEqualByComparingTo("80.00");
+        assertThat(enrollment.getFinalGrade()).isEqualByComparingTo("80.00");
+    }
+
+    @Test
+    void syncAssignmentGradeWithConfiguredRubricDefersToPendingEvaluation() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID assessmentUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        UUID assignmentUuid = UUID.randomUUID();
+        UUID lineItemUuid = UUID.randomUUID();
+        UUID rubricUuid = UUID.randomUUID();
+
+        CourseAssessment assessment = assessment(courseUuid, assessmentUuid, "100.00", CourseAssessmentAggregationStrategy.POINTS_SUM);
+        assessment.setRubricUuid(rubricUuid);
+        CourseEnrollment enrollment = enrollment(courseUuid, enrollmentUuid);
+        CourseAssessmentLineItem lineItem = assignmentLineItem(assessmentUuid, lineItemUuid, assignmentUuid, "50.00");
+
+        Map<String, CourseAssessmentLineItemScore> lineItemScores = new HashMap<>();
+        Map<UUID, CourseAssessmentScore> assessmentScores = new HashMap<>();
+        Map<String, CourseAssessmentLineItemRubricEvaluation> evaluations = new HashMap<>();
+        Map<UUID, List<CourseAssessmentLineItemRubricEvaluationRow>> evaluationRows = new HashMap<>();
+
+        when(lineItemRepository.findByAssignmentUuid(assignmentUuid)).thenReturn(Optional.of(lineItem));
+        when(courseAssessmentRepository.findByUuid(assessmentUuid)).thenReturn(Optional.of(assessment));
+        when(courseEnrollmentRepository.findByUuid(enrollmentUuid)).thenReturn(Optional.of(enrollment));
+        stubAssessmentAndEnrollmentLookups(courseUuid, assessment, enrollment);
+        stubStatefulLineItemRepository(assessmentUuid, new ArrayList<>(List.of(lineItem)));
+        stubStatefulScoreRepositories(enrollmentUuid, lineItemScores, assessmentScores);
+        stubStatefulRubricEvaluationRepositories(evaluations, evaluationRows);
+
+        service.syncAssignmentGrade(
+                assignmentUuid,
+                enrollmentUuid,
+                new BigDecimal("45.00"),
+                new BigDecimal("50.00"),
+                "Good",
+                LocalDateTime.now(),
+                UUID.randomUUID()
+        );
+
+        CourseAssessmentLineItemRubricEvaluation evaluation = evaluations.get(evaluationKey(lineItemUuid, enrollmentUuid));
+        assertThat(evaluation).isNotNull();
+        assertThat(evaluation.getStatus()).isEqualTo(CourseAssessmentLineItemRubricEvaluationStatus.PENDING);
+        assertThat(evaluation.getRubricUuid()).isEqualTo(rubricUuid);
+        assertThat(lineItemScores).isEmpty();
+    }
+
+    @Test
     void createLineItemRejectsMissingWeightForWeightedComponent() {
         UUID courseUuid = UUID.randomUUID();
         UUID assessmentUuid = UUID.randomUUID();

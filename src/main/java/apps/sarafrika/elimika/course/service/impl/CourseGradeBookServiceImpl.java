@@ -61,6 +61,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -367,8 +368,10 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             return;
         }
 
-        lineItemRepository.findByAssignmentUuid(assignmentUuid)
-                .ifPresent(lineItem -> syncDerivedScore(lineItem, enrollmentUuid, score, maxScore, comments, gradedAt, gradedByUuid));
+        CourseAssessmentLineItem lineItem = ensureAssignmentLineItem(assignmentUuid, maxScore);
+        if (lineItem != null) {
+            applyGradeToLineItem(lineItem, enrollmentUuid, score, maxScore, comments, gradedAt, gradedByUuid);
+        }
     }
 
     @Override
@@ -386,8 +389,10 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             return;
         }
 
-        lineItemRepository.findByQuizUuid(quizUuid)
-                .ifPresent(lineItem -> syncDerivedScore(lineItem, enrollmentUuid, score, maxScore, comments, gradedAt, gradedByUuid));
+        CourseAssessmentLineItem lineItem = ensureQuizLineItem(quizUuid, maxScore);
+        if (lineItem != null) {
+            applyGradeToLineItem(lineItem, enrollmentUuid, score, maxScore, comments, gradedAt, gradedByUuid);
+        }
     }
 
     @Override
@@ -752,7 +757,13 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         return assessment.getRubricUuid();
     }
 
-    private void syncDerivedScore(
+    /**
+     * Applies a derived assignment/quiz grade to its line item. When the effective rubric
+     * (line item, else assessment) is configured, the rubric is authoritative: the line item
+     * is marked pending rubric evaluation instead of taking the raw score, mirroring how
+     * attendance defers to a rubric. Otherwise the raw score is stored and totals recalculated.
+     */
+    private void applyGradeToLineItem(
             CourseAssessmentLineItem lineItem,
             UUID enrollmentUuid,
             BigDecimal scoreValue,
@@ -761,8 +772,6 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             LocalDateTime gradedAt,
             UUID gradedByUuid
     ) {
-        saveLineItemScore(lineItem, enrollmentUuid, scoreValue, maxScoreValue, comments, gradedAt, gradedByUuid);
-
         CourseAssessment assessment = courseAssessmentRepository.findByUuid(lineItem.getCourseAssessmentUuid())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format("Course assessment with ID %s not found", lineItem.getCourseAssessmentUuid())));
@@ -770,8 +779,195 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format("Course enrollment with ID %s not found", enrollmentUuid)));
 
+        UUID rubricUuid = resolveEffectiveRubricUuid(assessment, lineItem);
+        if (rubricUuid != null) {
+            ensureRubricPendingEvaluation(assessment, lineItem, enrollment, rubricUuid);
+            return;
+        }
+
+        saveLineItemScore(lineItem, enrollmentUuid, scoreValue, maxScoreValue, comments, gradedAt, gradedByUuid);
         recalculateAssessmentForEnrollment(enrollmentUuid, assessment);
         recalculateCourseFinalGrade(enrollment.getCourseUuid(), enrollmentUuid);
+    }
+
+    /**
+     * Marks a line item pending rubric evaluation for an enrollment (unless already completed),
+     * clearing any raw score so the rubric evaluation becomes the source of truth for the grade.
+     */
+    private void ensureRubricPendingEvaluation(
+            CourseAssessment assessment,
+            CourseAssessmentLineItem lineItem,
+            CourseEnrollment enrollment,
+            UUID rubricUuid
+    ) {
+        CourseAssessmentLineItemRubricEvaluation evaluation = rubricEvaluationRepository
+                .findByLineItemUuidAndEnrollmentUuid(lineItem.getUuid(), enrollment.getUuid())
+                .orElseGet(CourseAssessmentLineItemRubricEvaluation::new);
+
+        if (evaluation.getStatus() == CourseAssessmentLineItemRubricEvaluationStatus.COMPLETED) {
+            return;
+        }
+
+        evaluation.setLineItemUuid(lineItem.getUuid());
+        evaluation.setEnrollmentUuid(enrollment.getUuid());
+        evaluation.setRubricUuid(rubricUuid);
+        evaluation.setStatus(CourseAssessmentLineItemRubricEvaluationStatus.PENDING);
+        evaluation.setScore(null);
+        evaluation.setMaxScore(null);
+        evaluation.setPercentage(null);
+        if (evaluation.getComments() == null || evaluation.getComments().isBlank()) {
+            evaluation.setComments("Submission graded; rubric evaluation pending");
+        }
+        evaluation.setGradedAt(null);
+        evaluation.setGradedByUuid(null);
+        rubricEvaluationRepository.save(evaluation);
+
+        lineItemScoreRepository.findByLineItemUuidAndEnrollmentUuid(lineItem.getUuid(), enrollment.getUuid())
+                .ifPresent(lineItemScoreRepository::delete);
+        recalculateAssessmentForEnrollment(enrollment.getUuid(), assessment);
+        recalculateCourseFinalGrade(enrollment.getCourseUuid(), enrollment.getUuid());
+    }
+
+    private CourseAssessmentLineItem ensureAssignmentLineItem(UUID assignmentUuid, BigDecimal fallbackMaxScore) {
+        Optional<CourseAssessmentLineItem> existing = lineItemRepository.findByAssignmentUuid(assignmentUuid);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        Assignment assignment = assignmentRepository.findByUuid(assignmentUuid).orElse(null);
+        if (assignment == null) {
+            return null;
+        }
+        UUID courseUuid = resolveCourseUuidForAssignment(assignment);
+        if (courseUuid == null) {
+            return null;
+        }
+        CourseAssessment assessment = resolveOrCreateDerivedAssessment(courseUuid);
+        return createDerivedLineItem(assessment, CourseAssessmentLineItemType.ASSIGNMENT,
+                assignment.getTitle(), assignmentUuid, null, fallbackMaxScore);
+    }
+
+    private CourseAssessmentLineItem ensureQuizLineItem(UUID quizUuid, BigDecimal fallbackMaxScore) {
+        Optional<CourseAssessmentLineItem> existing = lineItemRepository.findByQuizUuid(quizUuid);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        Quiz quiz = quizRepository.findByUuid(quizUuid).orElse(null);
+        if (quiz == null) {
+            return null;
+        }
+        UUID courseUuid = resolveCourseUuidForQuiz(quiz);
+        if (courseUuid == null) {
+            return null;
+        }
+        CourseAssessment assessment = resolveOrCreateDerivedAssessment(courseUuid);
+        return createDerivedLineItem(assessment, CourseAssessmentLineItemType.QUIZ,
+                quiz.getTitle(), null, quizUuid, fallbackMaxScore);
+    }
+
+    private UUID resolveCourseUuidForAssignment(Assignment assignment) {
+        if (assignment.getLessonUuid() != null) {
+            return lessonRepository.findByUuid(assignment.getLessonUuid())
+                    .map(Lesson::getCourseUuid)
+                    .orElse(null);
+        }
+        return resolveCourseUuidFromClassDefinition(assignment.getClassDefinitionUuid());
+    }
+
+    private UUID resolveCourseUuidForQuiz(Quiz quiz) {
+        if (quiz.getLessonUuid() != null) {
+            return lessonRepository.findByUuid(quiz.getLessonUuid())
+                    .map(Lesson::getCourseUuid)
+                    .orElse(null);
+        }
+        return resolveCourseUuidFromClassDefinition(quiz.getClassDefinitionUuid());
+    }
+
+    private UUID resolveCourseUuidFromClassDefinition(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return null;
+        }
+        return classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::courseUuid)
+                .orElse(null);
+    }
+
+    /**
+     * Picks the assessment that auto-created quiz/assignment line items attach to: the course's
+     * first active, non-attendance assessment; creating a points-sum "General" assessment when
+     * the course has none configured, so graded work always reaches the final grade.
+     */
+    private CourseAssessment resolveOrCreateDerivedAssessment(UUID courseUuid) {
+        return courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid).stream()
+                .filter(assessment -> !Boolean.FALSE.equals(assessment.getActive()))
+                .filter(assessment -> !Boolean.TRUE.equals(assessment.getSyncClassAttendance()))
+                .findFirst()
+                .orElseGet(() -> {
+                    CourseAssessment assessment = new CourseAssessment();
+                    assessment.setCourseUuid(courseUuid);
+                    assessment.setAssessmentType("general");
+                    assessment.setTitle("General");
+                    assessment.setDescription("Auto-generated assessment for graded quizzes and assignments");
+                    assessment.setAggregationStrategy(CourseAssessmentAggregationStrategy.POINTS_SUM);
+                    assessment.setWeightPercentage(ONE_HUNDRED);
+                    assessment.setActive(Boolean.TRUE);
+                    assessment.setIsRequired(Boolean.TRUE);
+                    return courseAssessmentRepository.save(assessment);
+                });
+    }
+
+    private CourseAssessmentLineItem createDerivedLineItem(
+            CourseAssessment assessment,
+            CourseAssessmentLineItemType itemType,
+            String title,
+            UUID assignmentUuid,
+            UUID quizUuid,
+            BigDecimal fallbackMaxScore
+    ) {
+        String label = itemType == CourseAssessmentLineItemType.QUIZ ? "Quiz" : "Assignment";
+        CourseAssessmentLineItem lineItem = new CourseAssessmentLineItem();
+        lineItem.setCourseAssessmentUuid(assessment.getUuid());
+        lineItem.setTitle(title == null || title.isBlank() ? label : title);
+        lineItem.setDescription("Auto-generated from " + label.toLowerCase() + " grade");
+        lineItem.setItemType(itemType);
+        lineItem.setAssignmentUuid(assignmentUuid);
+        lineItem.setQuizUuid(quizUuid);
+        lineItem.setMaxScore(assessment.getRubricUuid() != null
+                ? rubricMaxScore(assessment.getRubricUuid())
+                : nonPositiveToDefault(fallbackMaxScore));
+        lineItem.setWeightPercentage(usesWeightedLineItems(assessment)
+                ? defaultDerivedWeight(assessment)
+                : defaultWeight(null));
+        lineItem.setDisplayOrder(nextDisplayOrder(assessment.getUuid()));
+        lineItem.setActive(Boolean.TRUE);
+        return lineItemRepository.save(lineItem);
+    }
+
+    private BigDecimal rubricMaxScore(UUID rubricUuid) {
+        AssessmentRubric rubric = getRubricOrThrow(rubricUuid);
+        return resolveRubricMaxScore(rubric, getRubricCriteria(rubricUuid), getRubricScoringLevels(rubricUuid));
+    }
+
+    /**
+     * A non-distorting default weight for an auto-created line item on a weighted-average
+     * assessment: the average of the assessment's existing positive weights (100 when none),
+     * keeping the new item comparable to its peers. The instructor can rebalance afterward.
+     */
+    private BigDecimal defaultDerivedWeight(CourseAssessment assessment) {
+        List<BigDecimal> weights = lineItemRepository
+                .findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(assessment.getUuid())
+                .stream()
+                .map(CourseAssessmentLineItem::getWeightPercentage)
+                .filter(weight -> weight != null && weight.compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+        if (weights.isEmpty()) {
+            return ONE_HUNDRED;
+        }
+        BigDecimal sum = weights.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum.divide(BigDecimal.valueOf(weights.size()), DIVISION_SCALE, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal nonPositiveToDefault(BigDecimal maxScore) {
+        return maxScore != null && maxScore.compareTo(BigDecimal.ZERO) > 0 ? maxScore : BigDecimal.valueOf(100);
     }
 
     private void applyScoreValues(
