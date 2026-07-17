@@ -6,13 +6,9 @@ import apps.sarafrika.elimika.course.dto.QuizAttemptDTO;
 import apps.sarafrika.elimika.course.factory.QuizAttemptFactory;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.QuizAttempt;
-import apps.sarafrika.elimika.course.model.QuizQuestion;
-import apps.sarafrika.elimika.course.model.QuizResponse;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
-import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
-import apps.sarafrika.elimika.course.repository.QuizResponseRepository;
 import apps.sarafrika.elimika.course.service.QuizAttemptService;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.spi.AssessmentCompletedNotificationRequestedEvent;
@@ -25,10 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -40,8 +34,6 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     private final GenericSpecificationBuilder<QuizAttempt> specificationBuilder;
 
     private final QuizRepository quizRepository;
-    private final QuizResponseRepository quizResponseRepository;
-    private final QuizQuestionRepository quizQuestionRepository;
     private final CourseGradeBookService courseGradeBookService;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -133,24 +125,6 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         Specification<QuizAttempt> spec = specificationBuilder.buildSpecification(
                 QuizAttempt.class, searchParams);
         return quizAttemptRepository.findAll(spec, pageable).map(QuizAttemptFactory::toDTO);
-    }
-
-    private BigDecimal calculateTotalScore(UUID attemptUuid) {
-        // Calculate total score from quiz responses
-        return quizResponseRepository.findByAttemptUuid(attemptUuid)
-                .stream()
-                .map(QuizResponse::getPointsEarned)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private BigDecimal getMaxPossibleScore(UUID quizUuid) {
-        // Get maximum possible score for the quiz
-        return quizQuestionRepository.findByQuizUuid(quizUuid)
-                .stream()
-                .map(QuizQuestion::getPoints)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private void updateAttemptFields(QuizAttempt existingAttempt, QuizAttemptDTO dto) {

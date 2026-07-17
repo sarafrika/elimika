@@ -15,4 +15,8 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long>,
     void deleteByUuid(UUID uuid);
 
     boolean existsByUuid(UUID uuid);
+
+    long countByEnrollmentUuidAndQuizUuid(UUID enrollmentUuid, UUID quizUuid);
+
+    Optional<QuizAttempt> findTopByEnrollmentUuidAndQuizUuidOrderByAttemptNumberDesc(UUID enrollmentUuid, UUID quizUuid);
 }

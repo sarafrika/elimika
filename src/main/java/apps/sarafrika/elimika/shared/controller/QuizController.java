@@ -47,6 +47,7 @@ public class QuizController {
     private final QuizQuestionOptionService quizQuestionOptionService;
     private final QuizAttemptService quizAttemptService;
     private final StudentQuizViewService studentQuizViewService;
+    private final StudentQuizSubmissionService studentQuizSubmissionService;
 
     @Operation(
             summary = "Get student-safe quiz view",
@@ -75,6 +76,68 @@ public class QuizController {
         StudentQuizReviewDTO review = studentQuizViewService.getStudentQuizReview(quizUuid, attemptUuid, enrollmentUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(review, "Student quiz review retrieved successfully"));
+    }
+
+    // ===== STUDENT QUIZ TAKING =====
+
+    @Operation(
+            summary = "Start a quiz attempt",
+            description = "Starts a new quiz attempt for the student's enrollment, or resumes an in-progress "
+                    + "attempt. Enforces the quiz's attempts-allowed limit.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Attempt started or resumed"),
+                    @ApiResponse(responseCode = "409", description = "No remaining attempts allowed")
+            }
+    )
+    @PostMapping("/{quizUuid}/attempts")
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> startQuizAttempt(
+            @PathVariable UUID quizUuid,
+            @RequestParam("enrollment_uuid") UUID enrollmentUuid) {
+        QuizAttemptDTO attempt = studentQuizSubmissionService.startAttempt(quizUuid, enrollmentUuid);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(attempt, "Quiz attempt started successfully"));
+    }
+
+    @Operation(
+            summary = "Save quiz answers",
+            description = "Upserts the student's answers onto an in-progress attempt. Can be called repeatedly "
+                    + "to autosave progress before submitting."
+    )
+    @PutMapping("/{quizUuid}/attempts/{attemptUuid}/responses")
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> saveQuizResponses(
+            @PathVariable UUID quizUuid,
+            @PathVariable UUID attemptUuid,
+            @RequestParam("enrollment_uuid") UUID enrollmentUuid,
+            @Valid @RequestBody List<QuizResponseSubmissionDTO> responses) {
+        QuizAttemptDTO attempt = studentQuizSubmissionService.saveResponses(
+                quizUuid, attemptUuid, enrollmentUuid, responses);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(attempt, "Quiz answers saved successfully"));
+    }
+
+    @Operation(
+            summary = "Submit a quiz attempt",
+            description = "Submits the attempt and grades it. Objective questions are auto-graded immediately; "
+                    + "attempts containing text questions remain pending instructor grading.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Attempt submitted and graded"),
+                    @ApiResponse(responseCode = "409", description = "Attempt already submitted")
+            }
+    )
+    @PostMapping("/{quizUuid}/attempts/{attemptUuid}/submit")
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> submitQuizAttempt(
+            @PathVariable UUID quizUuid,
+            @PathVariable UUID attemptUuid,
+            @RequestParam("enrollment_uuid") UUID enrollmentUuid,
+            @Valid @RequestBody(required = false) QuizAttemptSubmissionRequest request) {
+        QuizAttemptDTO attempt = studentQuizSubmissionService.submitAttempt(
+                quizUuid, attemptUuid, enrollmentUuid, request);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(attempt, "Quiz attempt submitted successfully"));
     }
 
     @Operation(

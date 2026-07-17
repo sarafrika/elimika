@@ -17,6 +17,8 @@ public interface QuizResponseRepository extends JpaRepository<QuizResponse, Long
 
     List<QuizResponse> findByAttemptUuid(UUID attemptUuid);
 
+    Optional<QuizResponse> findByAttemptUuidAndQuestionUuid(UUID attemptUuid, UUID questionUuid);
+
     boolean existsByUuid(UUID uuid);
 
     long countByQuestionUuid(UUID questionUuid);

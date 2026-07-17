@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.StudentQuizDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizReviewDTO;
+import apps.sarafrika.elimika.course.internal.StudentQuizAccessValidator;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.model.Quiz;
@@ -64,15 +65,18 @@ class StudentQuizViewServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new StudentQuizViewServiceImpl(
-                quizRepository,
+        StudentQuizAccessValidator accessValidator = new StudentQuizAccessValidator(
                 lessonRepository,
                 courseEnrollmentRepository,
+                domainSecurityService
+        );
+        service = new StudentQuizViewServiceImpl(
+                quizRepository,
                 quizQuestionRepository,
                 quizQuestionOptionRepository,
                 quizAttemptRepository,
                 quizResponseRepository,
-                domainSecurityService
+                accessValidator
         );
     }
 

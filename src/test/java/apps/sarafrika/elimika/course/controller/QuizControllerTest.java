@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.service.QuizAttemptService;
 import apps.sarafrika.elimika.course.service.QuizQuestionOptionService;
 import apps.sarafrika.elimika.course.service.QuizQuestionService;
 import apps.sarafrika.elimika.course.service.QuizService;
+import apps.sarafrika.elimika.course.service.StudentQuizSubmissionService;
 import apps.sarafrika.elimika.course.service.StudentQuizViewService;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
 import apps.sarafrika.elimika.course.util.enums.QuizScope;
@@ -47,6 +48,8 @@ class QuizControllerTest {
     private QuizAttemptService quizAttemptService;
     @Mock
     private StudentQuizViewService studentQuizViewService;
+    @Mock
+    private StudentQuizSubmissionService studentQuizSubmissionService;
 
     private MockMvc mockMvc;
 
@@ -57,7 +60,8 @@ class QuizControllerTest {
                 quizQuestionService,
                 quizQuestionOptionService,
                 quizAttemptService,
-                studentQuizViewService
+                studentQuizViewService,
+                studentQuizSubmissionService
         );
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)

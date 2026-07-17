@@ -4,15 +4,12 @@ import apps.sarafrika.elimika.course.dto.StudentQuizDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizQuestionDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizQuestionOptionDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizReviewDTO;
-import apps.sarafrika.elimika.course.model.CourseEnrollment;
-import apps.sarafrika.elimika.course.model.Lesson;
+import apps.sarafrika.elimika.course.internal.StudentQuizAccessValidator;
 import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.model.QuizAttempt;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
 import apps.sarafrika.elimika.course.model.QuizQuestionOption;
 import apps.sarafrika.elimika.course.model.QuizResponse;
-import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
-import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
 import apps.sarafrika.elimika.course.repository.QuizQuestionOptionRepository;
 import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
@@ -20,9 +17,7 @@ import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.QuizResponseRepository;
 import apps.sarafrika.elimika.course.service.StudentQuizViewService;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
-import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -41,26 +36,20 @@ import java.util.stream.Collectors;
 public class StudentQuizViewServiceImpl implements StudentQuizViewService {
 
     private static final String QUIZ_NOT_FOUND_TEMPLATE = "Quiz with ID %s not found";
-    private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Course enrollment with ID %s not found";
     private static final String ATTEMPT_NOT_FOUND_TEMPLATE = "Quiz attempt with ID %s not found";
 
     private final QuizRepository quizRepository;
-    private final LessonRepository lessonRepository;
-    private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final QuizQuestionRepository quizQuestionRepository;
     private final QuizQuestionOptionRepository quizQuestionOptionRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final QuizResponseRepository quizResponseRepository;
-    private final DomainSecurityService domainSecurityService;
+    private final StudentQuizAccessValidator accessValidator;
 
     @Override
     public StudentQuizDTO getStudentQuiz(UUID quizUuid, UUID enrollmentUuid) {
         Quiz quiz = loadQuiz(quizUuid);
-        CourseEnrollment enrollment = loadEnrollment(enrollmentUuid);
-        UUID courseUuid = resolveCourseUuid(quiz);
-
-        validateEnrollmentAccess(enrollment, courseUuid);
-        validateStudentVisibleQuiz(quiz);
+        accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
+        accessValidator.requireStudentVisibleQuiz(quiz);
 
         List<StudentQuizQuestionDTO> questions = quizQuestionRepository.findByQuizUuidOrderByDisplayOrderAsc(quizUuid)
                 .stream()
@@ -85,9 +74,7 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
     @Override
     public StudentQuizReviewDTO getStudentQuizReview(UUID quizUuid, UUID attemptUuid, UUID enrollmentUuid) {
         Quiz quiz = loadQuiz(quizUuid);
-        CourseEnrollment enrollment = loadEnrollment(enrollmentUuid);
-        UUID courseUuid = resolveCourseUuid(quiz);
-        validateEnrollmentAccess(enrollment, courseUuid);
+        accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
 
         QuizAttempt attempt = quizAttemptRepository.findByUuid(attemptUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -203,38 +190,6 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
         return quizRepository.findByUuid(quizUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(QUIZ_NOT_FOUND_TEMPLATE, quizUuid)));
-    }
-
-    private CourseEnrollment loadEnrollment(UUID enrollmentUuid) {
-        return courseEnrollmentRepository.findByUuid(enrollmentUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ENROLLMENT_NOT_FOUND_TEMPLATE, enrollmentUuid)));
-    }
-
-    private UUID resolveCourseUuid(Quiz quiz) {
-        Lesson lesson = lessonRepository.findByUuid(quiz.getLessonUuid())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format("Lesson with ID %s not found", quiz.getLessonUuid())));
-        return lesson.getCourseUuid();
-    }
-
-    private void validateEnrollmentAccess(CourseEnrollment enrollment, UUID courseUuid) {
-        if (!courseUuid.equals(enrollment.getCourseUuid())) {
-            throw new AccessDeniedException("Course enrollment does not belong to this quiz.");
-        }
-        if (enrollment.getStatus() == null || !enrollment.getStatus().allowsAccess()) {
-            throw new AccessDeniedException("Course enrollment does not allow quiz access.");
-        }
-        if (domainSecurityService.isStudent()
-                && !domainSecurityService.isStudentWithUuid(enrollment.getStudentUuid())) {
-            throw new AccessDeniedException("Students may only access quizzes for their own course enrollment.");
-        }
-    }
-
-    private void validateStudentVisibleQuiz(Quiz quiz) {
-        if (quiz.getStatus() != ContentStatus.PUBLISHED || !Boolean.TRUE.equals(quiz.getActive())) {
-            throw new ResourceNotFoundException(String.format(QUIZ_NOT_FOUND_TEMPLATE, quiz.getUuid()));
-        }
     }
 
     private QuizResponse latestResponse(QuizResponse first, QuizResponse second) {
