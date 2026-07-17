@@ -44,4 +44,12 @@ public class Lesson extends BaseEntity {
 
     @Column(name = "active")
     private Boolean active;
+
+    /**
+     * On a draft lesson, the live lesson this one will be promoted onto. NULL means the
+     * edit adds this lesson. Promotion updates matched live lessons in place so their
+     * uuids survive and learner progress rows stay valid.
+     */
+    @Column(name = "source_lesson_uuid")
+    private UUID sourceLessonUuid;
 }

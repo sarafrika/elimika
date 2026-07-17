@@ -195,6 +195,33 @@ public record LessonContentDTO(
 ) {
 
     /**
+     * A copy of this content bound to the given lesson.
+     * <p>
+     * Lets a caller pin the content to the lesson it was addressed under, rather than trusting
+     * the {@code lesson_uuid} in the request body, and lets an authoring write be redirected
+     * onto a course's draft while an edit is awaiting review.
+     */
+    public LessonContentDTO withLessonUuid(UUID targetLessonUuid) {
+        return new LessonContentDTO(
+                uuid,
+                targetLessonUuid,
+                contentTypeUuid,
+                title,
+                description,
+                contentText,
+                fileUrl,
+                fileSizeBytes,
+                mimeType,
+                displayOrder,
+                isRequired,
+                createdDate,
+                createdBy,
+                updatedDate,
+                updatedBy
+        );
+    }
+
+    /**
      * Returns a formatted display string for file size.
      *
      * @return Formatted file size or "No file" if not applicable

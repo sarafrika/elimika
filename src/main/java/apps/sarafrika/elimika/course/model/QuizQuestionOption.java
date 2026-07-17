@@ -24,4 +24,11 @@ public class QuizQuestionOption extends BaseEntity {
 
     @Column(name = "display_order")
     private Integer displayOrder;
+
+    /**
+     * On a draft option, the live option it will be promoted onto. NULL means the edit adds
+     * it. Preserves live option uuids so quiz_responses.selected_option_uuid stays valid.
+     */
+    @Column(name = "source_option_uuid")
+    private UUID sourceOptionUuid;
 }

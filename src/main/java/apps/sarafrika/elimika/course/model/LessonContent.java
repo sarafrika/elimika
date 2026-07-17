@@ -42,4 +42,11 @@ public class LessonContent extends BaseEntity {
 
     @Column(name = "is_required")
     private Boolean isRequired;
+
+    /**
+     * On draft content, the live content it will be promoted onto. NULL means the edit adds
+     * it. Preserves live content uuids so content_progress stays valid.
+     */
+    @Column(name = "source_content_uuid")
+    private UUID sourceContentUuid;
 }
