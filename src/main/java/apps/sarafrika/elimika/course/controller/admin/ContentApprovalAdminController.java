@@ -16,17 +16,13 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,9 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -98,9 +92,10 @@ public class ContentApprovalAdminController {
                     The difference between the live course and the edit awaiting review: which
                     course fields change and how many lessons the edit adds, removes or modifies.
                     """,
+            // Response schemas are inferred from the return type so the generated clients see
+            // the real ApiResponse envelope rather than the bare payload.
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Diff retrieved",
-                            content = @Content(schema = @Schema(implementation = CourseEditDiffDTO.class))),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Diff retrieved"),
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No edit awaiting review for this course")
             }
     )
@@ -127,8 +122,7 @@ public class ContentApprovalAdminController {
                     Every decision is recorded in the course's moderation history with its reason.
                     """,
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Decision applied successfully",
-                            content = @Content(schema = @Schema(implementation = CourseDTO.class))),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Decision applied successfully"),
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Unsupported action"),
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Course not found")
             }
@@ -200,21 +194,23 @@ public class ContentApprovalAdminController {
 
     @PostMapping("/programs/{uuid}/moderate")
     @Operation(summary = "Moderate training program approval")
-    public ResponseEntity<ApiResponse<TrainingProgramDTO>> moderateProgram(@PathVariable UUID uuid,
-                                                                           @RequestParam("action") String action,
-                                                                           @RequestParam(required = false) String reason) {
-        String normalizedAction = normalizeAction(action);
-        TrainingProgramDTO program = switch (normalizedAction) {
-            case "approve" -> trainingProgramService.approveProgram(uuid, reason);
-            case "reject" -> trainingProgramService.unapproveProgram(uuid, reason, ModerationAction.REJECTED);
-            case "revoke" -> trainingProgramService.unapproveProgram(uuid, reason, ModerationAction.REVOKED);
-            default -> throw unsupportedAction(action);
+    public ResponseEntity<ApiResponse<TrainingProgramDTO>> moderateProgram(
+            @Parameter(description = "UUID of the training program") @PathVariable UUID uuid,
+            @Valid @RequestBody ContentModerationDecisionRequest request) {
+
+        ModerationAction action = request.action();
+        String reason = request.reason();
+
+        TrainingProgramDTO program = switch (action) {
+            case APPROVED -> trainingProgramService.approveProgram(uuid, reason);
+            case REJECTED -> trainingProgramService.unapproveProgram(uuid, reason, ModerationAction.REJECTED);
+            case REVOKED -> trainingProgramService.unapproveProgram(uuid, reason, ModerationAction.REVOKED);
         };
 
-        String message = switch (normalizedAction) {
-            case "approve" -> "Training program approved successfully";
-            case "reject" -> "Training program rejected successfully";
-            default -> "Training program approval revoked successfully";
+        String message = switch (action) {
+            case APPROVED -> "Training program approved successfully";
+            case REJECTED -> "Training program rejected successfully";
+            case REVOKED -> "Training program approval revoked successfully";
         };
         return ResponseEntity.ok(ApiResponse.success(program, message));
     }
@@ -238,17 +234,4 @@ public class ContentApprovalAdminController {
                 "Training program moderation history retrieved successfully"));
     }
 
-    private String normalizeAction(String action) {
-        if (action == null) {
-            return "";
-        }
-        return action.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private ResponseStatusException unsupportedAction(String action) {
-        return new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Unsupported moderation action: " + action + ". Allowed values: approve, reject, revoke"
-        );
-    }
 }

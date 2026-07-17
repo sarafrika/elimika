@@ -50,4 +50,14 @@ public class CourseAssessment extends BaseEntity {
 
     @Column(name = "is_required")
     private Boolean isRequired;
+
+    @Column(name = "active")
+    private Boolean active;
+
+    /**
+     * On a draft assessment, the live assessment it will be promoted onto. NULL means the
+     * edit adds it. Preserves live assessment uuids so assessment scores stay valid.
+     */
+    @Column(name = "source_assessment_uuid")
+    private UUID sourceAssessmentUuid;
 }

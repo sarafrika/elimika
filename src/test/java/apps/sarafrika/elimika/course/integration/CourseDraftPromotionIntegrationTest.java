@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.integration;
 
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseAssessment;
+import apps.sarafrika.elimika.course.model.CourseRequirement;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.model.LessonContent;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -89,6 +91,10 @@ class CourseDraftPromotionIntegrationTest {
     private LessonRepository lessonRepository;
     @Autowired
     private LessonContentRepository lessonContentRepository;
+    @Autowired
+    private apps.sarafrika.elimika.course.repository.CourseAssessmentRepository assessmentRepository;
+    @Autowired
+    private apps.sarafrika.elimika.course.repository.CourseRequirementRepository requirementRepository;
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -344,6 +350,86 @@ class CourseDraftPromotionIntegrationTest {
         assertThat(drafts).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("assessments are cloned into the draft and promoted, preserving live uuids")
+    void assessmentsFollowTheDraft() {
+        Course live = publishedApprovedCourse("Course");
+        CourseAssessment liveAssessment = addAssessment(live.getUuid(), "Midterm");
+        UUID liveAssessmentUuid = liveAssessment.getUuid();
+
+        Course draft = draftService.openDraft(live.getUuid());
+        CourseAssessment draftAssessment = assessmentRepository
+                .findByCourseUuidOrderByCreatedDateAsc(draft.getUuid()).get(0);
+        assertThat(draftAssessment.getSourceAssessmentUuid()).isEqualTo(liveAssessmentUuid);
+        draftAssessment.setTitle("Final");
+        assessmentRepository.save(draftAssessment);
+
+        draftService.promote(live.getUuid(), null);
+
+        List<CourseAssessment> liveAssessments =
+                assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(live.getUuid());
+        assertThat(liveAssessments).hasSize(1);
+        assertThat(liveAssessments.get(0).getUuid()).isEqualTo(liveAssessmentUuid);
+        assertThat(liveAssessments.get(0).getTitle()).isEqualTo("Final");
+    }
+
+    @Test
+    @DisplayName("an assessment removed by an edit is deactivated, not deleted")
+    void removedAssessmentIsDeactivated() {
+        Course live = publishedApprovedCourse("Course");
+        CourseAssessment keep = addAssessment(live.getUuid(), "Keep");
+        CourseAssessment remove = addAssessment(live.getUuid(), "Remove");
+
+        Course draft = draftService.openDraft(live.getUuid());
+        assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draft.getUuid()).stream()
+                .filter(a -> remove.getUuid().equals(a.getSourceAssessmentUuid()))
+                .forEach(assessmentRepository::delete);
+
+        draftService.promote(live.getUuid(), null);
+
+        assertThat(assessmentRepository.findByUuid(remove.getUuid()).orElseThrow().getActive()).isFalse();
+        assertThat(assessmentRepository.findByUuid(keep.getUuid()).orElseThrow().getActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("requirements are cloned and promoted, with removals actually deleted")
+    void requirementsFollowTheDraft() {
+        Course live = publishedApprovedCourse("Course");
+        CourseRequirement keep = addRequirement(live.getUuid(), "Bring a laptop");
+        CourseRequirement drop = addRequirement(live.getUuid(), "Obsolete rule");
+
+        Course draft = draftService.openDraft(live.getUuid());
+        requirementRepository.findByCourseUuid(draft.getUuid()).stream()
+                .filter(r -> drop.getUuid().equals(r.getSourceRequirementUuid()))
+                .forEach(requirementRepository::delete);
+
+        draftService.promote(live.getUuid(), null);
+
+        List<CourseRequirement> liveReqs = requirementRepository.findByCourseUuid(live.getUuid());
+        assertThat(liveReqs).hasSize(1);
+        // No learner data references requirements, so a removed one is genuinely gone.
+        assertThat(liveReqs.get(0).getUuid()).isEqualTo(keep.getUuid());
+    }
+
+    @Test
+    @DisplayName("rejecting an edit leaves assessments and requirements untouched")
+    void discardLeavesAssessmentsAndRequirements() {
+        Course live = publishedApprovedCourse("Course");
+        CourseAssessment assessment = addAssessment(live.getUuid(), "Midterm");
+        CourseRequirement requirement = addRequirement(live.getUuid(), "Bring a laptop");
+
+        Course draft = draftService.openDraft(live.getUuid());
+        assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draft.getUuid())
+                .forEach(a -> { a.setTitle("Changed"); assessmentRepository.save(a); });
+
+        draftService.discard(live.getUuid());
+
+        assertThat(assessmentRepository.findByUuid(assessment.getUuid()).orElseThrow().getTitle())
+                .isEqualTo("Midterm");
+        assertThat(requirementRepository.findByCourseUuid(live.getUuid())).hasSize(1);
+        assertThat(requirementRepository.findByUuid(requirement.getUuid())).isPresent();
+    }
+
     // ---------------------------------------------------------------- fixtures
 
     private Course publishedApprovedCourse(String name) {
@@ -392,6 +478,30 @@ class CourseDraftPromotionIntegrationTest {
         jdbc.update("INSERT INTO lesson_content_types (uuid, name, created_by) VALUES (?, ?, 'test')",
                 uuid, "text-" + Long.toHexString(System.nanoTime()));
         return uuid;
+    }
+
+    private CourseAssessment addAssessment(UUID courseUuid, String title) {
+        CourseAssessment assessment = new CourseAssessment();
+        assessment.setCourseUuid(courseUuid);
+        assessment.setTitle(title);
+        assessment.setAssessmentType("EXAM");
+        assessment.setWeightPercentage(new BigDecimal("50.00"));
+        assessment.setAggregationStrategy(
+                apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy.WEIGHTED_AVERAGE);
+        assessment.setSyncClassAttendance(false);
+        assessment.setIsRequired(true);
+        assessment.setActive(true);
+        return assessmentRepository.saveAndFlush(assessment);
+    }
+
+    private CourseRequirement addRequirement(UUID courseUuid, String text) {
+        CourseRequirement requirement = new CourseRequirement();
+        requirement.setCourseUuid(courseUuid);
+        requirement.setRequirementText(text);
+        requirement.setRequirementType(
+                apps.sarafrika.elimika.course.util.enums.RequirementType.STUDENT);
+        requirement.setIsMandatory(true);
+        return requirementRepository.saveAndFlush(requirement);
     }
 
     private static String randomUserNo() {
