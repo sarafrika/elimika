@@ -832,9 +832,10 @@ public class CourseController {
 
                     **Authorization:** Only the course owner.
                     """,
+            // Response schemas are inferred from the return type so the generated clients see
+            // the real ApiResponse envelope rather than the bare payload.
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Pending edit retrieved",
-                            content = @Content(schema = @Schema(implementation = CoursePendingEditDTO.class))),
+                    @ApiResponse(responseCode = "200", description = "Pending edit retrieved"),
                     @ApiResponse(responseCode = "204", description = "No edit awaiting review"),
                     @ApiResponse(responseCode = "403", description = "Not the course owner")
             }
@@ -949,16 +950,20 @@ public class CourseController {
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "is_required", required = false) Boolean isRequired
     ) {
+        // On a live course the media attaches to the draft's copy of the lesson, so it is
+        // reviewed with the rest of the edit rather than appearing live immediately.
+        UUID targetLessonUuid = courseDraftService.resolveEditableLessonUuid(courseUuid, lessonUuid);
+
         String folder = storageProperties.getFolders().getCourseMaterials()
                 + "/" + courseUuid
-                + "/lessons/" + lessonUuid;
+                + "/lessons/" + targetLessonUuid;
 
         StoredMedia storedMedia = mediaStorageService.store(new MediaUploadRequest(
-                file, MediaCategory.DOCUMENT, folder, MediaOwnerType.LESSON_CONTENT, lessonUuid, null));
+                file, MediaCategory.DOCUMENT, folder, MediaOwnerType.LESSON_CONTENT, targetLessonUuid, null));
 
         LessonContentDTO requestDto = new LessonContentDTO(
                 null,
-                lessonUuid,
+                targetLessonUuid,
                 contentTypeUuid,
                 title,
                 description,
@@ -1037,7 +1042,11 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID lessonUuid,
             @RequestBody List<UUID> contentUuids) {
-        lessonContentService.reorderContent(lessonUuid, contentUuids);
+        UUID targetLessonUuid = courseDraftService.resolveEditableLessonUuid(courseUuid, lessonUuid);
+        List<UUID> targetContentUuids = contentUuids.stream()
+                .map(contentUuid -> courseDraftService.resolveEditableContentUuid(courseUuid, lessonUuid, contentUuid))
+                .toList();
+        lessonContentService.reorderContent(targetLessonUuid, targetContentUuids);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success("Content reordered successfully", "Lesson content order updated"));
     }
@@ -1053,7 +1062,9 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentDTO>> addCourseAssessment(
             @PathVariable UUID courseUuid,
             @Valid @RequestBody CourseAssessmentDTO assessmentDTO) {
-        CourseAssessmentDTO createdAssessment = courseAssessmentService.createCourseAssessment(courseUuid, assessmentDTO);
+        UUID targetCourseUuid = courseDraftService.resolveEditableCourseUuid(courseUuid);
+        CourseAssessmentDTO createdAssessment =
+                courseAssessmentService.createCourseAssessment(targetCourseUuid, assessmentDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdAssessment, "Assessment added successfully"));
@@ -1085,7 +1096,10 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid,
             @Valid @RequestBody CourseAssessmentDTO assessmentDTO) {
-        CourseAssessmentDTO updatedAssessment = courseAssessmentService.updateCourseAssessment(courseUuid, assessmentUuid, assessmentDTO);
+        UUID targetCourseUuid = courseDraftService.resolveEditableCourseUuid(courseUuid);
+        UUID targetAssessmentUuid = courseDraftService.resolveEditableAssessmentUuid(courseUuid, assessmentUuid);
+        CourseAssessmentDTO updatedAssessment =
+                courseAssessmentService.updateCourseAssessment(targetCourseUuid, targetAssessmentUuid, assessmentDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedAssessment, "Assessment updated successfully"));
     }
@@ -1099,7 +1113,8 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourseAssessment(
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid) {
-        courseAssessmentService.deleteCourseAssessment(assessmentUuid);
+        courseAssessmentService.deleteCourseAssessment(
+                courseDraftService.resolveEditableAssessmentUuid(courseUuid, assessmentUuid));
         return ResponseEntity.noContent().build();
     }
 
@@ -1114,7 +1129,8 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseRequirementDTO>> addCourseRequirement(
             @PathVariable UUID courseUuid,
             @Valid @RequestBody CourseRequirementDTO requirementDTO) {
-        CourseRequirementDTO createdRequirement = courseRequirementService.createCourseRequirement(courseUuid, requirementDTO);
+        CourseRequirementDTO createdRequirement = courseRequirementService.createCourseRequirement(
+                courseDraftService.resolveEditableCourseUuid(courseUuid), requirementDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdRequirement, "Requirement added successfully"));
@@ -1146,7 +1162,10 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid,
             @Valid @RequestBody CourseRequirementDTO requirementDTO) {
-        CourseRequirementDTO updatedRequirement = courseRequirementService.updateCourseRequirement(courseUuid, requirementUuid, requirementDTO);
+        CourseRequirementDTO updatedRequirement = courseRequirementService.updateCourseRequirement(
+                courseDraftService.resolveEditableCourseUuid(courseUuid),
+                courseDraftService.resolveEditableRequirementUuid(courseUuid, requirementUuid),
+                requirementDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedRequirement, "Requirement updated successfully"));
     }
@@ -1160,7 +1179,9 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourseRequirement(
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid) {
-        courseRequirementService.deleteCourseRequirement(courseUuid, requirementUuid);
+        courseRequirementService.deleteCourseRequirement(
+                courseDraftService.resolveEditableCourseUuid(courseUuid),
+                courseDraftService.resolveEditableRequirementUuid(courseUuid, requirementUuid));
         return ResponseEntity.noContent().build();
     }
 
@@ -1175,7 +1196,8 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingRequirementDTO>> addCourseTrainingRequirement(
             @PathVariable UUID courseUuid,
             @Valid @RequestBody CourseTrainingRequirementDTO requirementDTO) {
-        CourseTrainingRequirementDTO createdRequirement = courseTrainingRequirementService.create(courseUuid, requirementDTO);
+        CourseTrainingRequirementDTO createdRequirement = courseTrainingRequirementService.create(
+                courseDraftService.resolveEditableCourseUuid(courseUuid), requirementDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdRequirement, "Training requirement added successfully"));
@@ -1207,7 +1229,10 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid,
             @Valid @RequestBody CourseTrainingRequirementDTO requirementDTO) {
-        CourseTrainingRequirementDTO updatedRequirement = courseTrainingRequirementService.update(courseUuid, requirementUuid, requirementDTO);
+        CourseTrainingRequirementDTO updatedRequirement = courseTrainingRequirementService.update(
+                courseDraftService.resolveEditableCourseUuid(courseUuid),
+                courseDraftService.resolveEditableTrainingRequirementUuid(courseUuid, requirementUuid),
+                requirementDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedRequirement, "Training requirement updated successfully"));
     }
@@ -1221,7 +1246,9 @@ public class CourseController {
     public ResponseEntity<Void> deleteCourseTrainingRequirement(
             @PathVariable UUID courseUuid,
             @PathVariable UUID requirementUuid) {
-        courseTrainingRequirementService.delete(courseUuid, requirementUuid);
+        courseTrainingRequirementService.delete(
+                courseDraftService.resolveEditableCourseUuid(courseUuid),
+                courseDraftService.resolveEditableTrainingRequirementUuid(courseUuid, requirementUuid));
         return ResponseEntity.noContent().build();
     }
 

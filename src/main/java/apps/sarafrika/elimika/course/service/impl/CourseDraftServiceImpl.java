@@ -4,7 +4,11 @@ import apps.sarafrika.elimika.course.dto.CourseEditDiffDTO;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentAttachment;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseAssessment;
+import apps.sarafrika.elimika.course.model.CourseAssessmentLineItem;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
+import apps.sarafrika.elimika.course.model.CourseRequirement;
+import apps.sarafrika.elimika.course.model.CourseTrainingRequirement;
 import apps.sarafrika.elimika.course.model.CourseVersionSnapshot;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.model.LessonContent;
@@ -14,8 +18,12 @@ import apps.sarafrika.elimika.course.model.QuizQuestion;
 import apps.sarafrika.elimika.course.model.QuizQuestionOption;
 import apps.sarafrika.elimika.course.repository.AssignmentAttachmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
+import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository;
+import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.CourseRequirementRepository;
+import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.repository.CourseVersionSnapshotRepository;
 import apps.sarafrika.elimika.course.repository.LessonContentRepository;
 import apps.sarafrika.elimika.course.repository.LessonPracticeActivityRepository;
@@ -72,6 +80,10 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     private final AssignmentRepository assignmentRepository;
     private final AssignmentAttachmentRepository assignmentAttachmentRepository;
     private final LessonPracticeActivityRepository practiceActivityRepository;
+    private final CourseAssessmentRepository assessmentRepository;
+    private final CourseAssessmentLineItemRepository lineItemRepository;
+    private final CourseRequirementRepository requirementRepository;
+    private final CourseTrainingRequirementRepository trainingRequirementRepository;
     private final CourseVersionSnapshotRepository snapshotRepository;
     private final ObjectMapper objectMapper;
 
@@ -102,6 +114,9 @@ public class CourseDraftServiceImpl implements CourseDraftService {
 
         cloneCategories(live.getUuid(), draft.getUuid());
         cloneLessonTree(live.getUuid(), draft.getUuid());
+        cloneAssessments(live.getUuid(), draft.getUuid());
+        cloneRequirements(live.getUuid(), draft.getUuid());
+        cloneTrainingRequirements(live.getUuid(), draft.getUuid());
 
         log.info("Opened draft {} for live course {}", draft.getUuid(), liveCourseUuid);
         return draft;
@@ -127,6 +142,9 @@ public class CourseDraftServiceImpl implements CourseDraftService {
 
         promoteCategories(draft.getUuid(), live.getUuid());
         promoteLessons(draft.getUuid(), live.getUuid());
+        promoteAssessments(draft.getUuid(), live.getUuid());
+        promoteRequirements(draft.getUuid(), live.getUuid());
+        promoteTrainingRequirements(draft.getUuid(), live.getUuid());
 
         // Snapshot the resulting live tree before the draft goes away, so the version
         // history records what actually went live rather than what was proposed.
@@ -234,6 +252,46 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             copyPracticeActivityFields(liveActivity, copy);
             copy.setLessonUuid(draftLessonUuid);
             practiceActivityRepository.save(copy);
+        }
+    }
+
+    private void cloneAssessments(UUID liveCourseUuid, UUID draftCourseUuid) {
+        for (CourseAssessment liveAssessment :
+                assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(liveCourseUuid)) {
+            CourseAssessment draftAssessment = new CourseAssessment();
+            copyAssessmentFields(liveAssessment, draftAssessment);
+            draftAssessment.setCourseUuid(draftCourseUuid);
+            draftAssessment.setSourceAssessmentUuid(liveAssessment.getUuid());
+            draftAssessment = assessmentRepository.save(draftAssessment);
+
+            for (CourseAssessmentLineItem liveItem :
+                    lineItemRepository.findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(liveAssessment.getUuid())) {
+                CourseAssessmentLineItem draftItem = new CourseAssessmentLineItem();
+                copyLineItemFields(liveItem, draftItem);
+                draftItem.setCourseAssessmentUuid(draftAssessment.getUuid());
+                draftItem.setSourceLineItemUuid(liveItem.getUuid());
+                lineItemRepository.save(draftItem);
+            }
+        }
+    }
+
+    private void cloneRequirements(UUID liveCourseUuid, UUID draftCourseUuid) {
+        for (CourseRequirement live : requirementRepository.findByCourseUuid(liveCourseUuid)) {
+            CourseRequirement copy = new CourseRequirement();
+            copyRequirementFields(live, copy);
+            copy.setCourseUuid(draftCourseUuid);
+            copy.setSourceRequirementUuid(live.getUuid());
+            requirementRepository.save(copy);
+        }
+    }
+
+    private void cloneTrainingRequirements(UUID liveCourseUuid, UUID draftCourseUuid) {
+        for (CourseTrainingRequirement live : trainingRequirementRepository.findByCourseUuid(liveCourseUuid)) {
+            CourseTrainingRequirement copy = new CourseTrainingRequirement();
+            copyTrainingRequirementFields(live, copy);
+            copy.setCourseUuid(draftCourseUuid);
+            copy.setSourceRequirementUuid(live.getUuid());
+            trainingRequirementRepository.save(copy);
         }
     }
 
@@ -477,6 +535,125 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
+    /**
+     * Reconciles assessments and their line items in place. Like lessons, removed rows are
+     * deactivated rather than deleted because assessment and line-item scores reference them.
+     */
+    private void promoteAssessments(UUID draftCourseUuid, UUID liveCourseUuid) {
+        List<CourseAssessment> draftAssessments =
+                assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draftCourseUuid);
+        Map<UUID, CourseAssessment> liveAssessments =
+                assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(liveCourseUuid).stream()
+                        .collect(Collectors.toMap(CourseAssessment::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
+
+        Set<UUID> retained = new LinkedHashSet<>();
+        for (CourseAssessment draft : draftAssessments) {
+            CourseAssessment target = draft.getSourceAssessmentUuid() == null
+                    ? null
+                    : liveAssessments.get(draft.getSourceAssessmentUuid());
+            if (target == null) {
+                target = new CourseAssessment();
+            }
+            copyAssessmentFields(draft, target);
+            target.setCourseUuid(liveCourseUuid);
+            target.setSourceAssessmentUuid(null);
+            target = assessmentRepository.save(target);
+            retained.add(target.getUuid());
+
+            promoteLineItems(draft.getUuid(), target.getUuid());
+        }
+
+        liveAssessments.values().stream()
+                .filter(a -> !retained.contains(a.getUuid()) && !Boolean.FALSE.equals(a.getActive()))
+                .forEach(a -> {
+                    a.setActive(false);
+                    assessmentRepository.save(a);
+                });
+    }
+
+    private void promoteLineItems(UUID draftAssessmentUuid, UUID liveAssessmentUuid) {
+        List<CourseAssessmentLineItem> draftItems =
+                lineItemRepository.findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(draftAssessmentUuid);
+        Map<UUID, CourseAssessmentLineItem> liveItems =
+                lineItemRepository.findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(liveAssessmentUuid).stream()
+                        .collect(Collectors.toMap(CourseAssessmentLineItem::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
+
+        Set<UUID> retained = new LinkedHashSet<>();
+        for (CourseAssessmentLineItem draft : draftItems) {
+            CourseAssessmentLineItem target = draft.getSourceLineItemUuid() == null
+                    ? null
+                    : liveItems.get(draft.getSourceLineItemUuid());
+            if (target == null) {
+                target = new CourseAssessmentLineItem();
+            }
+            copyLineItemFields(draft, target);
+            target.setCourseAssessmentUuid(liveAssessmentUuid);
+            target.setSourceLineItemUuid(null);
+            target = lineItemRepository.save(target);
+            retained.add(target.getUuid());
+        }
+
+        liveItems.values().stream()
+                .filter(i -> !retained.contains(i.getUuid()) && !Boolean.FALSE.equals(i.getActive()))
+                .forEach(i -> {
+                    i.setActive(false);
+                    lineItemRepository.save(i);
+                });
+    }
+
+    /**
+     * Requirements carry no learner data, so a removed one is hard-deleted. Matched ones are
+     * updated in place by source link, preserving their uuids, and new ones are inserted.
+     */
+    private void promoteRequirements(UUID draftCourseUuid, UUID liveCourseUuid) {
+        List<CourseRequirement> draftReqs = requirementRepository.findByCourseUuid(draftCourseUuid);
+        Map<UUID, CourseRequirement> liveReqs = requirementRepository.findByCourseUuid(liveCourseUuid).stream()
+                .collect(Collectors.toMap(CourseRequirement::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
+
+        Set<UUID> retained = new LinkedHashSet<>();
+        for (CourseRequirement draft : draftReqs) {
+            CourseRequirement target = draft.getSourceRequirementUuid() == null
+                    ? null
+                    : liveReqs.get(draft.getSourceRequirementUuid());
+            if (target == null) {
+                target = new CourseRequirement();
+            }
+            copyRequirementFields(draft, target);
+            target.setCourseUuid(liveCourseUuid);
+            target.setSourceRequirementUuid(null);
+            target = requirementRepository.save(target);
+            retained.add(target.getUuid());
+        }
+        liveReqs.values().stream()
+                .filter(r -> !retained.contains(r.getUuid()))
+                .forEach(requirementRepository::delete);
+    }
+
+    private void promoteTrainingRequirements(UUID draftCourseUuid, UUID liveCourseUuid) {
+        List<CourseTrainingRequirement> draftReqs = trainingRequirementRepository.findByCourseUuid(draftCourseUuid);
+        Map<UUID, CourseTrainingRequirement> liveReqs =
+                trainingRequirementRepository.findByCourseUuid(liveCourseUuid).stream()
+                        .collect(Collectors.toMap(CourseTrainingRequirement::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
+
+        Set<UUID> retained = new LinkedHashSet<>();
+        for (CourseTrainingRequirement draft : draftReqs) {
+            CourseTrainingRequirement target = draft.getSourceRequirementUuid() == null
+                    ? null
+                    : liveReqs.get(draft.getSourceRequirementUuid());
+            if (target == null) {
+                target = new CourseTrainingRequirement();
+            }
+            copyTrainingRequirementFields(draft, target);
+            target.setCourseUuid(liveCourseUuid);
+            target.setSourceRequirementUuid(null);
+            target = trainingRequirementRepository.save(target);
+            retained.add(target.getUuid());
+        }
+        liveReqs.values().stream()
+                .filter(r -> !retained.contains(r.getUuid()))
+                .forEach(trainingRequirementRepository::delete);
+    }
+
     // ---------------------------------------------------------------- snapshot
 
     private void writeSnapshot(UUID courseUuid, UUID pendingEditUuid) {
@@ -506,6 +683,43 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         ArrayNode lessons = root.putArray("lessons");
         for (Lesson lesson : lessonRepository.findByCourseUuidOrderByLessonNumberAsc(courseUuid)) {
             lessons.add(lessonNode(lesson));
+        }
+
+        ArrayNode assessments = root.putArray("assessments");
+        for (CourseAssessment assessment : assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid)) {
+            ObjectNode an = assessments.addObject();
+            an.put("uuid", str(assessment.getUuid()));
+            an.put("title", assessment.getTitle());
+            an.put("assessment_type", assessment.getAssessmentType());
+            an.put("weight_percentage",
+                    assessment.getWeightPercentage() == null ? null : assessment.getWeightPercentage().toPlainString());
+            an.put("active", assessment.getActive());
+            ArrayNode items = an.putArray("line_items");
+            for (CourseAssessmentLineItem item :
+                    lineItemRepository.findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(assessment.getUuid())) {
+                ObjectNode inode = items.addObject();
+                inode.put("uuid", str(item.getUuid()));
+                inode.put("title", item.getTitle());
+                inode.put("display_order", item.getDisplayOrder());
+                inode.put("active", item.getActive());
+            }
+        }
+
+        ArrayNode requirements = root.putArray("requirements");
+        for (CourseRequirement req : requirementRepository.findByCourseUuid(courseUuid)) {
+            ObjectNode rn = requirements.addObject();
+            rn.put("uuid", str(req.getUuid()));
+            rn.put("requirement_text", req.getRequirementText());
+            rn.put("is_mandatory", req.getIsMandatory());
+        }
+
+        ArrayNode trainingRequirements = root.putArray("training_requirements");
+        for (CourseTrainingRequirement req : trainingRequirementRepository.findByCourseUuid(courseUuid)) {
+            ObjectNode rn = trainingRequirements.addObject();
+            rn.put("uuid", str(req.getUuid()));
+            rn.put("name", req.getName());
+            rn.put("quantity", req.getQuantity());
+            rn.put("unit", req.getUnit());
         }
         return root;
     }
@@ -719,6 +933,97 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                         "Lesson content " + contentUuid + " has no draft counterpart for course " + courseUuid));
     }
 
+    @Override
+    public UUID resolveEditableAssessmentUuid(UUID courseUuid, UUID assessmentUuid) {
+        Course course = findCourse(courseUuid);
+        CourseAssessment assessment = assessmentRepository.findByUuid(assessmentUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Assessment not found with UUID: " + assessmentUuid));
+
+        if (!CoursePendingEditServiceImpl.requiresReview(course)) {
+            if (!courseUuid.equals(assessment.getCourseUuid())) {
+                throw new ResourceNotFoundException(
+                        "Assessment " + assessmentUuid + " does not belong to course " + courseUuid);
+            }
+            return assessmentUuid;
+        }
+
+        UUID draftCourseUuid = openDraft(courseUuid).getUuid();
+        if (draftCourseUuid.equals(assessment.getCourseUuid())) {
+            return assessmentUuid;
+        }
+        if (!courseUuid.equals(assessment.getCourseUuid())) {
+            throw new ResourceNotFoundException(
+                    "Assessment " + assessmentUuid + " does not belong to course " + courseUuid);
+        }
+        return assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draftCourseUuid).stream()
+                .filter(a -> assessmentUuid.equals(a.getSourceAssessmentUuid()))
+                .findFirst()
+                .map(CourseAssessment::getUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Assessment " + assessmentUuid + " has no draft counterpart for course " + courseUuid));
+    }
+
+    @Override
+    public UUID resolveEditableRequirementUuid(UUID courseUuid, UUID requirementUuid) {
+        Course course = findCourse(courseUuid);
+        CourseRequirement requirement = requirementRepository.findByUuid(requirementUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Requirement not found with UUID: " + requirementUuid));
+
+        if (!CoursePendingEditServiceImpl.requiresReview(course)) {
+            if (!courseUuid.equals(requirement.getCourseUuid())) {
+                throw new ResourceNotFoundException(
+                        "Requirement " + requirementUuid + " does not belong to course " + courseUuid);
+            }
+            return requirementUuid;
+        }
+
+        UUID draftCourseUuid = openDraft(courseUuid).getUuid();
+        if (draftCourseUuid.equals(requirement.getCourseUuid())) {
+            return requirementUuid;
+        }
+        if (!courseUuid.equals(requirement.getCourseUuid())) {
+            throw new ResourceNotFoundException(
+                    "Requirement " + requirementUuid + " does not belong to course " + courseUuid);
+        }
+        return requirementRepository.findByCourseUuid(draftCourseUuid).stream()
+                .filter(r -> requirementUuid.equals(r.getSourceRequirementUuid()))
+                .findFirst()
+                .map(CourseRequirement::getUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Requirement " + requirementUuid + " has no draft counterpart for course " + courseUuid));
+    }
+
+    @Override
+    public UUID resolveEditableTrainingRequirementUuid(UUID courseUuid, UUID requirementUuid) {
+        Course course = findCourse(courseUuid);
+        CourseTrainingRequirement requirement = trainingRequirementRepository.findByUuid(requirementUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Training requirement not found with UUID: " + requirementUuid));
+
+        if (!CoursePendingEditServiceImpl.requiresReview(course)) {
+            if (!courseUuid.equals(requirement.getCourseUuid())) {
+                throw new ResourceNotFoundException(
+                        "Training requirement " + requirementUuid + " does not belong to course " + courseUuid);
+            }
+            return requirementUuid;
+        }
+
+        UUID draftCourseUuid = openDraft(courseUuid).getUuid();
+        if (draftCourseUuid.equals(requirement.getCourseUuid())) {
+            return requirementUuid;
+        }
+        if (!courseUuid.equals(requirement.getCourseUuid())) {
+            throw new ResourceNotFoundException(
+                    "Training requirement " + requirementUuid + " does not belong to course " + courseUuid);
+        }
+        return trainingRequirementRepository.findByCourseUuid(draftCourseUuid).stream()
+                .filter(r -> requirementUuid.equals(r.getSourceRequirementUuid()))
+                .findFirst()
+                .map(CourseTrainingRequirement::getUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Training requirement " + requirementUuid + " has no draft counterpart for course " + courseUuid));
+    }
+
     // ---------------------------------------------------------------- field copies
 
     /**
@@ -814,6 +1119,49 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setFileUrl(from.getFileUrl());
         to.setFileSizeBytes(from.getFileSizeBytes());
         to.setMimeType(from.getMimeType());
+    }
+
+    private void copyAssessmentFields(CourseAssessment from, CourseAssessment to) {
+        to.setAssessmentType(from.getAssessmentType());
+        to.setTitle(from.getTitle());
+        to.setDescription(from.getDescription());
+        to.setWeightPercentage(from.getWeightPercentage());
+        to.setAggregationStrategy(from.getAggregationStrategy());
+        to.setRubricUuid(from.getRubricUuid());
+        to.setSyncClassAttendance(from.getSyncClassAttendance());
+        to.setIsRequired(from.getIsRequired());
+        to.setActive(from.getActive() == null ? Boolean.TRUE : from.getActive());
+    }
+
+    private void copyLineItemFields(CourseAssessmentLineItem from, CourseAssessmentLineItem to) {
+        to.setTitle(from.getTitle());
+        to.setDescription(from.getDescription());
+        to.setItemType(from.getItemType());
+        to.setAssignmentUuid(from.getAssignmentUuid());
+        to.setQuizUuid(from.getQuizUuid());
+        to.setRubricUuid(from.getRubricUuid());
+        to.setScheduledInstanceUuid(from.getScheduledInstanceUuid());
+        to.setMaxScore(from.getMaxScore());
+        to.setWeightPercentage(from.getWeightPercentage());
+        to.setDisplayOrder(from.getDisplayOrder());
+        to.setActive(from.getActive() == null ? Boolean.TRUE : from.getActive());
+        to.setDueAt(from.getDueAt());
+    }
+
+    private void copyRequirementFields(CourseRequirement from, CourseRequirement to) {
+        to.setRequirementType(from.getRequirementType());
+        to.setRequirementText(from.getRequirementText());
+        to.setIsMandatory(from.getIsMandatory());
+    }
+
+    private void copyTrainingRequirementFields(CourseTrainingRequirement from, CourseTrainingRequirement to) {
+        to.setRequirementType(from.getRequirementType());
+        to.setName(from.getName());
+        to.setDescription(from.getDescription());
+        to.setQuantity(from.getQuantity());
+        to.setUnit(from.getUnit());
+        to.setProvidedBy(from.getProvidedBy());
+        to.setIsMandatory(from.getIsMandatory());
     }
 
     private void copyPracticeActivityFields(LessonPracticeActivity from, LessonPracticeActivity to) {

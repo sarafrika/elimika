@@ -63,4 +63,11 @@ public class CourseAssessmentLineItem extends BaseEntity {
 
     @Column(name = "due_at")
     private LocalDateTime dueAt;
+
+    /**
+     * On a draft line item, the live line item it will be promoted onto. NULL means the edit
+     * adds it. Preserves live uuids so line-item scores and rubric evaluations stay valid.
+     */
+    @Column(name = "source_line_item_uuid")
+    private UUID sourceLineItemUuid;
 }

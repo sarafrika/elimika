@@ -98,4 +98,22 @@ public interface CourseDraftService {
      *         does not belong to the lesson, or the lesson to the course
      */
     UUID resolveEditableContentUuid(UUID courseUuid, UUID lessonUuid, UUID contentUuid);
+
+    /**
+     * The assessment a creator's authoring write should land on, redirecting to the draft's
+     * copy while an edit is awaiting review and verifying the assessment belongs to the course.
+     */
+    UUID resolveEditableAssessmentUuid(UUID courseUuid, UUID assessmentUuid);
+
+    /**
+     * The course requirement a creator's authoring write should land on, redirecting to the
+     * draft's copy while an edit is awaiting review.
+     */
+    UUID resolveEditableRequirementUuid(UUID courseUuid, UUID requirementUuid);
+
+    /**
+     * The training requirement a creator's authoring write should land on, redirecting to the
+     * draft's copy while an edit is awaiting review.
+     */
+    UUID resolveEditableTrainingRequirementUuid(UUID courseUuid, UUID requirementUuid);
 }

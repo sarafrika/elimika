@@ -34,4 +34,11 @@ public class CourseRequirement extends BaseEntity {
 
     @Column(name = "is_mandatory")
     private Boolean isMandatory;
+
+    /**
+     * On a draft requirement, the live requirement it will be promoted onto. NULL means the
+     * edit adds it. Used to route edits of a live requirement to its draft copy.
+     */
+    @Column(name = "source_requirement_uuid")
+    private UUID sourceRequirementUuid;
 }
