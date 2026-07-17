@@ -934,9 +934,12 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         lineItem.setMaxScore(assessment.getRubricUuid() != null
                 ? rubricMaxScore(assessment.getRubricUuid())
                 : nonPositiveToDefault(fallbackMaxScore));
+        // Points-sum line items ignore weight; leave it NULL to satisfy the weight check
+        // constraint (weight must be NULL or within (0, 100]). Weighted assessments require a
+        // positive weight, so derive a non-distorting default.
         lineItem.setWeightPercentage(usesWeightedLineItems(assessment)
                 ? defaultDerivedWeight(assessment)
-                : defaultWeight(null));
+                : null);
         lineItem.setDisplayOrder(nextDisplayOrder(assessment.getUuid()));
         lineItem.setActive(Boolean.TRUE);
         return lineItemRepository.save(lineItem);
