@@ -1,3 +1,17 @@
+# [2.99.0](https://github.com/sarafrika/elimika/compare/v2.98.0...v2.99.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **security:** restrict course authoring to the owning course creator ([ae3b02d](https://github.com/sarafrika/elimika/commit/ae3b02df79622063aa1c51ceb27e07d14be81e45))
+* **tests:** repair class marketplace job tests broken on main ([a0c3966](https://github.com/sarafrika/elimika/commit/a0c3966880788d0f751eeaf269e9cba3268d58d0))
+
+
+### Features
+
+* **courses:** extend edit review to assessments, requirements and lesson media ([49eb4c3](https://github.com/sarafrika/elimika/commit/49eb4c372806e669bd92eb9377f1e25d1b76b4fc))
+* **courses:** review edits to published courses without unpublishing them ([81a3c2c](https://github.com/sarafrika/elimika/commit/81a3c2c208f6a4af12522d3e946b17cf7bf7264e))
+
 # [2.98.0](https://github.com/sarafrika/elimika/compare/v2.97.2...v2.98.0) (2026-07-15)
 
 
