@@ -28,6 +28,9 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
 
     List<Course> findByUuidIn(List<UUID> uuids);
 
+    /** The open draft holding an unapproved edit of the given live course, if any. */
+    Optional<Course> findByParentCourseUuid(UUID parentCourseUuid);
+
     @Query("select c.uuid from Course c where c.courseCreatorUuid = :courseCreatorUuid")
     List<UUID> findUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 }

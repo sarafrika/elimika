@@ -64,6 +64,10 @@ class CourseControllerTest {
     private StorageService storageService;
     @Mock
     private MediaStorageService mediaStorageService;
+    @Mock
+    private apps.sarafrika.elimika.course.service.CourseDraftService courseDraftService;
+    @Mock
+    private apps.sarafrika.elimika.course.service.CoursePendingEditService coursePendingEditService;
 
     private StorageProperties storageProperties;
     private CourseController courseController;
@@ -79,6 +83,8 @@ class CourseControllerTest {
 
         courseController = new CourseController(
                 courseService,
+                courseDraftService,
+                coursePendingEditService,
                 lessonService,
                 lessonContentService,
                 courseAssessmentService,

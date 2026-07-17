@@ -160,6 +160,30 @@ public record LessonDTO(
 
 ) {
     /**
+     * A copy of this lesson bound to the given course.
+     * <p>
+     * Lets a caller pin the lesson to the course it was addressed under, rather than trusting
+     * the {@code course_uuid} in the request body, and lets an authoring write be redirected
+     * onto a course's draft while an edit is awaiting review.
+     */
+    public LessonDTO withCourseUuid(UUID targetCourseUuid) {
+        return new LessonDTO(
+                uuid,
+                targetCourseUuid,
+                lessonNumber,
+                title,
+                description,
+                learningObjectives,
+                status,
+                active,
+                createdDate,
+                createdBy,
+                updatedDate,
+                updatedBy
+        );
+    }
+
+    /**
      * Checks if the lesson is published and available to students.
      *
      * @return true if status is PUBLISHED

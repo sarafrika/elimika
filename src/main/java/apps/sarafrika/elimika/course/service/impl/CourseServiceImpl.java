@@ -7,12 +7,16 @@ import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
 import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.CourseCategoryService;
+import apps.sarafrika.elimika.course.service.CourseDraftService;
+import apps.sarafrika.elimika.course.service.CoursePendingEditService;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.CourseTrainingRequirementService;
 import apps.sarafrika.elimika.course.service.LessonService;
+import apps.sarafrika.elimika.course.util.CourseRevenueShareValidator;
 import apps.sarafrika.elimika.course.util.CourseSpecificationBuilder;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
@@ -61,6 +65,8 @@ public class CourseServiceImpl implements CourseService {
     private final ApplicationEventPublisher eventPublisher;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ContentModerationHistoryService contentModerationHistoryService;
+    private final CourseDraftService courseDraftService;
+    private final CoursePendingEditService coursePendingEditService;
 
     private static final String COURSE_NOT_FOUND_TEMPLATE = "Course with ID %s not found";
 
@@ -120,6 +126,14 @@ public class CourseServiceImpl implements CourseService {
         });
     }
 
+    /**
+     * Updates a course, routing material changes to a draft when the course is already live.
+     * <p>
+     * A published, admin-approved course keeps serving its approved content while an edit is
+     * reviewed, so material changes are applied to a shadow draft rather than the live row.
+     * Media fields are cosmetic and apply immediately — a creator should not wait on review
+     * to swap a thumbnail. Courses that are not yet live are edited directly, as before.
+     */
     @Override
     public CourseDTO updateCourse(UUID uuid, CourseDTO courseDTO) {
         log.debug("Updating course: {}", uuid);
@@ -128,15 +142,103 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
 
-        updateCourseFields(existingCourse, courseDTO);
-        validateRevenueShare(existingCourse);
-        Course updatedCourse = courseRepository.save(existingCourse);
+        if (!CoursePendingEditServiceImpl.requiresReview(existingCourse)) {
+            updateCourseFields(existingCourse, courseDTO);
+            validateRevenueShare(existingCourse);
+            courseRepository.save(existingCourse);
+            handleCategoryAssignments(uuid, courseDTO);
+            return getCourseByUuid(uuid);
+        }
 
-        // Handle category assignments if provided
-        handleCategoryAssignments(uuid, courseDTO);
+        applyCosmeticFields(existingCourse, courseDTO);
+        courseRepository.save(existingCourse);
 
-        // Fetch the updated course with category names for response
+        if (hasMaterialChanges(uuid, courseDTO)) {
+            Course draft = courseDraftService.openDraft(uuid);
+            updateCourseFields(draft, courseDTO);
+            validateRevenueShare(draft);
+            courseRepository.save(draft);
+            handleCategoryAssignments(draft.getUuid(), courseDTO);
+            coursePendingEditService.submitOrRefresh(uuid, draft.getUuid());
+            log.info("Material changes to live course {} routed to draft {} for review", uuid, draft.getUuid());
+        }
+
+        // Returns the live course: the creator's material changes are not live yet.
         return getCourseByUuid(uuid);
+    }
+
+    /**
+     * Media fields only. These apply to the live course immediately and never trigger review.
+     */
+    private void applyCosmeticFields(Course course, CourseDTO dto) {
+        if (dto.thumbnailUrl() != null) {
+            course.setThumbnailUrl(FileUrlResolver.toStorableValue(dto.thumbnailUrl()));
+        }
+        if (dto.introVideoUrl() != null) {
+            course.setIntroVideoUrl(FileUrlResolver.toStorableValue(dto.introVideoUrl()));
+        }
+        if (dto.bannerUrl() != null) {
+            course.setBannerUrl(FileUrlResolver.toStorableValue(dto.bannerUrl()));
+        }
+    }
+
+    /**
+     * Whether the incoming payload actually changes anything material.
+     * <p>
+     * Compared against the open draft when there is one, so a creator refining an edit keeps
+     * building on their working copy, and re-sending an unchanged value never re-opens review.
+     */
+    private boolean hasMaterialChanges(UUID liveCourseUuid, CourseDTO dto) {
+        Course baseline = courseDraftService.findDraft(liveCourseUuid)
+                .orElseGet(() -> courseRepository.findByUuid(liveCourseUuid)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                String.format(COURSE_NOT_FOUND_TEMPLATE, liveCourseUuid))));
+
+        if (differs(dto.name(), baseline.getName())
+                || differs(dto.description(), baseline.getDescription())
+                || differs(dto.objectives(), baseline.getObjectives())
+                || differs(dto.prerequisites(), baseline.getPrerequisites())
+                || differs(dto.difficultyUuid(), baseline.getDifficultyUuid())
+                || differs(dto.durationHours(), baseline.getDurationHours())
+                || differs(dto.durationMinutes(), baseline.getDurationMinutes())
+                || differs(dto.classLimit(), baseline.getClassLimit())
+                || differs(dto.revenueShareNotes(), baseline.getRevenueShareNotes())
+                || differs(dto.ageLowerLimit(), baseline.getAgeLowerLimit())
+                || differs(dto.ageUpperLimit(), baseline.getAgeUpperLimit())) {
+            return true;
+        }
+
+        // Money is compared by value, so 1500 and 1500.00 are not treated as a change.
+        if (differsNumerically(dto.price(), baseline.getPrice())
+                || differsNumerically(dto.minimumTrainingFee(), baseline.getMinimumTrainingFee())
+                || differsNumerically(dto.creatorSharePercentage(), baseline.getCreatorSharePercentage())
+                || differsNumerically(dto.instructorSharePercentage(), baseline.getInstructorSharePercentage())) {
+            return true;
+        }
+
+        return categoriesDiffer(baseline.getUuid(), dto.categoryUuids());
+    }
+
+    private boolean categoriesDiffer(UUID baselineCourseUuid, Set<UUID> incoming) {
+        if (incoming == null) {
+            return false;
+        }
+        Set<UUID> current = mappingRepository.findByCourseUuid(baselineCourseUuid).stream()
+                .map(CourseCategoryMapping::getCategoryUuid)
+                .collect(java.util.stream.Collectors.toSet());
+        return !current.equals(incoming);
+    }
+
+    /** A null incoming value means "not supplied", never "clear it". */
+    private boolean differs(Object incoming, Object current) {
+        return incoming != null && !incoming.equals(current);
+    }
+
+    private boolean differsNumerically(BigDecimal incoming, BigDecimal current) {
+        if (incoming == null) {
+            return false;
+        }
+        return current == null || incoming.compareTo(current) != 0;
     }
 
     @Override
@@ -434,25 +536,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private void validateRevenueShare(Course course) {
-        BigDecimal creatorShare = course.getCreatorSharePercentage();
-        BigDecimal instructorShare = course.getInstructorSharePercentage();
-
-        if (creatorShare == null || instructorShare == null) {
-            throw new IllegalArgumentException("Creator and instructor share percentages are required for a course");
-        }
-
-        if (creatorShare.compareTo(BigDecimal.ZERO) < 0 || instructorShare.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Revenue share percentages cannot be negative");
-        }
-
-        BigDecimal hundred = new BigDecimal("100.00");
-        if (creatorShare.compareTo(hundred) > 0 || instructorShare.compareTo(hundred) > 0) {
-            throw new IllegalArgumentException("Revenue share percentages cannot exceed 100%");
-        }
-
-        if (creatorShare.add(instructorShare).compareTo(hundred) != 0) {
-            throw new IllegalArgumentException("Creator and instructor share percentages must add up to 100%");
-        }
+        CourseRevenueShareValidator.validate(course);
     }
 
     /**
@@ -529,12 +613,10 @@ public class CourseServiceImpl implements CourseService {
         if (dto.bannerUrl() != null) {
             existingCourse.setBannerUrl(FileUrlResolver.toStorableValue(dto.bannerUrl()));
         }
-        if (dto.status() != null) {
-            existingCourse.setStatus(dto.status());
-        }
-        if (dto.active() != null) {
-            existingCourse.setActive(dto.active());
-        }
+        // status and active are deliberately not settable here. Lifecycle changes go through
+        // publishCourse/unpublishCourse/archiveCourse, which enforce the readiness checks and
+        // the review workflow. Accepting them on a plain PUT let a client demote a live course
+        // to draft — which is exactly how editing used to unpublish a published course.
     }
 
     /**

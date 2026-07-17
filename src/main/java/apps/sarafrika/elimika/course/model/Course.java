@@ -89,6 +89,14 @@ public class Course extends BaseEntity {
     @Column(name = "admin_approved")
     private Boolean adminApproved;
 
+    /**
+     * Set only on a shadow draft row holding an unapproved edit of the referenced live
+     * course. NULL on real courses. A draft is DRAFT/inactive/unapproved, so the existing
+     * catalogue filters already exclude it.
+     */
+    @Column(name = "parent_course_uuid")
+    private UUID parentCourseUuid;
+
     // Many-to-many relationship with categories through junction table
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<CourseCategoryMapping> categoryMappings = new HashSet<>();
