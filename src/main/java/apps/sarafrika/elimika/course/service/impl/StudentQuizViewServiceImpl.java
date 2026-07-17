@@ -83,7 +83,11 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
         if (!quizUuid.equals(attempt.getQuizUuid()) || !enrollmentUuid.equals(attempt.getEnrollmentUuid())) {
             throw new AccessDeniedException("Quiz attempt does not belong to the requested enrollment.");
         }
-        if (attempt.getStatus() != AttemptStatus.GRADED) {
+        // Students may only review graded attempts. Instructors/admins may also open a submitted
+        // (pending) attempt so they can read and grade its text responses.
+        boolean canReviewPending = accessValidator.isManager();
+        if (attempt.getStatus() == AttemptStatus.IN_PROGRESS
+                || (attempt.getStatus() != AttemptStatus.GRADED && !canReviewPending)) {
             throw new IllegalStateException("Quiz review is available only after the attempt has been graded.");
         }
 

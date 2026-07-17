@@ -72,4 +72,13 @@ public class StudentQuizAccessValidator {
                         String.format("Lesson with ID %s not found", quiz.getLessonUuid())));
         return lesson.getCourseUuid();
     }
+
+    /**
+     * Whether the current caller is teaching/administering staff (instructor, admin or course
+     * creator) rather than a student. Managers may review submitted-but-ungraded attempts in
+     * order to grade text responses, which students cannot.
+     */
+    public boolean isManager() {
+        return domainSecurityService.isInstructorOrAdmin() || domainSecurityService.isCourseCreator();
+    }
 }

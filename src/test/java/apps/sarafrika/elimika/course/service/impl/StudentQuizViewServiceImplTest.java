@@ -180,6 +180,35 @@ class StudentQuizViewServiceImplTest {
         verify(quizResponseRepository, never()).findByAttemptUuid(attemptUuid);
     }
 
+    @Test
+    void instructorMayReviewSubmittedAttemptForGrading() {
+        UUID quizUuid = UUID.randomUUID();
+        UUID lessonUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        UUID attemptUuid = UUID.randomUUID();
+        UUID questionUuid = UUID.randomUUID();
+        UUID correctOptionUuid = UUID.randomUUID();
+        UUID responseUuid = UUID.randomUUID();
+
+        stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
+        when(domainSecurityService.isInstructorOrAdmin()).thenReturn(true);
+        when(quizAttemptRepository.findByUuid(attemptUuid))
+                .thenReturn(Optional.of(attempt(attemptUuid, quizUuid, enrollmentUuid, AttemptStatus.SUBMITTED)));
+        when(quizResponseRepository.findByAttemptUuid(attemptUuid))
+                .thenReturn(List.of(response(responseUuid, attemptUuid, questionUuid, correctOptionUuid, true)));
+        when(quizQuestionRepository.findByQuizUuidOrderByDisplayOrderAsc(quizUuid))
+                .thenReturn(List.of(question(questionUuid, quizUuid)));
+        when(quizQuestionOptionRepository.findByQuestionUuidOrderByDisplayOrderAsc(questionUuid))
+                .thenReturn(List.of(option(correctOptionUuid, questionUuid, true)));
+
+        StudentQuizReviewDTO review = service.getStudentQuizReview(quizUuid, attemptUuid, enrollmentUuid);
+
+        assertThat(review.status()).isEqualTo(AttemptStatus.SUBMITTED);
+        assertThat(review.questions()).hasSize(1);
+    }
+
     private void stubQuizCourseAndEnrollment(UUID quizUuid,
                                              UUID lessonUuid,
                                              UUID courseUuid,
