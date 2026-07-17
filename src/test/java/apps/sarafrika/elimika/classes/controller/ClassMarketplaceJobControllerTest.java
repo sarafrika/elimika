@@ -316,6 +316,7 @@ class ClassMarketplaceJobControllerTest {
                 request.registrationPeriodEndDate(),
                 request.classReminderMinutes(),
                 request.classColor(),
+                null,
                 request.locationType(),
                 request.locationName(),
                 request.locationLatitude(),

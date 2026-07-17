@@ -115,6 +115,15 @@ class ClassMarketplaceJobServiceImplTest {
     @Mock
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private apps.sarafrika.elimika.shared.storage.service.MediaStorageService mediaStorageService;
+
+    @Mock
+    private apps.sarafrika.elimika.shared.storage.service.MediaValidationService mediaValidationService;
+
+    @Mock
+    private apps.sarafrika.elimika.shared.storage.config.StorageProperties storageProperties;
+
     private ClassMarketplaceJobServiceImpl service;
 
     @BeforeEach
@@ -135,7 +144,10 @@ class ClassMarketplaceJobServiceImplTest {
                 resourceLookupService,
                 availabilityService,
                 timetableServiceProvider,
-                eventPublisher
+                eventPublisher,
+                mediaStorageService,
+                mediaValidationService,
+                storageProperties
         );
         org.mockito.Mockito.lenient().when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
         org.mockito.Mockito.lenient()
