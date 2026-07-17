@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,9 +28,13 @@ import java.util.UUID;
 @RequestMapping(CourseGradeBookController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Course Gradebook", description = "Weighted gradebook components, linked tasks, and learner grade views")
+@PreAuthorize(CourseGradeBookController.MANAGEMENT_ACCESS)
 public class CourseGradeBookController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
+    private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
+    static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
 
     private final CourseGradeBookService courseGradeBookService;
 

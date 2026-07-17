@@ -27,6 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,9 +46,16 @@ import java.util.UUID;
 @RequestMapping(AssignmentController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Assignment Management", description = "Complete assignment lifecycle including submissions, grading, and analytics")
+@PreAuthorize(AssignmentController.MANAGEMENT_ACCESS)
 public class AssignmentController {
 
     public static final String API_ROOT_PATH = "/api/v1/assignments";
+    private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
+    static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    static final String STUDENT_ACCESS = "@domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".student, " + USER_DOMAIN + ".course_creator, "
+            + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
 
     private final AssignmentService assignmentService;
     private final AssignmentSubmissionService assignmentSubmissionService;
@@ -87,6 +95,7 @@ public class AssignmentController {
             }
     )
     @GetMapping("/{uuid}")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentDTO>> getAssignmentByUuid(
             @PathVariable UUID uuid) {
         AssignmentDTO assignmentDTO = assignmentService.getAssignmentByUuid(uuid);
@@ -194,6 +203,7 @@ public class AssignmentController {
             description = "Retrieves all attachments linked to a specific assignment."
     )
     @GetMapping("/{assignmentUuid}/attachments")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentAttachmentDTO>>> getAssignmentAttachments(
             @PathVariable UUID assignmentUuid
     ) {
@@ -220,6 +230,7 @@ public class AssignmentController {
             description = "Retrieves assignment attachment files by their stored relative path."
     )
     @GetMapping("/media/{*filePath}")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<Resource> getAssignmentMedia(
             @PathVariable String filePath
     ) {
@@ -237,6 +248,7 @@ public class AssignmentController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignment(
             @PathVariable UUID assignmentUuid,
             @Valid @RequestBody AssignmentSubmissionRequest request) {
@@ -254,6 +266,7 @@ public class AssignmentController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignmentMultipart(
             @PathVariable UUID assignmentUuid,
             @RequestParam(value = "enrollment_uuid", required = false) UUID enrollmentUuid,
@@ -291,6 +304,7 @@ public class AssignmentController {
             description = "Creates a new submission for an assignment using the previous query-parameter contract."
     )
     @PostMapping(value = "/{assignmentUuid}/submit", params = "enrollmentUuid")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignmentLegacy(
             @PathVariable UUID assignmentUuid,
             @RequestParam UUID enrollmentUuid,
@@ -310,6 +324,7 @@ public class AssignmentController {
             params = "enrollment_uuid",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
     )
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> submitAssignmentQuery(
             @PathVariable UUID assignmentUuid,
             @RequestParam("enrollment_uuid") UUID enrollmentUuid,
@@ -332,6 +347,7 @@ public class AssignmentController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionAttachmentDTO>> uploadSubmissionAttachment(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,
@@ -377,6 +393,7 @@ public class AssignmentController {
             description = "Retrieves assignment submission attachment files by their stored relative path."
     )
     @GetMapping("/submission-media/{*filePath}")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<Resource> getSubmissionMedia(
             @PathVariable String filePath
     ) {
@@ -388,6 +405,7 @@ public class AssignmentController {
             description = "Retrieves all attachments for a specific assignment submission."
     )
     @GetMapping("/{assignmentUuid}/submissions/{submissionUuid}/attachments")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionAttachmentDTO>>> getSubmissionAttachments(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid
@@ -407,6 +425,7 @@ public class AssignmentController {
             description = "Removes a specific submission attachment."
     )
     @DeleteMapping("/{assignmentUuid}/submissions/{submissionUuid}/attachments/{attachmentUuid}")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<Void> deleteSubmissionAttachment(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,

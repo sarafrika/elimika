@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -29,9 +30,13 @@ import java.util.UUID;
 @RequestMapping(AssessmentRubricController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Rubric Management", description = "Comprehensive management of assessment rubrics, including their criteria, scoring levels, and matrix configurations.")
+@PreAuthorize(AssessmentRubricController.MANAGEMENT_ACCESS)
 public class AssessmentRubricController {
 
     public static final String API_ROOT_PATH = "/api/v1/rubrics";
+    private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
+    static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
 
     private final AssessmentRubricService assessmentRubricService;
     private final RubricCriteriaService rubricCriteriaService;

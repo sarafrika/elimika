@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -32,9 +33,13 @@ import java.util.UUID;
 @RequestMapping(CourseRubricController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Tag(name = "Course Rubric Associations", description = "Management of rubric associations with courses for flexible assessment configurations")
+@PreAuthorize(CourseRubricController.MANAGEMENT_ACCESS)
 public class CourseRubricController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses/{courseUuid}/rubrics";
+    private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
+    static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
+            + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
 
     private final CourseRubricAssociationService courseRubricAssociationService;
 
