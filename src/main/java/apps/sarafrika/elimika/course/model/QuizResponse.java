@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -31,4 +32,13 @@ public class QuizResponse extends BaseEntity {
 
     @Column(name = "is_correct")
     private Boolean isCorrect;
+
+    @Column(name = "feedback")
+    private String feedback;
+
+    @Column(name = "graded_by")
+    private UUID gradedByUuid;
+
+    @Column(name = "graded_at")
+    private LocalDateTime gradedAt;
 }

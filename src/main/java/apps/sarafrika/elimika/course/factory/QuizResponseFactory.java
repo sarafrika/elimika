@@ -22,6 +22,9 @@ public class QuizResponseFactory {
                 quizResponse.getTextResponse(),
                 quizResponse.getPointsEarned(),
                 quizResponse.getIsCorrect(),
+                quizResponse.getFeedback(),
+                quizResponse.getGradedByUuid(),
+                quizResponse.getGradedAt(),
                 quizResponse.getCreatedDate(),
                 quizResponse.getCreatedBy(),
                 quizResponse.getLastModifiedDate(),
@@ -42,6 +45,9 @@ public class QuizResponseFactory {
         quizResponse.setTextResponse(dto.textResponse());
         quizResponse.setPointsEarned(dto.pointsEarned());
         quizResponse.setIsCorrect(dto.isCorrect());
+        quizResponse.setFeedback(dto.feedback());
+        quizResponse.setGradedByUuid(dto.gradedByUuid());
+        quizResponse.setGradedAt(dto.gradedAt());
         quizResponse.setCreatedDate(dto.createdDate());
         quizResponse.setCreatedBy(dto.createdBy());
         quizResponse.setLastModifiedDate(dto.updatedDate());

@@ -85,9 +85,12 @@ public class QuizGradingServiceImpl implements QuizGradingService {
                 }
                 score = score.add(earned);
             } else {
-                pendingManualGrading = true;
+                // Manual grading (short-answer/essay): pending only while an answered response
+                // is still ungraded. An unanswered question scores zero and needs no grading.
                 if (response != null && response.getPointsEarned() != null) {
                     score = score.add(response.getPointsEarned());
+                } else if (response != null) {
+                    pendingManualGrading = true;
                 }
             }
         }
@@ -101,15 +104,15 @@ public class QuizGradingServiceImpl implements QuizGradingService {
                 ? null
                 : percentage.compareTo(quiz.getPassingScore()) >= 0;
         AttemptStatus status = pendingManualGrading ? AttemptStatus.SUBMITTED : AttemptStatus.GRADED;
+        LocalDateTime gradedAt = attempt.getSubmittedAt() != null ? attempt.getSubmittedAt() : LocalDateTime.now();
 
         attempt.setScore(score);
         attempt.setMaxScore(maxScore);
         attempt.setPercentage(percentage);
         attempt.setIsPassed(passed);
         attempt.setStatus(status);
+        attempt.setGradedAt(status == AttemptStatus.GRADED ? gradedAt : null);
         QuizAttempt graded = quizAttemptRepository.save(attempt);
-
-        LocalDateTime gradedAt = graded.getSubmittedAt() != null ? graded.getSubmittedAt() : LocalDateTime.now();
         courseGradeBookService.syncQuizAttemptGrade(
                 graded.getQuizUuid(),
                 graded.getEnrollmentUuid(),
@@ -123,6 +126,50 @@ public class QuizGradingServiceImpl implements QuizGradingService {
 
         publishCompletionNotification(graded, quiz);
         return QuizAttemptFactory.toDTO(graded);
+    }
+
+    @Override
+    public QuizAttemptDTO gradeTextResponse(UUID attemptUuid, UUID questionUuid, BigDecimal points,
+                                            Boolean correct, String feedback, UUID gradedByUuid) {
+        QuizAttempt attempt = quizAttemptRepository.findByUuid(attemptUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ATTEMPT_NOT_FOUND_TEMPLATE, attemptUuid)));
+        if (attempt.getStatus() == null || attempt.getStatus() == AttemptStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Only submitted attempts can be manually graded.");
+        }
+
+        QuizQuestion question = quizQuestionRepository.findByUuid(questionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Quiz question with ID %s not found", questionUuid)));
+        if (!attempt.getQuizUuid().equals(question.getQuizUuid())) {
+            throw new IllegalArgumentException("Question does not belong to this attempt's quiz.");
+        }
+        if (question.getQuestionType() == null || !question.getQuestionType().requiresManualGrading()) {
+            throw new IllegalArgumentException("Only short-answer and essay questions are manually graded.");
+        }
+
+        QuizResponse response = quizResponseRepository.findByAttemptUuidAndQuestionUuid(attemptUuid, questionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("No response found for question %s on attempt %s", questionUuid, attemptUuid)));
+
+        BigDecimal maxPoints = nz(question.getPoints());
+        BigDecimal awarded = nz(points).max(BigDecimal.ZERO).min(maxPoints);
+        response.setPointsEarned(awarded);
+        response.setIsCorrect(correct);
+        response.setFeedback(feedback);
+        response.setGradedByUuid(gradedByUuid);
+        response.setGradedAt(LocalDateTime.now());
+        quizResponseRepository.save(response);
+
+        QuizAttemptDTO regraded = gradeAttempt(attemptUuid);
+        if (regraded.status() == AttemptStatus.GRADED && gradedByUuid != null) {
+            QuizAttempt gradedAttempt = quizAttemptRepository.findByUuid(attemptUuid).orElse(null);
+            if (gradedAttempt != null) {
+                gradedAttempt.setGradedByUuid(gradedByUuid);
+                return QuizAttemptFactory.toDTO(quizAttemptRepository.save(gradedAttempt));
+            }
+        }
+        return regraded;
     }
 
     private boolean isOptionCorrect(UUID optionUuid, UUID questionUuid) {

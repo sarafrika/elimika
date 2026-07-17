@@ -170,6 +170,23 @@ public record QuizAttemptDTO(
         AttemptStatus status,
 
         @Schema(
+                description = "**[READ-ONLY]** UUID of the instructor who finalised grading of this attempt, when manually graded.",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "graded_by", access = JsonProperty.Access.READ_ONLY)
+        UUID gradedByUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** Timestamp when the attempt was graded.",
+                format = "date-time",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "graded_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime gradedAt,
+
+        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the attempt was created. Automatically set by the system.",
                 example = "2024-04-10T14:15:00",
                 format = "date-time",

@@ -57,4 +57,10 @@ public class QuizAttempt extends BaseEntity {
     @Column(name = "status")
     @Convert(converter = AttemptStatusConverter.class)
     private AttemptStatus status;
+
+    @Column(name = "graded_by")
+    private UUID gradedByUuid;
+
+    @Column(name = "graded_at")
+    private LocalDateTime gradedAt;
 }

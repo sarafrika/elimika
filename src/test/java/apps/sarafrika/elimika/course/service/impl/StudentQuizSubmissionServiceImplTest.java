@@ -225,6 +225,6 @@ class StudentQuizSubmissionServiceImplTest {
     private QuizAttemptDTO gradedDto() {
         return new QuizAttemptDTO(attemptUuid, enrollmentUuid, quizUuid, 1, LocalDateTime.now(), LocalDateTime.now(),
                 5, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.valueOf(100), true, AttemptStatus.GRADED,
-                LocalDateTime.now(), "student", LocalDateTime.now(), "student");
+                null, LocalDateTime.now(), LocalDateTime.now(), "student", LocalDateTime.now(), "student");
     }
 }

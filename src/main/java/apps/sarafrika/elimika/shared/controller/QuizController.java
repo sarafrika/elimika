@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -48,6 +49,8 @@ public class QuizController {
     private final QuizAttemptService quizAttemptService;
     private final StudentQuizViewService studentQuizViewService;
     private final StudentQuizSubmissionService studentQuizSubmissionService;
+    private final QuizGradingService quizGradingService;
+    private final DomainSecurityService domainSecurityService;
 
     @Operation(
             summary = "Get student-safe quiz view",
@@ -138,6 +141,26 @@ public class QuizController {
                 quizUuid, attemptUuid, enrollmentUuid, request);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(attempt, "Quiz attempt submitted successfully"));
+    }
+
+    @Operation(
+            summary = "Grade a quiz text response",
+            description = "Records an instructor grade for a short-answer or essay response on a submitted "
+                    + "attempt. When every answered text question is graded, the attempt is finalised and "
+                    + "its grade synced to the gradebook."
+    )
+    @PostMapping("/{quizUuid}/attempts/{attemptUuid}/questions/{questionUuid}/grade")
+    @PreAuthorize(MANAGEMENT_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> gradeQuizTextResponse(
+            @PathVariable UUID quizUuid,
+            @PathVariable UUID attemptUuid,
+            @PathVariable UUID questionUuid,
+            @Valid @RequestBody QuizManualGradeRequest request) {
+        QuizAttemptDTO attempt = quizGradingService.gradeTextResponse(
+                attemptUuid, questionUuid, request.points(), request.isCorrect(), request.feedback(),
+                domainSecurityService.getCurrentUserUuid());
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(attempt, "Quiz response graded successfully"));
     }
 
     @Operation(

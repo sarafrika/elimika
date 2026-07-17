@@ -170,6 +170,38 @@ class QuizGradingServiceImplTest {
         assertThat(result.isPassed()).isNull();
     }
 
+    @Test
+    void manualGradingOfEssayFinalizesAttempt() {
+        UUID mc = UUID.randomUUID();
+        UUID essay = UUID.randomUUID();
+        UUID opt = UUID.randomUUID();
+        UUID instructor = UUID.randomUUID();
+        QuizResponse essayResponse = textResponse(essay);
+
+        when(quizAttemptRepository.findByUuid(attemptUuid)).thenReturn(Optional.of(attempt()));
+        when(quizQuestionRepository.findByUuid(essay))
+                .thenReturn(Optional.of(question(essay, QuestionType.ESSAY, BigDecimal.valueOf(2))));
+        when(quizResponseRepository.findByAttemptUuidAndQuestionUuid(attemptUuid, essay))
+                .thenReturn(Optional.of(essayResponse));
+        when(quizRepository.findByUuid(quizUuid)).thenReturn(Optional.of(quiz(BigDecimal.valueOf(50))));
+        when(quizQuestionRepository.findByQuizUuid(quizUuid)).thenReturn(List.of(
+                question(mc, QuestionType.MULTIPLE_CHOICE, BigDecimal.ONE),
+                question(essay, QuestionType.ESSAY, BigDecimal.valueOf(2))));
+        when(quizResponseRepository.findByAttemptUuid(attemptUuid)).thenReturn(List.of(
+                response(mc, opt), essayResponse));
+        when(quizQuestionOptionRepository.findByUuid(opt)).thenReturn(Optional.of(option(opt, mc, true)));
+
+        QuizAttemptDTO result = service.gradeTextResponse(attemptUuid, essay, BigDecimal.valueOf(2), true, "Great answer", instructor);
+
+        assertThat(result.status()).isEqualTo(AttemptStatus.GRADED);
+        assertThat(result.score()).isEqualByComparingTo("3");
+        assertThat(result.maxScore()).isEqualByComparingTo("3");
+        assertThat(result.gradedByUuid()).isEqualTo(instructor);
+        assertThat(essayResponse.getPointsEarned()).isEqualByComparingTo("2");
+        assertThat(essayResponse.getFeedback()).isEqualTo("Great answer");
+        assertThat(essayResponse.getGradedByUuid()).isEqualTo(instructor);
+    }
+
     private QuizAttempt attempt() {
         QuizAttempt attempt = new QuizAttempt();
         attempt.setUuid(attemptUuid);

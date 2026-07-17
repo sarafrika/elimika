@@ -28,6 +28,8 @@ public class QuizAttemptFactory {
                 quizAttempt.getPercentage(),
                 quizAttempt.getIsPassed(),
                 quizAttempt.getStatus(),
+                quizAttempt.getGradedByUuid(),
+                quizAttempt.getGradedAt(),
                 quizAttempt.getCreatedDate(),
                 quizAttempt.getCreatedBy(),
                 quizAttempt.getLastModifiedDate(),
@@ -53,6 +55,8 @@ public class QuizAttemptFactory {
         quizAttempt.setPercentage(dto.percentage());
         quizAttempt.setIsPassed(dto.isPassed());
         quizAttempt.setStatus(dto.status());
+        quizAttempt.setGradedByUuid(dto.gradedByUuid());
+        quizAttempt.setGradedAt(dto.gradedAt());
         quizAttempt.setCreatedDate(dto.createdDate());
         quizAttempt.setCreatedBy(dto.createdBy());
         quizAttempt.setLastModifiedDate(dto.updatedDate());

@@ -7,9 +7,11 @@ import apps.sarafrika.elimika.course.dto.StudentQuizQuestionOptionDTO;
 import apps.sarafrika.elimika.course.service.QuizAttemptService;
 import apps.sarafrika.elimika.course.service.QuizQuestionOptionService;
 import apps.sarafrika.elimika.course.service.QuizQuestionService;
+import apps.sarafrika.elimika.course.service.QuizGradingService;
 import apps.sarafrika.elimika.course.service.QuizService;
 import apps.sarafrika.elimika.course.service.StudentQuizSubmissionService;
 import apps.sarafrika.elimika.course.service.StudentQuizViewService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
 import apps.sarafrika.elimika.course.util.enums.QuizScope;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +52,10 @@ class QuizControllerTest {
     private StudentQuizViewService studentQuizViewService;
     @Mock
     private StudentQuizSubmissionService studentQuizSubmissionService;
+    @Mock
+    private QuizGradingService quizGradingService;
+    @Mock
+    private DomainSecurityService domainSecurityService;
 
     private MockMvc mockMvc;
 
@@ -61,7 +67,9 @@ class QuizControllerTest {
                 quizQuestionOptionService,
                 quizAttemptService,
                 studentQuizViewService,
-                studentQuizSubmissionService
+                studentQuizSubmissionService,
+                quizGradingService,
+                domainSecurityService
         );
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
