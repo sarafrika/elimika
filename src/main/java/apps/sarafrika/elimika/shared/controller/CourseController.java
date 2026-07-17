@@ -30,6 +30,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -55,6 +56,8 @@ public class CourseController {
     public static final String API_ROOT_PATH = "/api/v1/courses";
 
     private final CourseService courseService;
+    private final CourseDraftService courseDraftService;
+    private final CoursePendingEditService coursePendingEditService;
     private final LessonService lessonService;
     private final LessonContentService lessonContentService;
     private final CourseAssessmentService courseAssessmentService;
@@ -100,6 +103,7 @@ public class CourseController {
                     @ApiResponse(responseCode = "400", description = "Invalid request data or category not found")
             }
     )
+    @PreAuthorize("@domainSecurityService.isCourseCreator()")
     @PostMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> createCourse(
             @Valid @RequestBody CourseDTO courseDTO) {
@@ -192,8 +196,8 @@ public class CourseController {
                     @ApiResponse(responseCode = "403", description = "Not authorized - only course owner can update")
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PutMapping("/{uuid}")
-    @org.springframework.security.access.prepost.PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> updateCourse(
             @PathVariable UUID uuid,
             @Valid @RequestBody CourseDTO courseDTO) {
@@ -227,6 +231,7 @@ public class CourseController {
                     @ApiResponse(responseCode = "404", description = "Course not found")
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PostMapping("/{uuid}/unpublish")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> unpublishCourse(
             @PathVariable UUID uuid) {
@@ -257,6 +262,7 @@ public class CourseController {
                     @ApiResponse(responseCode = "404", description = "Course not found")
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PostMapping("/{uuid}/archive")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> archiveCourse(
             @PathVariable UUID uuid) {
@@ -298,6 +304,7 @@ public class CourseController {
                     @ApiResponse(responseCode = "404", description = "Course not found")
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @DeleteMapping("/{uuid}")
     public ResponseEntity<Void> deleteCourse(@PathVariable UUID uuid) {
         courseService.deleteCourse(uuid);
@@ -322,6 +329,7 @@ public class CourseController {
             summary = "Remove category from course",
             description = "Removes a specific category from a course without affecting other categories."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/categories/{categoryUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> removeCategoryFromCourse(
             @PathVariable UUID courseUuid,
@@ -335,6 +343,7 @@ public class CourseController {
             summary = "Remove all categories from course",
             description = "Removes all category associations from a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/categories")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> removeAllCategoriesFromCourse(
             @PathVariable UUID courseUuid) {
@@ -388,6 +397,7 @@ public class CourseController {
                     @ApiResponse(responseCode = "400", description = "Course not ready for publishing")
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PostMapping("/{uuid}/publish")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> publishCourse(
             @PathVariable UUID uuid) {
@@ -446,6 +456,7 @@ public class CourseController {
                     )
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PostMapping(value = "/{uuid}/thumbnail", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> uploadCourseThumbnail(
             @Parameter(
@@ -507,6 +518,7 @@ public class CourseController {
                     )
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PostMapping(value = "/{uuid}/banner", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> uploadCourseBanner(
             @Parameter(
@@ -570,6 +582,7 @@ public class CourseController {
                     )
             }
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
     @PostMapping(value = "/{uuid}/intro-video", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> uploadCourseIntroVideo(
             @Parameter(
@@ -675,11 +688,15 @@ public class CourseController {
             summary = "Add lesson to course",
             description = "Creates a new lesson associated with the specified course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/lessons")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<LessonDTO>> addCourseLesson(
             @PathVariable UUID courseUuid,
             @Valid @RequestBody LessonDTO lessonDTO) {
-        LessonDTO createdLesson = lessonService.createLesson(lessonDTO);
+        // The lesson always belongs to the course in the path, never to whatever the body
+        // claims, and lands on the draft when the course is live and awaiting review.
+        UUID targetCourseUuid = courseDraftService.resolveEditableCourseUuid(courseUuid);
+        LessonDTO createdLesson = lessonService.createLesson(lessonDTO.withCourseUuid(targetCourseUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdLesson, "Lesson added successfully"));
@@ -774,12 +791,15 @@ public class CourseController {
             summary = "Update course lesson",
             description = "Updates a specific lesson within a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PutMapping("/{courseUuid}/lessons/{lessonUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<LessonDTO>> updateCourseLesson(
             @PathVariable UUID courseUuid,
             @PathVariable UUID lessonUuid,
             @Valid @RequestBody LessonDTO lessonDTO) {
-        LessonDTO updatedLesson = lessonService.updateLesson(lessonUuid, lessonDTO);
+        UUID targetLessonUuid = courseDraftService.resolveEditableLessonUuid(courseUuid, lessonUuid);
+        UUID targetCourseUuid = courseDraftService.resolveEditableCourseUuid(courseUuid);
+        LessonDTO updatedLesson = lessonService.updateLesson(targetLessonUuid, lessonDTO.withCourseUuid(targetCourseUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedLesson, "Lesson updated successfully"));
     }
@@ -788,12 +808,93 @@ public class CourseController {
             summary = "Delete course lesson",
             description = "Removes a lesson from a course including all associated content."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/lessons/{lessonUuid}")
     public ResponseEntity<Void> deleteCourseLesson(
             @PathVariable UUID courseUuid,
             @PathVariable UUID lessonUuid) {
-        lessonService.deleteLesson(lessonUuid);
+        // On a live course this removes the lesson from the draft only; the live lesson is
+        // deactivated when an admin approves the edit, so learner progress survives.
+        lessonService.deleteLesson(courseDraftService.resolveEditableLessonUuid(courseUuid, lessonUuid));
         return ResponseEntity.noContent().build();
+    }
+
+    // ===== PENDING EDITS (course creator) =====
+
+    @Operation(
+            summary = "Get this course's pending edit",
+            description = """
+                    Returns the edit awaiting admin review for this course, if there is one.
+
+                    While an edit is pending the course stays published and keeps serving its
+                    last-approved content to learners. The proposed content lives on the draft
+                    course referenced by `draft_course_uuid`, which only the course owner can see.
+
+                    **Authorization:** Only the course owner.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Pending edit retrieved",
+                            content = @Content(schema = @Schema(implementation = CoursePendingEditDTO.class))),
+                    @ApiResponse(responseCode = "204", description = "No edit awaiting review"),
+                    @ApiResponse(responseCode = "403", description = "Not the course owner")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
+    @GetMapping("/{uuid}/pending-edit")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CoursePendingEditDTO>> getPendingEdit(
+            @Parameter(description = "UUID of the course") @PathVariable UUID uuid) {
+        return coursePendingEditService.findPending(uuid)
+                .map(edit -> ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                        .success(edit, "Pending edit retrieved successfully")))
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @Operation(
+            summary = "Withdraw this course's pending edit",
+            description = """
+                    Abandons the edit awaiting review and discards the draft. The live course is
+                    not affected — it was never modified while the edit was pending.
+
+                    **Authorization:** Only the course owner.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Pending edit withdrawn"),
+                    @ApiResponse(responseCode = "404", description = "No edit awaiting review"),
+                    @ApiResponse(responseCode = "403", description = "Not the course owner")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
+    @DeleteMapping("/{uuid}/pending-edit")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CoursePendingEditDTO>> withdrawPendingEdit(
+            @Parameter(description = "UUID of the course") @PathVariable UUID uuid) {
+        CoursePendingEditDTO withdrawn = coursePendingEditService.withdraw(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(withdrawn, "Pending edit withdrawn successfully"));
+    }
+
+    @Operation(
+            summary = "Get this course's approved version history",
+            description = """
+                    Returns each approved version of the course's content, newest first. A version
+                    is recorded every time an admin approves an edit and it is promoted onto the
+                    live course.
+
+                    **Authorization:** Only the course owner.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Version history retrieved"),
+                    @ApiResponse(responseCode = "403", description = "Not the course owner")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
+    @GetMapping("/{uuid}/versions")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseVersionSnapshotDTO>>> getCourseVersions(
+            @Parameter(description = "UUID of the course") @PathVariable UUID uuid,
+            Pageable pageable) {
+        Page<CourseVersionSnapshotDTO> versions = coursePendingEditService.getVersions(uuid, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(versions, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                        "Course version history retrieved successfully"));
     }
 
     // ===== LESSON CONTENT =====
@@ -802,12 +903,15 @@ public class CourseController {
             summary = "Add content to lesson",
             description = "Adds new content item to a specific lesson with automatic ordering."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/lessons/{lessonUuid}/content")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<LessonContentDTO>> addLessonContent(
             @PathVariable UUID courseUuid,
             @PathVariable UUID lessonUuid,
             @Valid @RequestBody LessonContentDTO contentDTO) {
-        LessonContentDTO createdContent = lessonContentService.createLessonContent(contentDTO);
+        UUID targetLessonUuid = courseDraftService.resolveEditableLessonUuid(courseUuid, lessonUuid);
+        LessonContentDTO createdContent =
+                lessonContentService.createLessonContent(contentDTO.withLessonUuid(targetLessonUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdContent, "Content added successfully"));
@@ -830,6 +934,7 @@ public class CourseController {
                 and then embed the returned `file_url` in the editor HTML.
                 """
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping(
             value = "/{courseUuid}/lessons/{lessonUuid}/content/upload",
             consumes = MULTIPART_FORM_DATA_VALUE,
@@ -892,13 +997,17 @@ public class CourseController {
             summary = "Update lesson content",
             description = "Updates a specific content item within a lesson."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PutMapping("/{courseUuid}/lessons/{lessonUuid}/content/{contentUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<LessonContentDTO>> updateLessonContent(
             @PathVariable UUID courseUuid,
             @PathVariable UUID lessonUuid,
             @PathVariable UUID contentUuid,
             @Valid @RequestBody LessonContentDTO contentDTO) {
-        LessonContentDTO updatedContent = lessonContentService.updateLessonContent(contentUuid, contentDTO);
+        UUID targetContentUuid = courseDraftService.resolveEditableContentUuid(courseUuid, lessonUuid, contentUuid);
+        UUID targetLessonUuid = courseDraftService.resolveEditableLessonUuid(courseUuid, lessonUuid);
+        LessonContentDTO updatedContent =
+                lessonContentService.updateLessonContent(targetContentUuid, contentDTO.withLessonUuid(targetLessonUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedContent, "Content updated successfully"));
     }
@@ -907,12 +1016,14 @@ public class CourseController {
             summary = "Delete lesson content",
             description = "Removes content from a lesson."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/lessons/{lessonUuid}/content/{contentUuid}")
     public ResponseEntity<Void> deleteLessonContent(
             @PathVariable UUID courseUuid,
             @PathVariable UUID lessonUuid,
             @PathVariable UUID contentUuid) {
-        lessonContentService.deleteLessonContent(contentUuid);
+        lessonContentService.deleteLessonContent(
+                courseDraftService.resolveEditableContentUuid(courseUuid, lessonUuid, contentUuid));
         return ResponseEntity.noContent().build();
     }
 
@@ -920,6 +1031,7 @@ public class CourseController {
             summary = "Reorder lesson content",
             description = "Updates the display order of content items within a lesson."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/lessons/{lessonUuid}/content/reorder")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> reorderLessonContent(
             @PathVariable UUID courseUuid,
@@ -936,6 +1048,7 @@ public class CourseController {
             summary = "Add assessment to course",
             description = "Creates a new assessment for the course with optional rubric association."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/assessments")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentDTO>> addCourseAssessment(
             @PathVariable UUID courseUuid,
@@ -966,6 +1079,7 @@ public class CourseController {
             summary = "Update course assessment",
             description = "Updates a specific assessment within a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PutMapping("/{courseUuid}/assessments/{assessmentUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentDTO>> updateCourseAssessment(
             @PathVariable UUID courseUuid,
@@ -980,6 +1094,7 @@ public class CourseController {
             summary = "Delete course assessment",
             description = "Removes an assessment from a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/assessments/{assessmentUuid}")
     public ResponseEntity<Void> deleteCourseAssessment(
             @PathVariable UUID courseUuid,
@@ -994,6 +1109,7 @@ public class CourseController {
             summary = "Add requirement to course",
             description = "Adds a new requirement or prerequisite to a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/requirements")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseRequirementDTO>> addCourseRequirement(
             @PathVariable UUID courseUuid,
@@ -1024,6 +1140,7 @@ public class CourseController {
             summary = "Update course requirement",
             description = "Updates a specific requirement for a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PutMapping("/{courseUuid}/requirements/{requirementUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseRequirementDTO>> updateCourseRequirement(
             @PathVariable UUID courseUuid,
@@ -1038,6 +1155,7 @@ public class CourseController {
             summary = "Delete course requirement",
             description = "Removes a requirement from a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/requirements/{requirementUuid}")
     public ResponseEntity<Void> deleteCourseRequirement(
             @PathVariable UUID courseUuid,
@@ -1052,6 +1170,7 @@ public class CourseController {
             summary = "Add training delivery requirement",
             description = "Adds a new material, equipment, or facility requirement necessary to deliver the course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/training-requirements")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingRequirementDTO>> addCourseTrainingRequirement(
             @PathVariable UUID courseUuid,
@@ -1082,6 +1201,7 @@ public class CourseController {
             summary = "Update training delivery requirement",
             description = "Updates a specific training delivery requirement for a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PutMapping("/{courseUuid}/training-requirements/{requirementUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingRequirementDTO>> updateCourseTrainingRequirement(
             @PathVariable UUID courseUuid,
@@ -1096,6 +1216,7 @@ public class CourseController {
             summary = "Delete training delivery requirement",
             description = "Removes a training delivery requirement from a course."
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @DeleteMapping("/{courseUuid}/training-requirements/{requirementUuid}")
     public ResponseEntity<Void> deleteCourseTrainingRequirement(
             @PathVariable UUID courseUuid,
@@ -1194,6 +1315,7 @@ public class CourseController {
                     Use the `action` query parameter with values `approve`, `reject`, or `revoke`.
                     """
     )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
     @PostMapping("/{courseUuid}/training-applications/{applicationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingApplicationDTO>> decideOnTrainingApplication(
             @PathVariable UUID courseUuid,
