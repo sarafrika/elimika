@@ -197,7 +197,7 @@ public record InstructorDocumentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the document was uploaded. Automatically set by the system.",
-                example = "2024-06-15T14:30:22",
+                example = "2024-06-15T14:30:22Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -226,7 +226,7 @@ public record InstructorDocumentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the document was verified. Set automatically when verification is completed.",
-                example = "2024-06-16T09:15:00",
+                example = "2024-06-16T09:15:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -267,7 +267,7 @@ public record InstructorDocumentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the document record was first created. Automatically set by the system.",
-                example = "2024-06-15T14:30:22",
+                example = "2024-06-15T14:30:22Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -286,7 +286,7 @@ public record InstructorDocumentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the document record was last modified. Automatically updated by the system.",
-                example = "2024-06-16T09:15:00",
+                example = "2024-06-16T09:15:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

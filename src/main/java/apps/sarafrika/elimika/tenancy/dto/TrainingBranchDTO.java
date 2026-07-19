@@ -127,7 +127,7 @@ public record TrainingBranchDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the training branch was first created. Automatically set by the system and cannot be modified.",
-                example = "2024-01-01T09:00:00",
+                example = "2024-01-01T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -137,7 +137,7 @@ public record TrainingBranchDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the training branch was last updated. Automatically updated by the system on any changes and cannot be directly modified.",
-                example = "2024-04-15T14:30:00",
+                example = "2024-04-15T14:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

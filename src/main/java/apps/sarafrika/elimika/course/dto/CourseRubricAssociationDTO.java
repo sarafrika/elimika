@@ -77,7 +77,7 @@ public record CourseRubricAssociationDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when this association was created",
-                example = "2024-08-13T10:30:00",
+                example = "2024-08-13T10:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -105,7 +105,7 @@ public record CourseRubricAssociationDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the association was created",
-                example = "2024-08-13T10:30:00",
+                example = "2024-08-13T10:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -124,7 +124,7 @@ public record CourseRubricAssociationDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the association was last updated",
-                example = "2024-08-13T10:30:00",
+                example = "2024-08-13T10:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

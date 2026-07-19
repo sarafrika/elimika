@@ -101,7 +101,7 @@ public record ContentProgressDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student first accessed this content.",
-                example = "2024-04-01T09:15:00",
+                example = "2024-04-01T09:15:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -110,7 +110,7 @@ public record ContentProgressDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student last accessed this content.",
-                example = "2024-04-05T16:30:00",
+                example = "2024-04-05T16:30:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -119,7 +119,7 @@ public record ContentProgressDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student completed this content.",
-                example = "2024-04-03T14:45:00",
+                example = "2024-04-03T14:45:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -128,7 +128,7 @@ public record ContentProgressDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the progress record was created. Automatically set by the system.",
-                example = "2024-04-01T09:15:00",
+                example = "2024-04-01T09:15:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -147,7 +147,7 @@ public record ContentProgressDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the progress record was last modified. Automatically updated by the system.",
-                example = "2024-04-05T16:30:00",
+                example = "2024-04-05T16:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

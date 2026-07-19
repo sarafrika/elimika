@@ -16,11 +16,11 @@ public record InstructorScheduleEntry(
         @JsonProperty("uuid")
         UUID uuid,
 
-        @Schema(description = "Start time of the scheduled instance", example = "2024-09-15T09:00:00")
+        @Schema(description = "Start time of the scheduled instance", example = "2024-09-15T09:00:00Z")
         @JsonProperty("start_time")
         LocalDateTime startTime,
 
-        @Schema(description = "End time of the scheduled instance", example = "2024-09-15T10:30:00")
+        @Schema(description = "End time of the scheduled instance", example = "2024-09-15T10:30:00Z")
         @JsonProperty("end_time")
         LocalDateTime endTime,
 

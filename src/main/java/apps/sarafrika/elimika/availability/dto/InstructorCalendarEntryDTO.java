@@ -23,11 +23,11 @@ public record InstructorCalendarEntryDTO(
         @JsonProperty("entry_type")
         CalendarEntryType entryType,
 
-        @Schema(description = "Start date-time for the entry", example = "2024-09-15T09:00:00")
+        @Schema(description = "Start date-time for the entry", example = "2024-09-15T09:00:00Z")
         @JsonProperty("start_time")
         LocalDateTime startTime,
 
-        @Schema(description = "End date-time for the entry", example = "2024-09-15T10:30:00")
+        @Schema(description = "End date-time for the entry", example = "2024-09-15T10:30:00Z")
         @JsonProperty("end_time")
         LocalDateTime endTime,
 

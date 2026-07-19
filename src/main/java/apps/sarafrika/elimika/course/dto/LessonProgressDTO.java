@@ -84,7 +84,7 @@ public record LessonProgressDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student started working on this lesson.",
-                example = "2024-04-05T10:15:00",
+                example = "2024-04-05T10:15:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -93,7 +93,7 @@ public record LessonProgressDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student completed this lesson. Null if not yet completed.",
-                example = "2024-04-05T12:30:00",
+                example = "2024-04-05T12:30:00Z",
                 format = "date-time",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -113,7 +113,7 @@ public record LessonProgressDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the progress record was created. Automatically set by the system.",
-                example = "2024-04-05T10:15:00",
+                example = "2024-04-05T10:15:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -132,7 +132,7 @@ public record LessonProgressDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the progress record was last modified. Automatically updated by the system.",
-                example = "2024-04-05T12:30:00",
+                example = "2024-04-05T12:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

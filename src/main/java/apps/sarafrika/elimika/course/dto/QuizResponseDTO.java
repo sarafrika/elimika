@@ -137,7 +137,7 @@ public record QuizResponseDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the response was created. Automatically set by the system.",
-                example = "2024-04-10T15:20:00",
+                example = "2024-04-10T15:20:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -156,7 +156,7 @@ public record QuizResponseDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the response was last modified. Automatically updated by the system.",
-                example = "2024-04-10T15:20:00",
+                example = "2024-04-10T15:20:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

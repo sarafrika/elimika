@@ -86,7 +86,7 @@ public record StudentScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Start date and time of the scheduled class.",
-                example = "2024-09-15T09:00:00",
+                example = "2024-09-15T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -95,7 +95,7 @@ public record StudentScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** End date and time of the scheduled class.",
-                example = "2024-09-15T10:30:00",
+                example = "2024-09-15T10:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -163,7 +163,7 @@ public record StudentScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when attendance was marked (if applicable).",
-                example = "2024-09-15T09:15:00",
+                example = "2024-09-15T09:15:00Z",
                 format = "date-time",
                 nullable = true,
                 accessMode = Schema.AccessMode.READ_ONLY

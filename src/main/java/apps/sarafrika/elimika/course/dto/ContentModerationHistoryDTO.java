@@ -76,7 +76,7 @@ public record ContentModerationHistoryDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the decision was recorded.",
-                example = "2026-07-13T09:00:00",
+                example = "2026-07-13T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )

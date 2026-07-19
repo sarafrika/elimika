@@ -105,7 +105,7 @@ public record CertificateDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the certificate was issued. Automatically set by the system.",
-                example = "2024-05-15T16:30:00",
+                example = "2024-05-15T16:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -115,7 +115,7 @@ public record CertificateDTO(
 
         @Schema(
                 description = "**[REQUIRED]** Date when the course or program was completed by the student.",
-                example = "2024-05-15T15:45:00",
+                example = "2024-05-15T15:45:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
@@ -177,7 +177,7 @@ public record CertificateDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the certificate record was created. Automatically set by the system.",
-                example = "2024-05-15T16:30:00",
+                example = "2024-05-15T16:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -196,7 +196,7 @@ public record CertificateDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the certificate was last modified. Automatically updated by the system.",
-                example = "2024-05-15T16:30:00",
+                example = "2024-05-15T16:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

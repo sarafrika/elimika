@@ -92,7 +92,7 @@ public record QuizAttemptDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student started the quiz attempt.",
-                example = "2024-04-10T14:15:00",
+                example = "2024-04-10T14:15:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -101,7 +101,7 @@ public record QuizAttemptDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student submitted the quiz attempt.",
-                example = "2024-04-10T15:30:00",
+                example = "2024-04-10T15:30:00Z",
                 format = "date-time",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -188,7 +188,7 @@ public record QuizAttemptDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the attempt was created. Automatically set by the system.",
-                example = "2024-04-10T14:15:00",
+                example = "2024-04-10T14:15:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -207,7 +207,7 @@ public record QuizAttemptDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the attempt was last modified. Automatically updated by the system.",
-                example = "2024-04-10T15:30:00",
+                example = "2024-04-10T15:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

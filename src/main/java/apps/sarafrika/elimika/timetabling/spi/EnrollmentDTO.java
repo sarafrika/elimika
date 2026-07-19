@@ -76,7 +76,7 @@ public record EnrollmentDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when attendance was marked for this enrollment.",
-                example = "2024-09-15T09:15:00",
+                example = "2024-09-15T09:15:00Z",
                 format = "date-time",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -86,7 +86,7 @@ public record EnrollmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the enrollment was first created. Automatically set by the system.",
-                example = "2024-09-05T10:00:00",
+                example = "2024-09-05T10:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -96,7 +96,7 @@ public record EnrollmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the enrollment was last modified. Automatically updated by the system.",
-                example = "2024-09-05T15:30:00",
+                example = "2024-09-05T15:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

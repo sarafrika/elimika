@@ -101,7 +101,7 @@ public record AssignmentSubmissionDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the submission was made by the student.",
-                example = "2024-04-10T14:30:00",
+                example = "2024-04-10T14:30:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -162,7 +162,7 @@ public record AssignmentSubmissionDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the submission was graded by the instructor.",
-                example = "2024-04-12T16:45:00",
+                example = "2024-04-12T16:45:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -180,7 +180,7 @@ public record AssignmentSubmissionDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the submission was created. Automatically set by the system.",
-                example = "2024-04-10T14:30:00",
+                example = "2024-04-10T14:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -199,7 +199,7 @@ public record AssignmentSubmissionDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the submission was last modified. Automatically updated by the system.",
-                example = "2024-04-12T16:45:00",
+                example = "2024-04-12T16:45:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

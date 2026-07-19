@@ -66,14 +66,14 @@ public record ClassQuizScheduleDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** When the quiz is visible to students (UTC).",
-                example = "2024-05-09T07:00:00"
+                example = "2024-05-09T07:00:00Z"
         )
         @JsonProperty("visible_at")
         LocalDateTime visibleAt,
 
         @Schema(
                 description = "**[OPTIONAL]** Deadline for completing the quiz (UTC).",
-                example = "2024-05-09T23:59:00"
+                example = "2024-05-09T23:59:00Z"
         )
         @JsonProperty("due_at")
         LocalDateTime dueAt,
@@ -130,7 +130,7 @@ public record ClassQuizScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the schedule was created.",
-                example = "2024-04-01T12:00:00",
+                example = "2024-04-01T12:00:00Z",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
@@ -146,7 +146,7 @@ public record ClassQuizScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the schedule was last updated.",
-                example = "2024-04-03T10:00:00",
+                example = "2024-04-03T10:00:00Z",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY)

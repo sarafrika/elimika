@@ -85,7 +85,7 @@ public record AssignmentAttachmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the attachment was created.",
-                example = "2024-11-15T09:30:00",
+                example = "2024-11-15T09:30:00Z",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
@@ -101,7 +101,7 @@ public record AssignmentAttachmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the attachment was last updated.",
-                example = "2024-11-15T09:30:00",
+                example = "2024-11-15T09:30:00Z",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY)

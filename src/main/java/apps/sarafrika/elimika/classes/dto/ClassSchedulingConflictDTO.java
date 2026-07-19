@@ -14,11 +14,11 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ClassSchedulingConflictDTO(
 
-        @Schema(description = "Requested start date-time that conflicted", example = "2025-01-15T14:00:00")
+        @Schema(description = "Requested start date-time that conflicted", example = "2025-01-15T14:00:00Z")
         @JsonProperty("requested_start")
         LocalDateTime requestedStart,
 
-        @Schema(description = "Requested end date-time that conflicted", example = "2025-01-15T15:30:00")
+        @Schema(description = "Requested end date-time that conflicted", example = "2025-01-15T15:30:00Z")
         @JsonProperty("requested_end")
         LocalDateTime requestedEnd,
 

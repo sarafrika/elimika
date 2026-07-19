@@ -110,7 +110,7 @@ public record CourseAssessmentScoreDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the assessment was graded by the instructor.",
-                example = "2024-04-15T14:30:00",
+                example = "2024-04-15T14:30:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -138,7 +138,7 @@ public record CourseAssessmentScoreDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the score record was created. Automatically set by the system.",
-                example = "2024-04-15T14:30:00",
+                example = "2024-04-15T14:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -157,7 +157,7 @@ public record CourseAssessmentScoreDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the score record was last modified. Automatically updated by the system.",
-                example = "2024-04-15T14:30:00",
+                example = "2024-04-15T14:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

@@ -132,7 +132,7 @@ public record AssignmentDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Due date and time for assignment submission.",
-                example = "2024-04-15T23:59:59",
+                example = "2024-04-15T23:59:59Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -177,7 +177,7 @@ public record AssignmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the assignment was created. Automatically set by the system.",
-                example = "2024-04-01T12:00:00",
+                example = "2024-04-01T12:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -196,7 +196,7 @@ public record AssignmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the assignment was last modified. Automatically updated by the system.",
-                example = "2024-04-05T10:30:00",
+                example = "2024-04-05T10:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

@@ -75,7 +75,7 @@ public record CoursePendingEditDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** When the edit was submitted for review.",
-                example = "2026-07-17T09:00:00",
+                example = "2026-07-17T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -92,7 +92,7 @@ public record CoursePendingEditDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** When the edit was reviewed.",
-                example = "2026-07-17T11:30:00",
+                example = "2026-07-17T11:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )

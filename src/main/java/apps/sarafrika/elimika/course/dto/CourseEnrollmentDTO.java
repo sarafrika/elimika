@@ -77,7 +77,7 @@ public record CourseEnrollmentDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student enrolled in the course.",
-                example = "2024-04-01T09:00:00",
+                example = "2024-04-01T09:00:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -86,7 +86,7 @@ public record CourseEnrollmentDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** Timestamp when the student completed the course. Null if not yet completed.",
-                example = "2024-04-30T16:45:00",
+                example = "2024-04-30T16:45:00Z",
                 format = "date-time",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -130,7 +130,7 @@ public record CourseEnrollmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the enrollment was created. Automatically set by the system.",
-                example = "2024-04-01T09:00:00",
+                example = "2024-04-01T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -149,7 +149,7 @@ public record CourseEnrollmentDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the enrollment was last modified. Automatically updated by the system.",
-                example = "2024-04-30T16:45:00",
+                example = "2024-04-30T16:45:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

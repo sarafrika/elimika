@@ -64,21 +64,21 @@ public record ClassAssignmentScheduleDTO(
 
         @Schema(
                 description = "**[OPTIONAL]** When the assignment becomes visible to students (UTC).",
-                example = "2024-05-08T07:00:00"
+                example = "2024-05-08T07:00:00Z"
         )
         @JsonProperty("visible_at")
         LocalDateTime visibleAt,
 
         @Schema(
                 description = "**[OPTIONAL]** Submission deadline for the class (UTC).",
-                example = "2024-05-12T23:59:00"
+                example = "2024-05-12T23:59:00Z"
         )
         @JsonProperty("due_at")
         LocalDateTime dueAt,
 
         @Schema(
                 description = "**[OPTIONAL]** Deadline for trainers to complete grading (UTC).",
-                example = "2024-05-15T17:00:00"
+                example = "2024-05-15T17:00:00Z"
         )
         @JsonProperty("grading_due_at")
         LocalDateTime gradingDueAt,
@@ -121,7 +121,7 @@ public record ClassAssignmentScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the schedule was created.",
-                example = "2024-04-01T12:00:00",
+                example = "2024-04-01T12:00:00Z",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
@@ -137,7 +137,7 @@ public record ClassAssignmentScheduleDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the schedule was last updated.",
-                example = "2024-04-03T09:15:00",
+                example = "2024-04-03T09:15:00Z",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY)

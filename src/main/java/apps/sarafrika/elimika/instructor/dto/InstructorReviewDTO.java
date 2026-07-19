@@ -139,7 +139,7 @@ public record InstructorReviewDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the review was created.",
-                example = "2025-11-18T09:00:00",
+                example = "2025-11-18T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -156,7 +156,7 @@ public record InstructorReviewDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the review was last updated.",
-                example = "2025-11-18T09:00:00",
+                example = "2025-11-18T09:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY
         )

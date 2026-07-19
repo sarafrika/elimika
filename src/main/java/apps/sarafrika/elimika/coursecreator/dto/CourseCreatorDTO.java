@@ -117,7 +117,7 @@ public record CourseCreatorDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the course creator profile was first created. Automatically set by the system.",
-                example = "2024-09-30T10:00:00",
+                example = "2024-09-30T10:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -136,7 +136,7 @@ public record CourseCreatorDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the course creator profile was last modified. Automatically updated by the system on any changes.",
-                example = "2024-09-30T15:30:00",
+                example = "2024-09-30T15:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

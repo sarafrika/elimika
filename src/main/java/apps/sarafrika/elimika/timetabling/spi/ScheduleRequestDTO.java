@@ -52,7 +52,7 @@ public record ScheduleRequestDTO(
 
         @Schema(
                 description = "**[REQUIRED]** Start date and time for the scheduled session.",
-                example = "2024-09-15T09:00:00",
+                example = "2024-09-15T09:00:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
@@ -62,7 +62,7 @@ public record ScheduleRequestDTO(
 
         @Schema(
                 description = "**[REQUIRED]** End date and time for the scheduled session.",
-                example = "2024-09-15T10:30:00",
+                example = "2024-09-15T10:30:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )

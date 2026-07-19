@@ -80,7 +80,7 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[REQUIRED]** Start date and time of the scheduled class session.",
-                example = "2024-09-15T09:00:00",
+                example = "2024-09-15T09:00:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
@@ -90,7 +90,7 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[REQUIRED]** End date and time of the scheduled class session.",
-                example = "2024-09-15T10:30:00",
+                example = "2024-09-15T10:30:00Z",
                 format = "date-time",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
@@ -182,7 +182,7 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Actual UTC timestamp when the instructor explicitly started the class session.",
-                example = "2024-09-15T09:03:00",
+                example = "2024-09-15T09:03:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 nullable = true,
@@ -193,7 +193,7 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Actual UTC timestamp when the instructor explicitly concluded the class session.",
-                example = "2024-09-15T10:31:00",
+                example = "2024-09-15T10:31:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 nullable = true,
@@ -204,7 +204,7 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the scheduled instance was first created. Automatically set by the system.",
-                example = "2024-09-05T10:00:00",
+                example = "2024-09-05T10:00:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -214,7 +214,7 @@ public record ScheduledInstanceDTO(
 
         @Schema(
                 description = "**[READ-ONLY]** Timestamp when the scheduled instance was last modified. Automatically updated by the system.",
-                example = "2024-09-05T15:30:00",
+                example = "2024-09-05T15:30:00Z",
                 format = "date-time",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

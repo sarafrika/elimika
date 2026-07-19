@@ -18,12 +18,12 @@ public record ClassSessionTemplateDTO(
         @JsonProperty(value = "uuid", access = JsonProperty.Access.READ_ONLY)
         UUID uuid,
 
-        @Schema(description = "Start time for the first occurrence (UTC)", example = "2025-01-15T14:00:00")
+        @Schema(description = "Start time for the first occurrence (UTC)", example = "2025-01-15T14:00:00Z")
         @NotNull(message = "Session start time is required")
         @JsonProperty("start_time")
         LocalDateTime startTime,
 
-        @Schema(description = "End time for the first occurrence (UTC)", example = "2025-01-15T15:30:00")
+        @Schema(description = "End time for the first occurrence (UTC)", example = "2025-01-15T15:30:00Z")
         @NotNull(message = "Session end time is required")
         @JsonProperty("end_time")
         LocalDateTime endTime,
