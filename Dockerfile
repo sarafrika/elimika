@@ -23,6 +23,10 @@ RUN ./gradlew clean build -x test --no-daemon
 # Use a smaller JRE image for the runtime stage
 FROM eclipse-temurin:21-jre
 
+# Pin the container (and therefore the JVM default) time zone to UTC. Elimika
+# stores every instant in UTC and relies on this for correct timestamp handling.
+ENV TZ=UTC
+
 # Use existing user with UID 1000 or create elimika user
 RUN existing_user=$(getent passwd 1000 | cut -d: -f1) && \
     if [ -n "$existing_user" ]; then \
@@ -57,4 +61,4 @@ LABEL version="0.0.1"
 LABEL maintainer="Wilfred Njuguna"
 
 # Run the Spring Boot application with optimized JVM options
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Duser.timezone=UTC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

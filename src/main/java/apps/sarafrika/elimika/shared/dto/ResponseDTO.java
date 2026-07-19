@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.shared.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDateTime;
@@ -16,7 +15,8 @@ public record ResponseDTO<T>(
 
         Map<String, String> errors,
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
+        // Serialized as a UTC ISO-8601 instant (e.g. 2024-01-01T09:00:00Z) via the
+        // global LocalDateTime serializer configured in JacksonConfig.
         LocalDateTime timestamp
 ) {
 }
