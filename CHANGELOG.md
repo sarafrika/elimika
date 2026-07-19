@@ -1,3 +1,10 @@
+# [2.102.0](https://github.com/sarafrika/elimika/compare/v2.101.0...v2.102.0) (2026-07-19)
+
+
+### Features
+
+* **shared:** serialize timestamps as UTC ISO-8601 with Z and pin JVM to UTC ([51b79be](https://github.com/sarafrika/elimika/commit/51b79bef0cbc6206503611acb9e80013ce35b6ea))
+
 # [2.101.0](https://github.com/sarafrika/elimika/compare/v2.100.0...v2.101.0) (2026-07-17)
 
 
