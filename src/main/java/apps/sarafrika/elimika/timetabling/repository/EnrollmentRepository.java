@@ -187,4 +187,20 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<Object[]> findEnrolmentTrendsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                       @Param("since") LocalDateTime since);
+
+    /**
+     * Hourly enrolment counts for the current day for classes owned by the given
+     * organisation. Returns rows of {@code [hour (HH:00 string), total (long)]}.
+     */
+    @Query(value = "SELECT to_char(ce.created_date, 'HH24:00') AS hour, COUNT(*) AS total " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "AND ce.created_date >= :startOfDay " +
+                   "GROUP BY 1 " +
+                   "ORDER BY 1",
+           nativeQuery = true)
+    List<Object[]> findEnrolmentsByHourTodayForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                            @Param("startOfDay") LocalDateTime startOfDay);
 }

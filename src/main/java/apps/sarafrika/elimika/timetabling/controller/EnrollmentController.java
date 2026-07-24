@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.timetabling.controller;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
@@ -285,5 +286,21 @@ public class EnrollmentController {
         List<EnrolmentTrendPointDTO> trends =
                 timetableService.getEnrolmentTrendsForOrganisation(organisationUuid, months);
         return ResponseEntity.ok(ApiResponse.success(trends, "Enrolment trends retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get organisation today's-growth",
+            description = "Hourly enrolment counts for the current day across all classes owned by the organisation."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Today's growth retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/today-growth")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<TodayGrowthPointDTO>>> getTodayGrowth(
+            @Parameter(description = "UUID of the organisation to scope to")
+            @PathVariable UUID organisationUuid) {
+        log.debug("REST request for today's growth of organisation {}", organisationUuid);
+
+        List<TodayGrowthPointDTO> growth = timetableService.getTodayGrowthForOrganisation(organisationUuid);
+        return ResponseEntity.ok(ApiResponse.success(growth, "Today's growth retrieved successfully"));
     }
 }

@@ -352,4 +352,14 @@ public interface TimetableService {
      * @return ordered list of {@link EnrolmentTrendPointDTO}, oldest month first
      */
     List<EnrolmentTrendPointDTO> getEnrolmentTrendsForOrganisation(UUID organisationUuid, int months);
+
+    /**
+     * Today's hourly enrolment activity for an organisation — the number of
+     * enrolments recorded in each hour of the current day across the organisation's
+     * classes.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return ordered list of {@link TodayGrowthPointDTO}, earliest hour first
+     */
+    List<TodayGrowthPointDTO> getTodayGrowthForOrganisation(UUID organisationUuid);
 }

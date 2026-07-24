@@ -38,6 +38,7 @@ import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -1428,6 +1429,15 @@ public class TimetableServiceImpl implements TimetableService {
                 .atStartOfDay();
         return enrollmentRepository.findEnrolmentTrendsForOrganisation(organisationUuid, since).stream()
                 .map(row -> new EnrolmentTrendPointDTO((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TodayGrowthPointDTO> getTodayGrowthForOrganisation(UUID organisationUuid) {
+        java.time.LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+        return enrollmentRepository.findEnrolmentsByHourTodayForOrganisation(organisationUuid, startOfDay).stream()
+                .map(row -> new TodayGrowthPointDTO((String) row[0], ((Number) row[1]).longValue()))
                 .toList();
     }
 }
