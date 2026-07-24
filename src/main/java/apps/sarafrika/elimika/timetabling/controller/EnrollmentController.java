@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
@@ -265,5 +266,24 @@ public class EnrollmentController {
         boolean hasCapacity = timetableService.hasCapacityForEnrollment(instanceUuid);
         return ResponseEntity.ok(ApiResponse.success(hasCapacity,
             hasCapacity ? "Capacity available" : "Instance is at full capacity"));
+    }
+
+    @Operation(
+            summary = "Get organisation enrolment trends",
+            description = "Monthly enrolment counts across all classes owned by the organisation, oldest month first."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrolment trends retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/enrolment-trends")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<EnrolmentTrendPointDTO>>> getEnrolmentTrends(
+            @Parameter(description = "UUID of the organisation to scope the trend to")
+            @PathVariable UUID organisationUuid,
+            @Parameter(description = "Number of months to include (inclusive of the current month)")
+            @RequestParam(defaultValue = "6") int months) {
+        log.debug("REST request for enrolment trends of organisation {} over {} months", organisationUuid, months);
+
+        List<EnrolmentTrendPointDTO> trends =
+                timetableService.getEnrolmentTrendsForOrganisation(organisationUuid, months);
+        return ResponseEntity.ok(ApiResponse.success(trends, "Enrolment trends retrieved successfully"));
     }
 }

@@ -342,4 +342,14 @@ public interface TimetableService {
      * @return list of waitlist records created
      */
     List<EnrollmentDTO> joinWaitlist(EnrollmentRequestDTO request);
+
+    /**
+     * Monthly enrolment trend for an organisation — the number of enrolments per
+     * calendar month across all classes the organisation owns.
+     *
+     * @param organisationUuid the organisation to scope the trend to
+     * @param months how many months back to include (inclusive of the current month)
+     * @return ordered list of {@link EnrolmentTrendPointDTO}, oldest month first
+     */
+    List<EnrolmentTrendPointDTO> getEnrolmentTrendsForOrganisation(UUID organisationUuid, int months);
 }

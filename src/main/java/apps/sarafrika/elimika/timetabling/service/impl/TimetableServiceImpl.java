@@ -37,6 +37,7 @@ import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -1415,5 +1416,18 @@ public class TimetableServiceImpl implements TimetableService {
 
     private boolean matchesSearchKey(String candidate, String key) {
         return candidate.equals(key) || candidate.startsWith(key + "_");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EnrolmentTrendPointDTO> getEnrolmentTrendsForOrganisation(UUID organisationUuid, int months) {
+        int span = Math.max(1, months);
+        java.time.LocalDateTime since = java.time.LocalDate.now()
+                .minusMonths(span - 1L)
+                .withDayOfMonth(1)
+                .atStartOfDay();
+        return enrollmentRepository.findEnrolmentTrendsForOrganisation(organisationUuid, since).stream()
+                .map(row -> new EnrolmentTrendPointDTO((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
     }
 }
