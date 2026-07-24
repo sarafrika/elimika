@@ -203,4 +203,35 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<Object[]> findEnrolmentsByHourTodayForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                             @Param("startOfDay") LocalDateTime startOfDay);
+
+    /**
+     * Distinct active-enrolment counts per class definition for an organisation.
+     * Returns rows of {@code [class_definition_uuid (UUID), enrolled (long)]}.
+     */
+    @Query(value = "SELECT si.class_definition_uuid AS class_uuid, COUNT(DISTINCT ce.student_uuid) AS enrolled " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "GROUP BY si.class_definition_uuid",
+           nativeQuery = true)
+    List<Object[]> findClassEnrolmentCountsForOrganisation(@Param("organisationUuid") UUID organisationUuid);
+
+    /**
+     * Per-student enrolment/attendance summary for an organisation. Returns rows of
+     * {@code [student_uuid (UUID), total (long), completed (long)]} where total
+     * excludes cancelled/waitlisted and completed counts ATTENDED enrolments.
+     */
+    @Query(value = "SELECT ce.student_uuid AS student_uuid, " +
+                   "COUNT(*) AS total, " +
+                   "COUNT(*) FILTER (WHERE ce.status = 'ATTENDED') AS completed " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "GROUP BY ce.student_uuid",
+           nativeQuery = true)
+    List<Object[]> findStudentEnrolmentSummariesForOrganisation(@Param("organisationUuid") UUID organisationUuid);
 }

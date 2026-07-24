@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
@@ -302,5 +304,39 @@ public class EnrollmentController {
 
         List<TodayGrowthPointDTO> growth = timetableService.getTodayGrowthForOrganisation(organisationUuid);
         return ResponseEntity.ok(ApiResponse.success(growth, "Today's growth retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get per-class enrolment counts for an organisation",
+            description = "Distinct active-enrolment counts for each class definition the organisation owns."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class enrolment counts retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/class-enrolment-counts")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<ClassEnrolmentCountDTO>>> getClassEnrolmentCounts(
+            @Parameter(description = "UUID of the organisation to scope to")
+            @PathVariable UUID organisationUuid) {
+        log.debug("REST request for per-class enrolment counts of organisation {}", organisationUuid);
+
+        List<ClassEnrolmentCountDTO> counts =
+                timetableService.getClassEnrolmentCountsForOrganisation(organisationUuid);
+        return ResponseEntity.ok(ApiResponse.success(counts, "Class enrolment counts retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get per-student enrolment summaries for an organisation",
+            description = "Per-student total and attended (completed) enrolment counts across the organisation's classes."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrolment summaries retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/student-summaries")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<StudentEnrolmentSummaryDTO>>> getStudentSummaries(
+            @Parameter(description = "UUID of the organisation to scope to")
+            @PathVariable UUID organisationUuid) {
+        log.debug("REST request for per-student enrolment summaries of organisation {}", organisationUuid);
+
+        List<StudentEnrolmentSummaryDTO> summaries =
+                timetableService.getStudentEnrolmentSummariesForOrganisation(organisationUuid);
+        return ResponseEntity.ok(ApiResponse.success(summaries, "Student enrolment summaries retrieved successfully"));
     }
 }

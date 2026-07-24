@@ -39,6 +39,8 @@ import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
+import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -1438,6 +1440,23 @@ public class TimetableServiceImpl implements TimetableService {
         java.time.LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
         return enrollmentRepository.findEnrolmentsByHourTodayForOrganisation(organisationUuid, startOfDay).stream()
                 .map(row -> new TodayGrowthPointDTO((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassEnrolmentCountDTO> getClassEnrolmentCountsForOrganisation(UUID organisationUuid) {
+        return enrollmentRepository.findClassEnrolmentCountsForOrganisation(organisationUuid).stream()
+                .map(row -> new ClassEnrolmentCountDTO((UUID) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StudentEnrolmentSummaryDTO> getStudentEnrolmentSummariesForOrganisation(UUID organisationUuid) {
+        return enrollmentRepository.findStudentEnrolmentSummariesForOrganisation(organisationUuid).stream()
+                .map(row -> new StudentEnrolmentSummaryDTO(
+                        (UUID) row[0], ((Number) row[1]).longValue(), ((Number) row[2]).longValue()))
                 .toList();
     }
 }

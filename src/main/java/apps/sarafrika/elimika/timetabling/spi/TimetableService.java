@@ -362,4 +362,20 @@ public interface TimetableService {
      * @return ordered list of {@link TodayGrowthPointDTO}, earliest hour first
      */
     List<TodayGrowthPointDTO> getTodayGrowthForOrganisation(UUID organisationUuid);
+
+    /**
+     * Active enrolment counts per class definition for an organisation.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return one {@link ClassEnrolmentCountDTO} per class definition that has enrolments
+     */
+    List<ClassEnrolmentCountDTO> getClassEnrolmentCountsForOrganisation(UUID organisationUuid);
+
+    /**
+     * Per-student enrolment/attendance summaries for an organisation.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return one {@link StudentEnrolmentSummaryDTO} per student with enrolments
+     */
+    List<StudentEnrolmentSummaryDTO> getStudentEnrolmentSummariesForOrganisation(UUID organisationUuid);
 }
