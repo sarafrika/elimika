@@ -1,3 +1,13 @@
+# [2.103.0](https://github.com/sarafrika/elimika/compare/v2.102.0...v2.103.0) (2026-07-24)
+
+
+### Features
+
+* **tenancy:** add capacity and venue type to training branches ([276917f](https://github.com/sarafrika/elimika/commit/276917fb9e37243ae7780c92e956a9cc5cc85709))
+* **timetabling:** add organisation enrolment-trends analytics endpoint ([6a0c090](https://github.com/sarafrika/elimika/commit/6a0c0903ea3161165772182e3215714351db25fd))
+* **timetabling:** add organisation today's-growth analytics endpoint ([d8868a1](https://github.com/sarafrika/elimika/commit/d8868a1c09b84282b45d6332b457976ff443657c))
+* **timetabling:** add per-class enrolment count and per-student summary endpoints ([002ff03](https://github.com/sarafrika/elimika/commit/002ff0333544631ce18778955404cf0a5cdf4d3f))
+
 # [2.102.0](https://github.com/sarafrika/elimika/compare/v2.101.0...v2.102.0) (2026-07-19)
 
 
