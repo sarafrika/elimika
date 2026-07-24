@@ -18,6 +18,8 @@ public class TrainingBranchFactory {
                 trainingBranch.getPocEmail(),
                 trainingBranch.getPocTelephone(),
                 trainingBranch.isActive(),
+                trainingBranch.getCapacity(),
+                trainingBranch.getVenueType(),
                 trainingBranch.getCreatedDate(),
                 trainingBranch.getLastModifiedDate()
         );
@@ -33,6 +35,8 @@ public class TrainingBranchFactory {
         trainingBranch.setPocEmail(trainingBranchDTO.pocEmail());
         trainingBranch.setPocTelephone(trainingBranchDTO.pocTelephone());
         trainingBranch.setActive(trainingBranchDTO.active());
+        trainingBranch.setCapacity(trainingBranchDTO.capacity());
+        trainingBranch.setVenueType(trainingBranchDTO.venueType());
         return trainingBranch;
     }
 }

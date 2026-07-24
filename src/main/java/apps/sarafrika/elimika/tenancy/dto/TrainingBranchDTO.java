@@ -126,6 +126,26 @@ public record TrainingBranchDTO(
         boolean active,
 
         @Schema(
+                description = "**[OPTIONAL]** Seating/attendee capacity of the venue.",
+                example = "30",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("capacity")
+        Integer capacity,
+
+        @Schema(
+                description = "**[OPTIONAL]** Free-form venue/room type (e.g. Lab, Workshop, Auditorium).",
+                example = "Lab",
+                maxLength = 50,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Size(max = 50, message = "Venue type cannot exceed 50 characters")
+        @JsonProperty("venue_type")
+        String venueType,
+
+        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the training branch was first created. Automatically set by the system and cannot be modified.",
                 example = "2024-01-01T09:00:00Z",
                 format = "date-time",

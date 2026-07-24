@@ -342,4 +342,40 @@ public interface TimetableService {
      * @return list of waitlist records created
      */
     List<EnrollmentDTO> joinWaitlist(EnrollmentRequestDTO request);
+
+    /**
+     * Monthly enrolment trend for an organisation — the number of enrolments per
+     * calendar month across all classes the organisation owns.
+     *
+     * @param organisationUuid the organisation to scope the trend to
+     * @param months how many months back to include (inclusive of the current month)
+     * @return ordered list of {@link EnrolmentTrendPointDTO}, oldest month first
+     */
+    List<EnrolmentTrendPointDTO> getEnrolmentTrendsForOrganisation(UUID organisationUuid, int months);
+
+    /**
+     * Today's hourly enrolment activity for an organisation — the number of
+     * enrolments recorded in each hour of the current day across the organisation's
+     * classes.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return ordered list of {@link TodayGrowthPointDTO}, earliest hour first
+     */
+    List<TodayGrowthPointDTO> getTodayGrowthForOrganisation(UUID organisationUuid);
+
+    /**
+     * Active enrolment counts per class definition for an organisation.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return one {@link ClassEnrolmentCountDTO} per class definition that has enrolments
+     */
+    List<ClassEnrolmentCountDTO> getClassEnrolmentCountsForOrganisation(UUID organisationUuid);
+
+    /**
+     * Per-student enrolment/attendance summaries for an organisation.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return one {@link StudentEnrolmentSummaryDTO} per student with enrolments
+     */
+    List<StudentEnrolmentSummaryDTO> getStudentEnrolmentSummariesForOrganisation(UUID organisationUuid);
 }
