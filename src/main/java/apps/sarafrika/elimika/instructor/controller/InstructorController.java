@@ -413,6 +413,22 @@ public class InstructorController {
     }
 
     @Operation(
+            summary = "Get organisation instructor directory summaries",
+            description = "Returns one aggregated row per active instructor in the organisation — identity, " +
+                    "highest qualification, a representative skill, average rating, review count, and the number " +
+                    "of class definitions they lead. Scoped strictly to the given organisation."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor summaries retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/summaries")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO>>> getOrganisationInstructorSummaries(
+            @PathVariable UUID organisationUuid) {
+        List<apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO> summaries =
+                instructorService.getInstructorSummariesForOrganisation(organisationUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(summaries, "Instructor summaries retrieved successfully"));
+    }
+
+    @Operation(
             summary = "Get instructor rating summary",
             description = "Returns average rating and total review count for an instructor."
     )

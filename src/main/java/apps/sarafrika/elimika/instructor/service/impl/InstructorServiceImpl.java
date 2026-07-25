@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
+import apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
@@ -20,6 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -195,5 +198,46 @@ public class InstructorServiceImpl implements InstructorService {
         if (instructorDTO.professionalHeadline() != null) {
             instructor.setProfessionalHeadline(instructorDTO.professionalHeadline());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrgInstructorSummaryDTO> getInstructorSummariesForOrganisation(UUID organisationUuid) {
+        return instructorRepository.findInstructorSummariesForOrganisation(organisationUuid).stream()
+                .map(row -> new OrgInstructorSummaryDTO(
+                        toUuid(row[0]),
+                        toUuid(row[1]),
+                        toStr(row[2]),
+                        toStr(row[3]),
+                        toStr(row[4]),
+                        toStr(row[5]),
+                        toStr(row[6]),
+                        toDouble(row[7]),
+                        toLong(row[8]),
+                        toLong(row[9])
+                ))
+                .toList();
+    }
+
+    private static UUID toUuid(Object value) {
+        if (value == null) return null;
+        if (value instanceof UUID uuid) return uuid;
+        return UUID.fromString(value.toString());
+    }
+
+    private static String toStr(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Double toDouble(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigDecimal bd) return bd.doubleValue();
+        if (value instanceof Number n) return n.doubleValue();
+        return null;
+    }
+
+    private static long toLong(Object value) {
+        if (value instanceof Number n) return n.longValue();
+        return 0L;
     }
 }

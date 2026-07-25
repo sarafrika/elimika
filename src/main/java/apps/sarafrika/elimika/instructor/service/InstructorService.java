@@ -1,9 +1,11 @@
 package apps.sarafrika.elimika.instructor.service;
 
+import apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -73,4 +75,12 @@ public interface InstructorService {
      * @return count of instructors with the specified verification status
      */
     long countInstructorsByVerificationStatus(boolean verified);
+
+    /**
+     * Returns aggregated instructor directory rows scoped to a single organisation.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @return one summary row per active instructor in the organisation
+     */
+    List<OrgInstructorSummaryDTO> getInstructorSummariesForOrganisation(UUID organisationUuid);
 }
