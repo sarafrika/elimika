@@ -1,3 +1,11 @@
+# [2.104.0](https://github.com/sarafrika/elimika/compare/v2.103.0...v2.104.0) (2026-07-25)
+
+
+### Features
+
+* **instructor:** org instructor-summary aggregate endpoint (level/skill/rating/class-count) ([4a108c0](https://github.com/sarafrika/elimika/commit/4a108c06e58a3e729d0d37614552b4cdd59e4b00))
+* **tenancy:** student groups domain (cohorts/streams + membership CRUD) ([a5fb7f0](https://github.com/sarafrika/elimika/commit/a5fb7f05936aad82f47c9df454be1cda8d3708ba))
+
 # [2.103.0](https://github.com/sarafrika/elimika/compare/v2.102.0...v2.103.0) (2026-07-24)
 
 
