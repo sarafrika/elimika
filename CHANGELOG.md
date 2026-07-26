@@ -1,3 +1,10 @@
+# [2.106.0](https://github.com/sarafrika/elimika/compare/v2.105.0...v2.106.0) (2026-07-26)
+
+
+### Features
+
+* **tenancy:** skills fund domain (sources, transactions, computed KPIs) ([7954f53](https://github.com/sarafrika/elimika/commit/7954f533319b00cc60598b9bf1f54bc053d9dcde))
+
 # [2.105.0](https://github.com/sarafrika/elimika/compare/v2.104.0...v2.105.0) (2026-07-26)
 
 
