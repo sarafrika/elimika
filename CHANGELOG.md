@@ -1,3 +1,10 @@
+# [2.105.0](https://github.com/sarafrika/elimika/compare/v2.104.0...v2.105.0) (2026-07-26)
+
+
+### Features
+
+* **tenancy:** competitions domain (events + team registrations) ([66c3df1](https://github.com/sarafrika/elimika/commit/66c3df1dc45704b7cb6479badf2082080385d363))
+
 # [2.104.0](https://github.com/sarafrika/elimika/compare/v2.103.0...v2.104.0) (2026-07-25)
 
 
