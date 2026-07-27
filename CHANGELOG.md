@@ -1,3 +1,10 @@
+# [2.107.0](https://github.com/sarafrika/elimika/compare/v2.106.0...v2.107.0) (2026-07-27)
+
+
+### Features
+
+* **course:** approval-gated course content for organisations ([c558957](https://github.com/sarafrika/elimika/commit/c5589574187e8c8704780e928090b8fcb6db2b67))
+
 # [2.106.0](https://github.com/sarafrika/elimika/compare/v2.105.0...v2.106.0) (2026-07-26)
 
 
