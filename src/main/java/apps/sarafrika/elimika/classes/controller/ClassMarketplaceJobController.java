@@ -236,12 +236,22 @@ public class ClassMarketplaceJobController {
         ClassMarketplaceJobApplicationDTO result = switch (action.toLowerCase()) {
             case "approve" -> classMarketplaceJobService.approveApplication(jobUuid, applicationUuid, payload);
             case "reject" -> classMarketplaceJobService.rejectApplication(jobUuid, applicationUuid, payload);
-            default -> throw new IllegalArgumentException("Unsupported action '" + action + "'. Allowed values: approve, reject.");
+            case "shortlist" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
+                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.SHORTLISTED, payload);
+            case "interview" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
+                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.INTERVIEWING, payload);
+            case "offer" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
+                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.OFFERED, payload);
+            default -> throw new IllegalArgumentException("Unsupported action '" + action
+                    + "'. Allowed values: shortlist, interview, offer, approve, reject.");
         };
 
         String message = switch (action.toLowerCase()) {
             case "approve" -> "Marketplace class job application approved successfully";
             case "reject" -> "Marketplace class job application rejected successfully";
+            case "shortlist" -> "Candidate shortlisted successfully";
+            case "interview" -> "Candidate moved to interview successfully";
+            case "offer" -> "Offer extended to candidate successfully";
             default -> "Marketplace class job application updated successfully";
         };
 

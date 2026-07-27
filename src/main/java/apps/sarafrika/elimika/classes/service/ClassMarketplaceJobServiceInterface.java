@@ -57,6 +57,15 @@ public interface ClassMarketplaceJobServiceInterface {
                                                         UUID applicationUuid,
                                                         ClassMarketplaceJobDecisionRequestDTO request);
 
+    /**
+     * Moves an application to a non-terminal recruitment stage
+     * (SHORTLISTED, INTERVIEWING or OFFERED) without making a final decision.
+     */
+    ClassMarketplaceJobApplicationDTO moveApplicationToStage(UUID jobUuid,
+                                                             UUID applicationUuid,
+                                                             ClassMarketplaceJobApplicationStatus targetStage,
+                                                             ClassMarketplaceJobDecisionRequestDTO request);
+
     ClassMarketplaceJobAssignmentResponseDTO assignInstructor(UUID jobUuid,
                                                               ClassMarketplaceJobAssignmentRequestDTO request);
 }

@@ -333,6 +333,33 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     @Override
+    public ClassMarketplaceJobApplicationDTO moveApplicationToStage(UUID jobUuid,
+                                                                    UUID applicationUuid,
+                                                                    ClassMarketplaceJobApplicationStatus targetStage,
+                                                                    ClassMarketplaceJobDecisionRequestDTO request) {
+        if (targetStage != ClassMarketplaceJobApplicationStatus.SHORTLISTED
+                && targetStage != ClassMarketplaceJobApplicationStatus.INTERVIEWING
+                && targetStage != ClassMarketplaceJobApplicationStatus.OFFERED) {
+            throw new IllegalArgumentException("Stage " + targetStage
+                    + " is not a movable recruitment stage. Use approve, reject or assign for final decisions.");
+        }
+
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        ensureJobOpen(job);
+        requireOrganisationManagerAccess(job.getOrganisationUuid());
+
+        ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
+        ensureApplicationReviewable(application);
+
+        application.setStatus(targetStage);
+        application.setReviewNotes(request == null ? null : request.reviewNotes());
+        application.setReviewedBy(resolveReviewer());
+        application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
+
+        return toApplicationDTO(applicationRepository.save(application), job);
+    }
+
+    @Override
     public ClassMarketplaceJobAssignmentResponseDTO assignInstructor(UUID jobUuid,
                                                                      ClassMarketplaceJobAssignmentRequestDTO request) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
