@@ -68,6 +68,7 @@ public class CourseController {
     private final CourseCategoryService courseCategoryService;
     private final CourseReviewService courseReviewService;
     private final CourseRecommendationService courseRecommendationService;
+    private final OrganisationCourseContentService organisationCourseContentService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final MediaStorageService mediaStorageService;
@@ -996,6 +997,30 @@ public class CourseController {
         List<LessonContentDTO> content = lessonContentService.getContentByLesson(lessonUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(content, "Lesson content retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get course content for an organisation (approval-gated)",
+            description = """
+                    Returns course content scoped to what a given organisation is allowed to see.
+
+                    - **Not approved to train:** a decision-making summary — lesson outline, content
+                      counts and rating — with no lesson bodies, so full content never leaks.
+                    - **Approved to train:** full read access to every lesson's content.
+
+                    Content is read-only here regardless of access; only the course creator can edit it.
+                    """
+    )
+    @GetMapping("/{courseUuid}/organisations/{organisationUuid}/content")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<OrganisationCourseContentDTO>> getOrganisationCourseContent(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID organisationUuid) {
+        OrganisationCourseContentDTO content =
+                organisationCourseContentService.getContentForOrganisation(courseUuid, organisationUuid);
+        String message = content.fullAccess()
+                ? "Full course content retrieved"
+                : "Course summary retrieved (organisation not approved to train)";
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(content, message));
     }
 
     @Operation(
