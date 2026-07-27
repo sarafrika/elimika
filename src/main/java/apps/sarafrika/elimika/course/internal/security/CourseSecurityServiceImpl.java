@@ -2,7 +2,10 @@ package apps.sarafrika.elimika.course.internal.security;
 
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
+import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
+import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,6 +34,7 @@ import java.util.UUID;
 public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private final CourseRepository courseRepository;
+    private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final UserLookupService userLookupService;
 
@@ -90,6 +95,55 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             log.error("Error checking course ownership for course: {}", courseUuid, e);
             return false;
         }
+    }
+
+    /**
+     * Grants content read access to the course owner or a member of an organisation
+     * approved to train the course. Admins are handled at the endpoint; enrolled
+     * learners use their own class flow, not this path.
+     */
+    @Override
+    public boolean canReadCourseContent(UUID courseUuid) {
+        if (isCourseOwner(courseUuid)) {
+            return true;
+        }
+        try {
+            UUID userUuid = currentUserUuid();
+            if (userUuid == null) {
+                return false;
+            }
+            List<UUID> organisationUuids = userLookupService.getUserOrganizations(userUuid);
+            for (UUID organisationUuid : organisationUuids) {
+                boolean approved = courseTrainingApplicationRepository
+                        .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                                courseUuid,
+                                CourseTrainingApplicantType.ORGANISATION,
+                                organisationUuid,
+                                CourseTrainingApplicationStatus.APPROVED);
+                if (approved) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("Error checking content read access for course: {}", courseUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * Resolves the current authenticated user's UUID from the JWT, or null.
+     */
+    private UUID currentUserUuid() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        String keycloakId = getKeycloakId(authentication);
+        if (keycloakId == null) {
+            return null;
+        }
+        return userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
     }
 
     /**
