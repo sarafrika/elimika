@@ -1,3 +1,12 @@
+# [2.107.0](https://github.com/sarafrika/elimika/compare/v2.106.0...v2.107.0) (2026-07-27)
+
+
+### Features
+
+* **classes:** recruitment funnel stages for marketplace applications ([b5dd740](https://github.com/sarafrika/elimika/commit/b5dd740e50298e8a5829ce9b63a75c50a1160854))
+* **course:** approval-gated course content for organisations ([59e5029](https://github.com/sarafrika/elimika/commit/59e5029054b0737db69b8c12f72fa30028a54892))
+* **course:** restrict lesson-content endpoint to authorized readers ([8a59a97](https://github.com/sarafrika/elimika/commit/8a59a97cad52af970bc20e5570a529a63f0f5ef1))
+
 # [2.108.0](https://github.com/sarafrika/elimika/compare/v2.107.0...v2.108.0) (2026-07-27)
 
 
