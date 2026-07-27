@@ -988,8 +988,15 @@ public class CourseController {
 
     @Operation(
             summary = "Get lesson content",
-            description = "Retrieves all content for a lesson in display order with computed properties."
+            description = """
+                    Retrieves all content for a lesson in display order with computed properties.
+
+                    Restricted to the course owner, a member of an organisation approved to train
+                    the course, or a platform admin — so lesson content is never readable by
+                    arbitrary authenticated callers.
+                    """
     )
+    @PreAuthorize("@courseSecurityService.canReadCourseContent(#courseUuid) or @domainSecurityService.isPlatformAdmin()")
     @GetMapping("/{courseUuid}/lessons/{lessonUuid}/content")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<LessonContentDTO>>> getLessonContent(
             @PathVariable UUID courseUuid,
