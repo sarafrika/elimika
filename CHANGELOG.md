@@ -1,3 +1,10 @@
+# [2.108.0](https://github.com/sarafrika/elimika/compare/v2.107.0...v2.108.0) (2026-07-27)
+
+
+### Features
+
+* **course:** restrict lesson-content endpoint to authorized readers ([ff73344](https://github.com/sarafrika/elimika/commit/ff733447899a363b99275eb6b58d3b92fbe7ac3c))
+
 # [2.107.0](https://github.com/sarafrika/elimika/compare/v2.106.0...v2.107.0) (2026-07-27)
 
 
