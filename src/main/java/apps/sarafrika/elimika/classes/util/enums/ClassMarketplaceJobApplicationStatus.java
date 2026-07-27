@@ -11,6 +11,9 @@ import java.util.Map;
  */
 public enum ClassMarketplaceJobApplicationStatus {
     PENDING("pending"),
+    SHORTLISTED("shortlisted"),
+    INTERVIEWING("interviewing"),
+    OFFERED("offered"),
     APPROVED("approved"),
     REJECTED("rejected"),
     ASSIGNED("assigned"),
