@@ -1,3 +1,10 @@
+# [2.111.0](https://github.com/sarafrika/elimika/compare/v2.110.0...v2.111.0) (2026-07-28)
+
+
+### Features
+
+* **tenancy:** expose organisation verification endpoints and record verification requests ([91e7c29](https://github.com/sarafrika/elimika/commit/91e7c2988e5fde630b021051398a7100e43fbf46))
+
 # [2.110.0](https://github.com/sarafrika/elimika/compare/v2.109.0...v2.110.0) (2026-07-28)
 
 
