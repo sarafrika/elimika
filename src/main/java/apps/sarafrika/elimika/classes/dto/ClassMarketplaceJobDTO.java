@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.dto;
 
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
+import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -128,7 +129,31 @@ public record ClassMarketplaceJobDTO(
         String createdBy,
 
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @JsonProperty(value = "service_type", access = JsonProperty.Access.READ_ONLY)
+        ClassServiceType serviceType,
+
+        @JsonProperty(value = "preferred_instructor_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID preferredInstructorUuid,
+
+        @JsonProperty(value = "target_groups", access = JsonProperty.Access.READ_ONLY)
+        List<String> targetGroups,
+
+        @JsonProperty(value = "remind_students", access = JsonProperty.Access.READ_ONLY)
+        Boolean remindStudents,
+
+        @JsonProperty(value = "remind_instructor", access = JsonProperty.Access.READ_ONLY)
+        Boolean remindInstructor,
+
+        @JsonProperty(value = "remind_via_email", access = JsonProperty.Access.READ_ONLY)
+        Boolean remindViaEmail,
+
+        @JsonProperty(value = "remind_via_sms", access = JsonProperty.Access.READ_ONLY)
+        Boolean remindViaSms,
+
+        @JsonProperty(value = "remind_via_push", access = JsonProperty.Access.READ_ONLY)
+        Boolean remindViaPush
 ) {
 
     @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)

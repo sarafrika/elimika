@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.dto;
 
+import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -199,7 +200,39 @@ public record ClassMarketplaceJobRequestDTO(
         @Schema(description = "**[OPTIONAL]** Organisation resources (venue, equipment pools) to reserve for every session while recruitment runs. At most one venue; posting fails with a per-occurrence conflict report if any resource is unavailable.", nullable = true)
         @JsonProperty("resources")
         @Valid
-        List<ClassMarketplaceJobResourceDTO> resources
+        List<ClassMarketplaceJobResourceDTO> resources,
+
+        @Schema(description = "**[OPTIONAL]** Preset service the class is offered under (drives the commercial format shown to learners).", nullable = true)
+        @JsonProperty("service_type")
+        ClassServiceType serviceType,
+
+        @Schema(description = "**[OPTIONAL]** Preferred instructor for the class. Instructors still apply; this is a hint recorded on the advert, not a final assignment.", nullable = true)
+        @JsonProperty("preferred_instructor_uuid")
+        UUID preferredInstructorUuid,
+
+        @Schema(description = "**[OPTIONAL]** Target learner groups the class is aimed at (e.g. Grade 1, Grade 2).", nullable = true)
+        @JsonProperty("target_groups")
+        List<String> targetGroups,
+
+        @Schema(description = "**[OPTIONAL]** Send session reminders to enrolled students.", nullable = true)
+        @JsonProperty("remind_students")
+        Boolean remindStudents,
+
+        @Schema(description = "**[OPTIONAL]** Send session reminders to the assigned instructor.", nullable = true)
+        @JsonProperty("remind_instructor")
+        Boolean remindInstructor,
+
+        @Schema(description = "**[OPTIONAL]** Deliver reminders via email.", nullable = true)
+        @JsonProperty("remind_via_email")
+        Boolean remindViaEmail,
+
+        @Schema(description = "**[OPTIONAL]** Deliver reminders via SMS.", nullable = true)
+        @JsonProperty("remind_via_sms")
+        Boolean remindViaSms,
+
+        @Schema(description = "**[OPTIONAL]** Deliver reminders via push notification.", nullable = true)
+        @JsonProperty("remind_via_push")
+        Boolean remindViaPush
 ) {
 
     @JsonIgnore

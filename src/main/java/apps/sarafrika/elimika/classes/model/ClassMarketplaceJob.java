@@ -1,10 +1,13 @@
 package apps.sarafrika.elimika.classes.model;
 
 import apps.sarafrika.elimika.classes.util.converter.ClassMarketplaceJobStatusConverter;
+import apps.sarafrika.elimika.classes.util.converter.ClassServiceTypeConverter;
 import apps.sarafrika.elimika.classes.util.converter.ClassVisibilityConverter;
 import apps.sarafrika.elimika.classes.util.converter.LocationTypeConverter;
 import apps.sarafrika.elimika.classes.util.converter.SessionFormatConverter;
+import apps.sarafrika.elimika.classes.util.converter.StringListCsvConverter;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
+import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -21,6 +24,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -109,6 +113,32 @@ public class ClassMarketplaceJob extends BaseEntity {
 
     @Column(name = "training_fee")
     private BigDecimal trainingFee;
+
+    @Convert(converter = ClassServiceTypeConverter.class)
+    @Column(name = "service_type")
+    private ClassServiceType serviceType;
+
+    @Column(name = "preferred_instructor_uuid")
+    private UUID preferredInstructorUuid;
+
+    @Convert(converter = StringListCsvConverter.class)
+    @Column(name = "target_groups")
+    private List<String> targetGroups;
+
+    @Column(name = "remind_students")
+    private Boolean remindStudents;
+
+    @Column(name = "remind_instructor")
+    private Boolean remindInstructor;
+
+    @Column(name = "remind_via_email")
+    private Boolean remindViaEmail;
+
+    @Column(name = "remind_via_sms")
+    private Boolean remindViaSms;
+
+    @Column(name = "remind_via_push")
+    private Boolean remindViaPush;
 
     @Column(name = "assigned_instructor_uuid")
     private UUID assignedInstructorUuid;

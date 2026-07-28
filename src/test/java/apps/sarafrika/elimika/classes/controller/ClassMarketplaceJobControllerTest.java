@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
+import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -250,7 +251,15 @@ class ClassMarketplaceJobControllerTest {
                         ),
                         ConflictResolutionStrategy.FAIL
                 )),
-                null
+                null,
+                ClassServiceType.GROUP,
+                UUID.randomUUID(),
+                List.of("Grade 1", "Grade 2"),
+                Boolean.TRUE,
+                Boolean.TRUE,
+                Boolean.TRUE,
+                Boolean.FALSE,
+                Boolean.TRUE
         );
     }
 
@@ -292,7 +301,15 @@ class ClassMarketplaceJobControllerTest {
                         ),
                         ConflictResolutionStrategy.FAIL
                 )),
-                null
+                null,
+                ClassServiceType.GROUP,
+                UUID.randomUUID(),
+                List.of("Grade 1", "Grade 2"),
+                Boolean.TRUE,
+                Boolean.TRUE,
+                Boolean.TRUE,
+                Boolean.FALSE,
+                Boolean.TRUE
         );
     }
 
@@ -333,7 +350,15 @@ class ClassMarketplaceJobControllerTest {
                 null,
                 null,
                 null,
-                null
+                null,
+                request.serviceType(),
+                request.preferredInstructorUuid(),
+                request.targetGroups(),
+                request.remindStudents(),
+                request.remindInstructor(),
+                request.remindViaEmail(),
+                request.remindViaSms(),
+                request.remindViaPush()
         );
     }
 

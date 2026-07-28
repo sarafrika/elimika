@@ -444,6 +444,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setMaxParticipants(request.maxParticipants() != null ? request.maxParticipants() : DEFAULT_MAX_PARTICIPANTS);
         job.setAllowWaitlist(request.allowWaitlist() != null ? request.allowWaitlist() : Boolean.TRUE);
         job.setTrainingFee(request.trainingFee());
+        job.setServiceType(request.serviceType());
+        job.setPreferredInstructorUuid(request.preferredInstructorUuid());
+        job.setTargetGroups(request.targetGroups());
+        job.setRemindStudents(request.remindStudents());
+        job.setRemindInstructor(request.remindInstructor());
+        job.setRemindViaEmail(request.remindViaEmail());
+        job.setRemindViaSms(request.remindViaSms());
+        job.setRemindViaPush(request.remindViaPush());
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
@@ -1091,7 +1099,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getCreatedDate(),
                 job.getLastModifiedDate(),
                 job.getCreatedBy(),
-                job.getLastModifiedBy()
+                job.getLastModifiedBy(),
+                job.getServiceType(),
+                job.getPreferredInstructorUuid(),
+                job.getTargetGroups(),
+                job.getRemindStudents(),
+                job.getRemindInstructor(),
+                job.getRemindViaEmail(),
+                job.getRemindViaSms(),
+                job.getRemindViaPush()
         );
     }
 

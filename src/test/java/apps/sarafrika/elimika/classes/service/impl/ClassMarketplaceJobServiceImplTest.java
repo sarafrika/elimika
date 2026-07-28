@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -264,6 +265,44 @@ class ClassMarketplaceJobServiceImplTest {
         ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
         verify(jobRepository).save(jobCaptor.capture());
         assertThat(jobCaptor.getValue().getTrainingFee()).isEqualByComparingTo(new BigDecimal("240.00"));
+    }
+
+    @Test
+    void createJobPersistsServiceTargetAndReminderFields() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        var result = service.createJob(request);
+
+        assertThat(result.serviceType()).isEqualTo(ClassServiceType.ONLINE);
+        assertThat(result.preferredInstructorUuid()).isEqualTo(request.preferredInstructorUuid());
+        assertThat(result.targetGroups()).containsExactly("Grade 1", "Grade 2");
+        assertThat(result.remindStudents()).isTrue();
+        assertThat(result.remindInstructor()).isFalse();
+        assertThat(result.remindViaEmail()).isTrue();
+        assertThat(result.remindViaSms()).isFalse();
+        assertThat(result.remindViaPush()).isTrue();
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        ClassMarketplaceJob saved = jobCaptor.getValue();
+        assertThat(saved.getServiceType()).isEqualTo(ClassServiceType.ONLINE);
+        assertThat(saved.getPreferredInstructorUuid()).isEqualTo(request.preferredInstructorUuid());
+        assertThat(saved.getTargetGroups()).containsExactly("Grade 1", "Grade 2");
     }
 
     @Test
@@ -668,7 +707,15 @@ class ClassMarketplaceJobServiceImplTest {
                         ),
                         ConflictResolutionStrategy.FAIL
                 )),
-                null
+                null,
+                ClassServiceType.ONLINE,
+                UUID.randomUUID(),
+                List.of("Grade 1", "Grade 2"),
+                Boolean.TRUE,
+                Boolean.FALSE,
+                Boolean.TRUE,
+                Boolean.FALSE,
+                Boolean.TRUE
         );
     }
 
@@ -1128,7 +1175,9 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), resources);
+                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), resources,
+                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
     private ResourceSummary venueSummary(UUID resourceUuid, UUID organisationUuid, int seatCapacity, boolean active) {
