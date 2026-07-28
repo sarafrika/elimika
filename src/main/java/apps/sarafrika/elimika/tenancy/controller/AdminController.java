@@ -122,13 +122,17 @@ public class AdminController {
     }
 
     @Operation(
-            summary = "Create a new organisation user with domain",
+            summary = "Create a new organisation staff user with domain",
             description = "Creates a new user, provisions them in Keycloak, assigns them to the organisation with the specified domain " +
                     "and optional branch. If the email already exists in Keycloak or locally, an error is returned so the client can " +
-                    "use the existing email to assign roles instead."
+                    "use the existing email to assign roles instead.\n\n" +
+                    "**Staff domains only.** The 'student' domain is rejected: this path creates an account and an active " +
+                    "affiliation outright, which would give an organisation access to a learner's work without that learner " +
+                    "ever agreeing to it. Invite students instead via " +
+                    "POST /api/v1/organisations/{organisationUuid}/invitations."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organisation user created and activation email sent")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Email already exists; use existing user assignment flow")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Email already exists, or the 'student' domain was requested; invite students instead")
     @PostMapping("/organisations/{uuid}/users")
     public ResponseEntity<ApiResponse<UserDTO>> createOrganisationUser(
             @Parameter(description = "UUID of the organisation to assign the user to", required = true)

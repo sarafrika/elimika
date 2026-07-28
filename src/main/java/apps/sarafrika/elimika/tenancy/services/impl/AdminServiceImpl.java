@@ -205,6 +205,7 @@ public class AdminServiceImpl implements AdminService {
         organisationRepository.findByUuid(organisationUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Organisation not found with UUID: " + organisationUuid));
 
+        rejectDirectStudentCreation(request.domainName());
         UserDomain domain = findOrgSupportedDomain(request.domainName());
 
         ensureEmailAvailable(normalizedEmail, "Organisation user");
@@ -231,6 +232,23 @@ public class AdminServiceImpl implements AdminService {
         return userDomainRepository.findByOrgSupportedTrue().stream()
                 .map(domain -> new DomainDTO(domain.getUuid(), domain.getDomainName()))
                 .toList();
+    }
+
+    /**
+     * Students may only ever arrive through an invitation they accept.
+     * <p>
+     * This path creates a Keycloak account and an active organisation affiliation
+     * outright, which is a reasonable way to onboard staff an organisation employs but
+     * not a learner: it would hand an organisation access to a person's learning without
+     * that person ever agreeing to it. Staff domains are unaffected.
+     */
+    private void rejectDirectStudentCreation(String domainName) {
+        if (domainName != null && "student".equalsIgnoreCase(domainName.trim())) {
+            throw new IllegalArgumentException(
+                    "Students cannot be created directly. Send them an invitation instead - "
+                            + "POST /api/v1/organisations/{organisationUuid}/invitations - so they "
+                            + "consent before any account or affiliation exists.");
+        }
     }
 
     private String normalizeEmail(String email) {
