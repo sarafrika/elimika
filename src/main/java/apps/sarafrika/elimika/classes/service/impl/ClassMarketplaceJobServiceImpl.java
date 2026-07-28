@@ -462,7 +462,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setMeetingLink(request.meetingLink());
         job.setMaxParticipants(request.maxParticipants() != null ? request.maxParticipants() : DEFAULT_MAX_PARTICIPANTS);
         job.setAllowWaitlist(request.allowWaitlist() != null ? request.allowWaitlist() : Boolean.TRUE);
-        job.setTrainingFee(request.trainingFee());
+        applyTrainingFee(job, request);
         job.setServiceType(request.serviceType());
         job.setPreferredInstructorUuid(request.preferredInstructorUuid());
         applyTargetGroups(job, request);
@@ -509,6 +509,41 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             throw new IllegalArgumentException("Category " + categoryUuid + " does not exist");
         }
         job.setCategoryUuid(categoryUuid);
+    }
+
+    /**
+     * Sets the per-session training fee from the rate the course creator approved for this
+     * organisation, for the exact session format and delivery modality being posted. The fee is
+     * never taken from the request: an organisation cannot advertise a class at a rate the creator
+     * did not approve. A request that carries a conflicting fee is rejected rather than silently
+     * overwritten, so a stale client surfaces instead of quietly posting the wrong number.
+     */
+    private void applyTrainingFee(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
+        BigDecimal approvedRate = resolveOrganisationRateForRequest(request)
+                .orElseThrow(() -> new IllegalArgumentException(String.format(
+                        "No approved training rate for organisation %s on this %s for %s %s sessions. "
+                                + "The course creator must approve a rate card before a class can be posted.",
+                        request.organisationUuid(),
+                        request.courseUuid() != null ? "course" : "training program",
+                        request.sessionFormat(),
+                        request.locationType())));
+
+        if (request.trainingFee() != null && request.trainingFee().compareTo(approvedRate) != 0) {
+            throw new IllegalArgumentException(String.format(
+                    "Training fee %s does not match the approved rate %s for %s %s sessions.",
+                    request.trainingFee(), approvedRate, request.sessionFormat(), request.locationType()));
+        }
+
+        job.setTrainingFee(approvedRate);
+    }
+
+    private Optional<BigDecimal> resolveOrganisationRateForRequest(ClassMarketplaceJobRequestDTO request) {
+        if (request.courseUuid() != null) {
+            return courseTrainingApprovalSpi.resolveOrganisationRate(
+                    request.courseUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType());
+        }
+        return courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                request.programUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType());
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
