@@ -1,0 +1,30 @@
+Powered by Sarafrika
+
+Approval needed
+
+
+YOUR APPROVAL IS NEEDED
+
+Hello [[${guardianName}]],
+
+[[${studentName}]] has been invited to join [[${organisationName}]] on Elimika as a [[${roleName}]], and named you as their parent or guardian.
+
+Because they are under the age at which we accept consent directly, nothing has been set up. They will not be enrolled and the organisation gains no access unless you approve it here.
+
+Review and decide [[${consentLink}]]
+
+What [[${organisationName}]] will be able to see
+
+If you approve, this organisation will be able to see the child's enrolment, attendance and performance in its own courses and classes only — not their learning anywhere else on Elimika.
+
+What you will be able to see
+
+Approving also links your account to theirs, so you can follow their learning. You choose how much you see, and you can withdraw your approval at any time.
+
+If you are not this child's parent or guardian, or you were not expecting this, please decline using the link above. This request expires on its own if you do nothing.
+
+----------------------------------------
+
+Need help? Contact [[${supportEmail}]].
+
+Copyright [[${currentYear}]] [[${companyName}]]. All rights reserved.

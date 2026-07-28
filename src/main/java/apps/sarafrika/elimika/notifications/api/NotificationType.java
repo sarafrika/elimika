@@ -63,7 +63,10 @@ public enum NotificationType {
     LEARNING_CERTIFICATE_ISSUED("LEARNING_CERTIFICATE_ISSUED", "learning-certificate-issued", "Certificate Issued", NotificationCategory.LEARNING_PROGRESS),
     PROFILE_DOCUMENT_VERIFIED("PROFILE_DOCUMENT_VERIFIED", "profile-document-verified", "Profile Document Verified", NotificationCategory.SYSTEM_ADMIN),
     PROFILE_COMPLETION_REMINDER("PROFILE_COMPLETION_REMINDER", "profile-completion-reminder", "Complete Your Profile", NotificationCategory.SYSTEM_ADMIN),
-    
+    ORGANISATION_INVITATION("ORGANISATION_INVITATION", "organisation-invitation", "Organisation Invitation", NotificationCategory.SYSTEM_ADMIN),
+    GUARDIAN_CONSENT_REQUEST("GUARDIAN_CONSENT_REQUEST", "guardian-consent-request", "Guardian Consent Request", NotificationCategory.SYSTEM_ADMIN),
+    ORGANISATION_INVITATION_ACCEPTED("ORGANISATION_INVITATION_ACCEPTED", "invitation-accepted", "Invitation Accepted", NotificationCategory.SYSTEM_ADMIN),
+
     // Engagement & Motivation
     WEEKLY_PROGRESS_SUMMARY("WEEKLY_PROGRESS_SUMMARY", "weekly-progress-summary", "Progress Summary", NotificationCategory.LEARNING_PROGRESS),
     LEARNING_STREAK_ACHIEVEMENT("LEARNING_STREAK_ACHIEVEMENT", "learning-streak-achievement", "Streak Achievement", NotificationCategory.LEARNING_PROGRESS),
@@ -196,15 +199,20 @@ public enum NotificationType {
                  COURSE_ENROLLMENT_MILESTONE,
                  COURSE_ENROLLMENT_NOTICE -> "course_creator";
 
-            case CLASS_MARKETPLACE_JOB_EXPIRED -> "organisation_user";
+            case CLASS_MARKETPLACE_JOB_EXPIRED,
+                 ORGANISATION_INVITATION_ACCEPTED -> "organisation_user";
 
             // Account-level notifications are relevant in every dashboard.
+            // The two invitation types are deliberately here: their recipient may hold no
+            // domain at all yet, and in the guardian's case may have no account at all.
             case ACCOUNT_CREATED,
                  PASSWORD_RESET_REQUEST,
                  SECURITY_ALERT,
                  ORDER_PAYMENT_RECEIPT,
                  PROFILE_DOCUMENT_VERIFIED,
-                 PROFILE_COMPLETION_REMINDER -> null;
+                 PROFILE_COMPLETION_REMINDER,
+                 ORGANISATION_INVITATION,
+                 GUARDIAN_CONSENT_REQUEST -> null;
         };
     }
 }

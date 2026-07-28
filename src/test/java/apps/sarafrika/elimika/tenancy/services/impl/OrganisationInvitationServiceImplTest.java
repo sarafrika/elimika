@@ -1,11 +1,13 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
+import apps.sarafrika.elimika.tenancy.internal.InvitationLinkFactory;
 import apps.sarafrika.elimika.tenancy.internal.InvitationTokenService;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationClassRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationRepository;
@@ -13,15 +15,18 @@ import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
+import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -61,6 +66,10 @@ class OrganisationInvitationServiceImplTest {
     private ClassDefinitionLookupService classDefinitionLookupService;
     @Mock
     private UserLookupService userLookupService;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private OrganisationInvitationServiceImpl service;
 
@@ -73,9 +82,12 @@ class OrganisationInvitationServiceImplTest {
                 userDomainRepository,
                 trainingBranchRepository,
                 mappingRepository,
+                userRepository,
                 classDefinitionLookupService,
                 userLookupService,
-                new InvitationTokenService());
+                new InvitationTokenService(),
+                new InvitationLinkFactory("https://elimika.test"),
+                eventPublisher);
 
         UserDomain studentDomain = new UserDomain();
         studentDomain.setUuid(DOMAIN_UUID);
@@ -123,6 +135,30 @@ class OrganisationInvitationServiceImplTest {
             assertThat(invitation.getTokenHash()).hasSize(64).matches("[0-9a-f]+");
             return true;
         }));
+    }
+
+    @Test
+    void theInvitationEmailCarriesTheLinkAndNoNullVariables() {
+        when(userLookupService.findUserUuidByEmail(any())).thenReturn(Optional.empty());
+
+        // Nothing optional is populated: no recipient name, no message, no inviter on file.
+        service.send(ORGANISATION_UUID,
+                new SendOrganisationInvitationsRequestDTO(
+                        List.of(new SendOrganisationInvitationsRequestDTO.Recipient("jane@example.com", null)),
+                        "student", null, null, null, null),
+                INVITER_UUID);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        NotificationRequestedEvent email = captor.getValue();
+
+        assertThat(email.recipientEmail()).isEqualTo("jane@example.com");
+        assertThat(email.deliveryChannels()).containsExactly("email");
+        assertThat((String) email.templateVariables().get("invitationLink"))
+                .startsWith("https://elimika.test/invitations/");
+        // The downstream event copies these into an immutable map, which rejects nulls.
+        assertThat(email.templateVariables()).doesNotContainValue(null);
     }
 
     @Test

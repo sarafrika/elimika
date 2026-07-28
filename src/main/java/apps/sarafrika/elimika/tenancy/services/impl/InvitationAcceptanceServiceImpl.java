@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.notifications.api.NotificationType;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.student.GuardianConsentRecordedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.systemconfig.dto.AgeGateDecision;
@@ -18,6 +20,7 @@ import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitationClass;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserOrganisationDomainMapping;
+import apps.sarafrika.elimika.tenancy.internal.InvitationLinkFactory;
 import apps.sarafrika.elimika.tenancy.internal.InvitationTokenService;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationClassRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationRepository;
@@ -40,8 +43,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -73,6 +78,7 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
     private final UserService userService;
     private final RuleEvaluationService ruleEvaluationService;
     private final InvitationTokenService tokenService;
+    private final InvitationLinkFactory linkFactory;
     private final ApplicationEventPublisher eventPublisher;
 
     // ================================
@@ -223,8 +229,11 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
         invitation.setGuardianRelationshipType(details.guardianRelationshipType().trim().toUpperCase(Locale.ROOT));
         invitation.setGuardianPhone(details.guardianPhone() == null ? null : details.guardianPhone().trim());
         // The guardian gets their own token so the child's link cannot be used to consent.
-        invitation.setGuardianConsentTokenHash(tokenService.hash(tokenService.generateRawToken()));
+        String guardianRawToken = tokenService.generateRawToken();
+        invitation.setGuardianConsentTokenHash(tokenService.hash(guardianRawToken));
         OrganisationInvitation saved = invitationRepository.save(invitation);
+
+        publishGuardianConsentEmail(saved, guardianRawToken, actor);
 
         log.info("Guardian nominated for invitation {}", invitation.getUuid());
         return toPublicDTO(saved);
@@ -323,6 +332,7 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
         invitation.setAcceptedUserUuid(memberUserUuid);
         invalidateTokens(invitation);
         invitationRepository.save(invitation);
+        publishAcceptedEmail(invitation, memberUserUuid);
 
         List<UUID> surfaced = classUuids(invitation.getUuid());
         log.info("Invitation {} accepted; user {} affiliated to organisation {} via {}",
@@ -365,6 +375,67 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
         affiliation.setConsentGrantedByUserUuid(consentGrantedByUserUuid);
         affiliation.setInvitationUuid(invitation.getUuid());
         mappingRepository.save(affiliation);
+    }
+
+    // ================================
+    // EMAILS
+    // ================================
+
+    /**
+     * Asks the nominated guardian to decide, on their own link.
+     */
+    private void publishGuardianConsentEmail(OrganisationInvitation invitation, String rawToken, User minor) {
+        // Template variables are copied into an immutable map downstream, which rejects
+        // nulls outright - so every value here must be non-null.
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("guardianName", orElse(invitation.getGuardianName(), "there"));
+        variables.put("studentName", displayName(invitation, minor));
+        variables.put("organisationName", orElse(organisationName(invitation.getOrganisationUuid()), "An organisation"));
+        variables.put("roleName", orElse(domainName(invitation.getDomainUuid()), "student"));
+        variables.put("relationshipType", orElse(invitation.getGuardianRelationshipType(), "GUARDIAN"));
+        variables.put("consentLink", linkFactory.guardianConsentLink(rawToken));
+        variables.put("expiresAt", invitation.getExpiresAt() == null ? "" : invitation.getExpiresAt().toString());
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                null,
+                invitation.getGuardianEmail(),
+                invitation.getGuardianName(),
+                NotificationType.GUARDIAN_CONSENT_REQUEST.getValue(),
+                variables));
+    }
+
+    /**
+     * Lets the organisation know their invitation landed, so the pending list is not the
+     * only way to find out.
+     */
+    private void publishAcceptedEmail(OrganisationInvitation invitation, UUID memberUserUuid) {
+        String inviterEmail = userRepository.findByUuid(invitation.getInviterUserUuid())
+                .map(User::getEmail)
+                .orElse(null);
+        if (inviterEmail == null) {
+            return;
+        }
+
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("recipientName", orElse(userFullName(memberUserUuid), "Someone"));
+        variables.put("organisationName", orElse(organisationName(invitation.getOrganisationUuid()), "your organisation"));
+        variables.put("roleName", orElse(domainName(invitation.getDomainUuid()), "member"));
+        variables.put("membersLink", linkFactory.organisationInvitationsLink());
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                invitation.getInviterUserUuid(),
+                inviterEmail,
+                orElse(userFullName(invitation.getInviterUserUuid()), ""),
+                NotificationType.ORGANISATION_INVITATION_ACCEPTED.getValue(),
+                variables));
+    }
+
+    private String displayName(OrganisationInvitation invitation, User user) {
+        if (invitation.getRecipientName() != null && !invitation.getRecipientName().isBlank()) {
+            return invitation.getRecipientName();
+        }
+        String fullName = (safe(user.getFirstName()) + " " + safe(user.getLastName())).trim();
+        return fullName.isEmpty() ? "your child" : fullName;
     }
 
     // ================================
@@ -520,6 +591,10 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
 
     private static String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private static String orElse(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     /**

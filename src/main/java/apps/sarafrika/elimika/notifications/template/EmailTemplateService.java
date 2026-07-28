@@ -66,7 +66,18 @@ public class EmailTemplateService {
             case "training-application-status" ->
                 String.format("Update on your training application: %s",
                         event.getTemplateVariables().getOrDefault("contextName", "training"));
-            default -> 
+            case "organisation-invitation" ->
+                String.format("%s has invited you to join them on %s",
+                        event.getTemplateVariables().getOrDefault("organisationName", "An organisation"),
+                        applicationName);
+            case "guardian-consent-request" ->
+                String.format("Your approval is needed for %s to join %s",
+                        event.getTemplateVariables().getOrDefault("studentName", "your child"),
+                        event.getTemplateVariables().getOrDefault("organisationName", "an organisation"));
+            case "invitation-accepted" ->
+                String.format("%s accepted your invitation",
+                        event.getTemplateVariables().getOrDefault("recipientName", "Someone"));
+            default ->
                 String.format("[%s] %s", applicationName, event.getNotificationType().getDisplayName());
         };
     }

@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserOrganisationDomainMapping;
+import apps.sarafrika.elimika.tenancy.internal.InvitationLinkFactory;
 import apps.sarafrika.elimika.tenancy.internal.InvitationTokenService;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationClassRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationRepository;
@@ -78,7 +79,7 @@ class InvitationAcceptanceServiceImplTest {
         service = new InvitationAcceptanceServiceImpl(
                 invitationRepository, invitationClassRepository, organisationRepository,
                 userRepository, userDomainRepository, mappingRepository, userService,
-                ruleEvaluationService, tokenService, eventPublisher);
+                ruleEvaluationService, tokenService, new InvitationLinkFactory("https://elimika.test"), eventPublisher);
 
         UserDomain studentDomain = new UserDomain();
         studentDomain.setUuid(DOMAIN_UUID);

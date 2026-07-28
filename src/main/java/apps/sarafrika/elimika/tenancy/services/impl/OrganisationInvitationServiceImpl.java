@@ -1,14 +1,19 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.notifications.api.NotificationType;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
+import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitationClass;
+import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.factory.OrganisationInvitationFactory;
+import apps.sarafrika.elimika.tenancy.internal.InvitationLinkFactory;
 import apps.sarafrika.elimika.tenancy.internal.InvitationTokenService;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationClassRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationRepository;
@@ -16,17 +21,20 @@ import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
+import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.OrganisationInvitationService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -69,9 +77,12 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
     private final UserDomainRepository userDomainRepository;
     private final TrainingBranchRepository trainingBranchRepository;
     private final UserOrganisationDomainMappingRepository mappingRepository;
+    private final UserRepository userRepository;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final UserLookupService userLookupService;
     private final InvitationTokenService tokenService;
+    private final InvitationLinkFactory linkFactory;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -137,8 +148,9 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
             throw new IllegalStateException("This person is already a member of your organisation.");
         }
 
+        String rawToken = tokenService.generateRawToken();
         OrganisationInvitation invitation = new OrganisationInvitation();
-        invitation.setTokenHash(tokenService.hash(tokenService.generateRawToken()));
+        invitation.setTokenHash(tokenService.hash(rawToken));
         invitation.setOrganisationUuid(organisationUuid);
         invitation.setBranchUuid(branchUuid);
         invitation.setDomainUuid(domain.getUuid());
@@ -152,7 +164,33 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
 
         OrganisationInvitation saved = invitationRepository.save(invitation);
         persistClasses(saved.getUuid(), classUuids);
+        publishInvitationEmail(saved, rawToken, domain.getDomainName());
         return saved;
+    }
+
+    /**
+     * Emails the offer. The raw token leaves the application only here - it is not stored,
+     * so this link cannot be rebuilt afterwards.
+     */
+    private void publishInvitationEmail(OrganisationInvitation invitation, String rawToken, String domainName) {
+        // Template variables are copied into an immutable map downstream, which rejects
+        // nulls outright - so every value here must be non-null.
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("organisationName", orElse(organisationName(invitation.getOrganisationUuid()), "An organisation"));
+        variables.put("inviterName", orElse(userFullName(invitation.getInviterUserUuid()), ""));
+        variables.put("recipientName", orElse(invitation.getRecipientName(), "there"));
+        variables.put("roleName", orElse(domainName, "member"));
+        variables.put("personalMessage", orElse(invitation.getMessage(), ""));
+        variables.put("invitationLink", linkFactory.invitationLink(rawToken));
+        variables.put("existingUser", invitation.getRecipientUserUuid() != null);
+        variables.put("expiresAt", invitation.getExpiresAt() == null ? "" : invitation.getExpiresAt().toString());
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                invitation.getRecipientUserUuid(),
+                invitation.getRecipientEmail(),
+                invitation.getRecipientName(),
+                NotificationType.ORGANISATION_INVITATION.getValue(),
+                variables));
     }
 
     @Override
@@ -209,9 +247,11 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
         }
 
         // A resend supersedes the previous link rather than issuing a second working one.
-        invitation.setTokenHash(tokenService.hash(tokenService.generateRawToken()));
+        String rawToken = tokenService.generateRawToken();
+        invitation.setTokenHash(tokenService.hash(rawToken));
         invitation.setExpiresAt(LocalDateTime.now().plusDays(DEFAULT_EXPIRY_DAYS));
         OrganisationInvitation saved = invitationRepository.save(invitation);
+        publishInvitationEmail(saved, rawToken, domainName(saved.getDomainUuid()));
 
         log.info("Invitation {} resent by organisation {}", invitationUuid, organisationUuid);
         return toDTO(saved);
@@ -332,6 +372,33 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
                 .map(OrganisationInvitationClass::getClassDefinitionUuid)
                 .toList();
         return OrganisationInvitationFactory.toDTO(invitation, domainName, classUuids);
+    }
+
+    private String organisationName(UUID organisationUuid) {
+        return organisationRepository.findByUuid(organisationUuid)
+                .map(Organisation::getName)
+                .orElse(null);
+    }
+
+    private String domainName(UUID domainUuid) {
+        return userDomainRepository.findByUuid(domainUuid)
+                .map(UserDomain::getDomainName)
+                .orElse(null);
+    }
+
+    private String userFullName(UUID userUuid) {
+        if (userUuid == null) {
+            return null;
+        }
+        return userRepository.findByUuid(userUuid)
+                .map(user -> ((user.getFirstName() == null ? "" : user.getFirstName())
+                        + " " + (user.getLastName() == null ? "" : user.getLastName())).trim())
+                .filter(name -> !name.isEmpty())
+                .orElse(null);
+    }
+
+    private static String orElse(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private static String normaliseEmail(String email) {

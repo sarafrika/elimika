@@ -1,0 +1,26 @@
+Powered by Sarafrika
+
+Invitation
+
+
+YOU HAVE BEEN INVITED
+
+Hello [[${recipientName}]],
+
+[[${inviterName}]] has invited you to join [[${organisationName}]] on Elimika as a [[${roleName}]].
+
+[[${personalMessage}]]
+
+Review this invitation [[${invitationLink}]]
+
+What [[${organisationName}]] will be able to see
+
+If you accept, this organisation will be able to see your enrolment, attendance and performance in its own courses and classes only. Your learning with any other institution on Elimika, and the rest of your account, stays private to you.
+
+Nothing happens until you accept — no account is changed and no organisation gains access before then. You can decline instead, and this invitation expires on its own if you do nothing. If you were not expecting this, you can safely ignore this email.
+
+----------------------------------------
+
+Need help? Contact [[${supportEmail}]].
+
+Copyright [[${currentYear}]] [[${companyName}]]. All rights reserved.
