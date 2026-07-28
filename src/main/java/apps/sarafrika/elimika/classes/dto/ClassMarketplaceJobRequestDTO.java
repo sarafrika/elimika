@@ -206,7 +206,7 @@ public record ClassMarketplaceJobRequestDTO(
         @JsonProperty("service_type")
         ClassServiceType serviceType,
 
-        @Schema(description = "**[OPTIONAL]** Preferred instructor for the class. Instructors still apply; this is a hint recorded on the advert, not a final assignment.", nullable = true)
+        @Schema(description = "**[OPTIONAL]** Instructor to assign at creation. When provided, the class is materialised and assigned to this instructor immediately (the job is filled, no open application step); when omitted, the class is posted for instructors to apply.", nullable = true)
         @JsonProperty("preferred_instructor_uuid")
         UUID preferredInstructorUuid,
 

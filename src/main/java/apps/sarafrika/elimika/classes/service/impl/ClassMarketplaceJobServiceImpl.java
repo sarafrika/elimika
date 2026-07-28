@@ -124,6 +124,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         replaceJobResources(saved.getUuid(), request.resources());
         holdJobResources(saved, request.resources());
 
+        // When the organisation names an instructor at creation, assign the class directly:
+        // materialise it and fill the job rather than leaving it open for applications.
+        if (request.preferredInstructorUuid() != null) {
+            assignJobToInstructor(saved, request.preferredInstructorUuid());
+            saved = jobRepository.save(saved);
+        }
+
         return toJobDTO(saved);
     }
 
@@ -379,15 +386,6 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     learningContextUuid(job)));
         }
 
-        List<ClassSchedulingConflictDTO> scheduleConflicts =
-                findInstructorScheduleConflicts(job, application.getInstructorUuid());
-        if (!scheduleConflicts.isEmpty()) {
-            throw new SchedulingConflictException(String.format(
-                    "Instructor %s has schedule conflicts with this job's planned sessions.",
-                    application.getInstructorUuid()),
-                    scheduleConflicts);
-        }
-
         resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
             if (job.getTrainingFee() != null && job.getTrainingFee().compareTo(approvedRate) != 0) {
                 log.warn("Marketplace job {} fee {} differs from instructor {} approved rate {}",
@@ -395,12 +393,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             }
         });
 
-        ClassDefinitionDTO classDefinition = classDefinitionService
-                .createClassDefinition(buildClassDefinitionRequest(job, application.getInstructorUuid()))
-                .classDefinition();
-
-        convertHoldsToConfirmedBookings(job, classDefinition.uuid());
-        copyJobResourcesToClassDefinition(job.getUuid(), classDefinition.uuid());
+        ClassDefinitionDTO classDefinition = assignJobToInstructor(job, application.getInstructorUuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         application.setReviewNotes(resolveAssignedReviewNotes(application.getReviewNotes()));
@@ -408,16 +401,40 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
         applicationRepository.save(application);
 
-        job.setStatus(ClassMarketplaceJobStatus.FILLED);
-        job.setAssignedInstructorUuid(application.getInstructorUuid());
         job.setAssignedApplicationUuid(application.getUuid());
-        job.setAssignedClassDefinitionUuid(classDefinition.uuid());
-        job.setFilledAt(LocalDateTime.now(ZoneOffset.UTC));
         ClassMarketplaceJob savedJob = jobRepository.save(job);
 
         markOtherApplicationsAsNotSelected(jobUuid, application.getUuid());
 
         return new ClassMarketplaceJobAssignmentResponseDTO(toJobDTO(savedJob), classDefinition);
+    }
+
+    /**
+     * Materialises the actual class for {@code instructorUuid}: checks the instructor's
+     * schedule for conflicts, creates the class definition, converts recruitment holds to
+     * confirmed bookings, copies reserved resources, and marks the job filled. Shared by the
+     * marketplace assignment flow and the direct organisation create-and-assign flow.
+     */
+    private ClassDefinitionDTO assignJobToInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
+        List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
+        if (!scheduleConflicts.isEmpty()) {
+            throw new SchedulingConflictException(String.format(
+                    "Instructor %s has schedule conflicts with this job's planned sessions.", instructorUuid),
+                    scheduleConflicts);
+        }
+
+        ClassDefinitionDTO classDefinition = classDefinitionService
+                .createClassDefinition(buildClassDefinitionRequest(job, instructorUuid))
+                .classDefinition();
+
+        convertHoldsToConfirmedBookings(job, classDefinition.uuid());
+        copyJobResourcesToClassDefinition(job.getUuid(), classDefinition.uuid());
+
+        job.setStatus(ClassMarketplaceJobStatus.FILLED);
+        job.setAssignedInstructorUuid(instructorUuid);
+        job.setAssignedClassDefinitionUuid(classDefinition.uuid());
+        job.setFilledAt(LocalDateTime.now(ZoneOffset.UTC));
+        return classDefinition;
     }
 
     private void applyJobDraft(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {

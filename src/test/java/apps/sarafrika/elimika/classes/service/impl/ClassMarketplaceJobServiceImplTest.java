@@ -306,6 +306,44 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void createJobWithPreferredInstructorAssignsDirectly() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request =
+                withPreferredInstructor(sampleRequest(null, programUuid), instructorUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    if (job.getUuid() == null) {
+                        job.setUuid(UUID.randomUUID());
+                    }
+                    return job;
+                });
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(
+                        createdClassDefinition(classDefinitionUuid, instructorUuid, sampleJob())));
+
+        var result = service.createJob(request);
+
+        assertThat(result.status()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(result.assignedInstructorUuid()).isEqualTo(instructorUuid);
+        assertThat(result.assignedClassDefinitionUuid()).isEqualTo(classDefinitionUuid);
+
+        ArgumentCaptor<ClassDefinitionDTO> classCaptor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
+        verify(classDefinitionService).createClassDefinition(classCaptor.capture());
+        assertThat(classCaptor.getValue().defaultInstructorUuid()).isEqualTo(instructorUuid);
+    }
+
+    @Test
     void createJobRejectsMissingLearningContext() {
         UUID currentUserUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = sampleRequest(null, null);
@@ -709,7 +747,7 @@ class ClassMarketplaceJobServiceImplTest {
                 )),
                 null,
                 ClassServiceType.ONLINE,
-                UUID.randomUUID(),
+                null,
                 List.of("Grade 1", "Grade 2"),
                 Boolean.TRUE,
                 Boolean.FALSE,
@@ -717,6 +755,18 @@ class ClassMarketplaceJobServiceImplTest {
                 Boolean.FALSE,
                 Boolean.TRUE
         );
+    }
+
+    private ClassMarketplaceJobRequestDTO withPreferredInstructor(ClassMarketplaceJobRequestDTO base, UUID instructorUuid) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
+                base.serviceType(), instructorUuid, base.targetGroups(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
     private ClassMarketplaceJob sampleJob() {
