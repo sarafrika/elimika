@@ -1,3 +1,14 @@
+# [2.115.0](https://github.com/sarafrika/elimika/compare/v2.114.0...v2.115.0) (2026-07-28)
+
+
+### Features
+
+* **notifications:** email organisation invitations and guardian consent requests ([2a9c909](https://github.com/sarafrika/elimika/commit/2a9c909191fa1f0500eff7cd2db907a08a25cb70))
+* **tenancy:** accept invitations with explicit consent and guardian approval for minors ([232b24a](https://github.com/sarafrika/elimika/commit/232b24a22ed094b2f6783df93c4fe252f63f0c22))
+* **tenancy:** add organisation invitation offers with manager-scoped send, revoke and resend ([74f3a0b](https://github.com/sarafrika/elimika/commit/74f3a0bf30593cb714e25b663442ccb4f0c8c8ae))
+* **tenancy:** add organisation invitation tables and affiliation consent columns ([9a8f8de](https://github.com/sarafrika/elimika/commit/9a8f8dee9a1ed7337158a3f6c8e5c344ccb85b1c))
+* **timetabling:** scope student performance reads to the organisation's own classes ([2eb7d78](https://github.com/sarafrika/elimika/commit/2eb7d781a0f37f19e530477ef91881f316f8fab3))
+
 # [2.114.0](https://github.com/sarafrika/elimika/compare/v2.113.0...v2.114.0) (2026-07-28)
 
 
