@@ -1,3 +1,10 @@
+# [2.112.0](https://github.com/sarafrika/elimika/compare/v2.111.0...v2.112.0) (2026-07-28)
+
+
+### Features
+
+* **classes:** bind marketplace job target groups to organisation student groups ([6d14812](https://github.com/sarafrika/elimika/commit/6d14812a7dc746b733a37794f98ca36a8dd21c4a))
+
 # [2.111.0](https://github.com/sarafrika/elimika/compare/v2.110.0...v2.111.0) (2026-07-28)
 
 
