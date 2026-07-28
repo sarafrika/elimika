@@ -56,6 +56,7 @@ import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import org.springframework.web.multipart.MultipartFile;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.enums.LocationType;
@@ -98,6 +99,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final UserLookupService userLookupService;
+    private final StudentGroupLookupService studentGroupLookupService;
     private final InstructorLookupService instructorLookupService;
     private final DomainSecurityService domainSecurityService;
     private final ClassDefinitionServiceInterface classDefinitionService;
@@ -463,12 +465,36 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setTrainingFee(request.trainingFee());
         job.setServiceType(request.serviceType());
         job.setPreferredInstructorUuid(request.preferredInstructorUuid());
-        job.setTargetGroups(request.targetGroups());
+        applyTargetGroups(job, request);
         job.setRemindStudents(request.remindStudents());
         job.setRemindInstructor(request.remindInstructor());
         job.setRemindViaEmail(request.remindViaEmail());
         job.setRemindViaSms(request.remindViaSms());
         job.setRemindViaPush(request.remindViaPush());
+    }
+
+    /**
+     * Binds the job to the organisation student groups it targets. When group identifiers are
+     * supplied they are the source of truth: each is checked against the owning organisation and
+     * the matching group names are snapshotted onto {@code target_groups} so adverts keep rendering
+     * a label even if a group is later renamed or deleted. Callers that send only free-form labels
+     * (older clients) keep working unchanged.
+     */
+    private void applyTargetGroups(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
+        List<UUID> requestedGroups = request.targetGroupUuids();
+        if (requestedGroups == null || requestedGroups.isEmpty()) {
+            job.setTargetGroupUuids(List.of());
+            job.setTargetGroups(request.targetGroups());
+            return;
+        }
+
+        List<UUID> ownedGroups = studentGroupLookupService.filterGroupsInOrganisation(request.organisationUuid(), requestedGroups);
+        if (ownedGroups.size() != new HashSet<>(requestedGroups).size()) {
+            throw new IllegalArgumentException("One or more target groups do not belong to organisation " + request.organisationUuid());
+        }
+
+        job.setTargetGroupUuids(ownedGroups);
+        job.setTargetGroups(studentGroupLookupService.getGroupNames(ownedGroups));
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
@@ -1120,6 +1146,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getServiceType(),
                 job.getPreferredInstructorUuid(),
                 job.getTargetGroups(),
+                job.getTargetGroupUuids(),
                 job.getRemindStudents(),
                 job.getRemindInstructor(),
                 job.getRemindViaEmail(),

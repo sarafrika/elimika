@@ -140,6 +140,9 @@ public record ClassMarketplaceJobDTO(
         @JsonProperty(value = "target_groups", access = JsonProperty.Access.READ_ONLY)
         List<String> targetGroups,
 
+        @JsonProperty(value = "target_group_uuids", access = JsonProperty.Access.READ_ONLY)
+        List<UUID> targetGroupUuids,
+
         @JsonProperty(value = "remind_students", access = JsonProperty.Access.READ_ONLY)
         Boolean remindStudents,
 

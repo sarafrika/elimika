@@ -210,9 +210,13 @@ public record ClassMarketplaceJobRequestDTO(
         @JsonProperty("preferred_instructor_uuid")
         UUID preferredInstructorUuid,
 
-        @Schema(description = "**[OPTIONAL]** Target learner groups the class is aimed at (e.g. Grade 1, Grade 2).", nullable = true)
+        @Schema(description = "**[OPTIONAL]** Name snapshot of the target learner groups. Ignored when target_group_uuids is supplied \u2014 the names are then resolved from the organisation's student groups.", nullable = true)
         @JsonProperty("target_groups")
         List<String> targetGroups,
+
+        @Schema(description = "**[OPTIONAL]** Organisation student groups (cohorts / streams) the class is aimed at. Identifiers that do not belong to the owning organisation are rejected.", nullable = true)
+        @JsonProperty("target_group_uuids")
+        List<UUID> targetGroupUuids,
 
         @Schema(description = "**[OPTIONAL]** Send session reminders to enrolled students.", nullable = true)
         @JsonProperty("remind_students")

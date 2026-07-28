@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.tenancy.entity.StudentGroup;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +15,8 @@ public interface StudentGroupRepository extends JpaRepository<StudentGroup, Long
     List<StudentGroup> findByOrganisationUuidOrderByNameAsc(UUID organisationUuid);
 
     Optional<StudentGroup> findByUuid(UUID uuid);
+
+    List<StudentGroup> findByUuidIn(Collection<UUID> uuids);
 
     boolean existsByUuid(UUID uuid);
 }

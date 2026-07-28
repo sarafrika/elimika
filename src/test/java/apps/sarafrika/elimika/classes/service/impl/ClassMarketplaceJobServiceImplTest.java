@@ -105,6 +105,9 @@ class ClassMarketplaceJobServiceImplTest {
     private UserLookupService userLookupService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService studentGroupLookupService;
+
+    @Mock
     private InstructorLookupService instructorLookupService;
 
     @Mock
@@ -138,6 +141,7 @@ class ClassMarketplaceJobServiceImplTest {
                 courseInfoService,
                 courseTrainingApprovalSpi,
                 userLookupService,
+                studentGroupLookupService,
                 instructorLookupService,
                 domainSecurityService,
                 classDefinitionService,
@@ -303,6 +307,65 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(saved.getServiceType()).isEqualTo(ClassServiceType.ONLINE);
         assertThat(saved.getPreferredInstructorUuid()).isEqualTo(request.preferredInstructorUuid());
         assertThat(saved.getTargetGroups()).containsExactly("Grade 1", "Grade 2");
+    }
+
+    @Test
+    void createJobSnapshotsTargetGroupNamesFromOrganisationGroups() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID groupOne = UUID.randomUUID();
+        UUID groupTwo = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request =
+                withTargetGroupUuids(sampleRequest(null, programUuid), List.of(groupOne, groupTwo));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(studentGroupLookupService.filterGroupsInOrganisation(request.organisationUuid(), List.of(groupOne, groupTwo)))
+                .thenReturn(List.of(groupOne, groupTwo));
+        when(studentGroupLookupService.getGroupNames(List.of(groupOne, groupTwo)))
+                .thenReturn(List.of("Grade 9 Stream A", "Grade 9 Stream B"));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        var result = service.createJob(request);
+
+        assertThat(result.targetGroupUuids()).containsExactly(groupOne, groupTwo);
+        assertThat(result.targetGroups()).containsExactly("Grade 9 Stream A", "Grade 9 Stream B");
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getTargetGroupUuids()).containsExactly(groupOne, groupTwo);
+    }
+
+    @Test
+    void createJobRejectsTargetGroupsOwnedByAnotherOrganisation() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID foreignGroup = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request =
+                withTargetGroupUuids(sampleRequest(null, programUuid), List.of(foreignGroup));
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(studentGroupLookupService.filterGroupsInOrganisation(request.organisationUuid(), List.of(foreignGroup)))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("target groups");
+
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
     }
 
     @Test
@@ -749,12 +812,25 @@ class ClassMarketplaceJobServiceImplTest {
                 ClassServiceType.ONLINE,
                 null,
                 List.of("Grade 1", "Grade 2"),
+                null,
                 Boolean.TRUE,
                 Boolean.FALSE,
                 Boolean.TRUE,
                 Boolean.FALSE,
                 Boolean.TRUE
         );
+    }
+
+    private ClassMarketplaceJobRequestDTO withTargetGroupUuids(ClassMarketplaceJobRequestDTO base, List<UUID> groupUuids) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
+                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), groupUuids, base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
     private ClassMarketplaceJobRequestDTO withPreferredInstructor(ClassMarketplaceJobRequestDTO base, UUID instructorUuid) {
@@ -765,7 +841,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
-                base.serviceType(), instructorUuid, base.targetGroups(), base.remindStudents(),
+                base.serviceType(), instructorUuid, base.targetGroups(), base.targetGroupUuids(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
@@ -1226,7 +1302,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), resources,
-                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.remindStudents(),
+                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 

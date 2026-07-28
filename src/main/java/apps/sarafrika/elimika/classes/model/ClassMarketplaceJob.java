@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.classes.util.converter.ClassVisibilityConverter;
 import apps.sarafrika.elimika.classes.util.converter.LocationTypeConverter;
 import apps.sarafrika.elimika.classes.util.converter.SessionFormatConverter;
 import apps.sarafrika.elimika.classes.util.converter.StringListCsvConverter;
+import apps.sarafrika.elimika.classes.util.converter.UuidListCsvConverter;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
@@ -124,6 +125,10 @@ public class ClassMarketplaceJob extends BaseEntity {
     @Convert(converter = StringListCsvConverter.class)
     @Column(name = "target_groups")
     private List<String> targetGroups;
+
+    @Convert(converter = UuidListCsvConverter.class)
+    @Column(name = "target_group_uuids")
+    private List<UUID> targetGroupUuids;
 
     @Column(name = "remind_students")
     private Boolean remindStudents;
