@@ -67,7 +67,7 @@ public class OrganisationInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<SendOrganisationInvitationsResultDTO>> send(
+    public ResponseEntity<ApiResponse<SendOrganisationInvitationsResultDTO>> sendOrganisationInvitations(
             @Parameter(description = "UUID of the inviting organisation", required = true)
             @PathVariable UUID organisationUuid,
             @Valid @RequestBody SendOrganisationInvitationsRequestDTO request) {
@@ -86,7 +86,7 @@ public class OrganisationInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitations retrieved")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<OrganisationInvitationDTO>>> list(
+    public ResponseEntity<ApiResponse<List<OrganisationInvitationDTO>>> listOrganisationInvitations(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid,
             @Parameter(description = "Optional status filter, e.g. PENDING,ACCEPTED")
@@ -107,7 +107,7 @@ public class OrganisationInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invitation is not pending")
     @PostMapping("/{invitationUuid}/revoke")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<OrganisationInvitationDTO>> revoke(
+    public ResponseEntity<ApiResponse<OrganisationInvitationDTO>> revokeOrganisationInvitation(
             @PathVariable UUID organisationUuid,
             @PathVariable UUID invitationUuid) {
 
@@ -125,7 +125,7 @@ public class OrganisationInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invitation is not pending")
     @PostMapping("/{invitationUuid}/resend")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<OrganisationInvitationDTO>> resend(
+    public ResponseEntity<ApiResponse<OrganisationInvitationDTO>> resendOrganisationInvitation(
             @PathVariable UUID organisationUuid,
             @PathVariable UUID invitationUuid) {
 

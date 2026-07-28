@@ -52,7 +52,7 @@ public class GuardianInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Consent request retrieved")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Link is not valid")
     @GetMapping("/token/{token}")
-    public ResponseEntity<ApiResponse<PublicGuardianInvitationDTO>> lookup(
+    public ResponseEntity<ApiResponse<PublicGuardianInvitationDTO>> getGuardianInvitationByToken(
             @Parameter(description = "Token from the emailed consent link", required = true)
             @PathVariable String token) {
 
@@ -69,7 +69,7 @@ public class GuardianInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Signed-in address is not the nominated guardian")
     @PostMapping("/token/{token}/accept")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<AcceptInvitationResultDTO>> consent(
+    public ResponseEntity<ApiResponse<AcceptInvitationResultDTO>> grantGuardianConsent(
             @PathVariable String token,
             @Valid @RequestBody GuardianConsentRequestDTO request) {
 
@@ -82,7 +82,7 @@ public class GuardianInvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Refusal recorded")
     @PostMapping("/token/{token}/decline")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> decline(@PathVariable String token) {
+    public ResponseEntity<ApiResponse<Void>> declineGuardianConsent(@PathVariable String token) {
         acceptanceService.guardianDecline(token, userContextService.getCurrentUserUuid());
         return ResponseEntity.ok(ApiResponse.success(null, "Consent refused"));
     }

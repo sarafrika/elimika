@@ -59,7 +59,7 @@ public class InvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation retrieved")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Link is not valid")
     @GetMapping("/token/{token}")
-    public ResponseEntity<ApiResponse<PublicInvitationDTO>> lookup(
+    public ResponseEntity<ApiResponse<PublicInvitationDTO>> getInvitationByToken(
             @Parameter(description = "Token from the emailed invitation link", required = true)
             @PathVariable String token) {
 
@@ -78,7 +78,7 @@ public class InvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Signed-in address does not match the invitation")
     @PostMapping("/token/{token}/accept")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<AcceptInvitationResultDTO>> acceptByToken(
+    public ResponseEntity<ApiResponse<AcceptInvitationResultDTO>> acceptInvitationByToken(
             @PathVariable String token,
             @Valid @RequestBody AcceptInvitationRequestDTO request) {
 
@@ -91,7 +91,7 @@ public class InvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation declined")
     @PostMapping("/token/{token}/decline")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> declineByToken(@PathVariable String token) {
+    public ResponseEntity<ApiResponse<Void>> declineInvitationByToken(@PathVariable String token) {
         acceptanceService.declineByToken(token, userContextService.getCurrentUserUuid());
         return ResponseEntity.ok(ApiResponse.success(null, "Invitation declined"));
     }
@@ -123,7 +123,7 @@ public class InvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitations retrieved")
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<MyInvitationDTO>>> listMine() {
+    public ResponseEntity<ApiResponse<List<MyInvitationDTO>>> listMyInvitations() {
         List<MyInvitationDTO> invitations =
                 acceptanceService.listForUser(userContextService.getCurrentUserUuid());
         return ResponseEntity.ok(ApiResponse.success(invitations, "Invitations retrieved successfully"));
@@ -133,7 +133,7 @@ public class InvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation accepted")
     @PostMapping("/{invitationUuid}/accept")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<AcceptInvitationResultDTO>> acceptFromInbox(
+    public ResponseEntity<ApiResponse<AcceptInvitationResultDTO>> acceptInvitationFromInbox(
             @PathVariable UUID invitationUuid,
             @Valid @RequestBody AcceptInvitationRequestDTO request) {
 
@@ -146,7 +146,7 @@ public class InvitationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invitation declined")
     @PostMapping("/{invitationUuid}/decline")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> declineFromInbox(@PathVariable UUID invitationUuid) {
+    public ResponseEntity<ApiResponse<Void>> declineInvitationFromInbox(@PathVariable UUID invitationUuid) {
         acceptanceService.declineByUuid(invitationUuid, userContextService.getCurrentUserUuid());
         return ResponseEntity.ok(ApiResponse.success(null, "Invitation declined"));
     }
