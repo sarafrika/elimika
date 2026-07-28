@@ -1,3 +1,10 @@
+# [2.114.0](https://github.com/sarafrika/elimika/compare/v2.113.0...v2.114.0) (2026-07-28)
+
+
+### Features
+
+* **classes:** derive class training fee from the creator-approved rate card ([a7e33f5](https://github.com/sarafrika/elimika/commit/a7e33f53637b873964cc55a3fae18f4adbfd98f0))
+
 # [2.113.0](https://github.com/sarafrika/elimika/compare/v2.112.0...v2.113.0) (2026-07-28)
 
 
