@@ -31,4 +31,17 @@ public interface CourseSecuritySpi {
      * @return true if the current user may read the course content, false otherwise
      */
     boolean canReadCourseContent(UUID courseUuid);
+
+    /**
+     * Checks whether the current user may read and write the course's gradebook.
+     * <p>
+     * True for the course owner, an instructor approved to train the course, or a member
+     * of an organisation approved to train it. Holding the instructor or course_creator
+     * domain is <em>not</em> sufficient on its own - marking somebody's work requires an
+     * actual relationship to that course. Platform admins are granted at the endpoint.
+     *
+     * @param courseUuid UUID of the course to check
+     * @return true if the current user may manage the course's gradebook
+     */
+    boolean canManageCourseGradebook(UUID courseUuid);
 }

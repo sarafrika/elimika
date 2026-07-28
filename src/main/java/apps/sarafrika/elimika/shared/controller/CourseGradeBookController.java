@@ -32,9 +32,14 @@ import java.util.UUID;
 public class CourseGradeBookController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
-    private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
-    static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
-            + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    /**
+     * Marking somebody's work requires a real relationship to the course, not merely
+     * holding the instructor or course_creator domain. The previous role-only check let
+     * any instructor on the platform read and write any course's gradebook.
+     */
+    static final String MANAGEMENT_ACCESS =
+            "@courseSecurityService.canManageCourseGradebook(#courseUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
 
     private final CourseGradeBookService courseGradeBookService;
 

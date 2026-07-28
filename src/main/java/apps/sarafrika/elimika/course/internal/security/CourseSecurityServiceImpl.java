@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
 
     /**
@@ -112,23 +114,64 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             if (userUuid == null) {
                 return false;
             }
-            List<UUID> organisationUuids = userLookupService.getUserOrganizations(userUuid);
-            for (UUID organisationUuid : organisationUuids) {
-                boolean approved = courseTrainingApplicationRepository
-                        .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
-                                courseUuid,
-                                CourseTrainingApplicantType.ORGANISATION,
-                                organisationUuid,
-                                CourseTrainingApplicationStatus.APPROVED);
-                if (approved) {
-                    return true;
-                }
-            }
-            return false;
+            return belongsToApprovedTrainingOrganisation(courseUuid, userUuid);
         } catch (Exception e) {
             log.error("Error checking content read access for course: {}", courseUuid, e);
             return false;
         }
+    }
+
+    /**
+     * Grants gradebook access only where there is a real relationship to the course.
+     * <p>
+     * Deliberately stricter than a role check: holding the instructor or course_creator
+     * domain says nothing about whether this particular course is yours to mark.
+     */
+    @Override
+    public boolean canManageCourseGradebook(UUID courseUuid) {
+        if (isCourseOwner(courseUuid)) {
+            return true;
+        }
+        try {
+            UUID userUuid = currentUserUuid();
+            if (userUuid == null) {
+                return false;
+            }
+
+            UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(userUuid).orElse(null);
+            if (instructorUuid != null && courseTrainingApplicationRepository
+                    .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                            courseUuid,
+                            CourseTrainingApplicantType.INSTRUCTOR,
+                            instructorUuid,
+                            CourseTrainingApplicationStatus.APPROVED)) {
+                return true;
+            }
+
+            return belongsToApprovedTrainingOrganisation(courseUuid, userUuid);
+        } catch (Exception e) {
+            log.error("Error checking gradebook access for course: {}", courseUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * True when the user belongs to an organisation approved to train this course.
+     */
+    private boolean belongsToApprovedTrainingOrganisation(UUID courseUuid, UUID userUuid) {
+        List<UUID> organisationUuids = userLookupService.getUserOrganizations(userUuid);
+        for (UUID organisationUuid : organisationUuids) {
+            boolean approved = courseTrainingApplicationRepository
+                    .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                            courseUuid,
+                            CourseTrainingApplicantType.ORGANISATION,
+                            organisationUuid,
+                            CourseTrainingApplicationStatus.APPROVED);
+            if (approved) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
