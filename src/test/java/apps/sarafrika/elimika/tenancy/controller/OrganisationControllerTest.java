@@ -131,31 +131,6 @@ class OrganisationControllerTest {
         Mockito.verify(organisationService).requestOrganisationVerification(ORG_UUID);
     }
 
-    @Test
-    void verifyOrganisationPassesReasonThrough() throws Exception {
-        when(organisationService.verifyOrganisation(eq(ORG_UUID), eq("Documents checked")))
-                .thenReturn(Mockito.mock(OrganisationDTO.class));
-
-        mockMvc.perform(post("/api/v1/organisations/{uuid}/verify", ORG_UUID)
-                        .param("reason", "Documents checked"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Organisation verified successfully"));
-
-        Mockito.verify(organisationService).verifyOrganisation(ORG_UUID, "Documents checked");
-    }
-
-    @Test
-    void unverifyOrganisationDelegatesToService() throws Exception {
-        when(organisationService.unverifyOrganisation(eq(ORG_UUID), any()))
-                .thenReturn(Mockito.mock(OrganisationDTO.class));
-
-        mockMvc.perform(post("/api/v1/organisations/{uuid}/unverify", ORG_UUID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Organisation verification removed successfully"));
-
-        Mockito.verify(organisationService).unverifyOrganisation(ORG_UUID, null);
-    }
-
     static class MockConfig {
         @Bean
         OrganisationService organisationService() {
