@@ -321,11 +321,24 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
                                                            UUID memberUserUuid,
                                                            ConsentSource consentSource,
                                                            UUID consentGrantedByUserUuid) {
-        String domainName = domainName(invitation.getDomainUuid());
-        userService.assignUserToOrganisation(
-                memberUserUuid, invitation.getOrganisationUuid(), domainName, invitation.getBranchUuid());
+        // An existing member keeps the affiliation and the consent record they already
+        // gave: re-forming it would silently overwrite their original role, branch and
+        // the record of how they first consented. The offer still stands for the classes
+        // it carries.
+        boolean alreadyAffiliated = mappingRepository
+                .existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
+                        memberUserUuid, invitation.getOrganisationUuid());
 
-        stampConsent(invitation, memberUserUuid, consentSource, consentGrantedByUserUuid);
+        if (alreadyAffiliated) {
+            log.info("User {} is already affiliated to organisation {}; leaving the existing "
+                            + "affiliation and consent untouched",
+                    memberUserUuid, invitation.getOrganisationUuid());
+        } else {
+            String domainName = domainName(invitation.getDomainUuid());
+            userService.assignUserToOrganisation(
+                    memberUserUuid, invitation.getOrganisationUuid(), domainName, invitation.getBranchUuid());
+            stampConsent(invitation, memberUserUuid, consentSource, consentGrantedByUserUuid);
+        }
 
         invitation.setStatus(InvitationStatus.ACCEPTED);
         invitation.setAcceptedAt(LocalDateTime.now());
@@ -338,6 +351,13 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
         log.info("Invitation {} accepted; user {} affiliated to organisation {} via {}",
                 invitation.getUuid(), memberUserUuid, invitation.getOrganisationUuid(), consentSource.getValue());
 
+        String joined = alreadyAffiliated
+                ? "You are already a member of this organisation."
+                : "You have joined the organisation.";
+        String classes = surfaced.isEmpty()
+                ? ""
+                : " " + surfaced.size() + " class(es) are now available for you to enrol in.";
+
         return new AcceptInvitationResultDTO(
                 InvitationStatus.ACCEPTED,
                 true,
@@ -345,10 +365,7 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
                 invitation.getOrganisationUuid(),
                 organisationName(invitation.getOrganisationUuid()),
                 surfaced,
-                surfaced.isEmpty()
-                        ? "You have joined the organisation."
-                        : "You have joined the organisation. "
-                            + surfaced.size() + " class(es) are now available for you to enrol in.");
+                joined + classes);
     }
 
     /**

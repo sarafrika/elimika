@@ -3,9 +3,12 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
+import apps.sarafrika.elimika.tenancy.entity.StudentGroupMember;
+import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.internal.InvitationLinkFactory;
 import apps.sarafrika.elimika.tenancy.internal.InvitationTokenService;
@@ -15,7 +18,9 @@ import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
+import apps.sarafrika.elimika.tenancy.repository.StudentGroupMemberRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
+import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +75,10 @@ class OrganisationInvitationServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private StudentGroupMemberRepository studentGroupMemberRepository;
+    @Mock
+    private StudentGroupLookupService studentGroupLookupService;
 
     private OrganisationInvitationServiceImpl service;
 
@@ -83,6 +92,8 @@ class OrganisationInvitationServiceImplTest {
                 trainingBranchRepository,
                 mappingRepository,
                 userRepository,
+                studentGroupMemberRepository,
+                studentGroupLookupService,
                 classDefinitionLookupService,
                 userLookupService,
                 new InvitationTokenService(),
@@ -145,7 +156,7 @@ class OrganisationInvitationServiceImplTest {
         service.send(ORGANISATION_UUID,
                 new SendOrganisationInvitationsRequestDTO(
                         List.of(new SendOrganisationInvitationsRequestDTO.Recipient("jane@example.com", null)),
-                        "student", null, null, null, null),
+                        null, "student", null, null, null, null),
                 INVITER_UUID);
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
@@ -177,7 +188,7 @@ class OrganisationInvitationServiceImplTest {
     }
 
     @Test
-    void sendRefusesSomeoneWhoIsAlreadyAMember() {
+    void anExistingMemberIsStillInvitable() {
         UUID existingUser = UUID.randomUUID();
         when(userLookupService.findUserUuidByEmail("jane@example.com")).thenReturn(Optional.of(existingUser));
         when(mappingRepository.existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
@@ -186,11 +197,10 @@ class OrganisationInvitationServiceImplTest {
         SendOrganisationInvitationsResultDTO result =
                 service.send(ORGANISATION_UUID, request("Jane Doe", "jane@example.com"), INVITER_UUID);
 
-        assertThat(result.sent()).isEmpty();
-        assertThat(result.failed()).singleElement().satisfies(failure -> {
-            assertThat(failure.email()).isEqualTo("jane@example.com");
-            assertThat(failure.reason()).contains("already a member");
-        });
+        // An organisation must be able to offer new classes to a student it already has.
+        // Acceptance leaves the existing affiliation untouched.
+        assertThat(result.failed()).isEmpty();
+        assertThat(result.sent()).hasSize(1);
     }
 
     @Test
@@ -217,7 +227,7 @@ class OrganisationInvitationServiceImplTest {
                 List.of(
                         new SendOrganisationInvitationsRequestDTO.Recipient("taken@example.com", "Taken"),
                         new SendOrganisationInvitationsRequestDTO.Recipient("fresh@example.com", "Fresh")),
-                "student", null, null, null, null);
+                null, "student", null, null, null, null);
 
         SendOrganisationInvitationsResultDTO result = service.send(ORGANISATION_UUID, request, INVITER_UUID);
 
@@ -233,13 +243,13 @@ class OrganisationInvitationServiceImplTest {
                 List.of(
                         new SendOrganisationInvitationsRequestDTO.Recipient("jane@example.com", "Jane"),
                         new SendOrganisationInvitationsRequestDTO.Recipient("JANE@example.com", "Jane again")),
-                "student", null, null, null, null);
+                null, "student", null, null, null, null);
 
         SendOrganisationInvitationsResultDTO result = service.send(ORGANISATION_UUID, request, INVITER_UUID);
 
+        // The same person pasted twice yields one invitation, not an error row.
         assertThat(result.sent()).hasSize(1);
-        assertThat(result.failed()).singleElement()
-                .satisfies(failure -> assertThat(failure.reason()).contains("more than once"));
+        assertThat(result.failed()).isEmpty();
     }
 
     @Test
@@ -250,7 +260,7 @@ class OrganisationInvitationServiceImplTest {
 
         SendOrganisationInvitationsRequestDTO request = new SendOrganisationInvitationsRequestDTO(
                 List.of(new SendOrganisationInvitationsRequestDTO.Recipient("jane@example.com", "Jane")),
-                "student", null, List.of(foreignClass), null, null);
+                null, "student", null, List.of(foreignClass), null, null);
 
         assertThatThrownBy(() -> service.send(ORGANISATION_UUID, request, INVITER_UUID))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -261,7 +271,7 @@ class OrganisationInvitationServiceImplTest {
     void sendRejectsADomainOrganisationsMayNotInviteInto() {
         SendOrganisationInvitationsRequestDTO request = new SendOrganisationInvitationsRequestDTO(
                 List.of(new SendOrganisationInvitationsRequestDTO.Recipient("jane@example.com", "Jane")),
-                "course_creator", null, null, null, null);
+                null, "course_creator", null, null, null, null);
 
         assertThatThrownBy(() -> service.send(ORGANISATION_UUID, request, INVITER_UUID))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -339,6 +349,95 @@ class OrganisationInvitationServiceImplTest {
         verify(invitationRepository, never()).saveAll(anyList());
     }
 
+
+    // ================================
+    // STUDENT GROUPS
+    // ================================
+
+    @Test
+    void aStudentGroupExpandsIntoOneOfferPerMember() {
+        UUID groupUuid = UUID.randomUUID();
+        UUID memberA = UUID.randomUUID();
+        UUID memberB = UUID.randomUUID();
+        givenGroupWithMembers(groupUuid, memberA, memberB);
+        givenUser(memberA, "amina@example.com", "Amina", "Yusuf");
+        givenUser(memberB, "brian@example.com", "Brian", "Otieno");
+        when(userLookupService.findUserUuidByEmail(any())).thenReturn(Optional.empty());
+
+        SendOrganisationInvitationsResultDTO result = service.send(ORGANISATION_UUID,
+                new SendOrganisationInvitationsRequestDTO(
+                        null, List.of(groupUuid), "student", null, null, null, null),
+                INVITER_UUID);
+
+        // A group is a convenience for the sender, not a shortcut around consent: each
+        // member gets their own offer and decides for themselves.
+        assertThat(result.sent()).hasSize(2);
+        assertThat(result.sent()).extracting(OrganisationInvitationDTO::recipientEmail)
+                .containsExactlyInAnyOrder("amina@example.com", "brian@example.com");
+    }
+
+    @Test
+    void groupMembersAndExplicitRecipientsAreDeduplicatedByEmail() {
+        UUID groupUuid = UUID.randomUUID();
+        UUID memberA = UUID.randomUUID();
+        givenGroupWithMembers(groupUuid, memberA);
+        givenUser(memberA, "amina@example.com", "Amina", "Yusuf");
+        when(userLookupService.findUserUuidByEmail(any())).thenReturn(Optional.empty());
+
+        SendOrganisationInvitationsResultDTO result = service.send(ORGANISATION_UUID,
+                new SendOrganisationInvitationsRequestDTO(
+                        List.of(new SendOrganisationInvitationsRequestDTO.Recipient("AMINA@example.com", "Amina Y")),
+                        List.of(groupUuid), "student", null, null, null, null),
+                INVITER_UUID);
+
+        assertThat(result.sent()).hasSize(1);
+        assertThat(result.failed()).isEmpty();
+    }
+
+    @Test
+    void anotherOrganisationsGroupCannotBeInvited() {
+        UUID foreignGroup = UUID.randomUUID();
+        when(studentGroupLookupService.filterGroupsInOrganisation(eq(ORGANISATION_UUID), any()))
+                .thenReturn(List.of());
+
+        SendOrganisationInvitationsRequestDTO request = new SendOrganisationInvitationsRequestDTO(
+                null, List.of(foreignGroup), "student", null, null, null, null);
+
+        assertThatThrownBy(() -> service.send(ORGANISATION_UUID, request, INVITER_UUID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("do not belong to your organisation");
+    }
+
+    @Test
+    void sendingWithNobodyToInviteIsRejected() {
+        SendOrganisationInvitationsRequestDTO request = new SendOrganisationInvitationsRequestDTO(
+                List.of(), List.of(), "student", null, null, null, null);
+
+        assertThatThrownBy(() -> service.send(ORGANISATION_UUID, request, INVITER_UUID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No one to invite");
+    }
+
+    private void givenGroupWithMembers(UUID groupUuid, UUID... memberUserUuids) {
+        when(studentGroupLookupService.filterGroupsInOrganisation(eq(ORGANISATION_UUID), any()))
+                .thenReturn(List.of(groupUuid));
+        when(studentGroupMemberRepository.findByGroupUuid(groupUuid))
+                .thenReturn(java.util.Arrays.stream(memberUserUuids).map(uuid -> {
+                    StudentGroupMember member = new StudentGroupMember();
+                    member.setStudentUuid(uuid);
+                    return member;
+                }).toList());
+    }
+
+    private void givenUser(UUID userUuid, String email, String first, String last) {
+        User user = new User();
+        user.setUuid(userUuid);
+        user.setEmail(email);
+        user.setFirstName(first);
+        user.setLastName(last);
+        when(userRepository.findByUuid(userUuid)).thenReturn(Optional.of(user));
+    }
+
     // ================================
     // HELPERS
     // ================================
@@ -346,7 +445,7 @@ class OrganisationInvitationServiceImplTest {
     private SendOrganisationInvitationsRequestDTO request(String name, String email) {
         return new SendOrganisationInvitationsRequestDTO(
                 List.of(new SendOrganisationInvitationsRequestDTO.Recipient(email, name)),
-                "student", null, null, null, null);
+                null, "student", null, null, null, null);
     }
 
     private OrganisationInvitation liveInvitation() {

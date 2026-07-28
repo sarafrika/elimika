@@ -96,6 +96,8 @@ class InvitationAcceptanceServiceImplTest {
         when(invitationClassRepository.findByInvitationUuid(any())).thenReturn(List.of());
         when(mappingRepository.findByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(any(), any()))
                 .thenReturn(Optional.of(mapping));
+        when(mappingRepository.existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(any(), any()))
+                .thenReturn(false);
         when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
         when(ruleEvaluationService.evaluateAgeGate(any(), any(RuleContext.class)))
                 .thenReturn(AgeGateDecision.allow());
@@ -201,6 +203,30 @@ class InvitationAcceptanceServiceImplTest {
 
         assertThat(invitee.getDob()).isEqualTo(dob);
         verify(userRepository).save(invitee);
+    }
+
+    @Test
+    void anExistingMemberAcceptingKeepsTheirCurrentAffiliationAndConsent() {
+        OrganisationInvitation invitation = pendingInvitation();
+        givenInvitationForToken(invitation);
+        // Already affiliated - e.g. invited again so new classes can be shared with them.
+        UserOrganisationDomainMapping existing = new UserOrganisationDomainMapping();
+        existing.setConsentSource(ConsentSource.SELF_JOIN);
+        when(mappingRepository.existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
+                invitee.getUuid(), ORGANISATION_UUID)).thenReturn(true);
+        when(mappingRepository.findByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
+                invitee.getUuid(), ORGANISATION_UUID)).thenReturn(Optional.of(existing));
+
+        AcceptInvitationResultDTO result = service.acceptByToken(
+                RAW_TOKEN, new AcceptInvitationRequestDTO(null, true), invitee.getUuid());
+
+        assertThat(result.affiliated()).isTrue();
+        assertThat(result.message()).contains("already a member");
+        assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.ACCEPTED);
+
+        // Their role, branch and original consent record must not be silently rewritten.
+        verify(userService, never()).assignUserToOrganisation(any(), any(), any(), any());
+        assertThat(existing.getConsentSource()).isEqualTo(ConsentSource.SELF_JOIN);
     }
 
     // ================================

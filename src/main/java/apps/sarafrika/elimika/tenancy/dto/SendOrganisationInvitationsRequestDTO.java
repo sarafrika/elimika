@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -21,16 +20,23 @@ import java.util.UUID;
  */
 @Schema(
         name = "SendOrganisationInvitationsRequest",
-        description = "Invites one or more recipients to join an organisation."
+        description = "Invites one or more recipients to join an organisation. Supply `recipients`, " +
+                "`student_group_uuids`, or both - at least one must yield somebody to invite."
 )
 public record SendOrganisationInvitationsRequestDTO(
 
-        @Schema(description = "**[REQUIRED]** People to invite.", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotEmpty(message = "At least one recipient is required")
+        @Schema(description = "**[OPTIONAL when student_group_uuids is supplied]** People to invite by address.")
         @Size(max = 200, message = "A single send cannot exceed 200 recipients")
         @Valid
         @JsonProperty("recipients")
         List<Recipient> recipients,
+
+        @Schema(description = "**[OPTIONAL]** Organisation student groups to invite. Every member of each " +
+                "group is invited individually, so each person still decides for themselves. " +
+                "Combined with `recipients`, and de-duplicated by email.",
+                nullable = true)
+        @JsonProperty("student_group_uuids")
+        List<UUID> studentGroupUuids,
 
         @Schema(
                 description = "**[REQUIRED]** Org-scoped domain the recipients are invited into.",

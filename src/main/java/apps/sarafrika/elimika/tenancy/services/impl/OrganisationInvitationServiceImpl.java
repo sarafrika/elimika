@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitationClass;
+import apps.sarafrika.elimika.tenancy.entity.StudentGroupMember;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.factory.OrganisationInvitationFactory;
@@ -18,11 +19,13 @@ import apps.sarafrika.elimika.tenancy.internal.InvitationTokenService;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationClassRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationInvitationRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
+import apps.sarafrika.elimika.tenancy.repository.StudentGroupMemberRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.OrganisationInvitationService;
+import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -78,6 +82,8 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
     private final TrainingBranchRepository trainingBranchRepository;
     private final UserOrganisationDomainMappingRepository mappingRepository;
     private final UserRepository userRepository;
+    private final StudentGroupMemberRepository studentGroupMemberRepository;
+    private final StudentGroupLookupService studentGroupLookupService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final UserLookupService userLookupService;
     private final InvitationTokenService tokenService;
@@ -97,16 +103,21 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
         int expiryDays = request.expiresInDays() == null ? DEFAULT_EXPIRY_DAYS : request.expiresInDays();
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(expiryDays);
 
+        List<SendOrganisationInvitationsRequestDTO.Recipient> allRecipients =
+                resolveRecipients(organisationUuid, request);
+        if (allRecipients.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No one to invite. Supply recipients, or student groups that have members.");
+        }
+
         List<OrganisationInvitationDTO> sent = new ArrayList<>();
         List<SendOrganisationInvitationsResultDTO.Failure> failed = new ArrayList<>();
-        Set<String> seenInThisBatch = new HashSet<>();
 
-        for (SendOrganisationInvitationsRequestDTO.Recipient recipient : request.recipients()) {
+        // Recipients arrive already de-duplicated by address, so a sender who pastes the
+        // same person twice gets one invitation rather than an error row.
+        for (SendOrganisationInvitationsRequestDTO.Recipient recipient : allRecipients) {
             String email = normaliseEmail(recipient.email());
             try {
-                if (!seenInThisBatch.add(email)) {
-                    throw new IllegalStateException("This address appears more than once in the batch.");
-                }
                 OrganisationInvitation invitation =
                         createInvitation(organisationUuid, domain, branchUuid, classUuids,
                                 email, recipient.name(), request.message(), expiresAt, inviterUserUuid);
@@ -123,8 +134,9 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
     }
 
     /**
-     * Creates a single invitation, refusing anyone who is already affiliated or already
-     * holds a live offer from this organisation.
+     * Creates a single invitation, refusing only someone who already holds a live offer
+     * from this organisation. Existing members are invitable - accepting simply leaves
+     * their affiliation alone.
      */
     private OrganisationInvitation createInvitation(UUID organisationUuid,
                                                     UserDomain domain,
@@ -141,12 +153,11 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
 
         // Resolved server-side: whether the invitee already has an account decides which
         // journey the acceptance page shows, and is never something the sender declares.
+        //
+        // Existing members are deliberately still invitable: an organisation needs to be
+        // able to offer new classes to students it already has. Accepting simply leaves
+        // their existing affiliation and its original consent record untouched.
         UUID recipientUserUuid = userLookupService.findUserUuidByEmail(email).orElse(null);
-        if (recipientUserUuid != null
-                && mappingRepository.existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(
-                        recipientUserUuid, organisationUuid)) {
-            throw new IllegalStateException("This person is already a member of your organisation.");
-        }
 
         String rawToken = tokenService.generateRawToken();
         OrganisationInvitation invitation = new OrganisationInvitation();
@@ -275,6 +286,62 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
     // ================================
     // HELPERS
     // ================================
+
+    /**
+     * Merges explicitly addressed recipients with the members of any named student groups.
+     * <p>
+     * A group is a convenience for the sender, not a shortcut around consent: it expands
+     * into one individual offer per member, each of whom still decides for themselves.
+     * Explicit entries win on collision so a sender-supplied name is not lost.
+     */
+    private List<SendOrganisationInvitationsRequestDTO.Recipient> resolveRecipients(
+            UUID organisationUuid, SendOrganisationInvitationsRequestDTO request) {
+
+        Map<String, SendOrganisationInvitationsRequestDTO.Recipient> byEmail = new LinkedHashMap<>();
+
+        for (SendOrganisationInvitationsRequestDTO.Recipient recipient :
+                request.recipients() == null ? List.<SendOrganisationInvitationsRequestDTO.Recipient>of() : request.recipients()) {
+            if (recipient != null && recipient.email() != null && !recipient.email().isBlank()) {
+                byEmail.putIfAbsent(normaliseEmail(recipient.email()), recipient);
+            }
+        }
+
+        for (UUID groupUuid : validateGroups(organisationUuid, request.studentGroupUuids())) {
+            for (StudentGroupMember member : studentGroupMemberRepository.findByGroupUuid(groupUuid)) {
+                // student_group_members.student_uuid holds the member's user UUID.
+                userRepository.findByUuid(member.getStudentUuid())
+                        .filter(user -> user.getEmail() != null && !user.getEmail().isBlank())
+                        .ifPresent(user -> byEmail.putIfAbsent(
+                                normaliseEmail(user.getEmail()),
+                                new SendOrganisationInvitationsRequestDTO.Recipient(
+                                        user.getEmail(),
+                                        (safe(user.getFirstName()) + " " + safe(user.getLastName())).trim())));
+            }
+        }
+
+        return new ArrayList<>(byEmail.values());
+    }
+
+    /**
+     * Keeps only groups the organisation actually owns, so one institution cannot invite
+     * another's cohort.
+     */
+    private List<UUID> validateGroups(UUID organisationUuid, List<UUID> requested) {
+        if (requested == null || requested.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> owned = studentGroupLookupService.filterGroupsInOrganisation(organisationUuid, requested);
+        List<UUID> foreign = requested.stream().distinct().filter(uuid -> !owned.contains(uuid)).toList();
+        if (!foreign.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "These student groups do not belong to your organisation: " + foreign);
+        }
+        return owned;
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
 
     private void requireOrganisation(UUID organisationUuid) {
         organisationRepository.findByUuid(organisationUuid)
