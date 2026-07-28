@@ -1,3 +1,10 @@
+# [2.110.0](https://github.com/sarafrika/elimika/compare/v2.109.0...v2.110.0) (2026-07-28)
+
+
+### Features
+
+* **classes:** assign the instructor directly when an organisation names one at class creation ([d66531c](https://github.com/sarafrika/elimika/commit/d66531c63c1ae202e535bedd78da37012265bf37))
+
 # [2.109.0](https://github.com/sarafrika/elimika/compare/v2.108.0...v2.109.0) (2026-07-28)
 
 
