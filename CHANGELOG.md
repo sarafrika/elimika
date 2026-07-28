@@ -1,3 +1,10 @@
+# [2.113.0](https://github.com/sarafrika/elimika/compare/v2.112.0...v2.113.0) (2026-07-28)
+
+
+### Features
+
+* **classes:** persist the category a class falls under for program-backed classes ([c561dec](https://github.com/sarafrika/elimika/commit/c561dec07d01c26138fbf99761585850c8359e1f))
+
 # [2.112.0](https://github.com/sarafrika/elimika/compare/v2.111.0...v2.112.0) (2026-07-28)
 
 
