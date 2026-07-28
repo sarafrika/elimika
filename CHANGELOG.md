@@ -1,3 +1,12 @@
+# [2.116.0](https://github.com/sarafrika/elimika/compare/v2.115.0...v2.116.0) (2026-07-28)
+
+
+### Features
+
+* **course:** require a real course relationship to manage a gradebook ([1dbde87](https://github.com/sarafrika/elimika/commit/1dbde87b421d746d6bda04adb70ad12e9a270a72))
+* **tenancy:** close direct student creation so students only join by accepting an invitation ([7c14e24](https://github.com/sarafrika/elimika/commit/7c14e24f0db86e7d6bd8bd6dea61032a6dc0bdaa))
+* **tenancy:** invite existing members and whole student groups without re-forming affiliations ([71dd0c5](https://github.com/sarafrika/elimika/commit/71dd0c51e553a927c79cc29d54b6be527cddee0a))
+
 # [2.115.0](https://github.com/sarafrika/elimika/compare/v2.114.0...v2.115.0) (2026-07-28)
 
 
