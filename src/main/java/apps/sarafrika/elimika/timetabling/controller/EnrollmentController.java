@@ -2,6 +2,10 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.service.UserContextService;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
@@ -21,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -37,6 +42,8 @@ import java.util.UUID;
 public class EnrollmentController {
 
     private final TimetableService timetableService;
+    private final UserContextService userContextService;
+    private final UserLookupService userLookupService;
 
     // ================================
     // ENROLLMENT OPERATIONS
@@ -194,10 +201,18 @@ public class EnrollmentController {
                 "Student class enrollments retrieved successfully"));
     }
 
-    @Operation(summary = "Get course enrollments for a specific student")
+    @Operation(
+            summary = "Get course enrollments for a specific student",
+            description = "Returns the student's course progress across the whole platform, so it is " +
+                    "restricted to the student themselves and platform administrators. An " +
+                    "organisation or instructor wanting to see how a student is doing at their own " +
+                    "institution must use the organisation-scoped performance endpoint instead, " +
+                    "which cannot reach beyond that institution's classes."
+    )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student course enrollments retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the student nor a platform administrator")
     @GetMapping("/student/{studentUuid}/courses")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<PagedDTO<StudentCourseEnrollmentSummaryDTO>>> getCourseEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,
@@ -338,5 +353,37 @@ public class EnrollmentController {
         List<StudentEnrolmentSummaryDTO> summaries =
                 timetableService.getStudentEnrolmentSummariesForOrganisation(organisationUuid);
         return ResponseEntity.ok(ApiResponse.success(summaries, "Student enrolment summaries retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get one student's performance within an organisation",
+            description = "Per-class attendance and performance for a single student, confined to the " +
+                    "organisation's own classes. An organisation may only see how a student is doing " +
+                    "at its own institution; their learning elsewhere on the platform is unreachable " +
+                    "through this endpoint by construction, not by filtering afterwards."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student performance retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not belong to this organisation")
+    @GetMapping("/organisations/{organisationUuid}/students/{studentUuid}/performance")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<OrganisationStudentPerformanceDTO>>> getStudentPerformance(
+            @Parameter(description = "UUID of the organisation to scope to")
+            @PathVariable UUID organisationUuid,
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request for performance of student {} within organisation {}", studentUuid, organisationUuid);
+
+        UUID callerUuid = userContextService.getCurrentUserUuid();
+        boolean permitted = userLookupService.userHasGlobalDomain(callerUuid, UserDomain.admin)
+                || userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
+        if (!permitted) {
+            log.warn("User {} attempted to read student performance for organisation {} without belonging to it",
+                    callerUuid, organisationUuid);
+            throw new AccessDeniedException("You do not belong to this organisation.");
+        }
+
+        List<OrganisationStudentPerformanceDTO> performance =
+                timetableService.getStudentPerformanceForOrganisation(organisationUuid, studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(performance, "Student performance retrieved successfully"));
     }
 }

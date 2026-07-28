@@ -40,6 +40,7 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
+import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import lombok.RequiredArgsConstructor;
@@ -1457,6 +1458,26 @@ public class TimetableServiceImpl implements TimetableService {
         return enrollmentRepository.findStudentEnrolmentSummariesForOrganisation(organisationUuid).stream()
                 .map(row -> new StudentEnrolmentSummaryDTO(
                         (UUID) row[0], ((Number) row[1]).longValue(), ((Number) row[2]).longValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrganisationStudentPerformanceDTO> getStudentPerformanceForOrganisation(UUID organisationUuid,
+                                                                                         UUID studentUuid) {
+        return enrollmentRepository.findStudentPerformanceForOrganisation(organisationUuid, studentUuid).stream()
+                .map(row -> {
+                    long total = ((Number) row[2]).longValue();
+                    long attended = ((Number) row[3]).longValue();
+                    return new OrganisationStudentPerformanceDTO(
+                            (UUID) row[0],
+                            (String) row[1],
+                            total,
+                            attended,
+                            ((Number) row[4]).longValue(),
+                            total == 0 ? 0d : Math.round((attended * 1000d) / total) / 10d,
+                            row[5] == null ? null : ((java.sql.Timestamp) row[5]).toLocalDateTime());
+                })
                 .toList();
     }
 }

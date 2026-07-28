@@ -66,7 +66,8 @@
             "resourcing :: resourcing-spi",
             "notifications::events-api",
             "student :: student-spi",
-            "tenancy"
+            "tenancy",
+            "tenancy :: tenancy-spi"
     }
 )
 package apps.sarafrika.elimika.timetabling;

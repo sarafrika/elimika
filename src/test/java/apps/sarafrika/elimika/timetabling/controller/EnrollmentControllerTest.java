@@ -17,6 +17,9 @@ import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import apps.sarafrika.elimika.shared.service.UserContextService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -34,11 +37,17 @@ class EnrollmentControllerTest {
     @Mock
     private TimetableService timetableService;
 
+    @Mock
+    private UserContextService userContextService;
+
+    @Mock
+    private UserLookupService userLookupService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, userContextService, userLookupService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }

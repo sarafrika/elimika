@@ -234,4 +234,31 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                    "GROUP BY ce.student_uuid",
            nativeQuery = true)
     List<Object[]> findStudentEnrolmentSummariesForOrganisation(@Param("organisationUuid") UUID organisationUuid);
+
+    /**
+     * One student's per-class performance <em>within a single organisation</em>. Returns rows of
+     * {@code [class_definition_uuid (UUID), class_title (String), total_sessions (long),
+     * attended (long), absent (long), last_session (Timestamp)]}.
+     * <p>
+     * The join through {@code class_definitions.organisation_uuid} is what confines an
+     * organisation to its own classes: a student's learning at any other institution is
+     * unreachable through this query by construction, rather than by filtering afterwards.
+     */
+    @Query(value = "SELECT cd.uuid AS class_definition_uuid, " +
+                   "cd.title AS class_title, " +
+                   "COUNT(*) AS total_sessions, " +
+                   "COUNT(*) FILTER (WHERE ce.status = 'ATTENDED') AS attended, " +
+                   "COUNT(*) FILTER (WHERE ce.status = 'ABSENT') AS absent, " +
+                   "MAX(si.start_time) AS last_session " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "AND ce.student_uuid = :studentUuid " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "GROUP BY cd.uuid, cd.title " +
+                   "ORDER BY MAX(si.start_time) DESC NULLS LAST",
+           nativeQuery = true)
+    List<Object[]> findStudentPerformanceForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                         @Param("studentUuid") UUID studentUuid);
 }

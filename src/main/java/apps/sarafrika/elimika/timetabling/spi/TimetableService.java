@@ -378,4 +378,17 @@ public interface TimetableService {
      * @return one {@link StudentEnrolmentSummaryDTO} per student with enrolments
      */
     List<StudentEnrolmentSummaryDTO> getStudentEnrolmentSummariesForOrganisation(UUID organisationUuid);
+
+    /**
+     * One student's per-class performance within a single organisation.
+     * <p>
+     * Scoped by construction: results are joined through the organisation's own class
+     * definitions, so a student's learning at any other institution cannot appear here.
+     *
+     * @param organisationUuid the organisation asking
+     * @param studentUuid      the student
+     * @return per-class performance, most recently active first
+     */
+    List<OrganisationStudentPerformanceDTO> getStudentPerformanceForOrganisation(UUID organisationUuid,
+                                                                                 UUID studentUuid);
 }
