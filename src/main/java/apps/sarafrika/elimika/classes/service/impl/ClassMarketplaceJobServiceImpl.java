@@ -466,6 +466,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setServiceType(request.serviceType());
         job.setPreferredInstructorUuid(request.preferredInstructorUuid());
         applyTargetGroups(job, request);
+        applyCategory(job, request);
         job.setRemindStudents(request.remindStudents());
         job.setRemindInstructor(request.remindInstructor());
         job.setRemindViaEmail(request.remindViaEmail());
@@ -495,6 +496,19 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         job.setTargetGroupUuids(ownedGroups);
         job.setTargetGroups(studentGroupLookupService.getGroupNames(ownedGroups));
+    }
+
+    /**
+     * Records the category a class falls under. Course-backed classes inherit the course's own
+     * categories, so nothing is stored for them; program-backed classes carry the organisation's
+     * choice. An unknown category is rejected rather than silently dropped.
+     */
+    private void applyCategory(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
+        UUID categoryUuid = request.categoryUuid();
+        if (categoryUuid != null && !courseInfoService.categoryExists(categoryUuid)) {
+            throw new IllegalArgumentException("Category " + categoryUuid + " does not exist");
+        }
+        job.setCategoryUuid(categoryUuid);
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
@@ -1065,7 +1079,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 null,
                 null,
                 null
-        ).withResourceLinks(resolveJobVenueResourceUuid(job.getUuid()), job.getUuid());
+        ).withCategory(job.getCategoryUuid())
+                .withResourceLinks(resolveJobVenueResourceUuid(job.getUuid()), job.getUuid());
     }
 
     private List<ClassSessionTemplateDTO> loadSessionTemplates(UUID jobUuid) {
@@ -1147,6 +1162,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getPreferredInstructorUuid(),
                 job.getTargetGroups(),
                 job.getTargetGroupUuids(),
+                job.getCategoryUuid(),
                 job.getRemindStudents(),
                 job.getRemindInstructor(),
                 job.getRemindViaEmail(),

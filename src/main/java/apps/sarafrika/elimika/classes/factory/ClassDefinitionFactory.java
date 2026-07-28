@@ -47,7 +47,8 @@ public class ClassDefinitionFactory {
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),
                 entity.getLastModifiedBy()
-        ).withResourceLinks(entity.getVenueResourceUuid(), entity.getMarketplaceJobUuid());
+        ).withCategory(entity.getCategoryUuid())
+                .withResourceLinks(entity.getVenueResourceUuid(), entity.getMarketplaceJobUuid());
     }
 
     public static ClassDefinition toEntity(ClassDefinitionDTO dto) {
@@ -64,6 +65,7 @@ public class ClassDefinitionFactory {
         entity.setOrganisationUuid(dto.organisationUuid());
         entity.setCourseUuid(dto.courseUuid());
         entity.setProgramUuid(dto.programUuid());
+        entity.setCategoryUuid(dto.categoryUuid());
         entity.setTrainingFee(dto.trainingFee());
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
@@ -116,6 +118,7 @@ public class ClassDefinitionFactory {
         }
         if (dto.programUuid() != null) {
             entity.setProgramUuid(dto.programUuid());
+        entity.setCategoryUuid(dto.categoryUuid());
         }
         if (dto.trainingFee() != null) {
             entity.setTrainingFee(dto.trainingFee());

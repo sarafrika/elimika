@@ -369,6 +369,57 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void createJobPersistsTheCategoryAClassFallsUnder() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID categoryUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withCategory(sampleRequest(null, programUuid), categoryUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseInfoService.categoryExists(categoryUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        var result = service.createJob(request);
+
+        assertThat(result.categoryUuid()).isEqualTo(categoryUuid);
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getCategoryUuid()).isEqualTo(categoryUuid);
+    }
+
+    @Test
+    void createJobRejectsAnUnknownCategory() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID categoryUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withCategory(sampleRequest(null, programUuid), categoryUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseInfoService.categoryExists(categoryUuid)).thenReturn(false);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not exist");
+
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @Test
     void createJobWithPreferredInstructorAssignsDirectly() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID programUuid = UUID.randomUUID();
@@ -813,6 +864,7 @@ class ClassMarketplaceJobServiceImplTest {
                 null,
                 List.of("Grade 1", "Grade 2"),
                 null,
+                null,
                 Boolean.TRUE,
                 Boolean.FALSE,
                 Boolean.TRUE,
@@ -829,7 +881,20 @@ class ClassMarketplaceJobServiceImplTest {
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
-                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), groupUuids, base.remindStudents(),
+                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), groupUuids, base.categoryUuid(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+    }
+
+    private ClassMarketplaceJobRequestDTO withCategory(ClassMarketplaceJobRequestDTO base, UUID categoryUuid) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
+                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
+                categoryUuid, base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
@@ -841,7 +906,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
-                base.serviceType(), instructorUuid, base.targetGroups(), base.targetGroupUuids(), base.remindStudents(),
+                base.serviceType(), instructorUuid, base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
@@ -1302,7 +1367,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), resources,
-                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(), base.remindStudents(),
+                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 

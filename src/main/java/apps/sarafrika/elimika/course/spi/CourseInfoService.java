@@ -123,6 +123,14 @@ public interface CourseInfoService {
      */
     List<UUID> findCourseUuidsByCourseCreatorUuid(UUID courseCreatorUuid);
 
+    /**
+     * Checks whether a category exists in the platform catalogue.
+     *
+     * @param categoryUuid The UUID of the category
+     * @return true if the category exists, false otherwise
+     */
+    boolean categoryExists(UUID categoryUuid);
+
     record AgeLimits(Integer minAge, Integer maxAge) { }
 
     record RevenueShare(BigDecimal creatorSharePercentage, BigDecimal instructorSharePercentage) { }

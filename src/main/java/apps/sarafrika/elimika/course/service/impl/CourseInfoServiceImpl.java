@@ -32,6 +32,7 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     private final CourseRepository courseRepository;
     private final TrainingProgramRepository trainingProgramRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final apps.sarafrika.elimika.course.repository.CategoryRepository categoryRepository;
 
     @Override
     public Optional<BigDecimal> getMinimumTrainingFee(UUID courseUuid) {
@@ -44,6 +45,11 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     @Override
     public boolean courseExists(UUID courseUuid) {
         return courseRepository.existsByUuid(courseUuid);
+    }
+
+    @Override
+    public boolean categoryExists(UUID categoryUuid) {
+        return categoryUuid != null && categoryRepository.existsByUuid(categoryUuid);
     }
 
     @Override

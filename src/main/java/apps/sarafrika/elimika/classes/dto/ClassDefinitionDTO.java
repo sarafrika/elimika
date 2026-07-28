@@ -490,7 +490,15 @@ public record ClassDefinitionDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "marketplace_job_uuid", access = JsonProperty.Access.READ_ONLY)
-        UUID marketplaceJobUuid
+        UUID marketplaceJobUuid,
+
+        @Schema(
+                description = "**[OPTIONAL]** Category the class falls under. Courses supply their own categories, so this carries the category chosen for program-backed classes.",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("category_uuid")
+        UUID categoryUuid
 
 ) {
 
@@ -566,6 +574,7 @@ public record ClassDefinitionDTO(
                 updatedDate,
                 createdBy,
                 updatedBy,
+                null,
                 null,
                 null
         );
@@ -682,7 +691,8 @@ public record ClassDefinitionDTO(
                 createdBy,
                 updatedBy,
                 venueResourceUuid,
-                marketplaceJobUuid
+                marketplaceJobUuid,
+                categoryUuid
         );
     }
 
@@ -725,7 +735,55 @@ public record ClassDefinitionDTO(
                 createdBy,
                 updatedBy,
                 venueResourceUuid,
-                marketplaceJobUuid
+                marketplaceJobUuid,
+                categoryUuid
+        );
+    }
+
+    /**
+     * Returns a copy carrying the category the class falls under.
+     */
+    public ClassDefinitionDTO withCategory(UUID categoryUuid) {
+        return new ClassDefinitionDTO(
+                uuid,
+                title,
+                description,
+                thumbnailUrl,
+                promotionalVideoUrl,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                trainingFee,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                scheduledSessionCount,
+                completedSessionCount,
+                classProgressPercentage,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy,
+                venueResourceUuid,
+                marketplaceJobUuid,
+                categoryUuid
         );
     }
 
@@ -768,7 +826,8 @@ public record ClassDefinitionDTO(
                 createdBy,
                 updatedBy,
                 venueResourceUuid,
-                marketplaceJobUuid
+                marketplaceJobUuid,
+                categoryUuid
         );
     }
 

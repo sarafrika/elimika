@@ -49,6 +49,9 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "program_uuid")
     private UUID programUuid;
 
+    @Column(name = "category_uuid")
+    private UUID categoryUuid;
+
     @Column(name = "default_start_time")
     private LocalDateTime defaultStartTime;
 

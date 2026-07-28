@@ -130,6 +130,9 @@ public class ClassMarketplaceJob extends BaseEntity {
     @Column(name = "target_group_uuids")
     private List<UUID> targetGroupUuids;
 
+    @Column(name = "category_uuid")
+    private UUID categoryUuid;
+
     @Column(name = "remind_students")
     private Boolean remindStudents;
 

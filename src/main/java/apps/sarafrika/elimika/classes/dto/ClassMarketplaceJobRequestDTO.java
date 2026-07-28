@@ -218,6 +218,10 @@ public record ClassMarketplaceJobRequestDTO(
         @JsonProperty("target_group_uuids")
         List<UUID> targetGroupUuids,
 
+        @Schema(description = "**[OPTIONAL]** Category the class falls under. Course-backed classes inherit the course's own categories, so this is intended for program-backed classes which carry none per class.", nullable = true)
+        @JsonProperty("category_uuid")
+        UUID categoryUuid,
+
         @Schema(description = "**[OPTIONAL]** Send session reminders to enrolled students.", nullable = true)
         @JsonProperty("remind_students")
         Boolean remindStudents,
