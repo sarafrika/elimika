@@ -1,3 +1,11 @@
+# [2.109.0](https://github.com/sarafrika/elimika/compare/v2.108.0...v2.109.0) (2026-07-28)
+
+
+### Features
+
+* **classes:** back marketplace job service type, preferred instructor, target groups and reminder delivery ([291da70](https://github.com/sarafrika/elimika/commit/291da70ac616f733b3c2bdcea8ced07efad0993c))
+* **classes:** recruitment funnel stages for marketplace applications ([b5dd740](https://github.com/sarafrika/elimika/commit/b5dd740e50298e8a5829ce9b63a75c50a1160854))
+
 # [2.107.0](https://github.com/sarafrika/elimika/compare/v2.106.0...v2.107.0) (2026-07-27)
 
 
