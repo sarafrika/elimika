@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -532,6 +534,25 @@ public class OrganisationServiceImpl implements OrganisationService {
             organisation = organisationRepository.save(organisation);
             log.info("Successfully removed verification from organisation: {} for reason: {}", organisationUuid, reason);
         }
+
+        return OrganisationFactory.toDTO(organisation);
+    }
+
+    @Override
+    @Transactional
+    public OrganisationDTO requestOrganisationVerification(UUID organisationUuid) {
+        log.debug("Organisation {} requesting admin verification", organisationUuid);
+
+        Organisation organisation = findOrganisationOrThrow(organisationUuid);
+
+        if (Boolean.TRUE.equals(organisation.getAdminVerified())) {
+            log.warn("Organisation {} is already verified; ignoring verification request", organisationUuid);
+            return OrganisationFactory.toDTO(organisation);
+        }
+
+        organisation.setVerificationRequestedAt(LocalDateTime.now(ZoneOffset.UTC));
+        organisation = organisationRepository.save(organisation);
+        log.info("Organisation {} submitted for admin verification", organisationUuid);
 
         return OrganisationFactory.toDTO(organisation);
     }

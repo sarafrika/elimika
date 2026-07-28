@@ -90,6 +90,55 @@ class OrganisationController {
         return ResponseEntity.ok(ApiResponse.success(updated, "Organisation updated successfully"));
     }
 
+    // ================================
+    // ORGANISATION VERIFICATION
+    // ================================
+
+    @Operation(summary = "Submit an organisation for admin verification",
+            description = "Called by the organisation itself. Records the verification request timestamp so the " +
+                    "organisation can show an 'awaiting review' state and admins get a request queue. " +
+                    "No-op when the organisation is already verified.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification requested successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @PostMapping("/{uuid}/request-verification")
+    public ResponseEntity<ApiResponse<OrganisationDTO>> requestOrganisationVerification(
+            @Parameter(description = "UUID of the organisation submitting itself for verification.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid) {
+        OrganisationDTO organisation = organisationService.requestOrganisationVerification(uuid);
+        return ResponseEntity.ok(ApiResponse.success(organisation, "Organisation submitted for verification"));
+    }
+
+    @Operation(summary = "Verify an organisation",
+            description = "Admin decision that marks the organisation as verified. An organisation cannot verify itself.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation verified successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @PostMapping("/{uuid}/verify")
+    public ResponseEntity<ApiResponse<OrganisationDTO>> verifyOrganisation(
+            @Parameter(description = "UUID of the organisation to verify.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Optional reason recorded with the verification decision.")
+            @RequestParam(required = false) String reason) {
+        OrganisationDTO organisation = organisationService.verifyOrganisation(uuid, reason);
+        return ResponseEntity.ok(ApiResponse.success(organisation, "Organisation verified successfully"));
+    }
+
+    @Operation(summary = "Remove verification from an organisation",
+            description = "Admin decision that clears the organisation's verified status.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation verification removed successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @PostMapping("/{uuid}/unverify")
+    public ResponseEntity<ApiResponse<OrganisationDTO>> unverifyOrganisation(
+            @Parameter(description = "UUID of the organisation to unverify.",
+                    example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "Optional reason recorded with the decision.")
+            @RequestParam(required = false) String reason) {
+        OrganisationDTO organisation = organisationService.unverifyOrganisation(uuid, reason);
+        return ResponseEntity.ok(ApiResponse.success(organisation, "Organisation verification removed successfully"));
+    }
+
     @Operation(summary = "Delete an organisation by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")

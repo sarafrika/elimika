@@ -199,6 +199,17 @@ public interface OrganisationService {
     OrganisationDTO unverifyOrganisation(UUID organisationUuid, String reason);
 
     /**
+     * Submits an organization for admin verification, recording the request timestamp.
+     * Performed by the organization itself; the admin decision is a separate operation.
+     * No-op for an organization that is already verified.
+     *
+     * @param organisationUuid the organization UUID requesting verification
+     * @return the updated organization
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if organization not found
+     */
+    OrganisationDTO requestOrganisationVerification(UUID organisationUuid);
+
+    /**
      * Checks if an organization is verified by an admin.
      *
      * @param organisationUuid the organization UUID

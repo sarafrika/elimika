@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "organisation")
@@ -54,4 +55,8 @@ public class Organisation extends BaseEntity {
 
     @Column(name = "admin_verified")
     private Boolean adminVerified = false;
+
+    /** When the organisation submitted itself for admin verification; null if never submitted. */
+    @Column(name = "verification_requested_at")
+    private LocalDateTime verificationRequestedAt;
 }

@@ -21,7 +21,8 @@ public class OrganisationFactory {
                 organisation.getLongitude(),
                 organisation.getAdminVerified(),
                 organisation.getCreatedDate(),
-                organisation.getLastModifiedDate()
+                organisation.getLastModifiedDate(),
+                organisation.getVerificationRequestedAt()
         );
     }
 

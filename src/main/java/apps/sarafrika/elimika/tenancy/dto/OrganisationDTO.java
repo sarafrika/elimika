@@ -169,7 +169,19 @@ public record OrganisationDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY)
-        LocalDateTime updatedDate
+        LocalDateTime updatedDate,
+
+        @Schema(
+                description = "**[READ-ONLY]** Timestamp when the organisation submitted itself for admin verification. " +
+                        "Null when the organisation has never requested verification. Combined with `admin_verified` this " +
+                        "distinguishes 'not submitted' from 'submitted, awaiting review'.",
+                example = "2024-04-10T08:15:00Z",
+                format = "date-time",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "verification_requested_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime verificationRequestedAt
 
 ) {
 }
