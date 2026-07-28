@@ -53,6 +53,7 @@
         "timetabling :: timetabling-spi",
         "commerce.purchase :: commerce-purchase-spi",
         "shared",
+        "systemconfig",
         "authentication :: keycloak-integration"
 }
 )
