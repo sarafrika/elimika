@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Enumeration representing the different enrollment statuses for course enrollments
@@ -87,10 +88,17 @@ public enum EnrollmentStatus {
     }
 
     /**
+     * The statuses for which {@link #allowsAccess()} holds, as a set suitable for an {@code IN}
+     * clause. Keeps the "may still enter the course" rule in one place whether it is applied in
+     * memory or pushed into a query.
+     */
+    public static final Set<EnrollmentStatus> ACCESS_ALLOWING = Set.of(ACTIVE, COMPLETED);
+
+    /**
      * Check if this status allows the student to access course content
      */
     public boolean allowsAccess() {
-        return this == ACTIVE || this == COMPLETED;
+        return ACCESS_ALLOWING.contains(this);
     }
 
     /**

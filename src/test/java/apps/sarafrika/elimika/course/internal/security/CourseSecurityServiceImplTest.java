@@ -1,12 +1,16 @@
 package apps.sarafrika.elimika.course.internal.security;
 
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,17 +48,20 @@ class CourseSecurityServiceImplTest {
 
     @Mock private CourseRepository courseRepository;
     @Mock private CourseTrainingApplicationRepository trainingApplicationRepository;
+    @Mock private CourseEnrollmentRepository courseEnrollmentRepository;
     @Mock private CourseCreatorLookupService courseCreatorLookupService;
     @Mock private InstructorLookupService instructorLookupService;
     @Mock private UserLookupService userLookupService;
+    @Mock private DomainSecurityService domainSecurityService;
 
     private CourseSecurityServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new CourseSecurityServiceImpl(
-                courseRepository, trainingApplicationRepository, courseCreatorLookupService,
-                instructorLookupService, userLookupService);
+                courseRepository, trainingApplicationRepository, courseEnrollmentRepository,
+                courseCreatorLookupService, instructorLookupService, userLookupService,
+                domainSecurityService, new RequestScopedCache());
 
         authenticateAsJwtUser();
         when(userLookupService.findUserUuidByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(USER_UUID));
@@ -152,6 +159,96 @@ class CourseSecurityServiceImplTest {
                 .thenThrow(new IllegalStateException("lookup exploded"));
 
         assertThat(service.canManageCourseGradebook(COURSE_UUID)).isFalse();
+    }
+
+    // ===== ENROLLED LEARNER ACCESS =====
+
+    @Test
+    void anActiveEnrolmentMakesTheCallerAnEnrolledLearner() {
+        enrolledIn(COURSE_UUID, EnrollmentStatus.ACTIVE);
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isTrue();
+        assertThat(service.canReadCourseAsLearner(COURSE_UUID)).isTrue();
+    }
+
+    @Test
+    void aCompletedEnrolmentStillGrantsAccessToTheMaterial() {
+        // Finishing a course must not lock the learner out of what they studied.
+        enrolledIn(COURSE_UUID, EnrollmentStatus.COMPLETED);
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isTrue();
+    }
+
+    @Test
+    void aDroppedEnrolmentDoesNotGrantAccess() {
+        enrolledIn(COURSE_UUID, EnrollmentStatus.DROPPED);
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isFalse();
+    }
+
+    @Test
+    void aSuspendedEnrolmentDoesNotGrantAccess() {
+        enrolledIn(COURSE_UUID, EnrollmentStatus.SUSPENDED);
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isFalse();
+    }
+
+    @Test
+    void anEnrolmentInADifferentCourseDoesNotGrantAccessToThisOne() {
+        enrolledIn(UUID.randomUUID(), EnrollmentStatus.ACTIVE);
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isFalse();
+    }
+
+    @Test
+    void aCallerWithNoStudentProfileIsNotAnEnrolledLearner() {
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isFalse();
+    }
+
+    @Test
+    void anEnrolmentLookupFailureDeniesRatherThanGrants() {
+        when(domainSecurityService.getCurrentStudentUuid()).thenThrow(new IllegalStateException("boom"));
+
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isFalse();
+    }
+
+    @Test
+    void readingAsALearnerStillGrantsTheCourseOwner() {
+        // canReadCourseAsLearner is a widening of canReadCourseContent, never a replacement.
+        UUID creatorUuid = UUID.randomUUID();
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(USER_UUID))
+                .thenReturn(Optional.of(creatorUuid));
+        Course course = new Course();
+        course.setCourseCreatorUuid(creatorUuid);
+        when(courseRepository.findByUuid(COURSE_UUID)).thenReturn(Optional.of(course));
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        assertThat(service.canReadCourseAsLearner(COURSE_UUID)).isTrue();
+    }
+
+    @Test
+    void enrolledCoursesAreLoadedOnceAndAnsweredBySetMembership() {
+        UUID otherCourse = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
+        when(courseEnrollmentRepository.findCourseUuidsByStudentUuidAndStatusIn(
+                studentUuid, EnrollmentStatus.ACCESS_ALLOWING))
+                .thenReturn(List.of(COURSE_UUID, otherCourse));
+
+        assertThat(service.enrolledCourseUuids()).containsExactlyInAnyOrder(COURSE_UUID, otherCourse);
+        assertThat(service.isEnrolledLearner(COURSE_UUID)).isTrue();
+        assertThat(service.isEnrolledLearner(otherCourse)).isTrue();
+        assertThat(service.isEnrolledLearner(UUID.randomUUID())).isFalse();
+    }
+
+    private void enrolledIn(UUID courseUuid, EnrollmentStatus status) {
+        UUID studentUuid = UUID.randomUUID();
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
+        when(courseEnrollmentRepository.findCourseUuidsByStudentUuidAndStatusIn(
+                studentUuid, EnrollmentStatus.ACCESS_ALLOWING))
+                .thenReturn(status.allowsAccess() ? List.of(courseUuid) : List.of());
     }
 
     private void authenticateAsJwtUser() {

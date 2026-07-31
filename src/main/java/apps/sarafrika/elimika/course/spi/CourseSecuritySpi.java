@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.spi;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -31,6 +32,43 @@ public interface CourseSecuritySpi {
      * @return true if the current user may read the course content, false otherwise
      */
     boolean canReadCourseContent(UUID courseUuid);
+
+    /**
+     * Checks whether the current user is a learner enrolled in this course.
+     * <p>
+     * True only when the caller holds a course enrolment for this course whose status still
+     * {@link apps.sarafrika.elimika.course.util.enums.EnrollmentStatus#allowsAccess() allows access}
+     * — active or completed. A dropped or suspended enrolment does not grant entry.
+     *
+     * @param courseUuid UUID of the course to check
+     * @return true if the current user is an enrolled learner on the course
+     */
+    boolean isEnrolledLearner(UUID courseUuid);
+
+    /**
+     * Returns every course the current caller may enter as a learner, as a set supporting O(1)
+     * membership tests.
+     * <p>
+     * Prefer this over repeated {@link #isEnrolledLearner(UUID)} calls when testing several courses
+     * — it is the same single load either way, but the intent is clearer at the call site.
+     *
+     * @return the caller's accessible course UUIDs, never null
+     */
+    Set<UUID> enrolledCourseUuids();
+
+    /**
+     * Checks whether the current user may read the course's material as either staff or learner.
+     * <p>
+     * This is the learner-facing sibling of {@link #canReadCourseContent(UUID)}: it grants
+     * everything that predicate grants, plus enrolled learners. It exists separately so that
+     * {@code canReadCourseContent} keeps meaning "staff who own or train this course", and so
+     * every deliberately learner-visible route can be found by searching for this method.
+     * Platform admins are granted separately at the endpoint.
+     *
+     * @param courseUuid UUID of the course to check
+     * @return true if the current user may read the course as staff or as an enrolled learner
+     */
+    boolean canReadCourseAsLearner(UUID courseUuid);
 
     /**
      * Checks whether the current user may read and write the course's gradebook.

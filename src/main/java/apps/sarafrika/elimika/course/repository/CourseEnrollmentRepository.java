@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,4 +51,15 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
 
     @Query("SELECT ce.uuid FROM CourseEnrollment ce WHERE ce.studentUuid = :studentUuid")
     List<UUID> findEnrollmentUuidsByStudentUuid(@Param("studentUuid") UUID studentUuid);
+
+    /**
+     * Courses the student may still enter. Loading the whole set in one query lets callers answer
+     * "is this learner in course X?" by set membership instead of a lookup per course.
+     */
+    @Query("""
+            SELECT ce.courseUuid FROM CourseEnrollment ce
+            WHERE ce.studentUuid = :studentUuid AND ce.status IN :statuses
+            """)
+    List<UUID> findCourseUuidsByStudentUuidAndStatusIn(@Param("studentUuid") UUID studentUuid,
+                                                       @Param("statuses") Collection<EnrollmentStatus> statuses);
 }

@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.internal.security;
 
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
@@ -8,6 +9,9 @@ import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +21,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,11 +39,16 @@ import java.util.UUID;
 @Slf4j
 public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
+    private static final String CACHE_ENROLLED_COURSES = "courseSecurity.enrolledCourses";
+
     private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
+    private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
+    private final DomainSecurityService domainSecurityService;
+    private final RequestScopedCache requestScopedCache;
 
     /**
      * Checks if the currently authenticated user is the owner of the specified course.
@@ -119,6 +129,51 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             log.error("Error checking content read access for course: {}", courseUuid, e);
             return false;
         }
+    }
+
+    /**
+     * True when the caller holds a course enrolment for this course that still allows access.
+     * <p>
+     * Resolves the student from the authenticated principal, never from a request parameter, so
+     * a learner cannot claim somebody else's enrolment. {@code course_enrollments} is unique on
+     * (student, course), so the lookup is unambiguous.
+     */
+    @Override
+    public boolean isEnrolledLearner(UUID courseUuid) {
+        return courseUuid != null && enrolledCourseUuids().contains(courseUuid);
+    }
+
+    /**
+     * The caller's enrolable courses, loaded once per request.
+     * <p>
+     * A learner holds a handful of enrolments, so fetching the whole set costs one query and then
+     * answers every course check by set membership. Checking course-by-course instead would cost a
+     * query per course, which a page listing material from several courses pays repeatedly.
+     */
+    @Override
+    public Set<UUID> enrolledCourseUuids() {
+        return requestScopedCache.get(CACHE_ENROLLED_COURSES, () -> {
+            try {
+                UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+                if (studentUuid == null) {
+                    return Set.<UUID>of();
+                }
+                return Set.copyOf(courseEnrollmentRepository.findCourseUuidsByStudentUuidAndStatusIn(
+                        studentUuid, EnrollmentStatus.ACCESS_ALLOWING));
+            } catch (Exception e) {
+                log.error("Error loading enrolled courses for the current caller", e);
+                return Set.<UUID>of();
+            }
+        });
+    }
+
+    /**
+     * Staff reading rights plus enrolled learners. See the SPI javadoc for why this is a sibling
+     * of {@link #canReadCourseContent(UUID)} rather than a widening of it.
+     */
+    @Override
+    public boolean canReadCourseAsLearner(UUID courseUuid) {
+        return canReadCourseContent(courseUuid) || isEnrolledLearner(courseUuid);
     }
 
     /**
