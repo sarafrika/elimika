@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -120,12 +122,41 @@ public class UserLookupServiceImpl implements UserLookupService {
 
     @Override
     public boolean userHasAnyDomain(UUID userUuid, UserDomain... domains) {
+        if (domains == null || domains.length == 0) {
+            return false;
+        }
+        // One set load beats one lookup per domain: userHasDomain costs two queries each.
+        Set<UserDomain> effective = getEffectiveUserDomains(userUuid);
         for (UserDomain domain : domains) {
-            if (userHasDomain(userUuid, domain)) {
+            if (effective.contains(domain)) {
                 return true;
             }
         }
         return false;
+    }
+
+    @Override
+    public Set<UserDomain> getEffectiveUserDomains(UUID userUuid) {
+        Set<UserDomain> domains = EnumSet.noneOf(UserDomain.class);
+
+        for (UserDomainMapping mapping : userDomainMappingRepository.findByUserUuid(userUuid)) {
+            addIfKnown(domains, mapping.getUserDomain().getDomainName());
+        }
+        // Org members carry only the organisation_user umbrella globally; their real role lives in
+        // the org-scoped mapping, so it counts toward the effective set.
+        for (UserOrganisationDomainMapping mapping :
+                userOrganisationDomainMappingRepository.findByUserUuidAndActiveTrueAndDeletedFalse(userUuid)) {
+            addIfKnown(domains, mapping.getDomain().getDomainName());
+        }
+        return domains;
+    }
+
+    private void addIfKnown(Set<UserDomain> domains, String domainName) {
+        try {
+            domains.add(UserDomain.valueOf(domainName));
+        } catch (IllegalArgumentException e) {
+            // Unknown domain names are ignored rather than failing the whole lookup.
+        }
     }
 
     @Override

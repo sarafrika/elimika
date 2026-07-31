@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -104,6 +105,19 @@ public interface UserLookupService {
      * @return true if the user has any of the domains, false otherwise
      */
     boolean userHasAnyDomain(UUID userUuid, UserDomain... domains);
+
+    /**
+     * Returns every domain the user effectively holds — global mappings plus active organisation
+     * scoped roles — as a set supporting O(1) membership tests.
+     * <p>
+     * Prefer this over repeated {@link #userHasDomain(UUID, UserDomain)} calls when testing more
+     * than one domain: that method costs two queries <em>per domain</em>, whereas this costs two in
+     * total regardless of how many are then checked.
+     *
+     * @param userUuid The UUID of the user
+     * @return the user's effective domains, never null
+     */
+    Set<UserDomain> getEffectiveUserDomains(UUID userUuid);
 
     /**
      * Gets the organization UUIDs for a user.

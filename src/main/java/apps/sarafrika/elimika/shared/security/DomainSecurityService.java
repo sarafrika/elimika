@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,9 +27,14 @@ import java.util.UUID;
 @Slf4j
 public class DomainSecurityService {
 
+    private static final String CACHE_USER_UUID = "security.userUuid";
+    private static final String CACHE_STUDENT_UUID = "security.studentUuid";
+    private static final String CACHE_DOMAINS = "security.domains";
+
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
     private final InstructorLookupService instructorLookupService;
+    private final RequestScopedCache requestScopedCache;
 
     /**
      * Checks if the currently authenticated user is a student.
@@ -84,14 +90,44 @@ public class DomainSecurityService {
 
     /**
      * Checks if the current user has any of the specified domains.
+     * <p>
+     * Answered from the caller's cached domain set, so testing N domains costs one load rather
+     * than N lookups.
      */
     public boolean hasAnyDomain(UserDomain... domains) {
+        if (domains == null || domains.length == 0) {
+            return false;
+        }
+        Set<UserDomain> effective = currentUserDomains();
         for (UserDomain domain : domains) {
-            if (hasUserDomain(domain)) {
+            if (effective.contains(domain)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * The current caller's effective domains, loaded once per request.
+     * <p>
+     * Every {@code @PreAuthorize} on a request funnels through here, so this is the hottest path in
+     * the authorization layer. Resolving it once and answering from a set keeps a guarded endpoint
+     * at a constant cost no matter how many domains its expression tests.
+     */
+    private Set<UserDomain> currentUserDomains() {
+        return requestScopedCache.get(CACHE_DOMAINS, () -> {
+            try {
+                UUID currentUserUuid = getCurrentUserUuid();
+                if (currentUserUuid == null) {
+                    log.debug("No authenticated user found");
+                    return Set.<UserDomain>of();
+                }
+                return userLookupService.getEffectiveUserDomains(currentUserUuid);
+            } catch (Exception e) {
+                log.error("Error loading user domains", e);
+                return Set.<UserDomain>of();
+            }
+        });
     }
 
     /**
@@ -205,16 +241,18 @@ public class DomainSecurityService {
      * records to the caller rather than trusting a client-supplied student identifier.
      */
     public UUID getCurrentStudentUuid() {
-        try {
-            UUID currentUserUuid = getCurrentUserUuid();
-            if (currentUserUuid == null) {
+        return requestScopedCache.get(CACHE_STUDENT_UUID, () -> {
+            try {
+                UUID currentUserUuid = getCurrentUserUuid();
+                if (currentUserUuid == null) {
+                    return null;
+                }
+                return studentLookupService.findStudentUuidByUserUuid(currentUserUuid).orElse(null);
+            } catch (Exception e) {
+                log.error("Error resolving current student UUID", e);
                 return null;
             }
-            return studentLookupService.findStudentUuidByUserUuid(currentUserUuid).orElse(null);
-        } catch (Exception e) {
-            log.error("Error resolving current student UUID", e);
-            return null;
-        }
+        });
     }
 
     /**
@@ -222,22 +260,24 @@ public class DomainSecurityService {
      * Returns null if no user is authenticated.
      */
     public UUID getCurrentUserUuid() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+        return requestScopedCache.get(CACHE_USER_UUID, () -> {
+            try {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication == null || !authentication.isAuthenticated()) {
+                    return null;
+                }
+
+                String keycloakId = getKeycloakId(authentication);
+                if (keycloakId == null) {
+                    return null;
+                }
+
+                return userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
+            } catch (Exception e) {
+                log.error("Error getting current user UUID", e);
                 return null;
             }
-
-            String keycloakId = getKeycloakId(authentication);
-            if (keycloakId == null) {
-                return null;
-            }
-
-            return userLookupService.findUserUuidByKeycloakId(keycloakId).orElse(null);
-        } catch (Exception e) {
-            log.error("Error getting current user UUID", e);
-            return null;
-        }
+        });
     }
 
     private boolean isAdminWithAdditionalDomains(UUID userUuid) {
@@ -251,21 +291,7 @@ public class DomainSecurityService {
      * Checks if the current user has a specific user domain.
      */
     private boolean hasUserDomain(UserDomain domain) {
-        try {
-            UUID currentUserUuid = getCurrentUserUuid();
-            if (currentUserUuid == null) {
-                log.debug("No authenticated user found");
-                return false;
-            }
-
-            boolean hasDomain = userLookupService.userHasDomain(currentUserUuid, domain);
-            log.debug("User {} domain check for {}: {}", currentUserUuid, domain, hasDomain);
-            return hasDomain;
-
-        } catch (Exception e) {
-            log.error("Error checking user domain: {}", domain, e);
-            return false;
-        }
+        return currentUserDomains().contains(domain);
     }
 
     /**
