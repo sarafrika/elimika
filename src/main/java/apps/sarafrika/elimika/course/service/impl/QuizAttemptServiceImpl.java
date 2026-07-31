@@ -131,6 +131,16 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<QuizAttemptDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        Specification<QuizAttempt> spec = specificationBuilder.buildSpecification(
+                QuizAttempt.class, searchParams);
+        return quizAttemptRepository
+                .findAll(learnerAssessmentScope.restrictToCaller(spec, "enrollmentUuid"), pageable)
+                .map(QuizAttemptFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<QuizAttemptDTO> getAttemptsForQuiz(UUID quizUuid, Pageable pageable) {
         Specification<QuizAttempt> spec = (root, query, cb) -> cb.equal(root.get("quizUuid"), quizUuid);
         return quizAttemptRepository

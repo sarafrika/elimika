@@ -131,6 +131,16 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
                 .map(AssignmentSubmissionFactory::toDTO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AssignmentSubmissionDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        Specification<AssignmentSubmission> spec = specificationBuilder.buildSpecification(
+                AssignmentSubmission.class, searchParams);
+        return assignmentSubmissionRepository
+                .findAll(learnerAssessmentScope.restrictToCaller(spec, "enrollmentUuid"), pageable)
+                .map(AssignmentSubmissionFactory::toDTO);
+    }
+
     // ===== SUBMISSION WORKFLOW OPERATIONS =====
 
     @Override

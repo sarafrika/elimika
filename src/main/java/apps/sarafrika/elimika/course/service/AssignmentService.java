@@ -19,4 +19,10 @@ public interface AssignmentService {
     void deleteAssignment(UUID uuid);
 
     Page<AssignmentDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Search narrowed to what the caller may see: staff get everything, a learner gets only
+     * published assignments on courses they are enrolled in.
+     */
+    Page<AssignmentDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
 }

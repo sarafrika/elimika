@@ -56,6 +56,13 @@ public class AssignmentController {
     static final String STUDENT_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".student, " + USER_DOMAIN + ".course_creator, "
             + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    /**
+     * An assignment a learner enrolled in its course may read, once published. Stricter than
+     * {@link #STUDENT_ACCESS}, which only asked whether the caller held the student domain
+     * <em>anywhere</em> on the platform and so admitted any student to any assignment.
+     */
+    static final String LEARNER_ASSIGNMENT_READ = "@learnerContentAccess.canReadAssignment(#assignmentUuid)";
+    static final String LEARNER_ASSIGNMENT_READ_BY_UUID = "@learnerContentAccess.canReadAssignment(#uuid)";
 
     private final AssignmentService assignmentService;
     private final AssignmentSubmissionService assignmentSubmissionService;
@@ -95,7 +102,7 @@ public class AssignmentController {
             }
     )
     @GetMapping("/{uuid}")
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(LEARNER_ASSIGNMENT_READ_BY_UUID)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentDTO>> getAssignmentByUuid(
             @PathVariable UUID uuid) {
         AssignmentDTO assignmentDTO = assignmentService.getAssignmentByUuid(uuid);
@@ -203,7 +210,7 @@ public class AssignmentController {
             description = "Retrieves all attachments linked to a specific assignment."
     )
     @GetMapping("/{assignmentUuid}/attachments")
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(LEARNER_ASSIGNMENT_READ)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentAttachmentDTO>>> getAssignmentAttachments(
             @PathVariable UUID assignmentUuid
     ) {
@@ -554,6 +561,7 @@ public class AssignmentController {
                     """
     )
     @GetMapping("/search")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<AssignmentDTO>>> searchAssignments(
             @Parameter(
                     description = "Optional search parameters for filtering",
@@ -562,7 +570,7 @@ public class AssignmentController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<AssignmentDTO> assignments = assignmentService.search(searchParams, pageable);
+        Page<AssignmentDTO> assignments = assignmentService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(assignments, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -584,6 +592,7 @@ public class AssignmentController {
                     """
     )
     @GetMapping("/submissions/search")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<AssignmentSubmissionDTO>>> searchSubmissions(
             @Parameter(
                     description = "Optional search parameters for filtering",
@@ -592,7 +601,7 @@ public class AssignmentController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<AssignmentSubmissionDTO> submissions = assignmentSubmissionService.search(searchParams, pageable);
+        Page<AssignmentSubmissionDTO> submissions = assignmentSubmissionService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(submissions, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

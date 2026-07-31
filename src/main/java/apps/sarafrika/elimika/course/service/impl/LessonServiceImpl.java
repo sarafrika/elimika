@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.LessonDTO;
 import apps.sarafrika.elimika.course.factory.LessonFactory;
+import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.service.LessonService;
@@ -26,6 +27,7 @@ public class LessonServiceImpl implements LessonService {
 
     private final LessonRepository lessonRepository;
     private final GenericSpecificationBuilder<Lesson> specificationBuilder;
+    private final LearnerAssessmentScope learnerAssessmentScope;
 
     private static final String LESSON_NOT_FOUND_TEMPLATE = "Lesson with ID %s not found";
 
@@ -87,6 +89,20 @@ public class LessonServiceImpl implements LessonService {
     public Page<LessonDTO> search(Map<String, String> searchParams, Pageable pageable) {
         Specification<Lesson> spec = specificationBuilder.buildSpecification(
                 Lesson.class, searchParams);
+        return lessonRepository.findAll(spec, pageable).map(LessonFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LessonDTO> getCourseLessonsForCaller(UUID courseUuid, Pageable pageable) {
+        Specification<Lesson> spec = (root, query, cb) -> cb.equal(root.get("courseUuid"), courseUuid);
+
+        if (!learnerAssessmentScope.seesAllLearners()) {
+            spec = spec.and((root, query, cb) -> cb.and(
+                    cb.equal(root.get("status"), ContentStatus.PUBLISHED),
+                    cb.isTrue(root.get("active"))));
+        }
+
         return lessonRepository.findAll(spec, pageable).map(LessonFactory::toDTO);
     }
 

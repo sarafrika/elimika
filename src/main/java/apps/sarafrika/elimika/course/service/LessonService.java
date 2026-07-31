@@ -19,4 +19,13 @@ public interface LessonService {
     void deleteLesson(UUID uuid);
 
     Page<LessonDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * A course's lessons as the caller is entitled to see them: staff get drafts too, learners get
+     * only published, active lessons.
+     * <p>
+     * Listing drafts to a learner is worse than useless — every downstream detail and assessment
+     * endpoint refuses them, so an unfiltered list advertises material that 404s on click.
+     */
+    Page<LessonDTO> getCourseLessonsForCaller(UUID courseUuid, Pageable pageable);
 }

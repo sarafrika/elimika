@@ -19,4 +19,10 @@ public interface QuizService {
     void deleteQuiz(UUID uuid);
 
     Page<QuizDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Search narrowed to what the caller may see: staff get everything, a learner gets only
+     * published quizzes on courses they are enrolled in.
+     */
+    Page<QuizDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
 }

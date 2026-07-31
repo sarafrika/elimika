@@ -55,6 +55,23 @@ public class CourseController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
 
+    /**
+     * A course's outline, readable by teaching staff or by a learner enrolled in it.
+     * <p>
+     * Previously these endpoints carried no authorization at all, so any authenticated caller could
+     * enumerate any course's lessons. The staff clause is domain-based to match
+     * {@code learnerContentAccess}, so instructors keep the access they had.
+     */
+    private static final String COURSE_LEARNER_READ =
+            "@learnerContentAccess.isStaff() or @courseSecurityService.canReadCourseAsLearner(#courseUuid)";
+
+    /**
+     * A single lesson and its content. Decided on the lesson rather than the path's course, so an
+     * unpublished lesson stays invisible to learners even inside a course they are enrolled in.
+     */
+    private static final String LESSON_LEARNER_READ =
+            "@learnerContentAccess.canReadLesson(#lessonUuid) or @domainSecurityService.isPlatformAdmin()";
+
     private final CourseService courseService;
     private final CourseDraftService courseDraftService;
     private final CoursePendingEditService coursePendingEditService;
@@ -708,11 +725,11 @@ public class CourseController {
             description = "Retrieves all lessons for a specific course in sequence order."
     )
     @GetMapping("/{courseUuid}/lessons")
+    @PreAuthorize(COURSE_LEARNER_READ)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<LessonDTO>>> getCourseLessons(
             @PathVariable UUID courseUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("courseUuid", courseUuid.toString());
-        Page<LessonDTO> lessons = lessonService.search(searchParams, pageable);
+        Page<LessonDTO> lessons = lessonService.getCourseLessonsForCaller(courseUuid, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(lessons, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -772,6 +789,7 @@ public class CourseController {
             }
     )
     @GetMapping("/{courseUuid}/lessons/{lessonUuid}")
+    @PreAuthorize(LESSON_LEARNER_READ)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<LessonDTO>> getCourseLesson(
             @PathVariable("courseUuid")
             @Schema(description = "UUID of the course containing the lesson",
@@ -996,7 +1014,7 @@ public class CourseController {
                     arbitrary authenticated callers.
                     """
     )
-    @PreAuthorize("@courseSecurityService.canReadCourseContent(#courseUuid) or @domainSecurityService.isPlatformAdmin()")
+    @PreAuthorize(LESSON_LEARNER_READ)
     @GetMapping("/{courseUuid}/lessons/{lessonUuid}/content")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<LessonContentDTO>>> getLessonContent(
             @PathVariable UUID courseUuid,

@@ -25,6 +25,11 @@ public interface AssignmentSubmissionService {
 
     Page<AssignmentSubmissionDTO> search(Map<String, String> searchParams, Pageable pageable);
 
+    /**
+     * Search narrowed to the caller's own submissions unless they are teaching staff.
+     */
+    Page<AssignmentSubmissionDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
+
     // ===== SUBMISSION WORKFLOW OPERATIONS =====
 
     /**

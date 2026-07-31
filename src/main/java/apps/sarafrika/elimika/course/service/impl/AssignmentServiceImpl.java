@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.internal.LearnerMaterialScope;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentDTO;
@@ -25,6 +26,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final GenericSpecificationBuilder<Assignment> specificationBuilder;
+    private final LearnerMaterialScope learnerMaterialScope;
     private final AssignmentMediaValidationService assignmentMediaValidationService;
 
     private static final String ASSIGNMENT_NOT_FOUND_TEMPLATE = "Assignment with ID %s not found";
@@ -87,6 +89,15 @@ public class AssignmentServiceImpl implements AssignmentService {
         Specification<Assignment> spec = specificationBuilder.buildSpecification(
                 Assignment.class, searchParams);
         return assignmentRepository.findAll(spec, pageable).map(AssignmentFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AssignmentDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        Specification<Assignment> spec = specificationBuilder.buildSpecification(
+                Assignment.class, searchParams);
+        return assignmentRepository.findAll(learnerMaterialScope.restrictAssignments(spec), pageable)
+                .map(AssignmentFactory::toDTO);
     }
 
     private void updateAssignmentFields(Assignment existingAssignment, AssignmentDTO dto) {

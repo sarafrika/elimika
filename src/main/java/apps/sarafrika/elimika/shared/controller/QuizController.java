@@ -42,6 +42,13 @@ public class QuizController {
     private static final String STUDENT_QUIZ_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".student, " + USER_DOMAIN + ".course_creator, "
             + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    /**
+     * Quiz metadata a learner enrolled in the quiz's course may read. {@code QuizDTO} carries no
+     * questions or options, so no answer key travels with it — those stay on the management-only
+     * question endpoints and the student-view flow.
+     */
+    private static final String LEARNER_QUIZ_READ = "@learnerContentAccess.canReadQuiz(#quizUuid)";
+    private static final String LEARNER_QUIZ_READ_BY_UUID = "@learnerContentAccess.canReadQuiz(#uuid)";
 
     private final QuizService quizService;
     private final QuizQuestionService quizQuestionService;
@@ -191,7 +198,7 @@ public class QuizController {
             }
     )
     @GetMapping("/{uuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(LEARNER_QUIZ_READ_BY_UUID)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizDTO>> getQuizByUuid(
             @PathVariable UUID uuid) {
         QuizDTO quizDTO = quizService.getQuizByUuid(uuid);
@@ -411,7 +418,7 @@ public class QuizController {
             description = "Returns the maximum possible points for a quiz."
     )
     @GetMapping("/{quizUuid}/total-points")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(LEARNER_QUIZ_READ)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<BigDecimal>> getQuizTotalPoints(
             @PathVariable UUID quizUuid) {
         BigDecimal totalPoints = quizQuestionService.getTotalQuizPoints(quizUuid);
@@ -450,7 +457,7 @@ public class QuizController {
                     """
     )
     @GetMapping("/search")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizDTO>>> searchQuizzes(
             @Parameter(
                     description = "Optional search parameters for filtering",
@@ -459,7 +466,7 @@ public class QuizController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<QuizDTO> quizzes = quizService.search(searchParams, pageable);
+        Page<QuizDTO> quizzes = quizService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(quizzes, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -510,7 +517,7 @@ public class QuizController {
                     """
     )
     @GetMapping("/attempts/search")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizAttemptDTO>>> searchAttempts(
             @Parameter(
                     description = "Optional search parameters for filtering",
@@ -519,7 +526,7 @@ public class QuizController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<QuizAttemptDTO> attempts = quizAttemptService.search(searchParams, pageable);
+        Page<QuizAttemptDTO> attempts = quizAttemptService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(attempts, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

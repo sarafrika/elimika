@@ -25,4 +25,9 @@ public interface QuizAttemptService {
      * caller is not teaching staff.
      */
     Page<QuizAttemptDTO> getAttemptsForQuiz(UUID quizUuid, Pageable pageable);
+
+    /**
+     * Search narrowed to the caller's own attempts unless they are teaching staff.
+     */
+    Page<QuizAttemptDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
 }

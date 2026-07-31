@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.internal.LearnerMaterialScope;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizDTO;
@@ -26,6 +27,7 @@ public class QuizServiceImpl implements QuizService {
 
     private final QuizRepository quizRepository;
     private final GenericSpecificationBuilder<Quiz> specificationBuilder;
+    private final LearnerMaterialScope learnerMaterialScope;
     private final QuizAttemptRepository quizAttemptRepository;
 
     private static final String QUIZ_NOT_FOUND_TEMPLATE = "Quiz with ID %s not found";
@@ -88,6 +90,15 @@ public class QuizServiceImpl implements QuizService {
         Specification<Quiz> spec = specificationBuilder.buildSpecification(
                 Quiz.class, searchParams);
         return quizRepository.findAll(spec, pageable).map(QuizFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<QuizDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        Specification<Quiz> spec = specificationBuilder.buildSpecification(
+                Quiz.class, searchParams);
+        return quizRepository.findAll(learnerMaterialScope.restrictQuizzes(spec), pageable)
+                .map(QuizFactory::toDTO);
     }
 
     private void updateQuizFields(Quiz existingQuiz, QuizDTO dto) {
