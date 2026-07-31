@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.StudentQuizDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizReviewDTO;
+import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
 import apps.sarafrika.elimika.course.internal.StudentQuizAccessValidator;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.Lesson;
@@ -22,7 +23,10 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
 import apps.sarafrika.elimika.course.util.enums.QuizScope;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,14 +64,25 @@ class StudentQuizViewServiceImplTest {
     private QuizResponseRepository quizResponseRepository;
     @Mock
     private DomainSecurityService domainSecurityService;
+    @Mock
+    private EnrollmentLookupService enrollmentLookupService;
+    @Mock
+    private CourseSecuritySpi courseSecurityService;
 
     private StudentQuizViewServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        LearnerAssessmentScope learnerAssessmentScope = new LearnerAssessmentScope(
+                courseEnrollmentRepository,
+                domainSecurityService,
+                enrollmentLookupService,
+                courseSecurityService,
+                new RequestScopedCache()
+        );
         StudentQuizAccessValidator accessValidator = new StudentQuizAccessValidator(
                 lessonRepository,
-                courseEnrollmentRepository,
+                learnerAssessmentScope,
                 domainSecurityService
         );
         service = new StudentQuizViewServiceImpl(

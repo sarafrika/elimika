@@ -60,7 +60,7 @@ public class QuizController {
     @PreAuthorize(STUDENT_QUIZ_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentQuizDTO>> getStudentQuizView(
             @PathVariable UUID quizUuid,
-            @RequestParam("enrollment_uuid") UUID enrollmentUuid) {
+            @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid) {
         StudentQuizDTO quiz = studentQuizViewService.getStudentQuiz(quizUuid, enrollmentUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(quiz, "Student quiz retrieved successfully"));
@@ -75,7 +75,7 @@ public class QuizController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentQuizReviewDTO>> getStudentQuizReview(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
-            @RequestParam("enrollment_uuid") UUID enrollmentUuid) {
+            @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid) {
         StudentQuizReviewDTO review = studentQuizViewService.getStudentQuizReview(quizUuid, attemptUuid, enrollmentUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(review, "Student quiz review retrieved successfully"));
@@ -96,7 +96,7 @@ public class QuizController {
     @PreAuthorize(STUDENT_QUIZ_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> startQuizAttempt(
             @PathVariable UUID quizUuid,
-            @RequestParam("enrollment_uuid") UUID enrollmentUuid) {
+            @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid) {
         QuizAttemptDTO attempt = studentQuizSubmissionService.startAttempt(quizUuid, enrollmentUuid);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
@@ -113,7 +113,7 @@ public class QuizController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> saveQuizResponses(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
-            @RequestParam("enrollment_uuid") UUID enrollmentUuid,
+            @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid,
             @Valid @RequestBody List<QuizResponseSubmissionDTO> responses) {
         QuizAttemptDTO attempt = studentQuizSubmissionService.saveResponses(
                 quizUuid, attemptUuid, enrollmentUuid, responses);
@@ -135,7 +135,7 @@ public class QuizController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> submitQuizAttempt(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
-            @RequestParam("enrollment_uuid") UUID enrollmentUuid,
+            @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid,
             @Valid @RequestBody(required = false) QuizAttemptSubmissionRequest request) {
         QuizAttemptDTO attempt = studentQuizSubmissionService.submitAttempt(
                 quizUuid, attemptUuid, enrollmentUuid, request);

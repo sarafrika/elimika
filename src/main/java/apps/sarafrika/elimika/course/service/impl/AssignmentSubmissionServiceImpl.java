@@ -331,24 +331,19 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         UUID courseUuid = resolveAssignmentCourseUuid(assignment);
 
         CourseEnrollment enrollment;
-        if (request.enrollmentUuid() != null) {
-            enrollment = courseEnrollmentRepository.findByUuid(request.enrollmentUuid())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format("Course enrollment with ID %s not found", request.enrollmentUuid())));
-            if (!courseUuid.equals(enrollment.getCourseUuid())) {
-                throw new IllegalArgumentException("Course enrollment does not belong to the assignment course.");
-            }
-            if (request.studentUuid() != null && !request.studentUuid().equals(enrollment.getStudentUuid())) {
-                throw new IllegalArgumentException("student_uuid does not match enrollment_uuid.");
-            }
-        } else {
-            if (request.studentUuid() == null) {
-                throw new IllegalArgumentException("Either enrollment_uuid or student_uuid is required.");
-            }
+        if (request.enrollmentUuid() == null && request.studentUuid() != null) {
+            // Staff submitting on behalf of a named learner.
             enrollment = courseEnrollmentRepository.findByStudentUuidAndCourseUuid(request.studentUuid(), courseUuid)
                     .orElseThrow(() -> new ResourceNotFoundException(
                             String.format("Active course enrollment for student %s and assignment course not found",
                                     request.studentUuid())));
+        } else {
+            // A learner submitting for themselves need name no enrolment at all, and an enrolment
+            // UUID from the class-enrolment space is translated rather than rejected.
+            enrollment = learnerAssessmentScope.resolveEnrollment(courseUuid, request.enrollmentUuid());
+            if (request.studentUuid() != null && !request.studentUuid().equals(enrollment.getStudentUuid())) {
+                throw new IllegalArgumentException("student_uuid does not match enrollment_uuid.");
+            }
         }
 
         if (!EnrollmentStatus.ACTIVE.equals(enrollment.getStatus())) {

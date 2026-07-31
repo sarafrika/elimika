@@ -37,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -118,24 +119,56 @@ class AssignmentSubmissionServiceImplTest {
     }
 
     @Test
-    void submitAssignmentRejectsClassEnrollmentUuidBeforePersisting() {
+    void submitAssignmentDelegatesEnrollmentResolutionRatherThanTrustingTheRequest() {
+        // Clients routinely send a class-enrolment uuid where a course-enrolment uuid is required,
+        // so resolution — including translating between the two spaces — belongs in one place.
         UUID assignmentUuid = UUID.randomUUID();
         UUID lessonUuid = UUID.randomUUID();
         UUID courseUuid = UUID.randomUUID();
-        UUID classEnrollmentUuid = UUID.randomUUID();
+        UUID suppliedUuid = UUID.randomUUID();
 
         stubAssignmentAndLesson(assignmentUuid, lessonUuid, courseUuid);
-        when(courseEnrollmentRepository.findByUuid(classEnrollmentUuid)).thenReturn(Optional.empty());
+        when(learnerAssessmentScope.resolveEnrollment(courseUuid, suppliedUuid))
+                .thenThrow(new ResourceNotFoundException("Course enrollment with ID " + suppliedUuid + " not found"));
 
         assertThatThrownBy(() -> service.submitAssignment(
                 assignmentUuid,
-                new AssignmentSubmissionRequest(classEnrollmentUuid, null, "Content", null),
+                new AssignmentSubmissionRequest(suppliedUuid, null, "Content", null),
                 false
         ))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Course enrollment with ID");
 
+        verify(courseEnrollmentRepository, never()).findByUuid(any());
         verify(assignmentSubmissionRepository, never()).save(any());
+    }
+
+    @Test
+    void submitAssignmentDerivesTheEnrollmentWhenTheLearnerSuppliesNeitherIdentifier() {
+        UUID assignmentUuid = UUID.randomUUID();
+        UUID lessonUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+
+        stubAssignmentAndLesson(assignmentUuid, lessonUuid, courseUuid);
+        when(learnerAssessmentScope.resolveEnrollment(courseUuid, null))
+                .thenReturn(activeEnrollment(enrollmentUuid, studentUuid, courseUuid));
+        when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(true);
+        when(assignmentSubmissionRepository.findByEnrollmentUuidAndAssignmentUuid(enrollmentUuid, assignmentUuid))
+                .thenReturn(Optional.empty());
+        when(assignmentSubmissionRepository.save(any(AssignmentSubmission.class)))
+                .thenAnswer(invocation -> savedSubmission(invocation.getArgument(0)));
+
+        service.submitAssignment(
+                assignmentUuid,
+                new AssignmentSubmissionRequest(null, null, "Derived for me", null),
+                false
+        );
+
+        ArgumentCaptor<AssignmentSubmission> submissionCaptor = ArgumentCaptor.forClass(AssignmentSubmission.class);
+        verify(assignmentSubmissionRepository).save(submissionCaptor.capture());
+        assertThat(submissionCaptor.getValue().getEnrollmentUuid()).isEqualTo(enrollmentUuid);
     }
 
     @Test
@@ -256,8 +289,8 @@ class AssignmentSubmissionServiceImplTest {
 
         when(assignmentRepository.findByUuid(assignmentUuid)).thenReturn(Optional.of(assignment));
         when(lessonRepository.findByUuid(lessonUuid)).thenReturn(Optional.of(lesson(lessonUuid, courseUuid)));
-        when(courseEnrollmentRepository.findByUuid(enrollmentUuid))
-                .thenReturn(Optional.of(activeEnrollment(enrollmentUuid, studentUuid, courseUuid)));
+        when(learnerAssessmentScope.resolveEnrollment(courseUuid, enrollmentUuid))
+                .thenReturn(activeEnrollment(enrollmentUuid, studentUuid, courseUuid));
         when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(true);
         when(assignmentSubmissionRepository.findByEnrollmentUuidAndAssignmentUuid(enrollmentUuid, assignmentUuid))
                 .thenReturn(Optional.empty());
@@ -299,7 +332,12 @@ class AssignmentSubmissionServiceImplTest {
                                                    UUID courseUuid,
                                                    CourseEnrollment enrollment) {
         stubAssignmentAndLesson(assignmentUuid, lessonUuid, courseUuid);
-        when(courseEnrollmentRepository.findByUuid(enrollment.getUuid())).thenReturn(Optional.of(enrollment));
+        // Lenient because the staff path resolves by student instead, and the notification publisher
+        // reads the enrolment back separately.
+        lenient().when(learnerAssessmentScope.resolveEnrollment(courseUuid, enrollment.getUuid()))
+                .thenReturn(enrollment);
+        lenient().when(courseEnrollmentRepository.findByUuid(enrollment.getUuid()))
+                .thenReturn(Optional.of(enrollment));
     }
 
     private void stubAssignmentAndLesson(UUID assignmentUuid, UUID lessonUuid, UUID courseUuid) {

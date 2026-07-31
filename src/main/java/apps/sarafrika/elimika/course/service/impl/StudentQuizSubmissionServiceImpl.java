@@ -52,23 +52,23 @@ public class StudentQuizSubmissionServiceImpl implements StudentQuizSubmissionSe
     @Override
     public QuizAttemptDTO startAttempt(UUID quizUuid, UUID enrollmentUuid) {
         Quiz quiz = loadQuiz(quizUuid);
-        accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
+        UUID resolvedEnrollmentUuid = accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid).getUuid();
         accessValidator.requireStudentVisibleQuiz(quiz);
 
         QuizAttempt latest = quizAttemptRepository
-                .findTopByEnrollmentUuidAndQuizUuidOrderByAttemptNumberDesc(enrollmentUuid, quizUuid)
+                .findTopByEnrollmentUuidAndQuizUuidOrderByAttemptNumberDesc(resolvedEnrollmentUuid, quizUuid)
                 .orElse(null);
         if (latest != null && latest.getStatus() == AttemptStatus.IN_PROGRESS) {
             return QuizAttemptFactory.toDTO(latest);
         }
 
-        long attemptCount = quizAttemptRepository.countByEnrollmentUuidAndQuizUuid(enrollmentUuid, quizUuid);
+        long attemptCount = quizAttemptRepository.countByEnrollmentUuidAndQuizUuid(resolvedEnrollmentUuid, quizUuid);
         if (quiz.getAttemptsAllowed() != null && attemptCount >= quiz.getAttemptsAllowed()) {
             throw new IllegalStateException("No remaining attempts are allowed for this quiz.");
         }
 
         QuizAttempt attempt = new QuizAttempt();
-        attempt.setEnrollmentUuid(enrollmentUuid);
+        attempt.setEnrollmentUuid(resolvedEnrollmentUuid);
         attempt.setQuizUuid(quizUuid);
         attempt.setAttemptNumber(latest != null ? latest.getAttemptNumber() + 1 : 1);
         attempt.setStartedAt(LocalDateTime.now());
@@ -82,8 +82,8 @@ public class StudentQuizSubmissionServiceImpl implements StudentQuizSubmissionSe
     public QuizAttemptDTO saveResponses(UUID quizUuid, UUID attemptUuid, UUID enrollmentUuid,
                                         List<QuizResponseSubmissionDTO> responses) {
         Quiz quiz = loadQuiz(quizUuid);
-        accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
-        QuizAttempt attempt = loadOwnedAttempt(attemptUuid, quizUuid, enrollmentUuid);
+        UUID resolvedEnrollmentUuid = accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid).getUuid();
+        QuizAttempt attempt = loadOwnedAttempt(attemptUuid, quizUuid, resolvedEnrollmentUuid);
 
         if (attempt.getStatus() != AttemptStatus.IN_PROGRESS) {
             throw new IllegalStateException("Answers can only be saved while the attempt is in progress.");
@@ -102,8 +102,8 @@ public class StudentQuizSubmissionServiceImpl implements StudentQuizSubmissionSe
         }
 
         Quiz quiz = loadQuiz(quizUuid);
-        accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
-        QuizAttempt attempt = loadOwnedAttempt(attemptUuid, quizUuid, enrollmentUuid);
+        UUID resolvedEnrollmentUuid = accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid).getUuid();
+        QuizAttempt attempt = loadOwnedAttempt(attemptUuid, quizUuid, resolvedEnrollmentUuid);
         if (attempt.getStatus() != AttemptStatus.IN_PROGRESS) {
             throw new IllegalStateException("This attempt has already been submitted.");
         }

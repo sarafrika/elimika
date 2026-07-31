@@ -74,13 +74,14 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
     @Override
     public StudentQuizReviewDTO getStudentQuizReview(UUID quizUuid, UUID attemptUuid, UUID enrollmentUuid) {
         Quiz quiz = loadQuiz(quizUuid);
-        accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
+        UUID resolvedEnrollmentUuid = accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid).getUuid();
 
         QuizAttempt attempt = quizAttemptRepository.findByUuid(attemptUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(ATTEMPT_NOT_FOUND_TEMPLATE, attemptUuid)));
 
-        if (!quizUuid.equals(attempt.getQuizUuid()) || !enrollmentUuid.equals(attempt.getEnrollmentUuid())) {
+        if (!quizUuid.equals(attempt.getQuizUuid())
+                || !resolvedEnrollmentUuid.equals(attempt.getEnrollmentUuid())) {
             throw new AccessDeniedException("Quiz attempt does not belong to the requested enrollment.");
         }
         // Students may only review graded attempts. Instructors/admins may also open a submitted

@@ -223,6 +223,44 @@ class LearnerAssessmentScopeTest {
                 .hasMessageContaining("their own course enrollment");
     }
 
+    // ===== ENROLMENT OWNERSHIP =====
+    // Backs the @PreAuthorize on the read-only gradebook endpoints: a learner may look at their
+    // own marks. Ownership is answered from the principal, never from the request.
+
+    @Test
+    void aLearnerOwnsTheirOwnEnrolment() {
+        UUID studentUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
+        when(courseEnrollmentRepository.findEnrollmentUuidsByStudentUuid(studentUuid))
+                .thenReturn(List.of(enrollmentUuid));
+
+        assertThat(scope.ownsEnrollment(enrollmentUuid)).isTrue();
+    }
+
+    @Test
+    void aLearnerDoesNotOwnAnotherLearnersEnrolment() {
+        UUID studentUuid = UUID.randomUUID();
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
+        when(courseEnrollmentRepository.findEnrollmentUuidsByStudentUuid(studentUuid))
+                .thenReturn(List.of(UUID.randomUUID()));
+
+        assertThat(scope.ownsEnrollment(UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    void aCallerWithNoStudentProfileOwnsNoEnrolment() {
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        assertThat(scope.ownsEnrollment(UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    void aMissingEnrolmentUuidIsNotOwned() {
+        assertThat(scope.ownsEnrollment(null)).isFalse();
+        verify(domainSecurityService, never()).getCurrentStudentUuid();
+    }
+
     private CourseEnrollment enrollment(UUID uuid, UUID studentUuid, UUID courseUuid, EnrollmentStatus status) {
         CourseEnrollment enrollment = new CourseEnrollment();
         enrollment.setUuid(uuid);

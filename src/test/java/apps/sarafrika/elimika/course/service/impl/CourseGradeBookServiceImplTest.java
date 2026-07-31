@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationRowDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
@@ -35,6 +36,7 @@ import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrat
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemRubricEvaluationStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType;
 import apps.sarafrika.elimika.course.util.enums.CourseAttendanceStatus;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +64,8 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -677,6 +681,76 @@ class CourseGradeBookServiceImplTest {
         assertThat(enrollment.getFinalGrade()).isEqualByComparingTo("80.00");
         assertThat(evaluationRows.values()).hasSize(1);
         assertThat(evaluationRows.values().iterator().next()).hasSize(2);
+    }
+
+    // ===== COURSE SCOPING OF ENROLMENT READS =====
+    // The read-only gradebook endpoints admit a learner who owns the enrolment named in the path.
+    // Ownership alone says nothing about which course the enrolment sits under, so the service is
+    // the only thing standing between a learner and their own record read through a course they
+    // are not in — where it would leak that course's assessment structure.
+
+    @Test
+    void theEnrollmentGradeBookRefusesAnEnrollmentThatBelongsToADifferentCourse() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID otherCourseUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+
+        // The caller's own enrolment, but recorded against another course.
+        when(courseEnrollmentRepository.findByUuid(enrollmentUuid))
+                .thenReturn(Optional.of(enrollment(otherCourseUuid, enrollmentUuid)));
+        when(courseEnrollmentRepository.findByUuidAndCourseUuid(enrollmentUuid, courseUuid))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getEnrollmentGradeBook(courseUuid, enrollmentUuid))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(enrollmentUuid.toString());
+    }
+
+    @Test
+    void theEnrollmentGradeBookLoadsTheEnrollmentScopedToTheCourseInThePath() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+        CourseEnrollment enrollment = enrollment(courseUuid, enrollmentUuid);
+        enrollment.setFinalGrade(new BigDecimal("72.50"));
+
+        when(courseEnrollmentRepository.findByUuidAndCourseUuid(enrollmentUuid, courseUuid))
+                .thenReturn(Optional.of(enrollment));
+        when(courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid))
+                .thenReturn(List.of());
+
+        CourseGradeBookDTO gradeBook = service.getEnrollmentGradeBook(courseUuid, enrollmentUuid);
+
+        assertThat(gradeBook.courseUuid()).isEqualTo(courseUuid);
+        assertThat(gradeBook.enrollmentUuid()).isEqualTo(enrollmentUuid);
+        assertThat(gradeBook.finalGrade()).isEqualByComparingTo("72.50");
+        // Loading by uuid alone would make the course path decorative.
+        verify(courseEnrollmentRepository, never()).findByUuid(enrollmentUuid);
+    }
+
+    @Test
+    void theLineItemRubricEvaluationRefusesAnEnrollmentThatBelongsToADifferentCourse() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID otherCourseUuid = UUID.randomUUID();
+        UUID assessmentUuid = UUID.randomUUID();
+        UUID lineItemUuid = UUID.randomUUID();
+        UUID enrollmentUuid = UUID.randomUUID();
+
+        CourseAssessment assessment = assessment(courseUuid, assessmentUuid, "100.00", CourseAssessmentAggregationStrategy.POINTS_SUM);
+        assessment.setRubricUuid(UUID.randomUUID());
+        CourseAssessmentLineItem lineItem = manualLineItem(assessmentUuid, lineItemUuid, "Recital", null);
+
+        when(courseAssessmentRepository.findByUuidAndCourseUuid(assessmentUuid, courseUuid))
+                .thenReturn(Optional.of(assessment));
+        when(lineItemRepository.findByUuidAndCourseAssessmentUuid(lineItemUuid, assessmentUuid))
+                .thenReturn(Optional.of(lineItem));
+        when(courseEnrollmentRepository.findByUuid(enrollmentUuid))
+                .thenReturn(Optional.of(enrollment(otherCourseUuid, enrollmentUuid)));
+        when(courseEnrollmentRepository.findByUuidAndCourseUuid(enrollmentUuid, courseUuid))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getLineItemRubricEvaluation(courseUuid, assessmentUuid, lineItemUuid, enrollmentUuid))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(enrollmentUuid.toString());
     }
 
     private void stubWeightedAverageScenario(

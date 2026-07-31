@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.QuizAttemptDTO;
 import apps.sarafrika.elimika.course.dto.QuizAttemptSubmissionRequest;
 import apps.sarafrika.elimika.course.dto.QuizResponseSubmissionDTO;
 import apps.sarafrika.elimika.course.internal.StudentQuizAccessValidator;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.model.QuizAttempt;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
@@ -66,6 +67,10 @@ class StudentQuizSubmissionServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        // The validator resolves which enrolment the caller acts through; callers use what it
+        // returns rather than what the request supplied.
+        lenient().when(accessValidator.requireEnrollmentAccess(any(), any()))
+                .thenReturn(courseEnrollment(enrollmentUuid));
         lenient().when(quizRepository.findByUuid(quizUuid)).thenReturn(Optional.of(quiz(2)));
         lenient().when(quizAttemptRepository.save(any(QuizAttempt.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -189,6 +194,12 @@ class StudentQuizSubmissionServiceImplTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already been submitted");
         verify(quizGradingService, never()).gradeAttempt(any());
+    }
+
+    private CourseEnrollment courseEnrollment(UUID uuid) {
+        CourseEnrollment enrollment = new CourseEnrollment();
+        enrollment.setUuid(uuid);
+        return enrollment;
     }
 
     private Quiz quiz(Integer attemptsAllowed) {
