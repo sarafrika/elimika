@@ -37,6 +37,21 @@ public class AssessmentRubricController {
     private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
     static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    /**
+     * A learner marked against a rubric has to be able to read the criteria and scoring levels
+     * they are being judged on — but only for rubrics attached to a course they are enrolled in,
+     * which is what {@code learnerContentAccess.canReadRubric} resolves. Applied to single-rubric
+     * reads only; listing and searching every rubric on the platform stays management-only, as do
+     * all writes.
+     * <p>
+     * A method-level {@code @PreAuthorize} <em>replaces</em> the class-level one rather than
+     * being ANDed with it, so the management clause is restated in each variant below. The two
+     * variants differ only in the path-variable name the rubric arrives under.
+     */
+    static final String READ_ACCESS_BY_UUID = MANAGEMENT_ACCESS
+            + " or @learnerContentAccess.canReadRubric(#uuid)";
+    static final String READ_ACCESS_BY_RUBRIC_UUID = MANAGEMENT_ACCESS
+            + " or @learnerContentAccess.canReadRubric(#rubricUuid)";
 
     private final AssessmentRubricService assessmentRubricService;
     private final RubricCriteriaService rubricCriteriaService;
@@ -53,6 +68,7 @@ public class AssessmentRubricController {
 
     @Operation(summary = "Get an assessment rubric by UUID", description = "Retrieves a single assessment rubric by its unique identifier.")
     @GetMapping(value = "/{uuid}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS_BY_UUID)
     public ResponseEntity<ApiResponse<AssessmentRubricDTO>> getAssessmentRubricByUuid(@PathVariable UUID uuid) {
         AssessmentRubricDTO assessmentRubricDTO = assessmentRubricService.getAssessmentRubricByUuid(uuid);
         return ResponseEntity.ok(ApiResponse.success(assessmentRubricDTO, "Assessment rubric retrieved successfully"));
@@ -95,6 +111,7 @@ public class AssessmentRubricController {
 
     @Operation(summary = "Get all criteria for a rubric", description = "Retrieves a paginated list of all criteria for a specific assessment rubric.")
     @GetMapping(value = "/{rubricUuid}/criteria", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS_BY_RUBRIC_UUID)
     public ResponseEntity<ApiResponse<PagedDTO<RubricCriteriaDTO>>> getRubricCriteria(@PathVariable UUID rubricUuid, Pageable pageable) {
         Page<RubricCriteriaDTO> criteria = rubricCriteriaService.getAllByRubricUuid(rubricUuid, pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(criteria, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Rubric criteria retrieved successfully"));
@@ -123,8 +140,9 @@ public class AssessmentRubricController {
 
     @Operation(summary = "Get all scoring levels for a criterion", description = "Retrieves a paginated list of all scoring levels for a specific rubric criterion.")
     @GetMapping(value = "/{rubricUuid}/criteria/{criteriaUuid}/scoring", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS_BY_RUBRIC_UUID)
     public ResponseEntity<ApiResponse<PagedDTO<RubricScoringDTO>>> getRubricScoring(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, Pageable pageable) {
-        Page<RubricScoringDTO> scoring = rubricScoringService.getAllByCriteriaUuid(criteriaUuid, pageable);
+        Page<RubricScoringDTO> scoring = rubricScoringService.getAllByRubricAndCriteria(rubricUuid, criteriaUuid, pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(scoring, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Rubric scoring retrieved successfully"));
     }
 
@@ -145,6 +163,7 @@ public class AssessmentRubricController {
     // Matrix-based endpoints
     @Operation(summary = "Get rubric matrix view", description = "Retrieves the complete rubric matrix with all criteria, scoring levels, and cell intersections.")
     @GetMapping(value = "/{rubricUuid}/matrix-view", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS_BY_RUBRIC_UUID)
     public ResponseEntity<ApiResponse<RubricMatrixDTO>> getRubricMatrixView(@PathVariable UUID rubricUuid) {
         RubricMatrixDTO matrix = rubricMatrixService.getRubricMatrix(rubricUuid);
         return ResponseEntity.ok(ApiResponse.success(matrix, "Rubric matrix retrieved successfully"));

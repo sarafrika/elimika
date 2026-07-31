@@ -40,6 +40,16 @@ public class CourseRubricController {
     private static final String USER_DOMAIN = "T(apps.sarafrika.elimika.shared.utils.enums.UserDomain)";
     static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
+    /**
+     * Learners are graded against these rubrics, so they must be able to see which rubric a
+     * course uses and in what context. Read-only: associating, re-pointing or removing a rubric
+     * stays management-only.
+     * <p>
+     * A method-level {@code @PreAuthorize} <em>replaces</em> the class-level one rather than
+     * being ANDed with it, so the management clause is restated here verbatim.
+     */
+    static final String READ_ACCESS = MANAGEMENT_ACCESS
+            + " or @courseSecurityService.isEnrolledLearner(#courseUuid)";
 
     private final CourseRubricAssociationService courseRubricAssociationService;
 
@@ -78,6 +88,7 @@ public class CourseRubricController {
             description = "Retrieves all rubrics that are associated with the specified course, including usage context."
     )
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS)
     public ResponseEntity<ApiResponse<PagedDTO<CourseRubricAssociationDTO>>> getCourseRubrics(
             @Parameter(description = "UUID of the course", required = true)
             @PathVariable UUID courseUuid,
@@ -93,6 +104,7 @@ public class CourseRubricController {
             description = "Retrieves the primary rubric association for the specified course."
     )
     @GetMapping(value = "/primary", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS)
     public ResponseEntity<ApiResponse<CourseRubricAssociationDTO>> getPrimaryRubric(
             @Parameter(description = "UUID of the course", required = true)
             @PathVariable UUID courseUuid) {
@@ -127,6 +139,7 @@ public class CourseRubricController {
             description = "Retrieves rubric associations for a specific usage context (e.g., 'midterm', 'final', 'assignment')."
     )
     @GetMapping(value = "/context/{context}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS)
     public ResponseEntity<ApiResponse<PagedDTO<CourseRubricAssociationDTO>>> getRubricsByContext(
             @Parameter(description = "UUID of the course", required = true)
             @PathVariable UUID courseUuid,
@@ -194,6 +207,7 @@ public class CourseRubricController {
             description = "Checks whether a specific rubric is already associated with the course."
     )
     @GetMapping(value = "/{rubricUuid}/exists", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(READ_ACCESS)
     public ResponseEntity<ApiResponse<Boolean>> checkRubricAssociation(
             @Parameter(description = "UUID of the course", required = true)
             @PathVariable UUID courseUuid,

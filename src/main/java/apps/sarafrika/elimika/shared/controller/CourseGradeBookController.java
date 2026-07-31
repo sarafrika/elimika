@@ -40,6 +40,22 @@ public class CourseGradeBookController {
     static final String MANAGEMENT_ACCESS =
             "@courseSecurityService.canManageCourseGradebook(#courseUuid) "
             + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * Reading a grade is not the same act as awarding one. A learner may look at their own
+     * marks, so the read-only enrolment-scoped endpoints widen management access by the
+     * caller's ownership of {@code enrollmentUuid}.
+     * <p>
+     * A method-level {@code @PreAuthorize} <em>replaces</em> the class-level one rather than
+     * being ANDed with it, so the management clause is restated here verbatim. Ownership alone
+     * proves the enrolment is the caller's, not that it sits under {@code courseUuid}; the
+     * service closes that gap by loading the enrolment with
+     * {@code findByUuidAndCourseUuid}, so a learner cannot read their own enrolment through
+     * some other course's path.
+     */
+    static final String MANAGEMENT_ACCESS_OR_OWN_ENROLLMENT =
+            "@courseSecurityService.canManageCourseGradebook(#courseUuid) "
+            + "or @domainSecurityService.isPlatformAdmin() "
+            + "or @learnerAssessmentScope.ownsEnrollment(#enrollmentUuid)";
 
     private final CourseGradeBookService courseGradeBookService;
 
@@ -114,6 +130,7 @@ public class CourseGradeBookController {
 
     @Operation(summary = "Get line item rubric evaluation", description = "Returns the rubric evaluation for a learner against a rubric-backed gradebook line item.")
     @GetMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/rubric-evaluations/{enrollmentUuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS_OR_OWN_ENROLLMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentLineItemRubricEvaluationDTO>> getLineItemRubricEvaluation(
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid,
@@ -150,6 +167,7 @@ public class CourseGradeBookController {
 
     @Operation(summary = "Get enrollment gradebook", description = "Returns the weighted gradebook view for a learner in a course.")
     @GetMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}")
+    @PreAuthorize(MANAGEMENT_ACCESS_OR_OWN_ENROLLMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseGradeBookDTO>> getEnrollmentGradeBook(
             @PathVariable UUID courseUuid,
             @PathVariable UUID enrollmentUuid

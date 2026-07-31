@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.RubricScoringDTO;
 import apps.sarafrika.elimika.course.factory.RubricScoringFactory;
 import apps.sarafrika.elimika.course.model.RubricScoring;
+import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
 import apps.sarafrika.elimika.course.service.RubricScoringService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class RubricScoringServiceImpl implements RubricScoringService {
 
     private final RubricScoringRepository rubricScoringRepository;
+    private final RubricCriteriaRepository rubricCriteriaRepository;
     private final GenericSpecificationBuilder<RubricScoring> specificationBuilder;
 
     private static final String RUBRIC_SCORING_NOT_FOUND_TEMPLATE = "Rubric scoring with ID %s not found";
@@ -93,5 +95,15 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     @Transactional(readOnly = true)
     public Page<RubricScoringDTO> getAllByCriteriaUuid(UUID criteriaUuid, Pageable pageable) {
         return rubricScoringRepository.findAllByCriteriaUuid(criteriaUuid, pageable).map(RubricScoringFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RubricScoringDTO> getAllByRubricAndCriteria(UUID rubricUuid, UUID criteriaUuid, Pageable pageable) {
+        if (!rubricCriteriaRepository.existsByUuidAndRubricUuid(criteriaUuid, rubricUuid)) {
+            throw new ResourceNotFoundException(
+                    String.format("Rubric criteria with ID %s not found for rubric %s", criteriaUuid, rubricUuid));
+        }
+        return getAllByCriteriaUuid(criteriaUuid, pageable);
     }
 }

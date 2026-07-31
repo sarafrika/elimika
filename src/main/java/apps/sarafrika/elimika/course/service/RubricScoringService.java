@@ -21,4 +21,13 @@ public interface RubricScoringService {
     Page<RubricScoringDTO> search(Map<String, String> searchParams, Pageable pageable);
 
     Page<RubricScoringDTO> getAllByCriteriaUuid(UUID criteriaUuid, Pageable pageable);
+
+    /**
+     * Scoring levels for a criterion, asserting the criterion actually belongs to the given rubric.
+     * <p>
+     * The endpoint serving this authorizes on the rubric, so reading by criterion alone would let a
+     * caller entitled to one rubric read the scoring of a criterion belonging to another simply by
+     * pairing their own rubric UUID with a foreign criterion UUID.
+     */
+    Page<RubricScoringDTO> getAllByRubricAndCriteria(UUID rubricUuid, UUID criteriaUuid, Pageable pageable);
 }
