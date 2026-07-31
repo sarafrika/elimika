@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionRequest;
 import apps.sarafrika.elimika.course.factory.AssignmentSubmissionFactory;
 import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
+import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
@@ -50,6 +51,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final LessonRepository lessonRepository;
     private final DomainSecurityService domainSecurityService;
+    private final LearnerAssessmentScope learnerAssessmentScope;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
@@ -163,7 +165,11 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     @Override
     @Transactional(readOnly = true)
     public List<AssignmentSubmissionDTO> getSubmissionsByAssignment(UUID assignmentUuid) {
-        return assignmentSubmissionRepository.findByAssignmentUuid(assignmentUuid)
+        Specification<AssignmentSubmission> byAssignment =
+                (root, query, cb) -> cb.equal(root.get("assignmentUuid"), assignmentUuid);
+
+        return assignmentSubmissionRepository
+                .findAll(learnerAssessmentScope.restrictToCaller(byAssignment, "enrollmentUuid"))
                 .stream()
                 .map(AssignmentSubmissionFactory::toDTO)
                 .collect(Collectors.toList());

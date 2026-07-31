@@ -200,6 +200,24 @@ public class DomainSecurityService {
     }
 
     /**
+     * Gets the student UUID of the current authenticated user, or null when the caller
+     * is not authenticated or has no student profile. Use this to scope learner-owned
+     * records to the caller rather than trusting a client-supplied student identifier.
+     */
+    public UUID getCurrentStudentUuid() {
+        try {
+            UUID currentUserUuid = getCurrentUserUuid();
+            if (currentUserUuid == null) {
+                return null;
+            }
+            return studentLookupService.findStudentUuidByUserUuid(currentUserUuid).orElse(null);
+        } catch (Exception e) {
+            log.error("Error resolving current student UUID", e);
+            return null;
+        }
+    }
+
+    /**
      * Gets the UUID of the current authenticated user.
      * Returns null if no user is authenticated.
      */

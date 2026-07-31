@@ -1,7 +1,9 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionRequest;
 import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
+import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
@@ -24,8 +26,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +62,8 @@ class AssignmentSubmissionServiceImplTest {
     @Mock
     private DomainSecurityService domainSecurityService;
     @Mock
+    private LearnerAssessmentScope learnerAssessmentScope;
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     private AssignmentSubmissionServiceImpl service;
@@ -72,6 +79,7 @@ class AssignmentSubmissionServiceImplTest {
                 courseEnrollmentRepository,
                 lessonRepository,
                 domainSecurityService,
+                learnerAssessmentScope,
                 eventPublisher
         );
     }
@@ -264,6 +272,26 @@ class AssignmentSubmissionServiceImplTest {
 
         verify(assignmentMediaValidationService)
                 .validateSubmissionRequest(eq(new String[]{"DOCUMENT"}), eq(null), eq(null), eq(true));
+    }
+
+    @Test
+    void getSubmissionsByAssignmentDelegatesScopingToTheDatabase() {
+        UUID assignmentUuid = UUID.randomUUID();
+        AssignmentSubmission mine = existingSubmission(UUID.randomUUID(), assignmentUuid, SubmissionStatus.SUBMITTED);
+        @SuppressWarnings("unchecked")
+        Specification<AssignmentSubmission> scoped = mock(Specification.class);
+
+        when(learnerAssessmentScope.<AssignmentSubmission>restrictToCaller(any(), eq("enrollmentUuid"))).thenReturn(scoped);
+        when(assignmentSubmissionRepository.findAll(scoped)).thenReturn(List.of(mine));
+
+        assertThat(service.getSubmissionsByAssignment(assignmentUuid))
+                .extracting(AssignmentSubmissionDTO::uuid)
+                .containsExactly(mine.getUuid());
+
+        // The assignment filter must reach the scope so it can be ANDed with the learner filter,
+        // rather than the caller filtering a full table read in memory.
+        verify(learnerAssessmentScope).restrictToCaller(any(), eq("enrollmentUuid"));
+        verify(assignmentSubmissionRepository, never()).findByAssignmentUuid(any());
     }
 
     private void stubAssignmentCourseAndEnrollment(UUID assignmentUuid,

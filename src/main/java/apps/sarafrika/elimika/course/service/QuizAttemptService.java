@@ -19,4 +19,10 @@ public interface QuizAttemptService {
     void deleteQuizAttempt(UUID uuid);
 
     Page<QuizAttemptDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Lists attempts for a quiz, narrowed to the calling student's own enrollments when the
+     * caller is not teaching staff.
+     */
+    Page<QuizAttemptDTO> getAttemptsForQuiz(UUID quizUuid, Pageable pageable);
 }

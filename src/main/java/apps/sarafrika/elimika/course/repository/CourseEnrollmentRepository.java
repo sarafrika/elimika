@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -46,4 +47,7 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
     BigDecimal calculateAverageProgressPercentage();
 
     Page<CourseEnrollment> findByStudentUuid(UUID studentUuid, Pageable pageable);
+
+    @Query("SELECT ce.uuid FROM CourseEnrollment ce WHERE ce.studentUuid = :studentUuid")
+    List<UUID> findEnrollmentUuidsByStudentUuid(@Param("studentUuid") UUID studentUuid);
 }

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizAttemptDTO;
 import apps.sarafrika.elimika.course.factory.QuizAttemptFactory;
+import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.QuizAttempt;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
@@ -36,6 +37,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     private final QuizRepository quizRepository;
     private final CourseGradeBookService courseGradeBookService;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final LearnerAssessmentScope learnerAssessmentScope;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String ATTEMPT_NOT_FOUND_TEMPLATE = "Quiz attempt with ID %s not found";
@@ -125,6 +127,15 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         Specification<QuizAttempt> spec = specificationBuilder.buildSpecification(
                 QuizAttempt.class, searchParams);
         return quizAttemptRepository.findAll(spec, pageable).map(QuizAttemptFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<QuizAttemptDTO> getAttemptsForQuiz(UUID quizUuid, Pageable pageable) {
+        Specification<QuizAttempt> spec = (root, query, cb) -> cb.equal(root.get("quizUuid"), quizUuid);
+        return quizAttemptRepository
+                .findAll(learnerAssessmentScope.restrictToCaller(spec, "enrollmentUuid"), pageable)
+                .map(QuizAttemptFactory::toDTO);
     }
 
     private void updateAttemptFields(QuizAttempt existingAttempt, QuizAttemptDTO dto) {

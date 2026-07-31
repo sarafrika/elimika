@@ -442,9 +442,11 @@ public class AssignmentController {
 
     @Operation(
             summary = "Get assignment submissions",
-            description = "Retrieves all submissions for a specific assignment."
+            description = "Retrieves submissions for a specific assignment. Teaching staff see every "
+                    + "learner's submissions; students see only submissions on their own enrolments."
     )
     @GetMapping("/{assignmentUuid}/submissions")
+    @PreAuthorize(STUDENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionDTO>>> getAssignmentSubmissions(
             @PathVariable UUID assignmentUuid) {
         List<AssignmentSubmissionDTO> submissions = assignmentSubmissionService.getSubmissionsByAssignment(assignmentUuid);

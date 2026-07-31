@@ -389,15 +389,15 @@ public class QuizController {
 
     @Operation(
             summary = "Get quiz attempts",
-            description = "Retrieves all attempts for a specific quiz with scoring data."
+            description = "Retrieves attempts for a specific quiz with scoring data. Teaching staff see "
+                    + "every learner's attempts; students see only attempts on their own enrolments."
     )
     @GetMapping("/{quizUuid}/attempts")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(STUDENT_QUIZ_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizAttemptDTO>>> getQuizAttempts(
             @PathVariable UUID quizUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("quizUuid", quizUuid.toString());
-        Page<QuizAttemptDTO> attempts = quizAttemptService.search(searchParams, pageable);
+        Page<QuizAttemptDTO> attempts = quizAttemptService.getAttemptsForQuiz(quizUuid, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(attempts, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
