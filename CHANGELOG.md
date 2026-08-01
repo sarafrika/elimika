@@ -1,3 +1,10 @@
+## [2.118.1](https://github.com/sarafrika/elimika/compare/v2.118.0...v2.118.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **revenue:** report only earnings that are actually credited and make wallet credits durable ([cfbbd8d](https://github.com/sarafrika/elimika/commit/cfbbd8d9a6af1e2e4efb4fce8e94ba706bad7ae1))
+
 # [2.118.0](https://github.com/sarafrika/elimika/compare/v2.117.0...v2.118.0) (2026-08-01)
 
 
