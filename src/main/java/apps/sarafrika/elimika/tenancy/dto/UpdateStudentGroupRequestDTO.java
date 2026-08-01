@@ -7,19 +7,26 @@ import jakarta.validation.constraints.Positive;
 
 import java.util.UUID;
 
-@Schema(name = "CreateStudentGroupRequest", description = "Payload to create an organisation student group.")
-public record CreateStudentGroupRequestDTO(
+/**
+ * Full replacement of a group's editable attributes.
+ * <p>
+ * Omitted optional fields are cleared, matching the sibling {@code PUT /training-branches/{uuid}}.
+ * The organisation is not settable: a group cannot be moved between tenants.
+ */
+@Schema(name = "UpdateStudentGroupRequest",
+        description = "Payload to replace an organisation student group's editable attributes.")
+public record UpdateStudentGroupRequestDTO(
 
         @Schema(description = "Group name.", requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("name")
         @NotBlank(message = "Group name is required")
         String name,
 
-        @Schema(description = "Optional description.", nullable = true)
+        @Schema(description = "Optional description. Omit to clear.", nullable = true)
         @JsonProperty("description")
         String description,
 
-        @Schema(description = "Stream label within the branch and tier, e.g. \"Stream A\".", nullable = true)
+        @Schema(description = "Stream label within the branch and tier. Omit to clear.", nullable = true)
         @JsonProperty("group_type")
         String groupType,
 

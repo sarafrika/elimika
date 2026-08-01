@@ -1,18 +1,25 @@
 package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.tenancy.dto.AddGroupMembersRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.CreateStudentGroupRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.StudentGroupDTO;
 import apps.sarafrika.elimika.tenancy.dto.StudentGroupMemberDTO;
+import apps.sarafrika.elimika.tenancy.dto.StudentGroupRosterEntryDTO;
+import apps.sarafrika.elimika.tenancy.dto.UpdateStudentGroupRequestDTO;
 import apps.sarafrika.elimika.tenancy.services.StudentGroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,11 +46,17 @@ public class StudentGroupController {
 
     private final StudentGroupService studentGroupService;
 
-    @Operation(summary = "List student groups for an organisation", description = "Returns all student groups for the organisation with member counts.")
+    @Operation(summary = "List student groups for an organisation",
+            description = "Returns the organisation's student groups with member counts, optionally narrowed to "
+                    + "one training branch and/or one academic tier.")
     @GetMapping("/organisations/{organisationUuid}/student-groups")
     @PreAuthorize(READ_ORGANISATION)
-    public ResponseEntity<ApiResponse<List<StudentGroupDTO>>> listGroups(@PathVariable UUID organisationUuid) {
-        List<StudentGroupDTO> groups = studentGroupService.getGroupsForOrganisation(organisationUuid);
+    public ResponseEntity<ApiResponse<List<StudentGroupDTO>>> listGroups(
+            @PathVariable UUID organisationUuid,
+            @RequestParam(required = false) UUID branchUuid,
+            @RequestParam(required = false) UUID tierUuid) {
+        List<StudentGroupDTO> groups =
+                studentGroupService.getGroupsForOrganisation(organisationUuid, branchUuid, tierUuid);
         return ResponseEntity.ok(ApiResponse.success(groups, "Student groups retrieved successfully"));
     }
 
@@ -55,6 +68,17 @@ public class StudentGroupController {
             @Valid @RequestBody CreateStudentGroupRequestDTO request) {
         StudentGroupDTO created = studentGroupService.createGroup(organisationUuid, request);
         return ResponseEntity.status(201).body(ApiResponse.success(created, "Student group created successfully"));
+    }
+
+    @Operation(summary = "Update a student group",
+            description = "Replaces the group's editable attributes. Omitted optional fields are cleared.")
+    @PutMapping("/student-groups/{groupUuid}")
+    @PreAuthorize(MANAGE_GROUP)
+    public ResponseEntity<ApiResponse<StudentGroupDTO>> updateGroup(
+            @PathVariable UUID groupUuid,
+            @Valid @RequestBody UpdateStudentGroupRequestDTO request) {
+        StudentGroupDTO updated = studentGroupService.updateGroup(groupUuid, request);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Student group updated successfully"));
     }
 
     @Operation(summary = "Delete a student group", description = "Deletes a student group and its membership rows.")
@@ -91,5 +115,24 @@ public class StudentGroupController {
             @PathVariable UUID studentUuid) {
         studentGroupService.removeMember(groupUuid, studentUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "Member removed successfully"));
+    }
+
+    @Operation(summary = "Page the organisation's student roster",
+            description = "Returns students with the group they sit in, joined to their user record, as a single "
+                    + "paginated table. Optionally narrowed by branch, academic tier or a single group. Age is not "
+                    + "returned; derive it from dob.")
+    @GetMapping("/organisations/{organisationUuid}/student-group-members")
+    @PreAuthorize(READ_ORGANISATION)
+    public ResponseEntity<ApiResponse<PagedDTO<StudentGroupRosterEntryDTO>>> listRoster(
+            @PathVariable UUID organisationUuid,
+            @RequestParam(required = false) UUID branchUuid,
+            @RequestParam(required = false) UUID tierUuid,
+            @RequestParam(required = false) UUID groupUuid,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<StudentGroupRosterEntryDTO> roster =
+                studentGroupService.getRoster(organisationUuid, branchUuid, tierUuid, groupUuid, pageable);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(roster, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toUriString()),
+                "Student roster retrieved successfully"));
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,4 +70,10 @@ public interface TrainingBranchRepository extends JpaRepository<TrainingBranch, 
     List<TrainingBranch> findByOrganisationUuidAndDeletedFalse(UUID organisationUuid);
 
     Optional<TrainingBranch> findByUuid(UUID uuid);
+
+    /**
+     * Bulk lookup used to label a list of student groups with their branch names in one round trip
+     * instead of one query per group.
+     */
+    List<TrainingBranch> findByUuidIn(Collection<UUID> uuids);
 }
