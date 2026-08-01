@@ -1,0 +1,243 @@
+package apps.sarafrika.elimika.tenancy.controller;
+
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
+import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Covers the two halves of the users-search lockdown: the self-scoped identity route that replaced
+ * the sign-in bootstrap, and the general search that could only be closed once it existed.
+ * <p>
+ * The filter chain here permits every request on purpose, so the only thing that can refuse one is
+ * the {@code @PreAuthorize} on the handler. Production additionally refuses anonymous callers at the
+ * chain (its baseline is {@code anyRequest().authenticated()}, which answers 401 rather than 403) —
+ * that outer layer is not what these tests are for. What they prove is that the annotations
+ * themselves hold if a request ever reaches the controller.
+ */
+@WebMvcTest(value = UserController.class, properties = "app.keycloak.realm=test-realm")
+@ExtendWith(SpringExtension.class)
+@Import({UserControllerTest.MockConfig.class, UserControllerTest.MethodSecurityConfig.class})
+@DisplayName("User identity and search authorization")
+class UserControllerTest {
+
+    private static final UUID CALLER_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private DomainSecurityService domainSecurityService;
+
+    @BeforeEach
+    void setUp() {
+        reset(userService, domainSecurityService);
+    }
+
+    // ================================
+    // GET /api/v1/users/me
+    // ================================
+
+    @Test
+    @DisplayName("resolves the caller from the token, not from a query parameter")
+    void currentUserIsResolvedFromTheToken() throws Exception {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(CALLER_UUID);
+        when(userService.getUserByUuid(CALLER_UUID)).thenReturn(user(CALLER_UUID, List.of("student")));
+
+        mockMvc.perform(get("/api/v1/users/me").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(CALLER_UUID.toString()))
+                .andExpect(jsonPath("$.data.email").value("jane.doe@example.com"))
+                .andExpect(jsonPath("$.data.user_domain[0]").value("student"));
+
+        verify(userService).getUserByUuid(CALLER_UUID);
+        verify(userService, never()).search(any(), any());
+    }
+
+    @Test
+    @DisplayName("carries the caller's domains, so the client needs no second call")
+    void currentUserCarriesDomains() throws Exception {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(CALLER_UUID);
+        when(userService.getUserByUuid(CALLER_UUID))
+                .thenReturn(user(CALLER_UUID, List.of("instructor", "organisation_user")));
+
+        mockMvc.perform(get("/api/v1/users/me").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.user_domain.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("a brand-new account with no domains still gets an answer")
+    void currentUserWithNoDomainsIsStillReturned() throws Exception {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(CALLER_UUID);
+        when(userService.getUserByUuid(CALLER_UUID)).thenReturn(user(CALLER_UUID, List.of()));
+
+        mockMvc.perform(get("/api/v1/users/me").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(CALLER_UUID.toString()))
+                .andExpect(jsonPath("$.data.user_domain.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("refuses an unauthenticated caller")
+    void currentUserRefusesUnauthenticatedCaller() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).getUserByUuid(any());
+    }
+
+    @Test
+    @DisplayName("answers 404 when the token authenticates but no local record answers to it")
+    void currentUserWithoutLocalRecordIsNotFound() throws Exception {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(null);
+
+        mockMvc.perform(get("/api/v1/users/me").with(jwt()))
+                .andExpect(status().isNotFound());
+
+        verify(userService, never()).getUserByUuid(any());
+    }
+
+    // ================================
+    // GET /api/v1/users/search
+    // ================================
+
+    @Test
+    @Disabled("""
+            Re-enable together with @PreAuthorize(PLATFORM_ADMIN) on UserController.search. The guard \
+            is deliberately withheld from this release: `main` deploys on push, and closing /search \
+            before the frontend has moved to /me would 403 the sign-in bootstrap for every non-admin. \
+            The route is no less open than it is today.""")
+    @DisplayName("search refuses a caller who is not a platform admin")
+    void searchRefusesNonPlatformAdmin() throws Exception {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/users/search")
+                        .param("email_eq", "jane.doe@example.com")
+                        .with(jwt()))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).search(any(), any());
+    }
+
+    @Test
+    @Disabled("""
+            Re-enable with searchRefusesNonPlatformAdmin. This slice permits every request at the \
+            filter chain so that the @PreAuthorize is the only thing that can refuse one — with the \
+            guard withheld there is nothing left to refuse. Production still answers 401 here from \
+            its own anyRequest().authenticated() baseline.""")
+    @DisplayName("search refuses an unauthenticated caller")
+    void searchRefusesUnauthenticatedCaller() throws Exception {
+        mockMvc.perform(get("/api/v1/users/search").param("email_eq", "jane.doe@example.com"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).search(any(), any());
+    }
+
+    @Test
+    @DisplayName("search still serves a platform admin")
+    void searchServesPlatformAdmin() throws Exception {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(userService.search(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(user(CALLER_UUID, List.of("student"))), PageRequest.of(0, 20), 1L));
+
+        mockMvc.perform(get("/api/v1/users/search")
+                        .param("email_eq", "jane.doe@example.com")
+                        .with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].uuid").value(CALLER_UUID.toString()));
+    }
+
+    private static UserDTO user(UUID uuid, List<String> domains) {
+        return new UserDTO(
+                uuid, "000000001", "Jane", null, "Doe", "jane.doe@example.com", "janedoe",
+                null, LocalDate.of(1990, 1, 1), null, true, "kc-123",
+                null, null, "system", null, null, domains, List.of());
+    }
+
+    /**
+     * Method security is switched on by {@code SecurityConfiguration}, which a web slice does not
+     * load. The chain permits everything so that the handler annotations are the only gate under
+     * test.
+     */
+    @EnableMethodSecurity(securedEnabled = true)
+    static class MethodSecurityConfig {
+        @Bean
+        SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
+            return http
+                    .csrf(AbstractHttpConfigurer::disable)
+                    .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+                    .build();
+        }
+    }
+
+    static class MockConfig {
+        @Bean
+        UserService userService() {
+            return Mockito.mock(UserService.class);
+        }
+
+        @Bean
+        DomainSecurityService domainSecurityService() {
+            return Mockito.mock(DomainSecurityService.class);
+        }
+
+        @Bean
+        MediaServeService mediaServeService() {
+            return Mockito.mock(MediaServeService.class);
+        }
+
+        @Bean
+        StorageProperties storageProperties() {
+            return Mockito.mock(StorageProperties.class);
+        }
+
+        @Bean
+        RequestAuditService requestAuditService() {
+            return Mockito.mock(RequestAuditService.class);
+        }
+
+        @Bean
+        UserManagementService userManagementService() {
+            return Mockito.mock(UserManagementService.class);
+        }
+    }
+}

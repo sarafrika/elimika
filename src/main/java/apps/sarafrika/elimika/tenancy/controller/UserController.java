@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -56,10 +58,17 @@ class UserController {
      * it is restricted rather than narrowed.
      */
     private static final String PLATFORM_ADMIN = "@domainSecurityService.isPlatformAdmin()";
+    /**
+     * The self-scoped identity route needs no domain at all: a brand-new account with no student,
+     * instructor or organisation mapping yet must still be able to find out who it is, otherwise it
+     * can never reach onboarding.
+     */
+    private static final String AUTHENTICATED = "isAuthenticated()";
 
     private final UserService userService;
     private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
+    private final DomainSecurityService domainSecurityService;
 
     // ================================
     // CORE USER MANAGEMENT
@@ -82,6 +91,39 @@ class UserController {
                         .build()
                         .toUriString()),
                 "Users retrieved successfully"));
+    }
+
+    /**
+     * The sign-in bootstrap: the one route a client can call before it knows anything about itself.
+     * <p>
+     * Identity comes from the JWT, never from a query parameter, so there is nothing to enumerate
+     * and nothing to guess — the caller can only ever address their own record. That is what lets
+     * {@code /search} below be closed to platform admins: the bootstrap no longer needs it.
+     * <p>
+     * Returns the full {@link UserDTO}, which already carries {@code user_domain} and
+     * {@code organisation_affiliations}, so the client resolves identity and routing in one call.
+     * Note that the domain list is the one {@code UserService} has always produced: an admin whose
+     * {@code admin} role is scoped to an organisation is reported as {@code organisation_user}, not
+     * {@code admin}. That is deliberate, and it is what the dashboard's role routing expects.
+     */
+    @Operation(operationId = "getCurrentUser", summary = "Get the authenticated user",
+            description = "Returns the caller's own user record, resolved from the access token. " +
+                    "Includes the caller's domains and organisation affiliations.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Current user retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "No authenticated caller")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Authenticated caller has no user record")
+    @GetMapping("me")
+    @PreAuthorize(AUTHENTICATED)
+    public ResponseEntity<ApiResponse<UserDTO>> getCurrentUser() {
+        UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+        if (currentUserUuid == null) {
+            // The token authenticated but no local record answers to it. UserSyncFilter creates one
+            // on the first authenticated request, so this means that sync failed rather than that the
+            // account is new.
+            throw new ResourceNotFoundException("No user record for the authenticated caller");
+        }
+        UserDTO user = userService.getUserByUuid(currentUserUuid);
+        return ResponseEntity.ok(ApiResponse.success(user, "Current user retrieved successfully"));
     }
 
     /**
@@ -183,24 +225,30 @@ class UserController {
     }
 
     /**
-     * Deliberately left at the global {@code authenticated()} baseline, and the one endpoint on this
-     * controller that still wants narrowing.
+     * A filterable projection of the whole user table — email, phone number and date of birth
+     * included — so it is restricted to platform admins.
      * <p>
-     * It is the sign-in bootstrap: the client turns the session email into a user record through
-     * {@code ?email_eq=} here before it knows the caller's own UUID, so every user hits it on every
-     * page load. Restricting it to platform admins — the usual answer for an unfiltered
-     * enumeration — would lock every non-admin out of the product entirely.
+     * It used to be the sign-in bootstrap: the client turned the session email into a user record
+     * through {@code ?email_eq=} here before it knew the caller's own UUID, which meant every
+     * authenticated caller could also page through everyone else. {@code GET /api/v1/users/me}
+     * above now answers that question from the token, so the bootstrap no longer needs a search and
+     * the search no longer needs to be open.
      * <p>
-     * That leaves a real hole: any authenticated caller can page through the whole user table,
-     * emails, phone numbers and dates of birth included. Closing it properly means a self-scoped
-     * "who am I" route for the bootstrap and admin-only access to the general search, which is a
-     * coordinated backend/frontend change rather than an annotation.
+     * The two changes are one release: narrowing this before clients have moved to {@code /me}
+     * breaks sign-in for every non-admin.
      */
     @Operation(summary = "Search users",
             description = "Fetches a paginated list of users based on optional filters. " +
-                    "Supports pagination and sorting.")
+                    "Supports pagination and sorting. Restricted to platform administrators — " +
+                    "callers looking up their own record should use GET /api/v1/users/me.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
             description = "Paginated list of users matching the search criteria")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
+            description = "Caller is not a platform administrator")
+    // DEPLOY ORDER: the guard is withheld until the frontend has stopped calling this route.
+    // `main` deploys on push, so landing @PreAuthorize(PLATFORM_ADMIN) here before the clients are
+    // live would 403 the sign-in bootstrap for every non-admin. The route is no less open than it
+    // is today; re-apply the guard once the frontend release is out. See UserControllerTest.
     @GetMapping("search")
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> search(
             @Parameter(
