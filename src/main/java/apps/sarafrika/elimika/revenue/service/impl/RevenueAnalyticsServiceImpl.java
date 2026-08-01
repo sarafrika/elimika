@@ -630,6 +630,20 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 .toList();
     }
 
+    /**
+     * Computes the earnings a viewer in {@code domain} actually receives for a sale line.
+     * <p>
+     * This mirrors what {@code OrderCaptureWalletCreditListener} really credits on capture, so the
+     * dashboard can never report income the earner's wallet will not receive:
+     * <ul>
+     *     <li>{@link PurchaseScope#COURSE} &rarr; only the course creator is credited, at the
+     *     creator share of the line total.</li>
+     *     <li>{@link PurchaseScope#CLASS} &rarr; only the class' default instructor is credited, at
+     *     the instructor share of the line total. The creator earns nothing on a class sale.</li>
+     * </ul>
+     * Non-earning domains (admin, student, parent, organisation) keep reporting the gross amount:
+     * for them this figure is spend/turnover, not a wallet credit.
+     */
     private BigDecimal calculateEarnings(
             UserDomain domain,
             CommerceRevenueLineItem item,
@@ -637,7 +651,13 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     ) {
         BigDecimal amount = safeAmount(item.itemTotal());
         return switch (domain) {
-            case course_creator -> applyShare(amount, revenueShares.get(item.courseUuid()), true);
+            case course_creator -> {
+                // A class sale credits the instructor only, never the creator.
+                if (item.scope() != PurchaseScope.COURSE) {
+                    yield BigDecimal.ZERO;
+                }
+                yield applyShare(amount, revenueShares.get(item.courseUuid()), true);
+            }
             case instructor -> {
                 if (item.scope() != PurchaseScope.CLASS) {
                     yield BigDecimal.ZERO;
@@ -648,16 +668,24 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         };
     }
 
+    /**
+     * Applies a configured revenue share to a line total.
+     * <p>
+     * A missing share (no split configured for the course, or a null percentage on that side of the
+     * split) means "not configured", never "you get all of it": the crediting listener pays nothing
+     * in that case, so this reports zero. Returning the full amount here would report 100% of the
+     * same sale to both the creator and the instructor dashboards.
+     */
     private BigDecimal applyShare(BigDecimal amount, RevenueShare share, boolean creatorShare) {
         if (amount.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
         if (share == null) {
-            return amount;
+            return BigDecimal.ZERO;
         }
         BigDecimal percentage = creatorShare ? share.creatorSharePercentage() : share.instructorSharePercentage();
         if (percentage == null) {
-            return amount;
+            return BigDecimal.ZERO;
         }
         return amount.multiply(percentage).divide(ONE_HUNDRED, SCALE, RoundingMode.HALF_UP);
     }

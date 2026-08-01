@@ -12,13 +12,18 @@ import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -30,8 +35,31 @@ import org.springframework.util.StringUtils;
  *     <li>{@link PurchaseScope#COURSE} &rarr; the course creator earns the creator share.</li>
  *     <li>{@link PurchaseScope#CLASS} &rarr; the class' default instructor earns the instructor share.</li>
  * </ul>
- * Crediting is idempotent per line item so replayed capture events never double-credit, and any
- * failure is logged without breaking the checkout flow.
+ * A line item with no configured revenue share, or a zero share on the earning side, credits
+ * nobody.
+ *
+ * <h2>Durability</h2>
+ * Money owed to a real person must not vanish into a log line, so this listener is a persistent
+ * Spring Modulith event listener rather than a plain {@code @EventListener}:
+ * <ul>
+ *     <li>{@code @TransactionalEventListener} makes it a {@code TransactionalApplicationListener},
+ *     which is what causes Modulith's {@code PersistentApplicationEventMulticaster} to write a row
+ *     into {@code event_publication} <em>before</em> the listener runs.</li>
+ *     <li>{@code fallbackExecution = true} is required: {@code OrderCompletedEvent} is published
+ *     from {@code OrderServiceImpl}/{@code OrderPaymentServiceImpl}, neither of which is
+ *     {@code @Transactional}, so without the fallback the listener would never be invoked at all.</li>
+ *     <li>{@code @Async} keeps checkout available - crediting runs off the request thread, after the
+ *     order has already been recorded, so a credit failure can never fail the order.</li>
+ *     <li>Failures are rethrown. Modulith's completion advisor only marks the publication complete
+ *     on a clean return, so a failed credit stays as an incomplete publication and is retried by
+ *     {@link IncompleteWalletCreditRetryJob} and on restart
+ *     ({@code spring.modulith.republish-outstanding-events-on-restart=true}).</li>
+ * </ul>
+ * Retrying is safe by construction: every credit goes through
+ * {@code WalletService#creditSaleIdempotent} keyed on {@code orderId:lineItemId}, which is backed by
+ * the partial unique index {@code uq_user_wallet_txn_sale_reference} on
+ * {@code user_wallet_transactions (reference) WHERE transaction_type = 'SALE'}. Already-credited
+ * items are skipped, so only the items that actually failed are credited on a retry.
  */
 @Component
 @RequiredArgsConstructor
@@ -46,7 +74,9 @@ public class OrderCaptureWalletCreditListener {
     private final InstructorLookupService instructorLookupService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
 
-    @EventListener
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(fallbackExecution = true)
     public void handleOrderCompleted(OrderCompletedEvent event) {
         if (event == null || event.order() == null) {
             return;
@@ -59,13 +89,31 @@ public class OrderCaptureWalletCreditListener {
             return;
         }
 
+        // Every item is attempted even when an earlier one fails, so one broken line item cannot
+        // starve the other earners on the same order. Failures are collected and rethrown at the
+        // end so the event publication is left incomplete and the whole order is retried; the
+        // items that already succeeded are skipped on the retry by the idempotent credit.
+        List<String> failedItems = new ArrayList<>();
+        Exception firstFailure = null;
         for (CartItemResponse item : order.getItems()) {
             try {
                 creditItem(order, item);
             } catch (Exception ex) {
                 log.error("Failed to credit wallet for order {} item {}: {}",
                         order.getId(), item.getId(), ex.getMessage(), ex);
+                failedItems.add(String.valueOf(item.getId()));
+                if (firstFailure == null) {
+                    firstFailure = ex;
+                }
             }
+        }
+
+        if (firstFailure != null) {
+            throw new WalletCreditFailedException(
+                    "Failed to credit " + failedItems.size() + " wallet(s) for order " + order.getId()
+                            + " (line items " + String.join(", ", failedItems) + "). The event"
+                            + " publication is left incomplete and will be retried.",
+                    firstFailure);
         }
     }
 
