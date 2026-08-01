@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -34,6 +35,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Organisations API", description = "Complete organisation management including users and training branches within organisational hierarchy")
 class OrganisationController {
+
+    /**
+     * Everything under {@code /{uuid}} acts on one named organisation, so it is authorised against
+     * that organisation and nothing else: a manager of organisation A must not be able to read or
+     * change organisation B simply by putting B's UUID in the path.
+     */
+    private static final String READ_ORGANISATION = "@organisationSecurityService.canReadOrganisation(#uuid)";
+    private static final String MANAGE_ORGANISATION = "@organisationSecurityService.canManageOrganisation(#uuid)";
+
     private final OrganisationService organisationService;
     private final UserService userService;
     private final TrainingBranchService trainingBranchService;
@@ -81,6 +91,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<OrganisationDTO>> updateOrganisation(
             @Parameter(description = "UUID of the organisation to update. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -101,6 +112,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification requested successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @PostMapping("/{uuid}/request-verification")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<OrganisationDTO>> requestOrganisationVerification(
             @Parameter(description = "UUID of the organisation submitting itself for verification.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -116,6 +128,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @DeleteMapping("/{uuid}")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<Void>> deleteOrganisation(
             @Parameter(description = "UUID of the organisation to delete. This will soft-delete the organisation and all user relationships.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -161,6 +174,7 @@ class OrganisationController {
     @Operation(summary = "Get users by organisation ID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Users retrieved successfully")
     @GetMapping("/{uuid}/users")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getUsersByOrganisation(
             @Parameter(description = "UUID of the organisation to get users for. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -183,6 +197,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @GetMapping("/{uuid}/users/domain/{domainName}")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<List<UserDTO>>> getUsersByOrganisationAndDomain(
             @Parameter(description = "UUID of the organisation to get users for. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -212,6 +227,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation or user not found")
     @PutMapping("/{uuid}/users/{userUuid}/domain")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<UserDTO>> setOrganisationUserDomain(
             @Parameter(description = "UUID of the organisation the member belongs to. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -220,10 +236,6 @@ class OrganisationController {
                     example = "550e8400-e29b-41d4-a716-446655440003", required = true)
             @PathVariable UUID userUuid,
             @Valid @RequestBody SetOrganisationUserDomainRequestDTO request) {
-
-        // TODO(perms): re-introduce manager authorization once the permission model is defined.
-        // Previously this required the caller to hold an org-scoped organisation_user/admin mapping
-        // for {uuid} (else 403). Dropped pending the real permission model; authentication (401) still applies.
 
         String domainName = request.domainName() == null ? null : request.domainName().trim();
         if (domainName == null || !ORG_SCOPED_DOMAINS.contains(domainName)) {
@@ -243,6 +255,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Training branch created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping("/{uuid}/training-branches")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<TrainingBranchDTO>> createTrainingBranch(
             @Parameter(description = "UUID of the organisation to create the training branch in. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -271,6 +284,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organisation statistics retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @GetMapping("/{uuid}/statistics")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<OrganisationDashboardStatsDTO>> getOrganisationStatistics(
             @Parameter(description = "UUID of the organisation to get statistics for. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -300,6 +314,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Training branches retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @GetMapping("/{uuid}/training-branches")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<PagedDTO<TrainingBranchDTO>>> getTrainingBranchesByOrganisation(
             @Parameter(description = "UUID of the organisation to get training branches for. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -317,6 +332,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Training branch retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @GetMapping("/{uuid}/training-branches/{branchUuid}")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<TrainingBranchDTO>> getTrainingBranchByUuid(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -333,6 +349,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}/training-branches/{branchUuid}")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<TrainingBranchDTO>> updateTrainingBranch(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -349,6 +366,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Training branch deleted successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @DeleteMapping("/{uuid}/training-branches/{branchUuid}")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<Void>> deleteTrainingBranch(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -368,6 +386,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Branch users retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @GetMapping("/{uuid}/training-branches/{branchUuid}/users")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<List<UserDTO>>> getBranchUsers(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -388,6 +407,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @GetMapping("/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}")
+    @PreAuthorize(READ_ORGANISATION)
     public ResponseEntity<ApiResponse<List<UserDTO>>> getBranchUsersByDomain(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -412,6 +432,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch or user not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @PostMapping("/{uuid}/training-branches/{branchUuid}/users/{userUuid}")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<Void>> assignUserToBranch(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -437,6 +458,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User removed from branch successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch or user not found, or user not assigned to branch")
     @DeleteMapping("/{uuid}/training-branches/{branchUuid}/users/{userUuid}")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<Void>> removeUserFromBranch(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
