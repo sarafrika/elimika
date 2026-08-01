@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -64,6 +65,12 @@ class UserController {
      * can never reach onboarding.
      */
     private static final String AUTHENTICATED = "isAuthenticated()";
+    /**
+     * How many users one directory lookup may resolve. Chosen so the worst-case query string
+     * (36 characters plus a separator per UUID, ~3.7 KB) stays comfortably inside the 8 KB request
+     * line most proxies allow, and so a caller cannot turn one request into an unbounded scan.
+     */
+    static final int MAX_DIRECTORY_UUIDS = 100;
 
     private final UserService userService;
     private final MediaServeService mediaServeService;
@@ -151,6 +158,61 @@ class UserController {
         return ResponseEntity.ok(ApiResponse.success(user, "User retrieved successfully"));
     }
 
+    /**
+     * The bulk form of {@link #getUserByUuid}, and the reason {@code /search} can finally be closed.
+     * <p>
+     * Five screens — organisation revenue, the instructor training hub, the instructor student list,
+     * the calendar and instructor search — draw dozens of people at once. They were resolving them
+     * through {@code /search?uuid_in=}, which is why that route had to stay open to everybody. One
+     * request per UUID is not the alternative: that is a per-row fetch across every one of those
+     * screens, which this repository's guidelines forbid outright.
+     * <p>
+     * Two things make this safe to leave at the authenticated baseline where {@code /search} was not.
+     * It answers with {@link UserSummaryDTO} rather than {@link UserDTO}, so no email, phone number
+     * or date of birth crosses the wire. And it is addressed, not filterable: a caller must already
+     * hold the UUIDs it asks about, so there is nothing to enumerate and no way to page the table.
+     * That is the same bargain {@code GET /api/v1/users/{uuid}} already makes, on a smaller payload.
+     * <p>
+     * {@code GET} rather than {@code POST} because the request is a pure read and benefits from
+     * being cacheable and idempotent. The cap keeps the URL well inside every proxy's limit:
+     * {@value #MAX_DIRECTORY_UUIDS} UUIDs is roughly 3.7 KB of query string, against the 8 KB that
+     * nginx and friends allow by default. If the cap ever needs to grow past a few hundred, that is
+     * the point to move the list into a POST body — not before.
+     * <p>
+     * Over-long requests are refused rather than truncated. Silently dropping the tail would hand
+     * the client a half-populated map with no signal that anything was missing, and the symptom
+     * would surface as blank names on the last rows of a long roster.
+     */
+    @Operation(operationId = "getUserDirectory", summary = "Look up a batch of users for display",
+            description = "Resolves up to " + MAX_DIRECTORY_UUIDS + " user UUIDs to their directory " +
+                    "summary — name, avatar and account number — in one request. Returns display " +
+                    "identity only; it carries no email, phone number or date of birth. Unknown " +
+                    "UUIDs are omitted from the response rather than treated as an error.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+            description = "Directory summaries for the UUIDs that matched an existing user")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
+            description = "More than " + MAX_DIRECTORY_UUIDS + " UUIDs requested, or a value that is not a UUID")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401",
+            description = "No authenticated caller")
+    @GetMapping("directory")
+    @PreAuthorize(AUTHENTICATED)
+    public ResponseEntity<ApiResponse<List<UserSummaryDTO>>> getUserDirectory(
+            @Parameter(
+                    description = "Comma-separated user UUIDs to resolve. At most "
+                            + MAX_DIRECTORY_UUIDS + " per request; chunk larger lists client-side.",
+                    example = "550e8400-e29b-41d4-a716-446655440001,550e8400-e29b-41d4-a716-446655440002",
+                    required = true
+            )
+            @RequestParam("uuid_in") List<UUID> uuids) {
+        if (uuids.size() > MAX_DIRECTORY_UUIDS) {
+            throw new IllegalArgumentException(
+                    "A directory lookup accepts at most " + MAX_DIRECTORY_UUIDS + " uuids per request, got "
+                            + uuids.size() + ". Split the list into chunks.");
+        }
+        List<UserSummaryDTO> summaries = userService.getUserDirectory(uuids);
+        return ResponseEntity.ok(ApiResponse.success(summaries, "Users retrieved successfully"));
+    }
+
     @Operation(summary = "Update a user by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
@@ -234,8 +296,13 @@ class UserController {
      * above now answers that question from the token, so the bootstrap no longer needs a search and
      * the search no longer needs to be open.
      * <p>
-     * The two changes are one release: narrowing this before clients have moved to {@code /me}
-     * breaks sign-in for every non-admin.
+     * Its other caller was bulk directory lookup: clients passed {@code ?uuid_in=} a batch of UUIDs
+     * to resolve names and avatars, which is why closing this route had to wait.
+     * {@link #getUserDirectory} now serves that in a smaller shape, so nothing outside the admin
+     * console reaches for a search any more.
+     * <p>
+     * Ordering matters on the way out: this guard must not ship ahead of the clients that stopped
+     * calling the route, or their pages 403.
      */
     @Operation(summary = "Search users",
             description = "Fetches a paginated list of users based on optional filters. " +
@@ -245,10 +312,10 @@ class UserController {
             description = "Paginated list of users matching the search criteria")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
             description = "Caller is not a platform administrator")
-    // DEPLOY ORDER: the guard is withheld until the frontend has stopped calling this route.
-    // `main` deploys on push, so landing @PreAuthorize(PLATFORM_ADMIN) here before the clients are
-    // live would 403 the sign-in bootstrap for every non-admin. The route is no less open than it
-    // is today; re-apply the guard once the frontend release is out. See UserControllerTest.
+    // DEPLOY ORDER: the guard is withheld until the frontend release that stops calling this
+    // route is live. `main` deploys on push, so landing @PreAuthorize(PLATFORM_ADMIN) here first
+    // would 403 the five roster screens. Re-apply with the two @Disabled tests in
+    // UserControllerTest once the directory endpoint and its client are deployed.
     @GetMapping("search")
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> search(
             @Parameter(

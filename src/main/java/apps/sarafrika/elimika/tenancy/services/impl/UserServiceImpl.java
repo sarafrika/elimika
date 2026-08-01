@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
@@ -370,6 +371,31 @@ public class UserServiceImpl implements UserService {
         Specification<User> spec = userSpecificationBuilder.buildUserSpecification(searchParams);
         Page<User> users = userRepository.findAll(spec, pageable);
         return users.map(this::toUserDTO);
+    }
+
+    /**
+     * One {@code WHERE uuid IN (...)} and a straight field copy — no domain resolution and no
+     * affiliation lookup, so the cost is flat in the number of UUIDs rather than linear in queries.
+     * That is the whole point of the route: {@link #toUserDTO(User)} issues several queries per user,
+     * so mapping a hundred of them the way {@link #search} does means hundreds of round trips.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserSummaryDTO> getUserDirectory(Collection<UUID> uuids) {
+        if (uuids == null || uuids.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> distinctUuids = uuids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (distinctUuids.isEmpty()) {
+            return List.of();
+        }
+        log.debug("Resolving directory summaries for {} user(s)", distinctUuids.size());
+        return userRepository.findAllByUuidIn(distinctUuids).stream()
+                .map(UserFactory::toSummaryDTO)
+                .toList();
     }
 
     @Override

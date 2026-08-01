@@ -1,10 +1,12 @@
 package apps.sarafrika.elimika.tenancy.controller;
 
+import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -141,11 +145,7 @@ class UserControllerTest {
     // ================================
 
     @Test
-    @Disabled("""
-            Re-enable together with @PreAuthorize(PLATFORM_ADMIN) on UserController.search. The guard \
-            is deliberately withheld from this release: `main` deploys on push, and closing /search \
-            before the frontend has moved to /me would 403 the sign-in bootstrap for every non-admin. \
-            The route is no less open than it is today.""")
+    @Disabled("Re-enable with @PreAuthorize(PLATFORM_ADMIN) on UserController.search — withheld until the directory endpoint and its client are deployed.")
     @DisplayName("search refuses a caller who is not a platform admin")
     void searchRefusesNonPlatformAdmin() throws Exception {
         when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
@@ -159,11 +159,7 @@ class UserControllerTest {
     }
 
     @Test
-    @Disabled("""
-            Re-enable with searchRefusesNonPlatformAdmin. This slice permits every request at the \
-            filter chain so that the @PreAuthorize is the only thing that can refuse one — with the \
-            guard withheld there is nothing left to refuse. Production still answers 401 here from \
-            its own anyRequest().authenticated() baseline.""")
+    @Disabled("Re-enable with @PreAuthorize(PLATFORM_ADMIN) on UserController.search — withheld until the directory endpoint and its client are deployed.")
     @DisplayName("search refuses an unauthenticated caller")
     void searchRefusesUnauthenticatedCaller() throws Exception {
         mockMvc.perform(get("/api/v1/users/search").param("email_eq", "jane.doe@example.com"))
@@ -184,6 +180,125 @@ class UserControllerTest {
                         .with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].uuid").value(CALLER_UUID.toString()));
+    }
+
+    // ================================
+    // GET /api/v1/users/directory
+    // ================================
+
+    @Test
+    @DisplayName("directory returns exactly the users asked for")
+    void directoryReturnsOnlyTheRequestedUsers() throws Exception {
+        UUID first = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID second = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        when(userService.getUserDirectory(List.of(first, second)))
+                .thenReturn(List.of(summary(first, "Jane", "Doe"), summary(second, "John", "Smith")));
+
+        mockMvc.perform(get("/api/v1/users/directory")
+                        .param("uuid_in", first + "," + second)
+                        .with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].uuid").value(first.toString()))
+                .andExpect(jsonPath("$.data[1].uuid").value(second.toString()));
+
+        verify(userService).getUserDirectory(List.of(first, second));
+        verify(userService, never()).search(any(), any());
+    }
+
+    @Test
+    @DisplayName("directory carries display identity and withholds contact details")
+    void directoryOmitsContactDetails() throws Exception {
+        UUID uuid = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(userService.getUserDirectory(List.of(uuid))).thenReturn(List.of(summary(uuid, "Jane", "Doe")));
+
+        mockMvc.perform(get("/api/v1/users/directory").param("uuid_in", uuid.toString()).with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].full_name").value("Jane A. Doe"))
+                .andExpect(jsonPath("$.data[0].display_name").value("Jane Doe"))
+                .andExpect(jsonPath("$.data[0].user_no").value("000000001"))
+                .andExpect(jsonPath("$.data[0].profile_image_url").value("https://cdn.example.com/jane.png"))
+                .andExpect(jsonPath("$.data[0].email").doesNotExist())
+                .andExpect(jsonPath("$.data[0].phone_number").doesNotExist())
+                .andExpect(jsonPath("$.data[0].dob").doesNotExist());
+    }
+
+    /**
+     * A roster assembled from foreign keys must not fail wholesale because one referenced account
+     * has since been deleted, so an unmatched UUID is simply absent from the response.
+     */
+    @Test
+    @DisplayName("directory skips unknown uuids instead of failing the request")
+    void directorySkipsUnknownUuids() throws Exception {
+        UUID known = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID unknown = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        when(userService.getUserDirectory(List.of(known, unknown)))
+                .thenReturn(List.of(summary(known, "Jane", "Doe")));
+
+        mockMvc.perform(get("/api/v1/users/directory")
+                        .param("uuid_in", known + "," + unknown)
+                        .with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].uuid").value(known.toString()));
+    }
+
+    @Test
+    @DisplayName("directory refuses more uuids than the cap rather than truncating")
+    void directoryEnforcesTheCap() throws Exception {
+        String tooMany = IntStream.rangeClosed(0, UserController.MAX_DIRECTORY_UUIDS)
+                .mapToObj(index -> UUID.randomUUID().toString())
+                .collect(Collectors.joining(","));
+
+        mockMvc.perform(get("/api/v1/users/directory").param("uuid_in", tooMany).with(jwt()))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).getUserDirectory(any());
+    }
+
+    @Test
+    @DisplayName("directory serves a request sitting exactly on the cap")
+    void directoryAcceptsTheCapExactly() throws Exception {
+        String atCap = IntStream.range(0, UserController.MAX_DIRECTORY_UUIDS)
+                .mapToObj(index -> UUID.randomUUID().toString())
+                .collect(Collectors.joining(","));
+        when(userService.getUserDirectory(any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/users/directory").param("uuid_in", atCap).with(jwt()))
+                .andExpect(status().isOk());
+
+        verify(userService).getUserDirectory(any());
+    }
+
+    @Test
+    @DisplayName("directory refuses an unauthenticated caller")
+    void directoryRefusesUnauthenticatedCaller() throws Exception {
+        mockMvc.perform(get("/api/v1/users/directory")
+                        .param("uuid_in", "22222222-2222-2222-2222-222222222222"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).getUserDirectory(any());
+    }
+
+    /**
+     * The directory is a people directory, not a private record: an ordinary learner resolving the
+     * names on a class roster is exactly the intended caller, so a non-admin must get through.
+     */
+    @Test
+    @DisplayName("directory serves an ordinary authenticated caller, not just admins")
+    void directoryServesNonAdmin() throws Exception {
+        UUID uuid = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(userService.getUserDirectory(List.of(uuid))).thenReturn(List.of(summary(uuid, "Jane", "Doe")));
+
+        mockMvc.perform(get("/api/v1/users/directory").param("uuid_in", uuid.toString()).with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].uuid").value(uuid.toString()));
+    }
+
+    private static UserSummaryDTO summary(UUID uuid, String firstName, String lastName) {
+        return new UserSummaryDTO(uuid, "000000001", firstName, "A.", lastName,
+                "https://cdn.example.com/jane.png", Gender.FEMALE);
     }
 
     private static UserDTO user(UUID uuid, List<String> domains) {

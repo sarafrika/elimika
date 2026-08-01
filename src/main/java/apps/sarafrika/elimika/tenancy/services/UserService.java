@@ -2,11 +2,13 @@ package apps.sarafrika.elimika.tenancy.services;
 
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -85,6 +87,23 @@ public interface UserService {
      * @return paginated search results
      */
     Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Resolves a batch of users to their directory projection in a single query.
+     * <p>
+     * This is the bulk counterpart of {@link #getUserByUuid(UUID)} for screens that render many
+     * people at once — rosters, calendars, instructor cards. It answers with
+     * {@link UserSummaryDTO}, which carries display identity only, so it can be served to any
+     * authenticated caller without exposing contact details.
+     * <p>
+     * Unknown UUIDs are simply absent from the result rather than an error: a caller assembling a
+     * roster from foreign keys should not have its whole page fail because one referenced account
+     * has since been deleted.
+     *
+     * @param uuids the user UUIDs to resolve; duplicates and nulls are ignored
+     * @return the matching users, in no guaranteed order, at most one entry per distinct UUID
+     */
+    List<UserSummaryDTO> getUserDirectory(Collection<UUID> uuids);
 
     // ================================
     // ORGANIZATION AFFILIATION MANAGEMENT

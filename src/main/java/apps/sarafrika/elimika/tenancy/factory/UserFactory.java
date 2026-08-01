@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.factory;
 import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserOrganisationAffiliationDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -46,6 +47,24 @@ public class UserFactory {
                 user.getGender(),
                 userDomains,
                 organisationAffiliations
+        );
+    }
+
+    /**
+     * Converts a User entity to the reduced directory projection.
+     * <p>
+     * Unlike {@link #toDTO(User, List, List)} this needs nothing but the row itself — no domain
+     * mappings, no organisation affiliations — which is what makes a batch of them one query.
+     */
+    public static UserSummaryDTO toSummaryDTO(User user) {
+        return new UserSummaryDTO(
+                user.getUuid(),
+                user.getUserNo(),
+                user.getFirstName(),
+                user.getMiddleName(),
+                user.getLastName(),
+                FileUrlResolver.publicUrl(user.getProfileImageUrl()),
+                user.getGender()
         );
     }
 
