@@ -1,3 +1,10 @@
+# [2.119.0](https://github.com/sarafrika/elimika/compare/v2.118.1...v2.119.0) (2026-08-01)
+
+
+### Features
+
+* **tenancy:** add a batch user directory endpoint that carries no contact details ([50bd642](https://github.com/sarafrika/elimika/commit/50bd6426ba80a2d0ed3be1110cda9ba72624466d))
+
 ## [2.118.1](https://github.com/sarafrika/elimika/compare/v2.118.0...v2.118.1) (2026-08-01)
 
 
