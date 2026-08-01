@@ -1,3 +1,27 @@
+# [2.117.0](https://github.com/sarafrika/elimika/compare/v2.116.0...v2.117.0) (2026-08-01)
+
+
+### Bug Fixes
+
+* **course:** scope quiz attempt and assignment submission listings to the calling learner ([116b19c](https://github.com/sarafrika/elimika/commit/116b19c7350671be4006523ec6d5a6b55de5624e))
+* **security:** scope skills-fund, competition, user, system-rule and wallet endpoints to their owner ([be8ba4b](https://github.com/sarafrika/elimika/commit/be8ba4b6108f0c91bb38bb826796bb7e02b2edde))
+* **tenancy:** require organisation membership to read or manage groups, branches and org settings ([f875c52](https://github.com/sarafrika/elimika/commit/f875c5228b6e3408a9cfe4d102cbaa7b09407855))
+* **tenancy:** restrict the admin console to platform administrators ([623220f](https://github.com/sarafrika/elimika/commit/623220f7718b580bbb71e9533942e96dc89a4ac1))
+
+
+### Features
+
+* **course:** add enrolled-learner authorization primitives for course material ([8db0644](https://github.com/sarafrika/elimika/commit/8db06445a9d080d2e83096f663ed1deadfec8552))
+* **course:** derive the learner's course enrolment server-side for quiz and assignment flows ([ca89a50](https://github.com/sarafrika/elimika/commit/ca89a50f9f26df94c469ce1629d68439d6566cf0))
+* **course:** let enrolled learners read their own gradebook and the rubrics they are graded against ([5cf6281](https://github.com/sarafrika/elimika/commit/5cf62813c03fbc077a879f3d7ec077ac4e26e33a))
+* **course:** open quiz, assignment and lesson reads to enrolled learners with entitlement-scoped search ([08c2f68](https://github.com/sarafrika/elimika/commit/08c2f68c2b6589dd5bbe201fbc989813298ede5e))
+* **tenancy:** scope student groups by branch and academic tier with a paged roster ([a712607](https://github.com/sarafrika/elimika/commit/a7126078912387357e034bbed5ee07e8f444e0df))
+
+
+### Performance Improvements
+
+* **security:** resolve caller identity and domains once per request instead of per authorization check ([0934061](https://github.com/sarafrika/elimika/commit/0934061580e0d94f3fa13459f303649330163fd9))
+
 # [2.116.0](https://github.com/sarafrika/elimika/compare/v2.115.0...v2.116.0) (2026-07-28)
 
 
