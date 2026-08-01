@@ -3,8 +3,14 @@ package apps.sarafrika.elimika.tenancy.security;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.entity.Competition;
+import apps.sarafrika.elimika.tenancy.entity.SkillsFundSource;
+import apps.sarafrika.elimika.tenancy.entity.SkillsFundTransaction;
 import apps.sarafrika.elimika.tenancy.entity.StudentGroup;
 import apps.sarafrika.elimika.tenancy.entity.TrainingBranch;
+import apps.sarafrika.elimika.tenancy.repository.CompetitionRepository;
+import apps.sarafrika.elimika.tenancy.repository.SkillsFundSourceRepository;
+import apps.sarafrika.elimika.tenancy.repository.SkillsFundTransactionRepository;
 import apps.sarafrika.elimika.tenancy.repository.StudentGroupRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
@@ -40,9 +46,15 @@ public class OrganisationSecurityService {
 
     private static final String CACHE_GROUP_ORG_PREFIX = "security.groupOrg.";
     private static final String CACHE_BRANCH_ORG_PREFIX = "security.branchOrg.";
+    private static final String CACHE_FUND_SOURCE_ORG_PREFIX = "security.fundSourceOrg.";
+    private static final String CACHE_FUND_TRANSACTION_ORG_PREFIX = "security.fundTransactionOrg.";
+    private static final String CACHE_COMPETITION_ORG_PREFIX = "security.competitionOrg.";
 
     private final StudentGroupRepository studentGroupRepository;
     private final TrainingBranchRepository trainingBranchRepository;
+    private final SkillsFundSourceRepository skillsFundSourceRepository;
+    private final SkillsFundTransactionRepository skillsFundTransactionRepository;
+    private final CompetitionRepository competitionRepository;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
@@ -134,6 +146,39 @@ public class OrganisationSecurityService {
     }
 
     /**
+     * Management rights over the organisation whose skills fund this source belongs to.
+     * <p>
+     * The delete route is keyed only by the source, so the owning organisation has to be resolved
+     * before the caller's authority over it means anything. Reading a source is always done through
+     * the organisation-scoped listing, so only the manage predicate exists.
+     */
+    public boolean canManageFundSource(UUID sourceUuid) {
+        return canManageOrganisation(organisationOfFundSource(sourceUuid));
+    }
+
+    /**
+     * Management rights over the organisation whose skills fund this transaction belongs to.
+     * Money moves here, so an unresolvable transaction denies rather than falls back to a role check.
+     */
+    public boolean canManageFundTransaction(UUID transactionUuid) {
+        return canManageOrganisation(organisationOfFundTransaction(transactionUuid));
+    }
+
+    /**
+     * Management rights over the organisation that runs this competition.
+     */
+    public boolean canManageCompetition(UUID competitionUuid) {
+        return canManageOrganisation(organisationOfCompetition(competitionUuid));
+    }
+
+    /**
+     * Read rights over the organisation that runs this competition.
+     */
+    public boolean canReadCompetition(UUID competitionUuid) {
+        return canReadOrganisation(organisationOfCompetition(competitionUuid));
+    }
+
+    /**
      * The organisation owning a student group, memoised for the request.
      * <p>
      * The group-scoped routes carry no organisation in the path, so the guard has to look it up.
@@ -177,6 +222,76 @@ public class OrganisationSecurityService {
                 return branch.getOrganisationUuid();
             } catch (Exception e) {
                 log.error("Error resolving the organisation owning training branch {}", branchUuid, e);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * The organisation whose skills fund owns this source, memoised for the request. See
+     * {@link #organisationOfGroup(UUID)} for why this is cached.
+     */
+    private UUID organisationOfFundSource(UUID sourceUuid) {
+        if (sourceUuid == null) {
+            return null;
+        }
+        return requestScopedCache.get(CACHE_FUND_SOURCE_ORG_PREFIX + sourceUuid, () -> {
+            try {
+                SkillsFundSource source = skillsFundSourceRepository.findByUuid(sourceUuid).orElse(null);
+                if (source == null) {
+                    log.debug("Skills fund source not found: {}", sourceUuid);
+                    return null;
+                }
+                return source.getOrganisationUuid();
+            } catch (Exception e) {
+                log.error("Error resolving the organisation owning skills fund source {}", sourceUuid, e);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * The organisation whose skills fund owns this transaction, memoised for the request. See
+     * {@link #organisationOfGroup(UUID)} for why this is cached.
+     */
+    private UUID organisationOfFundTransaction(UUID transactionUuid) {
+        if (transactionUuid == null) {
+            return null;
+        }
+        return requestScopedCache.get(CACHE_FUND_TRANSACTION_ORG_PREFIX + transactionUuid, () -> {
+            try {
+                SkillsFundTransaction transaction =
+                        skillsFundTransactionRepository.findByUuid(transactionUuid).orElse(null);
+                if (transaction == null) {
+                    log.debug("Skills fund transaction not found: {}", transactionUuid);
+                    return null;
+                }
+                return transaction.getOrganisationUuid();
+            } catch (Exception e) {
+                log.error("Error resolving the organisation owning skills fund transaction {}", transactionUuid, e);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * The organisation running this competition, memoised for the request. See
+     * {@link #organisationOfGroup(UUID)} for why this is cached.
+     */
+    private UUID organisationOfCompetition(UUID competitionUuid) {
+        if (competitionUuid == null) {
+            return null;
+        }
+        return requestScopedCache.get(CACHE_COMPETITION_ORG_PREFIX + competitionUuid, () -> {
+            try {
+                Competition competition = competitionRepository.findByUuid(competitionUuid).orElse(null);
+                if (competition == null) {
+                    log.debug("Competition not found: {}", competitionUuid);
+                    return null;
+                }
+                return competition.getOrganisationUuid();
+            } catch (Exception e) {
+                log.error("Error resolving the organisation running competition {}", competitionUuid, e);
                 return null;
             }
         });

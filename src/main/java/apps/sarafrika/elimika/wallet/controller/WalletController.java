@@ -67,7 +67,7 @@ public class WalletController {
     }
 
     @PostMapping("/{userUuid}/deposits")
-    @PreAuthorize("@domainSecurityService.isOrganizationAdmin()")
+    @PreAuthorize("@walletSecurityService.canCreditWallet(#userUuid)")
     @Operation(summary = "Record a wallet deposit")
     public ResponseEntity<ApiResponse<WalletDTO>> deposit(
             @PathVariable("userUuid") UUID userUuid,
@@ -84,7 +84,7 @@ public class WalletController {
     }
 
     @PostMapping("/{userUuid}/sales")
-    @PreAuthorize("@domainSecurityService.isOrganizationAdmin()")
+    @PreAuthorize("@walletSecurityService.canCreditWallet(#userUuid)")
     @Operation(summary = "Record a wallet sale credit")
     public ResponseEntity<ApiResponse<WalletDTO>> creditSale(
             @PathVariable("userUuid") UUID userUuid,

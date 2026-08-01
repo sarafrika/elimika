@@ -15,15 +15,30 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.UUID;
 
+/**
+ * These rules are platform infrastructure: the {@code system_rules} table is what
+ * {@code PLATFORM_FEE} and {@code AGE_GATE} resolution reads, so a row written here changes what
+ * every organisation on the platform is charged and which learners it will admit.
+ * <p>
+ * Guarded at class level because all four endpoints share exactly one rule, and deliberately with
+ * {@code isPlatformAdmin()} rather than {@code isOrganizationAdmin()}: an administrator of one
+ * organisation must not be able to rewrite the fee policy that applies to all of them. This mirrors
+ * {@code CurrencyAdminController}, the other platform-configuration surface.
+ * <p>
+ * Note for anyone adding an endpoint here: a method-level {@code @PreAuthorize} <em>replaces</em>
+ * this one rather than combining with it, so any override must restate the platform-admin check.
+ */
 @RestController
 @RequestMapping("/api/v1/system-rules")
 @RequiredArgsConstructor
 @Tag(name = "System Rules", description = "Administration endpoints for platform-wide configuration rules")
+@PreAuthorize("@domainSecurityService.isPlatformAdmin()")
 public class SystemRuleAdminController {
 
     private final SystemRuleAdminService systemRuleAdminService;

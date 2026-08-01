@@ -30,6 +30,7 @@ public class DomainSecurityService {
     private static final String CACHE_USER_UUID = "security.userUuid";
     private static final String CACHE_STUDENT_UUID = "security.studentUuid";
     private static final String CACHE_DOMAINS = "security.domains";
+    private static final String CACHE_ADMINISTERS_USER_PREFIX = "security.administersUser.";
 
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
@@ -72,6 +73,43 @@ public class DomainSecurityService {
             log.error("Error checking platform admin status", e);
             return false;
         }
+    }
+
+    /**
+     * True when the caller holds the {@code admin} domain <em>in an organisation the target user
+     * belongs to</em>.
+     * <p>
+     * This is the org-scoped counterpart to {@link #isOrganizationAdmin()}. That method answers
+     * "does this caller administer something, anywhere" — it reads the union of the caller's global
+     * and organisation-scoped domains and never looks at who is being acted on, so an administrator
+     * of organisation A satisfies it while operating on a member of organisation B. Wherever the
+     * subject of the request is another user, this is the predicate that was meant.
+     * <p>
+     * Lives here rather than beside the tenancy predicates because the modules that need it — the
+     * wallet in particular — are only permitted to depend on {@code shared}. Fails closed, and is
+     * memoised per request and per target because the answer costs a query per organisation the
+     * target belongs to.
+     *
+     * @param targetUserUuid the user being acted on
+     */
+    public boolean administersOrganisationOf(UUID targetUserUuid) {
+        if (targetUserUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_ADMINISTERS_USER_PREFIX + targetUserUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.getUserOrganizations(targetUserUuid).stream()
+                        .anyMatch(organisationUuid -> userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.admin));
+            } catch (Exception e) {
+                log.error("Error checking administrative reach over user {}", targetUserUuid, e);
+                return false;
+            }
+        });
     }
 
     /**

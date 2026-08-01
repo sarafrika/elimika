@@ -3,8 +3,14 @@ package apps.sarafrika.elimika.tenancy.security;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.entity.Competition;
+import apps.sarafrika.elimika.tenancy.entity.SkillsFundSource;
+import apps.sarafrika.elimika.tenancy.entity.SkillsFundTransaction;
 import apps.sarafrika.elimika.tenancy.entity.StudentGroup;
 import apps.sarafrika.elimika.tenancy.entity.TrainingBranch;
+import apps.sarafrika.elimika.tenancy.repository.CompetitionRepository;
+import apps.sarafrika.elimika.tenancy.repository.SkillsFundSourceRepository;
+import apps.sarafrika.elimika.tenancy.repository.SkillsFundTransactionRepository;
 import apps.sarafrika.elimika.tenancy.repository.StudentGroupRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
@@ -51,9 +57,15 @@ class OrganisationSecurityServiceTest {
     private static final UUID OTHER_ORG_UUID = UUID.randomUUID();
     private static final UUID GROUP_UUID = UUID.randomUUID();
     private static final UUID BRANCH_UUID = UUID.randomUUID();
+    private static final UUID SOURCE_UUID = UUID.randomUUID();
+    private static final UUID TRANSACTION_UUID = UUID.randomUUID();
+    private static final UUID COMPETITION_UUID = UUID.randomUUID();
 
     @Mock private StudentGroupRepository studentGroupRepository;
     @Mock private TrainingBranchRepository trainingBranchRepository;
+    @Mock private SkillsFundSourceRepository skillsFundSourceRepository;
+    @Mock private SkillsFundTransactionRepository skillsFundTransactionRepository;
+    @Mock private CompetitionRepository competitionRepository;
     @Mock private UserLookupService userLookupService;
     @Mock private DomainSecurityService domainSecurityService;
 
@@ -65,7 +77,8 @@ class OrganisationSecurityServiceTest {
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
 
         service = new OrganisationSecurityService(
-                studentGroupRepository, trainingBranchRepository, userLookupService,
+                studentGroupRepository, trainingBranchRepository, skillsFundSourceRepository,
+                skillsFundTransactionRepository, competitionRepository, userLookupService,
                 domainSecurityService, new RequestScopedCache());
 
         authenticateAsJwtUser();
@@ -76,6 +89,10 @@ class OrganisationSecurityServiceTest {
         when(studentGroupRepository.findByUuid(GROUP_UUID)).thenReturn(Optional.of(group(ORG_UUID)));
         when(trainingBranchRepository.findByUuidAndDeletedFalse(BRANCH_UUID))
                 .thenReturn(Optional.of(branch(ORG_UUID)));
+        when(skillsFundSourceRepository.findByUuid(SOURCE_UUID)).thenReturn(Optional.of(fundSource(ORG_UUID)));
+        when(skillsFundTransactionRepository.findByUuid(TRANSACTION_UUID))
+                .thenReturn(Optional.of(fundTransaction(ORG_UUID)));
+        when(competitionRepository.findByUuid(COMPETITION_UUID)).thenReturn(Optional.of(competition(ORG_UUID)));
     }
 
     @AfterEach
@@ -281,6 +298,126 @@ class OrganisationSecurityServiceTest {
         verify(trainingBranchRepository, times(1)).findByUuidAndDeletedFalse(BRANCH_UUID);
     }
 
+    // ===== SKILLS FUND SCOPE =====
+
+    @Test
+    void aManagerOfTheOwningOrganisationMayDeleteItsFundSourcesAndTransactions() {
+        belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
+
+        assertThat(service.canManageFundSource(SOURCE_UUID)).isTrue();
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isTrue();
+    }
+
+    @Test
+    void aPlainMemberMayNotDeleteFundSourcesOrTransactions() {
+        // Reading the fund is a membership question; moving money out of it is not.
+        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+
+        assertThat(service.canManageFundSource(SOURCE_UUID)).isFalse();
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isFalse();
+    }
+
+    @Test
+    void anAdminOfADifferentOrganisationCannotTouchThisOrganisationsMoney() {
+        belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
+        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+
+        assertThat(service.canManageFundSource(SOURCE_UUID)).isFalse();
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isFalse();
+    }
+
+    @Test
+    void aFundRecordThatDoesNotExistIsRefused() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(skillsFundSourceRepository.findByUuid(SOURCE_UUID)).thenReturn(Optional.empty());
+        when(skillsFundTransactionRepository.findByUuid(TRANSACTION_UUID)).thenReturn(Optional.empty());
+
+        assertThat(service.canManageFundSource(SOURCE_UUID)).isFalse();
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isFalse();
+    }
+
+    @Test
+    void aNullFundRecordIsRefused() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+
+        assertThat(service.canManageFundSource(null)).isFalse();
+        assertThat(service.canManageFundTransaction(null)).isFalse();
+    }
+
+    @Test
+    void aFundLookupFailureDeniesRatherThanGrants() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(skillsFundTransactionRepository.findByUuid(TRANSACTION_UUID))
+                .thenThrow(new IllegalStateException("boom"));
+
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isFalse();
+    }
+
+    @Test
+    void theOwningOrganisationOfAFundTransactionIsResolvedOncePerRequest() {
+        belongsWithDomain(ORG_UUID, UserDomain.admin);
+
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isTrue();
+        assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isTrue();
+
+        verify(skillsFundTransactionRepository, times(1)).findByUuid(TRANSACTION_UUID);
+    }
+
+    // ===== COMPETITION SCOPE =====
+
+    @Test
+    void aManagerOfTheOwningOrganisationMayManageItsCompetitions() {
+        belongsWithDomain(ORG_UUID, UserDomain.admin);
+
+        assertThat(service.canManageCompetition(COMPETITION_UUID)).isTrue();
+    }
+
+    @Test
+    void aMemberOfTheOwningOrganisationMayReadItsCompetitionsButNotChangeThem() {
+        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+
+        assertThat(service.canReadCompetition(COMPETITION_UUID)).isTrue();
+        assertThat(service.canManageCompetition(COMPETITION_UUID)).isFalse();
+    }
+
+    @Test
+    void anAdminOfADifferentOrganisationCannotTouchThisOrganisationsCompetition() {
+        belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
+        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+
+        assertThat(service.canManageCompetition(COMPETITION_UUID)).isFalse();
+        assertThat(service.canReadCompetition(COMPETITION_UUID)).isFalse();
+    }
+
+    @Test
+    void aCompetitionThatDoesNotExistIsRefused() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(competitionRepository.findByUuid(COMPETITION_UUID)).thenReturn(Optional.empty());
+
+        assertThat(service.canReadCompetition(COMPETITION_UUID)).isFalse();
+        assertThat(service.canManageCompetition(COMPETITION_UUID)).isFalse();
+    }
+
+    @Test
+    void aNullCompetitionIsRefused() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+
+        assertThat(service.canReadCompetition(null)).isFalse();
+        assertThat(service.canManageCompetition(null)).isFalse();
+    }
+
+    @Test
+    void theOwningOrganisationOfACompetitionIsResolvedOncePerRequest() {
+        // Removing a team resolves the competition for the guard and again for the service call.
+        belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
+        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+
+        assertThat(service.canReadCompetition(COMPETITION_UUID)).isTrue();
+        assertThat(service.canManageCompetition(COMPETITION_UUID)).isTrue();
+
+        verify(competitionRepository, times(1)).findByUuid(COMPETITION_UUID);
+    }
+
     private void belongsWithDomain(UUID organisationUuid, UserDomain domain) {
         when(userLookupService.userBelongsToOrganizationWithDomain(CALLER_UUID, organisationUuid, domain))
                 .thenReturn(true);
@@ -296,6 +433,24 @@ class OrganisationSecurityServiceTest {
         TrainingBranch branch = new TrainingBranch();
         branch.setOrganisationUuid(organisationUuid);
         return branch;
+    }
+
+    private static SkillsFundSource fundSource(UUID organisationUuid) {
+        SkillsFundSource source = new SkillsFundSource();
+        source.setOrganisationUuid(organisationUuid);
+        return source;
+    }
+
+    private static SkillsFundTransaction fundTransaction(UUID organisationUuid) {
+        SkillsFundTransaction transaction = new SkillsFundTransaction();
+        transaction.setOrganisationUuid(organisationUuid);
+        return transaction;
+    }
+
+    private static Competition competition(UUID organisationUuid) {
+        Competition competition = new Competition();
+        competition.setOrganisationUuid(organisationUuid);
+        return competition;
     }
 
     private void authenticateAsJwtUser() {
