@@ -28,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.server.ResponseStatusException;
@@ -48,7 +49,20 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Admin Management API", description = "System administrator management operations including domain assignment, user management, and dashboard statistics")
+@PreAuthorize(AdminController.PLATFORM_ADMIN_ONLY)
 public class AdminController {
+
+    /**
+     * The whole console is platform-administration, so the guard sits on the class rather than being
+     * repeated per handler.
+     * <p>
+     * This is deliberately the <em>global</em> admin domain, not an organisation-scoped admin role:
+     * these endpoints assign domains, moderate organisations and verify instructors across every
+     * tenant. Note that every handler below already documented a 403 "system admin required" that
+     * could not fire — until this annotation existed, any authenticated caller could grant themselves
+     * the global admin domain here and thereby satisfy every other check in the platform.
+     */
+    static final String PLATFORM_ADMIN_ONLY = "@domainSecurityService.isPlatformAdmin()";
 
     private final AdminService adminService;
     private final OrganisationService organisationService;
