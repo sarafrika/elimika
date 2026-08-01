@@ -1,3 +1,10 @@
+# [2.118.0](https://github.com/sarafrika/elimika/compare/v2.117.0...v2.118.0) (2026-08-01)
+
+
+### Features
+
+* **tenancy:** add a self-scoped users/me endpoint for the sign-in bootstrap ([25b18da](https://github.com/sarafrika/elimika/commit/25b18da6f3fcbd408f72caa3e39dd950cde1099b))
+
 # [2.117.0](https://github.com/sarafrika/elimika/compare/v2.116.0...v2.117.0) (2026-08-01)
 
 
