@@ -1,3 +1,10 @@
+## [2.119.1](https://github.com/sarafrika/elimika/compare/v2.119.0...v2.119.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **tenancy:** restrict the user search to platform administrators ([aed847d](https://github.com/sarafrika/elimika/commit/aed847db0237e09b97dea73faa4a0868bb9671cf))
+
 # [2.119.0](https://github.com/sarafrika/elimika/compare/v2.118.1...v2.119.0) (2026-08-01)
 
 
