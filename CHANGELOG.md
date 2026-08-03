@@ -1,3 +1,10 @@
+# [2.120.0](https://github.com/sarafrika/elimika/compare/v2.119.1...v2.120.0) (2026-08-03)
+
+
+### Features
+
+* **payout:** record what an organisation owes an instructor as a settleable obligation ([51bfdc3](https://github.com/sarafrika/elimika/commit/51bfdc3335dab0bba3b3612aac192aecb8438c65))
+
 ## [2.119.1](https://github.com/sarafrika/elimika/compare/v2.119.0...v2.119.1) (2026-08-03)
 
 
