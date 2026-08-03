@@ -31,6 +31,7 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEve
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
+import apps.sarafrika.elimika.shared.spi.payout.InstructorPayableLookupService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
@@ -74,6 +75,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final ObjectProvider<TimetableService> timetableServiceProvider;
     private final ObjectProvider<ClassScheduleService> classScheduleServiceProvider;
+    private final InstructorPayableLookupService instructorPayableLookupService;
     private final MediaStorageService mediaStorageService;
     private final MediaValidationService mediaValidationService;
     private final StorageProperties storageProperties;
@@ -807,40 +809,35 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .collect(Collectors.toList());
     }
 
+    /**
+     * What the organisation owes each instructor, read from the obligation ledger.
+     * <p>
+     * This used to multiply each class' <em>current</em> {@code training_fee} by its completed
+     * session count on every request. Nothing was stored, so there was no obligation to settle, no
+     * history, and — worse — re-rating a class silently rewrote what had been owed for sessions
+     * delivered months earlier. Obligations are now written one per delivered session at the rate
+     * that stood on the day, and this simply sums them.
+     * <p>
+     * The aggregate is owned by {@code payout} and reached through a {@code shared} SPI: obligations
+     * flow classes &rarr; payout, and a compile-time dependency in the other direction would invert
+     * that.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<OrganisationInstructorPayableDTO> getInstructorPayablesForOrganisation(UUID organisationUuid) {
-        log.debug("Computing instructor payables for organisation UUID: {}", organisationUuid);
+        log.debug("Reading instructor payables for organisation UUID: {}", organisationUuid);
 
-        record Accumulator(BigDecimal amount, long classes, long sessions) {}
-        Map<UUID, Accumulator> byInstructor = new LinkedHashMap<>();
-
-        for (ClassDefinitionResponseDTO response : findClassesForOrganisation(organisationUuid)) {
-            ClassDefinitionDTO definition = response.classDefinition();
-            if (definition == null || definition.defaultInstructorUuid() == null) {
-                continue;
-            }
-            BigDecimal fee = definition.trainingFee() == null ? BigDecimal.ZERO : definition.trainingFee();
-            long completedSessions = definition.completedSessionCount() == null
-                    ? 0L
-                    : definition.completedSessionCount();
-            BigDecimal owed = fee.multiply(BigDecimal.valueOf(completedSessions));
-
-            byInstructor.merge(
-                    definition.defaultInstructorUuid(),
-                    new Accumulator(owed, 1L, completedSessions),
-                    (existing, added) -> new Accumulator(
-                            existing.amount().add(added.amount()),
-                            existing.classes() + added.classes(),
-                            existing.sessions() + added.sessions()));
-        }
-
-        return byInstructor.entrySet().stream()
-                .map(entry -> new OrganisationInstructorPayableDTO(
-                        entry.getKey(),
-                        entry.getValue().amount(),
-                        entry.getValue().classes(),
-                        entry.getValue().sessions()))
+        return instructorPayableLookupService.findPayablesForOrganisation(organisationUuid)
+                .stream()
+                .map(payable -> new OrganisationInstructorPayableDTO(
+                        payable.instructorUuid(),
+                        payable.amountOutstanding(),
+                        payable.classCount(),
+                        payable.sessionCount(),
+                        payable.currencyCode(),
+                        payable.amountSettled(),
+                        payable.amountAccrued(),
+                        payable.outstandingSessionCount()))
                 .collect(Collectors.toList());
     }
 

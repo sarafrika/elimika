@@ -771,20 +771,30 @@ class ClassDefinitionControllerTest {
                 .andExpect(jsonPath("$.message").value("Resource not found"));
     }
 
+    /**
+     * The four original fields keep their names, positions and meaning-at-a-glance because the
+     * organisation revenue screen reads exactly those. The settlement fields are additive, so an
+     * older client that ignores them still renders the same table.
+     */
     @Test
     void getInstructorPayablesForOrganisationReturnsPayables() throws Exception {
         UUID organisationUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
         when(classDefinitionService.getInstructorPayablesForOrganisation(organisationUuid))
                 .thenReturn(List.of(new apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO(
-                        instructorUuid, new BigDecimal("480.00"), 2L, 6L)));
+                        instructorUuid, new BigDecimal("480.00"), 2L, 6L,
+                        "KES", new BigDecimal("160.00"), new BigDecimal("640.00"), 4L)));
 
         mockMvc.perform(get("/api/v1/classes/organisation/{organisationUuid}/instructor-payables", organisationUuid))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].instructor_uuid").value(instructorUuid.toString()))
                 .andExpect(jsonPath("$.data[0].amount_owed").value(480.00))
                 .andExpect(jsonPath("$.data[0].class_count").value(2))
-                .andExpect(jsonPath("$.data[0].session_count").value(6));
+                .andExpect(jsonPath("$.data[0].session_count").value(6))
+                .andExpect(jsonPath("$.data[0].currency_code").value("KES"))
+                .andExpect(jsonPath("$.data[0].amount_settled").value(160.00))
+                .andExpect(jsonPath("$.data[0].amount_accrued").value(640.00))
+                .andExpect(jsonPath("$.data[0].outstanding_session_count").value(4));
 
         verify(classDefinitionService).getInstructorPayablesForOrganisation(organisationUuid);
     }

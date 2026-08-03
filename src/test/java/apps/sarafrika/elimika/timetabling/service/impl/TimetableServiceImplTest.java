@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
+import apps.sarafrika.elimika.shared.event.timetabling.ClassSessionCompletedEvent;
 import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceCompletedEvent;
 import apps.sarafrika.elimika.timetabling.internal.SchedulingEventListener.ScheduledInstanceStartedEvent;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
@@ -333,6 +334,44 @@ class TimetableServiceImplTest {
         assertThat(instance.getStatus()).isEqualTo(SchedulingStatus.COMPLETED);
         assertThat(instance.getConcludedAt()).isNotNull();
         verify(applicationEventPublisher).publishEvent(any(ScheduledInstanceCompletedEvent.class));
+        // The internal event is invisible outside timetabling. The shared one is what the payout
+        // ledger hears, and it is the only reason the instructor gets paid for this session.
+        verify(applicationEventPublisher).publishEvent(any(ClassSessionCompletedEvent.class));
+    }
+
+    /**
+     * The status-update route can drive an instance to COMPLETED without going through
+     * {@code endScheduledInstance}, and used to do so in silence. A session delivered that way earns
+     * the instructor exactly the same, so it has to announce itself too.
+     */
+    @Test
+    void updatingStatusToCompletedAnnouncesTheDeliveredSession() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.ONGOING);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        timetableService.updateScheduledInstanceStatus(instanceUuid, "COMPLETED");
+
+        verify(applicationEventPublisher).publishEvent(any(ClassSessionCompletedEvent.class));
+    }
+
+    @Test
+    void reassertingCompletedStatusDoesNotAnnounceTheSessionAgain() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.COMPLETED);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        timetableService.updateScheduledInstanceStatus(instanceUuid, "COMPLETED");
+
+        verify(applicationEventPublisher, never()).publishEvent(any(ClassSessionCompletedEvent.class));
     }
 
     @Test

@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.shared.event.timetabling.ClassSessionCompletedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
@@ -192,15 +193,39 @@ public class TimetableServiceImpl implements TimetableService {
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
 
+        SchedulingStatus previousStatus = entity.getStatus();
         try {
             SchedulingStatus status = SchedulingStatus.fromValue(newStatus);
             entity.setStatus(status);
-            scheduledInstanceRepository.save(entity);
-            
+            ScheduledInstance saved = scheduledInstanceRepository.save(entity);
+
+            // This route can drive an instance straight to COMPLETED without going through
+            // endScheduledInstance, and used to do so silently. A session delivered this way earns
+            // the instructor the same as any other, so it has to announce itself too — guarded on
+            // the transition so re-asserting COMPLETED does not republish.
+            if (SchedulingStatus.COMPLETED.equals(status) && !SchedulingStatus.COMPLETED.equals(previousStatus)) {
+                publishSessionCompleted(saved, currentUtcTime());
+            }
+
             log.debug("Updated status of scheduled instance: {} to: {}", instanceUuid, newStatus);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid scheduling status: " + newStatus);
         }
+    }
+
+    /**
+     * Announces a delivered session on the shared channel, where modules outside timetabling — the
+     * payout ledger in particular — can hear it. Every path that lands an instance on
+     * {@code COMPLETED} goes through here, because an obligation that depends on which button was
+     * pressed is not an obligation.
+     */
+    private void publishSessionCompleted(ScheduledInstance instance, LocalDateTime completedAt) {
+        eventPublisher.publishEvent(new ClassSessionCompletedEvent(
+                instance.getUuid(),
+                instance.getClassDefinitionUuid(),
+                instance.getInstructorUuid(),
+                completedAt == null ? currentUtcTime() : completedAt
+        ));
     }
 
     @Override
@@ -323,6 +348,7 @@ public class TimetableServiceImpl implements TimetableService {
                 savedEntity.getEndTime(),
                 savedEntity.getConcludedAt()
         ));
+        publishSessionCompleted(savedEntity, savedEntity.getConcludedAt());
 
         log.debug("Ended scheduled instance: {}", instanceUuid);
         return ScheduledInstanceFactory.toDTO(savedEntity);

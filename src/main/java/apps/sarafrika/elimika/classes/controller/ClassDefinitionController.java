@@ -39,6 +39,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -403,10 +404,13 @@ public class ClassDefinitionController {
     }
 
     @Operation(summary = "Get what an organisation owes each instructor",
-            description = "Payables per instructor = sum(per-class training_fee x completed sessions) across the " +
-                    "organisation's classes assigned to that instructor.")
+            description = "Aggregated from the instructor obligation ledger: one row was written per delivered "
+                    + "session at the training fee that stood on the day, so re-rating a class does not change "
+                    + "what has already been earned. Settled sessions move from amount_owed to amount_settled. "
+                    + "Use /api/v1/organisations/{organisationUuid}/instructor-obligations for the row-level detail.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor payables retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}/instructor-payables")
+    @PreAuthorize("@organisationSecurityService.canReadOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO>>> getInstructorPayablesForOrganisation(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid) {

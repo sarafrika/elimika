@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionDeactivatedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDTO;
 import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
+import apps.sarafrika.elimika.shared.event.timetabling.ClassSessionCompletedEvent;
 import apps.sarafrika.elimika.timetabling.dto.ClassScheduledEventDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.StudentEnrolledEventDTO;
@@ -281,6 +282,15 @@ public class SchedulingEventListener {
                     now
             );
             eventPublisher.publishEvent(completedEvent);
+            // The same fact restated in shared, where modules outside timetabling can hear it. A
+            // session that lapses into COMPLETED because its end time passed was still delivered, so
+            // it must earn the instructor exactly what an explicitly ended one does.
+            eventPublisher.publishEvent(new ClassSessionCompletedEvent(
+                    instance.getUuid(),
+                    instance.getClassDefinitionUuid(),
+                    instance.getInstructorUuid(),
+                    now
+            ));
         });
         
         if (!shouldBeOngoing.isEmpty() || !shouldBeCompleted.isEmpty()) {

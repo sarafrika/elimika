@@ -22,6 +22,17 @@ public interface ClassDefinitionLookupService {
      */
     Optional<UUID> findDefaultInstructorUuid(UUID classDefinitionUuid);
 
+    /**
+     * Resolves the organisation that owns a class definition.
+     * <p>
+     * Needed by the module that records what an organisation owes an instructor: the obligation is
+     * caused by a session, but the debtor is the organisation behind the class.
+     *
+     * @param classDefinitionUuid the class definition UUID
+     * @return the owning organisation UUID, or empty when the class is missing or is not org-owned
+     */
+    Optional<UUID> findOrganisationUuid(UUID classDefinitionUuid);
+
     List<UUID> findClassDefinitionUuidsByInstructorUuid(UUID instructorUuid);
 
     List<UUID> findClassDefinitionUuidsByOrganisationUuid(UUID organisationUuid);

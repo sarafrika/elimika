@@ -81,6 +81,9 @@ class ClassDefinitionServiceImplTest {
     private ObjectProvider<ClassScheduleService> classScheduleServiceProvider;
 
     @Mock
+    private apps.sarafrika.elimika.shared.spi.payout.InstructorPayableLookupService instructorPayableLookupService;
+
+    @Mock
     private TimetableService timetableService;
 
     @Mock
@@ -123,6 +126,7 @@ class ClassDefinitionServiceImplTest {
                 courseTrainingApprovalSpi,
                 timetableServiceProvider,
                 classScheduleServiceProvider,
+                instructorPayableLookupService,
                 mediaStorageService,
                 mediaValidationService,
                 storageProperties
