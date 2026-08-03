@@ -312,11 +312,8 @@ class UserController {
             description = "Paginated list of users matching the search criteria")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
             description = "Caller is not a platform administrator")
-    // DEPLOY ORDER: the guard is withheld until the frontend release that stops calling this
-    // route is live. `main` deploys on push, so landing @PreAuthorize(PLATFORM_ADMIN) here first
-    // would 403 the five roster screens. Re-apply with the two @Disabled tests in
-    // UserControllerTest once the directory endpoint and its client are deployed.
     @GetMapping("search")
+    @PreAuthorize(PLATFORM_ADMIN)
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> search(
             @Parameter(
                     description = "Optional search parameters for filtering",

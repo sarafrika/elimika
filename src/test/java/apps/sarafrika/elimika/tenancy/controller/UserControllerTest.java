@@ -10,7 +10,6 @@ import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -145,7 +144,6 @@ class UserControllerTest {
     // ================================
 
     @Test
-    @Disabled("Re-enable with @PreAuthorize(PLATFORM_ADMIN) on UserController.search — withheld until the directory endpoint and its client are deployed.")
     @DisplayName("search refuses a caller who is not a platform admin")
     void searchRefusesNonPlatformAdmin() throws Exception {
         when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
@@ -159,7 +157,6 @@ class UserControllerTest {
     }
 
     @Test
-    @Disabled("Re-enable with @PreAuthorize(PLATFORM_ADMIN) on UserController.search — withheld until the directory endpoint and its client are deployed.")
     @DisplayName("search refuses an unauthenticated caller")
     void searchRefusesUnauthenticatedCaller() throws Exception {
         mockMvc.perform(get("/api/v1/users/search").param("email_eq", "jane.doe@example.com"))
