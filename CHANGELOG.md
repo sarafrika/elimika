@@ -1,3 +1,10 @@
+# [2.121.0](https://github.com/sarafrika/elimika/compare/v2.120.1...v2.121.0) (2026-08-04)
+
+
+### Features
+
+* **wallet:** add a double-entry ledger dual-written alongside wallet balances ([052b697](https://github.com/sarafrika/elimika/commit/052b697e8f99ecb43f4ce47b636b3c5b842915f7))
+
 ## [2.120.1](https://github.com/sarafrika/elimika/compare/v2.120.0...v2.120.1) (2026-08-04)
 
 
