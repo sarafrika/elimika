@@ -1,3 +1,10 @@
+## [2.120.1](https://github.com/sarafrika/elimika/compare/v2.120.0...v2.120.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **commerce:** charge the platform fee before splitting revenue and record what the platform retains ([97791a6](https://github.com/sarafrika/elimika/commit/97791a6578c0dbdaad8243f74d67370ec4970d25))
+
 # [2.120.0](https://github.com/sarafrika/elimika/compare/v2.119.1...v2.120.0) (2026-08-03)
 
 
