@@ -51,7 +51,13 @@ jobs:
             # checks out the repo, so docker/compose.yaml in git cannot reach the server - the limit
             # has to be written here. Uses the auto-discovered override name so the bare
             # `docker compose` calls below pick it up without changing how they resolve files.
-            BASE=$(ls compose.yaml compose.yml docker-compose.yaml docker-compose.yml 2>/dev/null | head -1)
+            # Deliberately a loop, not `ls a b c | head -1`: ls exits non-zero when ANY named file is
+            # missing, and under `set -euo pipefail` (top of this script) pipefail propagates that
+            # through head, killing the deploy silently even when a compose file is present.
+            BASE=""
+            for candidate in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
+              if [ -f "$candidate" ]; then BASE="$candidate"; break; fi
+            done
             if [ -z "$BASE" ]; then
               echo "❌ No compose file found in $(pwd)"; exit 1
             fi
