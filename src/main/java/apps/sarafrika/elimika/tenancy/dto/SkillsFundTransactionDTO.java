@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.tenancy.util.enums.SkillsFundTransactionStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -21,21 +22,33 @@ public record SkillsFundTransactionDTO(
         @JsonProperty("description")
         String description,
 
-        @Schema(description = "Recipient / target of the movement.", nullable = true)
+        @Schema(description = "Display label for the recipient. Not an identity — never resolve money against this.",
+                nullable = true)
         @JsonProperty("target_name")
         String targetName,
+
+        @Schema(description = "The platform user this movement is for. Null on rows recorded before beneficiaries "
+                + "were identifiable, and on movements with no individual recipient.", nullable = true)
+        @JsonProperty("beneficiary_user_uuid")
+        UUID beneficiaryUserUuid,
 
         @Schema(description = "Amount.")
         @JsonProperty("amount")
         BigDecimal amount,
 
+        @Schema(description = "ISO-4217 currency the amount is denominated in, e.g. KES.")
+        @JsonProperty("currency_code")
+        String currencyCode,
+
         @Schema(description = "Type: Allocation, Disbursement, Adjustment.")
         @JsonProperty("transaction_type")
         String transactionType,
 
-        @Schema(description = "Status: Pending, Allocated, Approved, Completed.")
+        @Schema(description = "PENDING (requested), ALLOCATED (earmarked), APPROVED (signed off), "
+                + "DISBURSED (money left the fund). The legacy value 'Completed' is accepted on write and "
+                + "stored as DISBURSED.")
         @JsonProperty("status")
-        String status,
+        SkillsFundTransactionStatus status,
 
         @Schema(nullable = true)
         @JsonProperty("transaction_date")

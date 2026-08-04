@@ -18,6 +18,15 @@ public record CreateSkillsFundSourceRequestDTO(
         String sourceType,
 
         @JsonProperty("amount")
-        BigDecimal amount
+        BigDecimal amount,
+
+        /**
+         * Optional only for backwards compatibility with callers written before the fund had a
+         * currency; omitting it falls back to the platform default rather than storing an amount
+         * that means nothing on its own.
+         */
+        @Schema(description = "ISO-4217 currency the amount is denominated in. Defaults to the platform currency (KES).")
+        @JsonProperty("currency_code")
+        String currencyCode
 ) {
 }

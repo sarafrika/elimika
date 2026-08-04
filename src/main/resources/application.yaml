@@ -122,6 +122,17 @@ commerce:
     # capture is driven only by confirmed M-Pesa payments (COMMERCE_CAPTURE_AUTO_ON_COMPLETE=false).
     auto-on-complete: ${COMMERCE_CAPTURE_AUTO_ON_COMPLETE:true}
 
+wallet:
+  ledger:
+    reconciliation:
+      # Compares every wallet's balance_amount against the balance derived from its ledger entries.
+      # The sweep is bounded: batch-size wallets per query, at most max-batches-per-run batches per
+      # run, so a large wallet table is walked in slices rather than in one long transaction.
+      initial-delay: ${WALLET_LEDGER_RECONCILIATION_INITIAL_DELAY:PT5M}
+      interval: ${WALLET_LEDGER_RECONCILIATION_INTERVAL:PT1H}
+      batch-size: ${WALLET_LEDGER_RECONCILIATION_BATCH_SIZE:500}
+      max-batches-per-run: ${WALLET_LEDGER_RECONCILIATION_MAX_BATCHES:20}
+
 mpesa:
   service:
     base-url: ${MPESA_SERVICE_BASE_URL:}

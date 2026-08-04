@@ -74,6 +74,10 @@ dependencyManagement {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Every Testcontainers slice keeps its Spring context cached for the whole run, and the suite
+	// now holds enough of them that Gradle's 512m default is exhausted mid-run - the symptom is an
+	// OutOfMemoryError while parsing ElimikaApplication in whichever context happens to load last.
+	maxHeapSize = '2g'
 }
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ["-Xlint:unchecked", "-Xlint:deprecation"]

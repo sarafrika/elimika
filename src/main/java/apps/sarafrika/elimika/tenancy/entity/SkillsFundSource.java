@@ -8,19 +8,21 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
  * A funding source contributing to an organisation's skills fund.
+ * <p>
+ * Removal is soft. A source is an input to a published balance — {@code remaining} is
+ * {@code sum(sources) - sum(disbursed)} — so erasing one rewrites a number the organisation has
+ * already seen and acted on, with nothing left to explain the change.
  */
 @Entity
 @Table(name = "skills_fund_sources")
 @Getter
 @Setter
-@SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
 public class SkillsFundSource extends BaseEntity {
@@ -36,4 +38,11 @@ public class SkillsFundSource extends BaseEntity {
 
     @Column(name = "amount")
     private BigDecimal amount;
+
+    /** ISO-4217 code the {@link #amount} is denominated in. */
+    @Column(name = "currency_code")
+    private String currencyCode;
+
+    @Column(name = "deleted")
+    private boolean deleted = false;
 }

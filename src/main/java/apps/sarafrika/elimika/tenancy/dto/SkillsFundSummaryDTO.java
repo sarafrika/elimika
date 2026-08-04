@@ -12,11 +12,12 @@ public record SkillsFundSummaryDTO(
         @JsonProperty("total_balance")
         BigDecimal totalBalance,
 
-        @Schema(description = "Amount allocated (approved/allocated transactions).")
+        @Schema(description = "Amount committed against the fund — allocated, approved or already disbursed. "
+                + "Cumulative: money that has gone out was committed first, so it is counted here too.")
         @JsonProperty("allocated")
         BigDecimal allocated,
 
-        @Schema(description = "Amount disbursed (completed transactions).")
+        @Schema(description = "Amount that has actually left the fund (DISBURSED movements).")
         @JsonProperty("disbursed")
         BigDecimal disbursed,
 
@@ -26,6 +27,11 @@ public record SkillsFundSummaryDTO(
 
         @Schema(description = "Remaining = total balance − disbursed.")
         @JsonProperty("remaining")
-        BigDecimal remaining
+        BigDecimal remaining,
+
+        @Schema(description = "ISO-4217 currency every figure above is denominated in. A fund holds exactly "
+                + "one currency; these totals are meaningless without it.")
+        @JsonProperty("currency_code")
+        String currencyCode
 ) {
 }

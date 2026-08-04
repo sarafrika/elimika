@@ -10,6 +10,8 @@ import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
+import apps.sarafrika.elimika.wallet.ledger.LedgerPostingRequest;
+import apps.sarafrika.elimika.wallet.ledger.LedgerService;
 import apps.sarafrika.elimika.wallet.repository.UserWalletRepository;
 import apps.sarafrika.elimika.wallet.repository.UserWalletTransactionRepository;
 import java.math.BigDecimal;
@@ -30,6 +32,8 @@ class WalletServiceImplIdempotencyTest {
     private UserWalletTransactionRepository transactionRepository;
     @Mock
     private CurrencyService currencyService;
+    @Mock
+    private LedgerService ledgerService;
 
     @InjectMocks
     private WalletServiceImpl walletService;
@@ -68,5 +72,8 @@ class WalletServiceImplIdempotencyTest {
         assertThat(credited).isFalse();
         verify(transactionRepository, never()).save(any(UserWalletTransaction.class));
         verify(userWalletRepository, never()).save(any(UserWallet.class));
+        // A skipped credit must not reach the ledger either, or the ledger would drift ahead of
+        // the wallet on every duplicate delivery.
+        verify(ledgerService, never()).post(any(LedgerPostingRequest.class));
     }
 }

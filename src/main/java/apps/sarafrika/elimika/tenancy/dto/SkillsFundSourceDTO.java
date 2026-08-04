@@ -29,6 +29,10 @@ public record SkillsFundSourceDTO(
         @JsonProperty("amount")
         BigDecimal amount,
 
+        @Schema(description = "ISO-4217 currency the amount is denominated in, e.g. KES.")
+        @JsonProperty("currency_code")
+        String currencyCode,
+
         @Schema(accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate
