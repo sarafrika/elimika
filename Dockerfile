@@ -60,5 +60,30 @@ EXPOSE 8080
 LABEL version="0.0.1"
 LABEL maintainer="Wilfred Njuguna"
 
-# Run the Spring Boot application with optimized JVM options
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Duser.timezone=UTC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+# Run the Spring Boot application.
+#
+# Heap is expressed as a percentage of the CONTAINER limit, not a fixed -Xmx, so the same image is
+# correct on any node — but that only works if the container actually has a limit. Without one the
+# JVM sizes itself against the whole host and every container competes for the same pool with the
+# kernel OOM killer as the only arbiter. The limit lives in docker/compose.yaml; keep the two together.
+#
+# 70% rather than the often-quoted 75%: the remainder is not spare, it is metaspace, thread stacks
+# (~1MB each), code cache, direct buffers and GC structures, none of which are bounded by heap flags.
+# This app carries ~18 Spring Modulith modules, so metaspace runs large — hence the explicit cap,
+# which turns a slow unbounded leak into a fast, legible failure.
+#
+# G1 is selected explicitly, NOT because it is the JDK 21 default. The default only applies on a
+# "server class" machine, which requires >=1792MB visible memory — below that the JVM silently picks
+# SerialGC, and our 1536m limit is below it. Verified: at --memory=1536m the JVM reports
+# UseSerialGC=true, at 1792m it reports UseG1GC=true. Naming G1 makes the collector independent of
+# the limit, so lowering the limit later cannot quietly downgrade it.
+#
+# Deliberately absent: -XX:+UseContainerSupport (default since JDK 10) and -Djava.security.egd
+# (a workaround for a blocking /dev/random that modern JDKs on Linux no longer need).
+ENTRYPOINT ["java", \
+  "-XX:MaxRAMPercentage=70.0", \
+  "-XX:MaxMetaspaceSize=256m", \
+  "-XX:+UseG1GC", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-Duser.timezone=UTC", \
+  "-jar", "app.jar"]

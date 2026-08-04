@@ -12,6 +12,16 @@ services:
   elimika:
     image: sarafrika/elimika:latest
     restart: unless-stopped
+    # The JVM sizes its heap as a percentage of this limit (see the ENTRYPOINT in ../Dockerfile).
+    # Without a limit it would size against the whole host, so these two settings only make sense
+    # together — changing one without the other silently breaks the sizing.
+    #
+    # 1.5g against ~690MiB observed steady-state gives room for load and for metaspace to settle,
+    # while leaving the rest of the 5.8GiB host to Keycloak, Postgres and the other services, which
+    # are managed outside this file and are still unlimited. Revisit from load testing, not from
+    # idle usage, before this is treated as a production figure.
+    mem_limit: 1536m
+    mem_reservation: 768m
     env_file:
       - .env
     environment:
