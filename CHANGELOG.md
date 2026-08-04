@@ -1,3 +1,10 @@
+## [2.121.1](https://github.com/sarafrika/elimika/compare/v2.121.0...v2.121.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **deploy:** stop compose file detection aborting the deploy under pipefail ([ea1f7a6](https://github.com/sarafrika/elimika/commit/ea1f7a6a6e5e720c243ef667808b162cbf437154))
+
 # [2.121.0](https://github.com/sarafrika/elimika/compare/v2.120.1...v2.121.0) (2026-08-04)
 
 
