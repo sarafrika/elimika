@@ -8,7 +8,10 @@ import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseSettlementRecorder;
+import apps.sarafrika.elimika.shared.utils.commerce.PlatformFeeApportionment;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -37,6 +40,21 @@ import org.springframework.util.StringUtils;
  * </ul>
  * A line item with no configured revenue share, or a zero share on the earning side, credits
  * nobody.
+ *
+ * <h2>The platform fee comes off the top</h2>
+ * The platform fee is charged before any revenue share is applied, so an earner is credited a share
+ * of the <em>net</em>. The fee is computed once on the whole order but crediting is per line, so it
+ * is first apportioned across the lines by {@link PlatformFeeApportionment} - to the cent, summing
+ * exactly to the fee, with no line able to leak or invent money.
+ *
+ * <h2>The unallocated remainder is booked, not lost</h2>
+ * A course splits revenue between its creator and its instructor, but only one of them is credited
+ * per purchase scope; the other side's percentage is credited to nobody. That gap used to be
+ * discoverable only by subtraction. Every settled line now reports gross, fee, credited and retained
+ * back to commerce through {@link PurchaseSettlementRecorder}, so the money the platform kept is a
+ * figure someone can read. This deliberately does <em>not</em> change who is credited - it only makes
+ * the gap measurable, pending the double-entry ledger where it will eventually be booked to
+ * {@code PLATFORM_UNALLOCATED_REVENUE}.
  *
  * <h2>Durability</h2>
  * Money owed to a real person must not vanish into a log line, so this listener is a persistent
@@ -68,11 +86,14 @@ public class OrderCaptureWalletCreditListener {
 
     private static final String STATUS_CAPTURED = "CAPTURED";
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    private static final BigDecimal NO_MONEY =
+            BigDecimal.ZERO.setScale(PlatformFeeApportionment.MONEY_SCALE);
 
     private final WalletService walletService;
     private final CourseInfoService courseInfoService;
     private final InstructorLookupService instructorLookupService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
+    private final PurchaseSettlementRecorder purchaseSettlementRecorder;
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -89,15 +110,21 @@ public class OrderCaptureWalletCreditListener {
             return;
         }
 
+        // The order-level platform fee is split across the lines once, up front, so that every line
+        // is netted against its own share of the same fee and the shares sum back to it exactly.
+        List<CartItemResponse> items = order.getItems();
+        List<BigDecimal> apportionedFees = PlatformFeeApportionment.apportionAcrossItems(order);
+
         // Every item is attempted even when an earlier one fails, so one broken line item cannot
         // starve the other earners on the same order. Failures are collected and rethrown at the
         // end so the event publication is left incomplete and the whole order is retried; the
         // items that already succeeded are skipped on the retry by the idempotent credit.
         List<String> failedItems = new ArrayList<>();
         Exception firstFailure = null;
-        for (CartItemResponse item : order.getItems()) {
+        for (int index = 0; index < items.size(); index++) {
+            CartItemResponse item = items.get(index);
             try {
-                creditItem(order, item);
+                creditItem(order, item, apportionedFees.get(index));
             } catch (Exception ex) {
                 log.error("Failed to credit wallet for order {} item {}: {}",
                         order.getId(), item.getId(), ex.getMessage(), ex);
@@ -117,11 +144,20 @@ public class OrderCaptureWalletCreditListener {
         }
     }
 
-    private void creditItem(OrderResponse order, CartItemResponse item) {
-        BigDecimal total = item.getTotal();
-        if (total == null || total.signum() <= 0) {
+    private void creditItem(OrderResponse order, CartItemResponse item, BigDecimal apportionedFee) {
+        BigDecimal gross = item.getTotal();
+        if (gross == null || gross.signum() <= 0) {
+            // No money was collected on this line, so there is nothing to charge, credit or retain.
             return;
         }
+
+        // The fee is taken off the top; the revenue share only ever applies to what is left. The
+        // apportionment already caps at the line total, but a fee can never exceed its own line.
+        BigDecimal platformFee = apportionedFee == null ? NO_MONEY : apportionedFee;
+        if (platformFee.compareTo(gross) > 0) {
+            platformFee = gross;
+        }
+        BigDecimal net = gross.subtract(platformFee);
 
         Map<String, Object> metadata = item.getMetadata();
         UUID courseUuid = parseUuid(metadata, "course_uuid");
@@ -130,14 +166,17 @@ public class OrderCaptureWalletCreditListener {
         if (scope == null) {
             log.debug("Skipping wallet credit for order {} item {}: no course/class scope",
                     order.getId(), item.getId());
+            // Still settled: nobody is credited, so everything after the fee is retained.
+            recordSettlement(order, item, gross, platformFee, NO_MONEY);
             return;
         }
 
         Earning earning = switch (scope) {
-            case CLASS -> resolveClassEarning(classDefinitionUuid, total);
-            case COURSE -> resolveCourseEarning(courseUuid, total);
+            case CLASS -> resolveClassEarning(classDefinitionUuid, net);
+            case COURSE -> resolveCourseEarning(courseUuid, net);
         };
         if (earning == null) {
+            recordSettlement(order, item, gross, platformFee, NO_MONEY);
             return;
         }
 
@@ -149,15 +188,40 @@ public class OrderCaptureWalletCreditListener {
                 reference,
                 earning.description());
         if (credited) {
-            log.info("Credited {} {} to user {} for {} sale on order {} (item {})",
+            log.info("Credited {} {} to user {} for {} sale on order {} (item {}); gross {}, platform fee {}",
                     earning.amount(), order.getCurrencyCode(), earning.userUuid(),
-                    scope, order.getId(), item.getId());
+                    scope, order.getId(), item.getId(), gross, platformFee);
         } else {
             log.debug("Wallet credit already applied for reference {}", reference);
         }
+
+        recordSettlement(order, item, gross, platformFee, earning.amount());
     }
 
-    private Earning resolveCourseEarning(UUID courseUuid, BigDecimal total) {
+    /**
+     * Books what became of this line's money. The retained amount is whatever is left once the fee
+     * has been taken and the earner paid - on a 70/20 course sold as a course, that is the
+     * instructor's 10% that nobody was credited. It is derived by subtraction here so it can never
+     * disagree with the other three figures.
+     */
+    private void recordSettlement(
+            OrderResponse order,
+            CartItemResponse item,
+            BigDecimal gross,
+            BigDecimal platformFee,
+            BigDecimal creditedAmount
+    ) {
+        BigDecimal retained = gross.subtract(platformFee).subtract(creditedAmount);
+        purchaseSettlementRecorder.recordLineSettlement(new PurchaseLineSettlement(
+                order.getId(),
+                item.getId(),
+                gross,
+                platformFee,
+                creditedAmount,
+                retained));
+    }
+
+    private Earning resolveCourseEarning(UUID courseUuid, BigDecimal netOfPlatformFee) {
         Optional<UUID> creatorUserUuid = courseInfoService.getCourseCreatorUserUuid(courseUuid);
         if (creatorUserUuid.isEmpty()) {
             log.warn("No course creator user resolved for course {}", courseUuid);
@@ -166,7 +230,7 @@ public class OrderCaptureWalletCreditListener {
         BigDecimal share = courseInfoService.getRevenueShare(courseUuid)
                 .map(RevenueShare::creatorSharePercentage)
                 .orElse(null);
-        BigDecimal amount = applyShare(total, share);
+        BigDecimal amount = applyShare(netOfPlatformFee, share);
         if (amount == null) {
             return null;
         }
@@ -174,7 +238,7 @@ public class OrderCaptureWalletCreditListener {
                 "Course sale earnings (course " + courseUuid + ")");
     }
 
-    private Earning resolveClassEarning(UUID classDefinitionUuid, BigDecimal total) {
+    private Earning resolveClassEarning(UUID classDefinitionUuid, BigDecimal netOfPlatformFee) {
         Optional<ClassDefinitionSnapshot> snapshot =
                 classDefinitionLookupService.findByUuid(classDefinitionUuid);
         if (snapshot.isEmpty() || snapshot.get().courseUuid() == null) {
@@ -199,7 +263,7 @@ public class OrderCaptureWalletCreditListener {
         BigDecimal share = courseInfoService.getRevenueShare(courseUuid)
                 .map(RevenueShare::instructorSharePercentage)
                 .orElse(null);
-        BigDecimal amount = applyShare(total, share);
+        BigDecimal amount = applyShare(netOfPlatformFee, share);
         if (amount == null) {
             return null;
         }
@@ -207,12 +271,19 @@ public class OrderCaptureWalletCreditListener {
                 "Class sale earnings (class " + classDefinitionUuid + ")");
     }
 
-    private BigDecimal applyShare(BigDecimal total, BigDecimal sharePercentage) {
+    /**
+     * Applies a revenue share to the line total <em>net of the platform fee</em>. Returns null when
+     * nothing is earned, which the caller books as retained rather than credited.
+     */
+    private BigDecimal applyShare(BigDecimal netOfPlatformFee, BigDecimal sharePercentage) {
         if (sharePercentage == null || sharePercentage.signum() <= 0) {
             return null;
         }
-        BigDecimal amount = total.multiply(sharePercentage)
-                .divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        if (netOfPlatformFee.signum() <= 0) {
+            return null;
+        }
+        BigDecimal amount = netOfPlatformFee.multiply(sharePercentage)
+                .divide(HUNDRED, PlatformFeeApportionment.MONEY_SCALE, RoundingMode.HALF_UP);
         return amount.signum() > 0 ? amount : null;
     }
 

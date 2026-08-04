@@ -6,7 +6,12 @@
  * <strong>Marketplace earnings.</strong> When a commerce order is captured the module reacts to
  * {@code OrderCompletedEvent}, resolves the earning party and their revenue share per purchased item,
  * and applies idempotent wallet credits. The platform took the buyer's money, so it settles this
- * itself.
+ * itself. The platform fee comes off the top first - apportioned across the order's lines by
+ * {@code shared.utils.commerce.PlatformFeeApportionment}, which both this module and {@code commerce}
+ * use so the two can never disagree - and the share is applied to the net. What is left over once
+ * the fee is taken and the earner paid is credited to nobody, so each line is stamped back onto the
+ * purchase record through {@code shared.spi.revenue.PurchaseSettlementRecorder} as gross, fee,
+ * credited and retained. That is a measurement, not a policy: who gets credited is unchanged.
  * <p>
  * <strong>Instructor obligations.</strong> When a class session is delivered the module reacts to
  * {@code ClassSessionCompletedEvent} and writes one {@code instructor_obligations} row per session,

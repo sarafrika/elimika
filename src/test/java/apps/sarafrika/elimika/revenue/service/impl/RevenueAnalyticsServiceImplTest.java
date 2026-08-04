@@ -83,7 +83,13 @@ class RevenueAnalyticsServiceImplTest {
     @InjectMocks
     private RevenueAnalyticsServiceImpl service;
 
+    /** A line settled before per-line settlement existed: no recorded fee, no recorded credit. */
     private static CommerceRevenueLineItem line(PurchaseScope scope, String total) {
+        return line(scope, total, null, null);
+    }
+
+    private static CommerceRevenueLineItem line(
+            PurchaseScope scope, String total, String platformFee, String credited) {
         return new CommerceRevenueLineItem(
                 "order-1",
                 OffsetDateTime.of(2026, 1, 15, 10, 0, 0, 0, ZoneOffset.UTC),
@@ -92,7 +98,9 @@ class RevenueAnalyticsServiceImplTest {
                 1,
                 scope,
                 COURSE_UUID,
-                scope == PurchaseScope.CLASS ? CLASS_UUID : null);
+                scope == PurchaseScope.CLASS ? CLASS_UUID : null,
+                platformFee == null ? null : new BigDecimal(platformFee),
+                credited == null ? null : new BigDecimal(credited));
     }
 
     private static BigDecimal earnings(RevenueDashboardDTO dashboard) {
@@ -271,6 +279,100 @@ class RevenueAnalyticsServiceImplTest {
             RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.instructor, START, END);
 
             assertThat(earnings(dashboard)).isEqualByComparingTo(BigDecimal.ZERO);
+        }
+    }
+
+    @Nested
+    @DisplayName("net of the platform fee")
+    class NetOfPlatformFee {
+
+        @Test
+        @DisplayName("the creator's earnings are a share of net, matching what the wallet was credited")
+        void creatorEarningsAreNetOfThePlatformFee() {
+            // Exactly the case OrderCaptureWalletCreditListener credits: a 1000.00 line, a 10.00
+            // apportioned fee off the top, 70% of the remaining 990.00 = 693.00 into the wallet.
+            stubCreatorLines(
+                    List.of(line(PurchaseScope.COURSE, "1000.00", "10.00", null)),
+                    Map.of(COURSE_UUID, new RevenueShare(new BigDecimal("70"), new BigDecimal("20"))));
+
+            RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.course_creator, START, END);
+
+            // Reporting 700.00 here would over-report by exactly the creator's share of the fee.
+            assertThat(earnings(dashboard)).isEqualByComparingTo(new BigDecimal("693.00"));
+            // Gross turnover is unaffected: the buyer still paid 1000.00.
+            assertThat(dashboard.grossTotals())
+                    .extracting(RevenueAmountDTO::amount)
+                    .containsExactly(new BigDecimal("1000.00"));
+        }
+
+        @Test
+        @DisplayName("the instructor's earnings are a share of net too")
+        void instructorEarningsAreNetOfThePlatformFee() {
+            stubInstructorLines(
+                    List.of(line(PurchaseScope.CLASS, "1000.00", "10.00", null)),
+                    Map.of(COURSE_UUID, new RevenueShare(new BigDecimal("70"), new BigDecimal("20"))));
+
+            RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.instructor, START, END);
+
+            assertThat(earnings(dashboard)).isEqualByComparingTo(new BigDecimal("198.00"));
+        }
+
+        @Test
+        @DisplayName("a recorded credit is reported verbatim, not re-derived")
+        void aRecordedCreditIsReportedAsIs() {
+            // The wallet was credited 693.00 and the share has since been re-rated to 50/50. What
+            // the earner holds does not change because a percentage did, so the recorded figure wins
+            // over anything recomputed from today's split.
+            stubCreatorLines(
+                    List.of(line(PurchaseScope.COURSE, "1000.00", "10.00", "693.00")),
+                    Map.of(COURSE_UUID, new RevenueShare(new BigDecimal("50"), new BigDecimal("50"))));
+
+            RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.course_creator, START, END);
+
+            assertThat(earnings(dashboard)).isEqualByComparingTo(new BigDecimal("693.00"));
+        }
+
+        @Test
+        @DisplayName("a sale settled before the fee was charged still reports the gross share")
+        void historicalLinesWithoutARecordedFeeStillReportGrossShare() {
+            // No backfill: these wallets really were credited 700.00 on gross and were never clawed
+            // back. Netting a fee off them retrospectively would under-report real income.
+            stubCreatorLines(
+                    List.of(line(PurchaseScope.COURSE, "1000.00")),
+                    Map.of(COURSE_UUID, new RevenueShare(new BigDecimal("70"), new BigDecimal("20"))));
+
+            RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.course_creator, START, END);
+
+            assertThat(earnings(dashboard)).isEqualByComparingTo(new BigDecimal("700"));
+        }
+
+        @Test
+        @DisplayName("a fee that swallows the whole line earns nothing rather than a negative")
+        void aFeeCoveringTheWholeLineEarnsNothing() {
+            stubCreatorLines(
+                    List.of(line(PurchaseScope.COURSE, "20.00", "20.00", null)),
+                    Map.of(COURSE_UUID, new RevenueShare(new BigDecimal("70"), new BigDecimal("20"))));
+
+            RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.course_creator, START, END);
+
+            assertThat(earnings(dashboard)).isEqualByComparingTo(BigDecimal.ZERO);
+        }
+
+        @Test
+        @DisplayName("a buyer's spend is never netted down by the platform fee")
+        void spendIsStillGrossForNonEarners() {
+            UUID studentUuid = UUID.randomUUID();
+            when(domainSecurityService.hasAnyDomain(UserDomain.student)).thenReturn(true);
+            when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
+            when(studentLookupService.findStudentUuidByUserUuid(USER_UUID)).thenReturn(Optional.of(studentUuid));
+            when(revenueQueryService.findCapturedRevenueLinesByStudentUuids(any(), any(), anyList()))
+                    .thenReturn(List.of(line(PurchaseScope.CLASS, "1000.00", "10.00", "198.00")));
+
+            RevenueDashboardDTO dashboard = service.getRevenueDashboard(UserDomain.student, START, END);
+
+            // The student paid 1000.00. The fee is the platform's cut of the seller's side, not a
+            // discount on what the buyer spent.
+            assertThat(earnings(dashboard)).isEqualByComparingTo(new BigDecimal("1000.00"));
         }
     }
 

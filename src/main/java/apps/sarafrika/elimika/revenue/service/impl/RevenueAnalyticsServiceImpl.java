@@ -637,9 +637,9 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
      * dashboard can never report income the earner's wallet will not receive:
      * <ul>
      *     <li>{@link PurchaseScope#COURSE} &rarr; only the course creator is credited, at the
-     *     creator share of the line total.</li>
+     *     creator share of the line total <em>net of the platform fee</em>.</li>
      *     <li>{@link PurchaseScope#CLASS} &rarr; only the class' default instructor is credited, at
-     *     the instructor share of the line total. The creator earns nothing on a class sale.</li>
+     *     the instructor share of the net. The creator earns nothing on a class sale.</li>
      * </ul>
      * Non-earning domains (admin, student, parent, organisation) keep reporting the gross amount:
      * for them this figure is spend/turnover, not a wallet credit.
@@ -656,20 +656,43 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 if (item.scope() != PurchaseScope.COURSE) {
                     yield BigDecimal.ZERO;
                 }
-                yield applyShare(amount, revenueShares.get(item.courseUuid()), true);
+                yield earnerCredit(item, revenueShares.get(item.courseUuid()), true);
             }
             case instructor -> {
                 if (item.scope() != PurchaseScope.CLASS) {
                     yield BigDecimal.ZERO;
                 }
-                yield applyShare(amount, revenueShares.get(item.courseUuid()), false);
+                yield earnerCredit(item, revenueShares.get(item.courseUuid()), false);
             }
             default -> amount;
         };
     }
 
     /**
-     * Applies a configured revenue share to a line total.
+     * What the earner's wallet holds for this line.
+     * <p>
+     * Where payout has recorded the credit it applied, that figure is reported verbatim - it is not
+     * an estimate, it is what the wallet received, and nothing derived can be more accurate than it.
+     * Otherwise the credit is reconstructed the way the listener would compute it: the share of the
+     * line total <em>after</em> the platform fee has been taken off the top.
+     * <p>
+     * A null recorded fee means the line was settled before the fee was charged - those wallets were
+     * genuinely credited on gross and were never clawed back - so it nets off zero and reports what
+     * that earner actually got. Inventing a fee for those rows would under-report real income.
+     */
+    private BigDecimal earnerCredit(CommerceRevenueLineItem item, RevenueShare share, boolean creatorShare) {
+        if (item.creditedAmount() != null) {
+            return item.creditedAmount();
+        }
+        BigDecimal net = safeAmount(item.itemTotal()).subtract(safeAmount(item.itemPlatformFeeAmount()));
+        if (net.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return applyShare(net, share, creatorShare);
+    }
+
+    /**
+     * Applies a configured revenue share to a line total net of the platform fee.
      * <p>
      * A missing share (no split configured for the course, or a null percentage on that side of the
      * split) means "not configured", never "you get all of it": the crediting listener pays nothing

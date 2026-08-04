@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -27,6 +28,18 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
     long countByScopeAndCreatedDateAfter(PurchaseScope scope, LocalDateTime createdDate);
 
     @Query("""
+            select i
+            from CommercePurchaseItem i
+            join i.purchase p
+            where p.orderId = :orderId
+              and i.lineItemId = :lineItemId
+            """)
+    Optional<CommercePurchaseItem> findByOrderIdAndLineItemId(
+            @Param("orderId") String orderId,
+            @Param("lineItemId") String lineItemId
+    );
+
+    @Query("""
             select new apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem(
                 p.orderId,
                 p.orderCreatedAt,
@@ -35,7 +48,9 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 i.quantity,
                 i.scope,
                 i.courseUuid,
-                i.classDefinitionUuid
+                i.classDefinitionUuid,
+                i.platformFeeAmount,
+                i.creditedAmount
             )
             from CommercePurchaseItem i
             join i.purchase p
@@ -57,7 +72,9 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 i.quantity,
                 i.scope,
                 i.courseUuid,
-                i.classDefinitionUuid
+                i.classDefinitionUuid,
+                i.platformFeeAmount,
+                i.creditedAmount
             )
             from CommercePurchaseItem i
             join i.purchase p
@@ -81,7 +98,9 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 i.quantity,
                 i.scope,
                 i.courseUuid,
-                i.classDefinitionUuid
+                i.classDefinitionUuid,
+                i.platformFeeAmount,
+                i.creditedAmount
             )
             from CommercePurchaseItem i
             join i.purchase p
@@ -105,7 +124,9 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 i.quantity,
                 i.scope,
                 i.courseUuid,
-                i.classDefinitionUuid
+                i.classDefinitionUuid,
+                i.platformFeeAmount,
+                i.creditedAmount
             )
             from CommercePurchaseItem i
             join i.purchase p

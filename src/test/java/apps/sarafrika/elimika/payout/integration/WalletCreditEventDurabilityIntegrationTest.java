@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.revenue.PurchaseSettlementRecorder;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -142,6 +143,10 @@ class WalletCreditEventDurabilityIntegrationTest {
     private InstructorLookupService instructorLookupService;
     @MockitoBean
     private ClassDefinitionLookupService classDefinitionLookupService;
+    // commerce owns the purchase rows and is not on this slice's classpath; the seam is mocked so
+    // the durability behaviour under test is not entangled with the settlement write-back.
+    @MockitoBean
+    private PurchaseSettlementRecorder purchaseSettlementRecorder;
 
     private final UUID courseUuid = UUID.randomUUID();
     private final UUID creatorUserUuid = UUID.randomUUID();

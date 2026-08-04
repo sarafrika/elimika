@@ -61,6 +61,22 @@ public class CommercePurchaseItem extends BaseEntity {
     @Column(name = "scope")
     private PurchaseScope scope;
 
+    /**
+     * The order's platform fee apportioned to this line, taken off the top before the revenue share
+     * is applied. Null on lines whose money was never settled - historical rows and uncaptured
+     * orders - which is why the three settlement amounts are nullable and never backfilled.
+     */
+    @Column(name = "platform_fee_amount")
+    private BigDecimal platformFeeAmount;
+
+    /** What was credited to an earner's wallet for this line. Zero when nobody was credited. */
+    @Column(name = "credited_amount")
+    private BigDecimal creditedAmount;
+
+    /** Collected, not taken as platform fee, and credited to no earner. */
+    @Column(name = "retained_amount")
+    private BigDecimal retainedAmount;
+
     @Column(name = "metadata_json")
     private String metadataJson;
 }
