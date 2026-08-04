@@ -39,3 +39,15 @@ out/
 
 ### Claude Code ###
 CLAUDE.md
+
+### Secrets ###
+# docker/compose.yaml requires docker/.env, which holds the database and Keycloak
+# credentials. Nothing excluded it before, so a `git add -A` would have committed it.
+# The committed sample stays tracked as the template.
+.env
+.env.*
+!.env.sample
+!.env.example
+
+### Tooling artefacts ###
+.playwright-mcp/
