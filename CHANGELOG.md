@@ -1,3 +1,10 @@
+# [2.124.0](https://github.com/sarafrika/elimika/compare/v2.123.0...v2.124.0) (2026-08-07)
+
+
+### Features
+
+* **profiles:** store the searched place name alongside its coordinates ([98336c3](https://github.com/sarafrika/elimika/commit/98336c309f16ba37f7e9bcec08a5b2974ba092f4))
+
 # [2.123.0](https://github.com/sarafrika/elimika/compare/v2.122.0...v2.123.0) (2026-08-07)
 
 
