@@ -23,7 +23,8 @@ public class ClassDefinitionFactory {
                 entity.getOrganisationUuid(),
                 entity.getCourseUuid(),
                 entity.getProgramUuid(),
-                entity.getTrainingFee(),
+                entity.getSalePrice(),
+                entity.getInstructorPay(),
                 entity.getClassVisibility(),
                 entity.getSessionFormat(),
                 entity.getDefaultStartTime(),
@@ -66,7 +67,8 @@ public class ClassDefinitionFactory {
         entity.setCourseUuid(dto.courseUuid());
         entity.setProgramUuid(dto.programUuid());
         entity.setCategoryUuid(dto.categoryUuid());
-        entity.setTrainingFee(dto.trainingFee());
+        entity.setSalePrice(dto.salePrice());
+        entity.setInstructorPay(dto.instructorPay());
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
         entity.setDefaultStartTime(dto.defaultStartTime());
@@ -120,8 +122,11 @@ public class ClassDefinitionFactory {
             entity.setProgramUuid(dto.programUuid());
         entity.setCategoryUuid(dto.categoryUuid());
         }
-        if (dto.trainingFee() != null) {
-            entity.setTrainingFee(dto.trainingFee());
+        if (dto.salePrice() != null) {
+            entity.setSalePrice(dto.salePrice());
+        }
+        if (dto.instructorPay() != null) {
+            entity.setInstructorPay(dto.instructorPay());
         }
         if (dto.classVisibility() != null) {
             entity.setClassVisibility(dto.classVisibility());

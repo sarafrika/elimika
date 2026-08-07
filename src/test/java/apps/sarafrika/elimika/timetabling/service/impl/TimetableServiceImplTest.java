@@ -566,6 +566,7 @@ class TimetableServiceImplTest {
                         null,
                         null,
                         null,
+                        null,
                         20,
                         true,
                         null
@@ -600,6 +601,7 @@ class TimetableServiceImplTest {
                         UUID.randomUUID(),
                         null,
                         "Weekend Data Analysis Bootcamp",
+                        null,
                         null,
                         null,
                         null,

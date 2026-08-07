@@ -160,8 +160,8 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
     }
 
     private BigDecimal resolvePrice(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
-        if (snapshot.trainingFee() != null) {
-            return snapshot.trainingFee().setScale(4, RoundingMode.HALF_UP);
+        if (snapshot.salePrice() != null) {
+            return snapshot.salePrice().setScale(4, RoundingMode.HALF_UP);
         }
         return ZERO;
     }

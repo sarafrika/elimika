@@ -155,7 +155,8 @@ class ClassDefinitionControllerTest {
                 source.organisationUuid(),
                 source.courseUuid(),
                 source.programUuid(),
-                source.trainingFee(),
+                source.salePrice(),
+                source.instructorPay(),
                 source.classVisibility(),
                 source.sessionFormat(),
                 source.defaultStartTime(),
@@ -203,7 +204,7 @@ class ClassDefinitionControllerTest {
                         .param("description", request.description())
                         .param("default_instructor_uuid", request.defaultInstructorUuid().toString())
                         .param("organisation_uuid", request.organisationUuid().toString())
-                        .param("training_fee", request.trainingFee().toPlainString())
+                        .param("sale_price", request.salePrice().toPlainString())
                         .param("class_visibility", request.classVisibility().name())
                         .param("session_format", request.sessionFormat().name())
                         .param("default_start_time", request.defaultStartTime().toString())
@@ -267,7 +268,8 @@ class ClassDefinitionControllerTest {
                 responseDto.organisationUuid(),
                 responseDto.courseUuid(),
                 responseDto.programUuid(),
-                responseDto.trainingFee(),
+                responseDto.salePrice(),
+                responseDto.instructorPay(),
                 responseDto.classVisibility(),
                 responseDto.sessionFormat(),
                 responseDto.defaultStartTime(),
@@ -322,7 +324,8 @@ class ClassDefinitionControllerTest {
                 responseDto.organisationUuid(),
                 responseDto.courseUuid(),
                 responseDto.programUuid(),
-                responseDto.trainingFee(),
+                responseDto.salePrice(),
+                responseDto.instructorPay(),
                 responseDto.classVisibility(),
                 responseDto.sessionFormat(),
                 responseDto.defaultStartTime(),
@@ -580,6 +583,7 @@ class ClassDefinitionControllerTest {
                 courseUuid,
                 programUuid,
                 new BigDecimal("240.00"),
+                new BigDecimal("240.00"),
                 ClassVisibility.PUBLIC,
                 SessionFormat.GROUP,
                 LocalDateTime.of(2026, 5, 5, 9, 0),
@@ -628,7 +632,8 @@ class ClassDefinitionControllerTest {
                 source.organisationUuid(),
                 source.courseUuid(),
                 source.programUuid(),
-                source.trainingFee(),
+                source.salePrice(),
+                source.instructorPay(),
                 source.classVisibility(),
                 source.sessionFormat(),
                 source.defaultStartTime(),
@@ -661,7 +666,8 @@ class ClassDefinitionControllerTest {
                 source.organisationUuid(),
                 source.courseUuid(),
                 source.programUuid(),
-                source.trainingFee(),
+                source.salePrice(),
+                source.instructorPay(),
                 source.classVisibility(),
                 source.sessionFormat(),
                 source.defaultStartTime(),

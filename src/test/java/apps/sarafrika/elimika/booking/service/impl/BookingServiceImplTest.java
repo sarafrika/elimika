@@ -173,6 +173,7 @@ class BookingServiceImplTest {
                 courseUuid,
                 null,
                 null,
+                null,
                 ClassVisibility.PRIVATE,
                 SessionFormat.INDIVIDUAL,
                 start,

@@ -68,6 +68,7 @@ class CatalogueProvisioningServiceImplTest {
                         "Data Analytics Cohort",
                         "Program class",
                         new BigDecimal("2400.00"),
+                        new BigDecimal("1800.00"),
                         ClassVisibility.PUBLIC,
                         null,
                         30,

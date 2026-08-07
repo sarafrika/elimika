@@ -497,6 +497,7 @@ class CourseGradeBookServiceImplTest {
                         null,
                         null,
                         null,
+                        null,
                         null
                 )));
 
@@ -564,6 +565,7 @@ class CourseGradeBookServiceImplTest {
                         courseUuid,
                         null,
                         "Ensemble Rehearsal",
+                        null,
                         null,
                         null,
                         null,

@@ -81,10 +81,12 @@ class InstructorObligationServiceImplTest {
     }
 
     private void trainingFeeIs(String fee) {
+        BigDecimal instructorPay = new BigDecimal(fee);
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new ClassDefinitionSnapshot(
                         classDefinitionUuid, UUID.randomUUID(), null, "Piano Grade 3", "desc",
-                        new BigDecimal(fee), ClassVisibility.PRIVATE, LocationType.ONLINE,
+                        instructorPay.add(new BigDecimal("500.00")), instructorPay,
+                        ClassVisibility.PRIVATE, LocationType.ONLINE,
                         20, Boolean.TRUE, 30)));
     }
 

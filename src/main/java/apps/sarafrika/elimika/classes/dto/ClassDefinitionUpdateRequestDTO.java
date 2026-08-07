@@ -81,9 +81,14 @@ public record ClassDefinitionUpdateRequestDTO(
         UUID programUuid,
 
         @Schema(description = "**[OPTIONAL]** Training fee for the class.", minimum = "0")
-        @DecimalMin(value = "0.00", message = "Training fee cannot be negative")
-        @JsonProperty("training_fee")
-        BigDecimal trainingFee,
+        @DecimalMin(value = "0.00", message = "Sale price cannot be negative")
+        @JsonProperty("sale_price")
+        BigDecimal salePrice,
+
+        @Schema(description = "**[OPTIONAL]** Per-session pay owed to the instructor.", minimum = "0")
+        @DecimalMin(value = "0.00", message = "Instructor pay cannot be negative")
+        @JsonProperty("instructor_pay")
+        BigDecimal instructorPay,
 
         @Schema(description = "**[REQUIRED]** Class visibility.", allowableValues = {"PUBLIC", "PRIVATE"})
         @NotNull(message = "Class visibility is required")
@@ -181,7 +186,8 @@ public record ClassDefinitionUpdateRequestDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,

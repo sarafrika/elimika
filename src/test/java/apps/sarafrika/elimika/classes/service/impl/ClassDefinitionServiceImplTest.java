@@ -313,6 +313,7 @@ class ClassDefinitionServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 ClassVisibility.PUBLIC,
                 SessionFormat.GROUP,
                 LocalDateTime.of(2026, 6, 12, 9, 0),

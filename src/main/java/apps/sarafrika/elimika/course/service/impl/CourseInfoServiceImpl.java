@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 public class CourseInfoServiceImpl implements CourseInfoService {
 
     private final CourseRepository courseRepository;
+    private final apps.sarafrika.elimika.course.repository.ProgramCourseRepository programCourseRepository;
     private final TrainingProgramRepository trainingProgramRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final apps.sarafrika.elimika.course.repository.CategoryRepository categoryRepository;
@@ -40,6 +41,27 @@ public class CourseInfoServiceImpl implements CourseInfoService {
                 .map(course -> course.getMinimumTrainingFee() != null
                         ? course.getMinimumTrainingFee()
                         : BigDecimal.ZERO);
+    }
+
+    @Override
+    public Optional<BigDecimal> getProgramMinimumTrainingFee(UUID programUuid) {
+        if (programUuid == null) {
+            return Optional.empty();
+        }
+        List<UUID> courseUuids = programCourseRepository.findByProgramUuidOrderBySequenceOrderAsc(programUuid)
+                .stream()
+                .map(apps.sarafrika.elimika.course.model.ProgramCourse::getCourseUuid)
+                .filter(uuid -> uuid != null)
+                .distinct()
+                .toList();
+        if (courseUuids.isEmpty()) {
+            return Optional.empty();
+        }
+        return courseRepository.findByUuidIn(courseUuids).stream()
+                .map(course -> course.getMinimumTrainingFee() != null
+                        ? course.getMinimumTrainingFee()
+                        : BigDecimal.ZERO)
+                .max(BigDecimal::compareTo);
     }
 
     @Override

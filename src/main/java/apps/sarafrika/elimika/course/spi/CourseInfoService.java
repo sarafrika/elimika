@@ -27,6 +27,8 @@ public interface CourseInfoService {
      */
     Optional<BigDecimal> getMinimumTrainingFee(UUID courseUuid);
 
+    Optional<BigDecimal> getProgramMinimumTrainingFee(UUID programUuid);
+
     /**
      * Checks if a course exists.
      *

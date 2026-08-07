@@ -270,11 +270,11 @@ class ClassMarketplaceJobServiceImplTest {
 
         var result = service.createJob(request);
 
-        assertThat(result.trainingFee()).isEqualByComparingTo(new BigDecimal("240.00"));
+        assertThat(result.salePrice()).isEqualByComparingTo(new BigDecimal("240.00"));
 
         ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
         verify(jobRepository).save(jobCaptor.capture());
-        assertThat(jobCaptor.getValue().getTrainingFee()).isEqualByComparingTo(new BigDecimal("240.00"));
+        assertThat(jobCaptor.getValue().getSalePrice()).isEqualByComparingTo(new BigDecimal("240.00"));
     }
 
     @Test
@@ -449,29 +449,32 @@ class ClassMarketplaceJobServiceImplTest {
 
         var result = service.createJob(request);
 
-        assertThat(result.trainingFee()).isEqualByComparingTo(new BigDecimal("512.00"));
+        assertThat(result.salePrice()).isEqualByComparingTo(new BigDecimal("512.00"));
 
         ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
         verify(jobRepository).save(jobCaptor.capture());
-        assertThat(jobCaptor.getValue().getTrainingFee()).isEqualByComparingTo(new BigDecimal("512.00"));
+        assertThat(jobCaptor.getValue().getSalePrice()).isEqualByComparingTo(new BigDecimal("512.00"));
     }
 
     @Test
-    void createJobRejectsAFeeThatDiffersFromTheApprovedRate() {
+    void createJobRejectsInstructorPayAboveTheSalePrice() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID programUuid = UUID.randomUUID();
-        ClassMarketplaceJobRequestDTO request =
-                withTrainingFee(sampleRequest(null, programUuid), new BigDecimal("999.00"));
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("500.00"), new BigDecimal("900.00"));
 
         allowOrganisationAccess(currentUserUuid, request.organisationUuid());
         when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
         when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
                 .thenReturn(true);
+        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                eq(programUuid), eq(request.organisationUuid()), any(), any()))
+                .thenReturn(Optional.of(new BigDecimal("512.00")));
 
         assertThatThrownBy(() -> service.createJob(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("does not match the approved rate");
+                .hasMessageContaining("cannot exceed the sale price");
 
         verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
     }
@@ -635,7 +638,7 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(forwarded.organisationUuid()).isEqualTo(job.getOrganisationUuid());
         assertThat(forwarded.courseUuid()).isEqualTo(job.getCourseUuid());
         assertThat(forwarded.programUuid()).isNull();
-        assertThat(forwarded.trainingFee()).isNull();
+        assertThat(forwarded.salePrice()).isNull();
         assertThat(forwarded.sessionTemplates()).hasSize(1);
     }
 
@@ -924,6 +927,7 @@ class ClassMarketplaceJobServiceImplTest {
                 24,
                 true,
                 new BigDecimal("240.00"),
+                new BigDecimal("240.00"),
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -958,8 +962,23 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), groupUuids, base.categoryUuid(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+    }
+
+    private ClassMarketplaceJobRequestDTO withPricing(ClassMarketplaceJobRequestDTO base,
+                                                      BigDecimal salePrice,
+                                                      BigDecimal instructorPay) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), salePrice, instructorPay, base.sessionTemplates(),
+                base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
+                base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
 
@@ -970,7 +989,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), trainingFee, base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), trainingFee, trainingFee, base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
                 base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
@@ -983,7 +1002,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
                 categoryUuid, base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
@@ -996,7 +1015,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), instructorUuid, base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
@@ -1457,7 +1476,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.trainingFee(), base.sessionTemplates(), resources,
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), resources,
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
@@ -1531,6 +1550,7 @@ class ClassMarketplaceJobServiceImplTest {
                 job.getOrganisationUuid(),
                 job.getCourseUuid(),
                 job.getProgramUuid(),
+                new BigDecimal("2500.00"),
                 new BigDecimal("2500.00"),
                 job.getClassVisibility(),
                 job.getSessionFormat(),

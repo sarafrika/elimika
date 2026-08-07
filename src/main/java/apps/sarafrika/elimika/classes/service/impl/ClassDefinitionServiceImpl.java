@@ -933,69 +933,49 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
     }
 
-    private Optional<BigDecimal> resolveApprovedRate(ClassDefinition entity) {
-        UUID courseUuid = entity.getCourseUuid();
-        if (courseUuid == null) {
+    private Optional<BigDecimal> resolveInstructorApprovedRate(ClassDefinition entity) {
+        if (entity.getDefaultInstructorUuid() == null) {
             return Optional.empty();
         }
-
-        SessionFormat sessionFormat = entity.getSessionFormat();
-        LocationType locationType = entity.getLocationType();
-
-        if (entity.getDefaultInstructorUuid() != null) {
-            Optional<BigDecimal> instructorRate = courseTrainingApprovalSpi.resolveInstructorRate(
-                    courseUuid,
+        if (entity.getCourseUuid() != null) {
+            return courseTrainingApprovalSpi.resolveInstructorRate(
+                    entity.getCourseUuid(),
                     entity.getDefaultInstructorUuid(),
-                    sessionFormat,
-                    locationType
-            );
-            if (instructorRate.isPresent()) {
-                return instructorRate;
-            }
-        }
-
-        if (entity.getOrganisationUuid() != null) {
-            return courseTrainingApprovalSpi.resolveOrganisationRate(
-                    courseUuid,
-                    entity.getOrganisationUuid(),
-                    sessionFormat,
-                    locationType
+                    entity.getSessionFormat(),
+                    entity.getLocationType()
             );
         }
-
+        if (entity.getProgramUuid() != null) {
+            return courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                    entity.getProgramUuid(),
+                    entity.getDefaultInstructorUuid(),
+                    entity.getSessionFormat(),
+                    entity.getLocationType()
+            );
+        }
         return Optional.empty();
     }
 
-    private Optional<BigDecimal> resolveProgramApprovedRate(ClassDefinition entity) {
-        UUID programUuid = entity.getProgramUuid();
-        if (programUuid == null) {
+    private Optional<BigDecimal> resolveOrganisationApprovedRate(ClassDefinition entity) {
+        if (entity.getOrganisationUuid() == null) {
             return Optional.empty();
         }
-
-        SessionFormat sessionFormat = entity.getSessionFormat();
-        LocationType locationType = entity.getLocationType();
-
-        if (entity.getDefaultInstructorUuid() != null) {
-            Optional<BigDecimal> instructorRate = courseTrainingApprovalSpi.resolveInstructorProgramRate(
-                    programUuid,
-                    entity.getDefaultInstructorUuid(),
-                    sessionFormat,
-                    locationType
-            );
-            if (instructorRate.isPresent()) {
-                return instructorRate;
-            }
-        }
-
-        if (entity.getOrganisationUuid() != null) {
-            return courseTrainingApprovalSpi.resolveOrganisationProgramRate(
-                    programUuid,
+        if (entity.getCourseUuid() != null) {
+            return courseTrainingApprovalSpi.resolveOrganisationRate(
+                    entity.getCourseUuid(),
                     entity.getOrganisationUuid(),
-                    sessionFormat,
-                    locationType
+                    entity.getSessionFormat(),
+                    entity.getLocationType()
             );
         }
-
+        if (entity.getProgramUuid() != null) {
+            return courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                    entity.getProgramUuid(),
+                    entity.getOrganisationUuid(),
+                    entity.getSessionFormat(),
+                    entity.getLocationType()
+            );
+        }
         return Optional.empty();
     }
 
@@ -1016,50 +996,50 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             throw new IllegalArgumentException("Location type is required when linking a class definition to a course or training program");
         }
 
-        if (courseUuid != null) {
-            // Verify course exists and get minimum training fee via SPI
-            BigDecimal minimumTrainingFee = courseInfoService.getMinimumTrainingFee(courseUuid)
-                    .orElseThrow(() -> new ResourceNotFoundException(String.format("Course with UUID %s not found", courseUuid)));
-
-            BigDecimal resolvedRate = resolveApprovedRate(entity)
+        if (entity.getSalePrice() == null) {
+            entity.setSalePrice(resolveOrganisationApprovedRate(entity)
+                    .or(() -> resolveInstructorApprovedRate(entity))
                     .orElseThrow(() -> new IllegalStateException(String.format(
-                            "No approved rate card found for the selected instructor/organisation on course %s. Submit and approve a training application with rates first.",
-                            courseUuid)));
+                            "No approved rate card found for the selected instructor/organisation on %s. Submit and approve a training application with rates first.",
+                            courseUuid != null ? "course " + courseUuid : "training program " + programUuid))));
+        }
 
-            if (entity.getTrainingFee() == null) {
-                entity.setTrainingFee(resolvedRate);
-            } else if (entity.getTrainingFee().compareTo(resolvedRate) != 0) {
+        if (entity.getInstructorPay() == null) {
+            entity.setInstructorPay(resolveInstructorApprovedRate(entity).orElse(entity.getSalePrice()));
+        }
+
+        if (entity.getInstructorPay().compareTo(entity.getSalePrice()) > 0) {
+            throw new IllegalArgumentException(String.format(
+                    "Instructor pay %.2f cannot exceed the class sale price %.2f",
+                    entity.getInstructorPay(), entity.getSalePrice()));
+        }
+
+        resolveInstructorApprovedRate(entity).ifPresent(approvedRate -> {
+            if (entity.getInstructorPay().compareTo(approvedRate) < 0) {
                 throw new IllegalArgumentException(String.format(
-                        "Training fee %.2f must match the approved rate card amount %.2f for %s %s delivery.",
-                        entity.getTrainingFee(),
-                        resolvedRate,
+                        "Instructor pay %.2f is below the instructor's approved rate %.2f for %s %s delivery.",
+                        entity.getInstructorPay(),
+                        approvedRate,
                         entity.getSessionFormat(),
                         entity.getLocationType()));
             }
+        });
 
-            if (entity.getTrainingFee().compareTo(minimumTrainingFee) < 0) {
-                throw new IllegalArgumentException(String.format(
-                        "Training fee %.2f cannot be less than the course minimum training fee %.2f",
-                        entity.getTrainingFee(), minimumTrainingFee));
-            }
-            return;
-        }
-
-        BigDecimal resolvedRate = resolveProgramApprovedRate(entity)
-                .orElseThrow(() -> new IllegalStateException(String.format(
-                        "No approved rate card found for the selected instructor/organisation on training program %s. Submit and approve a training application with rates first.",
-                        programUuid)));
-
-        if (entity.getTrainingFee() == null) {
-            entity.setTrainingFee(resolvedRate);
-        } else if (entity.getTrainingFee().compareTo(resolvedRate) != 0) {
+        BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(courseUuid, programUuid);
+        if (minimumTrainingFee != null && entity.getSalePrice().compareTo(minimumTrainingFee) < 0) {
             throw new IllegalArgumentException(String.format(
-                    "Training fee %.2f must match the approved rate card amount %.2f for %s %s delivery.",
-                    entity.getTrainingFee(),
-                    resolvedRate,
-                    entity.getSessionFormat(),
-                    entity.getLocationType()));
+                    "Class sale price %.2f cannot be less than the course minimum training fee %.2f",
+                    entity.getSalePrice(), minimumTrainingFee));
         }
+    }
+
+    private BigDecimal resolveMinimumTrainingFee(UUID courseUuid, UUID programUuid) {
+        if (courseUuid != null) {
+            return courseInfoService.getMinimumTrainingFee(courseUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format("Course with UUID %s not found", courseUuid)));
+        }
+        return courseInfoService.getProgramMinimumTrainingFee(programUuid).orElse(null);
     }
 
     private void validateTrainingApprovals(ClassDefinition entity) {

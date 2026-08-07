@@ -100,8 +100,11 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @Column(name = "training_fee")
-    private BigDecimal trainingFee;
+    @Column(name = "sale_price")
+    private BigDecimal salePrice;
+
+    @Column(name = "instructor_pay")
+    private BigDecimal instructorPay;
 
     @Convert(converter = ClassVisibilityConverter.class)
     @Column(name = "class_visibility")

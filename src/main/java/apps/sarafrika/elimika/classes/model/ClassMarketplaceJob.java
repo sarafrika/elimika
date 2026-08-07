@@ -112,8 +112,11 @@ public class ClassMarketplaceJob extends BaseEntity {
     @Column(name = "allow_waitlist")
     private Boolean allowWaitlist;
 
-    @Column(name = "training_fee")
-    private BigDecimal trainingFee;
+    @Column(name = "sale_price")
+    private BigDecimal salePrice;
+
+    @Column(name = "instructor_pay")
+    private BigDecimal instructorPay;
 
     @Convert(converter = ClassServiceTypeConverter.class)
     @Column(name = "service_type")

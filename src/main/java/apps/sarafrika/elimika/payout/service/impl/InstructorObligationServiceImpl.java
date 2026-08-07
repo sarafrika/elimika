@@ -90,10 +90,10 @@ public class InstructorObligationServiceImpl
         }
 
         BigDecimal rate = classDefinitionLookupService.findByUuid(classDefinitionUuid)
-                .map(ClassDefinitionSnapshot::trainingFee)
+                .map(ClassDefinitionSnapshot::instructorPay)
                 .orElse(null);
         if (rate == null || rate.signum() <= 0) {
-            log.debug("Class {} has no positive training fee; no obligation accrues", classDefinitionUuid);
+            log.debug("Class {} has no positive instructor pay; no obligation accrues", classDefinitionUuid);
             return Optional.empty();
         }
 

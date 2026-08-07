@@ -389,9 +389,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         }
 
         resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
-            if (job.getTrainingFee() != null && job.getTrainingFee().compareTo(approvedRate) != 0) {
-                log.warn("Marketplace job {} fee {} differs from instructor {} approved rate {}",
-                        job.getUuid(), job.getTrainingFee(), application.getInstructorUuid(), approvedRate);
+            if (job.getInstructorPay() != null && job.getInstructorPay().compareTo(approvedRate) < 0) {
+                throw new IllegalArgumentException(String.format(
+                        "This posting offers %s per session, which is below the instructor's approved rate of %s "
+                                + "for %s %s sessions.",
+                        job.getInstructorPay(), approvedRate, job.getSessionFormat(), job.getLocationType()));
             }
         });
 
@@ -462,7 +464,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setMeetingLink(request.meetingLink());
         job.setMaxParticipants(request.maxParticipants() != null ? request.maxParticipants() : DEFAULT_MAX_PARTICIPANTS);
         job.setAllowWaitlist(request.allowWaitlist() != null ? request.allowWaitlist() : Boolean.TRUE);
-        applyTrainingFee(job, request);
+        applyJobPricing(job, request);
         job.setServiceType(request.serviceType());
         job.setPreferredInstructorUuid(request.preferredInstructorUuid());
         applyTargetGroups(job, request);
@@ -512,13 +514,12 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     /**
-     * Sets the per-session training fee from the rate the course creator approved for this
-     * organisation, for the exact session format and delivery modality being posted. The fee is
-     * never taken from the request: an organisation cannot advertise a class at a rate the creator
-     * did not approve. A request that carries a conflicting fee is rejected rather than silently
-     * overwritten, so a stale client surfaces instead of quietly posting the wrong number.
+     * A posting declares two numbers: what a learner will be charged, and what the eventual
+     * instructor will earn. The organisation does not know who it will hire when it posts, which is
+     * why the pay is declared up front rather than derived from an applicant. The difference between
+     * them is the organisation's margin.
      */
-    private void applyTrainingFee(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
+    private void applyJobPricing(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
         BigDecimal approvedRate = resolveOrganisationRateForRequest(request)
                 .orElseThrow(() -> new IllegalArgumentException(String.format(
                         "No approved training rate for organisation %s on this %s for %s %s sessions. "
@@ -528,13 +529,30 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                         request.sessionFormat(),
                         request.locationType())));
 
-        if (request.trainingFee() != null && request.trainingFee().compareTo(approvedRate) != 0) {
+        BigDecimal salePrice = request.salePrice() != null ? request.salePrice() : approvedRate;
+        BigDecimal instructorPay = request.instructorPay() != null ? request.instructorPay() : salePrice;
+
+        if (instructorPay.compareTo(salePrice) > 0) {
             throw new IllegalArgumentException(String.format(
-                    "Training fee %s does not match the approved rate %s for %s %s sessions.",
-                    request.trainingFee(), approvedRate, request.sessionFormat(), request.locationType()));
+                    "Instructor pay %s cannot exceed the sale price %s.", instructorPay, salePrice));
         }
 
-        job.setTrainingFee(approvedRate);
+        BigDecimal minimumTrainingFee = resolveMinimumTrainingFeeForRequest(request);
+        if (minimumTrainingFee != null && salePrice.compareTo(minimumTrainingFee) < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "Sale price %s cannot be less than the course minimum training fee %s.",
+                    salePrice, minimumTrainingFee));
+        }
+
+        job.setSalePrice(salePrice);
+        job.setInstructorPay(instructorPay);
+    }
+
+    private BigDecimal resolveMinimumTrainingFeeForRequest(ClassMarketplaceJobRequestDTO request) {
+        if (request.courseUuid() != null) {
+            return courseInfoService.getMinimumTrainingFee(request.courseUuid()).orElse(null);
+        }
+        return courseInfoService.getProgramMinimumTrainingFee(request.programUuid()).orElse(null);
     }
 
     private Optional<BigDecimal> resolveOrganisationRateForRequest(ClassMarketplaceJobRequestDTO request) {
@@ -1090,7 +1108,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getOrganisationUuid(),
                 job.getCourseUuid(),
                 job.getProgramUuid(),
-                job.getTrainingFee(),
+                job.getSalePrice(),
+                job.getInstructorPay(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),
                 job.getDefaultStartTime(),
@@ -1163,7 +1182,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getProgramUuid(),
                 job.getTitle(),
                 job.getDescription(),
-                job.getTrainingFee(),
+                job.getSalePrice(),
+                job.getInstructorPay(),
                 job.getStatus(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),

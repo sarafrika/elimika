@@ -205,9 +205,20 @@ public record ClassDefinitionDTO(
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @DecimalMin(value = "0.00", message = "Training fee cannot be negative")
-        @JsonProperty("training_fee")
-        BigDecimal trainingFee,
+        @DecimalMin(value = "0.00", message = "Sale price cannot be negative")
+        @JsonProperty("sale_price")
+        BigDecimal salePrice,
+
+        @Schema(
+                description = "**[OPTIONAL]** Per-session pay owed to the instructor. The difference between this and the sale price is the organisation's margin.",
+                example = "180.00",
+                minimum = "0",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Instructor pay cannot be negative")
+        @JsonProperty("instructor_pay")
+        BigDecimal instructorPay,
 
         @Schema(
                 description = "**[REQUIRED]** Visibility of the class when offerings are published.",
@@ -512,7 +523,8 @@ public record ClassDefinitionDTO(
             UUID organisationUuid,
             UUID courseUuid,
             UUID programUuid,
-            BigDecimal trainingFee,
+            BigDecimal salePrice,
+            BigDecimal instructorPay,
             ClassVisibility classVisibility,
             SessionFormat sessionFormat,
             LocalDateTime defaultStartTime,
@@ -547,7 +559,8 @@ public record ClassDefinitionDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
@@ -588,7 +601,8 @@ public record ClassDefinitionDTO(
             UUID organisationUuid,
             UUID courseUuid,
             UUID programUuid,
-            BigDecimal trainingFee,
+            BigDecimal salePrice,
+            BigDecimal instructorPay,
             ClassVisibility classVisibility,
             SessionFormat sessionFormat,
             LocalDateTime defaultStartTime,
@@ -623,7 +637,8 @@ public record ClassDefinitionDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
@@ -663,7 +678,8 @@ public record ClassDefinitionDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
@@ -707,7 +723,8 @@ public record ClassDefinitionDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
@@ -754,7 +771,8 @@ public record ClassDefinitionDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
@@ -798,7 +816,8 @@ public record ClassDefinitionDTO(
                 organisationUuid,
                 courseUuid,
                 programUuid,
-                trainingFee,
+                salePrice,
+                instructorPay,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
