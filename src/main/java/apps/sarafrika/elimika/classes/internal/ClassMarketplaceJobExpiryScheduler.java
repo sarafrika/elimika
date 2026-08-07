@@ -45,8 +45,11 @@ class ClassMarketplaceJobExpiryScheduler {
         }
 
         for (ClassMarketplaceJob job : lapsedJobs) {
+            String reason = job.getStatus() == ClassMarketplaceJobStatus.AWAITING_CLASS
+                    ? "Job expired before its class was created"
+                    : "Job expired";
             job.setStatus(ClassMarketplaceJobStatus.EXPIRED);
-            resourceBookingService.releaseHoldsForJob(job.getUuid(), "Job expired");
+            resourceBookingService.releaseHoldsForJob(job.getUuid(), reason);
             notifyJobCreator(job);
         }
         jobRepository.saveAll(lapsedJobs);

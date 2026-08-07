@@ -126,11 +126,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         replaceJobResources(saved.getUuid(), request.resources());
         holdJobResources(saved, request.resources());
 
-        // When the organisation names an instructor at creation, assign the class directly:
-        // materialise it and fill the job rather than leaving it open for applications.
         if (request.preferredInstructorUuid() != null) {
-            assignJobToInstructor(saved, request.preferredInstructorUuid());
+            selectInstructorForJob(saved, request.preferredInstructorUuid());
             saved = jobRepository.save(saved);
+            provisionClassForJob(saved);
         }
 
         return toJobDTO(saved);
@@ -199,9 +198,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     @Override
     public ClassMarketplaceJobDTO cancelJob(UUID jobUuid) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
-        ensureJobOpen(job);
+        ensureJobCancellable(job);
         requireOrganisationManagerAccess(job.getOrganisationUuid());
 
+        releaseAssignedApplication(job);
         job.setStatus(ClassMarketplaceJobStatus.CANCELLED);
         ClassMarketplaceJob saved = jobRepository.save(job);
         resourceBookingService.releaseHoldsForJob(jobUuid, "Job cancelled");
@@ -397,7 +397,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             }
         });
 
-        ClassDefinitionDTO classDefinition = assignJobToInstructor(job, application.getInstructorUuid());
+        selectInstructorForJob(job, application.getInstructorUuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         application.setReviewNotes(resolveAssignedReviewNotes(application.getReviewNotes()));
@@ -410,16 +410,28 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         markOtherApplicationsAsNotSelected(jobUuid, application.getUuid());
 
-        return new ClassMarketplaceJobAssignmentResponseDTO(toJobDTO(savedJob), classDefinition);
+        return new ClassMarketplaceJobAssignmentResponseDTO(toJobDTO(savedJob));
     }
 
-    /**
-     * Materialises the actual class for {@code instructorUuid}: checks the instructor's
-     * schedule for conflicts, creates the class definition, converts recruitment holds to
-     * confirmed bookings, copies reserved resources, and marks the job filled. Shared by the
-     * marketplace assignment flow and the direct organisation create-and-assign flow.
-     */
-    private ClassDefinitionDTO assignJobToInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
+    @Override
+    public ClassDefinitionDTO createClassForJob(UUID jobUuid) {
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        requireOrganisationManagerAccess(job.getOrganisationUuid());
+
+        if (job.getStatus() != ClassMarketplaceJobStatus.AWAITING_CLASS) {
+            throw new IllegalStateException(
+                    "A class can only be created once an instructor has been assigned to this job.");
+        }
+
+        return provisionClassForJob(job);
+    }
+
+    private ClassDefinitionDTO provisionClassForJob(ClassMarketplaceJob job) {
+        UUID instructorUuid = job.getAssignedInstructorUuid();
+        if (instructorUuid == null) {
+            throw new IllegalStateException("This job has no assigned instructor.");
+        }
+
         List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
         if (!scheduleConflicts.isEmpty()) {
             throw new SchedulingConflictException(String.format(
@@ -435,10 +447,23 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         copyJobResourcesToClassDefinition(job.getUuid(), classDefinition.uuid());
 
         job.setStatus(ClassMarketplaceJobStatus.FILLED);
-        job.setAssignedInstructorUuid(instructorUuid);
         job.setAssignedClassDefinitionUuid(classDefinition.uuid());
         job.setFilledAt(LocalDateTime.now(ZoneOffset.UTC));
+        jobRepository.save(job);
+
         return classDefinition;
+    }
+
+    private void selectInstructorForJob(ClassMarketplaceJob job, UUID instructorUuid) {
+        List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
+        if (!scheduleConflicts.isEmpty()) {
+            throw new SchedulingConflictException(String.format(
+                    "Instructor %s has schedule conflicts with this job's planned sessions.", instructorUuid),
+                    scheduleConflicts);
+        }
+
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setAssignedInstructorUuid(instructorUuid);
     }
 
     private void applyJobDraft(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
@@ -894,6 +919,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         }
     }
 
+    private void ensureJobCancellable(ClassMarketplaceJob job) {
+        if (job.getStatus() != ClassMarketplaceJobStatus.OPEN
+                && job.getStatus() != ClassMarketplaceJobStatus.AWAITING_CLASS) {
+            throw new IllegalStateException("This marketplace class job can no longer be cancelled.");
+        }
+    }
+
     private void ensureApplicationReviewable(ClassMarketplaceJobApplication application) {
         if (application.getStatus() == ClassMarketplaceJobApplicationStatus.ASSIGNED) {
             throw new IllegalStateException("Assigned applications cannot be reviewed again.");
@@ -957,6 +989,27 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         return applicationRepository.findByJobUuidAndUuid(jobUuid, applicationUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, jobUuid)));
+    }
+
+    private void releaseAssignedApplication(ClassMarketplaceJob job) {
+        UUID assignedApplicationUuid = job.getAssignedApplicationUuid();
+        if (assignedApplicationUuid == null) {
+            job.setAssignedInstructorUuid(null);
+            return;
+        }
+
+        applicationRepository.findByJobUuidAndUuid(job.getUuid(), assignedApplicationUuid)
+                .filter(application -> application.getStatus() == ClassMarketplaceJobApplicationStatus.ASSIGNED)
+                .ifPresent(application -> {
+                    application.setStatus(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
+                    application.setReviewNotes("This class job was cancelled before its class was created.");
+                    application.setReviewedBy(resolveReviewer());
+                    application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
+                    applicationRepository.save(application);
+                });
+
+        job.setAssignedApplicationUuid(null);
+        job.setAssignedInstructorUuid(null);
     }
 
     private void markOtherApplicationsAsNotSelected(UUID jobUuid, UUID selectedApplicationUuid) {

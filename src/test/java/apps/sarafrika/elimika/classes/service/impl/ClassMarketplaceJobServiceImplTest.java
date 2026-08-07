@@ -624,10 +624,13 @@ class ClassMarketplaceJobServiceImplTest {
                 new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid())
         );
 
-        assertThat(response.classDefinition().uuid()).isEqualTo(classDefinitionUuid);
-        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
         assertThat(response.job().assignedInstructorUuid()).isEqualTo(instructorUuid);
-        assertThat(response.job().assignedClassDefinitionUuid()).isEqualTo(classDefinitionUuid);
+
+        ClassDefinitionDTO created = service.createClassForJob(job.getUuid());
+        assertThat(created.uuid()).isEqualTo(classDefinitionUuid);
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(job.getAssignedClassDefinitionUuid()).isEqualTo(classDefinitionUuid);
         assertThat(approvedApplication.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         assertThat(otherApplication.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
 
@@ -719,9 +722,12 @@ class ClassMarketplaceJobServiceImplTest {
                 new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid())
         );
 
-        assertThat(response.classDefinition().uuid()).isEqualTo(classDefinitionUuid);
-        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
         assertThat(response.job().programUuid()).isEqualTo(job.getProgramUuid());
+
+        ClassDefinitionDTO created = service.createClassForJob(job.getUuid());
+        assertThat(created.uuid()).isEqualTo(classDefinitionUuid);
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
 
         ArgumentCaptor<ClassDefinitionDTO> classCaptor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
         verify(classDefinitionService).createClassDefinition(classCaptor.capture());
@@ -1248,6 +1254,52 @@ class ClassMarketplaceJobServiceImplTest {
         verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job cancelled");
     }
 
+    @Test
+    void cancelJobAwaitingClassReleasesTheAssignedApplication() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setAssignedInstructorUuid(instructorUuid);
+
+        ClassMarketplaceJobApplication assigned = sampleApplication(job.getUuid(), instructorUuid);
+        assigned.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
+        job.setAssignedApplicationUuid(assigned.getUuid());
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), assigned.getUuid()))
+                .thenReturn(Optional.of(assigned));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid())).thenReturn(List.of());
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+
+        var result = service.cancelJob(job.getUuid());
+
+        assertThat(result.status()).isEqualTo(ClassMarketplaceJobStatus.CANCELLED);
+        assertThat(assigned.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
+        assertThat(job.getAssignedInstructorUuid()).isNull();
+        assertThat(job.getAssignedApplicationUuid()).isNull();
+        verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job cancelled");
+    }
+
+    @Test
+    void createClassForJobRejectsJobsWithoutAnAssignedInstructor() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("once an instructor has been assigned");
+
+        verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
+    }
+
     // ===== application schedule hard-block =====
 
     @Test
@@ -1419,7 +1471,11 @@ class ClassMarketplaceJobServiceImplTest {
         var response = service.assignInstructor(job.getUuid(),
                 new ClassMarketplaceJobAssignmentRequestDTO(application.getUuid()));
 
-        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        verify(resourceBookingService, never()).confirmHoldsForJob(any(), any(), any());
+
+        service.createClassForJob(job.getUuid());
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
 
         ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.forClass(List.class);
         verify(resourceBookingService).confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), windowsCaptor.capture());

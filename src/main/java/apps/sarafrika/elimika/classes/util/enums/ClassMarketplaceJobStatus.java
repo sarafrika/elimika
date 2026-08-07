@@ -11,6 +11,7 @@ import java.util.Map;
  */
 public enum ClassMarketplaceJobStatus {
     OPEN("open"),
+    AWAITING_CLASS("awaiting_class"),
     FILLED("filled"),
     CANCELLED("cancelled"),
     EXPIRED("expired");

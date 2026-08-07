@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.service;
 
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
@@ -68,4 +69,6 @@ public interface ClassMarketplaceJobServiceInterface {
 
     ClassMarketplaceJobAssignmentResponseDTO assignInstructor(UUID jobUuid,
                                                               ClassMarketplaceJobAssignmentRequestDTO request);
+
+    ClassDefinitionDTO createClassForJob(UUID jobUuid);
 }

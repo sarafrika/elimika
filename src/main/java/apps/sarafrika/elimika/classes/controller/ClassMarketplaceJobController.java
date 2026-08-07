@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.controller;
 
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
@@ -270,6 +271,24 @@ public class ClassMarketplaceJobController {
             log.warn("Scheduling conflicts while assigning marketplace class job {}: {}", jobUuid, e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        }
+    }
+
+    @Operation(summary = "Create the class for a job whose instructor has been assigned")
+    @PostMapping("/{jobUuid}/class")
+    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassForJob(@PathVariable UUID jobUuid) {
+        try {
+            ClassDefinitionDTO classDefinition = classMarketplaceJobService.createClassForJob(jobUuid);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(classDefinition, "Class created from marketplace job successfully"));
+        } catch (SchedulingConflictException e) {
+            log.warn("Scheduling conflicts while creating the class for marketplace job {}: {}", jobUuid, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        } catch (ResourceBookingConflictException e) {
+            log.warn("Resource conflicts while creating the class for marketplace job {}: {}", jobUuid, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
         }
     }
 }

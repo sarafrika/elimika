@@ -32,12 +32,16 @@ public interface ClassMarketplaceJobRepository extends JpaRepository<ClassMarket
                                      Pageable pageable);
 
     /**
-     * Open jobs whose recruitment window has passed: the registration period (or,
-     * when none is set, the academic period) ended before the given date.
+     * Jobs whose recruitment window has passed: the registration period (or, when none is
+     * set, the academic period) ended before the given date. Covers jobs still recruiting
+     * and jobs whose instructor was chosen but whose class was never created — both are
+     * still holding resources.
      */
     @Query("""
             SELECT job FROM ClassMarketplaceJob job
-            WHERE job.status = apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus.OPEN
+            WHERE job.status IN (
+                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus.OPEN,
+                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus.AWAITING_CLASS)
               AND (
                   (job.registrationPeriodEndDate IS NOT NULL AND job.registrationPeriodEndDate < :date)
                   OR (job.registrationPeriodEndDate IS NULL
