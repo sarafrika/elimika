@@ -11,6 +11,6 @@ public interface ClassMarketplaceJobResourceRepository extends JpaRepository<Cla
 
     List<ClassMarketplaceJobResource> findByJobUuidOrderByCreatedDateAsc(UUID jobUuid);
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     void deleteByJobUuid(UUID jobUuid);
 }
