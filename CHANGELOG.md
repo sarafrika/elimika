@@ -1,3 +1,10 @@
+## [2.121.2](https://github.com/sarafrika/elimika/compare/v2.121.1...v2.121.2) (2026-08-07)
+
+
+### Bug Fixes
+
+* **classes:** flush job resource and session template deletes before re-inserting them on update ([480f1b8](https://github.com/sarafrika/elimika/commit/480f1b8f28d82dfe7f7dc4ce5ddbe11b26be98ec))
+
 ## [2.121.1](https://github.com/sarafrika/elimika/compare/v2.121.0...v2.121.1) (2026-08-04)
 
 
