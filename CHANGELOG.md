@@ -1,3 +1,10 @@
+# [2.122.0](https://github.com/sarafrika/elimika/compare/v2.121.2...v2.122.0) (2026-08-07)
+
+
+### Features
+
+* **classes:** separate what a class sells for from what its instructor is paid ([2cfcff5](https://github.com/sarafrika/elimika/commit/2cfcff59e2cf4e36712a2c947aea798875658923))
+
 ## [2.121.2](https://github.com/sarafrika/elimika/compare/v2.121.1...v2.121.2) (2026-08-07)
 
 
