@@ -1,3 +1,10 @@
+# [2.123.0](https://github.com/sarafrika/elimika/compare/v2.122.0...v2.123.0) (2026-08-07)
+
+
+### Features
+
+* **classes:** create the class as a separate step from assigning the job's instructor ([5c98e81](https://github.com/sarafrika/elimika/commit/5c98e8152d4c00a2d84ffafe90cc57976cdda644))
+
 # [2.122.0](https://github.com/sarafrika/elimika/compare/v2.121.2...v2.122.0) (2026-08-07)
 
 
