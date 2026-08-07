@@ -14,6 +14,8 @@ public class TrainingBranchFactory {
                 trainingBranch.getOrganisationUuid(),
                 trainingBranch.getBranchName(),
                 trainingBranch.getAddress(),
+                trainingBranch.getLatitude(),
+                trainingBranch.getLongitude(),
                 trainingBranch.getPocName(),
                 trainingBranch.getPocEmail(),
                 trainingBranch.getPocTelephone(),
@@ -31,6 +33,8 @@ public class TrainingBranchFactory {
         trainingBranch.setOrganisationUuid(trainingBranchDTO.organisationUuid());
         trainingBranch.setBranchName(trainingBranchDTO.branchName());
         trainingBranch.setAddress(trainingBranchDTO.address());
+        trainingBranch.setLatitude(trainingBranchDTO.latitude());
+        trainingBranch.setLongitude(trainingBranchDTO.longitude());
         trainingBranch.setPocName(trainingBranchDTO.pocName());
         trainingBranch.setPocEmail(trainingBranchDTO.pocEmail());
         trainingBranch.setPocTelephone(trainingBranchDTO.pocTelephone());

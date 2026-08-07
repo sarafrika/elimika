@@ -17,6 +17,7 @@ public class InstructorFactory {
                 instructor.getUuid(),
                 instructor.getUserUuid(),
                 instructor.getFullName(),
+                instructor.getLocationName(),
                 instructor.getLatitude(),
                 instructor.getLongitude(),
                 instructor.getAdminVerified(),
@@ -39,6 +40,7 @@ public class InstructorFactory {
         instructor.setUuid(dto.uuid());
         instructor.setUserUuid(dto.userUuid());
         instructor.setFullName(dto.fullName());
+        instructor.setLocationName(dto.locationName());
         instructor.setLatitude(dto.latitude());
         instructor.setLongitude(dto.longitude());
         instructor.setAdminVerified(dto.verified());

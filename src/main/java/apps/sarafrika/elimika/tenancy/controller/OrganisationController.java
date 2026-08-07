@@ -266,6 +266,8 @@ class OrganisationController {
                 uuid,
                 trainingBranchDTO.branchName(),
                 trainingBranchDTO.address(),
+                trainingBranchDTO.latitude(),
+                trainingBranchDTO.longitude(),
                 trainingBranchDTO.pocName(),
                 trainingBranchDTO.pocEmail(),
                 trainingBranchDTO.pocTelephone(),

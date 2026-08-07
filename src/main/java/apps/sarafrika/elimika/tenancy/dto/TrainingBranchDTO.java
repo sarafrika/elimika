@@ -82,6 +82,22 @@ public record TrainingBranchDTO(
         @JsonProperty("address")
         String address,
 
+        @Schema(
+                description = "**[OPTIONAL]** Latitude of the branch address, resolved when the address was searched.",
+                example = "-1.2921",
+                nullable = true
+        )
+        @JsonProperty("latitude")
+        java.math.BigDecimal latitude,
+
+        @Schema(
+                description = "**[OPTIONAL]** Longitude of the branch address, resolved when the address was searched.",
+                example = "36.8219",
+                nullable = true
+        )
+        @JsonProperty("longitude")
+        java.math.BigDecimal longitude,
+
 
         @Schema(
                 description = "**[REQUIRED]** Name of the point of contact for this branch.",

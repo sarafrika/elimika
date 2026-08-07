@@ -23,6 +23,15 @@ public class CourseCreator extends BaseEntity {
     @Column(name = "full_name")
     private String fullName;
 
+    @Column(name = "location_name")
+    private String locationName;
+
+    @Column(name = "lat")
+    private java.math.BigDecimal latitude;
+
+    @Column(name = "long")
+    private java.math.BigDecimal longitude;
+
     @Column(name = "bio")
     private String bio;
 

@@ -72,6 +72,33 @@ public record CourseCreatorDTO(
         String fullName,
 
         @Schema(
+                description = "**[OPTIONAL]** Name of the place the course creator searched for, stored alongside the coordinates so their location reads back as a place rather than a coordinate pair.",
+                example = "Sarit Centre, Nairobi, Kenya",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("location_name")
+        String locationName,
+
+        @Schema(
+                description = "**[OPTIONAL]** Geographical latitude of the course creator's primary location.",
+                example = "-1.2921",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("latitude")
+        java.math.BigDecimal latitude,
+
+        @Schema(
+                description = "**[OPTIONAL]** Geographical longitude of the course creator's primary location.",
+                example = "36.8219",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("longitude")
+        java.math.BigDecimal longitude,
+
+        @Schema(
                 description = "**[OPTIONAL]** Professional biography describing course creator's background, expertise, and content creation philosophy. Used in creator profiles and course descriptions.",
                 example = "Passionate content creator with expertise in designing engaging online courses. Specializes in technical training materials and interactive learning experiences.",
                 maxLength = 2000,

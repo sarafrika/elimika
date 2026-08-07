@@ -23,6 +23,9 @@ public class Instructor extends BaseEntity {
     @Column(name = "full_name")
     private String fullName;
 
+    @Column(name = "location_name")
+    private String locationName;
+
     @Column(name = "lat")
     private BigDecimal latitude;
 

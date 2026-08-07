@@ -183,6 +183,9 @@ public class InstructorServiceImpl implements InstructorService {
 
     private void applyInstructorProfile(Instructor instructor, InstructorDTO instructorDTO) {
         instructor.setUserUuid(instructorDTO.userUuid());
+        if (instructorDTO.locationName() != null) {
+            instructor.setLocationName(instructorDTO.locationName());
+        }
         if (instructorDTO.latitude() != null) {
             instructor.setLatitude(instructorDTO.latitude());
         }

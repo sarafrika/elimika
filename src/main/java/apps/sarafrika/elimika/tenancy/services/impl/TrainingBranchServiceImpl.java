@@ -331,6 +331,8 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
         trainingBranch.setOrganisationUuid(dto.organisationUuid());
         trainingBranch.setBranchName(dto.branchName());
         trainingBranch.setAddress(dto.address());
+        trainingBranch.setLatitude(dto.latitude());
+        trainingBranch.setLongitude(dto.longitude());
         trainingBranch.setPocName(dto.pocName());
         trainingBranch.setPocEmail(dto.pocEmail());
         trainingBranch.setPocTelephone(dto.pocTelephone());

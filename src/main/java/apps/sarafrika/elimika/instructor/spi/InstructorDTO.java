@@ -72,6 +72,14 @@ public record InstructorDTO(
         String fullName,
 
         @Schema(
+                description = "**[OPTIONAL]** Name of the place the instructor searched for, stored alongside the coordinates so their location reads back as a place rather than a coordinate pair.",
+                example = "Sarit Centre, Nairobi, Kenya",
+                nullable = true
+        )
+        @JsonProperty("location_name")
+        String locationName,
+
+        @Schema(
                 description = "**[OPTIONAL]** Geographical latitude coordinate of instructor's primary training location. Used for location-based instructor matching and distance calculations.",
                 example = "-1.2921",
                 minimum = "-90.0",
@@ -209,6 +217,9 @@ public record InstructorDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         public String getFormattedLocation() {
+                if (locationName != null && !locationName.isBlank()) {
+                        return locationName;
+                }
                 if (!hasLocationCoordinates()) {
                         return null;
                 }

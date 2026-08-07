@@ -27,6 +27,12 @@ public class TrainingBranch extends BaseEntity {
     private String address;
 
 
+    @Column(name = "lat")
+    private java.math.BigDecimal latitude;
+
+    @Column(name = "long")
+    private java.math.BigDecimal longitude;
+
     @Column(name = "poc_name")
     private String pocName;
 
