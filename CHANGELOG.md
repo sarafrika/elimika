@@ -1,3 +1,10 @@
+# [2.126.0](https://github.com/sarafrika/elimika/compare/v2.125.0...v2.126.0) (2026-08-08)
+
+
+### Features
+
+* **enrolment:** refuse checkout when our records say the learner cannot join ([3eaa6ff](https://github.com/sarafrika/elimika/commit/3eaa6fff3e5f59dbb3afeeed443f386dbbf5ceea))
+
 # [2.125.0](https://github.com/sarafrika/elimika/compare/v2.124.0...v2.125.0) (2026-08-08)
 
 
