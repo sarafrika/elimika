@@ -1,3 +1,10 @@
+## [2.130.1](https://github.com/sarafrika/elimika/compare/v2.130.0...v2.130.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **marketplace:** resolve approved rates in the job's contracted basis ([d28a10b](https://github.com/sarafrika/elimika/commit/d28a10b6a3abf5c75b82d4090cc1c258592eb3b3))
+
 # [2.130.0](https://github.com/sarafrika/elimika/compare/v2.129.0...v2.130.0) (2026-08-08)
 
 
