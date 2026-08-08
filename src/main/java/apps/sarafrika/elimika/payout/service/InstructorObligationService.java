@@ -28,7 +28,8 @@ public interface InstructorObligationService {
      *         empty when the session is not payable at all (no instructor, no organisation, no rate)
      */
     Optional<InstructorObligationDTO> accrueForCompletedSession(
-            UUID classDefinitionUuid, UUID sessionUuid, UUID instructorUuid, LocalDateTime completedAt);
+            UUID classDefinitionUuid, UUID sessionUuid, UUID instructorUuid, LocalDateTime completedAt,
+            Integer durationMinutes);
 
     /**
      * Records that the organisation has paid this obligation outside the platform.

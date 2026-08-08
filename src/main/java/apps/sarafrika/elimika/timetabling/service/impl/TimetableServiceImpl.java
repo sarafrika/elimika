@@ -224,7 +224,8 @@ public class TimetableServiceImpl implements TimetableService {
                 instance.getUuid(),
                 instance.getClassDefinitionUuid(),
                 instance.getInstructorUuid(),
-                completedAt == null ? currentUtcTime() : completedAt
+                completedAt == null ? currentUtcTime() : completedAt,
+                durationMinutes(instance.getStartTime(), instance.getEndTime())
         ));
     }
 
@@ -1505,5 +1506,15 @@ public class TimetableServiceImpl implements TimetableService {
                             row[5] == null ? null : ((java.sql.Timestamp) row[5]).toLocalDateTime());
                 })
                 .toList();
+    }
+
+    /**
+     * Scheduled length of a session, used to price an instructor's per-hour rate.
+     */
+    private static Integer durationMinutes(java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        if (start == null || end == null || !end.isAfter(start)) {
+            return null;
+        }
+        return (int) java.time.Duration.between(start, end).toMinutes();
     }
 }

@@ -64,7 +64,8 @@ public class InstructorObligationServiceImpl
     @Override
     @Transactional
     public Optional<InstructorObligationDTO> accrueForCompletedSession(
-            UUID classDefinitionUuid, UUID sessionUuid, UUID instructorUuid, LocalDateTime completedAt) {
+            UUID classDefinitionUuid, UUID sessionUuid, UUID instructorUuid, LocalDateTime completedAt,
+            Integer durationMinutes) {
 
         if (classDefinitionUuid == null || sessionUuid == null || instructorUuid == null) {
             log.debug("Ignoring session completion with incomplete identity: class={}, session={}, instructor={}",
@@ -89,13 +90,15 @@ public class InstructorObligationServiceImpl
             return Optional.empty();
         }
 
-        BigDecimal rate = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+        BigDecimal hourlyRate = classDefinitionLookupService.findByUuid(classDefinitionUuid)
                 .map(ClassDefinitionSnapshot::instructorPay)
                 .orElse(null);
-        if (rate == null || rate.signum() <= 0) {
+        if (hourlyRate == null || hourlyRate.signum() <= 0) {
             log.debug("Class {} has no positive instructor pay; no obligation accrues", classDefinitionUuid);
             return Optional.empty();
         }
+
+        BigDecimal rate = applySessionDuration(hourlyRate, durationMinutes, sessionUuid);
 
         UUID instructorUserUuid = instructorLookupService.getInstructorUserUuid(instructorUuid).orElse(null);
         if (instructorUserUuid == null) {
@@ -268,5 +271,23 @@ public class InstructorObligationServiceImpl
 
     private LocalDateTime nowUtc() {
         return LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * Instructor pay is a rate per hour — the same basis the course creator's rate card and the
+     * learner's price use — so a session earns the rate scaled by how long it ran.
+     * <p>
+     * A missing duration falls back to the flat rate rather than to zero: an event published before
+     * duration was carried, or an instance with no usable window, must never silently wipe out what
+     * someone is owed.
+     */
+    private BigDecimal applySessionDuration(BigDecimal hourlyRate, Integer durationMinutes, UUID sessionUuid) {
+        if (durationMinutes == null || durationMinutes <= 0) {
+            log.warn("Session {} has no usable duration; accruing the flat hourly rate", sessionUuid);
+            return hourlyRate;
+        }
+        BigDecimal hours = BigDecimal.valueOf(durationMinutes)
+                .divide(BigDecimal.valueOf(60), 4, java.math.RoundingMode.HALF_UP);
+        return hourlyRate.multiply(hours).setScale(4, java.math.RoundingMode.HALF_UP);
     }
 }

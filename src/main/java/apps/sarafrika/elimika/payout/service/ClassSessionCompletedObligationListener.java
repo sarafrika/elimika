@@ -59,7 +59,8 @@ public class ClassSessionCompletedObligationListener {
                     event.classDefinitionUuid(),
                     event.scheduledInstanceUuid(),
                     event.instructorUuid(),
-                    event.completedAt());
+                    event.completedAt(),
+                    event.durationMinutes());
         } catch (Exception ex) {
             log.error("Failed to accrue the instructor obligation for session {} of class {}: {}",
                     event.scheduledInstanceUuid(), event.classDefinitionUuid(), ex.getMessage(), ex);

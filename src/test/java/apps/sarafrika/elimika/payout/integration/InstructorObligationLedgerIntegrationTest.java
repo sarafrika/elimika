@@ -124,7 +124,7 @@ class InstructorObligationLedgerIntegrationTest {
     @DisplayName("the same session cannot be paid for twice, even past the pre-check")
     void theUniqueConstraintStopsADoublePayment() {
         UUID sessionUuid = UUID.randomUUID();
-        service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, LocalDateTime.now(), 60);
 
         // Bypasses the service's pre-check entirely, which is the point: this proves the database
         // itself refuses, not just the happy path in Java.
@@ -153,9 +153,9 @@ class InstructorObligationLedgerIntegrationTest {
         LocalDateTime completedAt = LocalDateTime.of(2026, 8, 1, 9, 0);
 
         Optional<InstructorObligationDTO> first =
-                service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, completedAt);
+                service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, completedAt, 60);
         Optional<InstructorObligationDTO> second =
-                service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, completedAt);
+                service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, completedAt, 60);
 
         assertThat(first).isPresent();
         assertThat(second).isPresent();
@@ -167,11 +167,11 @@ class InstructorObligationLedgerIntegrationTest {
     @DisplayName("re-rating the class does not change what was already accrued")
     void aRateChangeDoesNotRewriteHistory() {
         UUID firstSession = UUID.randomUUID();
-        service.accrueForCompletedSession(pianoClassUuid, firstSession, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(pianoClassUuid, firstSession, instructorUuid, LocalDateTime.now(), 60);
 
         classCharges(pianoClassUuid, "200.00");
         UUID secondSession = UUID.randomUUID();
-        service.accrueForCompletedSession(pianoClassUuid, secondSession, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(pianoClassUuid, secondSession, instructorUuid, LocalDateTime.now(), 60);
 
         BigDecimal firstRate = obligationRepository
                 .findByClassDefinitionUuidAndSessionUuidAndInstructorUuid(pianoClassUuid, firstSession, instructorUuid)
@@ -196,11 +196,11 @@ class InstructorObligationLedgerIntegrationTest {
         UUID pianoOne = UUID.randomUUID();
         UUID pianoTwo = UUID.randomUUID();
         UUID guitarOne = UUID.randomUUID();
-        service.accrueForCompletedSession(pianoClassUuid, pianoOne, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(pianoClassUuid, pianoOne, instructorUuid, LocalDateTime.now(), 60);
         InstructorObligationDTO second =
-                service.accrueForCompletedSession(pianoClassUuid, pianoTwo, instructorUuid, LocalDateTime.now())
+                service.accrueForCompletedSession(pianoClassUuid, pianoTwo, instructorUuid, LocalDateTime.now(), 60)
                         .orElseThrow();
-        service.accrueForCompletedSession(guitarClassUuid, guitarOne, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(guitarClassUuid, guitarOne, instructorUuid, LocalDateTime.now(), 60);
 
         // 800 + 800 + 500 = 2100 accrued across two classes and three sessions.
         OrganisationInstructorPayable beforeSettlement = onlyPayable();
@@ -228,7 +228,7 @@ class InstructorObligationLedgerIntegrationTest {
     void cancellationRemovesTheDebtWithoutRemovingTheRow() {
         UUID sessionUuid = UUID.randomUUID();
         InstructorObligationDTO accrued = service
-                .accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, LocalDateTime.now())
+                .accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, LocalDateTime.now(), 60)
                 .orElseThrow();
 
         service.cancel(organisationUuid, accrued.uuid(), "Session was marked complete in error", "auditor-1");
@@ -246,7 +246,7 @@ class InstructorObligationLedgerIntegrationTest {
     @DisplayName("the database refuses a settlement carrying no evidence")
     void theCheckConstraintRefusesAnUnevidencedSettlement() {
         UUID sessionUuid = UUID.randomUUID();
-        service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(pianoClassUuid, sessionUuid, instructorUuid, LocalDateTime.now(), 60);
 
         assertThatThrownBy(() -> jdbc.update(
                 "update instructor_obligations set status = 'SETTLED' where session_uuid = ?", sessionUuid))
@@ -256,7 +256,7 @@ class InstructorObligationLedgerIntegrationTest {
     @Test
     @DisplayName("an obligation belongs to exactly one organisation's ledger")
     void obligationsAreScopedToTheirOrganisation() {
-        service.accrueForCompletedSession(pianoClassUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(pianoClassUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 60);
 
         assertThat(service.findPayablesForOrganisation(otherOrganisationUuid)).isEmpty();
         assertThat(service.findForOrganisation(otherOrganisationUuid, null, null, PageRequest.of(0, 20)))
@@ -268,9 +268,9 @@ class InstructorObligationLedgerIntegrationTest {
     void theInstructorStatementMirrorsThePayables() {
         UUID pianoOne = UUID.randomUUID();
         InstructorObligationDTO first = service
-                .accrueForCompletedSession(pianoClassUuid, pianoOne, instructorUuid, LocalDateTime.now())
+                .accrueForCompletedSession(pianoClassUuid, pianoOne, instructorUuid, LocalDateTime.now(), 60)
                 .orElseThrow();
-        service.accrueForCompletedSession(guitarClassUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(guitarClassUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 60);
         service.settle(organisationUuid, first.uuid(), "BANK-778812", null, "auditor-1");
 
         InstructorStatementDTO statement = service.getStatement(instructorUserUuid);

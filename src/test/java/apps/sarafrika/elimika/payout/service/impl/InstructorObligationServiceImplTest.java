@@ -98,7 +98,7 @@ class InstructorObligationServiceImplTest {
         LocalDateTime completedAt = LocalDateTime.of(2026, 8, 1, 10, 0);
 
         Optional<InstructorObligationDTO> accrued =
-                service.accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, completedAt);
+                service.accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, completedAt, 60);
 
         ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
         verify(obligationRepository).saveAndFlush(captor.capture());
@@ -116,11 +116,50 @@ class InstructorObligationServiceImplTest {
     }
 
     @Test
+    @DisplayName("a longer session earns proportionally more at the same hourly rate")
+    void durationScalesTheAccruedAmount() {
+        trainingFeeIs("2000.00");
+
+        service.accrueForCompletedSession(
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 120);
+
+        ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
+        verify(obligationRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getRateAmount()).isEqualByComparingTo("4000.00");
+    }
+
+    @Test
+    @DisplayName("a half-hour session earns half the hourly rate")
+    void aShortSessionEarnsAFraction() {
+        trainingFeeIs("2000.00");
+
+        service.accrueForCompletedSession(
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 30);
+
+        ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
+        verify(obligationRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getRateAmount()).isEqualByComparingTo("1000.00");
+    }
+
+    @Test
+    @DisplayName("a missing duration falls back to the flat rate rather than paying nothing")
+    void anUnknownDurationDoesNotZeroThePay() {
+        trainingFeeIs("2000.00");
+
+        service.accrueForCompletedSession(
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), null);
+
+        ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
+        verify(obligationRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getRateAmount()).isEqualByComparingTo("2000.00");
+    }
+
+    @Test
     @DisplayName("re-rating a class leaves what was already earned alone")
     void aLaterRateChangeDoesNotAlterAnEarlierObligation() {
         trainingFeeIs("800.00");
         UUID firstSession = UUID.randomUUID();
-        service.accrueForCompletedSession(classDefinitionUuid, firstSession, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(classDefinitionUuid, firstSession, instructorUuid, LocalDateTime.now(), 60);
 
         ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
         verify(obligationRepository).saveAndFlush(captor.capture());
@@ -129,7 +168,7 @@ class InstructorObligationServiceImplTest {
         // The organisation halves the rate card. Nothing goes back and touches the row above.
         trainingFeeIs("400.00");
         UUID secondSession = UUID.randomUUID();
-        service.accrueForCompletedSession(classDefinitionUuid, secondSession, instructorUuid, LocalDateTime.now());
+        service.accrueForCompletedSession(classDefinitionUuid, secondSession, instructorUuid, LocalDateTime.now(), 60);
 
         ArgumentCaptor<InstructorObligation> secondCaptor = ArgumentCaptor.forClass(InstructorObligation.class);
         verify(obligationRepository, org.mockito.Mockito.times(2)).saveAndFlush(secondCaptor.capture());
@@ -149,7 +188,7 @@ class InstructorObligationServiceImplTest {
                 .thenReturn(Optional.of(existing));
 
         Optional<InstructorObligationDTO> accrued =
-                service.accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, LocalDateTime.now());
+                service.accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, LocalDateTime.now(), 60);
 
         assertThat(accrued).isPresent();
         assertThat(accrued.get().uuid()).isEqualTo(existing.getUuid());
@@ -171,7 +210,7 @@ class InstructorObligationServiceImplTest {
                 .thenThrow(new DataIntegrityViolationException("uq_instructor_obligations_session"));
 
         Optional<InstructorObligationDTO> accrued =
-                service.accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, LocalDateTime.now());
+                service.accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, LocalDateTime.now(), 60);
 
         assertThat(accrued).isPresent();
         assertThat(accrued.get().uuid()).isEqualTo(winner.getUuid());
@@ -184,7 +223,7 @@ class InstructorObligationServiceImplTest {
         when(classDefinitionLookupService.findOrganisationUuid(classDefinitionUuid)).thenReturn(Optional.empty());
 
         assertThat(service.accrueForCompletedSession(
-                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now())).isEmpty();
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 60)).isEmpty();
         verify(obligationRepository, never()).saveAndFlush(any());
     }
 
@@ -194,7 +233,7 @@ class InstructorObligationServiceImplTest {
         trainingFeeIs("0.00");
 
         assertThat(service.accrueForCompletedSession(
-                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now())).isEmpty();
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 60)).isEmpty();
         verify(obligationRepository, never()).saveAndFlush(any());
     }
 
@@ -205,7 +244,7 @@ class InstructorObligationServiceImplTest {
         when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.empty());
 
         Optional<InstructorObligationDTO> accrued = service.accrueForCompletedSession(
-                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now());
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 60);
 
         assertThat(accrued).isPresent();
         assertThat(accrued.get().instructorUserUuid()).isNull();

@@ -391,7 +391,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
             if (job.getInstructorPay() != null && job.getInstructorPay().compareTo(approvedRate) < 0) {
                 throw new IllegalArgumentException(String.format(
-                        "This posting offers %s per session, which is below the instructor's approved rate of %s "
+                        "This posting offers %s per hour, which is below the instructor's approved rate of %s "
                                 + "for %s %s sessions.",
                         job.getInstructorPay(), approvedRate, job.getSessionFormat(), job.getLocationType()));
             }

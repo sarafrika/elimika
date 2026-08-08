@@ -40,14 +40,14 @@ class ClassSessionCompletedObligationListenerTest {
         UUID classDefinitionUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
         LocalDateTime completedAt = LocalDateTime.of(2026, 8, 3, 12, 30);
-        when(instructorObligationService.accrueForCompletedSession(any(), any(), any(), any()))
+        when(instructorObligationService.accrueForCompletedSession(any(), any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
         listener.handleClassSessionCompleted(new ClassSessionCompletedEvent(
-                sessionUuid, classDefinitionUuid, instructorUuid, completedAt));
+                sessionUuid, classDefinitionUuid, instructorUuid, completedAt, 60));
 
         verify(instructorObligationService)
-                .accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, completedAt);
+                .accrueForCompletedSession(classDefinitionUuid, sessionUuid, instructorUuid, completedAt, 60);
     }
 
     /**
@@ -57,11 +57,11 @@ class ClassSessionCompletedObligationListenerTest {
     @Test
     @DisplayName("a failed accrual is rethrown so its event publication stays incomplete")
     void failureIsRethrown() {
-        when(instructorObligationService.accrueForCompletedSession(any(), any(), any(), any()))
+        when(instructorObligationService.accrueForCompletedSession(any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("database unavailable"));
 
         assertThatThrownBy(() -> listener.handleClassSessionCompleted(new ClassSessionCompletedEvent(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now())))
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(), 60)))
                 .isInstanceOf(InstructorObligationAccrualFailedException.class)
                 .hasMessageContaining("will be retried");
     }
@@ -70,8 +70,8 @@ class ClassSessionCompletedObligationListenerTest {
     @DisplayName("an event with no session is ignored rather than failed")
     void anEmptyEventIsIgnored() {
         assertThatCode(() -> listener.handleClassSessionCompleted(
-                new ClassSessionCompletedEvent(null, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now())))
+                new ClassSessionCompletedEvent(null, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(), 60)))
                 .doesNotThrowAnyException();
-        verify(instructorObligationService, never()).accrueForCompletedSession(any(), any(), any(), any());
+        verify(instructorObligationService, never()).accrueForCompletedSession(any(), any(), any(), any(), any());
     }
 }

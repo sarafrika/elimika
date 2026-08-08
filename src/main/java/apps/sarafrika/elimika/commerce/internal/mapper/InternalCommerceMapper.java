@@ -61,6 +61,7 @@ public class InternalCommerceMapper {
         return OrderResponse.builder()
                 .id(optionalUuid(order.getUuid()))
                 .displayId(order.getId() == null ? null : order.getId().toString())
+                .userUuid(order.getUserUuid())
                 .paymentStatus(order.getPaymentStatus() == null ? null : order.getPaymentStatus().name())
                 .currencyCode(order.getCurrencyCode())
                 .subtotal(amount(order.getSubtotalAmount()))

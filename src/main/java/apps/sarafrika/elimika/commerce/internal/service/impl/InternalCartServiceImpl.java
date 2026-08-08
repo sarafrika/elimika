@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVarian
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
@@ -68,6 +69,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final ClassCapacityService classCapacityService;
     private final ClassScheduleService classScheduleService;
     private final CurrencyValidator currencyValidator;
+    private final DomainSecurityService domainSecurityService;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -81,6 +83,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         cart.setStatus(CartStatus.OPEN);
         cart.setCurrencyCode(currencyCode);
         cart.setRegionCode(regionResolver.resolveRegionCode(request.getRegionCode(), null));
+        cart.setUserUuid(currentUserUuid());
         cart = cartRepository.save(cart);
 
         if (!CollectionUtils.isEmpty(request.getItems())) {
@@ -99,6 +102,9 @@ public class InternalCartServiceImpl implements InternalCartService {
     public CartResponse addItem(String cartId, CartLineItemRequest request) {
         CommerceCart cart = loadCart(cartId);
         ensureOpen(cart);
+        if (cart.getUserUuid() == null) {
+            cart.setUserUuid(currentUserUuid());
+        }
         addItemToCart(cart, request);
         recalcTotals(cart);
         refreshCartMetadata(cart);
@@ -316,6 +322,15 @@ public class InternalCartServiceImpl implements InternalCartService {
         UUID uuid = parseUuid(cartId);
         return cartRepository.findByUuid(uuid)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found: " + cartId));
+    }
+
+    private UUID currentUserUuid() {
+        try {
+            return domainSecurityService.getCurrentUserUuid();
+        } catch (Exception e) {
+            // A cart can be built before sign-in; the buyer is re-resolved when the order is recorded.
+            return null;
+        }
     }
 
     private UUID parseUuid(String id) {

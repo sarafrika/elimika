@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,6 +30,12 @@ public class OrderResponse {
     @Schema(description = "Human friendly order number", example = "100012")
     @JsonProperty("display_id")
     private final String displayId;
+
+    @Schema(description = "User who placed the order. Carried through so the buyer is still known when a "
+            + "payment is captured asynchronously and no checkout request is available.",
+            example = "9c1f2f4e-4d9d-4b1a-9f0e-2f8a1b7c3d5e", nullable = true)
+    @JsonProperty("user_uuid")
+    private final UUID userUuid;
 
     @Schema(description = "Payment status", example = "CAPTURED")
     @JsonProperty("payment_status")

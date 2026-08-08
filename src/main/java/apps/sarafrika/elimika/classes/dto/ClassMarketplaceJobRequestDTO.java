@@ -185,7 +185,7 @@ public record ClassMarketplaceJobRequestDTO(
         @JsonProperty("allow_waitlist")
         Boolean allowWaitlist,
 
-        @Schema(description = "**[OPTIONAL]** Price per session a learner will be charged once the class exists. Defaults to the organisation's approved rate when omitted. Must be at least the course minimum training fee.", nullable = true, example = "240.00")
+        @Schema(description = "**[OPTIONAL]** Price per learner per hour, charged once the class exists. Defaults to the organisation's approved rate when omitted. Must be at least the course minimum training fee.", nullable = true, example = "240.00")
         @JsonProperty("sale_price")
         @PositiveOrZero(message = "Sale price cannot be negative")
         BigDecimal salePrice,

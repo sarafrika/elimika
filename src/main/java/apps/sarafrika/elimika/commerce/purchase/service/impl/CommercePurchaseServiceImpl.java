@@ -3,11 +3,13 @@ package apps.sarafrika.elimika.commerce.purchase.service.impl;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
+import apps.sarafrika.elimika.commerce.purchase.service.CommerceAccessService;
 import apps.sarafrika.elimika.commerce.purchase.spi.CommercePurchaseService;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
+import apps.sarafrika.elimika.shared.event.commerce.ClassPurchaseRecordedEvent;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
@@ -20,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -34,6 +37,8 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
     private final ObjectMapper objectMapper;
+    private final CommerceAccessService accessService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -54,10 +59,18 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         purchase.setOrderCreatedAt(order.getCreatedAt());
         applyPlatformFee(purchase, order.getPlatformFee());
 
+        // The order carries the buyer even when payment is captured asynchronously and there is no
+        // checkout request to read an email from, which is the case for every M-Pesa capture.
+        UUID buyerUserUuid = order.getUserUuid();
         if (checkoutRequest != null) {
             purchase.setCustomerEmail(checkoutRequest.getCustomerEmail());
-            userLookupService.findUserUuidByEmail(checkoutRequest.getCustomerEmail())
-                    .ifPresent(purchase::setUserUuid);
+            if (buyerUserUuid == null) {
+                buyerUserUuid = userLookupService.findUserUuidByEmail(checkoutRequest.getCustomerEmail())
+                        .orElse(null);
+            }
+        }
+        if (buyerUserUuid != null) {
+            purchase.setUserUuid(buyerUserUuid);
         }
 
         List<CartItemResponse> items = order.getItems();
@@ -68,18 +81,44 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
 
         if (!CollectionUtils.isEmpty(items)) {
             for (CartItemResponse item : items) {
-                CommercePurchaseItem entity = buildPurchaseItem(purchase, item, checkoutRequest);
+                CommercePurchaseItem entity = buildPurchaseItem(purchase, item, checkoutRequest, buyerUserUuid);
                 purchase.getItems().add(entity);
             }
         }
 
-        purchaseRepository.save(purchase);
+        CommercePurchase saved = purchaseRepository.save(purchase);
+        publishClassPurchases(saved);
+    }
+
+    /**
+     * Announces every class seat this order actually paid for. Access is re-checked through the same
+     * service the enrolment paywall uses, so a seat is never announced that the paywall would refuse.
+     */
+    private void publishClassPurchases(CommercePurchase purchase) {
+        if (CollectionUtils.isEmpty(purchase.getItems())) {
+            return;
+        }
+        for (CommercePurchaseItem item : purchase.getItems()) {
+            if (item.getScope() != PurchaseScope.CLASS
+                    || item.getStudentUuid() == null
+                    || item.getClassDefinitionUuid() == null) {
+                continue;
+            }
+            if (!accessService.hasClassAccess(item.getStudentUuid(), item.getClassDefinitionUuid())) {
+                continue;
+            }
+            eventPublisher.publishEvent(new ClassPurchaseRecordedEvent(
+                    item.getStudentUuid(),
+                    item.getClassDefinitionUuid(),
+                    purchase.getOrderId()));
+        }
     }
 
     private CommercePurchaseItem buildPurchaseItem(
             CommercePurchase purchase,
             CartItemResponse item,
-            CheckoutRequest checkoutRequest
+            CheckoutRequest checkoutRequest,
+            UUID buyerUserUuid
     ) {
         CommercePurchaseItem entity = new CommercePurchaseItem();
         entity.setPurchase(purchase);
@@ -96,10 +135,10 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
             entity.setMetadataJson(writeMetadata(metadata));
             entity.setCourseUuid(parseUuid(metadata.get("course_uuid")));
             entity.setClassDefinitionUuid(parseUuid(metadata.get("class_definition_uuid")));
-            entity.setStudentUuid(resolveStudentUuid(metadata, checkoutRequest));
+            entity.setStudentUuid(resolveStudentUuid(metadata, checkoutRequest, buyerUserUuid));
             entity.setScope(determineScope(metadata));
         } else {
-            entity.setStudentUuid(resolveStudentUuid(Map.of(), checkoutRequest));
+            entity.setStudentUuid(resolveStudentUuid(Map.of(), checkoutRequest, buyerUserUuid));
         }
         return entity;
     }
@@ -117,10 +156,18 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
     }
 
 
-    private UUID resolveStudentUuid(Map<String, Object> metadata, CheckoutRequest checkoutRequest) {
+    private UUID resolveStudentUuid(Map<String, Object> metadata, CheckoutRequest checkoutRequest, UUID buyerUserUuid) {
+        // An explicit student on the line item wins: that is how an admin buys on someone's behalf.
         UUID metadataStudent = parseUuid(metadata.get("student_uuid"));
         if (metadataStudent != null) {
             return metadataStudent;
+        }
+
+        if (buyerUserUuid != null) {
+            UUID student = studentLookupService.findStudentUuidByUserUuid(buyerUserUuid).orElse(null);
+            if (student != null) {
+                return student;
+            }
         }
 
         String email = checkoutRequest != null ? checkoutRequest.getCustomerEmail() : null;

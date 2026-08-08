@@ -289,7 +289,8 @@ public class SchedulingEventListener {
                     instance.getUuid(),
                     instance.getClassDefinitionUuid(),
                     instance.getInstructorUuid(),
-                    now
+                    now,
+                    durationMinutes(instance.getStartTime(), instance.getEndTime())
             ));
         });
         
@@ -352,4 +353,14 @@ public class SchedulingEventListener {
             LocalDateTime endTime,
             LocalDateTime transitionTime
     ) {}
+
+    /**
+     * Scheduled length of a session, used to price an instructor's per-hour rate.
+     */
+    private static Integer durationMinutes(java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        if (start == null || end == null || !end.isAfter(start)) {
+            return null;
+        }
+        return (int) java.time.Duration.between(start, end).toMinutes();
+    }
 }
