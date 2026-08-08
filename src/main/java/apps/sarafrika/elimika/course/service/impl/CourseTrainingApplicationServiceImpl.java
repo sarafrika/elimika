@@ -357,10 +357,18 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             throw new IllegalArgumentException("Rate card is required");
         }
         target.setRateCurrency(rateCurrency);
-        target.setPrivateOnlineRate(rateCard.privateOnlineRate());
-        target.setPrivateInpersonRate(rateCard.privateInpersonRate());
-        target.setGroupOnlineRate(rateCard.groupOnlineRate());
-        target.setGroupInpersonRate(rateCard.groupInpersonRate());
+        target.setPrivateOnlineHourlyRate(rateCard.privateOnlineHourlyRate());
+        target.setPrivateInpersonHourlyRate(rateCard.privateInpersonHourlyRate());
+        target.setGroupOnlineHourlyRate(rateCard.groupOnlineHourlyRate());
+        target.setGroupInpersonHourlyRate(rateCard.groupInpersonHourlyRate());
+        target.setPrivateOnlineSessionRate(rateCard.privateOnlineSessionRate());
+        target.setPrivateInpersonSessionRate(rateCard.privateInpersonSessionRate());
+        target.setGroupOnlineSessionRate(rateCard.groupOnlineSessionRate());
+        target.setGroupInpersonSessionRate(rateCard.groupInpersonSessionRate());
+        target.setPrivateOnlineDailyRate(rateCard.privateOnlineDailyRate());
+        target.setPrivateInpersonDailyRate(rateCard.privateInpersonDailyRate());
+        target.setGroupOnlineDailyRate(rateCard.groupOnlineDailyRate());
+        target.setGroupInpersonDailyRate(rateCard.groupInpersonDailyRate());
     }
 
     private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {

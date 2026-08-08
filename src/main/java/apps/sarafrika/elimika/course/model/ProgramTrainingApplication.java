@@ -40,17 +40,41 @@ public class ProgramTrainingApplication extends BaseEntity {
     @Column(name = "rate_currency")
     private String rateCurrency;
 
-    @Column(name = "private_online_rate")
-    private BigDecimal privateOnlineRate;
+    @Column(name = "private_online_hourly_rate")
+    private BigDecimal privateOnlineHourlyRate;
 
-    @Column(name = "private_inperson_rate")
-    private BigDecimal privateInpersonRate;
+    @Column(name = "private_inperson_hourly_rate")
+    private BigDecimal privateInpersonHourlyRate;
 
-    @Column(name = "group_online_rate")
-    private BigDecimal groupOnlineRate;
+    @Column(name = "group_online_hourly_rate")
+    private BigDecimal groupOnlineHourlyRate;
 
-    @Column(name = "group_inperson_rate")
-    private BigDecimal groupInpersonRate;
+    @Column(name = "group_inperson_hourly_rate")
+    private BigDecimal groupInpersonHourlyRate;
+
+    @Column(name = "private_online_session_rate")
+    private BigDecimal privateOnlineSessionRate;
+
+    @Column(name = "private_inperson_session_rate")
+    private BigDecimal privateInpersonSessionRate;
+
+    @Column(name = "group_online_session_rate")
+    private BigDecimal groupOnlineSessionRate;
+
+    @Column(name = "group_inperson_session_rate")
+    private BigDecimal groupInpersonSessionRate;
+
+    @Column(name = "private_online_daily_rate")
+    private BigDecimal privateOnlineDailyRate;
+
+    @Column(name = "private_inperson_daily_rate")
+    private BigDecimal privateInpersonDailyRate;
+
+    @Column(name = "group_online_daily_rate")
+    private BigDecimal groupOnlineDailyRate;
+
+    @Column(name = "group_inperson_daily_rate")
+    private BigDecimal groupInpersonDailyRate;
 
     @Column(name = "status")
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)

@@ -62,6 +62,12 @@ public interface CourseTrainingApprovalSpi {
                                                SessionFormat sessionFormat,
                                                LocationType locationType);
 
+    Optional<BigDecimal> resolveInstructorRate(UUID courseUuid,
+                                               UUID instructorUuid,
+                                               SessionFormat sessionFormat,
+                                               LocationType locationType,
+            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
+
     /**
      * Resolves the approved organisation rate for the provided session format and delivery modality pair.
      *
@@ -75,6 +81,12 @@ public interface CourseTrainingApprovalSpi {
                                                  UUID organisationUuid,
                                                  SessionFormat sessionFormat,
                                                  LocationType locationType);
+
+    Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
+                                                 UUID organisationUuid,
+                                                 SessionFormat sessionFormat,
+                                                 LocationType locationType,
+            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
 
     /**
      * Resolves the approved instructor rate for a training program.
@@ -90,6 +102,12 @@ public interface CourseTrainingApprovalSpi {
                                                       SessionFormat sessionFormat,
                                                       LocationType locationType);
 
+    Optional<BigDecimal> resolveInstructorProgramRate(UUID programUuid,
+                                                      UUID instructorUuid,
+                                                      SessionFormat sessionFormat,
+                                                      LocationType locationType,
+            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
+
     /**
      * Resolves the approved organisation rate for a training program.
      *
@@ -103,4 +121,10 @@ public interface CourseTrainingApprovalSpi {
                                                         UUID organisationUuid,
                                                         SessionFormat sessionFormat,
                                                         LocationType locationType);
+
+    Optional<BigDecimal> resolveOrganisationProgramRate(UUID programUuid,
+                                                        UUID organisationUuid,
+                                                        SessionFormat sessionFormat,
+                                                        LocationType locationType,
+            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
 }

@@ -35,6 +35,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.DisplayName;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.enums.LocationType;
 
 @ExtendWith(MockitoExtension.class)
 class CourseTrainingApplicationServiceImplTest {
@@ -106,7 +109,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("private_online_rate")
+                .hasMessageContaining("private_online_hourly_rate")
                 .hasMessageContaining("minimum training fee");
     }
 
@@ -129,7 +132,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("private_inperson_rate")
+                .hasMessageContaining("private_inperson_hourly_rate")
                 .hasMessageContaining("minimum training fee");
     }
 
@@ -174,10 +177,10 @@ class CourseTrainingApplicationServiceImplTest {
         verify(applicationRepository).save(captor.capture());
 
         CourseTrainingApplication saved = captor.getValue();
-        assertThat(saved.getPrivateOnlineRate()).isEqualByComparingTo("2800.1254");
-        assertThat(saved.getPrivateInpersonRate()).isEqualByComparingTo("2800.1254");
-        assertThat(saved.getGroupOnlineRate()).isEqualByComparingTo("2800.1254");
-        assertThat(saved.getGroupInpersonRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPrivateOnlineHourlyRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getPrivateInpersonHourlyRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getGroupOnlineHourlyRate()).isEqualByComparingTo("2800.1254");
+        assertThat(saved.getGroupInpersonHourlyRate()).isEqualByComparingTo("2800.1254");
         assertThat(saved.getRateCurrency()).isEqualTo("USD");
         assertThat(saved.getStatus()).isEqualTo(CourseTrainingApplicationStatus.PENDING);
     }
@@ -232,7 +235,7 @@ class CourseTrainingApplicationServiceImplTest {
         ArgumentCaptor<CourseTrainingApplication> captor = ArgumentCaptor.forClass(CourseTrainingApplication.class);
         verify(applicationRepository).save(captor.capture());
         CourseTrainingApplication saved = captor.getValue();
-        assertThat(saved.getPrivateOnlineRate()).isEqualByComparingTo("2500.00");
+        assertThat(saved.getPrivateOnlineHourlyRate()).isEqualByComparingTo("2500.00");
         assertThat(saved.getApplicationNotes()).isEqualTo("Updated notes");
         assertThat(saved.getStatus()).isEqualTo(CourseTrainingApplicationStatus.PENDING);
     }
@@ -372,14 +375,48 @@ class CourseTrainingApplicationServiceImplTest {
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+
+    // ── A rate card answers in the unit the job was contracted in ─────────────────────────────
+
+    @Test
+    @DisplayName("a card priced only per hour cannot answer a per-day job")
+    void anUnpricedBasisReturnsNothingRatherThanAnHourlyFigure() {
+        CourseTrainingRateCardDTO card = rateCard("KES", "2000", "2000", "2000", "2000");
+
+        assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.IN_PERSON,
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR))
+                .isEqualByComparingTo("2000");
+        // Deliberately null, not a derived number: a per-day rate inferred from an hourly one is a
+        // price the instructor never agreed to.
+        assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.IN_PERSON,
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY))
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("each basis resolves to its own rate for the same delivery mode")
+    void eachBasisResolvesIndependently() {
+        CourseTrainingRateCardDTO card = new CourseTrainingRateCardDTO(
+                "KES",
+                new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"),
+                new BigDecimal("3500"), new BigDecimal("3500"), new BigDecimal("3500"), new BigDecimal("3500"),
+                new BigDecimal("9000"), new BigDecimal("9000"), new BigDecimal("9000"), new BigDecimal("9000"));
+
+        assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.ONLINE,
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR)).isEqualByComparingTo("2000");
+        assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.ONLINE,
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_SESSION)).isEqualByComparingTo("3500");
+        assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.ONLINE,
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY)).isEqualByComparingTo("9000");
+    }
+
     private CourseTrainingRateCardDTO rateCard(String currency, String amount) {
         BigDecimal normalized = new BigDecimal(amount);
         return new CourseTrainingRateCardDTO(
                 currency,
-                normalized,
-                normalized,
-                normalized,
-                normalized
+                normalized, normalized, normalized, normalized,
+                normalized, normalized, normalized, normalized,
+                normalized, normalized, normalized, normalized
         );
     }
 
@@ -393,7 +430,9 @@ class CourseTrainingApplicationServiceImplTest {
                 new BigDecimal(privateOnline),
                 new BigDecimal(privateInperson),
                 new BigDecimal(groupOnline),
-                new BigDecimal(groupInperson)
+                new BigDecimal(groupInperson),
+                null, null, null, null,
+                null, null, null, null
         );
     }
 

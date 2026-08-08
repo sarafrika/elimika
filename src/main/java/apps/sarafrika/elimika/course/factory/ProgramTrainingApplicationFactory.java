@@ -16,10 +16,18 @@ public final class ProgramTrainingApplicationFactory {
 
         CourseTrainingRateCardDTO rateCard = new CourseTrainingRateCardDTO(
                 entity.getRateCurrency(),
-                entity.getPrivateOnlineRate(),
-                entity.getPrivateInpersonRate(),
-                entity.getGroupOnlineRate(),
-                entity.getGroupInpersonRate()
+                entity.getPrivateOnlineHourlyRate(),
+                entity.getPrivateInpersonHourlyRate(),
+                entity.getGroupOnlineHourlyRate(),
+                entity.getGroupInpersonHourlyRate(),
+                entity.getPrivateOnlineSessionRate(),
+                entity.getPrivateInpersonSessionRate(),
+                entity.getGroupOnlineSessionRate(),
+                entity.getGroupInpersonSessionRate(),
+                entity.getPrivateOnlineDailyRate(),
+                entity.getPrivateInpersonDailyRate(),
+                entity.getGroupOnlineDailyRate(),
+                entity.getGroupInpersonDailyRate()
         );
 
         return new ProgramTrainingApplicationDTO(

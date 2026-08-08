@@ -40,17 +40,41 @@ public class CourseTrainingApplication extends BaseEntity {
     @Column(name = "rate_currency", nullable = false, length = 3)
     private String rateCurrency;
 
-    @Column(name = "private_online_rate", nullable = false)
-    private BigDecimal privateOnlineRate;
+    @Column(name = "private_online_hourly_rate", nullable = false)
+    private BigDecimal privateOnlineHourlyRate;
 
-    @Column(name = "private_inperson_rate", nullable = false)
-    private BigDecimal privateInpersonRate;
+    @Column(name = "private_inperson_hourly_rate", nullable = false)
+    private BigDecimal privateInpersonHourlyRate;
 
-    @Column(name = "group_online_rate", nullable = false)
-    private BigDecimal groupOnlineRate;
+    @Column(name = "group_online_hourly_rate", nullable = false)
+    private BigDecimal groupOnlineHourlyRate;
 
-    @Column(name = "group_inperson_rate", nullable = false)
-    private BigDecimal groupInpersonRate;
+    @Column(name = "group_inperson_hourly_rate", nullable = false)
+    private BigDecimal groupInpersonHourlyRate;
+
+    @Column(name = "private_online_session_rate")
+    private BigDecimal privateOnlineSessionRate;
+
+    @Column(name = "private_inperson_session_rate")
+    private BigDecimal privateInpersonSessionRate;
+
+    @Column(name = "group_online_session_rate")
+    private BigDecimal groupOnlineSessionRate;
+
+    @Column(name = "group_inperson_session_rate")
+    private BigDecimal groupInpersonSessionRate;
+
+    @Column(name = "private_online_daily_rate")
+    private BigDecimal privateOnlineDailyRate;
+
+    @Column(name = "private_inperson_daily_rate")
+    private BigDecimal privateInpersonDailyRate;
+
+    @Column(name = "group_online_daily_rate")
+    private BigDecimal groupOnlineDailyRate;
+
+    @Column(name = "group_inperson_daily_rate")
+    private BigDecimal groupInpersonDailyRate;
 
     @Column(name = "status", nullable = false)
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)

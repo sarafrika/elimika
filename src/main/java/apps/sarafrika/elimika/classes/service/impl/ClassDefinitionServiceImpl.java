@@ -979,7 +979,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     entity.getCourseUuid(),
                     entity.getDefaultInstructorUuid(),
                     entity.getSessionFormat(),
-                    entity.getLocationType()
+                    entity.getLocationType(),
+                    entity.getRateBasis()
             );
         }
         if (entity.getProgramUuid() != null) {
@@ -987,7 +988,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     entity.getProgramUuid(),
                     entity.getDefaultInstructorUuid(),
                     entity.getSessionFormat(),
-                    entity.getLocationType()
+                    entity.getLocationType(),
+                    entity.getRateBasis()
             );
         }
         return Optional.empty();
