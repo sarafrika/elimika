@@ -47,6 +47,9 @@ public record ClassMarketplaceJobDTO(
         @JsonProperty(value = "instructor_pay", access = JsonProperty.Access.READ_ONLY)
         BigDecimal instructorPay,
 
+        @JsonProperty(value = "rate_basis", access = JsonProperty.Access.READ_ONLY)
+        apps.sarafrika.elimika.shared.utils.enums.RateBasis rateBasis,
+
         @JsonProperty(value = "status", access = JsonProperty.Access.READ_ONLY)
         ClassMarketplaceJobStatus status,
 

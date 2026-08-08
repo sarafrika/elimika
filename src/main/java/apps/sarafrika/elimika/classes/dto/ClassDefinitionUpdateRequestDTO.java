@@ -188,6 +188,7 @@ public record ClassDefinitionUpdateRequestDTO(
                 programUuid,
                 salePrice,
                 instructorPay,
+                null,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,

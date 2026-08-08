@@ -571,6 +571,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         job.setSalePrice(salePrice);
         job.setInstructorPay(instructorPay);
+        job.setRateBasis(request.rateBasis() != null
+                ? request.rateBasis()
+                : apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR);
     }
 
     private BigDecimal resolveMinimumTrainingFeeForRequest(ClassMarketplaceJobRequestDTO request) {
@@ -1163,6 +1166,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getProgramUuid(),
                 job.getSalePrice(),
                 job.getInstructorPay(),
+                job.getRateBasis(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),
                 job.getDefaultStartTime(),
@@ -1237,6 +1241,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getDescription(),
                 job.getSalePrice(),
                 job.getInstructorPay(),
+                job.getRateBasis(),
                 job.getStatus(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),

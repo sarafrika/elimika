@@ -195,6 +195,10 @@ public record ClassMarketplaceJobRequestDTO(
         @PositiveOrZero(message = "Instructor pay cannot be negative")
         BigDecimal instructorPay,
 
+        @Schema(description = "**[OPTIONAL]** Unit both prices are quoted in, fixed by the contract this job represents. Defaults to per hour, which is what every existing price means.", nullable = true, example = "per_hour")
+        @JsonProperty("rate_basis")
+        apps.sarafrika.elimika.shared.utils.enums.RateBasis rateBasis,
+
         @Schema(description = "**[REQUIRED]** Session templates that will be used when the class is assigned and created.", requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("session_templates")
         @NotNull(message = "session_templates is required")

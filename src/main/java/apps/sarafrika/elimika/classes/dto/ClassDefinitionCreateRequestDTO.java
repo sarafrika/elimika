@@ -201,6 +201,7 @@ public record ClassDefinitionCreateRequestDTO(
                 effectiveProgramUuid,
                 salePrice,
                 instructorPay,
+                null,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,

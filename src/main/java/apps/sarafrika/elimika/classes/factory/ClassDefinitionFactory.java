@@ -25,6 +25,7 @@ public class ClassDefinitionFactory {
                 entity.getProgramUuid(),
                 entity.getSalePrice(),
                 entity.getInstructorPay(),
+                entity.getRateBasis(),
                 entity.getClassVisibility(),
                 entity.getSessionFormat(),
                 entity.getDefaultStartTime(),
@@ -69,6 +70,7 @@ public class ClassDefinitionFactory {
         entity.setCategoryUuid(dto.categoryUuid());
         entity.setSalePrice(dto.salePrice());
         entity.setInstructorPay(dto.instructorPay());
+        entity.setRateBasis(dto.rateBasis());
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
         entity.setDefaultStartTime(dto.defaultStartTime());
@@ -124,6 +126,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.salePrice() != null) {
             entity.setSalePrice(dto.salePrice());
+        }
+        if (dto.rateBasis() != null) {
+            entity.setRateBasis(dto.rateBasis());
         }
         if (dto.instructorPay() != null) {
             entity.setInstructorPay(dto.instructorPay());

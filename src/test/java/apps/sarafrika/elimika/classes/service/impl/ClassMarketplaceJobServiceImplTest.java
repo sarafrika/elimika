@@ -934,6 +934,7 @@ class ClassMarketplaceJobServiceImplTest {
                 true,
                 new BigDecimal("240.00"),
                 new BigDecimal("240.00"),
+                null,
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -968,7 +969,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), groupUuids, base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
@@ -982,7 +983,8 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), salePrice, instructorPay, base.sessionTemplates(),
+                base.maxParticipants(), base.allowWaitlist(), salePrice, instructorPay,
+                null, base.sessionTemplates(),
                 base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
                 base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
@@ -995,7 +997,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), trainingFee, trainingFee, base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), trainingFee, trainingFee, base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
                 base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
@@ -1008,7 +1010,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
                 categoryUuid, base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
@@ -1021,7 +1023,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), base.resources(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), instructorUuid, base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
@@ -1532,7 +1534,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.sessionTemplates(), resources,
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), resources,
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
     }
@@ -1608,6 +1610,7 @@ class ClassMarketplaceJobServiceImplTest {
                 job.getProgramUuid(),
                 new BigDecimal("2500.00"),
                 new BigDecimal("2500.00"),
+                job.getRateBasis(),
                 job.getClassVisibility(),
                 job.getSessionFormat(),
                 job.getDefaultStartTime(),

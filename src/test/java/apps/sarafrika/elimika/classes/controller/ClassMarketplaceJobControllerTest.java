@@ -239,6 +239,7 @@ class ClassMarketplaceJobControllerTest {
                 true,
                 new BigDecimal("240.00"),
                 new BigDecimal("240.00"),
+                null,
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -292,6 +293,7 @@ class ClassMarketplaceJobControllerTest {
                 true,
                 new BigDecimal("240.00"),
                 new BigDecimal("240.00"),
+                null,
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -329,6 +331,7 @@ class ClassMarketplaceJobControllerTest {
                 request.description(),
                 request.salePrice(),
                 request.instructorPay(),
+                request.rateBasis(),
                 ClassMarketplaceJobStatus.OPEN,
                 request.classVisibility(),
                 request.sessionFormat(),
