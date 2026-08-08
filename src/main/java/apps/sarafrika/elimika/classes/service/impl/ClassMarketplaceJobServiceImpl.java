@@ -36,6 +36,7 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.recurrence.OccurrenceWindow;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
@@ -391,9 +392,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
             if (job.getInstructorPay() != null && job.getInstructorPay().compareTo(approvedRate) < 0) {
                 throw new IllegalArgumentException(String.format(
-                        "This posting offers %s per hour, which is below the instructor's approved rate of %s "
+                        "This posting offers %s %s, which is below the instructor's approved rate of %s "
                                 + "for %s %s sessions.",
-                        job.getInstructorPay(), approvedRate, job.getSessionFormat(), job.getLocationType()));
+                        job.getInstructorPay(),
+                        (job.getRateBasis() == null ? RateBasis.PER_HOUR : job.getRateBasis()).getValue(),
+                        approvedRate, job.getSessionFormat(), job.getLocationType()));
             }
         });
 
@@ -547,12 +550,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private void applyJobPricing(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
         BigDecimal approvedRate = resolveOrganisationRateForRequest(request)
                 .orElseThrow(() -> new IllegalArgumentException(String.format(
-                        "No approved training rate for organisation %s on this %s for %s %s sessions. "
+                        "No approved training rate for organisation %s on this %s for %s %s sessions charged %s. "
                                 + "The course creator must approve a rate card before a class can be posted.",
                         request.organisationUuid(),
                         request.courseUuid() != null ? "course" : "training program",
                         request.sessionFormat(),
-                        request.locationType())));
+                        request.locationType(),
+                        (request.rateBasis() == null ? RateBasis.PER_HOUR : request.rateBasis()).getValue())));
 
         BigDecimal salePrice = request.salePrice() != null ? request.salePrice() : approvedRate;
         BigDecimal instructorPay = request.instructorPay() != null ? request.instructorPay() : salePrice;
@@ -584,12 +588,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private Optional<BigDecimal> resolveOrganisationRateForRequest(ClassMarketplaceJobRequestDTO request) {
+        RateBasis basis = request.rateBasis() == null ? RateBasis.PER_HOUR : request.rateBasis();
         if (request.courseUuid() != null) {
             return courseTrainingApprovalSpi.resolveOrganisationRate(
-                    request.courseUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType());
+                    request.courseUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType(),
+                    basis);
         }
         return courseTrainingApprovalSpi.resolveOrganisationProgramRate(
-                request.programUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType());
+                request.programUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType(),
+                basis);
     }
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
@@ -1318,12 +1325,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private Optional<BigDecimal> resolveInstructorRateForJob(ClassMarketplaceJob job, UUID instructorUuid) {
+        RateBasis basis = job.getRateBasis() == null ? RateBasis.PER_HOUR : job.getRateBasis();
         if (job.getCourseUuid() != null) {
             return courseTrainingApprovalSpi.resolveInstructorRate(
-                    job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType());
+                    job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(), basis);
         }
         return courseTrainingApprovalSpi.resolveInstructorProgramRate(
-                job.getProgramUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType());
+                job.getProgramUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(), basis);
     }
 
     private String resolveAssignedReviewNotes(String existingReviewNotes) {

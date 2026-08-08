@@ -155,10 +155,10 @@ class ClassMarketplaceJobServiceImplTest {
                 storageProperties
         );
         org.mockito.Mockito.lenient()
-                .when(courseTrainingApprovalSpi.resolveOrganisationRate(any(), any(), any(), any()))
+                .when(courseTrainingApprovalSpi.resolveOrganisationRate(any(), any(), any(), any(), any()))
                 .thenReturn(Optional.of(new BigDecimal("240.00")));
         org.mockito.Mockito.lenient()
-                .when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(any(), any(), any(), any()))
+                .when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(any(), any(), any(), any(), any()))
                 .thenReturn(Optional.of(new BigDecimal("240.00")));
         org.mockito.Mockito.lenient().when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
         org.mockito.Mockito.lenient()
@@ -437,7 +437,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
                 .thenReturn(true);
         when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
-                eq(programUuid), eq(request.organisationUuid()), any(), any()))
+                eq(programUuid), eq(request.organisationUuid()), any(), any(), any()))
                 .thenReturn(Optional.of(new BigDecimal("512.00")));
         when(jobRepository.save(any(ClassMarketplaceJob.class)))
                 .thenAnswer(invocation -> {
@@ -469,7 +469,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
                 .thenReturn(true);
         when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
-                eq(programUuid), eq(request.organisationUuid()), any(), any()))
+                eq(programUuid), eq(request.organisationUuid()), any(), any(), any()))
                 .thenReturn(Optional.of(new BigDecimal("512.00")));
 
         assertThatThrownBy(() -> service.createJob(request))
@@ -490,7 +490,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
                 .thenReturn(true);
-        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(any(), any(), any(), any()))
+        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(any(), any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.createJob(request))
@@ -851,6 +851,31 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void listJobApplicationsResolvesTheApprovedRateInTheJobsContractedBasis() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setRateBasis(apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY);
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidOrderByCreatedDateDesc(job.getUuid(), pageable))
+                .thenReturn(new PageImpl<>(List.of(application), pageable, 1));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(),
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY))
+                .thenReturn(Optional.of(new BigDecimal("9000.00")));
+
+        var dto = service.listJobApplications(job.getUuid(), null, pageable).getContent().getFirst();
+
+        assertThat(dto.approvedRate()).isEqualByComparingTo(new BigDecimal("9000.00"));
+    }
+
+    @Test
     void listJobApplicationsEnrichesVerificationApprovalAndRate() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
@@ -865,7 +890,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(courseTrainingApprovalSpi.resolveInstructorRate(
-                job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType()))
+                eq(job.getCourseUuid()), eq(instructorUuid), eq(job.getSessionFormat()), eq(job.getLocationType()),
+                any()))
                 .thenReturn(Optional.of(new BigDecimal("300.00")));
 
         var page = service.listJobApplications(job.getUuid(), null, pageable);
