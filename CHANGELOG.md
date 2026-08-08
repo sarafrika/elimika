@@ -1,3 +1,10 @@
+# [2.125.0](https://github.com/sarafrika/elimika/compare/v2.124.0...v2.125.0) (2026-08-08)
+
+
+### Features
+
+* **commerce:** enrol the student once their class payment is captured ([6c139d4](https://github.com/sarafrika/elimika/commit/6c139d4edb59e28f7bb447ecf5537aba8ce580f7))
+
 # [2.124.0](https://github.com/sarafrika/elimika/compare/v2.123.0...v2.124.0) (2026-08-07)
 
 
