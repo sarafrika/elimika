@@ -1,3 +1,10 @@
+## [2.126.1](https://github.com/sarafrika/elimika/compare/v2.126.0...v2.126.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **classes:** withhold instructor pay from anyone outside the agreement ([648595c](https://github.com/sarafrika/elimika/commit/648595cc1d0cdd076e2c72dc5dae5f5a6a9aee47))
+
 # [2.126.0](https://github.com/sarafrika/elimika/compare/v2.125.0...v2.126.0) (2026-08-08)
 
 
