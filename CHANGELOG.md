@@ -1,3 +1,10 @@
+# [2.127.0](https://github.com/sarafrika/elimika/compare/v2.126.1...v2.127.0) (2026-08-08)
+
+
+### Features
+
+* **pricing:** bill classes per hour, per session or per day on one contracted basis ([9723a80](https://github.com/sarafrika/elimika/commit/9723a8081d44820fd8d5ab56fad8c67c33ba9461))
+
 ## [2.126.1](https://github.com/sarafrika/elimika/compare/v2.126.0...v2.126.1) (2026-08-08)
 
 
