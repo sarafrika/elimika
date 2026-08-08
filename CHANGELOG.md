@@ -1,3 +1,10 @@
+## [2.128.1](https://github.com/sarafrika/elimika/compare/v2.128.0...v2.128.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **commerce:** record captured orders and write the payment rows reports read ([8e858f7](https://github.com/sarafrika/elimika/commit/8e858f7dff4100fd6e70cbc480ea48cc06d24131))
+
 # [2.128.0](https://github.com/sarafrika/elimika/compare/v2.127.0...v2.128.0) (2026-08-08)
 
 
