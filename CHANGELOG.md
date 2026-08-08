@@ -1,3 +1,10 @@
+# [2.129.0](https://github.com/sarafrika/elimika/compare/v2.128.1...v2.129.0) (2026-08-08)
+
+
+### Features
+
+* **pricing:** price instructor rate cards per hour, per session and per day ([7c6bb84](https://github.com/sarafrika/elimika/commit/7c6bb84ff4bb3a41d6304115a3b7454e6a822961))
+
 ## [2.128.1](https://github.com/sarafrika/elimika/compare/v2.128.0...v2.128.1) (2026-08-08)
 
 
