@@ -35,4 +35,28 @@ public class ClassEnrolmentGateServiceImpl implements ClassEnrolmentGateService 
                 timetableService.getClassEnrolmentEligibility(classDefinitionUuid, studentUuid);
         return eligibility.eligible() ? Optional.empty() : Optional.ofNullable(eligibility.reason());
     }
+
+    @Override
+    public boolean reserveSeats(UUID classDefinitionUuid, UUID userUuid, java.time.LocalDateTime reservedUntil) {
+        UUID studentUuid = resolveStudent(userUuid);
+        if (classDefinitionUuid == null || studentUuid == null) {
+            return false;
+        }
+        return timetableService.reserveSeatsForClass(classDefinitionUuid, studentUuid, reservedUntil);
+    }
+
+    @Override
+    public void releaseSeats(UUID classDefinitionUuid, UUID userUuid) {
+        UUID studentUuid = resolveStudent(userUuid);
+        if (classDefinitionUuid == null || studentUuid == null) {
+            return;
+        }
+        timetableService.releaseSeatsForClass(classDefinitionUuid, studentUuid);
+    }
+
+    private UUID resolveStudent(UUID userUuid) {
+        return userUuid == null
+                ? null
+                : studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+    }
 }

@@ -119,6 +119,19 @@ public interface TimetableService {
     ClassEnrolmentEligibilityDTO getClassEnrolmentEligibility(UUID classDefinitionUuid, UUID studentUuid);
 
     /**
+     * Holds every scheduled seat of a class for a student until the given moment, so a payment in
+     * flight cannot lose its place to a concurrent buyer.
+     *
+     * @return false when any seat could not be held
+     */
+    boolean reserveSeatsForClass(UUID classDefinitionUuid, UUID studentUuid, java.time.LocalDateTime reservedUntil);
+
+    /**
+     * Releases seats held for a student whose payment did not complete.
+     */
+    void releaseSeatsForClass(UUID classDefinitionUuid, UUID studentUuid);
+
+    /**
      * Enrolls a student into a specific scheduled instance.
      * This is intended for booking-driven enrollments and skips commerce paywall checks.
      *

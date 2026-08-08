@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.commerce.payment.service.OrderPaymentService;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
+import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -32,6 +33,7 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
     private final MpesaGatewayClient mpesaGatewayClient;
     private final PlatformFeeCalculator platformFeeCalculator;
     private final ApplicationEventPublisher eventPublisher;
+    private final ClassEnrolmentGateService classEnrolmentGateService;
 
     @Override
     public MpesaCheckoutResponse initiateMpesaPayment(String orderId, String phoneNumber) {
@@ -65,6 +67,17 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
 
         String gatewayStatus = mpesaGatewayClient.getPaymentStatus(checkoutRequestId);
         if (GATEWAY_STATUS_SUCCESS.equalsIgnoreCase(gatewayStatus)) {
+            String blocker = findEnrolmentBlocker(order);
+            if (blocker != null) {
+                // The rules changed while the learner was paying. The capture is refused, so no
+                // record of the money is written on this side and the seat is not granted. Safaricom
+                // has already collected it, so this line is the only trace there will be — it must
+                // be loud enough for somebody to act on.
+                log.error("REFUSED CAPTURE for order {}: {}. M-Pesa checkout {} has already collected"
+                        + " {} {} and no capture was recorded. Manual reversal required.",
+                        orderId, blocker, checkoutRequestId, order.getTotal(), order.getCurrencyCode());
+                return new PaymentStatusResponse("REFUSED");
+            }
             OrderResponse captured = internalOrderService.markOrderCaptured(orderId);
             PlatformFeeBreakdown fee =
                     platformFeeCalculator.compute(captured.getTotal(), captured.getCurrencyCode());
@@ -75,5 +88,30 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
         }
 
         return new PaymentStatusResponse(gatewayStatus);
+    }
+
+    /**
+     * Re-asks the compliance gate for every class on this order, at the moment of recording payment.
+     */
+    private String findEnrolmentBlocker(OrderResponse order) {
+        if (order == null || order.getUserUuid() == null || order.getItems() == null) {
+            return null;
+        }
+        for (var item : order.getItems()) {
+            Object classUuid = item.getMetadata() == null ? null : item.getMetadata().get("class_definition_uuid");
+            if (classUuid == null) {
+                continue;
+            }
+            try {
+                var blocker = classEnrolmentGateService.findEnrolmentBlocker(
+                        java.util.UUID.fromString(classUuid.toString()), order.getUserUuid());
+                if (blocker.isPresent()) {
+                    return blocker.get();
+                }
+            } catch (IllegalArgumentException ignored) {
+                // A malformed identifier is not a compliance failure; leave it to the enrolment path.
+            }
+        }
+        return null;
     }
 }

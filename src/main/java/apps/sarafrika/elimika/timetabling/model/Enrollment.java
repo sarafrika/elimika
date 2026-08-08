@@ -36,6 +36,9 @@ public class Enrollment extends BaseEntity {
     @Column(name = "student_uuid")
     private UUID studentUuid;
     
+    @Column(name = "reserved_until")
+    private java.time.LocalDateTime reservedUntil;
+
     @Column(name = "status")
     @Convert(converter = EnrollmentStatusConverter.class)
     private EnrollmentStatus status;

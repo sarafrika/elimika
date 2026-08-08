@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class OrderServiceImpl implements OrderService {
 
     private final InternalOrderService internalOrderService;
+    private final apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService classEnrolmentGateService;
     private final PlatformFeeCalculator platformFeeCalculator;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -38,6 +39,13 @@ public class OrderServiceImpl implements OrderService {
         OrderResponse response = internalOrderService.completeCheckout(request);
 
         if (autoCaptureOnComplete && response != null && response.getId() != null) {
+            // No gateway is involved on this path, so nothing has been collected yet and refusing
+            // here costs the learner nothing.
+            String blocker = findEnrolmentBlocker(response);
+            if (blocker != null) {
+                log.warn("Auto-capture refused for order {}: {}", response.getId(), blocker);
+                throw new IllegalStateException(blocker);
+            }
             try {
                 OrderResponse captured = internalOrderService.markOrderCaptured(response.getId());
                 PlatformFeeBreakdown fee =
@@ -55,5 +63,27 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderResponse getOrder(String orderId) {
         return internalOrderService.getOrder(orderId);
+    }
+
+    private String findEnrolmentBlocker(OrderResponse order) {
+        if (order == null || order.getUserUuid() == null || order.getItems() == null) {
+            return null;
+        }
+        for (var item : order.getItems()) {
+            Object classUuid = item.getMetadata() == null ? null : item.getMetadata().get("class_definition_uuid");
+            if (classUuid == null) {
+                continue;
+            }
+            try {
+                var blocker = classEnrolmentGateService.findEnrolmentBlocker(
+                        java.util.UUID.fromString(classUuid.toString()), order.getUserUuid());
+                if (blocker.isPresent()) {
+                    return blocker.get();
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Not a compliance failure; leave it to the enrolment path.
+            }
+        }
+        return null;
     }
 }

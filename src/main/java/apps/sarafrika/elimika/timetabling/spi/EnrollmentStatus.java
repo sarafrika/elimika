@@ -18,6 +18,7 @@ import java.util.Map;
  * @since 2024-09-05
  */
 public enum EnrollmentStatus {
+    RESERVED("RESERVED", "Seat is held pending payment"),
     ENROLLED("ENROLLED", "Student is enrolled"),
     WAITLISTED("WAITLISTED", "Student is on the waitlist"),
     ATTENDED("ATTENDED", "Student attended the class"),

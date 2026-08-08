@@ -117,6 +117,12 @@ commerce:
   internal:
     enabled: ${COMMERCE_INTERNAL_ENABLED:false}
     default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:KES}
+  payment:
+    reconciliation:
+      # An STK prompt lives about a minute, so this sweep is deliberately tight: it is the safety net
+      # for a payment whose callback never arrived and whose buyer closed the tab.
+      initial-delay: ${COMMERCE_PAYMENT_RECONCILIATION_INITIAL_DELAY:PT60S}
+      interval: ${COMMERCE_PAYMENT_RECONCILIATION_INTERVAL:PT60S}
   capture:
     # Dev default true: checkout auto-captures without a gateway. In prod set false so
     # capture is driven only by confirmed M-Pesa payments (COMMERCE_CAPTURE_AUTO_ON_COMPLETE=false).

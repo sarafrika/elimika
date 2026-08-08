@@ -56,6 +56,7 @@ import org.springframework.util.StringUtils;
 public class InternalCartServiceImpl implements InternalCartService {
 
     private static final BigDecimal ZERO = BigDecimal.valueOf(0, 4);
+    private static final int SEAT_HOLD_MINUTES = 10;
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     private final CommerceCartRepository cartRepository;
@@ -185,6 +186,7 @@ public class InternalCartServiceImpl implements InternalCartService {
 
         enforceClassCapacities(cart);
         enforceEnrolmentEligibility(cart);
+        reserveClassSeats(cart);
 
         String customerEmail = cart.getCustomerEmail();
         if (!StringUtils.hasText(customerEmail)) {
@@ -358,6 +360,33 @@ public class InternalCartServiceImpl implements InternalCartService {
      * would leave a learner charged and turned away. The rules are read from records the platform
      * already holds, never from anything the buyer asserts about themselves.
      */
+
+    /**
+     * Holds every class seat this order is for, until the payment has had time to resolve.
+     * <p>
+     * Capacity is checked just above, but a check without a hold is a race: the last seat can go to
+     * a concurrent buyer while this one is entering their M-Pesa PIN, and there is no refund path to
+     * put that right. The window matches the STK prompt's own lifetime plus room for the sweep.
+     */
+    private void reserveClassSeats(CommerceCart cart) {
+        if (cart == null || CollectionUtils.isEmpty(cart.getItems()) || cart.getUserUuid() == null) {
+            return;
+        }
+        OffsetDateTime holdUntil = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(SEAT_HOLD_MINUTES);
+        for (CommerceCartItem item : cart.getItems()) {
+            UUID classDefinitionUuid = extractClassDefinitionUuid(item);
+            if (classDefinitionUuid == null) {
+                continue;
+            }
+            boolean held = classEnrolmentGateService.reserveSeats(
+                    classDefinitionUuid, cart.getUserUuid(), holdUntil.toLocalDateTime());
+            if (!held) {
+                throw new IllegalStateException(
+                        "The last seat on this class was taken while you were checking out. Nothing has been charged.");
+            }
+        }
+    }
+
     private void enforceEnrolmentEligibility(CommerceCart cart) {
         if (cart == null || CollectionUtils.isEmpty(cart.getItems()) || cart.getUserUuid() == null) {
             return;

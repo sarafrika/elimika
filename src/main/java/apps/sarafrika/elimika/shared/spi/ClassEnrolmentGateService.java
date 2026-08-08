@@ -21,4 +21,19 @@ public interface ClassEnrolmentGateService {
      * @return the reason to show the learner, or empty when they may join
      */
     Optional<String> findEnrolmentBlocker(UUID classDefinitionUuid, UUID userUuid);
+
+    /**
+     * Holds a seat for this buyer until {@code reservedUntil}.
+     * <p>
+     * A held seat counts against capacity, so a concurrent buyer cannot take the last place between
+     * checkout and capture and leave this learner charged with nothing.
+     *
+     * @return false when no seat could be held, which must stop the checkout
+     */
+    boolean reserveSeats(UUID classDefinitionUuid, UUID userUuid, java.time.LocalDateTime reservedUntil);
+
+    /**
+     * Gives back a hold whose payment never completed.
+     */
+    void releaseSeats(UUID classDefinitionUuid, UUID userUuid);
 }

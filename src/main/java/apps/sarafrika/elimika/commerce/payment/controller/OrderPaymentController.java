@@ -33,6 +33,21 @@ public class OrderPaymentController {
 
     private final OrderPaymentService orderPaymentService;
 
+
+    @Operation(
+            summary = "M-Pesa payment callback",
+            description = "Called by the daraja gateway when a payment resolves, so capture no longer "
+                    + "depends on the buyer keeping their browser open. Settles the order the same way "
+                    + "the polling path does and is safe to receive more than once."
+    )
+    @PostMapping("/{orderId}/payment-callback")
+    public ResponseEntity<ApiResponse<PaymentStatusResponse>> paymentCallback(
+            @Parameter(description = "Order the payment belongs to")
+            @PathVariable String orderId) {
+        PaymentStatusResponse status = orderPaymentService.getPaymentStatus(orderId);
+        return ResponseEntity.ok(ApiResponse.success(status, "Payment callback processed"));
+    }
+
     @Operation(
             summary = "Pay an order via M-Pesa",
             description = "Initiates an M-Pesa STK Push for an order that is awaiting payment",

@@ -378,7 +378,10 @@ public class TimetableServiceImpl implements TimetableService {
             throw new ResourceNotFoundException(String.format("No scheduled instances found for class definition with UUID %s", classDefinitionUuid));
         }
 
+        // A seat held at checkout is this student's own reservation, not a duplicate enrolment, so
+        // it must be promoted rather than skipped.
         Set<UUID> alreadyEnrolledInstanceUuids = enrollmentRepository.findByStudentUuid(studentUuid).stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.RESERVED)
                 .map(Enrollment::getScheduledInstanceUuid)
                 .collect(Collectors.toSet());
 
@@ -1289,6 +1292,72 @@ public class TimetableServiceImpl implements TimetableService {
                 .filter(name -> !name.isBlank())
                 .map(name -> "course \"" + name.trim() + "\"")
                 .orElse("course " + courseUuid);
+    }
+
+
+    @Override
+    public boolean reserveSeatsForClass(UUID classDefinitionUuid, UUID studentUuid, LocalDateTime reservedUntil) {
+        if (classDefinitionUuid == null || studentUuid == null) {
+            return false;
+        }
+        List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        if (instances.isEmpty()) {
+            return false;
+        }
+
+        List<Enrollment> toSave = new ArrayList<>();
+        for (ScheduledInstance instance : instances) {
+            Optional<Enrollment> existing = enrollmentRepository
+                    .findByScheduledInstanceUuidAndStudentUuid(instance.getUuid(), studentUuid);
+
+            if (existing.isPresent()) {
+                Enrollment held = existing.get();
+                // Already holding or holding a lapsed seat: refresh it rather than doubling up.
+                if (held.getStatus() == EnrollmentStatus.RESERVED
+                        || held.getStatus() == EnrollmentStatus.CANCELLED) {
+                    held.setStatus(EnrollmentStatus.RESERVED);
+                    held.setReservedUntil(reservedUntil);
+                    toSave.add(held);
+                    continue;
+                }
+                // Anything else means they already have this seat; nothing to reserve.
+                continue;
+            }
+
+            if (!hasCapacityForEnrollment(instance.getUuid())) {
+                return false;
+            }
+            Enrollment reservation = EnrollmentFactory.toEntity(instance.getUuid(), studentUuid);
+            reservation.setStatus(EnrollmentStatus.RESERVED);
+            reservation.setReservedUntil(reservedUntil);
+            toSave.add(reservation);
+        }
+
+        enrollmentRepository.saveAll(toSave);
+        return true;
+    }
+
+    @Override
+    public void releaseSeatsForClass(UUID classDefinitionUuid, UUID studentUuid) {
+        if (classDefinitionUuid == null || studentUuid == null) {
+            return;
+        }
+        List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        List<Enrollment> released = new ArrayList<>();
+        for (ScheduledInstance instance : instances) {
+            enrollmentRepository.findByScheduledInstanceUuidAndStudentUuid(instance.getUuid(), studentUuid)
+                    .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.RESERVED)
+                    .ifPresent(enrollment -> {
+                        enrollment.setStatus(EnrollmentStatus.CANCELLED);
+                        enrollment.setReservedUntil(null);
+                        released.add(enrollment);
+                    });
+        }
+        if (!released.isEmpty()) {
+            enrollmentRepository.saveAll(released);
+            log.info("Released {} held seats on class {} for student {}",
+                    released.size(), classDefinitionUuid, studentUuid);
+        }
     }
 
     private void enforceClassContentApproval(UUID classDefinitionUuid) {
