@@ -49,6 +49,9 @@ public class InstructorObligation extends BaseEntity {
     @Column(name = "class_definition_uuid")
     private UUID classDefinitionUuid;
 
+    @Column(name = "session_date")
+    private java.time.LocalDate sessionDate;
+
     @Column(name = "session_uuid")
     private UUID sessionUuid;
 

@@ -25,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.DisplayName;
+import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
 
 @ExtendWith(MockitoExtension.class)
 class CommerceCatalogueServiceImplTest {
@@ -47,6 +49,9 @@ class CommerceCatalogueServiceImplTest {
     @Mock
     private ClassScheduleService classScheduleService;
 
+    @Mock
+    private apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService catalogueClassDefinitionLookupService;
+
     private CommerceCatalogueServiceImpl service;
 
     @BeforeEach
@@ -57,7 +62,8 @@ class CommerceCatalogueServiceImplTest {
                 specificationBuilder,
                 accessService,
                 variantRepository,
-                classScheduleService);
+                classScheduleService,
+                catalogueClassDefinitionLookupService);
     }
 
     @Test
@@ -111,6 +117,61 @@ class CommerceCatalogueServiceImplTest {
 
         assertThat(results).hasSize(1);
         assertThat(results.getFirst().programUuid()).isEqualTo(programUuid);
+    }
+
+
+    // ── One basis, one multiplier: what the learner pays follows the contract's unit ───────────
+
+    private java.math.BigDecimal priceFor(apps.sarafrika.elimika.shared.utils.enums.RateBasis basis,
+                                          long minutes, long sessions, long days) {
+        UUID classUuid = UUID.randomUUID();
+        CommerceCatalogueItem item = new CommerceCatalogueItem();
+        item.setUuid(UUID.randomUUID());
+        item.setClassDefinitionUuid(classUuid);
+        item.setProductCode("product-001");
+        item.setVariantCode("variant-001");
+        item.setCurrencyCode("KES");
+
+        CommerceProductVariant variant = new CommerceProductVariant();
+        variant.setCode("variant-001");
+        variant.setUnitAmount(new java.math.BigDecimal("3000.0000"));
+
+        when(accessService.buildContext()).thenReturn(new VisibilityContext(true, true));
+        when(accessService.canView(any(CommerceCatalogueItem.class), any(VisibilityContext.class))).thenReturn(true);
+        when(variantRepository.findByCode("variant-001")).thenReturn(Optional.of(variant));
+        when(catalogItemRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(item));
+        when(classScheduleService.getScheduleSummary(classUuid)).thenReturn(
+                new ClassScheduleService.ClassScheduleSummary(
+                        minutes, sessions, 0, java.math.BigDecimal.ZERO, days));
+        when(catalogueClassDefinitionLookupService.findByUuid(classUuid)).thenReturn(
+                Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                        classUuid, UUID.randomUUID(), null, "Dairy", null,
+                        new java.math.BigDecimal("3000.00"), new java.math.BigDecimal("2000.00"),
+                        basis, null, null, 20, true, 30)));
+
+        return service.getByCourseOrClassOrProgram(null, classUuid, null).getFirst().unitAmount();
+    }
+
+    @Test
+    @DisplayName("a per-hour class bills the rate for every scheduled hour")
+    void perHourBillsHours() {
+        // 5 sessions across 3 days totalling 7 hours.
+        assertThat(priceFor(apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, 420, 5, 3))
+                .isEqualByComparingTo("21000");
+    }
+
+    @Test
+    @DisplayName("a per-session class bills the rate once per session, whatever its length")
+    void perSessionBillsSessions() {
+        assertThat(priceFor(apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_SESSION, 420, 5, 3))
+                .isEqualByComparingTo("15000");
+    }
+
+    @Test
+    @DisplayName("a per-day class bills once per calendar day, not once per session")
+    void perDayBillsDistinctDays() {
+        assertThat(priceFor(apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY, 420, 5, 3))
+                .isEqualByComparingTo("9000");
     }
 
     @Test

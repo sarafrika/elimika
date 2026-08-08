@@ -80,12 +80,57 @@ class InstructorObligationServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
+
+    private void trainingFeeIs(String fee, apps.sarafrika.elimika.shared.utils.enums.RateBasis basis) {
+        BigDecimal instructorPay = new BigDecimal(fee);
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
+                .thenReturn(Optional.of(new ClassDefinitionSnapshot(
+                        classDefinitionUuid, UUID.randomUUID(), null, "Piano Grade 3", "desc",
+                        instructorPay.add(new BigDecimal("500.00")), instructorPay, basis,
+                        ClassVisibility.PRIVATE, LocationType.ONLINE,
+                        20, Boolean.TRUE, 30)));
+    }
+
+    @Test
+    @DisplayName("a per-session class pays the rate once however long the session ran")
+    void perSessionIgnoresDuration() {
+        trainingFeeIs("2000.00", apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_SESSION);
+
+        service.accrueForCompletedSession(
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 120);
+
+        ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
+        verify(obligationRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getRateAmount()).isEqualByComparingTo("2000.00");
+    }
+
+    @Test
+    @DisplayName("a second session on the same day does not earn a second day of pay")
+    void perDayPaysOncePerCalendarDay() {
+        trainingFeeIs("5000.00", apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY);
+        LocalDateTime morning = LocalDateTime.of(2026, 8, 12, 9, 0);
+        LocalDateTime afternoon = LocalDateTime.of(2026, 8, 12, 14, 0);
+
+        InstructorObligation alreadyAccrued = new InstructorObligation();
+        alreadyAccrued.setRateAmount(new BigDecimal("5000.00"));
+        when(obligationRepository.findFirstByClassDefinitionUuidAndInstructorUuidAndSessionDate(
+                classDefinitionUuid, instructorUuid, morning.toLocalDate()))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(alreadyAccrued));
+
+        service.accrueForCompletedSession(classDefinitionUuid, UUID.randomUUID(), instructorUuid, morning, 120);
+        service.accrueForCompletedSession(classDefinitionUuid, UUID.randomUUID(), instructorUuid, afternoon, 120);
+
+        // The day was already paid for; the second session must not write another row.
+        verify(obligationRepository, org.mockito.Mockito.times(1)).saveAndFlush(any(InstructorObligation.class));
+    }
+
     private void trainingFeeIs(String fee) {
         BigDecimal instructorPay = new BigDecimal(fee);
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new ClassDefinitionSnapshot(
                         classDefinitionUuid, UUID.randomUUID(), null, "Piano Grade 3", "desc",
-                        instructorPay.add(new BigDecimal("500.00")), instructorPay,
+                        instructorPay.add(new BigDecimal("500.00")), instructorPay, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR,
                         ClassVisibility.PRIVATE, LocationType.ONLINE,
                         20, Boolean.TRUE, 30)));
     }

@@ -568,7 +568,7 @@ class TimetableServiceImplTest {
                         "Sample Class",
                         null,
                         null,
-                        null,
+                        null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR,
                         null,
                         null,
                         20,
@@ -607,7 +607,7 @@ class TimetableServiceImplTest {
                         "Weekend Data Analysis Bootcamp",
                         null,
                         null,
-                        null,
+                        null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR,
                         null,
                         apps.sarafrika.elimika.shared.enums.LocationType.HYBRID,
                         24,
@@ -671,7 +671,7 @@ class TimetableServiceImplTest {
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
                         classDefinitionUuid, courseUuid, null, "Dairy", null,
-                        null, null, null, null, 20, true, 30)));
+                        null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30)));
         when(courseInfoService.getAgeLimits(courseUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.course.spi.CourseInfoService.AgeLimits(min, max)));
     }
@@ -720,7 +720,7 @@ class TimetableServiceImplTest {
         UUID studentUuid = UUID.randomUUID();
         when(classDefinitionLookupService.findByUuid(classUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
-                        classUuid, courseUuid, null, "Dairy", null, null, null, null, null, 20, true, 30)));
+                        classUuid, courseUuid, null, "Dairy", null, null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30)));
         when(courseInfoService.getAgeLimits(courseUuid)).thenReturn(Optional.empty());
         when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of());
         when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of());

@@ -33,6 +33,14 @@ public interface InstructorObligationRepository extends JpaRepository<Instructor
      * constraint {@code uq_instructor_obligations_session} is what actually enforces this; this
      * lookup only spares the common case a failed insert.
      */
+    /**
+     * Any obligation already accrued for this instructor, on this class, for that calendar date.
+     * A per-day class is sold as one day regardless of how many sessions fall in it, so a second
+     * session on the same date must not earn a second day's pay.
+     */
+    Optional<InstructorObligation> findFirstByClassDefinitionUuidAndInstructorUuidAndSessionDate(
+            UUID classDefinitionUuid, UUID instructorUuid, java.time.LocalDate sessionDate);
+
     Optional<InstructorObligation> findByClassDefinitionUuidAndSessionUuidAndInstructorUuid(
             UUID classDefinitionUuid, UUID sessionUuid, UUID instructorUuid);
 

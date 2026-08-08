@@ -36,6 +36,7 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
         long totalMinutes = 0;
         long instanceCount = 0;
         long completedSessions = 0;
+        java.util.Set<java.time.LocalDate> distinctDays = new java.util.HashSet<>();
         for (ScheduledInstance instance : instances) {
             if (!isCountableStatus(instance)) {
                 continue;
@@ -43,6 +44,9 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
             instanceCount++;
             if (SchedulingStatus.COMPLETED.equals(instance.getStatus())) {
                 completedSessions++;
+            }
+            if (instance.getStartTime() != null) {
+                distinctDays.add(instance.getStartTime().toLocalDate());
             }
             if (instance.getStartTime() == null || instance.getEndTime() == null) {
                 continue;
@@ -62,7 +66,8 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
                 totalMinutes,
                 instanceCount,
                 completedSessions,
-                calculateProgressPercentage(completedSessions, instanceCount)
+                calculateProgressPercentage(completedSessions, instanceCount),
+                distinctDays.size()
         );
     }
 

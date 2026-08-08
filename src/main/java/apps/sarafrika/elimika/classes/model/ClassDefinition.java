@@ -16,6 +16,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 
 @Entity
 @Table(name = "class_definitions")
@@ -105,6 +108,10 @@ public class ClassDefinition extends BaseEntity {
 
     @Column(name = "instructor_pay")
     private BigDecimal instructorPay;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rate_basis")
+    private RateBasis rateBasis;
 
     @Convert(converter = ClassVisibilityConverter.class)
     @Column(name = "class_visibility")

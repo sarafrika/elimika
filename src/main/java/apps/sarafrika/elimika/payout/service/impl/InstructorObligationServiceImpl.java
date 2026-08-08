@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 
 /**
  * Records and settles what organisations owe their instructors.
@@ -98,7 +99,27 @@ public class InstructorObligationServiceImpl
             return Optional.empty();
         }
 
-        BigDecimal rate = applySessionDuration(hourlyRate, durationMinutes, sessionUuid);
+        RateBasis basis = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionSnapshot::rateBasis)
+                .orElse(RateBasis.PER_HOUR);
+
+        java.time.LocalDate sessionDate = (completedAt == null ? nowUtc() : completedAt).toLocalDate();
+
+        // A per-day class is sold to the learner as one day however many sessions it holds, so the
+        // instructor is owed one day too. Without this the cost would outrun the revenue whenever a
+        // day carried more than one session.
+        if (basis == RateBasis.PER_DAY) {
+            Optional<InstructorObligation> sameDay = obligationRepository
+                    .findFirstByClassDefinitionUuidAndInstructorUuidAndSessionDate(
+                            classDefinitionUuid, instructorUuid, sessionDate);
+            if (sameDay.isPresent()) {
+                log.debug("Class {} already accrued a day for instructor {} on {}",
+                        classDefinitionUuid, instructorUuid, sessionDate);
+                return sameDay.map(InstructorObligationFactory::toDTO);
+            }
+        }
+
+        BigDecimal rate = applyRateBasis(hourlyRate, basis, durationMinutes, sessionUuid);
 
         UUID instructorUserUuid = instructorLookupService.getInstructorUserUuid(instructorUuid).orElse(null);
         if (instructorUserUuid == null) {
@@ -116,7 +137,8 @@ public class InstructorObligationServiceImpl
                 sessionUuid,
                 rate,
                 currencyService.resolveCurrencyOrDefault(null).getCode(),
-                completedAt == null ? nowUtc() : completedAt);
+                completedAt == null ? nowUtc() : completedAt,
+                sessionDate);
 
         try {
             InstructorObligation saved = obligationRepository.saveAndFlush(obligation);
@@ -281,13 +303,21 @@ public class InstructorObligationServiceImpl
      * duration was carried, or an instance with no usable window, must never silently wipe out what
      * someone is owed.
      */
-    private BigDecimal applySessionDuration(BigDecimal hourlyRate, Integer durationMinutes, UUID sessionUuid) {
+    private BigDecimal applyRateBasis(BigDecimal rate, RateBasis basis, Integer durationMinutes, UUID sessionUuid) {
+        RateBasis resolved = basis == null ? RateBasis.PER_HOUR : basis;
+
+        // Per session and per day both pay the rate once; per day is additionally guarded above so
+        // a second session on the same calendar date does not accrue a second day.
+        if (resolved != RateBasis.PER_HOUR) {
+            return rate;
+        }
+
         if (durationMinutes == null || durationMinutes <= 0) {
             log.warn("Session {} has no usable duration; accruing the flat hourly rate", sessionUuid);
-            return hourlyRate;
+            return rate;
         }
         BigDecimal hours = BigDecimal.valueOf(durationMinutes)
                 .divide(BigDecimal.valueOf(60), 4, java.math.RoundingMode.HALF_UP);
-        return hourlyRate.multiply(hours).setScale(4, java.math.RoundingMode.HALF_UP);
+        return rate.multiply(hours).setScale(4, java.math.RoundingMode.HALF_UP);
     }
 }

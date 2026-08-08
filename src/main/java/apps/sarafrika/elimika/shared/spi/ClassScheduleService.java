@@ -16,14 +16,24 @@ public interface ClassScheduleService {
      */
     ClassScheduleSummary getScheduleSummary(UUID classDefinitionUuid);
 
+    /**
+     * @param scheduledDays distinct calendar dates holding at least one session; two sessions on the
+     *                      same day count once, which is what a per-day rate is sold as
+     */
     record ClassScheduleSummary(
             long scheduledMinutes,
             long scheduledInstances,
             long completedSessions,
-            BigDecimal classProgressPercentage
+            BigDecimal classProgressPercentage,
+            long scheduledDays
     ) {
         public ClassScheduleSummary(long scheduledMinutes, long scheduledInstances) {
-            this(scheduledMinutes, scheduledInstances, 0, BigDecimal.ZERO);
+            this(scheduledMinutes, scheduledInstances, 0, BigDecimal.ZERO, 0);
+        }
+
+        public ClassScheduleSummary(long scheduledMinutes, long scheduledInstances,
+                                    long completedSessions, BigDecimal classProgressPercentage) {
+            this(scheduledMinutes, scheduledInstances, completedSessions, classProgressPercentage, 0);
         }
     }
 }

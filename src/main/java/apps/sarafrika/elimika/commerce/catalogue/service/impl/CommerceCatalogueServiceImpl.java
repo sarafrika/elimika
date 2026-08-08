@@ -31,6 +31,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.server.ResponseStatusException;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +44,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     private final CommerceCatalogueAccessService accessService;
     private final CommerceProductVariantRepository variantRepository;
     private final ClassScheduleService classScheduleService;
+    private final ClassDefinitionLookupService classDefinitionLookupService;
 
     @Override
     @Transactional
@@ -240,12 +243,32 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         }
 
         ClassScheduleSummary summary = classScheduleService.getScheduleSummary(classDefinitionUuid);
-        if (summary == null || summary.scheduledMinutes() <= 0) {
+        if (summary == null) {
             return baseAmount;
         }
-        BigDecimal hours = BigDecimal.valueOf(summary.scheduledMinutes())
-                .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
-        return baseAmount.multiply(hours).setScale(4, RoundingMode.HALF_UP);
+
+        RateBasis basis = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::rateBasis)
+                .orElse(RateBasis.PER_HOUR);
+
+        BigDecimal units = billableUnits(basis, summary);
+        if (units.signum() <= 0) {
+            return baseAmount;
+        }
+        return baseAmount.multiply(units).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * How many of the priced unit this class contains. The same multiplier the payout side applies,
+     * so the margin between the two prices stays a like-for-like subtraction.
+     */
+    private BigDecimal billableUnits(RateBasis basis, ClassScheduleSummary summary) {
+        return switch (basis == null ? RateBasis.PER_HOUR : basis) {
+            case PER_SESSION -> BigDecimal.valueOf(summary.scheduledInstances());
+            case PER_DAY -> BigDecimal.valueOf(summary.scheduledDays());
+            case PER_HOUR -> BigDecimal.valueOf(summary.scheduledMinutes())
+                    .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+        };
     }
 
     private void applyPublicFilterWhenAnonymous(Map<String, String> params) {

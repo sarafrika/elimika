@@ -80,6 +80,7 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
                 entity.getDescription(),
                 entity.getSalePrice(),
                 entity.getInstructorPay(),
+                entity.getRateBasis(),
                 entity.getClassVisibility(),
                 entity.getLocationType(),
                 entity.getMaxParticipants(),

@@ -33,7 +33,8 @@ public class InstructorObligationFactory {
             UUID sessionUuid,
             BigDecimal rateAmount,
             String currencyCode,
-            LocalDateTime accruedAt) {
+            LocalDateTime accruedAt,
+            java.time.LocalDate sessionDate) {
 
         InstructorObligation obligation = new InstructorObligation();
         obligation.setOrganisationUuid(organisationUuid);
@@ -41,6 +42,7 @@ public class InstructorObligationFactory {
         obligation.setInstructorUserUuid(instructorUserUuid);
         obligation.setClassDefinitionUuid(classDefinitionUuid);
         obligation.setSessionUuid(sessionUuid);
+        obligation.setSessionDate(sessionDate);
         obligation.setRateAmount(rateAmount);
         obligation.setCurrencyCode(currencyCode);
         obligation.setStatus(InstructorObligationStatus.ACCRUED);

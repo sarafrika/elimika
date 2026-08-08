@@ -27,6 +27,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 
 @Entity
 @Table(name = "class_marketplace_jobs")
@@ -117,6 +120,10 @@ public class ClassMarketplaceJob extends BaseEntity {
 
     @Column(name = "instructor_pay")
     private BigDecimal instructorPay;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rate_basis")
+    private RateBasis rateBasis;
 
     @Convert(converter = ClassServiceTypeConverter.class)
     @Column(name = "service_type")
