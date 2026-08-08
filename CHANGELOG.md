@@ -1,3 +1,10 @@
+# [2.130.0](https://github.com/sarafrika/elimika/compare/v2.129.0...v2.130.0) (2026-08-08)
+
+
+### Features
+
+* **classes:** expose the contracted rate basis on jobs and class definitions ([525135f](https://github.com/sarafrika/elimika/commit/525135f5fdd9a78a7e00afd5eb289fc43c2b0c07))
+
 # [2.129.0](https://github.com/sarafrika/elimika/compare/v2.128.1...v2.129.0) (2026-08-08)
 
 
