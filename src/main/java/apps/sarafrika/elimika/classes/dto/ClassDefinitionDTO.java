@@ -758,6 +758,57 @@ public record ClassDefinitionDTO(
     }
 
     /**
+     * The same class with the instructor's pay withheld.
+     * <p>
+     * A learner pays the sale price and has no business seeing what the trainer earns — that figure
+     * is the organisation's margin, and it reaches anyone who can read a class today.
+     */
+    public ClassDefinitionDTO withoutInstructorPay() {
+        return new ClassDefinitionDTO(
+                uuid,
+                title,
+                description,
+                thumbnailUrl,
+                promotionalVideoUrl,
+                defaultInstructorUuid,
+                organisationUuid,
+                courseUuid,
+                programUuid,
+                salePrice,
+                null,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                scheduledSessionCount,
+                completedSessionCount,
+                classProgressPercentage,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy,
+                venueResourceUuid,
+                marketplaceJobUuid,
+                categoryUuid
+        );
+    }
+
+    /**
      * Returns a copy carrying the category the class falls under.
      */
     public ClassDefinitionDTO withCategory(UUID categoryUuid) {

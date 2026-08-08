@@ -56,6 +56,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 
 @Service
 @RequiredArgsConstructor
@@ -64,6 +65,8 @@ import java.util.stream.Collectors;
 public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterface, ClassDefinitionService {
 
     private final ClassDefinitionRepository classDefinitionRepository;
+    private final apps.sarafrika.elimika.shared.security.DomainSecurityService domainSecurityService;
+    private final apps.sarafrika.elimika.tenancy.spi.UserLookupService classReadUserLookupService;
     private final ClassSchedulingConflictRepository classSchedulingConflictRepository;
     private final ClassSessionTemplateRepository classSessionTemplateRepository;
     private final ClassDefinitionResourceRepository classDefinitionResourceRepository;
@@ -539,7 +542,41 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         if (dto == null || dto.uuid() == null) {
             return dto;
         }
-        return dto.withSessionTemplates(loadSessionTemplates(dto.uuid()));
+        return redactInstructorPay(dto.withSessionTemplates(loadSessionTemplates(dto.uuid())));
+    }
+
+    /**
+     * Strips the instructor's pay for anyone who is not party to that agreement.
+     * <p>
+     * It is the organisation's cost and its margin; a learner buying a seat pays the sale price and
+     * should not be able to read, or derive, what the trainer is paid.
+     */
+    private ClassDefinitionDTO redactInstructorPay(ClassDefinitionDTO dto) {
+        if (dto == null || dto.instructorPay() == null) {
+            return dto;
+        }
+        return maySeeInstructorPay(dto) ? dto : dto.withoutInstructorPay();
+    }
+
+    private boolean maySeeInstructorPay(ClassDefinitionDTO dto) {
+        try {
+            if (domainSecurityService.isPlatformAdmin()) {
+                return true;
+            }
+            if (dto.defaultInstructorUuid() != null
+                    && domainSecurityService.isInstructorWithUuid(dto.defaultInstructorUuid())) {
+                return true;
+            }
+            UUID organisationUuid = dto.organisationUuid();
+            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+            return organisationUuid != null
+                    && currentUserUuid != null
+                    && classReadUserLookupService.userBelongsToOrganizationWithDomain(
+                            currentUserUuid, organisationUuid, UserDomain.organisation_user);
+        } catch (Exception e) {
+            // Withholding is the safe failure: a reader who cannot be identified is not entitled.
+            return false;
+        }
     }
 
     private List<ClassSessionTemplateDTO> loadSessionTemplates(UUID classDefinitionUuid) {

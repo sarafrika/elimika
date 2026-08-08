@@ -29,6 +29,7 @@ import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -46,6 +47,7 @@ import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,6 +57,12 @@ class ClassDefinitionServiceImplTest {
 
     @Mock
     private ClassDefinitionRepository classDefinitionRepository;
+
+    @Mock
+    private apps.sarafrika.elimika.shared.security.DomainSecurityService classReadDomainSecurityService;
+
+    @Mock
+    private apps.sarafrika.elimika.tenancy.spi.UserLookupService classReadUserLookupService;
 
     @Mock
     private ClassSchedulingConflictRepository classSchedulingConflictRepository;
@@ -115,6 +123,8 @@ class ClassDefinitionServiceImplTest {
 
         service = new ClassDefinitionServiceImpl(
                 classDefinitionRepository,
+                classReadDomainSecurityService,
+                classReadUserLookupService,
                 classSchedulingConflictRepository,
                 classSessionTemplateRepository,
                 classDefinitionResourceRepository,
@@ -350,6 +360,65 @@ class ClassDefinitionServiceImplTest {
                 null,
                 null
         );
+    }
+
+
+    // ── Instructor pay is the organisation's cost, not the learner's business ──────────────────
+
+    private ClassDefinition classWithPay() {
+        ClassDefinition entity = sampleClassDefinitionEntity();
+        entity.setUuid(UUID.randomUUID());
+        entity.setSalePrice(new java.math.BigDecimal("3000.00"));
+        entity.setInstructorPay(new java.math.BigDecimal("2000.00"));
+        when(classDefinitionRepository.findByUuid(entity.getUuid())).thenReturn(Optional.of(entity));
+        when(classSessionTemplateRepository
+                .findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(entity.getUuid()))
+                .thenReturn(List.of());
+        return entity;
+    }
+
+    @Test
+    @DisplayName("a learner reading a class sees the sale price but not the instructor's pay")
+    void instructorPayIsWithheldFromLearners() {
+        ClassDefinition entity = classWithPay();
+        when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(classReadDomainSecurityService.isInstructorWithUuid(any())).thenReturn(false);
+        when(classReadDomainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(classReadUserLookupService.userBelongsToOrganizationWithDomain(any(), any(), any()))
+                .thenReturn(false);
+
+        ClassDefinitionDTO dto = service.getClassDefinition(entity.getUuid()).classDefinition();
+
+        assertThat(dto.salePrice()).isEqualByComparingTo("3000.00");
+        assertThat(dto.instructorPay()).isNull();
+    }
+
+    @Test
+    @DisplayName("a manager of the owning organisation still sees the instructor's pay")
+    void instructorPayIsVisibleToTheOwningOrganisation() {
+        ClassDefinition entity = classWithPay();
+        when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(classReadDomainSecurityService.isInstructorWithUuid(any())).thenReturn(false);
+        when(classReadDomainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(classReadUserLookupService.userBelongsToOrganizationWithDomain(
+                any(), eq(entity.getOrganisationUuid()), any())).thenReturn(true);
+
+        ClassDefinitionDTO dto = service.getClassDefinition(entity.getUuid()).classDefinition();
+
+        assertThat(dto.instructorPay()).isEqualByComparingTo("2000.00");
+    }
+
+    @Test
+    @DisplayName("the assigned instructor sees what they are being paid")
+    void instructorPayIsVisibleToTheAssignedInstructor() {
+        ClassDefinition entity = classWithPay();
+        when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(classReadDomainSecurityService.isInstructorWithUuid(entity.getDefaultInstructorUuid()))
+                .thenReturn(true);
+
+        ClassDefinitionDTO dto = service.getClassDefinition(entity.getUuid()).classDefinition();
+
+        assertThat(dto.instructorPay()).isEqualByComparingTo("2000.00");
     }
 
     private ClassDefinition sampleClassDefinitionEntity() {
