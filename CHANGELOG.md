@@ -1,3 +1,10 @@
+# [2.128.0](https://github.com/sarafrika/elimika/compare/v2.127.0...v2.128.0) (2026-08-08)
+
+
+### Features
+
+* **commerce:** hold the seat at checkout and settle payments without the browser ([9a20598](https://github.com/sarafrika/elimika/commit/9a20598f3cbf7203fed1524037c7313f58be37b8))
+
 # [2.127.0](https://github.com/sarafrika/elimika/compare/v2.126.1...v2.127.0) (2026-08-08)
 
 
