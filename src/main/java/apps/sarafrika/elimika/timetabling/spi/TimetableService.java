@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
+import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
@@ -107,6 +108,15 @@ public interface TimetableService {
      * @throws RuntimeException if any scheduled instance is full or student has conflicts
      */
     List<EnrollmentDTO> enrollStudent(EnrollmentRequestDTO request);
+
+    /**
+     * Judges whether a student may join a class, from the records the platform already holds.
+     * <p>
+     * The same rules {@link #enrollStudent} enforces, evaluated without throwing so they can be
+     * shown before any money is taken. Enrolment now happens after payment is captured, which makes
+     * a rule discovered at enrolment time a charge with nothing delivered.
+     */
+    ClassEnrolmentEligibilityDTO getClassEnrolmentEligibility(UUID classDefinitionUuid, UUID studentUuid);
 
     /**
      * Enrolls a student into a specific scheduled instance.

@@ -91,6 +91,9 @@ class TimetableServiceImplTest {
     private StudentLookupService studentLookupService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
+
+    @Mock
     private InstructorLookupService instructorLookupService;
 
     @Mock
@@ -113,6 +116,7 @@ class TimetableServiceImplTest {
                 commercePaywallService,
                 availabilityService,
                 studentLookupService,
+                userLookupService,
                 instructorLookupService,
                 resourceBookingService
         );
@@ -658,6 +662,76 @@ class TimetableServiceImplTest {
         instance.setMaxParticipants(25);
         instance.setStatus(status);
         return instance;
+    }
+
+
+    // ── Enrolment eligibility is judged from our own records, before any money moves ────────────
+
+    private void ageLimitsAre(UUID classDefinitionUuid, UUID courseUuid, Integer min, Integer max) {
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
+                .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                        classDefinitionUuid, courseUuid, null, "Dairy", null,
+                        null, null, null, null, 20, true, 30)));
+        when(courseInfoService.getAgeLimits(courseUuid))
+                .thenReturn(Optional.of(new apps.sarafrika.elimika.course.spi.CourseInfoService.AgeLimits(min, max)));
+    }
+
+    @Test
+    void aStudentBelowTheMinimumAgeIsRefusedWithTheirActualAge() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        UUID userUuid = UUID.randomUUID();
+        ageLimitsAre(classUuid, courseUuid, 18, null);
+        when(studentLookupService.getStudentUserUuid(studentUuid)).thenReturn(Optional.of(userUuid));
+        when(userLookupService.getUserDateOfBirth(userUuid))
+                .thenReturn(Optional.of(java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusYears(12)));
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.studentAge()).isEqualTo(12);
+        assertThat(eligibility.minimumAge()).isEqualTo(18);
+        assertThat(eligibility.ageRequirementMet()).isFalse();
+        assertThat(eligibility.reason()).contains("ages 18 and over").contains("you are 12");
+    }
+
+    @Test
+    void aMissingDateOfBirthBlocksRatherThanAssumingAnAge() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        UUID userUuid = UUID.randomUUID();
+        ageLimitsAre(classUuid, courseUuid, 18, null);
+        when(studentLookupService.getStudentUserUuid(studentUuid)).thenReturn(Optional.of(userUuid));
+        when(userLookupService.getUserDateOfBirth(userUuid)).thenReturn(Optional.empty());
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.dateOfBirthOnFile()).isFalse();
+        assertThat(eligibility.reason()).contains("date of birth");
+    }
+
+    @Test
+    void aCourseWithNoAgeLimitDoesNotNeedADateOfBirth() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        when(classDefinitionLookupService.findByUuid(classUuid))
+                .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                        classUuid, courseUuid, null, "Dairy", null, null, null, null, null, 20, true, 30)));
+        when(courseInfoService.getAgeLimits(courseUuid)).thenReturn(Optional.empty());
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of());
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of());
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        // No age limit means no date of birth is demanded; the only thing left to report is that the
+        // class has nothing scheduled yet.
+        assertThat(eligibility.dateOfBirthOnFile()).isTrue();
+        assertThat(eligibility.ageRequirementMet()).isTrue();
+        assertThat(eligibility.reason()).contains("no scheduled sessions");
     }
 
     private Enrollment buildEnrollment(EnrollmentStatus status) {

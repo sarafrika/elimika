@@ -28,6 +28,7 @@ import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
+import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService.ClassScheduleSummary;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -67,6 +68,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final ObjectMapper objectMapper;
     private final RegionResolver regionResolver;
     private final ClassCapacityService classCapacityService;
+    private final ClassEnrolmentGateService classEnrolmentGateService;
     private final ClassScheduleService classScheduleService;
     private final CurrencyValidator currencyValidator;
     private final DomainSecurityService domainSecurityService;
@@ -182,6 +184,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
 
         enforceClassCapacities(cart);
+        enforceEnrolmentEligibility(cart);
 
         String customerEmail = cart.getCustomerEmail();
         if (!StringUtils.hasText(customerEmail)) {
@@ -344,6 +347,31 @@ public class InternalCartServiceImpl implements InternalCartService {
     private void ensureOpen(CommerceCart cart) {
         if (cart.getStatus() != null && cart.getStatus() != CartStatus.OPEN) {
             throw new IllegalStateException("Cart is not open");
+        }
+    }
+
+
+    /**
+     * Refuses to take money for a seat the buyer will not be allowed to occupy.
+     * <p>
+     * Enrolment runs after capture, so a compliance rule that only fires there — an age limit, say —
+     * would leave a learner charged and turned away. The rules are read from records the platform
+     * already holds, never from anything the buyer asserts about themselves.
+     */
+    private void enforceEnrolmentEligibility(CommerceCart cart) {
+        if (cart == null || CollectionUtils.isEmpty(cart.getItems()) || cart.getUserUuid() == null) {
+            return;
+        }
+
+        for (CommerceCartItem item : cart.getItems()) {
+            UUID classDefinitionUuid = extractClassDefinitionUuid(item);
+            if (classDefinitionUuid == null) {
+                continue;
+            }
+            classEnrolmentGateService.findEnrolmentBlocker(classDefinitionUuid, cart.getUserUuid())
+                    .ifPresent(reason -> {
+                        throw new IllegalStateException(reason);
+                    });
         }
     }
 

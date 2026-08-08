@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
+import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
@@ -182,6 +183,22 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(result, baseUrl),
                 "Student scheduled instance enrollments retrieved successfully"));
+    }
+
+    @Operation(summary = "Check whether a student may join a class before they pay for it")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Eligibility resolved")
+    @GetMapping("/eligibility/{classDefinitionUuid}/student/{studentUuid}")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    public ResponseEntity<ApiResponse<ClassEnrolmentEligibilityDTO>> getClassEnrolmentEligibility(
+            @Parameter(description = "UUID of the class definition")
+            @PathVariable UUID classDefinitionUuid,
+            @Parameter(description = "UUID of the student")
+            @PathVariable UUID studentUuid) {
+        log.debug("REST request for enrolment eligibility: student {} on class {}", studentUuid, classDefinitionUuid);
+
+        ClassEnrolmentEligibilityDTO eligibility =
+                timetableService.getClassEnrolmentEligibility(classDefinitionUuid, studentUuid);
+        return ResponseEntity.ok(ApiResponse.success(eligibility, "Enrolment eligibility resolved"));
     }
 
     @Operation(summary = "Get class enrollments for a specific student")

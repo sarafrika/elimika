@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.timetabling.service.impl;
 
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
 import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -86,6 +87,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final CommercePaywallService commercePaywallService;
     private final AvailabilityService availabilityService;
     private final StudentLookupService studentLookupService;
+    private final apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
     private final InstructorLookupService instructorLookupService;
     private final ResourceBookingService resourceBookingService;
 
@@ -1171,6 +1173,83 @@ public class TimetableServiceImpl implements TimetableService {
         if (request.studentUuid() == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
         }
+    }
+
+
+    /**
+     * Same rules as {@link #enrollStudent}, decided from our own records and reported instead of
+     * thrown. A learner should be told they are too young before they are charged, not after.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ClassEnrolmentEligibilityDTO getClassEnrolmentEligibility(UUID classDefinitionUuid, UUID studentUuid) {
+        Integer minAge = null;
+        Integer maxAge = null;
+        Integer studentAge = null;
+        boolean dateOfBirthOnFile = true;
+        boolean ageOk = true;
+
+        Optional<ClassDefinitionLookupService.ClassDefinitionSnapshot> snapshot =
+                classDefinitionLookupService.findByUuid(classDefinitionUuid);
+        UUID courseUuid = snapshot.map(ClassDefinitionLookupService.ClassDefinitionSnapshot::courseUuid).orElse(null);
+
+        Optional<CourseInfoService.AgeLimits> limits = courseUuid == null
+                ? Optional.empty()
+                : courseInfoService.getAgeLimits(courseUuid);
+
+        if (limits.isPresent()) {
+            minAge = limits.get().minAge();
+            maxAge = limits.get().maxAge();
+
+            java.time.LocalDate dateOfBirth = studentLookupService.getStudentUserUuid(studentUuid)
+                    .flatMap(userLookupService::getUserDateOfBirth)
+                    .orElse(null);
+
+            if (dateOfBirth == null) {
+                dateOfBirthOnFile = false;
+                ageOk = false;
+            } else {
+                studentAge = java.time.Period.between(dateOfBirth, java.time.LocalDate.now(ZoneOffset.UTC)).getYears();
+                ageOk = (minAge == null || studentAge >= minAge) && (maxAge == null || studentAge <= maxAge);
+            }
+        }
+
+        List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        Set<UUID> held = enrollmentRepository.findByStudentUuid(studentUuid).stream()
+                .map(Enrollment::getScheduledInstanceUuid)
+                .collect(Collectors.toSet());
+
+        boolean alreadyEnrolled = !instances.isEmpty()
+                && instances.stream().allMatch(instance -> held.contains(instance.getUuid()));
+        boolean seatsAvailable = instances.stream()
+                .filter(instance -> !held.contains(instance.getUuid()))
+                .anyMatch(instance -> hasCapacityForEnrollment(instance.getUuid()));
+
+        String reason = null;
+        if (!dateOfBirthOnFile) {
+            reason = "Add your date of birth to your profile so we can check this class's age requirement.";
+        } else if (!ageOk && minAge != null && studentAge != null && studentAge < minAge) {
+            reason = String.format("This class is for ages %d and over. Your profile says you are %d.", minAge, studentAge);
+        } else if (!ageOk && maxAge != null && studentAge != null && studentAge > maxAge) {
+            reason = String.format("This class is for ages %d and under. Your profile says you are %d.", maxAge, studentAge);
+        } else if (alreadyEnrolled) {
+            reason = "You are already enrolled in this class.";
+        } else if (instances.isEmpty()) {
+            reason = "This class has no scheduled sessions yet.";
+        } else if (!seatsAvailable) {
+            reason = "This class is full.";
+        }
+
+        return new ClassEnrolmentEligibilityDTO(
+                reason == null,
+                studentAge,
+                minAge,
+                maxAge,
+                dateOfBirthOnFile,
+                ageOk,
+                seatsAvailable,
+                alreadyEnrolled,
+                reason);
     }
 
     private void enforceClassAgeLimits(UUID studentUuid, UUID classDefinitionUuid) {
