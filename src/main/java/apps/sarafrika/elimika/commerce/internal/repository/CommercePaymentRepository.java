@@ -13,6 +13,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CommercePaymentRepository extends JpaRepository<CommercePayment, Long> {
+
+    /**
+     * Guards against writing a second payment row when a capture is replayed — the callback, the
+     * sweep and the browser poll can all arrive for the same order.
+     */
+    @Query("SELECT COUNT(p) > 0 FROM CommercePayment p WHERE p.order.uuid = :orderUuid AND p.status = :status")
+    boolean existsByOrderUuidAndStatus(@Param("orderUuid") java.util.UUID orderUuid,
+                                       @Param("status") PaymentStatus status);
+
     @EntityGraph(attributePaths = "order")
     @Query("""
             select p from CommercePayment p
