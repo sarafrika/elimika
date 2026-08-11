@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.authentication.internal;
 
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
+import apps.sarafrika.elimika.shared.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.shared.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.shared.event.user.UserUpdateEvent;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component @RequiredArgsConstructor @Slf4j
 class UserEventsListener {
@@ -24,9 +26,16 @@ class UserEventsListener {
 
     @ApplicationModuleListener
     void onUserCreation(UserCreationEvent event) {
-        keycloakUserService.getUserByUsername(event.email(), event.realm()).orElse(
-                keycloakUserService.createUser(event)
-        );
+        Optional<UserRepresentation> existingUser = keycloakUserService.getUserByUsername(event.email(), event.realm());
+        if (existingUser.isPresent()) {
+            eventPublisher.publishEvent(new SuccessfulUserCreation(
+                    event.sarafrikaCorrelationId(),
+                    existingUser.get().getId()
+            ));
+            return;
+        }
+
+        keycloakUserService.createUser(event);
     }
 
     @EventListener

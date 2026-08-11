@@ -68,6 +68,15 @@ spring:
 
 # Application-specific configuration
 app:
+  bootstrap:
+    admin:
+      enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
+      email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
+      first-name: ${APP_BOOTSTRAP_ADMIN_FIRST_NAME:}
+      middle-name: ${APP_BOOTSTRAP_ADMIN_MIDDLE_NAME:}
+      last-name: ${APP_BOOTSTRAP_ADMIN_LAST_NAME:}
+      phone-number: ${APP_BOOTSTRAP_ADMIN_PHONE_NUMBER:}
+
   keycloak:
     serverUrl: ${APP_KEYCLOAK_SERVERURL:http://localhost:8080}
     realm: ${APP_KEYCLOAK_REALM:elimika}
