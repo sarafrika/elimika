@@ -1,3 +1,15 @@
+# [2.131.0](https://github.com/sarafrika/elimika/compare/v2.130.1...v2.131.0) (2026-08-17)
+
+
+### Bug Fixes
+
+* **persistence:** default NOT NULL columns in Java so inserts stop failing ([ec5bda1](https://github.com/sarafrika/elimika/commit/ec5bda1ac06f58052485f39d3826590984df484b))
+
+
+### Features
+
+* bootstrap platform admin from keycloak ([8c1b0d5](https://github.com/sarafrika/elimika/commit/8c1b0d5352f3f4929fce284accf042f7edc21e2d))
+
 ## [2.130.1](https://github.com/sarafrika/elimika/compare/v2.130.0...v2.130.1) (2026-08-08)
 
 
