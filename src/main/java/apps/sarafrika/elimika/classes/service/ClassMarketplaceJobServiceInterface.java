@@ -67,6 +67,14 @@ public interface ClassMarketplaceJobServiceInterface {
                                                              ClassMarketplaceJobApplicationStatus targetStage,
                                                              ClassMarketplaceJobDecisionRequestDTO request);
 
+    /**
+     * Withdraws the current instructor's own application, at any point before they have
+     * been assigned. A withdrawn application can be submitted again while the job is open.
+     */
+    ClassMarketplaceJobApplicationDTO withdrawApplication(UUID jobUuid,
+                                                          UUID applicationUuid,
+                                                          ClassMarketplaceJobDecisionRequestDTO request);
+
     ClassMarketplaceJobAssignmentResponseDTO assignInstructor(UUID jobUuid,
                                                               ClassMarketplaceJobAssignmentRequestDTO request);
 

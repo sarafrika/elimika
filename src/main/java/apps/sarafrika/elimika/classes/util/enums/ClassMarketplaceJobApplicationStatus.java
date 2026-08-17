@@ -17,7 +17,8 @@ public enum ClassMarketplaceJobApplicationStatus {
     APPROVED("approved"),
     REJECTED("rejected"),
     ASSIGNED("assigned"),
-    NOT_SELECTED("not_selected");
+    NOT_SELECTED("not_selected"),
+    WITHDRAWN("withdrawn");
 
     private final String value;
     private static final Map<String, ClassMarketplaceJobApplicationStatus> VALUE_MAP = new HashMap<>();
@@ -48,6 +49,24 @@ public enum ClassMarketplaceJobApplicationStatus {
     }
 
     public boolean isFinal() {
-        return this == REJECTED || this == ASSIGNED || this == NOT_SELECTED;
+        return this == REJECTED || this == ASSIGNED || this == NOT_SELECTED || this == WITHDRAWN;
+    }
+
+    /**
+     * Whether the application is still live in the organisation's recruitment funnel.
+     * A live application must not be resubmitted - doing so would reset the instructor's
+     * hard-won position in the funnel back to PENDING.
+     */
+    public boolean isActive() {
+        return !isFinal();
+    }
+
+    /**
+     * Whether an instructor holding an application in this state may apply to the job again.
+     * Rejected, passed-over and withdrawn applications are all reopenable; being assigned
+     * is not, since the instructor already holds the job.
+     */
+    public boolean allowsReapplication() {
+        return this == REJECTED || this == NOT_SELECTED || this == WITHDRAWN;
     }
 }

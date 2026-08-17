@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.dto;
 
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,9 +24,17 @@ public record ClassMarketplaceJobEligibilityDTO(
         @JsonProperty(value = "training_approved", access = JsonProperty.Access.READ_ONLY)
         boolean trainingApproved,
 
-        @Schema(description = "Whether the instructor already has an application for this job")
+        @Schema(description = "Whether the instructor already has an application for this job, in any state")
         @JsonProperty(value = "already_applied", access = JsonProperty.Access.READ_ONLY)
         boolean alreadyApplied,
+
+        @Schema(description = "Status of the instructor's existing application, when they have one", nullable = true)
+        @JsonProperty(value = "application_status", access = JsonProperty.Access.READ_ONLY)
+        ClassMarketplaceJobApplicationStatus applicationStatus,
+
+        @Schema(description = "Whether the instructor's existing application is closed in a way that allows applying again")
+        @JsonProperty(value = "can_reapply", access = JsonProperty.Access.READ_ONLY)
+        boolean canReapply,
 
         @Schema(description = "Whether the instructor's existing schedule is free for every session of this job")
         @JsonProperty(value = "schedule_clear", access = JsonProperty.Access.READ_ONLY)

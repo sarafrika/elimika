@@ -48,6 +48,13 @@ public enum NotificationType {
     CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED("CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED", "training-application-status", "Class Application Rejected", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED("CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED", "training-application-status", "Class Application Not Selected", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_MARKETPLACE_JOB_EXPIRED("CLASS_MARKETPLACE_JOB_EXPIRED", "training-application-status", "Class Job Expired", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED("CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED", "class-marketplace-job-application-update", "Application Shortlisted", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_INTERVIEWING("CLASS_MARKETPLACE_JOB_APPLICATION_INTERVIEWING", "class-marketplace-job-application-update", "Interview Stage", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_OFFERED("CLASS_MARKETPLACE_JOB_APPLICATION_OFFERED", "class-marketplace-job-application-update", "Offer Extended", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED("CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED", "class-marketplace-job-application-update", "Application Approved", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED("CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED", "class-marketplace-job-hired", "You've Been Hired", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED("CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED", "training-application-status", "Class Job Cancelled", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN("CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN", "class-marketplace-job-application-withdrawn", "Application Withdrawn", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_ENROLLMENT_CONFIRMED("CLASS_ENROLLMENT_CONFIRMED", "class-enrollment-confirmed", "Class Enrollment", NotificationCategory.LEARNING_PROGRESS),
     COURSE_ENROLLMENT_MILESTONE("COURSE_ENROLLMENT_MILESTONE", "course-enrollment-milestone", "Enrollment Milestone", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_ENROLLMENT_NOTICE("COURSE_ENROLLMENT_NOTICE", "course-enrollment-notice", "Enrollment Notice", NotificationCategory.COURSE_MANAGEMENT),
@@ -188,7 +195,13 @@ public enum NotificationType {
                  PROGRAM_TRAINING_APPLICATION_REJECTED,
                  PROGRAM_TRAINING_APPLICATION_REVOKED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED,
-                 CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED -> "instructor";
+                 CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_INTERVIEWING,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_OFFERED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED -> "instructor";
 
             case COURSE_CONTENT_APPROVED,
                  COURSE_CONTENT_REJECTED,
@@ -200,6 +213,7 @@ public enum NotificationType {
                  COURSE_ENROLLMENT_NOTICE -> "course_creator";
 
             case CLASS_MARKETPLACE_JOB_EXPIRED,
+                 CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN,
                  ORGANISATION_INVITATION_ACCEPTED -> "organisation_user";
 
             // Account-level notifications are relevant in every dashboard.

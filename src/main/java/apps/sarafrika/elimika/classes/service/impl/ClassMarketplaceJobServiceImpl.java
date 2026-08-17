@@ -57,6 +57,7 @@ import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import org.springframework.web.multipart.MultipartFile;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService;
 import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -100,6 +101,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final CourseInfoService courseInfoService;
     private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
     private final UserLookupService userLookupService;
+    private final OrganisationAffiliationService organisationAffiliationService;
     private final StudentGroupLookupService studentGroupLookupService;
     private final InstructorLookupService instructorLookupService;
     private final DomainSecurityService domainSecurityService;
@@ -206,7 +208,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setStatus(ClassMarketplaceJobStatus.CANCELLED);
         ClassMarketplaceJob saved = jobRepository.save(job);
         resourceBookingService.releaseHoldsForJob(jobUuid, "Job cancelled");
-        markOtherApplicationsAsNotSelected(jobUuid, null);
+        markOtherApplicationsAsNotSelected(jobUuid, null,
+                "This class job was cancelled by the organisation.");
         return toJobDTO(saved);
     }
 
@@ -234,10 +237,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         boolean instructorVerified = isInstructorAdminVerified(instructorUuid);
         boolean trainingApproved = isInstructorApprovedForJob(job, instructorUuid);
-        boolean alreadyApplied = applicationRepository.findByJobUuidAndInstructorUuid(jobUuid, instructorUuid).isPresent();
+        ClassMarketplaceJobApplicationStatus applicationStatus = applicationRepository
+                .findByJobUuidAndInstructorUuid(jobUuid, instructorUuid)
+                .map(ClassMarketplaceJobApplication::getStatus)
+                .orElse(null);
+        boolean alreadyApplied = applicationStatus != null;
+        boolean canReapply = applicationStatus != null && applicationStatus.allowsReapplication();
         List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
         boolean scheduleClear = scheduleConflicts.isEmpty();
-        boolean eligible = instructorVerified && trainingApproved && scheduleClear;
+        // An application that is still live blocks a fresh one; a closed one does not.
+        boolean blockedByExistingApplication = applicationStatus != null && !applicationStatus.allowsReapplication();
+        boolean eligible = instructorVerified && trainingApproved && scheduleClear && !blockedByExistingApplication;
 
         String reason = null;
         if (!instructorVerified) {
@@ -246,6 +256,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             reason = String.format(
                     "You are not approved to deliver this %s. Submit a training application and wait for approval before applying.",
                     learningContextType(job));
+        } else if (blockedByExistingApplication) {
+            reason = applicationStatus == ClassMarketplaceJobApplicationStatus.ASSIGNED
+                    ? "You have already been assigned to this class job."
+                    : "You already have an active application for this class job.";
         } else if (!scheduleClear) {
             reason = String.format(
                     "Your existing schedule conflicts with %d of this job's planned sessions.",
@@ -253,7 +267,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         }
 
         return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved, alreadyApplied,
-                scheduleClear, scheduleClear ? null : scheduleConflicts, reason);
+                applicationStatus, canReapply, scheduleClear, scheduleClear ? null : scheduleConflicts, reason);
     }
 
     @Override
@@ -317,7 +331,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
-        return toApplicationDTO(applicationRepository.save(application), job);
+        ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        notifyApplicant(job, saved,
+                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED, "was approved");
+        return toApplicationDTO(saved, job);
     }
 
     @Override
@@ -337,7 +354,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
-        notifyApplicantUnsuccessful(job, saved,
+        notifyApplicant(job, saved,
                 NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED, "was not successful");
         return toApplicationDTO(saved, job);
     }
@@ -366,7 +383,145 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
-        return toApplicationDTO(applicationRepository.save(application), job);
+        ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        notifyApplicant(job, saved, stageNotificationType(targetStage), stageStatusLabel(targetStage));
+        return toApplicationDTO(saved, job);
+    }
+
+    // Both switches name every movable stage explicitly and throw on anything else. A silent
+    // `default` would quietly tell a candidate they had an offer if a new stage were ever added.
+    private NotificationType stageNotificationType(ClassMarketplaceJobApplicationStatus stage) {
+        return switch (stage) {
+            case SHORTLISTED -> NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED;
+            case INTERVIEWING -> NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_INTERVIEWING;
+            case OFFERED -> NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_OFFERED;
+            default -> throw new IllegalArgumentException("No notification defined for stage " + stage);
+        };
+    }
+
+    private String stageStatusLabel(ClassMarketplaceJobApplicationStatus stage) {
+        return switch (stage) {
+            case SHORTLISTED -> "has been shortlisted";
+            case INTERVIEWING -> "has moved to the interview stage";
+            case OFFERED -> "has received an offer";
+            default -> throw new IllegalArgumentException("No status label defined for stage " + stage);
+        };
+    }
+
+    @Override
+    public ClassMarketplaceJobApplicationDTO withdrawApplication(UUID jobUuid,
+                                                                  UUID applicationUuid,
+                                                                  ClassMarketplaceJobDecisionRequestDTO request) {
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
+
+        // Withdrawal belongs to the applicant, not the organisation.
+        UUID instructorUuid = resolveCurrentInstructorUuid();
+        if (!instructorUuid.equals(application.getInstructorUuid())) {
+            throw new AccessDeniedException("You can only withdraw your own application.");
+        }
+
+        ensureApplicationWithdrawable(application);
+
+        application.setStatus(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
+        application.setReviewNotes(resolveWithdrawalNotes(request));
+        application.setReviewedBy(userLookupService.getUserEmail(requireCurrentUserUuid())
+                .orElse(instructorUuid.toString()));
+        application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
+
+        ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        notifyOrganisationOfWithdrawal(job, saved);
+        return toApplicationDTO(saved, job);
+    }
+
+    private void ensureApplicationWithdrawable(ClassMarketplaceJobApplication application) {
+        ClassMarketplaceJobApplicationStatus status = application.getStatus();
+        if (status == ClassMarketplaceJobApplicationStatus.ASSIGNED) {
+            throw new IllegalStateException(
+                    "You have already been assigned to this class job. Contact the organisation to be released from it.");
+        }
+        if (status == ClassMarketplaceJobApplicationStatus.WITHDRAWN) {
+            throw new IllegalStateException("You have already withdrawn this application.");
+        }
+        if (status == ClassMarketplaceJobApplicationStatus.REJECTED
+                || status == ClassMarketplaceJobApplicationStatus.NOT_SELECTED) {
+            throw new IllegalStateException("This application has already been closed and cannot be withdrawn.");
+        }
+    }
+
+    private String resolveWithdrawalNotes(ClassMarketplaceJobDecisionRequestDTO request) {
+        String reason = request == null ? null : request.reviewNotes();
+        return reason == null || reason.isBlank()
+                ? "The instructor withdrew this application."
+                : reason;
+    }
+
+    /**
+     * Tells the organisation that an applicant pulled out, so a candidate silently
+     * disappearing from the funnel is never a surprise.
+     */
+    private void notifyOrganisationOfWithdrawal(ClassMarketplaceJob job,
+                                                ClassMarketplaceJobApplication application) {
+        try {
+            UUID creatorUserUuid = job.getCreatedBy() == null
+                    ? null
+                    : userLookupService.findUserUuidByEmail(job.getCreatedBy()).orElse(null);
+            if (creatorUserUuid == null) {
+                log.debug("No resolvable creator for marketplace job {}; skipping withdrawal notification",
+                        job.getUuid());
+                return;
+            }
+
+            String jobTitle = job.getTitle() == null ? "your class job" : job.getTitle();
+            String instructorName = resolveInstructorDisplayName(application.getInstructorUuid());
+            NotificationType type = NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN;
+
+            eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                    creatorUserUuid,
+                    type.getValue(),
+                    "INBOX",
+                    type.getDisplayName(),
+                    instructorName + " withdrew their application for " + jobTitle + ".",
+                    "/dashboard/organisation/jobs",
+                    Map.of(
+                            "job_uuid", job.getUuid(),
+                            "application_uuid", application.getUuid(),
+                            "job_title", jobTitle,
+                            "instructor_name", instructorName
+                    ),
+                    "class-marketplace-job-application-withdrawn:" + application.getUuid()
+            ));
+
+            String recipientEmail = userLookupService.getUserEmail(creatorUserUuid).orElse(null);
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                return;
+            }
+            String recipientName = userLookupService.getUserFullName(creatorUserUuid).orElse(recipientEmail);
+            eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                    creatorUserUuid,
+                    recipientEmail,
+                    recipientName,
+                    type.getValue(),
+                    Map.of(
+                            "recipientName", recipientName,
+                            "instructorName", instructorName,
+                            "contextName", jobTitle,
+                            "reviewNotes", application.getReviewNotes() == null ? "" : application.getReviewNotes()
+                    )
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to publish withdrawal notification for application {}: {}",
+                    application.getUuid(), e.getMessage());
+        }
+    }
+
+    private String resolveInstructorDisplayName(UUID instructorUuid) {
+        if (instructorUuid == null) {
+            return "An instructor";
+        }
+        return instructorLookupService.getInstructorUserUuid(instructorUuid)
+                .flatMap(userLookupService::getUserFullName)
+                .orElse("An instructor");
     }
 
     @Override
@@ -406,14 +561,49 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewNotes(resolveAssignedReviewNotes(application.getReviewNotes()));
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
-        applicationRepository.save(application);
+        ClassMarketplaceJobApplication savedApplication = applicationRepository.save(application);
 
         job.setAssignedApplicationUuid(application.getUuid());
         ClassMarketplaceJob savedJob = jobRepository.save(job);
 
-        markOtherApplicationsAsNotSelected(jobUuid, application.getUuid());
+        // Hiring is what makes an instructor part of the organisation. Without this they
+        // would teach the class but never appear in the organisation's instructor list.
+        affiliateAssignedInstructor(savedJob, application.getInstructorUuid());
+
+        markOtherApplicationsAsNotSelected(jobUuid, application.getUuid(),
+                "Another instructor was selected for this class job.");
+
+        notifyApplicant(savedJob, savedApplication,
+                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED, "was successful",
+                "/dashboard/instructor/classes");
 
         return new ClassMarketplaceJobAssignmentResponseDTO(toJobDTO(savedJob));
+    }
+
+    /**
+     * Attaches the hired instructor to the hiring organisation in the {@code instructor}
+     * domain. An instructor who already belongs to the organisation keeps whatever role
+     * they hold - a hire must never quietly overwrite an existing affiliation.
+     */
+    private void affiliateAssignedInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
+        if (instructorUuid == null || job.getOrganisationUuid() == null) {
+            return;
+        }
+
+        UUID instructorUserUuid = instructorLookupService.getInstructorUserUuid(instructorUuid)
+                .orElseThrow(() -> new IllegalStateException(String.format(
+                        "Instructor %s has no user account, so they cannot be affiliated with the organisation.",
+                        instructorUuid)));
+
+        // Marketplace jobs are posted by the organisation rather than a specific branch,
+        // so the affiliation is organisation-wide.
+        boolean created = organisationAffiliationService.affiliateHiredInstructor(
+                instructorUserUuid, job.getOrganisationUuid(), null);
+
+        if (created) {
+            log.info("Instructor {} joined organisation {} after being hired for job {}",
+                    instructorUuid, job.getOrganisationUuid(), job.getUuid());
+        }
     }
 
     @Override
@@ -777,12 +967,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
     private ClassMarketplaceJobApplication reopenApplication(ClassMarketplaceJobApplication existing,
                                                              ClassMarketplaceJobApplicationRequestDTO request) {
-        if (existing.getStatus() == ClassMarketplaceJobApplicationStatus.PENDING
-                || existing.getStatus() == ClassMarketplaceJobApplicationStatus.APPROVED) {
-            throw new IllegalStateException("You already have an active application for this marketplace job.");
-        }
         if (existing.getStatus() == ClassMarketplaceJobApplicationStatus.ASSIGNED) {
             throw new IllegalStateException("You have already been assigned to this marketplace job.");
+        }
+        // Reapplying while still in the funnel would silently reset the instructor's
+        // stage - including a shortlisting or an offer - back to PENDING.
+        if (existing.getStatus().isActive()) {
+            throw new IllegalStateException("You already have an active application for this marketplace job.");
         }
 
         existing.setStatus(ClassMarketplaceJobApplicationStatus.PENDING);
@@ -943,6 +1134,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         if (application.getStatus() == ClassMarketplaceJobApplicationStatus.NOT_SELECTED) {
             throw new IllegalStateException("Applications already marked as not selected cannot be reviewed again.");
         }
+        if (application.getStatus() == ClassMarketplaceJobApplicationStatus.WITHDRAWN) {
+            throw new IllegalStateException("This application was withdrawn by the instructor and cannot be reviewed.");
+        }
     }
 
     private void requireOrganisationManagerAccess(UUID organisationUuid) {
@@ -1015,18 +1209,27 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     application.setReviewNotes("This class job was cancelled before its class was created.");
                     application.setReviewedBy(resolveReviewer());
                     application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
-                    applicationRepository.save(application);
+                    ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+                    // They had already been told they were hired - they must be told it is off.
+                    notifyApplicant(job, saved,
+                            NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED,
+                            "was cancelled by the organisation");
                 });
 
         job.setAssignedApplicationUuid(null);
         job.setAssignedInstructorUuid(null);
     }
 
-    private void markOtherApplicationsAsNotSelected(UUID jobUuid, UUID selectedApplicationUuid) {
+    private void markOtherApplicationsAsNotSelected(UUID jobUuid, UUID selectedApplicationUuid, String closureReason) {
+        // Everyone still moving through the funnel must be closed out, not just those at
+        // the two ends of it - otherwise shortlisted and interviewing candidates wait forever.
         List<ClassMarketplaceJobApplication> openApplications = applicationRepository.findByJobUuidAndStatusIn(
                 jobUuid,
                 List.of(
                         ClassMarketplaceJobApplicationStatus.PENDING,
+                        ClassMarketplaceJobApplicationStatus.SHORTLISTED,
+                        ClassMarketplaceJobApplicationStatus.INTERVIEWING,
+                        ClassMarketplaceJobApplicationStatus.OFFERED,
                         ClassMarketplaceJobApplicationStatus.APPROVED
                 )
         );
@@ -1038,7 +1241,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             }
             application.setStatus(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
             if (application.getReviewNotes() == null || application.getReviewNotes().isBlank()) {
-                application.setReviewNotes("Another instructor was selected for this class job.");
+                application.setReviewNotes(closureReason);
             }
             application.setReviewedBy(resolveReviewer());
             application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
@@ -1049,7 +1252,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             applicationRepository.saveAll(toUpdate);
             ClassMarketplaceJob job = jobRepository.findByUuid(jobUuid).orElse(null);
             for (ClassMarketplaceJobApplication application : toUpdate) {
-                notifyApplicantUnsuccessful(job, application,
+                notifyApplicant(job, application,
                         NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED,
                         "was not selected");
             }
@@ -1057,13 +1260,23 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     /**
-     * Notifies an instructor whose class marketplace job application did not succeed,
-     * both in-app and by email. Delivery failures never block the review workflow.
+     * Notifies an instructor that their class marketplace job application moved to a new
+     * stage, both in-app and by email. Used for every transition the organisation drives -
+     * shortlisting, interviewing, offers, approval, the hire itself and unsuccessful
+     * outcomes. Delivery failures never block the review workflow.
      */
-    private void notifyApplicantUnsuccessful(ClassMarketplaceJob job,
-                                             ClassMarketplaceJobApplication application,
-                                             NotificationType type,
-                                             String statusLabel) {
+    private void notifyApplicant(ClassMarketplaceJob job,
+                                 ClassMarketplaceJobApplication application,
+                                 NotificationType type,
+                                 String statusLabel) {
+        notifyApplicant(job, application, type, statusLabel, "/dashboard/instructor/applications");
+    }
+
+    private void notifyApplicant(ClassMarketplaceJob job,
+                                 ClassMarketplaceJobApplication application,
+                                 NotificationType type,
+                                 String statusLabel,
+                                 String actionUrl) {
         try {
             if (application.getInstructorUuid() == null) {
                 return;
@@ -1085,7 +1298,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     "INBOX",
                     type.getDisplayName(),
                     "Your application to train " + contextName + " " + statusLabel + ".",
-                    "/dashboard/instructor/applications",
+                    actionUrl,
                     Map.of(
                             "job_uuid", jobUuid == null ? "" : jobUuid,
                             "application_uuid", application.getUuid(),
@@ -1114,7 +1327,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     )
             ));
         } catch (Exception e) {
-            log.warn("Failed to publish unsuccessful-applicant notification for application {}: {}",
+            log.warn("Failed to publish applicant notification for application {}: {}",
                     application.getUuid(), e.getMessage());
         }
     }

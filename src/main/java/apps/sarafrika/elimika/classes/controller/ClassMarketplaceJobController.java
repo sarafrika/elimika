@@ -157,6 +157,18 @@ public class ClassMarketplaceJobController {
                 .body(ApiResponse.success(result, "Marketplace class job application submitted successfully"));
     }
 
+    @Operation(summary = "Withdraw the current instructor's own marketplace class job application",
+            description = "Allowed at any stage before assignment. A withdrawn application can be submitted again while the job is open.")
+    @PostMapping("/{jobUuid}/applications/{applicationUuid}/withdraw")
+    public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> withdrawApplication(
+            @PathVariable UUID jobUuid,
+            @PathVariable UUID applicationUuid,
+            @Valid @RequestBody(required = false) ClassMarketplaceJobDecisionRequestDTO request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                classMarketplaceJobService.withdrawApplication(jobUuid, applicationUuid, request),
+                "Marketplace class job application withdrawn successfully"));
+    }
+
     @Operation(summary = "Check current instructor's eligibility for a marketplace class job")
     @GetMapping("/{jobUuid}/eligibility")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobEligibilityDTO>> getJobEligibility(@PathVariable UUID jobUuid) {

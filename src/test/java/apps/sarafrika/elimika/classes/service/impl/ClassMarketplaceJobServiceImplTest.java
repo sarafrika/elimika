@@ -105,6 +105,9 @@ class ClassMarketplaceJobServiceImplTest {
     private UserLookupService userLookupService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService organisationAffiliationService;
+
+    @Mock
     private apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService studentGroupLookupService;
 
     @Mock
@@ -141,6 +144,7 @@ class ClassMarketplaceJobServiceImplTest {
                 courseInfoService,
                 courseTrainingApprovalSpi,
                 userLookupService,
+                organisationAffiliationService,
                 studentGroupLookupService,
                 instructorLookupService,
                 domainSecurityService,
@@ -614,11 +618,10 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(jobRepository.save(any(ClassMarketplaceJob.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(applicationRepository.findByJobUuidAndStatusIn(
-                job.getUuid(),
-                List.of(ClassMarketplaceJobApplicationStatus.PENDING, ClassMarketplaceJobApplicationStatus.APPROVED)))
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any()))
                 .thenReturn(List.of(otherApplication));
 
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(UUID.randomUUID()));
         var response = service.assignInstructor(
                 job.getUuid(),
                 new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid())
@@ -686,6 +689,275 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void approveApplicationNotifiesTheInstructor() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID recipientUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(recipientUserUuid));
+        when(userLookupService.getUserEmail(recipientUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.getUserFullName(recipientUserUuid)).thenReturn(Optional.of("Jane Instructor"));
+
+        service.approveApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Looks great"));
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED".equals(e.notificationType()));
+    }
+
+    @Test
+    void moveApplicationToStageNotifiesTheInstructorOfTheNewStage() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID recipientUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(recipientUserUuid));
+        when(userLookupService.getUserEmail(recipientUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.getUserFullName(recipientUserUuid)).thenReturn(Optional.of("Jane Instructor"));
+
+        service.moveApplicationToStage(job.getUuid(), application.getUuid(),
+                ClassMarketplaceJobApplicationStatus.SHORTLISTED, null);
+
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED".equals(e.notificationType()));
+    }
+
+    @Test
+    void assignInstructorAffiliatesTheHiredInstructorWithTheOrganisationAndNotifiesThem() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID recipientUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication approvedApplication = sampleApplication(job.getUuid(), instructorUuid);
+        approvedApplication.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
+                .thenReturn(Optional.of(approvedApplication));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(recipientUserUuid));
+        when(userLookupService.getUserEmail(recipientUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.getUserFullName(recipientUserUuid)).thenReturn(Optional.of("Jane Instructor"));
+
+        service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid()));
+
+        verify(organisationAffiliationService)
+                .affiliateHiredInstructor(recipientUserUuid, job.getOrganisationUuid(), null);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED".equals(e.notificationType()));
+    }
+
+    @Test
+    void withdrawApplicationClosesItAndNotifiesTheOrganisation() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID creatorUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        job.setCreatedBy("manager@org.test");
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
+                .thenReturn(Optional.of(instructorUuid));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.findUserUuidByEmail("manager@org.test")).thenReturn(Optional.of(creatorUserUuid));
+        when(userLookupService.getUserEmail(creatorUserUuid)).thenReturn(Optional.of("manager@org.test"));
+        when(userLookupService.getUserFullName(creatorUserUuid)).thenReturn(Optional.of("Org Manager"));
+
+        service.withdrawApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Schedule no longer works"));
+
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
+        assertThat(application.getReviewNotes()).isEqualTo("Schedule no longer works");
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN".equals(e.notificationType()));
+    }
+
+    @Test
+    void withdrawApplicationRefusesOnceTheInstructorHasBeenAssigned() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
+                .thenReturn(Optional.of(instructorUuid));
+
+        assertThatThrownBy(() -> service.withdrawApplication(job.getUuid(), application.getUuid(), null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already been assigned");
+    }
+
+    @Test
+    void withdrawApplicationRefusesToTouchAnotherInstructorsApplication() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), UUID.randomUUID());
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
+                .thenReturn(Optional.of(instructorUuid));
+
+        assertThatThrownBy(() -> service.withdrawApplication(job.getUuid(), application.getUuid(), null))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    @Test
+    void applyingAgainWhileStillInTheFunnelIsRejected() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication existing = sampleApplication(job.getUuid(), instructorUuid);
+        existing.setStatus(ClassMarketplaceJobApplicationStatus.OFFERED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
+                .thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
+                .thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(),
+                new ClassMarketplaceJobApplicationRequestDTO("Let me in")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("active application");
+    }
+
+    @Test
+    void aWithdrawnApplicantCanApplyAgain() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication existing = sampleApplication(job.getUuid(), instructorUuid);
+        existing.setStatus(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
+                .thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
+                .thenReturn(Optional.of(existing));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Back again"));
+
+        assertThat(existing.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
+        assertThat(existing.getReviewNotes()).isNull();
+    }
+
+    @Test
+    void assignInstructorClosesOutEveryoneStillInTheFunnel() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication approvedApplication = sampleApplication(job.getUuid(), instructorUuid);
+        approvedApplication.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
+                .thenReturn(Optional.of(approvedApplication));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(UUID.randomUUID()));
+
+        service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ClassMarketplaceJobApplicationStatus>> statuses =
+                ArgumentCaptor.forClass(List.class);
+        verify(applicationRepository).findByJobUuidAndStatusIn(eq(job.getUuid()), statuses.capture());
+        assertThat(statuses.getValue()).contains(
+                ClassMarketplaceJobApplicationStatus.SHORTLISTED,
+                ClassMarketplaceJobApplicationStatus.INTERVIEWING,
+                ClassMarketplaceJobApplicationStatus.OFFERED);
+    }
+
+    @Test
     void assignInstructorCreatesProgramClassAndClosesJob() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
@@ -712,11 +984,10 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(jobRepository.save(any(ClassMarketplaceJob.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(applicationRepository.findByJobUuidAndStatusIn(
-                job.getUuid(),
-                List.of(ClassMarketplaceJobApplicationStatus.PENDING, ClassMarketplaceJobApplicationStatus.APPROVED)))
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any()))
                 .thenReturn(List.of());
 
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(UUID.randomUUID()));
         var response = service.assignInstructor(
                 job.getUuid(),
                 new ClassMarketplaceJobAssignmentRequestDTO(approvedApplication.getUuid())
@@ -831,7 +1102,58 @@ class ClassMarketplaceJobServiceImplTest {
         UUID currentUserUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
         ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isTrue();
+        assertThat(eligibility.instructorVerified()).isTrue();
+        assertThat(eligibility.trainingApproved()).isTrue();
+        assertThat(eligibility.alreadyApplied()).isFalse();
+        assertThat(eligibility.applicationStatus()).isNull();
+        assertThat(eligibility.canReapply()).isFalse();
+        assertThat(eligibility.reason()).isNull();
+    }
+
+    @Test
+    void getMyJobEligibilityBlocksAnInstructorWhoAlreadyHasALiveApplication() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
         ClassMarketplaceJobApplication existing = sampleApplication(job.getUuid(), instructorUuid);
+        existing.setStatus(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(existing));
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.alreadyApplied()).isTrue();
+        assertThat(eligibility.applicationStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+        assertThat(eligibility.canReapply()).isFalse();
+        assertThat(eligibility.reason()).contains("active application");
+    }
+
+    @Test
+    void getMyJobEligibilityLetsAWithdrawnApplicantApplyAgain() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication existing = sampleApplication(job.getUuid(), instructorUuid);
+        existing.setStatus(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
@@ -844,9 +1166,9 @@ class ClassMarketplaceJobServiceImplTest {
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
         assertThat(eligibility.eligible()).isTrue();
-        assertThat(eligibility.instructorVerified()).isTrue();
-        assertThat(eligibility.trainingApproved()).isTrue();
         assertThat(eligibility.alreadyApplied()).isTrue();
+        assertThat(eligibility.applicationStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
+        assertThat(eligibility.canReapply()).isTrue();
         assertThat(eligibility.reason()).isNull();
     }
 
@@ -1496,6 +1818,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
 
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(UUID.randomUUID()));
         var response = service.assignInstructor(job.getUuid(),
                 new ClassMarketplaceJobAssignmentRequestDTO(application.getUuid()));
 
