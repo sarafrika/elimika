@@ -22,8 +22,10 @@ public class QuizQuestionOption extends BaseEntity {
     @Column(name = "is_correct")
     private Boolean isCorrect;
 
-    @Column(name = "display_order")
-    private Integer displayOrder;
+    // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
+    // null here would be sent explicitly and defeat that default — initialise it on the Java side.
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 1;
 
     /**
      * On a draft option, the live option it will be promoted onto. NULL means the edit adds

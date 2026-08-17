@@ -51,8 +51,10 @@ public class CourseAssessment extends BaseEntity {
     @Column(name = "is_required")
     private Boolean isRequired;
 
-    @Column(name = "active")
-    private Boolean active;
+    // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
+    // null here would be sent explicitly and defeat that default — initialise it on the Java side.
+    @Column(name = "active", nullable = false)
+    private Boolean active = Boolean.TRUE;
 
     /**
      * On a draft assessment, the live assessment it will be promoted onto. NULL means the

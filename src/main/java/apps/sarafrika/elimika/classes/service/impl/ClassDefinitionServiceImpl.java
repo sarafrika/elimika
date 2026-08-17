@@ -56,6 +56,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 
 @Service
@@ -109,6 +110,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
         if (entity.getIsActive() == null) {
             entity.setIsActive(true);
+        }
+        if (entity.getRateBasis() == null) {
+            entity.setRateBasis(RateBasis.PER_HOUR);
         }
 
         validateLocationRequirements(entity);

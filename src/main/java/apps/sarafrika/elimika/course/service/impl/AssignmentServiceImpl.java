@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -41,6 +42,9 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         if (assignment.getIsPublished() == null) {
             assignment.setIsPublished(false);
+        }
+        if (assignment.getMaxPoints() == null) {
+            assignment.setMaxPoints(new BigDecimal("100.00"));
         }
 
         Assignment savedAssignment = assignmentRepository.save(assignment);

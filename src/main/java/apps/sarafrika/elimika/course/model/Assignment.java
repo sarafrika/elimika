@@ -49,8 +49,10 @@ public class Assignment extends BaseEntity {
     @Column(name = "due_date")
     private LocalDateTime dueDate;
 
-    @Column(name = "max_points")
-    private BigDecimal maxPoints;
+    // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
+    // null here would be sent explicitly and defeat that default — initialise it on the Java side.
+    @Column(name = "max_points", nullable = false)
+    private BigDecimal maxPoints = new BigDecimal("100.00");
 
     @Column(name = "rubric_uuid")
     private UUID rubricUuid;

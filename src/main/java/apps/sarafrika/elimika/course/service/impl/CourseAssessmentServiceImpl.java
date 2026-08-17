@@ -51,6 +51,9 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         if (courseAssessment.getSyncClassAttendance() == null) {
             courseAssessment.setSyncClassAttendance(false);
         }
+        if (courseAssessment.getActive() == null) {
+            courseAssessment.setActive(Boolean.TRUE);
+        }
 
         CourseAssessment savedCourseAssessment = courseAssessmentRepository.save(courseAssessment);
         return CourseAssessmentFactory.toDTO(savedCourseAssessment);

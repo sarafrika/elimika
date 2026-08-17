@@ -59,9 +59,11 @@ public class TrainingProgram extends BaseEntity {
     @Column(name = "is_active")
     private Boolean active;
 
-    @Column(name = "status")
+    // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
+    // null here would be sent explicitly and defeat that default — initialise it on the Java side.
+    @Column(name = "status", nullable = false)
     @Convert(converter = ContentStatusConverter.class)
-    private ContentStatus status;
+    private ContentStatus status = ContentStatus.DRAFT;
 
     @Column(name = "admin_approved")
     private Boolean adminApproved;

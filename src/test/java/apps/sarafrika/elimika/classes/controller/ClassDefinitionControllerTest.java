@@ -638,6 +638,7 @@ class ClassDefinitionControllerTest {
                 source.programUuid(),
                 source.salePrice(),
                 source.instructorPay(),
+                source.rateBasis(),
                 source.classVisibility(),
                 source.sessionFormat(),
                 source.defaultStartTime(),

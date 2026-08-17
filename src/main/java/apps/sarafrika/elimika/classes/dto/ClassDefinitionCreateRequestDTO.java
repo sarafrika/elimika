@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.classes.dto;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -91,6 +92,14 @@ public record ClassDefinitionCreateRequestDTO(
         @DecimalMin(value = "0.00", message = "Instructor pay cannot be negative")
         @JsonProperty("instructor_pay")
         BigDecimal instructorPay,
+
+        @Schema(
+                description = "**[OPTIONAL]** Unit that `sale_price` and `instructor_pay` are quoted in. Defaults to `per_hour` when omitted.",
+                example = "per_hour",
+                allowableValues = {"per_hour", "per_session", "per_day"}
+        )
+        @JsonProperty("rate_basis")
+        RateBasis rateBasis,
 
         @Schema(description = "**[REQUIRED]** Class visibility.", allowableValues = {"PUBLIC", "PRIVATE"})
         @NotNull(message = "Class visibility is required")
@@ -201,7 +210,7 @@ public record ClassDefinitionCreateRequestDTO(
                 effectiveProgramUuid,
                 salePrice,
                 instructorPay,
-                null,
+                rateBasis,
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,

@@ -36,6 +36,9 @@ public class QuizQuestionOptionServiceImpl implements QuizQuestionOptionService 
         if (quizQuestionOption.getIsCorrect() == null) {
             quizQuestionOption.setIsCorrect(false);
         }
+        if (quizQuestionOption.getDisplayOrder() == null) {
+            quizQuestionOption.setDisplayOrder(1);
+        }
 
         QuizQuestionOption savedQuizQuestionOption = quizQuestionOptionRepository.save(quizQuestionOption);
         return QuizQuestionOptionFactory.toDTO(savedQuizQuestionOption);

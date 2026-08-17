@@ -162,7 +162,9 @@ public class GlobalExceptionHandler {
                 message = "A record with this information already exists";
             } else if (normalizedMessage.contains("check constraint")) {
                 message = "The provided data does not meet validation requirements";
-            } else if (normalizedMessage.contains("not null")) {
+            } else if (normalizedMessage.contains("not null") || normalizedMessage.contains("not-null")) {
+                // PostgreSQL writes "violates not-null constraint" — hyphenated. Matching only the
+                // spaced form let every not-null violation fall through to the generic message.
                 message = "Required information is missing";
             }
         }

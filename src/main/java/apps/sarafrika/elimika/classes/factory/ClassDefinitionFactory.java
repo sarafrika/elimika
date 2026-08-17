@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.classes.factory;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -70,7 +71,7 @@ public class ClassDefinitionFactory {
         entity.setCategoryUuid(dto.categoryUuid());
         entity.setSalePrice(dto.salePrice());
         entity.setInstructorPay(dto.instructorPay());
-        entity.setRateBasis(dto.rateBasis());
+        entity.setRateBasis(dto.rateBasis() == null ? RateBasis.PER_HOUR : dto.rateBasis());
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
         entity.setDefaultStartTime(dto.defaultStartTime());
@@ -122,7 +123,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.programUuid() != null) {
             entity.setProgramUuid(dto.programUuid());
-        entity.setCategoryUuid(dto.categoryUuid());
+        }
+        if (dto.categoryUuid() != null) {
+            entity.setCategoryUuid(dto.categoryUuid());
         }
         if (dto.salePrice() != null) {
             entity.setSalePrice(dto.salePrice());

@@ -61,6 +61,9 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (program.getAdminApproved() == null) {
             program.setAdminApproved(false);
         }
+        if (program.getStatus() == null) {
+            program.setStatus(ContentStatus.DRAFT);
+        }
 
         TrainingProgram savedProgram = trainingProgramRepository.save(program);
         return TrainingProgramFactory.toDTO(savedProgram);

@@ -221,11 +221,12 @@ public record ClassDefinitionDTO(
         BigDecimal instructorPay,
 
         @Schema(
-                description = "**[READ-ONLY]** Unit the sale price and instructor pay are quoted in, carried over from the job that contracted this class.",
+                description = "**[OPTIONAL]** Unit the sale price and instructor pay are quoted in. When the class was contracted through a marketplace job this is carried over from that job; otherwise it defaults to `per_hour`.",
                 example = "per_hour",
-                nullable = true
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @JsonProperty(value = "rate_basis", access = JsonProperty.Access.READ_ONLY)
+        @JsonProperty("rate_basis")
         apps.sarafrika.elimika.shared.utils.enums.RateBasis rateBasis,
 
         @Schema(
