@@ -1,3 +1,10 @@
+# [2.132.0](https://github.com/sarafrika/elimika/compare/v2.131.0...v2.132.0) (2026-08-17)
+
+
+### Features
+
+* **marketplace:** notify applicants at every recruitment stage and let them withdraw ([c1825dc](https://github.com/sarafrika/elimika/commit/c1825dc6353b34fe591bbae3611beb7834cafe06))
+
 # [2.131.0](https://github.com/sarafrika/elimika/compare/v2.130.1...v2.131.0) (2026-08-17)
 
 
