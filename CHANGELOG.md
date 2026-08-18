@@ -1,3 +1,10 @@
+## [2.132.1](https://github.com/sarafrika/elimika/compare/v2.132.0...v2.132.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* align education years and profile document uploads ([80f10af](https://github.com/sarafrika/elimika/commit/80f10afd730f55a24cfb2f8bb553050a89291513))
+
 # [2.132.0](https://github.com/sarafrika/elimika/compare/v2.131.0...v2.132.0) (2026-08-17)
 
 
