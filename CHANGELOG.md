@@ -1,3 +1,10 @@
+## [2.132.2](https://github.com/sarafrika/elimika/compare/v2.132.1...v2.132.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* **courses:** unblock organisation training applications on partial rate cards ([909747c](https://github.com/sarafrika/elimika/commit/909747cd30311104941a5768921bf2ae220c7a37))
+
 ## [2.132.1](https://github.com/sarafrika/elimika/compare/v2.132.0...v2.132.1) (2026-08-18)
 
 
