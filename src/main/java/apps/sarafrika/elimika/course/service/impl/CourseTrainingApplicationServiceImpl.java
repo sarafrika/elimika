@@ -487,16 +487,39 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         ));
     }
 
+    /** Where an approved instructor lands from the notification. */
+    private static final String INSTRUCTOR_APPLICATIONS_URL = "/dashboard/instructor/opportunities/my-applications";
+    /** Where an approved organisation lands from the notification. */
+    private static final String ORGANISATION_APPLICATIONS_URL = "/dashboard/organisation/my-applications";
+
+    /**
+     * The user who submitted an organisation's application, resolved from the audit trail.
+     * Returns null when the submitter can no longer be matched to a user account.
+     */
+    private UUID resolveApplicationSubmitter(CourseTrainingApplication application) {
+        String submittedBy = application.getCreatedBy();
+        if (submittedBy == null || submittedBy.isBlank()) {
+            return null;
+        }
+        return userLookupService.findUserUuidByEmail(submittedBy).orElse(null);
+    }
+
     private void publishCourseTrainingApplicationDecision(CourseTrainingApplication application,
                                                           CourseTrainingApplicationStatus status,
                                                           String reviewNotes) {
-        if (!CourseTrainingApplicantType.INSTRUCTOR.equals(application.getApplicantType())
-                || application.getApplicantUuid() == null) {
+        if (application.getApplicantUuid() == null) {
             return;
         }
 
-        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(application.getApplicantUuid())
-                .orElse(null);
+        boolean organisationApplicant =
+                CourseTrainingApplicantType.ORGANISATION.equals(application.getApplicantType());
+
+        // An organisation has no single user account behind it, so the decision goes to whoever
+        // submitted the application on its behalf. Without this branch organisations were never
+        // told they had been approved - they had to notice the state change in the catalogue.
+        UUID recipientUserUuid = organisationApplicant
+                ? resolveApplicationSubmitter(application)
+                : instructorLookupService.getInstructorUserUuid(application.getApplicantUuid()).orElse(null);
         if (recipientUserUuid == null) {
             return;
         }
@@ -532,14 +555,17 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 "INBOX",
                 title,
                 body,
-                "/dashboard/instructor/applications",
+                organisationApplicant ? ORGANISATION_APPLICATIONS_URL : INSTRUCTOR_APPLICATIONS_URL,
                 Map.of(
                         "course_uuid", application.getCourseUuid(),
                         "course_name", courseName,
                         "application_uuid", application.getUuid(),
                         "review_notes", reviewNotes == null ? "" : reviewNotes
                 ),
-                "course-training-application-decision:" + application.getUuid() + ":" + type
+                "course-training-application-decision:" + application.getUuid() + ":" + type,
+                // The type's default audience is the instructor dashboard; an organisation's copy
+                // has to land in the organisation inbox or its recipient never sees it.
+                organisationApplicant ? "organisation_user" : null
         ));
 
         if (status == CourseTrainingApplicationStatus.REJECTED) {

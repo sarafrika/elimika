@@ -50,7 +50,8 @@ public class NotificationRequestEventListener {
             Set<String> deliveryChannels,
             String dedupeKey,
             LocalDateTime createdAt,
-            UUID organizationId
+            UUID organizationId,
+            String recipientDomain
     ) implements NotificationEvent {
 
         static RequestedNotificationEvent from(NotificationRequestedEvent request) {
@@ -69,7 +70,8 @@ public class NotificationRequestEventListener {
                     request.deliveryChannels(),
                     request.dedupeKey(),
                     request.createdAt(),
-                    request.organizationId()
+                    request.organizationId(),
+                    request.recipientDomain()
             );
         }
 
@@ -81,6 +83,11 @@ public class NotificationRequestEventListener {
         @Override
         public UUID getRecipientId() {
             return recipientId;
+        }
+
+        @Override
+        public String getRecipientDomain() {
+            return recipientDomain;
         }
 
         @Override

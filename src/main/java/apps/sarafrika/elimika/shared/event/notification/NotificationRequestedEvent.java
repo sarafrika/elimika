@@ -21,7 +21,13 @@ public record NotificationRequestedEvent(
         Set<String> deliveryChannels,
         String dedupeKey,
         LocalDateTime createdAt,
-        UUID organizationId
+        UUID organizationId,
+        /**
+         * Dashboard the notification belongs in, when it is not the one the notification type
+         * defaults to. A training decision, for instance, reaches an instructor in the instructor
+         * dashboard but an organisation in the organisation dashboard - same type, different inbox.
+         */
+        String recipientDomain
 ) {
 
     public NotificationRequestedEvent {
@@ -51,6 +57,22 @@ public record NotificationRequestedEvent(
             Map<String, Object> metadata,
             String dedupeKey
     ) {
+        return inApp(recipientId, notificationType, presentation, title, body, actionUrl,
+                metadata, dedupeKey, null);
+    }
+
+    /** As {@link #inApp}, but delivered into a specific dashboard rather than the type's default. */
+    public static NotificationRequestedEvent inApp(
+            UUID recipientId,
+            String notificationType,
+            String presentation,
+            String title,
+            String body,
+            String actionUrl,
+            Map<String, Object> metadata,
+            String dedupeKey,
+            String recipientDomain
+    ) {
         return new NotificationRequestedEvent(
                 UUID.randomUUID(),
                 recipientId,
@@ -66,7 +88,8 @@ public record NotificationRequestedEvent(
                 Set.of("in_app"),
                 dedupeKey,
                 LocalDateTime.now(ZoneOffset.UTC),
-                null
+                null,
+                recipientDomain
         );
     }
 
@@ -92,6 +115,7 @@ public record NotificationRequestedEvent(
                 Set.of("email"),
                 null,
                 LocalDateTime.now(ZoneOffset.UTC),
+                null,
                 null
         );
     }

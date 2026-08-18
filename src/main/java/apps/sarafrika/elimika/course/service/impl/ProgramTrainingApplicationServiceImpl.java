@@ -467,16 +467,35 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         ));
     }
 
+    /** Where an approved instructor lands from the notification. */
+    private static final String INSTRUCTOR_APPLICATIONS_URL = "/dashboard/instructor/opportunities/my-applications";
+    /** Where an approved organisation lands from the notification. */
+    private static final String ORGANISATION_APPLICATIONS_URL = "/dashboard/organisation/my-applications";
+
+    /** The user who submitted an organisation's application, resolved from the audit trail. */
+    private UUID resolveApplicationSubmitter(ProgramTrainingApplication application) {
+        String submittedBy = application.getCreatedBy();
+        if (submittedBy == null || submittedBy.isBlank()) {
+            return null;
+        }
+        return userLookupService.findUserUuidByEmail(submittedBy).orElse(null);
+    }
+
     private void publishProgramTrainingApplicationDecision(ProgramTrainingApplication application,
                                                            CourseTrainingApplicationStatus status,
                                                            String reviewNotes) {
-        if (!CourseTrainingApplicantType.INSTRUCTOR.equals(application.getApplicantType())
-                || application.getApplicantUuid() == null) {
+        if (application.getApplicantUuid() == null) {
             return;
         }
 
-        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(application.getApplicantUuid())
-                .orElse(null);
+        boolean organisationApplicant =
+                CourseTrainingApplicantType.ORGANISATION.equals(application.getApplicantType());
+
+        // Same reasoning as the course flow: an organisation is notified through the user who
+        // applied for it, since the organisation itself has no account to deliver to.
+        UUID recipientUserUuid = organisationApplicant
+                ? resolveApplicationSubmitter(application)
+                : instructorLookupService.getInstructorUserUuid(application.getApplicantUuid()).orElse(null);
         if (recipientUserUuid == null) {
             return;
         }
@@ -512,14 +531,15 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 "INBOX",
                 title,
                 body,
-                "/dashboard/instructor/applications",
+                organisationApplicant ? ORGANISATION_APPLICATIONS_URL : INSTRUCTOR_APPLICATIONS_URL,
                 Map.of(
                         "program_uuid", application.getProgramUuid(),
                         "program_title", programTitle,
                         "application_uuid", application.getUuid(),
                         "review_notes", reviewNotes == null ? "" : reviewNotes
                 ),
-                "program-training-application-decision:" + application.getUuid() + ":" + type
+                "program-training-application-decision:" + application.getUuid() + ":" + type,
+                organisationApplicant ? "organisation_user" : null
         ));
 
         if (status == CourseTrainingApplicationStatus.REJECTED) {

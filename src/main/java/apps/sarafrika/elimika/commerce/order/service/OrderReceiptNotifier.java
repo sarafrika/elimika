@@ -63,7 +63,8 @@ public class OrderReceiptNotifier {
                 Set.of("email", "in_app"),
                 "order-payment-receipt:" + variables.getOrDefault("orderId", order.getId()),
                 LocalDateTime.now(ZoneOffset.UTC),
-                organizationId
+                organizationId,
+                null
         );
 
         eventPublisher.publishEvent(event);
