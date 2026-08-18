@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -117,10 +118,13 @@ class CourseTrainingApplicationServiceImplTest {
     void submitApplicationRejectsOrganisationRateBelowMinimum() {
         UUID courseUuid = UUID.randomUUID();
         UUID organisationUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
 
         Course course = new Course();
         course.setMinimumTrainingFee(new BigDecimal("3000.00"));
 
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(true);
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
 
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
@@ -201,6 +205,69 @@ class CourseTrainingApplicationServiceImplTest {
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Instructors may only submit training applications for themselves");
+    }
+
+    @Test
+    void submitApplicationRejectsOrganisationImpersonation() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID organisationUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(false);
+
+        CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
+                CourseTrainingApplicantType.ORGANISATION,
+                organisationUuid,
+                rateCard("KES", "2500.00"),
+                null
+        );
+
+        assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Organisations may only submit training applications for organisations they belong to");
+
+        verify(courseRepository, org.mockito.Mockito.never()).findByUuid(courseUuid);
+    }
+
+    @Test
+    void submitApplicationRejectsApprovedOrganisationApplication() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID organisationUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
+
+        Course course = new Course();
+        course.setMinimumTrainingFee(new BigDecimal("2000.00"));
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(true);
+        when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
+        when(applicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                courseUuid,
+                CourseTrainingApplicantType.ORGANISATION,
+                organisationUuid,
+                CourseTrainingApplicationStatus.PENDING
+        )).thenReturn(false);
+        when(applicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                courseUuid,
+                CourseTrainingApplicantType.ORGANISATION,
+                organisationUuid,
+                CourseTrainingApplicationStatus.APPROVED
+        )).thenReturn(true);
+
+        CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
+                CourseTrainingApplicantType.ORGANISATION,
+                organisationUuid,
+                rateCard("KES", "2500.00"),
+                null
+        );
+
+        assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("already approved");
+
+        verify(applicationRepository, org.mockito.Mockito.never())
+                .save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class));
     }
 
     @Test

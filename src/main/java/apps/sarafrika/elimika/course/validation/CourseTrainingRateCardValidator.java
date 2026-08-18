@@ -31,7 +31,7 @@ public class CourseTrainingRateCardValidator {
         hourlyRates.put("private_inperson_hourly_rate", rateCard.privateInpersonHourlyRate());
         hourlyRates.put("group_online_hourly_rate", rateCard.groupOnlineHourlyRate());
         hourlyRates.put("group_inperson_hourly_rate", rateCard.groupInpersonHourlyRate());
-        hourlyRates.forEach((label, value) -> validateEntry(label, value, floor));
+        hourlyRates.forEach((label, value) -> validateMandatoryHourlyEntry(label, value, floor));
 
         // A session or a day is never shorter than an hour of teaching, so the hourly floor is the
         // weakest defensible bound for them: below it the rate cannot cover even a single hour.
@@ -53,6 +53,35 @@ public class CourseTrainingRateCardValidator {
         }
         if (value.compareTo(ZERO) < 0) {
             throw new IllegalArgumentException(label + " cannot be negative");
+        }
+        if (value.compareTo(floor) < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "%s %.4f cannot be less than the course minimum training fee %.2f per learner per hour",
+                    label,
+                    value,
+                    floor
+            ));
+        }
+    }
+
+    /**
+     * The four hourly fields are non-nullable on the rate card, so an applicant who does not offer
+     * a given modality (e.g. an organisation applying with only "group virtual" selected) has no way
+     * to send {@code null} for the other three — the form submits {@code 0} in their place. Treat that
+     * placeholder as "not offered" rather than "priced at zero": otherwise every applicant who doesn't
+     * quote all four delivery modalities is rejected against the minimum fee no matter what they enter,
+     * which made the organisation "apply to train" wizard impossible to complete for its normal case of
+     * offering a subset of methods.
+     */
+    private void validateMandatoryHourlyEntry(String label, BigDecimal value, BigDecimal floor) {
+        if (value == null) {
+            throw new IllegalArgumentException(label + " is required");
+        }
+        if (value.compareTo(ZERO) < 0) {
+            throw new IllegalArgumentException(label + " cannot be negative");
+        }
+        if (value.compareTo(ZERO) == 0) {
+            return;
         }
         if (value.compareTo(floor) < 0) {
             throw new IllegalArgumentException(String.format(

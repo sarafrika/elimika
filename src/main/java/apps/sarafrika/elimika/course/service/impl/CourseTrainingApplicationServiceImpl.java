@@ -72,15 +72,12 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
         log.debug("Submitting training application for course {} by {} {}", courseUuid, request.applicantType(), request.applicantUuid());
 
-        if (CourseTrainingApplicantType.INSTRUCTOR.equals(request.applicantType())
-                && !domainSecurityService.isInstructorWithUuid(request.applicantUuid())) {
-            throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
-        }
+        ensureSubmitApplicantOwnedByCurrentUser(request.applicantType(), request.applicantUuid());
 
         Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND_TEMPLATE, courseUuid)));
 
-        ensureNoPendingApplication(courseUuid, request.applicantType(), request.applicantUuid());
+        ensureNoActiveApplication(courseUuid, request.applicantType(), request.applicantUuid());
 
         BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(course);
         CourseTrainingRateCardDTO rateCardRequest = request.rateCard();
@@ -391,6 +388,26 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         throw new AccessDeniedException("You may only manage your own training applications.");
     }
 
+    private void ensureSubmitApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+        if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
+            if (!domainSecurityService.isInstructorWithUuid(applicantUuid)) {
+                throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
+            }
+            return;
+        }
+
+        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
+            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+            if (currentUserUuid == null
+                    || !userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid)) {
+                throw new AccessDeniedException("Organisations may only submit training applications for organisations they belong to.");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("You may only submit your own training applications.");
+    }
+
     private CourseTrainingApplication findApplication(UUID courseUuid, UUID applicationUuid) {
         return applicationRepository.findByUuid(applicationUuid)
                 .filter(application -> courseUuid.equals(application.getCourseUuid()))
@@ -403,9 +420,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         return course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO;
     }
 
-    private void ensureNoPendingApplication(UUID courseUuid,
-                                            CourseTrainingApplicantType applicantType,
-                                            UUID applicantUuid) {
+    private void ensureNoActiveApplication(UUID courseUuid,
+                                           CourseTrainingApplicantType applicantType,
+                                           UUID applicantUuid) {
         boolean hasPending = applicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                 courseUuid,
                 applicantType,
@@ -414,6 +431,16 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         );
         if (hasPending) {
             throw new DuplicateResourceException("An application is already pending review for this course.");
+        }
+
+        boolean hasApproved = applicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                courseUuid,
+                applicantType,
+                applicantUuid,
+                CourseTrainingApplicationStatus.APPROVED
+        );
+        if (hasApproved) {
+            throw new DuplicateResourceException("Applicant is already approved to deliver this course.");
         }
     }
 
