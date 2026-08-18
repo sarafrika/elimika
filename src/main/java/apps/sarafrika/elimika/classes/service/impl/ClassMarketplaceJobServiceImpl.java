@@ -89,6 +89,11 @@ import java.util.UUID;
 @Slf4j
 public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServiceInterface {
 
+    /** Where a recruitment notification drops the instructor - their own application list. */
+    private static final String INSTRUCTOR_APPLICATIONS_URL = "/dashboard/instructor/opportunities/my-applications";
+    /** Where a recruitment notification drops the organisation - the jobs it has posted. */
+    private static final String ORGANISATION_JOBS_URL = "/dashboard/organisation/opportunities";
+
     private static final String JOB_NOT_FOUND_TEMPLATE = "Marketplace class job with UUID %s not found";
     private static final String APPLICATION_NOT_FOUND_TEMPLATE = "Marketplace job application %s not found for job %s";
     private static final int DEFAULT_MAX_PARTICIPANTS = 50;
@@ -482,7 +487,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     "INBOX",
                     type.getDisplayName(),
                     instructorName + " withdrew their application for " + jobTitle + ".",
-                    "/dashboard/organisation/jobs",
+                    ORGANISATION_JOBS_URL,
                     Map.of(
                             "job_uuid", job.getUuid(),
                             "application_uuid", application.getUuid(),
@@ -1269,7 +1274,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                  ClassMarketplaceJobApplication application,
                                  NotificationType type,
                                  String statusLabel) {
-        notifyApplicant(job, application, type, statusLabel, "/dashboard/instructor/applications");
+        notifyApplicant(job, application, type, statusLabel, INSTRUCTOR_APPLICATIONS_URL);
     }
 
     private void notifyApplicant(ClassMarketplaceJob job,

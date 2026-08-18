@@ -125,7 +125,7 @@ class ClassMarketplaceJobExpiryScheduler {
                     "INBOX",
                     type.getDisplayName(),
                     "Your application to train " + contextName + " closed because the job expired.",
-                    "/dashboard/instructor/applications",
+                    "/dashboard/instructor/opportunities/my-applications",
                     Map.of(
                             "job_uuid", job.getUuid(),
                             "application_uuid", application.getUuid(),
@@ -176,7 +176,7 @@ class ClassMarketplaceJobExpiryScheduler {
                     "INBOX",
                     type.getDisplayName(),
                     String.format("Your class job '%s' expired without an instructor being assigned. Its venue and equipment reservations have been released.", job.getTitle()),
-                    "/dashboard/organisation/jobs",
+                    "/dashboard/organisation/opportunities",
                     Map.of(
                             "job_uuid", job.getUuid(),
                             "job_title", job.getTitle() == null ? "" : job.getTitle()
