@@ -1,3 +1,10 @@
+## [2.132.3](https://github.com/sarafrika/elimika/compare/v2.132.2...v2.132.3) (2026-08-18)
+
+
+### Bug Fixes
+
+* **marketplace:** point recruitment notifications at routes that exist ([8ab4aad](https://github.com/sarafrika/elimika/commit/8ab4aadbfdccb056bdce3c1417591c9608c69a00))
+
 ## [2.132.2](https://github.com/sarafrika/elimika/compare/v2.132.1...v2.132.2) (2026-08-18)
 
 
