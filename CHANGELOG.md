@@ -1,3 +1,10 @@
+# [2.133.0](https://github.com/sarafrika/elimika/compare/v2.132.3...v2.133.0) (2026-08-18)
+
+
+### Features
+
+* **notifications:** tell organisations when their training application is decided ([493dc02](https://github.com/sarafrika/elimika/commit/493dc02b45b85a38968563e4f4f451127e25e008))
+
 ## [2.132.3](https://github.com/sarafrika/elimika/compare/v2.132.2...v2.132.3) (2026-08-18)
 
 
