@@ -18,6 +18,7 @@ public final class CourseCreatorEducationFactory {
                 education.getQualification(),
                 education.getFieldOfStudy(),
                 education.getSchoolName(),
+                education.getStartYear(),
                 education.getYearCompleted(),
                 education.getCertificateNumber(),
                 education.getCreatedDate(),
@@ -37,6 +38,7 @@ public final class CourseCreatorEducationFactory {
         education.setQualification(dto.qualification());
         education.setFieldOfStudy(dto.fieldOfStudy());
         education.setSchoolName(dto.schoolName());
+        education.setStartYear(dto.startYear());
         education.setYearCompleted(dto.yearCompleted());
         education.setCertificateNumber(dto.certificateNumber());
         education.setCreatedDate(dto.createdDate());

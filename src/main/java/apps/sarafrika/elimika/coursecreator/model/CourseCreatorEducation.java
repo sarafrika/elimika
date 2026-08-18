@@ -31,6 +31,9 @@ public class CourseCreatorEducation extends BaseEntity {
     @Column(name = "school_name")
     private String schoolName;
 
+    @Column(name = "start_year")
+    private Integer startYear;
+
     @Column(name = "year_completed")
     private Integer yearCompleted;
 

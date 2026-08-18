@@ -98,6 +98,12 @@ public class InstructorEducationServiceImpl implements InstructorEducationServic
         if (dto.schoolName() != null) {
             existingEducation.setSchoolName(dto.schoolName());
         }
+        if (dto.fieldOfStudy() != null) {
+            existingEducation.setFieldOfStudy(dto.fieldOfStudy());
+        }
+        if (dto.startYear() != null) {
+            existingEducation.setStartYear(dto.startYear());
+        }
         if (dto.yearCompleted() != null) {
             existingEducation.setYearCompleted(dto.yearCompleted());
         }

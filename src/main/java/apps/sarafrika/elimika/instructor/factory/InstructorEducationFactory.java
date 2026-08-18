@@ -19,6 +19,7 @@ public class InstructorEducationFactory {
                 education.getQualification(),
                 education.getFieldOfStudy(),
                 education.getSchoolName(),
+                education.getStartYear(),
                 education.getYearCompleted(),
                 education.getCertificateNumber(),
                 education.getCreatedDate(),
@@ -39,6 +40,7 @@ public class InstructorEducationFactory {
         education.setQualification(dto.qualification());
         education.setFieldOfStudy(dto.fieldOfStudy());
         education.setSchoolName(dto.schoolName());
+        education.setStartYear(dto.startYear());
         education.setYearCompleted(dto.yearCompleted());
         education.setCertificateNumber(dto.certificateNumber());
         return education;

@@ -29,6 +29,7 @@ import java.util.UUID;
             "qualification": "Master of Science in Computer Science",
             "field_of_study": "Computer Science",
             "school_name": "University of Nairobi",
+            "start_year": 2018,
             "year_completed": 2020,
             "certificate_number": "MSC/CS/2020/0456",
             "created_date": "2024-06-15T14:30:22",
@@ -95,6 +96,19 @@ public record InstructorEducationDTO(
         @Size(max = 255, message = "School name must not exceed 255 characters")
         @JsonProperty("school_name")
         String schoolName,
+
+        @Schema(
+                description = "**[OPTIONAL]** Year when the qualification program started. Must be a valid year not before 1950.",
+                example = "2018",
+                minimum = "1950",
+                maximum = "2030",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Min(value = 1950, message = "Start year must be 1950 or later")
+        @Max(value = 2030, message = "Start year cannot be in the future")
+        @JsonProperty("start_year")
+        Integer startYear,
 
         @Schema(
                 description = "**[OPTIONAL]** Year when the qualification was completed or awarded. Must be a valid year not in the future.",

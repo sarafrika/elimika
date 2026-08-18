@@ -25,6 +25,7 @@ import java.util.UUID;
             "qualification": "Master of Education",
             "field_of_study": "Curriculum Studies",
             "school_name": "Strathmore University",
+            "start_year": 2019,
             "year_completed": 2021,
             "certificate_number": "MEd-2021-0099"
         }
@@ -52,6 +53,11 @@ public record CourseCreatorEducationDTO(
         @Size(max = 255, message = "School name must not exceed 255 characters")
         @JsonProperty("school_name")
         String schoolName,
+
+        @Min(value = 1950, message = "Start year must be 1950 or later")
+        @Max(value = 2100, message = "Start year must be realistic")
+        @JsonProperty("start_year")
+        Integer startYear,
 
         @Min(value = 1950, message = "Year completed must be 1950 or later")
         @Max(value = 2100, message = "Year completed must be realistic")

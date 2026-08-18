@@ -62,6 +62,12 @@ public class UserSyncFilter implements Filter {
                 authentication != null ? authentication.getClass().getSimpleName() : "null");
 
         if (authentication instanceof JwtAuthenticationToken jwtToken && authentication.isAuthenticated()) {
+            if (isServiceAccountToken(jwtToken)) {
+                log.debug("Skipping user sync for service account token on path: {}", requestPath);
+                chain.doFilter(request, response);
+                return;
+            }
+
             String keycloakUserId = jwtToken.getToken().getClaimAsString("sub");
             log.debug("Extracted Keycloak user ID: {}", keycloakUserId);
 
@@ -89,5 +95,10 @@ public class UserSyncFilter implements Filter {
                 requestPath.startsWith("/swagger-ui/") ||
                 requestPath.startsWith("/v3/api-docs") ||
                 requestPath.equals("/error");
+    }
+
+    private boolean isServiceAccountToken(JwtAuthenticationToken jwtToken) {
+        String preferredUsername = jwtToken.getToken().getClaimAsString("preferred_username");
+        return preferredUsername != null && preferredUsername.startsWith("service-account-");
     }
 }

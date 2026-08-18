@@ -229,14 +229,14 @@ public class InstructorController {
     @Operation(
             summary = "Upload instructor document file",
             description = """
-                    Uploads a PDF document for an instructor and creates a document record.
+                    Uploads a credential document for an instructor and creates a document record.
                     
                     **Use cases:**
                     - Uploading certificates, licenses, and other professional credentials.
                     - Attaching supporting documents to education, experience, or membership records.
                     
                     **File requirements:**
-                    - Must be a PDF file (`application/pdf`).
+                    - Must match the selected document type's configured file extensions and size limit.
                     - Stored via the platform StorageService under the `profile_documents` folder, partitioned by instructor UUID.
                     """
     )
@@ -698,6 +698,7 @@ public class InstructorController {
                     - `instructorUuid=uuid` - All education for specific instructor
                     - `qualification_like=degree` - Qualifications containing "degree"
                     - `schoolName_startswith=University` - Schools starting with "University"
+                    - `startYear_gte=2015` - Started in 2015 or later
                     - `yearCompleted_gte=2020` - Completed in 2020 or later
                     - `yearCompleted_between=2015,2020` - Completed between 2015-2020
                     - `certificateNumber_noteq=null` - Has certificate number

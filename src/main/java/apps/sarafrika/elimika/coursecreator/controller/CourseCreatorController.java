@@ -556,14 +556,14 @@ public class CourseCreatorController {
     @Operation(
             summary = "Upload course creator document file",
             description = """
-                    Uploads a PDF document for a course creator and creates a document record.
+                    Uploads a credential document for a course creator and creates a document record.
                     
                     **Use cases:**
                     - Uploading certificates, credentials, and other creator verification documents.
                     - Attaching supporting documents to education, experience, or membership records.
                     
                     **File requirements:**
-                    - Must be a PDF file (`application/pdf`).
+                    - Must match the selected document type's configured file extensions and size limit.
                     - Stored via the platform StorageService under the `profile_documents` folder, partitioned by course creator UUID.
                     """
     )

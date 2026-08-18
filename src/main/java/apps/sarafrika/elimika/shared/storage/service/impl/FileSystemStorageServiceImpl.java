@@ -348,7 +348,8 @@ public class FileSystemStorageServiceImpl implements StorageService {
     public boolean isDocument(String fileName) {
         String extension = getFileExtension(fileName);
         return switch (extension) {
-            case "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "odt", "ods", "odp" -> true;
+            case "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "odt", "ods", "odp",
+                 "zip", "rar", "tar", "gz", "7z" -> true;
             default -> false;
         };
     }

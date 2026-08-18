@@ -40,6 +40,7 @@ class MediaValidationServiceTest {
             validationService.validate(file("a.mp4", "video/mp4", 1024), MediaCategory.VIDEO);
             validationService.validate(file("a.pdf", "application/pdf", 1024), MediaCategory.PDF_DOCUMENT);
             validationService.validate(file("a.docx", "application/octet-stream", 1024), MediaCategory.DOCUMENT);
+            validationService.validate(file("a.zip", "application/zip", 1024), MediaCategory.DOCUMENT);
             validationService.validate(file("a.mp3", "audio/mpeg", 1024), MediaCategory.ANY);
         }).doesNotThrowAnyException();
     }

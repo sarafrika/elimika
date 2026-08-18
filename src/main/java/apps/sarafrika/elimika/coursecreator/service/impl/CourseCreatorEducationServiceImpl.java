@@ -72,6 +72,12 @@ public class CourseCreatorEducationServiceImpl implements CourseCreatorEducation
         if (dto.schoolName() != null) {
             existing.setSchoolName(dto.schoolName());
         }
+        if (dto.fieldOfStudy() != null) {
+            existing.setFieldOfStudy(dto.fieldOfStudy());
+        }
+        if (dto.startYear() != null) {
+            existing.setStartYear(dto.startYear());
+        }
         if (dto.yearCompleted() != null) {
             existing.setYearCompleted(dto.yearCompleted());
         }
