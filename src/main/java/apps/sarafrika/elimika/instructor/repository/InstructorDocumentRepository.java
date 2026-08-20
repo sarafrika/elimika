@@ -20,7 +20,7 @@ public interface InstructorDocumentRepository extends JpaRepository<InstructorDo
 
     void deleteByUuid(UUID uuid);
 
-    Optional<InstructorDocument> findByInstructorUuid(UUID instructorUuid);
+    List<InstructorDocument> findByInstructorUuid(UUID instructorUuid);
 
     List<InstructorDocument> findByDocumentTypeUuid(UUID documentTypeUuid);
 
