@@ -1,3 +1,10 @@
+## [2.133.1](https://github.com/sarafrika/elimika/compare/v2.133.0...v2.133.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* return all instructor documents by instructor ([f34ca78](https://github.com/sarafrika/elimika/commit/f34ca787c340527f3fcac54e18c2053db67004b4))
+
 # [2.133.0](https://github.com/sarafrika/elimika/compare/v2.132.3...v2.133.0) (2026-08-18)
 
 
