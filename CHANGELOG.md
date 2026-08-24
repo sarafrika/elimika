@@ -1,3 +1,15 @@
+# [2.134.0](https://github.com/sarafrika/elimika/compare/v2.133.1...v2.134.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* **enrolment:** stop a checkout seat hold from reading back as an enrolment ([27aed17](https://github.com/sarafrika/elimika/commit/27aed173e717ded223551718756b55b8c5aa4e05))
+
+
+### Features
+
+* **commerce:** tell the client whether checkout collects a payment ([6f6ec8b](https://github.com/sarafrika/elimika/commit/6f6ec8b6309ebd0281f14083b7bce170e3d680cd))
+
 ## [2.133.1](https://github.com/sarafrika/elimika/compare/v2.133.0...v2.133.1) (2026-08-20)
 
 
