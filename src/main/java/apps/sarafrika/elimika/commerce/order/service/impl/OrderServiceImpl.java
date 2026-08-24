@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.order.service.impl;
 
+import apps.sarafrika.elimika.commerce.internal.config.CommerceCaptureProperties;
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
 import apps.sarafrika.elimika.commerce.internal.service.impl.PlatformFeeCalculator;
 import apps.sarafrika.elimika.commerce.order.service.OrderService;
@@ -9,7 +10,6 @@ import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -26,19 +26,13 @@ public class OrderServiceImpl implements OrderService {
     private final PlatformFeeCalculator platformFeeCalculator;
     private final ApplicationEventPublisher eventPublisher;
 
-    /**
-     * When true (dev / no payment gateway), a completed checkout is immediately captured so
-     * revenue figures populate. In production this is false and capture is driven by the
-     * M-Pesa confirmation callback calling {@link InternalOrderService#markOrderCaptured}.
-     */
-    @Value("${commerce.capture.auto-on-complete:true}")
-    private boolean autoCaptureOnComplete;
+    private final CommerceCaptureProperties captureProperties;
 
     @Override
     public OrderResponse completeCheckout(CheckoutRequest request) {
         OrderResponse response = internalOrderService.completeCheckout(request);
 
-        if (autoCaptureOnComplete && response != null && response.getId() != null) {
+        if (captureProperties.isAutoOnComplete() && response != null && response.getId() != null) {
             // No gateway is involved on this path, so nothing has been collected yet and refusing
             // here costs the learner nothing.
             String blocker = findEnrolmentBlocker(response);

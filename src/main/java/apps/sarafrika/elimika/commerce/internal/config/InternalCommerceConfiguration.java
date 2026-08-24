@@ -7,6 +7,6 @@ import org.springframework.context.annotation.Configuration;
  * Registers configuration properties for the internal commerce mode.
  */
 @Configuration
-@EnableConfigurationProperties(InternalCommerceProperties.class)
+@EnableConfigurationProperties({InternalCommerceProperties.class, CommerceCaptureProperties.class})
 public class InternalCommerceConfiguration {
 }

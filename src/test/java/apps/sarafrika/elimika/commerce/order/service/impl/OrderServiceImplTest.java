@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.order.service.impl;
 
+import apps.sarafrika.elimika.commerce.internal.config.CommerceCaptureProperties;
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
 import apps.sarafrika.elimika.commerce.internal.service.impl.PlatformFeeCalculator;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
@@ -36,6 +37,16 @@ class OrderServiceImplTest {
     @InjectMocks
     private OrderServiceImpl service;
 
+    /**
+     * Real properties rather than a mock: it is a value holder, and the test reads better stating
+     * the environment it is describing than stubbing a getter.
+     */
+    private void autoCaptureOnComplete(boolean enabled) {
+        CommerceCaptureProperties properties = new CommerceCaptureProperties();
+        properties.setAutoOnComplete(enabled);
+        ReflectionTestUtils.setField(service, "captureProperties", properties);
+    }
+
     private OrderResponse order(String status) {
         return OrderResponse.builder()
                 .id("11111111-1111-1111-1111-111111111111")
@@ -47,7 +58,7 @@ class OrderServiceImplTest {
 
     @Test
     void completeCheckoutAutoCapturesAndAttachesPlatformFee() {
-        ReflectionTestUtils.setField(service, "autoCaptureOnComplete", true);
+        autoCaptureOnComplete(true);
         CheckoutRequest request = new CheckoutRequest();
         when(internalOrderService.completeCheckout(request)).thenReturn(order("AWAITING_PAYMENT"));
         when(internalOrderService.markOrderCaptured("11111111-1111-1111-1111-111111111111"))
@@ -69,7 +80,7 @@ class OrderServiceImplTest {
 
     @Test
     void completeCheckoutDoesNotCaptureWhenDisabled() {
-        ReflectionTestUtils.setField(service, "autoCaptureOnComplete", false);
+        autoCaptureOnComplete(false);
         CheckoutRequest request = new CheckoutRequest();
         when(internalOrderService.completeCheckout(request)).thenReturn(order("AWAITING_PAYMENT"));
 

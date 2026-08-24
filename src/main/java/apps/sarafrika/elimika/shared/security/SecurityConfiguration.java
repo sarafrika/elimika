@@ -68,6 +68,9 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.GET, "/api/v1/classes/media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/certificates/files/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/commerce/catalogue/**").permitAll()
+                                // Whether this environment collects money decides how the cart routes
+                                // a learner, which the page must know before anyone signs in.
+                                .requestMatchers(HttpMethod.GET, "/api/v1/commerce/payment-mode").permitAll()
                                 // Invitation and guardian-consent links must be readable by someone
                                 // who has no account yet; acting on them still requires a sign-in.
                                 .requestMatchers(HttpMethod.GET, "/api/v1/invitations/token/*").permitAll()
