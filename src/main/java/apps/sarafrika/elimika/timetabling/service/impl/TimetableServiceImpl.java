@@ -1218,15 +1218,39 @@ public class TimetableServiceImpl implements TimetableService {
         }
 
         List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
-        Set<UUID> held = enrollmentRepository.findByStudentUuid(studentUuid).stream()
+        List<Enrollment> studentEnrollments = enrollmentRepository.findByStudentUuid(studentUuid);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        // The seat this buyer is holding at checkout is their own, so it must not be read back as an
+        // enrolment: doing so refuses the very purchase that took the hold. A cancelled seat is not
+        // an enrolment either. Only rows that mean "this student has this seat" count here.
+        Set<UUID> enrolledInstances = studentEnrollments.stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.RESERVED
+                        && enrollment.getStatus() != EnrollmentStatus.CANCELLED)
+                .map(Enrollment::getScheduledInstanceUuid)
+                .collect(Collectors.toSet());
+
+        // Seats this student occupies and therefore does not need to buy again. A live hold counts;
+        // one that has lapsed does not, or a buyer whose payment never resolved would be locked out
+        // of the class for good.
+        Set<UUID> occupiedInstances = studentEnrollments.stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.CANCELLED)
+                .filter(enrollment -> !hasLapsed(enrollment, now))
                 .map(Enrollment::getScheduledInstanceUuid)
                 .collect(Collectors.toSet());
 
         boolean alreadyEnrolled = !instances.isEmpty()
-                && instances.stream().allMatch(instance -> held.contains(instance.getUuid()));
-        boolean seatsAvailable = instances.stream()
-                .filter(instance -> !held.contains(instance.getUuid()))
-                .anyMatch(instance -> hasCapacityForEnrollment(instance.getUuid()));
+                && instances.stream().allMatch(instance -> enrolledInstances.contains(instance.getUuid()));
+
+        List<ScheduledInstance> instancesNeedingSeat = instances.stream()
+                .filter(instance -> !occupiedInstances.contains(instance.getUuid()))
+                .toList();
+        // Holding every seat already is not the same as the class being full: there is nothing left
+        // to take, so reporting "full" here would block a purchase that needs no new seat.
+        boolean seatsAvailable = !instances.isEmpty()
+                && (instancesNeedingSeat.isEmpty()
+                        || instancesNeedingSeat.stream()
+                                .anyMatch(instance -> hasCapacityForEnrollment(instance.getUuid())));
 
         String reason = null;
         if (!dateOfBirthOnFile) {
@@ -1253,6 +1277,16 @@ public class TimetableServiceImpl implements TimetableService {
                 seatsAvailable,
                 alreadyEnrolled,
                 reason);
+    }
+
+    /**
+     * True when this row is a seat hold whose window has closed. A hold with no expiry is open ended
+     * and never lapses; anything that is not a hold cannot lapse either.
+     */
+    private boolean hasLapsed(Enrollment enrollment, LocalDateTime now) {
+        return enrollment.getStatus() == EnrollmentStatus.RESERVED
+                && enrollment.getReservedUntil() != null
+                && enrollment.getReservedUntil().isBefore(now);
     }
 
     private void enforceClassAgeLimits(UUID studentUuid, UUID classDefinitionUuid) {

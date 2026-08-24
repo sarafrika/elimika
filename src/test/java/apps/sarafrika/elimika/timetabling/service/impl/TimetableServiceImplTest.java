@@ -734,6 +734,114 @@ class TimetableServiceImplTest {
         assertThat(eligibility.reason()).contains("no scheduled sessions");
     }
 
+    @Test
+    void aSeatHeldAtCheckoutIsNotReadBackAsAnEnrolment() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        noAgeLimit(classUuid, courseUuid);
+        ScheduledInstance first = instanceOf(classUuid);
+        ScheduledInstance second = instanceOf(classUuid);
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid))
+                .thenReturn(List.of(first, second));
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of(
+                heldSeat(studentUuid, first.getUuid(), LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(10)),
+                heldSeat(studentUuid, second.getUuid(), LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(10))));
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        // The hold taken moments earlier at checkout is this buyer's own seat. Reading it back as an
+        // enrolment refused the purchase that took it, which stranded the order and the money.
+        assertThat(eligibility.alreadyEnrolled()).isFalse();
+        assertThat(eligibility.seatsAvailable()).isTrue();
+        assertThat(eligibility.eligible()).isTrue();
+        assertThat(eligibility.reason()).isNull();
+    }
+
+    @Test
+    void aHoldThatLapsedDoesNotLockTheStudentOutOfTheClass() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        noAgeLimit(classUuid, courseUuid);
+        ScheduledInstance instance = instanceOf(classUuid);
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(instance));
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of(
+                heldSeat(studentUuid, instance.getUuid(), LocalDateTime.now(java.time.ZoneOffset.UTC).minusDays(6))));
+        when(scheduledInstanceRepository.findByUuid(instance.getUuid())).thenReturn(Optional.of(instance));
+        when(enrollmentRepository.countActiveEnrollmentsByScheduledInstance(instance.getUuid())).thenReturn(1L);
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        // A payment that never resolved leaves the hold behind. Treating it as a standing claim would
+        // bar this learner from ever buying the class again.
+        assertThat(eligibility.alreadyEnrolled()).isFalse();
+        assertThat(eligibility.eligible()).isTrue();
+    }
+
+    @Test
+    void aStudentWithASeatOnEveryInstanceIsStillTurnedAway() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        noAgeLimit(classUuid, courseUuid);
+        ScheduledInstance instance = instanceOf(classUuid);
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(instance));
+        Enrollment enrolled = heldSeat(studentUuid, instance.getUuid(), null);
+        enrolled.setStatus(EnrollmentStatus.ENROLLED);
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of(enrolled));
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        assertThat(eligibility.alreadyEnrolled()).isTrue();
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.reason()).contains("already enrolled");
+    }
+
+    @Test
+    void aCancelledSeatLetsTheStudentBuyTheClassAgain() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        noAgeLimit(classUuid, courseUuid);
+        ScheduledInstance instance = instanceOf(classUuid);
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(instance));
+        Enrollment cancelled = heldSeat(studentUuid, instance.getUuid(), null);
+        cancelled.setStatus(EnrollmentStatus.CANCELLED);
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of(cancelled));
+        when(scheduledInstanceRepository.findByUuid(instance.getUuid())).thenReturn(Optional.of(instance));
+        when(enrollmentRepository.countActiveEnrollmentsByScheduledInstance(instance.getUuid())).thenReturn(0L);
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        assertThat(eligibility.alreadyEnrolled()).isFalse();
+        assertThat(eligibility.eligible()).isTrue();
+    }
+
+    private void noAgeLimit(UUID classDefinitionUuid, UUID courseUuid) {
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
+                .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                        classDefinitionUuid, courseUuid, null, "Dairy", null,
+                        null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30)));
+        when(courseInfoService.getAgeLimits(courseUuid)).thenReturn(Optional.empty());
+    }
+
+    private ScheduledInstance instanceOf(UUID classDefinitionUuid) {
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.SCHEDULED);
+        instance.setClassDefinitionUuid(classDefinitionUuid);
+        return instance;
+    }
+
+    private Enrollment heldSeat(UUID studentUuid, UUID scheduledInstanceUuid, LocalDateTime reservedUntil) {
+        Enrollment enrollment = new Enrollment();
+        enrollment.setUuid(UUID.randomUUID());
+        enrollment.setScheduledInstanceUuid(scheduledInstanceUuid);
+        enrollment.setStudentUuid(studentUuid);
+        enrollment.setStatus(EnrollmentStatus.RESERVED);
+        enrollment.setReservedUntil(reservedUntil);
+        return enrollment;
+    }
+
     private Enrollment buildEnrollment(EnrollmentStatus status) {
         Enrollment enrollment = new Enrollment();
         enrollment.setUuid(UUID.randomUUID());
