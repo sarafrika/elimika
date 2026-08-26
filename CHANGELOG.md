@@ -1,3 +1,10 @@
+## [2.134.1](https://github.com/sarafrika/elimika/compare/v2.134.0...v2.134.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* harden journey enrollment and notifications ([c92f63a](https://github.com/sarafrika/elimika/commit/c92f63a443bbfc13d1b40f9ee3b9aeca9e26babc))
+
 # [2.134.0](https://github.com/sarafrika/elimika/compare/v2.133.1...v2.134.0) (2026-08-24)
 
 
