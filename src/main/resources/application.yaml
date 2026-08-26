@@ -175,3 +175,5 @@ management:
   health:
     defaults:
       enabled: true
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
