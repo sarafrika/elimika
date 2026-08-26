@@ -1,3 +1,10 @@
+## [2.134.2](https://github.com/sarafrika/elimika/compare/v2.134.1...v2.134.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* exclude mail from backend health checks ([6d3e1b6](https://github.com/sarafrika/elimika/commit/6d3e1b6c784bd284180f85fa31dfb8bf5983d858))
+
 ## [2.134.1](https://github.com/sarafrika/elimika/compare/v2.134.0...v2.134.1) (2026-08-26)
 
 
