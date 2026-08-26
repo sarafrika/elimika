@@ -75,6 +75,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -97,6 +98,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final String JOB_NOT_FOUND_TEMPLATE = "Marketplace class job with UUID %s not found";
     private static final String APPLICATION_NOT_FOUND_TEMPLATE = "Marketplace job application %s not found for job %s";
     private static final int DEFAULT_MAX_PARTICIPANTS = 50;
+    private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
 
     private final ClassMarketplaceJobRepository jobRepository;
     private final ClassMarketplaceJobApplicationRepository applicationRepository;
@@ -382,9 +385,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
         ensureApplicationReviewable(application);
+        LocalDateTime interviewAt = resolveInterviewAt(targetStage, request, application);
 
         application.setStatus(targetStage);
         application.setReviewNotes(request == null ? null : request.reviewNotes());
+        application.setInterviewAt(interviewAt);
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
@@ -984,6 +989,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         existing.setStatus(ClassMarketplaceJobApplicationStatus.PENDING);
         existing.setApplicationNote(request == null ? null : request.applicationNote());
         existing.setReviewNotes(null);
+        existing.setInterviewAt(null);
         existing.setReviewedBy(null);
         existing.setReviewedAt(null);
         return existing;
@@ -1295,6 +1301,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
             String contextName = job != null && job.getTitle() != null ? job.getTitle() : "the class";
             String reviewNotes = application.getReviewNotes() == null ? "" : application.getReviewNotes();
+            String interviewAt = formatInterviewAt(application.getInterviewAt());
+            String interviewSuffix = interviewAt.isBlank()
+                    ? ""
+                    : " Interview scheduled for " + interviewAt + ".";
             UUID jobUuid = job != null ? job.getUuid() : null;
 
             eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
@@ -1302,13 +1312,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     type.getValue(),
                     "INBOX",
                     type.getDisplayName(),
-                    "Your application to train " + contextName + " " + statusLabel + ".",
+                    "Your application to train " + contextName + " " + statusLabel + "."
+                            + interviewSuffix,
                     actionUrl,
                     Map.of(
                             "job_uuid", jobUuid == null ? "" : jobUuid,
                             "application_uuid", application.getUuid(),
                             "context_name", contextName,
-                            "review_notes", reviewNotes
+                            "review_notes", reviewNotes,
+                            "interview_at", interviewAt
                     ),
                     "class-marketplace-job-application-decision:" + application.getUuid() + ":" + type.getValue()
             ));
@@ -1328,7 +1340,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                             "contextType", "class",
                             "contextName", contextName,
                             "statusLabel", statusLabel,
-                            "reviewNotes", reviewNotes
+                            "reviewNotes", reviewNotes,
+                            "interviewAt", interviewAt,
+                            "interview_at", interviewAt
                     )
             ));
         } catch (Exception e) {
@@ -1530,6 +1544,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 application.getStatus(),
                 application.getApplicationNote(),
                 application.getReviewNotes(),
+                application.getInterviewAt(),
                 instructorAdminVerified,
                 trainingApproved,
                 approvedRate,
@@ -1557,6 +1572,25 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             return "Application selected for class assignment.";
         }
         return existingReviewNotes;
+    }
+
+    private LocalDateTime resolveInterviewAt(ClassMarketplaceJobApplicationStatus targetStage,
+                                             ClassMarketplaceJobDecisionRequestDTO request,
+                                             ClassMarketplaceJobApplication application) {
+        if (targetStage != ClassMarketplaceJobApplicationStatus.INTERVIEWING) {
+            return application.getInterviewAt();
+        }
+        if (request == null || request.interviewAt() == null) {
+            throw new IllegalArgumentException("interview_at is required when moving an application to interview.");
+        }
+        return request.interviewAt();
+    }
+
+    private String formatInterviewAt(LocalDateTime interviewAt) {
+        if (interviewAt == null) {
+            return "";
+        }
+        return INTERVIEW_DATE_FORMATTER.format(interviewAt);
     }
 
     private boolean isInstructorApprovedForJob(ClassMarketplaceJob job, UUID instructorUuid) {

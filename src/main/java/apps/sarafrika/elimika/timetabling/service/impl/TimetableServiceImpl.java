@@ -295,6 +295,11 @@ public class TimetableServiceImpl implements TimetableService {
         if (!SchedulingStatus.SCHEDULED.equals(currentStatus) && !SchedulingStatus.ONGOING.equals(currentStatus)) {
             throw new IllegalArgumentException("Only scheduled instances can be started");
         }
+        if (SchedulingStatus.SCHEDULED.equals(currentStatus)
+                && enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatus(
+                        instanceUuid, EnrollmentStatus.ENROLLED) <= 0) {
+            throw new IllegalArgumentException("At least one enrolled student is required to start this class");
+        }
 
         LocalDateTime transitionTime = currentUtcTime();
         entity.setStatus(SchedulingStatus.ONGOING);
@@ -378,10 +383,19 @@ public class TimetableServiceImpl implements TimetableService {
             throw new ResourceNotFoundException(String.format("No scheduled instances found for class definition with UUID %s", classDefinitionUuid));
         }
 
+        List<Enrollment> existingStudentEnrollments =
+                Optional.ofNullable(enrollmentRepository.findByStudentUuid(studentUuid)).orElse(List.of());
+        Map<UUID, Enrollment> existingEnrollmentByInstance = existingStudentEnrollments.stream()
+                .filter(enrollment -> enrollment.getScheduledInstanceUuid() != null)
+                .collect(Collectors.toMap(
+                        Enrollment::getScheduledInstanceUuid,
+                        enrollment -> enrollment,
+                        (first, second) -> second));
+
         // A seat held at checkout is this student's own reservation, not a duplicate enrolment, so
         // it must be promoted rather than skipped.
-        Set<UUID> alreadyEnrolledInstanceUuids = enrollmentRepository.findByStudentUuid(studentUuid).stream()
-                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.RESERVED)
+        Set<UUID> alreadyEnrolledInstanceUuids = existingStudentEnrollments.stream()
+                .filter(this::isStandingEnrollment)
                 .map(Enrollment::getScheduledInstanceUuid)
                 .collect(Collectors.toSet());
 
@@ -395,20 +409,17 @@ public class TimetableServiceImpl implements TimetableService {
 
         // Validate constraints before persisting any enrollment
         for (ScheduledInstance instance : instancesToEnroll) {
-            if (!hasCapacityForEnrollment(instance.getUuid())) {
+            Enrollment existing = existingEnrollmentByInstance.get(instance.getUuid());
+            boolean ownsActiveHold = existing != null
+                    && existing.getStatus() == EnrollmentStatus.RESERVED
+                    && !hasLapsed(existing, currentUtcTime());
+
+            if (!ownsActiveHold && !hasCapacityForEnrollment(instance.getUuid())) {
                 throw new IllegalArgumentException(
                         String.format("Scheduled instance %s has reached maximum capacity", instance.getUuid()));
             }
 
-            ScheduleRequestDTO scheduleRequest = new ScheduleRequestDTO(
-                instance.getClassDefinitionUuid(),
-                instance.getInstructorUuid(),
-                instance.getStartTime(),
-                instance.getEndTime(),
-                instance.getTimezone()
-            );
-
-            if (hasStudentConflict(studentUuid, scheduleRequest)) {
+            if (hasStudentConflict(studentUuid, toScheduleRequest(instance), Set.of(instance.getUuid()))) {
                 throw new IllegalArgumentException(
                         String.format("Student has a scheduling conflict with instance %s starting at %s",
                                 instance.getUuid(), instance.getStartTime()));
@@ -418,7 +429,13 @@ public class TimetableServiceImpl implements TimetableService {
         List<Enrollment> createdEnrollments = new java.util.ArrayList<>();
 
         for (ScheduledInstance instance : instancesToEnroll) {
-            Enrollment entity = EnrollmentFactory.toEntity(instance.getUuid(), studentUuid);
+            Enrollment entity = existingEnrollmentByInstance.get(instance.getUuid());
+            if (entity == null) {
+                entity = EnrollmentFactory.toEntity(instance.getUuid(), studentUuid);
+            } else {
+                entity.setStatus(EnrollmentStatus.ENROLLED);
+                entity.setReservedUntil(null);
+            }
             Enrollment savedEntity = enrollmentRepository.save(entity);
 
             StudentEnrolledEventDTO event = new StudentEnrolledEventDTO(
@@ -993,6 +1010,10 @@ public class TimetableServiceImpl implements TimetableService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasStudentConflict(UUID studentUuid, ScheduleRequestDTO request) {
+        return hasStudentConflict(studentUuid, request, Set.of());
+    }
+
+    private boolean hasStudentConflict(UUID studentUuid, ScheduleRequestDTO request, Set<UUID> ignoredInstanceUuids) {
         if (studentUuid == null || request == null) {
             throw new IllegalArgumentException("Student UUID and schedule request cannot be null");
         }
@@ -1000,7 +1021,15 @@ public class TimetableServiceImpl implements TimetableService {
         List<Enrollment> conflictingEnrollments = enrollmentRepository
             .findOverlappingEnrollmentsForStudent(studentUuid, request.startTime(), request.endTime());
 
-        return !conflictingEnrollments.isEmpty();
+        LocalDateTime now = currentUtcTime();
+        return conflictingEnrollments.stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.WAITLISTED)
+                .filter(enrollment -> !hasLapsed(enrollment, now))
+                .filter(enrollment -> enrollment.getScheduledInstanceUuid() == null
+                        || ignoredInstanceUuids == null
+                        || !ignoredInstanceUuids.contains(enrollment.getScheduledInstanceUuid()))
+                .findAny()
+                .isPresent();
     }
 
     @Override
@@ -1251,6 +1280,8 @@ public class TimetableServiceImpl implements TimetableService {
                 && (instancesNeedingSeat.isEmpty()
                         || instancesNeedingSeat.stream()
                                 .anyMatch(instance -> hasCapacityForEnrollment(instance.getUuid())));
+        Optional<ScheduledInstance> conflictingInstance =
+                findFirstStudentConflict(studentUuid, instancesNeedingSeat);
 
         String reason = null;
         if (!dateOfBirthOnFile) {
@@ -1263,6 +1294,10 @@ public class TimetableServiceImpl implements TimetableService {
             reason = "You are already enrolled in this class.";
         } else if (instances.isEmpty()) {
             reason = "This class has no scheduled sessions yet.";
+        } else if (conflictingInstance.isPresent()) {
+            ScheduledInstance instance = conflictingInstance.get();
+            reason = String.format("This class overlaps with another class on your schedule at %s.",
+                    instance.getStartTime());
         } else if (!seatsAvailable) {
             reason = "This class is full.";
         }
@@ -1287,6 +1322,38 @@ public class TimetableServiceImpl implements TimetableService {
         return enrollment.getStatus() == EnrollmentStatus.RESERVED
                 && enrollment.getReservedUntil() != null
                 && enrollment.getReservedUntil().isBefore(now);
+    }
+
+    private boolean isStandingEnrollment(Enrollment enrollment) {
+        if (enrollment == null || enrollment.getStatus() == null) {
+            return false;
+        }
+        return enrollment.getStatus() != EnrollmentStatus.RESERVED
+                && enrollment.getStatus() != EnrollmentStatus.CANCELLED
+                && enrollment.getStatus() != EnrollmentStatus.WAITLISTED;
+    }
+
+    private Optional<ScheduledInstance> findFirstStudentConflict(UUID studentUuid, List<ScheduledInstance> instances) {
+        if (studentUuid == null || instances == null || instances.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return instances.stream()
+                .filter(instance -> hasStudentConflict(
+                        studentUuid,
+                        toScheduleRequest(instance),
+                        instance.getUuid() == null ? Set.of() : Set.of(instance.getUuid())))
+                .findFirst();
+    }
+
+    private ScheduleRequestDTO toScheduleRequest(ScheduledInstance instance) {
+        return new ScheduleRequestDTO(
+                instance.getClassDefinitionUuid(),
+                instance.getInstructorUuid(),
+                instance.getStartTime(),
+                instance.getEndTime(),
+                instance.getTimezone()
+        );
     }
 
     private void enforceClassAgeLimits(UUID studentUuid, UUID classDefinitionUuid) {

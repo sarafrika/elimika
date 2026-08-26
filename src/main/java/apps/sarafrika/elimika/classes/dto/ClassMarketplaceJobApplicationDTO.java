@@ -34,6 +34,9 @@ public record ClassMarketplaceJobApplicationDTO(
         @JsonProperty(value = "review_notes", access = JsonProperty.Access.READ_ONLY)
         String reviewNotes,
 
+        @JsonProperty(value = "interview_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime interviewAt,
+
         @Schema(description = "Whether the applicant's instructor profile has been verified by an administrator", nullable = true)
         @JsonProperty(value = "instructor_admin_verified", access = JsonProperty.Access.READ_ONLY)
         Boolean instructorAdminVerified,

@@ -244,7 +244,7 @@ public class ClassMarketplaceJobController {
             @RequestParam("action") String action,
             @Valid @RequestBody(required = false) ClassMarketplaceJobDecisionRequestDTO request) {
         ClassMarketplaceJobDecisionRequestDTO payload =
-                request != null ? request : new ClassMarketplaceJobDecisionRequestDTO(null);
+                request != null ? request : new ClassMarketplaceJobDecisionRequestDTO(null, null);
 
         ClassMarketplaceJobApplicationDTO result = switch (action.toLowerCase()) {
             case "approve" -> classMarketplaceJobService.approveApplication(jobUuid, applicationUuid, payload);

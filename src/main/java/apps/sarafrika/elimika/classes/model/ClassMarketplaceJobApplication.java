@@ -39,6 +39,9 @@ public class ClassMarketplaceJobApplication extends BaseEntity {
     @Column(name = "review_notes")
     private String reviewNotes;
 
+    @Column(name = "interview_at")
+    private LocalDateTime interviewAt;
+
     @Column(name = "reviewed_by")
     private String reviewedBy;
 

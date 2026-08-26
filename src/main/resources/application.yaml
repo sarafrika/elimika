@@ -22,10 +22,10 @@ spring:
 
   # Mail configuration
   mail:
-    host: ${MAIL_SERVER}
+    host: ${MAIL_SERVER:}
     port: ${MAIL_SERVER_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     test-connection: false
     default-encoding: UTF-8
     properties:

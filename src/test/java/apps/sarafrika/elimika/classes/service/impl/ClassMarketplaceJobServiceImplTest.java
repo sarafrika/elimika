@@ -217,7 +217,7 @@ class ClassMarketplaceJobServiceImplTest {
         assertThatThrownBy(() -> service.approveApplication(
                 job.getUuid(),
                 application.getUuid(),
-                new ClassMarketplaceJobDecisionRequestDTO("Needs course approval first")
+                new ClassMarketplaceJobDecisionRequestDTO("Needs course approval first", null)
         ))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Only instructors with approved course delivery access can be approved");
@@ -582,7 +582,7 @@ class ClassMarketplaceJobServiceImplTest {
         assertThatThrownBy(() -> service.approveApplication(
                 job.getUuid(),
                 application.getUuid(),
-                new ClassMarketplaceJobDecisionRequestDTO("Needs program approval first")
+                new ClassMarketplaceJobDecisionRequestDTO("Needs program approval first", null)
         ))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Only instructors with approved training program delivery access can be approved");
@@ -673,7 +673,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(Optional.of("Jane Instructor"));
 
         service.rejectApplication(job.getUuid(), application.getUuid(),
-                new ClassMarketplaceJobDecisionRequestDTO("Not a fit this time"));
+                new ClassMarketplaceJobDecisionRequestDTO("Not a fit this time", null));
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.REJECTED);
 
@@ -710,7 +710,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(userLookupService.getUserFullName(recipientUserUuid)).thenReturn(Optional.of("Jane Instructor"));
 
         service.approveApplication(job.getUuid(), application.getUuid(),
-                new ClassMarketplaceJobDecisionRequestDTO("Looks great"));
+                new ClassMarketplaceJobDecisionRequestDTO("Looks great", null));
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
@@ -749,6 +749,49 @@ class ClassMarketplaceJobServiceImplTest {
         verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
         assertThat(captor.getAllValues())
                 .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED".equals(e.notificationType()));
+    }
+
+    @Test
+    void moveApplicationToInterviewRequiresAndNotifiesInterviewDate() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID recipientUserUuid = UUID.randomUUID();
+        LocalDateTime interviewAt = LocalDateTime.of(2026, 9, 1, 9, 30);
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(recipientUserUuid));
+        when(userLookupService.getUserEmail(recipientUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.getUserFullName(recipientUserUuid)).thenReturn(Optional.of("Jane Instructor"));
+
+        assertThatThrownBy(() -> service.moveApplicationToStage(job.getUuid(), application.getUuid(),
+                ClassMarketplaceJobApplicationStatus.INTERVIEWING, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("interview_at is required");
+
+        service.moveApplicationToStage(job.getUuid(), application.getUuid(),
+                ClassMarketplaceJobApplicationStatus.INTERVIEWING,
+                new ClassMarketplaceJobDecisionRequestDTO("Please prepare a demo lesson.", interviewAt));
+
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.INTERVIEWING);
+        assertThat(application.getInterviewAt()).isEqualTo(interviewAt);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_INTERVIEWING".equals(e.notificationType())
+                        && e.body() != null
+                        && e.body().contains("Interview scheduled")
+                        && String.valueOf(e.templateVariables().get("interview_at")).contains("2026"));
     }
 
     @Test
@@ -815,7 +858,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(userLookupService.getUserFullName(creatorUserUuid)).thenReturn(Optional.of("Org Manager"));
 
         service.withdrawApplication(job.getUuid(), application.getUuid(),
-                new ClassMarketplaceJobDecisionRequestDTO("Schedule no longer works"));
+                new ClassMarketplaceJobDecisionRequestDTO("Schedule no longer works", null));
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
         assertThat(application.getReviewNotes()).isEqualTo("Schedule no longer works");

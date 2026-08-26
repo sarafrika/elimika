@@ -129,6 +129,8 @@ class TimetableServiceImplTest {
         instance.setUuid(instanceUuid);
 
         when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatus(instanceUuid, EnrollmentStatus.ENROLLED))
+                .thenReturn(1L);
         when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -171,6 +173,24 @@ class TimetableServiceImplTest {
                 .hasMessageContaining("cannot be started");
 
         verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
+    }
+
+    @Test
+    void startScheduledInstanceRejectsWhenNoStudentsAreEnrolled() {
+        UUID instanceUuid = UUID.randomUUID();
+        ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.SCHEDULED);
+        instance.setUuid(instanceUuid);
+
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
+        when(enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatus(instanceUuid, EnrollmentStatus.ENROLLED))
+                .thenReturn(0L);
+
+        assertThatThrownBy(() -> timetableService.startScheduledInstance(instanceUuid))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("At least one enrolled student");
+
+        verify(scheduledInstanceRepository, never()).save(any(ScheduledInstance.class));
+        verify(applicationEventPublisher, never()).publishEvent(any(ScheduledInstanceStartedEvent.class));
     }
 
     @Test
@@ -756,6 +776,64 @@ class TimetableServiceImplTest {
         assertThat(eligibility.seatsAvailable()).isTrue();
         assertThat(eligibility.eligible()).isTrue();
         assertThat(eligibility.reason()).isNull();
+    }
+
+    @Test
+    void enrolmentEligibilityReportsScheduleConflictsBeforeCheckout() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        noAgeLimit(classUuid, courseUuid);
+        ScheduledInstance target = instanceOf(classUuid);
+        Enrollment conflicting = heldSeat(studentUuid, UUID.randomUUID(), null);
+        conflicting.setStatus(EnrollmentStatus.ENROLLED);
+
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(target));
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of(conflicting));
+        when(scheduledInstanceRepository.findByUuid(target.getUuid())).thenReturn(Optional.of(target));
+        when(enrollmentRepository.countActiveEnrollmentsByScheduledInstance(target.getUuid())).thenReturn(0L);
+        when(enrollmentRepository.findOverlappingEnrollmentsForStudent(
+                studentUuid,
+                target.getStartTime(),
+                target.getEndTime()))
+                .thenReturn(List.of(conflicting));
+
+        var eligibility = timetableService.getClassEnrolmentEligibility(classUuid, studentUuid);
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.reason()).contains("overlaps with another class");
+    }
+
+    @Test
+    void enrollStudentPromotesCheckoutReservationInsteadOfConflictingWithIt() {
+        UUID classUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        noAgeLimit(classUuid, courseUuid);
+        when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(true);
+        ScheduledInstance target = instanceOf(classUuid);
+        Enrollment reservation = heldSeat(
+                studentUuid,
+                target.getUuid(),
+                LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(10));
+
+        when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(target));
+        when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of(reservation));
+        when(enrollmentRepository.findOverlappingEnrollmentsForStudent(
+                studentUuid,
+                target.getStartTime(),
+                target.getEndTime()))
+                .thenReturn(List.of(reservation));
+        when(enrollmentRepository.save(reservation)).thenReturn(reservation);
+
+        List<EnrollmentDTO> result = timetableService.enrollStudent(
+                new apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO(classUuid, studentUuid));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).uuid()).isEqualTo(reservation.getUuid());
+        assertThat(reservation.getStatus()).isEqualTo(EnrollmentStatus.ENROLLED);
+        assertThat(reservation.getReservedUntil()).isNull();
+        verify(enrollmentRepository).save(reservation);
     }
 
     @Test

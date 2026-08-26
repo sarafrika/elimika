@@ -10,12 +10,15 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
@@ -29,9 +32,12 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class EmailNotificationService {
     
-    private final JavaMailSender mailSender;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final EmailTemplateService templateService;
     private final NotificationDeliveryLogRepository deliveryLogRepository;
+
+    @Value("${spring.mail.host:}")
+    private String mailHost;
     
     @Value("${app.email.from:no-reply@sarafrika.com}")
     private String fromEmail;
@@ -73,6 +79,11 @@ public class EmailNotificationService {
             .build();
         
         deliveryLog = deliveryLogRepository.save(deliveryLog);
+
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null || !StringUtils.hasText(mailHost)) {
+            return failDelivery(deliveryLog, event, "Email service is not configured");
+        }
         
         try {
             // Generate email content from template
@@ -111,12 +122,18 @@ public class EmailNotificationService {
             
             return NotificationResult.success(event.getNotificationId(), "email");
             
-        } catch (MessagingException e) {
+        } catch (MessagingException | MailException e) {
             log.error("Failed to send email notification {}: {}", event.getNotificationId(), e.getMessage());
-            deliveryLog.markAsFailed(e.getMessage());
-            deliveryLogRepository.save(deliveryLog);
-            return NotificationResult.failed(event.getNotificationId(), "email", e.getMessage());
+            return failDelivery(deliveryLog, event, e.getMessage());
         }
+    }
+
+    private NotificationResult failDelivery(NotificationDeliveryLog deliveryLog,
+                                            NotificationEvent event,
+                                            String errorMessage) {
+        deliveryLog.markAsFailed(errorMessage);
+        deliveryLogRepository.save(deliveryLog);
+        return NotificationResult.failed(event.getNotificationId(), "email", errorMessage);
     }
     
     /**
@@ -176,6 +193,10 @@ public class EmailNotificationService {
      * Check if email service is available
      */
     public boolean isAvailable() {
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null || !StringUtils.hasText(mailHost)) {
+            return false;
+        }
         try {
             // Simple connectivity check
             mailSender.createMimeMessage();
