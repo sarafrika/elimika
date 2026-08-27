@@ -31,19 +31,35 @@ public class InternalOrderServiceImpl implements InternalOrderService {
 
     @Override
     public OrderResponse completeCheckout(CheckoutRequest request) {
-        UpdateCartRequest updateCartRequest = UpdateCartRequest.builder()
-                .email(request.getCustomerEmail())
-                .shippingAddressId(request.getShippingAddressId())
-                .billingAddressId(request.getBillingAddressId())
-                .build();
+        Optional<OrderResponse> existingOrder = findExistingOrderForCart(request.getCartId());
+        if (existingOrder.isPresent()) {
+            return existingOrder.get();
+        }
+
+        UpdateCartRequest updateCartRequest = new UpdateCartRequest();
+        updateCartRequest.setEmail(request.getCustomerEmail());
+        updateCartRequest.setShippingAddressId(request.getShippingAddressId());
+        updateCartRequest.setBillingAddressId(request.getBillingAddressId());
         internalCartService.updateCart(request.getCartId(), updateCartRequest);
         if (StringUtils.hasText(request.getPaymentProviderId())) {
-            SelectPaymentSessionRequest paymentRequest = SelectPaymentSessionRequest.builder()
-                    .providerId(request.getPaymentProviderId())
-                    .build();
+            SelectPaymentSessionRequest paymentRequest = new SelectPaymentSessionRequest();
+            paymentRequest.setProviderId(request.getPaymentProviderId());
             internalCartService.selectPaymentSession(request.getCartId(), paymentRequest);
         }
         return internalCartService.completeCart(request.getCartId());
+    }
+
+    private Optional<OrderResponse> findExistingOrderForCart(String cartId) {
+        if (!StringUtils.hasText(cartId)) {
+            return Optional.empty();
+        }
+        try {
+            UUID cartUuid = UUID.fromString(cartId);
+            return orderRepository.findFirstByCart_UuidOrderByCreatedDateDesc(cartUuid)
+                    .map(mapper::toOrderResponse);
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
+        }
     }
 
     @Override

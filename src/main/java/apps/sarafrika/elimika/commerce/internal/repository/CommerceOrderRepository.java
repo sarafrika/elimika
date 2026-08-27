@@ -12,6 +12,8 @@ public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Lo
 
     Optional<CommerceOrder> findByUuid(UUID uuid);
 
+    Optional<CommerceOrder> findFirstByCart_UuidOrderByCreatedDateDesc(UUID cartUuid);
+
     List<CommerceOrder> findByStatus(OrderStatus status);
 
     /**

@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -104,6 +105,9 @@ public class InternalCartServiceImpl implements InternalCartService {
     @Override
     public CartResponse addItem(String cartId, CartLineItemRequest request) {
         CommerceCart cart = loadCart(cartId);
+        if (isCompletedWithOrder(cart) && hasMatchingLineItem(cart, request)) {
+            return mapper.toCartResponse(cart);
+        }
         ensureOpen(cart);
         if (cart.getUserUuid() == null) {
             cart.setUserUuid(currentUserUuid());
@@ -146,6 +150,9 @@ public class InternalCartServiceImpl implements InternalCartService {
     @Override
     public CartResponse updateCart(String cartId, UpdateCartRequest request) {
         CommerceCart cart = loadCart(cartId);
+        if (isCompletedWithOrder(cart)) {
+            return mapper.toCartResponse(cart);
+        }
         ensureOpen(cart);
 
         if (StringUtils.hasText(request.getEmail())) {
@@ -169,6 +176,9 @@ public class InternalCartServiceImpl implements InternalCartService {
     @Override
     public CartResponse selectPaymentSession(String cartId, SelectPaymentSessionRequest request) {
         CommerceCart cart = loadCart(cartId);
+        if (isCompletedWithOrder(cart)) {
+            return mapper.toCartResponse(cart);
+        }
         ensureOpen(cart);
         cart.setPaymentProviderId(request.getProviderId());
         refreshCartMetadata(cart);
@@ -179,6 +189,11 @@ public class InternalCartServiceImpl implements InternalCartService {
     @Override
     public OrderResponse completeCart(String cartId) {
         CommerceCart cart = loadCart(cartId);
+        if (cart.getStatus() == CartStatus.COMPLETED) {
+            return findExistingOrder(cart)
+                    .map(mapper::toOrderResponse)
+                    .orElseThrow(() -> new IllegalStateException("Cart is not open"));
+        }
         ensureOpen(cart);
         if (CollectionUtils.isEmpty(cart.getItems())) {
             throw new IllegalStateException("Cart has no items");
@@ -350,6 +365,35 @@ public class InternalCartServiceImpl implements InternalCartService {
         if (cart.getStatus() != null && cart.getStatus() != CartStatus.OPEN) {
             throw new IllegalStateException("Cart is not open");
         }
+    }
+
+    private boolean isCompletedWithOrder(CommerceCart cart) {
+        return cart != null
+                && cart.getStatus() == CartStatus.COMPLETED
+                && findExistingOrder(cart).isPresent();
+    }
+
+    private Optional<CommerceOrder> findExistingOrder(CommerceCart cart) {
+        if (cart == null || cart.getUuid() == null) {
+            return Optional.empty();
+        }
+        return orderRepository.findFirstByCart_UuidOrderByCreatedDateDesc(cart.getUuid());
+    }
+
+    private boolean hasMatchingLineItem(CommerceCart cart, CartLineItemRequest request) {
+        if (request == null
+                || !StringUtils.hasText(request.getVariantId())
+                || CollectionUtils.isEmpty(cart.getItems())) {
+            return false;
+        }
+
+        int requestedQuantity = Math.max(1, request.getQuantity());
+        return cart.getItems().stream()
+                .anyMatch(item -> item != null
+                        && item.getVariant() != null
+                        && request.getVariantId().equals(item.getVariant().getCode())
+                        && item.getQuantity() != null
+                        && item.getQuantity() >= requestedQuantity);
     }
 
 
