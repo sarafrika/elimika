@@ -1,3 +1,10 @@
+## [2.134.3](https://github.com/sarafrika/elimika/compare/v2.134.2...v2.134.3) (2026-08-28)
+
+
+### Bug Fixes
+
+* **commerce:** recover repeated completed cart checkout ([350bd2c](https://github.com/sarafrika/elimika/commit/350bd2c67bbd47dda945c4dab61db8fa7c3a2fa7))
+
 ## [2.134.2](https://github.com/sarafrika/elimika/compare/v2.134.1...v2.134.2) (2026-08-26)
 
 
