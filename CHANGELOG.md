@@ -1,3 +1,10 @@
+## [2.134.4](https://github.com/sarafrika/elimika/compare/v2.134.3...v2.134.4) (2026-08-28)
+
+
+### Bug Fixes
+
+* notify workflow state changes ([58c0fd2](https://github.com/sarafrika/elimika/commit/58c0fd2be8c403252ce6c5f503516f25e158a157))
+
 ## [2.134.3](https://github.com/sarafrika/elimika/compare/v2.134.2...v2.134.3) (2026-08-28)
 
 
