@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.classes.dto.ClassReviewRequest;
 import apps.sarafrika.elimika.classes.model.ClassReview;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.ClassReviewRepository;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -42,6 +44,12 @@ class ClassReviewServiceImplTest {
     @Mock
     private EnrollmentLookupService enrollmentLookupService;
 
+    @Mock
+    private InstructorLookupService instructorLookupService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private ClassReviewServiceImpl service;
 
     @BeforeEach
@@ -49,7 +57,9 @@ class ClassReviewServiceImplTest {
         service = new ClassReviewServiceImpl(
                 classReviewRepository,
                 classDefinitionRepository,
-                enrollmentLookupService
+                enrollmentLookupService,
+                instructorLookupService,
+                eventPublisher
         );
     }
 

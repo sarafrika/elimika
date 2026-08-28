@@ -1,11 +1,12 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
@@ -116,8 +117,12 @@ public class InstructorServiceImpl implements InstructorService {
                 "instructor"
         );
 
+        boolean wasVerified = Boolean.TRUE.equals(instructor.getAdminVerified());
         instructor.setAdminVerified(true);
         Instructor verifiedInstructor = instructorRepository.save(instructor);
+        if (!wasVerified) {
+            publishVerificationNotification(verifiedInstructor, true);
+        }
 
         log.info("Successfully verified instructor {}", instructorUuid);
         return InstructorFactory.toDTO(verifiedInstructor);
@@ -130,8 +135,12 @@ public class InstructorServiceImpl implements InstructorService {
         Instructor instructor = instructorRepository.findByUuid(instructorUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, instructorUuid)));
 
+        boolean wasVerified = Boolean.TRUE.equals(instructor.getAdminVerified());
         instructor.setAdminVerified(false);
         Instructor unverifiedInstructor = instructorRepository.save(instructor);
+        if (wasVerified) {
+            publishVerificationNotification(unverifiedInstructor, false);
+        }
 
         log.info("Successfully removed verification from instructor {}", instructorUuid);
         return InstructorFactory.toDTO(unverifiedInstructor);
@@ -201,6 +210,37 @@ public class InstructorServiceImpl implements InstructorService {
         if (instructorDTO.professionalHeadline() != null) {
             instructor.setProfessionalHeadline(instructorDTO.professionalHeadline());
         }
+    }
+
+    private void publishVerificationNotification(Instructor instructor, boolean approved) {
+        if (instructor.getUserUuid() == null || instructor.getUuid() == null) {
+            return;
+        }
+
+        String notificationType = approved
+                ? "INSTRUCTOR_VERIFICATION_APPROVED"
+                : "INSTRUCTOR_VERIFICATION_REVOKED";
+        String title = approved
+                ? "Instructor profile approved"
+                : "Instructor verification removed";
+        String body = approved
+                ? "Your instructor profile has been approved."
+                : "Your instructor profile verification has been removed.";
+
+        applicationEventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                instructor.getUserUuid(),
+                notificationType,
+                "POPUP",
+                title,
+                body,
+                "/dashboard/instructor/profile",
+                Map.of(
+                        "instructor_uuid", instructor.getUuid(),
+                        "profile_type", "instructor",
+                        "admin_verified", approved
+                ),
+                "instructor-verification:" + instructor.getUuid() + ":" + notificationType
+        ));
     }
 
     @Override

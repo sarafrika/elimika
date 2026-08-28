@@ -61,6 +61,10 @@ public enum NotificationType {
     INSTRUCTOR_CLASS_ENROLLMENT_MILESTONE("INSTRUCTOR_CLASS_ENROLLMENT_MILESTONE", "instructor-class-enrollment-milestone", "Enrollment Milestone", NotificationCategory.COURSE_MANAGEMENT),
     INSTRUCTOR_CLASS_ENROLLMENT_NOTICE("INSTRUCTOR_CLASS_ENROLLMENT_NOTICE", "instructor-class-enrollment-notice", "Enrollment Notice", NotificationCategory.COURSE_MANAGEMENT),
     UPCOMING_CLASS_REMINDER("UPCOMING_CLASS_REMINDER", "upcoming-class-reminder", "Upcoming Class", NotificationCategory.COURSE_MANAGEMENT),
+    COURSE_REVIEW_SUBMITTED("COURSE_REVIEW_SUBMITTED", "review-submitted", "Course Review", NotificationCategory.COURSE_MANAGEMENT),
+    PROGRAM_REVIEW_SUBMITTED("PROGRAM_REVIEW_SUBMITTED", "review-submitted", "Program Review", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_REVIEW_SUBMITTED("CLASS_REVIEW_SUBMITTED", "review-submitted", "Class Review", NotificationCategory.COURSE_MANAGEMENT),
+    INSTRUCTOR_REVIEW_SUBMITTED("INSTRUCTOR_REVIEW_SUBMITTED", "review-submitted", "Instructor Review", NotificationCategory.COURSE_MANAGEMENT),
     
     // Administrative Notifications
     ACCOUNT_CREATED("ACCOUNT_CREATED", "account-created", "Account Created", NotificationCategory.SYSTEM_ADMIN),
@@ -69,6 +73,12 @@ public enum NotificationType {
     ORDER_PAYMENT_RECEIPT("ORDER_PAYMENT_RECEIPT", "order-payment-receipt", "Order Receipt", NotificationCategory.SYSTEM_ADMIN),
     LEARNING_CERTIFICATE_ISSUED("LEARNING_CERTIFICATE_ISSUED", "learning-certificate-issued", "Certificate Issued", NotificationCategory.LEARNING_PROGRESS),
     PROFILE_DOCUMENT_VERIFIED("PROFILE_DOCUMENT_VERIFIED", "profile-document-verified", "Profile Document Verified", NotificationCategory.SYSTEM_ADMIN),
+    INSTRUCTOR_VERIFICATION_APPROVED("INSTRUCTOR_VERIFICATION_APPROVED", "profile-verification-approved", "Instructor Approved", NotificationCategory.SYSTEM_ADMIN),
+    INSTRUCTOR_VERIFICATION_REVOKED("INSTRUCTOR_VERIFICATION_REVOKED", "profile-verification-revoked", "Instructor Verification Removed", NotificationCategory.SYSTEM_ADMIN),
+    COURSE_CREATOR_VERIFICATION_APPROVED("COURSE_CREATOR_VERIFICATION_APPROVED", "profile-verification-approved", "Course Creator Approved", NotificationCategory.SYSTEM_ADMIN),
+    COURSE_CREATOR_VERIFICATION_REVOKED("COURSE_CREATOR_VERIFICATION_REVOKED", "profile-verification-revoked", "Course Creator Verification Removed", NotificationCategory.SYSTEM_ADMIN),
+    ORGANISATION_VERIFICATION_APPROVED("ORGANISATION_VERIFICATION_APPROVED", "profile-verification-approved", "Organisation Approved", NotificationCategory.SYSTEM_ADMIN),
+    ORGANISATION_VERIFICATION_REVOKED("ORGANISATION_VERIFICATION_REVOKED", "profile-verification-revoked", "Organisation Verification Removed", NotificationCategory.SYSTEM_ADMIN),
     PROFILE_COMPLETION_REMINDER("PROFILE_COMPLETION_REMINDER", "profile-completion-reminder", "Complete Your Profile", NotificationCategory.SYSTEM_ADMIN),
     ORGANISATION_INVITATION("ORGANISATION_INVITATION", "organisation-invitation", "Organisation Invitation", NotificationCategory.SYSTEM_ADMIN),
     GUARDIAN_CONSENT_REQUEST("GUARDIAN_CONSENT_REQUEST", "guardian-consent-request", "Guardian Consent Request", NotificationCategory.SYSTEM_ADMIN),
@@ -201,7 +211,11 @@ public enum NotificationType {
                  CLASS_MARKETPLACE_JOB_APPLICATION_OFFERED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED,
-                 CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED -> "instructor";
+                 CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED,
+                 CLASS_REVIEW_SUBMITTED,
+                 INSTRUCTOR_REVIEW_SUBMITTED,
+                 INSTRUCTOR_VERIFICATION_APPROVED,
+                 INSTRUCTOR_VERIFICATION_REVOKED -> "instructor";
 
             case COURSE_CONTENT_APPROVED,
                  COURSE_CONTENT_REJECTED,
@@ -210,11 +224,17 @@ public enum NotificationType {
                  COURSE_TRAINING_APPLICATION_SUBMITTED,
                  PROGRAM_TRAINING_APPLICATION_SUBMITTED,
                  COURSE_ENROLLMENT_MILESTONE,
-                 COURSE_ENROLLMENT_NOTICE -> "course_creator";
+                 COURSE_ENROLLMENT_NOTICE,
+                 COURSE_REVIEW_SUBMITTED,
+                 PROGRAM_REVIEW_SUBMITTED,
+                 COURSE_CREATOR_VERIFICATION_APPROVED,
+                 COURSE_CREATOR_VERIFICATION_REVOKED -> "course_creator";
 
             case CLASS_MARKETPLACE_JOB_EXPIRED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN,
-                 ORGANISATION_INVITATION_ACCEPTED -> "organisation_user";
+                 ORGANISATION_INVITATION_ACCEPTED,
+                 ORGANISATION_VERIFICATION_APPROVED,
+                 ORGANISATION_VERIFICATION_REVOKED -> "organisation_user";
 
             // Account-level notifications are relevant in every dashboard.
             // The two invitation types are deliberately here: their recipient may hold no

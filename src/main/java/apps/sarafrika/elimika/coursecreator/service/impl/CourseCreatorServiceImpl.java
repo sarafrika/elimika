@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.coursecreator.factory.CourseCreatorFactory;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -111,8 +112,12 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
                 "course creator"
         );
 
+        boolean wasVerified = Boolean.TRUE.equals(courseCreator.getAdminVerified());
         courseCreator.setAdminVerified(true);
         CourseCreator verifiedCourseCreator = courseCreatorRepository.save(courseCreator);
+        if (!wasVerified) {
+            publishVerificationNotification(verifiedCourseCreator, true);
+        }
 
         log.info("Successfully verified course creator {}", courseCreatorUuid);
         return CourseCreatorFactory.toDTO(verifiedCourseCreator);
@@ -125,8 +130,12 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         CourseCreator courseCreator = courseCreatorRepository.findByUuid(courseCreatorUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_CREATOR_NOT_FOUND_TEMPLATE, courseCreatorUuid)));
 
+        boolean wasVerified = Boolean.TRUE.equals(courseCreator.getAdminVerified());
         courseCreator.setAdminVerified(false);
         CourseCreator unverifiedCourseCreator = courseCreatorRepository.save(courseCreator);
+        if (wasVerified) {
+            publishVerificationNotification(unverifiedCourseCreator, false);
+        }
 
         log.info("Successfully removed verification from course creator {}", courseCreatorUuid);
         return CourseCreatorFactory.toDTO(unverifiedCourseCreator);
@@ -205,5 +214,36 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         if (courseCreatorDTO.professionalHeadline() != null) {
             courseCreator.setProfessionalHeadline(courseCreatorDTO.professionalHeadline());
         }
+    }
+
+    private void publishVerificationNotification(CourseCreator courseCreator, boolean approved) {
+        if (courseCreator.getUserUuid() == null || courseCreator.getUuid() == null) {
+            return;
+        }
+
+        String notificationType = approved
+                ? "COURSE_CREATOR_VERIFICATION_APPROVED"
+                : "COURSE_CREATOR_VERIFICATION_REVOKED";
+        String title = approved
+                ? "Course creator profile approved"
+                : "Course creator verification removed";
+        String body = approved
+                ? "Your course creator profile has been approved."
+                : "Your course creator profile verification has been removed.";
+
+        applicationEventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                courseCreator.getUserUuid(),
+                notificationType,
+                "POPUP",
+                title,
+                body,
+                "/dashboard/course-creator/profile",
+                Map.of(
+                        "course_creator_uuid", courseCreator.getUuid(),
+                        "profile_type", "course_creator",
+                        "admin_verified", approved
+                ),
+                "course-creator-verification:" + courseCreator.getUuid() + ":" + notificationType
+        ));
     }
 }

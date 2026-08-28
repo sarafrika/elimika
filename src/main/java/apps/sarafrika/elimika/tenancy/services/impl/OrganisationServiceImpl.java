@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
@@ -430,6 +431,57 @@ public class OrganisationServiceImpl implements OrganisationService {
                 .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name: " + domainName));
     }
 
+    private void publishOrganisationVerificationNotification(Organisation organisation, boolean approved) {
+        if (organisation.getUuid() == null) {
+            return;
+        }
+
+        try {
+            UserDomain adminDomain = findDomainByNameOrThrow("admin");
+            List<UUID> recipientUserUuids = userOrganisationDomainMappingRepository
+                    .findActiveByOrganisationAndDomain(organisation.getUuid(), adminDomain.getUuid())
+                    .stream()
+                    .map(UserOrganisationDomainMapping::getUserUuid)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+
+            String notificationType = approved
+                    ? "ORGANISATION_VERIFICATION_APPROVED"
+                    : "ORGANISATION_VERIFICATION_REVOKED";
+            String title = approved
+                    ? "Organisation approved"
+                    : "Organisation verification removed";
+            String organisationName = organisation.getName() == null
+                    ? "Your organisation"
+                    : organisation.getName();
+            String body = approved
+                    ? organisationName + " has been approved."
+                    : organisationName + " verification has been removed.";
+
+            for (UUID recipientUserUuid : recipientUserUuids) {
+                eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                        recipientUserUuid,
+                        notificationType,
+                        "POPUP",
+                        title,
+                        body,
+                        "/dashboard/organisation/account",
+                        Map.of(
+                                "organisation_uuid", organisation.getUuid(),
+                                "organisation_name", organisationName,
+                                "profile_type", "organisation",
+                                "admin_verified", approved
+                        ),
+                        "organisation-verification:" + organisation.getUuid() + ":" + recipientUserUuid + ":" + notificationType,
+                        "organisation_user"
+                ));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish organisation verification notification for {}", organisation.getUuid(), e);
+        }
+    }
+
     private UserDomain findOrgSupportedDomain(String identifier) {
         if (identifier == null || identifier.trim().isEmpty()) {
             throw new IllegalArgumentException("Domain name is required");
@@ -514,6 +566,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         } else {
             organisation.setAdminVerified(true);
             organisation = organisationRepository.save(organisation);
+            publishOrganisationVerificationNotification(organisation, true);
             log.info("Successfully verified organisation: {} for reason: {}", organisationUuid, reason);
         }
 
@@ -532,6 +585,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         } else {
             organisation.setAdminVerified(false);
             organisation = organisationRepository.save(organisation);
+            publishOrganisationVerificationNotification(organisation, false);
             log.info("Successfully removed verification from organisation: {} for reason: {}", organisationUuid, reason);
         }
 

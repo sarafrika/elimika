@@ -4,19 +4,25 @@ import apps.sarafrika.elimika.classes.dto.ClassRatingSummaryDTO;
 import apps.sarafrika.elimika.classes.dto.ClassReviewDTO;
 import apps.sarafrika.elimika.classes.dto.ClassReviewRequest;
 import apps.sarafrika.elimika.classes.factory.ClassReviewFactory;
+import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassReview;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.ClassReviewRepository;
 import apps.sarafrika.elimika.classes.service.ClassReviewService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,6 +36,8 @@ public class ClassReviewServiceImpl implements ClassReviewService {
     private final ClassReviewRepository classReviewRepository;
     private final ClassDefinitionRepository classDefinitionRepository;
     private final EnrollmentLookupService enrollmentLookupService;
+    private final InstructorLookupService instructorLookupService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ClassReviewDTO saveClassReview(UUID classDefinitionUuid, ClassReviewRequest reviewRequest) {
@@ -60,6 +68,7 @@ public class ClassReviewServiceImpl implements ClassReviewService {
         review.setIsAnonymous(Boolean.TRUE.equals(reviewRequest.isAnonymous()));
 
         ClassReview saved = classReviewRepository.save(review);
+        publishClassReviewSubmitted(classDefinitionUuid, saved);
         return toPublicDTO(saved);
     }
 
@@ -94,6 +103,45 @@ public class ClassReviewServiceImpl implements ClassReviewService {
             return false;
         }
         return REVIEW_ELIGIBLE_STATUSES.contains(status.toUpperCase(Locale.ROOT));
+    }
+
+    private void publishClassReviewSubmitted(UUID classDefinitionUuid, ClassReview review) {
+        ClassDefinition classDefinition = classDefinitionRepository.findByUuid(classDefinitionUuid).orElse(null);
+        if (classDefinition == null || classDefinition.getDefaultInstructorUuid() == null || review.getUuid() == null) {
+            return;
+        }
+
+        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(classDefinition.getDefaultInstructorUuid())
+                .orElse(null);
+        if (recipientUserUuid == null) {
+            return;
+        }
+
+        String classTitle = classDefinition.getTitle() == null ? "your class" : classDefinition.getTitle();
+        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                recipientUserUuid,
+                "CLASS_REVIEW_SUBMITTED",
+                "INBOX",
+                "New class review",
+                "A learner left a review for " + classTitle + ".",
+                "/dashboard/instructor/training-hub/classes/" + classDefinition.getUuid(),
+                Map.of(
+                        "class_definition_uuid", classDefinition.getUuid(),
+                        "class_title", classTitle,
+                        "review_uuid", review.getUuid(),
+                        "rating", review.getRating()
+                ),
+                "class-review-submitted:" + review.getUuid() + ":" + reviewContentHash(review)
+        ));
+    }
+
+    private int reviewContentHash(ClassReview review) {
+        return Objects.hash(
+                review.getRating(),
+                review.getHeadline(),
+                review.getComments(),
+                review.getIsAnonymous()
+        );
     }
 
     private ClassReviewDTO toPublicDTO(ClassReview review) {

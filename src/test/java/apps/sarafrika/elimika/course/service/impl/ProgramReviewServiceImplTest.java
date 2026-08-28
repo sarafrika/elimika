@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.ProgramReviewRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -45,6 +47,12 @@ class ProgramReviewServiceImplTest {
     @Mock
     private TrainingProgramRepository trainingProgramRepository;
 
+    @Mock
+    private CourseCreatorLookupService courseCreatorLookupService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private ProgramReviewServiceImpl service;
 
     @BeforeEach
@@ -52,7 +60,9 @@ class ProgramReviewServiceImplTest {
         service = new ProgramReviewServiceImpl(
                 programReviewRepository,
                 programEnrollmentRepository,
-                trainingProgramRepository
+                trainingProgramRepository,
+                courseCreatorLookupService,
+                eventPublisher
         );
     }
 
