@@ -1,3 +1,10 @@
+## [2.134.5](https://github.com/sarafrika/elimika/compare/v2.134.4...v2.134.5) (2026-08-29)
+
+
+### Bug Fixes
+
+* derive class schedule end times ([81cf035](https://github.com/sarafrika/elimika/commit/81cf035d3e938079dbee02ac8f6056dc8ceb01d5))
+
 ## [2.134.4](https://github.com/sarafrika/elimika/compare/v2.134.3...v2.134.4) (2026-08-28)
 
 
