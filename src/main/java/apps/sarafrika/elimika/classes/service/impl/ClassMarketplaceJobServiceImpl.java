@@ -125,6 +125,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
+        request = request.withDurationApplied();
         requireOrganisationManagerAccess(request.organisationUuid());
         validateJobDraft(request);
 
@@ -173,6 +174,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         ensureJobOpen(job);
         requireOrganisationManagerAccess(job.getOrganisationUuid());
+        request = request.withDurationApplied();
 
         if (!job.getOrganisationUuid().equals(request.organisationUuid())) {
             throw new IllegalArgumentException("organisation_uuid cannot be changed after a marketplace job has been created");

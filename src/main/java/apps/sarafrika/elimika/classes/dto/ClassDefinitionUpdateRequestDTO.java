@@ -4,8 +4,10 @@ import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,11 +24,6 @@ import java.util.UUID;
 @Schema(
         name = "ClassDefinitionUpdateRequest",
         description = "Request payload for updating class metadata. Schedule changes use dedicated schedule endpoints."
-)
-@ValidTimeRange(
-        startField = "defaultStartTime",
-        endField = "defaultEndTime",
-        message = "Class end time must be after start time"
 )
 @ValidTimeRange(
         startField = "academicPeriodStartDate",
@@ -105,10 +102,14 @@ public record ClassDefinitionUpdateRequestDTO(
         @JsonProperty("default_start_time")
         LocalDateTime defaultStartTime,
 
-        @Schema(description = "**[REQUIRED]** Default end date-time for the class.", format = "date-time")
-        @NotNull(message = "Default end time is required")
+        @Schema(description = "**[OPTIONAL]** Default end date-time for the class. If duration_minutes is supplied, the backend derives this value.", format = "date-time")
         @JsonProperty("default_end_time")
         LocalDateTime defaultEndTime,
+
+        @Schema(description = "**[REQUIRED]** Positive default class duration in minutes. When supplied it is authoritative and the backend derives default_end_time from default_start_time.", minimum = "1", example = "90")
+        @Positive(message = "duration_minutes must be positive")
+        @JsonProperty("duration_minutes")
+        Integer durationMinutes,
 
         @Schema(description = "**[OPTIONAL]** Academic period start date.", format = "date")
         @JsonProperty("academic_period_start_date")
@@ -176,6 +177,7 @@ public record ClassDefinitionUpdateRequestDTO(
 ) {
 
     public ClassDefinitionDTO toClassDefinitionDTO() {
+        LocalDateTime effectiveDefaultEndTime = effectiveDefaultEndTime();
         return new ClassDefinitionDTO(
                 null,
                 title,
@@ -192,7 +194,7 @@ public record ClassDefinitionUpdateRequestDTO(
                 classVisibility,
                 sessionFormat,
                 defaultStartTime,
-                defaultEndTime,
+                effectiveDefaultEndTime,
                 academicPeriodStartDate,
                 academicPeriodEndDate,
                 registrationPeriodStartDate,
@@ -213,5 +215,27 @@ public record ClassDefinitionUpdateRequestDTO(
                 null,
                 null
         );
+    }
+
+    @JsonIgnore
+    @AssertTrue(message = "Either default_end_time or duration_minutes is required")
+    public boolean hasDefaultEndTimeOrDuration() {
+        return defaultEndTime != null || durationMinutes != null;
+    }
+
+    @JsonIgnore
+    @AssertTrue(message = "Class end time must be after start time")
+    public boolean hasValidDefaultEndTimeWhenDurationMissing() {
+        if (durationMinutes != null || defaultStartTime == null || defaultEndTime == null) {
+            return true;
+        }
+        return defaultStartTime.isBefore(defaultEndTime);
+    }
+
+    private LocalDateTime effectiveDefaultEndTime() {
+        if (defaultStartTime != null && durationMinutes != null) {
+            return defaultStartTime.plusMinutes(durationMinutes.longValue());
+        }
+        return defaultEndTime;
     }
 }

@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +25,7 @@ public class ClassSessionTemplateFactory {
                 entity.getUuid(),
                 entity.getStartTime(),
                 entity.getEndTime(),
+                durationMinutes(entity.getStartTime(), entity.getEndTime()),
                 toRecurrenceDTO(entity),
                 Optional.ofNullable(entity.getConflictResolution()).orElse(ConflictResolutionStrategy.FAIL)
         );
@@ -43,23 +46,32 @@ public class ClassSessionTemplateFactory {
         if (dto == null) {
             return null;
         }
+        ClassSessionTemplateDTO effectiveDto = dto.withDurationApplied(null);
         ClassSessionTemplate entity = new ClassSessionTemplate();
-        entity.setUuid(dto.uuid());
+        entity.setUuid(effectiveDto.uuid());
         entity.setClassDefinitionUuid(classDefinitionUuid);
         entity.setTemplateOrder(templateOrder);
-        entity.setStartTime(dto.startTime());
-        entity.setEndTime(dto.endTime());
-        if (dto.recurrence() != null && dto.recurrence().recurrenceType() != null) {
-            entity.setRecurrenceType(ClassRecurrenceType.fromValue(dto.recurrence().recurrenceType().name()));
-            entity.setIntervalValue(dto.recurrence().intervalValue());
-            entity.setDaysOfWeek(dto.recurrence().daysOfWeek());
-            entity.setDayOfMonth(dto.recurrence().dayOfMonth());
-            entity.setEndDate(dto.recurrence().endDate());
-            entity.setOccurrenceCount(dto.recurrence().occurrenceCount());
+        entity.setStartTime(effectiveDto.startTime());
+        entity.setEndTime(effectiveDto.endTime());
+        if (effectiveDto.recurrence() != null && effectiveDto.recurrence().recurrenceType() != null) {
+            entity.setRecurrenceType(ClassRecurrenceType.fromValue(effectiveDto.recurrence().recurrenceType().name()));
+            entity.setIntervalValue(effectiveDto.recurrence().intervalValue());
+            entity.setDaysOfWeek(effectiveDto.recurrence().daysOfWeek());
+            entity.setDayOfMonth(effectiveDto.recurrence().dayOfMonth());
+            entity.setEndDate(effectiveDto.recurrence().endDate());
+            entity.setOccurrenceCount(effectiveDto.recurrence().occurrenceCount());
         }
-        entity.setConflictResolution(Optional.ofNullable(dto.conflictResolution())
+        entity.setConflictResolution(Optional.ofNullable(effectiveDto.conflictResolution())
                 .orElse(ConflictResolutionStrategy.FAIL));
         return entity;
+    }
+
+    private static Integer durationMinutes(LocalDateTime startTime, LocalDateTime endTime) {
+        if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+            return null;
+        }
+        long minutes = Duration.between(startTime, endTime).toMinutes();
+        return minutes > Integer.MAX_VALUE ? null : Math.toIntExact(minutes);
     }
 
     private static ClassRecurrenceDTO toRecurrenceDTO(ClassSessionTemplate entity) {

@@ -194,6 +194,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         if (sessionTemplate == null) {
             throw new IllegalArgumentException("Session template cannot be null");
         }
+        sessionTemplate = sessionTemplate.withDurationApplied(null);
 
         ClassDefinitionDTO classDefinition = getClassDefinitionDTO(definitionUuid);
         ClassSchedulingOutcome schedulingOutcome = applySessionTemplates(classDefinition, List.of(sessionTemplate));

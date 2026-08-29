@@ -254,6 +254,48 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void createJobDerivesEndTimesFromDurationMinutes() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        LocalDateTime classStart = LocalDateTime.of(2026, 5, 2, 9, 0);
+        LocalDateTime templateStart = LocalDateTime.of(2026, 5, 3, 10, 0);
+        ClassMarketplaceJobRequestDTO request = withDurationMinutes(
+                sampleRequest(null, programUuid),
+                classStart,
+                classStart.minusHours(1),
+                templateStart,
+                templateStart.minusHours(1),
+                90
+        );
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+
+        service.createJob(request);
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getDefaultEndTime()).isEqualTo(classStart.plusMinutes(90));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ClassMarketplaceJobSessionTemplate>> templateCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(sessionTemplateRepository).saveAll(templateCaptor.capture());
+        assertThat(templateCaptor.getValue()).hasSize(1);
+        assertThat(templateCaptor.getValue().getFirst().getEndTime()).isEqualTo(templateStart.plusMinutes(90));
+    }
+
+    @Test
     void createJobPersistsTrainingFee() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID programUuid = UUID.randomUUID();
@@ -1310,6 +1352,7 @@ class ClassMarketplaceJobServiceImplTest {
                 SessionFormat.GROUP,
                 LocalDateTime.of(2026, 5, 2, 9, 0),
                 LocalDateTime.of(2026, 5, 2, 12, 0),
+                null,
                 LocalDate.of(2026, 5, 2),
                 LocalDate.of(2026, 6, 6),
                 LocalDate.of(2026, 4, 20),
@@ -1353,10 +1396,37 @@ class ClassMarketplaceJobServiceImplTest {
         );
     }
 
+    private ClassMarketplaceJobRequestDTO withDurationMinutes(ClassMarketplaceJobRequestDTO base,
+                                                              LocalDateTime defaultStartTime,
+                                                              LocalDateTime defaultEndTime,
+                                                              LocalDateTime templateStartTime,
+                                                              LocalDateTime templateEndTime,
+                                                              int durationMinutes) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), defaultStartTime, defaultEndTime, durationMinutes,
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(),
+                List.of(new ClassSessionTemplateDTO(
+                        null,
+                        templateStartTime,
+                        templateEndTime,
+                        durationMinutes,
+                        null,
+                        ConflictResolutionStrategy.FAIL
+                )),
+                base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
+                base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(), base.remindInstructor(),
+                base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+    }
+
     private ClassMarketplaceJobRequestDTO withTargetGroupUuids(ClassMarketplaceJobRequestDTO base, List<UUID> groupUuids) {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.durationMinutes(),
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
@@ -1371,6 +1441,7 @@ class ClassMarketplaceJobServiceImplTest {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.durationMinutes(),
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
@@ -1385,6 +1456,7 @@ class ClassMarketplaceJobServiceImplTest {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.durationMinutes(),
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
@@ -1398,6 +1470,7 @@ class ClassMarketplaceJobServiceImplTest {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.durationMinutes(),
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
@@ -1411,6 +1484,7 @@ class ClassMarketplaceJobServiceImplTest {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.durationMinutes(),
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
@@ -1923,6 +1997,7 @@ class ClassMarketplaceJobServiceImplTest {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.durationMinutes(),
                 base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),

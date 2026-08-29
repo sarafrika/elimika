@@ -256,6 +256,7 @@ class NotNullColumnDefaultsIntegrationTest {
                 new BigDecimal("1750.00"), new BigDecimal("1750.00"), rateBasis,
                 ClassVisibility.PUBLIC, SessionFormat.GROUP,
                 LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),
+                null,
                 null, null, null, null, null, null,
                 LocationType.ONLINE, null, null, null, "https://meet.example.com/ai",
                 5, true, true, List.of());
