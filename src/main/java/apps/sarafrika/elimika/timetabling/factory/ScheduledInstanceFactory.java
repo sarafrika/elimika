@@ -30,6 +30,10 @@ public class ScheduledInstanceFactory {
                 entity.getLocationLatitude(),
                 entity.getLocationLongitude(),
                 entity.getMaxParticipants(),
+                // Organisation attribution lives on the class definition, not the session row.
+                // Queries that need it stamp it on with ScheduledInstanceDTO#withOrganisation.
+                null,
+                null,
                 entity.getStatus(),
                 entity.getCancellationReason(),
                 entity.getStartedAt(),

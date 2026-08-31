@@ -3,7 +3,9 @@ package apps.sarafrika.elimika.shared.spi;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +34,18 @@ public interface ClassDefinitionLookupService {
      * @return the owning organisation UUID, or empty when the class is missing or is not org-owned
      */
     Optional<UUID> findOrganisationUuid(UUID classDefinitionUuid);
+
+    /**
+     * Resolves the owning organisation of several class definitions in one query.
+     * <p>
+     * An instructor's schedule can span many sessions of a handful of classes, so resolving the
+     * organisation behind each session one row at a time would be a query per session.
+     *
+     * @param classDefinitionUuids candidate class definition UUIDs; nulls are ignored
+     * @return owning organisation UUID keyed by class definition UUID, omitting classes that are
+     *         missing or not organisation-owned
+     */
+    Map<UUID, UUID> findOrganisationUuids(Collection<UUID> classDefinitionUuids);
 
     List<UUID> findClassDefinitionUuidsByInstructorUuid(UUID instructorUuid);
 

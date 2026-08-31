@@ -38,6 +38,7 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -94,6 +95,9 @@ class TimetableServiceImplTest {
     private apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService organisationLookupService;
+
+    @Mock
     private InstructorLookupService instructorLookupService;
 
     @Mock
@@ -117,6 +121,7 @@ class TimetableServiceImplTest {
                 availabilityService,
                 studentLookupService,
                 userLookupService,
+                organisationLookupService,
                 instructorLookupService,
                 resourceBookingService
         );
@@ -667,6 +672,64 @@ class TimetableServiceImplTest {
         assertThat(result.title()).startsWith("Class: ");
         assertThat(result.locationType()).isEqualTo("ONLINE");
         assertThat(result.maxParticipants()).isEqualTo(25);
+    }
+
+    // ── An instructor must be able to see whose work a session on their calendar is ────────────
+
+    @Test
+    void instructorScheduleNamesTheOrganisationBehindEachSession() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID organisationUuid = UUID.randomUUID();
+        LocalDate start = LocalDate.of(2026, 6, 1);
+        LocalDate end = LocalDate.of(2026, 6, 30);
+
+        ScheduledInstance hiredSession = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+        ScheduledInstance ownSession = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+
+        when(scheduledInstanceRepository.findByInstructorAndTimeRange(
+                eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(hiredSession, ownSession));
+        when(classDefinitionLookupService.findOrganisationUuids(anyCollection()))
+                .thenReturn(Map.of(hiredSession.getClassDefinitionUuid(), organisationUuid));
+        when(organisationLookupService.findOrganisationNames(anyCollection()))
+                .thenReturn(Map.of(organisationUuid, "Sarafrika Technical College"));
+
+        List<ScheduledInstanceDTO> schedule = timetableService.getScheduleForInstructor(instructorUuid, start, end);
+
+        assertThat(schedule)
+                .filteredOn(instance -> instance.uuid().equals(hiredSession.getUuid()))
+                .singleElement()
+                .satisfies(instance -> {
+                    assertThat(instance.organisationUuid()).isEqualTo(organisationUuid);
+                    assertThat(instance.organisationName()).isEqualTo("Sarafrika Technical College");
+                });
+
+        // A class of the instructor's own is not attributed to anybody.
+        assertThat(schedule)
+                .filteredOn(instance -> instance.uuid().equals(ownSession.getUuid()))
+                .singleElement()
+                .satisfies(instance -> {
+                    assertThat(instance.organisationUuid()).isNull();
+                    assertThat(instance.organisationName()).isNull();
+                });
+    }
+
+    @Test
+    void instructorScheduleSkipsOrganisationLookupWhenNoClassIsOrganisationOwned() {
+        UUID instructorUuid = UUID.randomUUID();
+        ScheduledInstance ownSession = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+
+        when(scheduledInstanceRepository.findByInstructorAndTimeRange(
+                eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(ownSession));
+        when(classDefinitionLookupService.findOrganisationUuids(anyCollection())).thenReturn(Map.of());
+
+        List<ScheduledInstanceDTO> schedule = timetableService.getScheduleForInstructor(
+                instructorUuid, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30));
+
+        assertThat(schedule).singleElement()
+                .satisfies(instance -> assertThat(instance.organisationName()).isNull());
+        verifyNoInteractions(organisationLookupService);
     }
 
     private ScheduledInstance buildScheduledInstance(UUID instructorUuid, SchedulingStatus status) {

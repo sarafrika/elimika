@@ -42,5 +42,14 @@ public record InstructorScheduleEntry(
 
         @Schema(description = "Cancellation reason when status is CANCELLED", example = "Instructor unavailable")
         @JsonProperty("cancellation_reason")
-        String cancellationReason
+        String cancellationReason,
+
+        @Schema(description = "Organisation the instructor is delivering this session for, when the class is "
+                + "organisation-owned", example = "6f0f1f61-59fd-4a4e-9a63-0c2f0a4b7c31")
+        @JsonProperty("organisation_uuid")
+        UUID organisationUuid,
+
+        @Schema(description = "Display name of the owning organisation", example = "Sarafrika Technical College")
+        @JsonProperty("organisation_name")
+        String organisationName
 ) { }

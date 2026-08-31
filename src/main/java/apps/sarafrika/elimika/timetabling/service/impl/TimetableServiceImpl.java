@@ -61,6 +61,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -88,6 +89,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final AvailabilityService availabilityService;
     private final StudentLookupService studentLookupService;
     private final apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
+    private final apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService organisationLookupService;
     private final InstructorLookupService instructorLookupService;
     private final ResourceBookingService resourceBookingService;
 
@@ -656,10 +658,55 @@ public class TimetableServiceImpl implements TimetableService {
         List<ScheduledInstance> instances = scheduledInstanceRepository.findByInstructorAndTimeRange(
             instructorUuid, startDateTime, endDateTime);
 
-        return instances.stream()
+        List<ScheduledInstanceDTO> schedule = instances.stream()
             .filter(instance -> !SchedulingStatus.CANCELLED.equals(instance.getStatus()))
             .map(ScheduledInstanceFactory::toDTO)
             .toList();
+
+        return attributeToOrganisations(schedule);
+    }
+
+    /**
+     * Stamps each session with the organisation whose class it delivers.
+     * <p>
+     * An instructor hired by an organisation gets sessions on their calendar that they never
+     * created. Without this the booking is just an unexplained block of taken time; with it the
+     * calendar can say whose work it is. Resolved in two batched lookups - classes, then
+     * organisations - rather than per session, since a term's schedule is many sessions of few
+     * classes.
+     *
+     * @param schedule sessions to attribute
+     * @return the same sessions, organisation-owned ones carrying their organisation
+     */
+    private List<ScheduledInstanceDTO> attributeToOrganisations(List<ScheduledInstanceDTO> schedule) {
+        Set<UUID> classDefinitionUuids = schedule.stream()
+                .map(ScheduledInstanceDTO::classDefinitionUuid)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (classDefinitionUuids.isEmpty()) {
+            return schedule;
+        }
+
+        Map<UUID, UUID> organisationByClass = classDefinitionLookupService
+                .findOrganisationUuids(classDefinitionUuids);
+        if (organisationByClass.isEmpty()) {
+            return schedule;
+        }
+
+        Map<UUID, String> organisationNames = organisationLookupService
+                .findOrganisationNames(organisationByClass.values());
+
+        return schedule.stream()
+                .map(instance -> {
+                    UUID organisationUuid = instance.classDefinitionUuid() == null
+                            ? null
+                            : organisationByClass.get(instance.classDefinitionUuid());
+                    return organisationUuid == null
+                            ? instance
+                            : instance.withOrganisation(organisationUuid, organisationNames.get(organisationUuid));
+                })
+                .toList();
     }
 
     @Override
@@ -746,7 +793,7 @@ public class TimetableServiceImpl implements TimetableService {
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
 
-        return ScheduledInstanceFactory.toDTO(entity);
+        return attributeToOrganisations(List.of(ScheduledInstanceFactory.toDTO(entity))).getFirst();
     }
 
     @Override

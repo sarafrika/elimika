@@ -57,7 +57,16 @@ public record InstructorCalendarEntryDTO(
 
         @Schema(description = "Optional source/reason for blocked entries", example = "BLOCKED_TIME_SLOT")
         @JsonProperty("source")
-        String source
+        String source,
+
+        @Schema(description = "Organisation the instructor is delivering this session for, when the class behind it "
+                + "is organisation-owned. Null for the instructor's own classes and for availability entries.")
+        @JsonProperty("organisation_uuid")
+        UUID organisationUuid,
+
+        @Schema(description = "Display name of the owning organisation", example = "Sarafrika Technical College")
+        @JsonProperty("organisation_name")
+        String organisationName
 ) {
 
     public enum CalendarEntryType {

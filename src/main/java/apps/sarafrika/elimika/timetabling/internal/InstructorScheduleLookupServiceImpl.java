@@ -35,7 +35,9 @@ class InstructorScheduleLookupServiceImpl implements InstructorScheduleLookupSer
                 instance.title(),
                 instance.classDefinitionUuid(),
                 instance.locationType(),
-                instance.cancellationReason()
+                instance.cancellationReason(),
+                instance.organisationUuid(),
+                instance.organisationName()
         );
     }
 }

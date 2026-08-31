@@ -38,6 +38,8 @@ import java.util.UUID;
             "location_latitude": -1.292066,
             "location_longitude": 36.821945,
             "max_participants": 25,
+            "organisation_uuid": "org12345-6789-abcd-ef01-234567890abc",
+            "organisation_name": "Sarafrika Technical College",
             "status": "SCHEDULED",
             "cancellation_reason": null,
             "started_at": null,
@@ -163,6 +165,28 @@ public record ScheduledInstanceDTO(
         Integer maxParticipants,
 
         @Schema(
+                description = "**[READ-ONLY]** Organisation that owns the class behind this session, when the "
+                        + "instructor is delivering it on an organisation's behalf. Null for an instructor's own class.",
+                example = "org12345-6789-abcd-ef01-234567890abc",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "organisation_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID organisationUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** Display name of the owning organisation, so a calendar can say whose "
+                        + "work the session is without a second lookup.",
+                example = "Sarafrika Technical College",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "organisation_name", access = JsonProperty.Access.READ_ONLY)
+        String organisationName,
+
+        @Schema(
                 description = "**[OPTIONAL]** Current status of the scheduled instance.",
                 example = "SCHEDULED",
                 allowableValues = {"SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED", "BLOCKED"},
@@ -275,10 +299,50 @@ public record ScheduledInstanceDTO(
                 locationLatitude,
                 locationLongitude,
                 maxParticipants,
+                null,
+                null,
                 status,
                 cancellationReason,
                 null,
                 null,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy
+        );
+    }
+
+    /**
+     * Returns a copy of this instance stamped with the organisation the class belongs to.
+     * <p>
+     * Attribution is resolved per query rather than stored on the session row: the owning
+     * organisation lives on the class definition, and copying it onto every session would leave
+     * two truths to keep in step.
+     *
+     * @param organisationUuid the owning organisation, or null when the class is not org-owned
+     * @param organisationName the owning organisation's display name, or null
+     * @return a copy carrying the attribution
+     */
+    public ScheduledInstanceDTO withOrganisation(UUID organisationUuid, String organisationName) {
+        return new ScheduledInstanceDTO(
+                uuid,
+                classDefinitionUuid,
+                instructorUuid,
+                startTime,
+                endTime,
+                timezone,
+                title,
+                locationType,
+                locationName,
+                locationLatitude,
+                locationLongitude,
+                maxParticipants,
+                organisationUuid,
+                organisationName,
+                status,
+                cancellationReason,
+                startedAt,
+                concludedAt,
                 createdDate,
                 updatedDate,
                 createdBy,

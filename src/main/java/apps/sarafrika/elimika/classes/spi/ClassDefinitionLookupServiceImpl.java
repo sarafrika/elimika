@@ -4,10 +4,15 @@ import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,6 +48,28 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
         }
         return classDefinitionRepository.findByUuid(classDefinitionUuid)
                 .map(ClassDefinition::getOrganisationUuid);
+    }
+
+    @Override
+    public Map<UUID, UUID> findOrganisationUuids(Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            return Map.of();
+        }
+
+        Collection<UUID> requested = classDefinitionUuids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, UUID> organisationsByClass = new LinkedHashMap<>();
+        for (ClassDefinition classDefinition : classDefinitionRepository.findByUuidIn(requested)) {
+            if (classDefinition.getUuid() != null && classDefinition.getOrganisationUuid() != null) {
+                organisationsByClass.put(classDefinition.getUuid(), classDefinition.getOrganisationUuid());
+            }
+        }
+        return organisationsByClass;
     }
 
     @Override

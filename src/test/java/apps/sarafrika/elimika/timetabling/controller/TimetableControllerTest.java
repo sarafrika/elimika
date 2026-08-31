@@ -159,6 +159,8 @@ class TimetableControllerTest {
                 null,
                 null,
                 25,
+                null,
+                null,
                 status,
                 null,
                 startedAt,
