@@ -1,3 +1,10 @@
+## [2.134.7](https://github.com/sarafrika/elimika/compare/v2.134.6...v2.134.7) (2026-08-31)
+
+
+### Bug Fixes
+
+* derive class duration from scheduled start and end times ([705d32e](https://github.com/sarafrika/elimika/commit/705d32ee1311ffb43f0548983aa60fbca5247cfa))
+
 ## [2.134.6](https://github.com/sarafrika/elimika/compare/v2.134.5...v2.134.6) (2026-08-31)
 
 
