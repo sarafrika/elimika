@@ -1,3 +1,10 @@
+## [2.134.6](https://github.com/sarafrika/elimika/compare/v2.134.5...v2.134.6) (2026-08-31)
+
+
+### Bug Fixes
+
+* attribute organisation work on instructor schedule ([3560ed4](https://github.com/sarafrika/elimika/commit/3560ed41bb95ca3ae971a857cef4eb5b5b266ed9))
+
 ## [2.134.5](https://github.com/sarafrika/elimika/compare/v2.134.4...v2.134.5) (2026-08-29)
 
 
