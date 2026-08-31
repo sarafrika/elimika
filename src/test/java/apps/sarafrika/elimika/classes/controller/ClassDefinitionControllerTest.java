@@ -142,11 +142,11 @@ class ClassDefinitionControllerTest {
     }
 
     @Test
-    void createClassDefinitionDerivesEndTimesFromDurationMinutes() throws Exception {
+    void createClassDefinitionForwardsScheduledTimesAndDerivesDuration() throws Exception {
         LocalDateTime classStart = LocalDateTime.of(2026, 5, 2, 9, 0);
-        LocalDateTime staleClassEnd = LocalDateTime.of(2026, 5, 2, 8, 0);
+        LocalDateTime classEnd = LocalDateTime.of(2026, 5, 2, 10, 30);
         LocalDateTime templateStart = LocalDateTime.of(2026, 5, 3, 10, 0);
-        LocalDateTime staleTemplateEnd = LocalDateTime.of(2026, 5, 3, 9, 0);
+        LocalDateTime templateEnd = LocalDateTime.of(2026, 5, 3, 11, 0);
         ClassDefinitionDTO source = sampleRequest(UUID.randomUUID(), null, 30, "#1F6FEB");
         ClassDefinitionCreateRequestDTO request = new ClassDefinitionCreateRequestDTO(
                 source.title(),
@@ -163,8 +163,7 @@ class ClassDefinitionControllerTest {
                 source.classVisibility(),
                 source.sessionFormat(),
                 classStart,
-                staleClassEnd,
-                90,
+                classEnd,
                 source.academicPeriodStartDate(),
                 source.academicPeriodEndDate(),
                 source.registrationPeriodStartDate(),
@@ -182,8 +181,7 @@ class ClassDefinitionControllerTest {
                 List.of(new ClassSessionTemplateDTO(
                         null,
                         templateStart,
-                        staleTemplateEnd,
-                        90,
+                        templateEnd,
                         null,
                         ConflictResolutionStrategy.FAIL
                 ))
@@ -201,9 +199,51 @@ class ClassDefinitionControllerTest {
         verify(classDefinitionService).createClassDefinition(captor.capture());
 
         ClassDefinitionDTO forwarded = captor.getValue();
-        assertEquals(classStart.plusMinutes(90), forwarded.defaultEndTime());
-        assertEquals(templateStart.plusMinutes(90), forwarded.sessionTemplates().getFirst().endTime());
-        assertEquals(90, forwarded.sessionTemplates().getFirst().durationMinutes());
+        assertEquals(classEnd, forwarded.defaultEndTime());
+        assertEquals(templateEnd, forwarded.sessionTemplates().getFirst().endTime());
+        assertEquals(60, forwarded.sessionTemplates().getFirst().getDurationMinutes());
+    }
+
+    @Test
+    void createClassDefinitionRejectsEndTimeBeforeStartTime() throws Exception {
+        ClassDefinitionDTO source = sampleRequest(UUID.randomUUID(), null, 30, "#1F6FEB");
+        ClassDefinitionCreateRequestDTO request = new ClassDefinitionCreateRequestDTO(
+                source.title(),
+                source.description(),
+                source.thumbnailUrl(),
+                source.promotionalVideoUrl(),
+                source.defaultInstructorUuid(),
+                source.organisationUuid(),
+                source.courseUuid(),
+                source.programUuid(),
+                source.salePrice(),
+                source.instructorPay(),
+                source.rateBasis(),
+                source.classVisibility(),
+                source.sessionFormat(),
+                LocalDateTime.of(2026, 5, 2, 9, 0),
+                LocalDateTime.of(2026, 5, 2, 8, 0),
+                source.academicPeriodStartDate(),
+                source.academicPeriodEndDate(),
+                source.registrationPeriodStartDate(),
+                source.registrationPeriodEndDate(),
+                source.classReminderMinutes(),
+                source.classColor(),
+                source.locationType(),
+                source.locationName(),
+                source.locationLatitude(),
+                source.locationLongitude(),
+                source.meetingLink(),
+                source.maxParticipants(),
+                source.allowWaitlist(),
+                source.isActive(),
+                source.sessionTemplates()
+        );
+
+        mockMvc.perform(post("/api/v1/classes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -708,7 +748,6 @@ class ClassDefinitionControllerTest {
                 source.sessionFormat(),
                 source.defaultStartTime(),
                 source.defaultEndTime(),
-                null,
                 source.academicPeriodStartDate(),
                 source.academicPeriodEndDate(),
                 source.registrationPeriodStartDate(),
@@ -743,7 +782,6 @@ class ClassDefinitionControllerTest {
                 source.sessionFormat(),
                 source.defaultStartTime(),
                 source.defaultEndTime(),
-                null,
                 source.academicPeriodStartDate(),
                 source.academicPeriodEndDate(),
                 source.registrationPeriodStartDate(),

@@ -1,13 +1,12 @@
 package apps.sarafrika.elimika.classes.dto;
 
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,25 +14,26 @@ import java.util.UUID;
         name = "ClassSessionTemplate",
         description = "Time slot template used during class creation to generate scheduled instances with optional recurrence"
 )
+@ValidTimeRange(
+        startField = "startTime",
+        endField = "endTime",
+        message = "Session template end_time must be after start_time"
+)
 public record ClassSessionTemplateDTO(
 
         @Schema(description = "**[READ-ONLY]** Unique identifier for this persisted class session template.")
         @JsonProperty(value = "uuid", access = JsonProperty.Access.READ_ONLY)
         UUID uuid,
 
-        @Schema(description = "Start time for the first occurrence (UTC)", example = "2025-01-15T14:00:00Z")
+        @Schema(description = "**[REQUIRED]** Start time for the first occurrence (UTC)", example = "2025-01-15T14:00:00Z")
         @NotNull(message = "Session start time is required")
         @JsonProperty("start_time")
         LocalDateTime startTime,
 
-        @Schema(description = "End time for the first occurrence (UTC). If duration_minutes is supplied, the backend derives this value.", example = "2025-01-15T15:30:00Z")
+        @Schema(description = "**[REQUIRED]** End time for the first occurrence (UTC). Together with start_time this fixes the session length.", example = "2025-01-15T15:30:00Z")
+        @NotNull(message = "Session end time is required")
         @JsonProperty("end_time")
         LocalDateTime endTime,
-
-        @Schema(description = "Positive session duration in minutes. When supplied it is authoritative and the backend derives end_time from start_time.", example = "90", minimum = "1")
-        @Positive(message = "Session duration_minutes must be positive")
-        @JsonProperty("duration_minutes")
-        Integer durationMinutes,
 
         @Schema(description = "Inline recurrence rule for this session template", nullable = true)
         @JsonProperty("recurrence")
@@ -49,49 +49,28 @@ public record ClassSessionTemplateDTO(
                 ClassRecurrenceDTO recurrence,
                 ConflictResolutionStrategy conflictResolution
         ) {
-                this(null, startTime, endTime, null, recurrence, conflictResolution);
+                this(null, startTime, endTime, recurrence, conflictResolution);
         }
 
-        public ClassSessionTemplateDTO(
-                UUID uuid,
-                LocalDateTime startTime,
-                LocalDateTime endTime,
-                ClassRecurrenceDTO recurrence,
-                ConflictResolutionStrategy conflictResolution
-        ) {
-                this(uuid, startTime, endTime, null, recurrence, conflictResolution);
-        }
-
-        @JsonIgnore
-        @AssertTrue(message = "Session template requires either end_time or duration_minutes")
-        public boolean hasEndTimeOrDuration() {
-                return endTime != null || durationMinutes != null;
-        }
-
-        @JsonIgnore
-        @AssertTrue(message = "Session template end_time must be after start_time")
-        public boolean hasValidEndTimeWhenDurationMissing() {
-                if (durationMinutes != null || startTime == null || endTime == null) {
-                        return true;
+        /**
+         * Reports how long the session runs, in minutes.
+         * <p>
+         * Derived rather than stored, and read-only on the wire, because the schedule the user set is
+         * the start and the end. A duration accepted as input is a second, independent source of truth
+         * for the same fact, and the two disagree the moment either is edited.
+         *
+         * @return the session length in minutes, or 0 when the window is not yet complete
+         */
+        @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)
+        @Schema(
+                description = "**[READ-ONLY]** Computed session length in minutes, derived from start_time and end_time.",
+                example = "90",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        public long getDurationMinutes() {
+                if (startTime == null || endTime == null) {
+                        return 0;
                 }
-                return startTime.isBefore(endTime);
-        }
-
-        public ClassSessionTemplateDTO withDurationApplied(Integer fallbackDurationMinutes) {
-                Integer effectiveDurationMinutes = durationMinutes != null ? durationMinutes : fallbackDurationMinutes;
-                if (startTime == null || effectiveDurationMinutes == null) {
-                        return this;
-                }
-                if (effectiveDurationMinutes <= 0) {
-                        throw new IllegalArgumentException("duration_minutes must be positive");
-                }
-                return new ClassSessionTemplateDTO(
-                        uuid,
-                        startTime,
-                        startTime.plusMinutes(effectiveDurationMinutes.longValue()),
-                        effectiveDurationMinutes,
-                        recurrence,
-                        conflictResolution
-                );
+                return Duration.between(startTime, endTime).toMinutes();
         }
 }

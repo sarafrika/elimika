@@ -62,6 +62,11 @@ import java.util.UUID;
 )
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @ValidTimeRange(
+        startField = "defaultStartTime",
+        endField = "defaultEndTime",
+        message = "Class end time must be after start time"
+)
+@ValidTimeRange(
         startField = "academicPeriodStartDate",
         endField = "academicPeriodEndDate",
         allowEqual = true,
@@ -114,14 +119,10 @@ public record ClassMarketplaceJobRequestDTO(
         @NotNull(message = "default_start_time is required")
         LocalDateTime defaultStartTime,
 
-        @Schema(description = "**[OPTIONAL]** Default end date-time for the advertised class (UTC). If duration_minutes is supplied, the backend derives this value.", nullable = true)
+        @Schema(description = "**[REQUIRED]** Default end date-time for the advertised class (UTC). Together with default_start_time this fixes the class length.", requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("default_end_time")
+        @NotNull(message = "default_end_time is required")
         LocalDateTime defaultEndTime,
-
-        @Schema(description = "**[REQUIRED]** Positive default class duration in minutes. When supplied it is authoritative and the backend derives default_end_time from default_start_time.", minimum = "1", example = "180")
-        @JsonProperty("duration_minutes")
-        @Positive(message = "duration_minutes must be positive")
-        Integer durationMinutes,
 
         @Schema(description = "Optional academic period start date.", nullable = true)
         @JsonProperty("academic_period_start_date")
@@ -255,74 +256,5 @@ public record ClassMarketplaceJobRequestDTO(
     @AssertTrue(message = "Exactly one of course_uuid or program_uuid is required")
     public boolean hasSingleLearningContext() {
         return (courseUuid == null) != (programUuid == null);
-    }
-
-    @JsonIgnore
-    @AssertTrue(message = "Either default_end_time or duration_minutes is required")
-    public boolean hasDefaultEndTimeOrDuration() {
-        return defaultEndTime != null || durationMinutes != null;
-    }
-
-    @JsonIgnore
-    @AssertTrue(message = "Class end time must be after start time")
-    public boolean hasValidDefaultEndTimeWhenDurationMissing() {
-        if (durationMinutes != null || defaultStartTime == null || defaultEndTime == null) {
-            return true;
-        }
-        return defaultStartTime.isBefore(defaultEndTime);
-    }
-
-    public ClassMarketplaceJobRequestDTO withDurationApplied() {
-        LocalDateTime effectiveDefaultEndTime = defaultEndTime;
-        if (defaultStartTime != null && durationMinutes != null) {
-            effectiveDefaultEndTime = defaultStartTime.plusMinutes(durationMinutes.longValue());
-        }
-
-        List<ClassSessionTemplateDTO> effectiveSessionTemplates = sessionTemplates == null
-                ? null
-                : sessionTemplates.stream()
-                .map(template -> template == null ? null : template.withDurationApplied(durationMinutes))
-                .toList();
-
-        return new ClassMarketplaceJobRequestDTO(
-                organisationUuid,
-                courseUuid,
-                programUuid,
-                title,
-                description,
-                classVisibility,
-                sessionFormat,
-                defaultStartTime,
-                effectiveDefaultEndTime,
-                durationMinutes,
-                academicPeriodStartDate,
-                academicPeriodEndDate,
-                registrationPeriodStartDate,
-                registrationPeriodEndDate,
-                classReminderMinutes,
-                classColor,
-                locationType,
-                locationName,
-                locationLatitude,
-                locationLongitude,
-                meetingLink,
-                maxParticipants,
-                allowWaitlist,
-                salePrice,
-                instructorPay,
-                rateBasis,
-                effectiveSessionTemplates,
-                resources,
-                serviceType,
-                preferredInstructorUuid,
-                targetGroups,
-                targetGroupUuids,
-                categoryUuid,
-                remindStudents,
-                remindInstructor,
-                remindViaEmail,
-                remindViaSms,
-                remindViaPush
-        );
     }
 }

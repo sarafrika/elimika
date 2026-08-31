@@ -53,8 +53,16 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
     List<ScheduledInstance> findActiveInstancesInTimeRange(@Param("startTime") LocalDateTime startTime,
                                                           @Param("endTime") LocalDateTime endTime);
 
+    /**
+     * Finds the instructor's sessions that genuinely collide with the window.
+     * <p>
+     * Sessions are half-open intervals: one running 09:00-11:00 holds the instructor up to 11:00 but
+     * not at 11:00, so the 11:00-12:00 session after it is adjacent, not double booked. The strict
+     * comparisons are what draw that line - with {@code <=} / {@code >=} the shared instant reads as
+     * time booked twice and back-to-back teaching becomes unschedulable.
+     */
     @Query("SELECT si FROM ScheduledInstance si WHERE si.instructorUuid = :instructorUuid " +
-           "AND si.startTime <= :endTime AND si.endTime >= :startTime " +
+           "AND si.startTime < :endTime AND si.endTime > :startTime " +
            "AND si.status NOT IN ('CANCELLED', 'COMPLETED')")
     List<ScheduledInstance> findOverlappingInstancesForInstructor(@Param("instructorUuid") UUID instructorUuid,
                                                                 @Param("startTime") LocalDateTime startTime,

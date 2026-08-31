@@ -52,8 +52,15 @@ public interface AvailabilityRepository extends JpaRepository<InstructorAvailabi
     List<InstructorAvailability> findEffectiveAvailabilityForDate(@Param("instructorUuid") UUID instructorUuid,
                                                                 @Param("date") LocalDate date);
 
+    /**
+     * Finds the availability slots that genuinely cover part of the window.
+     * <p>
+     * Slots are half-open like the sessions they gate, so a block starting at 12:00 does not cover a
+     * class ending at 12:00. Written inclusively, a blocked-out slot butting up against a class
+     * marked that class unavailable and the instructor lost the hour either side of every break.
+     */
     @Query("SELECT ia FROM InstructorAvailability ia WHERE ia.instructorUuid = :instructorUuid " +
-           "AND ia.startTime <= :endTime AND ia.endTime >= :startTime " +
+           "AND ia.startTime < :endTime AND ia.endTime > :startTime " +
            "AND (ia.effectiveStartDate IS NULL OR ia.effectiveStartDate <= :date) " +
            "AND (ia.effectiveEndDate IS NULL OR ia.effectiveEndDate >= :date)")
     List<InstructorAvailability> findOverlappingAvailability(@Param("instructorUuid") UUID instructorUuid,
