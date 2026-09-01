@@ -1,3 +1,10 @@
+## [2.134.8](https://github.com/sarafrika/elimika/compare/v2.134.7...v2.134.8) (2026-09-01)
+
+
+### Bug Fixes
+
+* persist class session timezones ([9b96da2](https://github.com/sarafrika/elimika/commit/9b96da24b7f677416ba17d1b28673e4500117897))
+
 ## [2.134.7](https://github.com/sarafrika/elimika/compare/v2.134.6...v2.134.7) (2026-08-31)
 
 
