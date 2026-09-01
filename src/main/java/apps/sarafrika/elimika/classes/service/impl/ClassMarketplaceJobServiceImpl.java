@@ -72,8 +72,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -98,6 +100,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final String JOB_NOT_FOUND_TEMPLATE = "Marketplace class job with UUID %s not found";
     private static final String APPLICATION_NOT_FOUND_TEMPLATE = "Marketplace job application %s not found for job %s";
     private static final int DEFAULT_MAX_PARTICIPANTS = 50;
+    private static final String DEFAULT_SCHEDULE_TIMEZONE = "UTC";
     private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
 
@@ -958,6 +961,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             template.setJobUuid(jobUuid);
             template.setStartTime(templateDTO.startTime());
             template.setEndTime(templateDTO.endTime());
+            template.setTimezone(normalizeTimezone(templateDTO.timezone()));
             if (templateDTO.recurrence() != null && templateDTO.recurrence().recurrenceType() != null) {
                 template.setRecurrenceType(templateDTO.recurrence().recurrenceType().name());
                 template.setIntervalValue(templateDTO.recurrence().intervalValue());
@@ -1464,10 +1468,23 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 entity.getStartTime(),
                 entity.getEndTime(),
                 recurrence,
+                entity.getTimezone(),
                 apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy.valueOf(
                         Optional.ofNullable(entity.getConflictResolution()).orElse("FAIL")
                 )
         );
+    }
+
+    private String normalizeTimezone(String timezone) {
+        String value = timezone == null || timezone.isBlank()
+                ? DEFAULT_SCHEDULE_TIMEZONE
+                : timezone.trim();
+        try {
+            ZoneId.of(value);
+        } catch (DateTimeException ex) {
+            throw new IllegalArgumentException("Invalid IANA timezone: " + value, ex);
+        }
+        return value;
     }
 
     private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job) {

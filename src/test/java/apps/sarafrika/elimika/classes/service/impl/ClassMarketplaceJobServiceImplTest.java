@@ -292,6 +292,7 @@ class ClassMarketplaceJobServiceImplTest {
         verify(sessionTemplateRepository).saveAll(templateCaptor.capture());
         assertThat(templateCaptor.getValue()).hasSize(1);
         assertThat(templateCaptor.getValue().getFirst().getEndTime()).isEqualTo(templateStart.plusMinutes(90));
+        assertThat(templateCaptor.getValue().getFirst().getTimezone()).isEqualTo("Africa/Nairobi");
     }
 
     @Test
@@ -1411,6 +1412,7 @@ class ClassMarketplaceJobServiceImplTest {
                         templateStartTime,
                         templateEndTime,
                         null,
+                        "Africa/Nairobi",
                         ConflictResolutionStrategy.FAIL
                 )),
                 base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
@@ -1952,6 +1954,8 @@ class ClassMarketplaceJobServiceImplTest {
         verify(classDefinitionService).createClassDefinition(definitionCaptor.capture());
         assertThat(definitionCaptor.getValue().venueResourceUuid()).isEqualTo(jobResource.getResourceUuid());
         assertThat(definitionCaptor.getValue().marketplaceJobUuid()).isEqualTo(job.getUuid());
+        assertThat(definitionCaptor.getValue().sessionTemplates().getFirst().timezone())
+                .isEqualTo("Africa/Nairobi");
     }
 
     @Test
@@ -2046,6 +2050,7 @@ class ClassMarketplaceJobServiceImplTest {
         template.setJobUuid(jobUuid);
         template.setStartTime(LocalDateTime.of(2026, 5, 2, 9, 0));
         template.setEndTime(LocalDateTime.of(2026, 5, 2, 12, 0));
+        template.setTimezone("Africa/Nairobi");
         template.setRecurrenceType("WEEKLY");
         template.setIntervalValue(1);
         template.setDaysOfWeek("SATURDAY");

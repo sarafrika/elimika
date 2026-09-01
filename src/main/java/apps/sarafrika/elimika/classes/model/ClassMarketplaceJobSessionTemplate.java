@@ -30,6 +30,9 @@ public class ClassMarketplaceJobSessionTemplate extends BaseEntity {
     @Column(name = "end_time")
     private LocalDateTime endTime;
 
+    @Column(name = "timezone")
+    private String timezone;
+
     @Column(name = "recurrence_type")
     private String recurrenceType;
 

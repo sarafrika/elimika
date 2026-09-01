@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -39,17 +40,42 @@ public record ClassSessionTemplateDTO(
         @JsonProperty("recurrence")
         ClassRecurrenceDTO recurrence,
 
+        @Schema(description = "**[OPTIONAL]** IANA timezone identifier used when displaying generated scheduled sessions.", example = "Africa/Nairobi")
+        @Size(max = 64, message = "Timezone must not exceed 64 characters")
+        @JsonProperty("timezone")
+        String timezone,
+
         @Schema(description = "Conflict handling strategy: FAIL (default), SKIP, ROLLOVER", example = "FAIL")
         @JsonProperty("conflict_resolution")
         ConflictResolutionStrategy conflictResolution
 ) {
+        public ClassSessionTemplateDTO(
+                UUID uuid,
+                LocalDateTime startTime,
+                LocalDateTime endTime,
+                ClassRecurrenceDTO recurrence,
+                ConflictResolutionStrategy conflictResolution
+        ) {
+                this(uuid, startTime, endTime, recurrence, null, conflictResolution);
+        }
+
+        public ClassSessionTemplateDTO(
+                LocalDateTime startTime,
+                LocalDateTime endTime,
+                ClassRecurrenceDTO recurrence,
+                String timezone,
+                ConflictResolutionStrategy conflictResolution
+        ) {
+                this(null, startTime, endTime, recurrence, timezone, conflictResolution);
+        }
+
         public ClassSessionTemplateDTO(
                 LocalDateTime startTime,
                 LocalDateTime endTime,
                 ClassRecurrenceDTO recurrence,
                 ConflictResolutionStrategy conflictResolution
         ) {
-                this(null, startTime, endTime, recurrence, conflictResolution);
+                this(null, startTime, endTime, recurrence, null, conflictResolution);
         }
 
         /**

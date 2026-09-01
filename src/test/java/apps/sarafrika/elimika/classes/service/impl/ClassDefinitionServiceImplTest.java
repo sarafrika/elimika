@@ -182,11 +182,13 @@ class ClassDefinitionServiceImplTest {
                     .satisfies(template -> {
                         assertThat(template.getClassDefinitionUuid()).isEqualTo(classUuid);
                         assertThat(template.getTemplateOrder()).isZero();
+                        assertThat(template.getTimezone()).isEqualTo("Africa/Nairobi");
                         assertThat(template.getConflictResolution()).isEqualTo(ConflictResolutionStrategy.FAIL);
                     });
             return true;
         }));
-        verify(timetableService).scheduleClass(any(ScheduleRequestDTO.class));
+        verify(timetableService).scheduleClass(argThat(scheduleRequest ->
+                "Africa/Nairobi".equals(scheduleRequest.timezone())));
     }
 
     @Test
@@ -354,6 +356,7 @@ class ClassDefinitionServiceImplTest {
                                 null,
                                 1
                         ),
+                        "Africa/Nairobi",
                         ConflictResolutionStrategy.FAIL
                 )),
                 null,
@@ -448,6 +451,7 @@ class ClassDefinitionServiceImplTest {
         template.setTemplateOrder(0);
         template.setStartTime(LocalDateTime.of(2026, 6, 12, 9, 0));
         template.setEndTime(LocalDateTime.of(2026, 6, 12, 11, 0));
+        template.setTimezone("Africa/Nairobi");
         template.setRecurrenceType(ClassRecurrenceType.WEEKLY);
         template.setIntervalValue(1);
         template.setDaysOfWeek("FRIDAY");

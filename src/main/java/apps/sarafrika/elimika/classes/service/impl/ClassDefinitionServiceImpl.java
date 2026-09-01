@@ -52,8 +52,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
@@ -64,6 +66,7 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 @Transactional
 @Slf4j
 public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterface, ClassDefinitionService {
+    private static final String DEFAULT_SCHEDULE_TIMEZONE = "UTC";
 
     private final ClassDefinitionRepository classDefinitionRepository;
     private final apps.sarafrika.elimika.shared.security.DomainSecurityService domainSecurityService;
@@ -297,6 +300,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
             ConflictResolutionStrategy strategy = Optional.ofNullable(template.conflictResolution())
                     .orElse(ConflictResolutionStrategy.FAIL);
+            String timezone = normalizeTimezone(template.timezone());
             int conflictCountBefore = conflicts.size();
 
             List<OccurrenceWindow> windows = RecurrenceExpander.expand(
@@ -305,9 +309,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     RecurrencePatterns.fromRecurrenceDTO(template.recurrence()));
 
             for (OccurrenceWindow window : windows) {
-                boolean scheduled = attemptScheduleWindow(classDefinition, window.start(), window.end(), conflicts, scheduledInstances);
+                boolean scheduled = attemptScheduleWindow(classDefinition, window.start(), window.end(), timezone, conflicts, scheduledInstances);
                 if (!scheduled && strategy == ConflictResolutionStrategy.ROLLOVER) {
-                    attemptRollover(classDefinition, window.start(), window.end(), template.recurrence(), conflicts, scheduledInstances);
+                    attemptRollover(classDefinition, window.start(), window.end(), template.recurrence(), timezone, conflicts, scheduledInstances);
                 }
             }
 
@@ -322,11 +326,12 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private boolean attemptScheduleWindow(ClassDefinitionDTO classDefinition,
                                           LocalDateTime start,
                                           LocalDateTime end,
+                                          String timezone,
                                           List<ClassSchedulingConflictDTO> conflicts,
                                           List<ScheduledInstanceDTO> scheduledInstances) {
-        List<String> reasons = detectConflicts(classDefinition, start, end);
+        List<String> reasons = detectConflicts(classDefinition, start, end, timezone);
         if (reasons.isEmpty()) {
-            scheduledInstances.add(scheduleInstance(classDefinition, start, end));
+            scheduledInstances.add(scheduleInstance(classDefinition, start, end, timezone));
             return true;
         }
 
@@ -338,6 +343,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                     LocalDateTime start,
                                     LocalDateTime end,
                                     ClassRecurrenceDTO recurrence,
+                                    String timezone,
                                     List<ClassSchedulingConflictDTO> conflicts,
                                     List<ScheduledInstanceDTO> scheduledInstances) {
         ClassRecurrenceDTO safeRecurrence = recurrence != null ? recurrence :
@@ -351,9 +357,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             rollingStart = advanceByRecurrence(rollingStart, safeRecurrence);
             rollingEnd = advanceByRecurrence(rollingEnd, safeRecurrence);
 
-            List<String> reasons = detectConflicts(classDefinition, rollingStart, rollingEnd);
+            List<String> reasons = detectConflicts(classDefinition, rollingStart, rollingEnd, timezone);
             if (reasons.isEmpty()) {
-                scheduledInstances.add(scheduleInstance(classDefinition, rollingStart, rollingEnd));
+                scheduledInstances.add(scheduleInstance(classDefinition, rollingStart, rollingEnd, timezone));
                 return true;
             }
             conflicts.add(new ClassSchedulingConflictDTO(rollingStart, rollingEnd, reasons));
@@ -371,7 +377,16 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         };
     }
 
-    private List<String> detectConflicts(ClassDefinitionDTO classDefinition, LocalDateTime start, LocalDateTime end) {
+    private List<String> detectConflicts(ClassDefinitionDTO classDefinition,
+                                         LocalDateTime start,
+                                         LocalDateTime end) {
+        return detectConflicts(classDefinition, start, end, DEFAULT_SCHEDULE_TIMEZONE);
+    }
+
+    private List<String> detectConflicts(ClassDefinitionDTO classDefinition,
+                                         LocalDateTime start,
+                                         LocalDateTime end,
+                                         String timezone) {
         List<String> reasons = new ArrayList<>();
         UUID instructorUuid = classDefinition.defaultInstructorUuid();
 
@@ -383,7 +398,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 instructorUuid,
                 start,
                 end,
-                "UTC"
+                timezone
         );
         if (timetableService().hasInstructorConflict(instructorUuid, requestDTO)) {
             reasons.add("Instructor has overlapping scheduled instances");
@@ -401,15 +416,30 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return reasons;
     }
 
-    private ScheduledInstanceDTO scheduleInstance(ClassDefinitionDTO classDefinition, LocalDateTime start, LocalDateTime end) {
+    private ScheduledInstanceDTO scheduleInstance(ClassDefinitionDTO classDefinition,
+                                                 LocalDateTime start,
+                                                 LocalDateTime end,
+                                                 String timezone) {
         ScheduleRequestDTO scheduleRequestDTO = new ScheduleRequestDTO(
                 classDefinition.uuid(),
                 classDefinition.defaultInstructorUuid(),
                 start,
                 end,
-                "UTC"
+                timezone
         );
         return timetableService().scheduleClass(scheduleRequestDTO);
+    }
+
+    private String normalizeTimezone(String timezone) {
+        String value = timezone == null || timezone.isBlank()
+                ? DEFAULT_SCHEDULE_TIMEZONE
+                : timezone.trim();
+        try {
+            ZoneId.of(value);
+        } catch (DateTimeException ex) {
+            throw new IllegalArgumentException("Invalid IANA timezone: " + value, ex);
+        }
+        return value;
     }
 
     private record ClassSchedulingOutcome(List<ScheduledInstanceDTO> scheduledInstances,

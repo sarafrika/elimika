@@ -14,6 +14,7 @@ import java.util.UUID;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ClassSessionTemplateFactory {
+    private static final String DEFAULT_SCHEDULE_TIMEZONE = "UTC";
 
     public static ClassSessionTemplateDTO toDTO(ClassSessionTemplate entity) {
         if (entity == null) {
@@ -24,6 +25,7 @@ public class ClassSessionTemplateFactory {
                 entity.getStartTime(),
                 entity.getEndTime(),
                 toRecurrenceDTO(entity),
+                entity.getTimezone(),
                 Optional.ofNullable(entity.getConflictResolution()).orElse(ConflictResolutionStrategy.FAIL)
         );
     }
@@ -49,6 +51,7 @@ public class ClassSessionTemplateFactory {
         entity.setTemplateOrder(templateOrder);
         entity.setStartTime(dto.startTime());
         entity.setEndTime(dto.endTime());
+        entity.setTimezone(normalizeTimezone(dto.timezone()));
         if (dto.recurrence() != null && dto.recurrence().recurrenceType() != null) {
             entity.setRecurrenceType(ClassRecurrenceType.fromValue(dto.recurrence().recurrenceType().name()));
             entity.setIntervalValue(dto.recurrence().intervalValue());
@@ -60,6 +63,12 @@ public class ClassSessionTemplateFactory {
         entity.setConflictResolution(Optional.ofNullable(dto.conflictResolution())
                 .orElse(ConflictResolutionStrategy.FAIL));
         return entity;
+    }
+
+    private static String normalizeTimezone(String timezone) {
+        return timezone == null || timezone.isBlank()
+                ? DEFAULT_SCHEDULE_TIMEZONE
+                : timezone.trim();
     }
 
     private static ClassRecurrenceDTO toRecurrenceDTO(ClassSessionTemplate entity) {
