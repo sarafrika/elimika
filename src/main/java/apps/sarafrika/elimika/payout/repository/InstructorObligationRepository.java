@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -85,6 +86,35 @@ public interface InstructorObligationRepository extends JpaRepository<Instructor
             @Param("countedStatuses") Collection<InstructorObligationStatus> countedStatuses,
             @Param("outstandingStatus") InstructorObligationStatus outstandingStatus,
             @Param("settledStatus") InstructorObligationStatus settledStatus);
+
+    /**
+     * Money actually paid out to instructors, month by month. Sums {@code rate_amount} for
+     * obligations the organisation has settled, from a cut-off onward, grouped by the month
+     * they were settled in and by currency. {@code year()}/{@code month()} are used in place of
+     * {@code to_char} so the grouping stays portable; the caller formats the label. The status is
+     * a bound parameter for the same {@code AttributeConverter} reason as the aggregate above.
+     *
+     * @param settledStatus the status that means the money has left the organisation
+     * @param since         the earliest settlement instant to include
+     */
+    @Query("""
+            select new apps.sarafrika.elimika.payout.repository.MonthlyPayoutAggregate(
+                year(o.settledAt),
+                month(o.settledAt),
+                o.currencyCode,
+                coalesce(sum(o.rateAmount), 0)
+            )
+            from InstructorObligation o
+            where o.organisationUuid = :organisationUuid
+              and o.status = :settledStatus
+              and o.settledAt >= :since
+            group by year(o.settledAt), month(o.settledAt), o.currencyCode
+            order by year(o.settledAt), month(o.settledAt)
+            """)
+    List<MonthlyPayoutAggregate> aggregateMonthlySettlementsByOrganisation(
+            @Param("organisationUuid") UUID organisationUuid,
+            @Param("settledStatus") InstructorObligationStatus settledStatus,
+            @Param("since") LocalDateTime since);
 
     /**
      * What an instructor is owed, grouped by the organisation that owes it and by currency.

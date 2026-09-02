@@ -3,10 +3,12 @@ package apps.sarafrika.elimika.payout.service.impl;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.payout.dto.InstructorObligationDTO;
 import apps.sarafrika.elimika.payout.dto.InstructorStatementDTO;
+import apps.sarafrika.elimika.payout.dto.MonthlyPayoutPointDTO;
 import apps.sarafrika.elimika.payout.enums.InstructorObligationStatus;
 import apps.sarafrika.elimika.payout.factory.InstructorObligationFactory;
 import apps.sarafrika.elimika.payout.model.InstructorObligation;
 import apps.sarafrika.elimika.payout.repository.InstructorObligationRepository;
+import apps.sarafrika.elimika.payout.repository.MonthlyPayoutAggregate;
 import apps.sarafrika.elimika.payout.service.InstructorObligationService;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -273,6 +276,28 @@ public class InstructorObligationServiceImpl
                         InstructorObligationStatus.SETTLED)
                 .stream()
                 .map(InstructorObligationFactory::toPayable)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MonthlyPayoutPointDTO> getMonthlySettlements(UUID organisationUuid, int months) {
+        if (organisationUuid == null) {
+            return List.of();
+        }
+        int span = Math.max(1, months);
+        LocalDateTime since = LocalDate.now()
+                .minusMonths(span - 1L)
+                .withDayOfMonth(1)
+                .atStartOfDay();
+        return obligationRepository
+                .aggregateMonthlySettlementsByOrganisation(
+                        organisationUuid, InstructorObligationStatus.SETTLED, since)
+                .stream()
+                .map(row -> new MonthlyPayoutPointDTO(
+                        String.format("%04d-%02d", row.year(), row.month()),
+                        row.amount(),
+                        row.currencyCode()))
                 .toList();
     }
 

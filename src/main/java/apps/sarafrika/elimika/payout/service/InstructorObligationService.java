@@ -2,11 +2,13 @@ package apps.sarafrika.elimika.payout.service;
 
 import apps.sarafrika.elimika.payout.dto.InstructorObligationDTO;
 import apps.sarafrika.elimika.payout.dto.InstructorStatementDTO;
+import apps.sarafrika.elimika.payout.dto.MonthlyPayoutPointDTO;
 import apps.sarafrika.elimika.payout.enums.InstructorObligationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,4 +68,11 @@ public interface InstructorObligationService {
 
     /** An instructor's own obligation rows, newest first. */
     Page<InstructorObligationDTO> findForInstructorUser(UUID instructorUserUuid, Pageable pageable);
+
+    /**
+     * Money the organisation has actually paid out to instructors, one figure per calendar
+     * month over the trailing {@code months} window (inclusive of the current month), oldest
+     * month first. Each figure sums settled obligations in that month.
+     */
+    List<MonthlyPayoutPointDTO> getMonthlySettlements(UUID organisationUuid, int months);
 }

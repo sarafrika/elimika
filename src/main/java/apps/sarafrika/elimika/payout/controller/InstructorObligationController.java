@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.payout.dto.InstructorObligationCancellationRequest
 import apps.sarafrika.elimika.payout.dto.InstructorObligationDTO;
 import apps.sarafrika.elimika.payout.dto.InstructorObligationSettlementRequestDTO;
 import apps.sarafrika.elimika.payout.dto.InstructorStatementDTO;
+import apps.sarafrika.elimika.payout.dto.MonthlyPayoutPointDTO;
 import apps.sarafrika.elimika.payout.enums.InstructorObligationStatus;
 import apps.sarafrika.elimika.payout.service.InstructorObligationService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -81,6 +83,23 @@ public class InstructorObligationController {
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(page, baseUrl), "Instructor obligations retrieved successfully"));
+    }
+
+    @Operation(summary = "Monthly settled payouts for an organisation",
+            description = "Money the organisation has actually paid out to instructors, one figure per "
+                    + "calendar month over the trailing window (inclusive of the current month), oldest first.")
+    @GetMapping("/organisations/{organisationUuid}/instructor-obligations/monthly-settlements")
+    @PreAuthorize(READ_ORGANISATION)
+    public ResponseEntity<ApiResponse<List<MonthlyPayoutPointDTO>>> getMonthlySettlements(
+            @Parameter(description = "UUID of the organisation", required = true)
+            @PathVariable UUID organisationUuid,
+            @Parameter(description = "Number of months to include (inclusive of the current month)")
+            @RequestParam(defaultValue = "6") int months) {
+
+        List<MonthlyPayoutPointDTO> settlements =
+                instructorObligationService.getMonthlySettlements(organisationUuid, months);
+        return ResponseEntity.ok(ApiResponse.success(
+                settlements, "Monthly settled payouts retrieved successfully"));
     }
 
     @Operation(summary = "Record that an obligation has been paid",
