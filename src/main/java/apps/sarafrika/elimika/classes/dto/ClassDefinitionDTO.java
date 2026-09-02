@@ -181,6 +181,15 @@ public record ClassDefinitionDTO(
         UUID organisationUuid,
 
         @Schema(
+                description = "**[OPTIONAL]** Training branch (location) this class belongs to.",
+                example = "branch12-3456-789a-bcde-f0123456789a",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("branch_uuid")
+        UUID branchUuid,
+
+        @Schema(
                 description = "**[OPTIONAL]** Reference to the course UUID if this class is part of a structured course.",
                 example = "course123-4567-89ab-cdef-123456789abc",
                 nullable = true,
@@ -530,6 +539,7 @@ public record ClassDefinitionDTO(
             String promotionalVideoUrl,
             UUID defaultInstructorUuid,
             UUID organisationUuid,
+            UUID branchUuid,
             UUID courseUuid,
             UUID programUuid,
             BigDecimal salePrice,
@@ -567,6 +577,7 @@ public record ClassDefinitionDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
@@ -610,6 +621,7 @@ public record ClassDefinitionDTO(
             String description,
             UUID defaultInstructorUuid,
             UUID organisationUuid,
+            UUID branchUuid,
             UUID courseUuid,
             UUID programUuid,
             BigDecimal salePrice,
@@ -647,6 +659,7 @@ public record ClassDefinitionDTO(
                 null,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
@@ -689,6 +702,7 @@ public record ClassDefinitionDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
@@ -734,6 +748,7 @@ public record ClassDefinitionDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
@@ -785,6 +800,7 @@ public record ClassDefinitionDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
@@ -833,6 +849,7 @@ public record ClassDefinitionDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
@@ -878,6 +895,7 @@ public record ClassDefinitionDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,

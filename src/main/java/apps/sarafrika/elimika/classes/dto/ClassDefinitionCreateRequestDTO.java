@@ -75,6 +75,10 @@ public record ClassDefinitionCreateRequestDTO(
         @JsonProperty("organisation_uuid")
         UUID organisationUuid,
 
+        @Schema(description = "**[OPTIONAL]** Training branch (location) this class is delivered at.")
+        @JsonProperty("branch_uuid")
+        UUID branchUuid,
+
         @Schema(description = "**[OPTIONAL]** Course UUID for course-scoped classes.")
         @JsonProperty("course_uuid")
         UUID courseUuid,
@@ -206,6 +210,7 @@ public record ClassDefinitionCreateRequestDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 effectiveCourseUuid,
                 effectiveProgramUuid,
                 salePrice,

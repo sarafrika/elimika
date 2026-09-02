@@ -1405,6 +1405,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getDescription(),
                 instructorUuid,
                 job.getOrganisationUuid(),
+                null,
                 job.getCourseUuid(),
                 job.getProgramUuid(),
                 job.getSalePrice(),

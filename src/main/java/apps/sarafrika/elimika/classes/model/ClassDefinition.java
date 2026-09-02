@@ -46,6 +46,9 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "organisation_uuid")
     private UUID organisationUuid;
 
+    @Column(name = "branch_uuid")
+    private UUID branchUuid;
+
     @Column(name = "course_uuid")
     private UUID courseUuid;
 

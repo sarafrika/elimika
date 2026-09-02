@@ -22,6 +22,7 @@ public class ClassDefinitionFactory {
                 FileUrlResolver.publicUrl(entity.getPromotionalVideoUrl()),
                 entity.getDefaultInstructorUuid(),
                 entity.getOrganisationUuid(),
+                entity.getBranchUuid(),
                 entity.getCourseUuid(),
                 entity.getProgramUuid(),
                 entity.getSalePrice(),
@@ -66,6 +67,7 @@ public class ClassDefinitionFactory {
         entity.setPromotionalVideoUrl(FileUrlResolver.toStorableValue(dto.promotionalVideoUrl()));
         entity.setDefaultInstructorUuid(dto.defaultInstructorUuid());
         entity.setOrganisationUuid(dto.organisationUuid());
+        entity.setBranchUuid(dto.branchUuid());
         entity.setCourseUuid(dto.courseUuid());
         entity.setProgramUuid(dto.programUuid());
         entity.setCategoryUuid(dto.categoryUuid());
@@ -117,6 +119,9 @@ public class ClassDefinitionFactory {
         }
         if (dto.organisationUuid() != null) {
             entity.setOrganisationUuid(dto.organisationUuid());
+        }
+        if (dto.branchUuid() != null) {
+            entity.setBranchUuid(dto.branchUuid());
         }
         if (dto.courseUuid() != null) {
             entity.setCourseUuid(dto.courseUuid());

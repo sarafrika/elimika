@@ -72,6 +72,10 @@ public record ClassDefinitionUpdateRequestDTO(
         @JsonProperty("organisation_uuid")
         UUID organisationUuid,
 
+        @Schema(description = "**[OPTIONAL]** Training branch (location) this class is delivered at.")
+        @JsonProperty("branch_uuid")
+        UUID branchUuid,
+
         @Schema(description = "**[OPTIONAL]** Course UUID for course-scoped classes.")
         @JsonProperty("course_uuid")
         UUID courseUuid,
@@ -184,6 +188,7 @@ public record ClassDefinitionUpdateRequestDTO(
                 promotionalVideoUrl,
                 defaultInstructorUuid,
                 organisationUuid,
+                branchUuid,
                 courseUuid,
                 programUuid,
                 salePrice,
