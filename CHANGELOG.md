@@ -1,3 +1,10 @@
+## [2.138.1](https://github.com/sarafrika/elimika/compare/v2.138.0...v2.138.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* resolve notification audiences by organisation membership domain ([5c9498d](https://github.com/sarafrika/elimika/commit/5c9498d04811ce52e467c342346761335049839d))
+
 # [2.138.0](https://github.com/sarafrika/elimika/compare/v2.137.2...v2.138.0) (2026-09-02)
 
 
