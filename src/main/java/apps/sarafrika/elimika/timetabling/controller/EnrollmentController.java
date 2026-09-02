@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.WeeklyGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
@@ -336,6 +337,25 @@ public class EnrollmentController {
 
         List<TodayGrowthPointDTO> growth = timetableService.getTodayGrowthForOrganisation(organisationUuid);
         return ResponseEntity.ok(ApiResponse.success(growth, "Today's growth retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get organisation weekly-growth",
+            description = "Distinct students-per-course enrolled in each ISO week over the requested span, " +
+                    "across all classes owned by the organisation, oldest week first."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Weekly growth retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/weekly-growth")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<WeeklyGrowthPointDTO>>> getWeeklyGrowth(
+            @Parameter(description = "UUID of the organisation to scope to")
+            @PathVariable UUID organisationUuid,
+            @Parameter(description = "Number of ISO weeks to include (inclusive of the current week)")
+            @RequestParam(defaultValue = "8") int weeks) {
+        log.debug("REST request for weekly growth of organisation {} over {} weeks", organisationUuid, weeks);
+
+        List<WeeklyGrowthPointDTO> growth = timetableService.getWeeklyGrowthForOrganisation(organisationUuid, weeks);
+        return ResponseEntity.ok(ApiResponse.success(growth, "Weekly growth retrieved successfully"));
     }
 
     @Operation(

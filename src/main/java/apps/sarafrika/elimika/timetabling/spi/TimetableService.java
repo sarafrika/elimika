@@ -387,6 +387,17 @@ public interface TimetableService {
     List<TodayGrowthPointDTO> getTodayGrowthForOrganisation(UUID organisationUuid);
 
     /**
+     * Weekly enrolment growth for an organisation — the number of distinct
+     * students-per-course enrolled in each ISO week over the requested span,
+     * across the organisation's classes.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @param weeks            number of ISO weeks to include (inclusive of the current week)
+     * @return ordered list of {@link WeeklyGrowthPointDTO}, oldest week first
+     */
+    List<WeeklyGrowthPointDTO> getWeeklyGrowthForOrganisation(UUID organisationUuid, int weeks);
+
+    /**
      * Active enrolment counts per class definition for an organisation.
      *
      * @param organisationUuid the organisation to scope to

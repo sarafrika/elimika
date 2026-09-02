@@ -41,6 +41,7 @@ import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.WeeklyGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
@@ -1776,6 +1777,19 @@ public class TimetableServiceImpl implements TimetableService {
         java.time.LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
         return enrollmentRepository.findEnrolmentsByHourTodayForOrganisation(organisationUuid, startOfDay).stream()
                 .map(row -> new TodayGrowthPointDTO((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WeeklyGrowthPointDTO> getWeeklyGrowthForOrganisation(UUID organisationUuid, int weeks) {
+        int span = Math.max(1, weeks);
+        java.time.LocalDateTime since = java.time.LocalDate.now()
+                .minusWeeks(span - 1L)
+                .with(java.time.DayOfWeek.MONDAY)
+                .atStartOfDay();
+        return enrollmentRepository.findWeeklyEnrolmentGrowthForOrganisation(organisationUuid, since).stream()
+                .map(row -> new WeeklyGrowthPointDTO((String) row[0], ((Number) row[1]).longValue()))
                 .toList();
     }
 

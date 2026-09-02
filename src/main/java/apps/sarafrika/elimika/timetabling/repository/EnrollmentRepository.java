@@ -179,14 +179,21 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
 
     /**
      * Monthly enrolment counts for classes owned by the given organisation, from a
-     * cut-off date onward. Returns rows of {@code [month (YYYY-MM string), total (long)]}.
+     * cut-off date onward. Each month counts <em>distinct students per distinct course</em>
+     * (falling back to the programme, then the class definition, when a class is not tied to a
+     * course) rather than raw enrolment rows, so a learner attending several sessions of the
+     * same course is counted once. Cancelled and waitlisted enrolments are excluded.
+     * Returns rows of {@code [month (YYYY-MM string), total (long)]}.
      */
-    @Query(value = "SELECT to_char(ce.created_date, 'YYYY-MM') AS month, COUNT(*) AS total " +
+    @Query(value = "SELECT to_char(ce.created_date, 'YYYY-MM') AS month, " +
+                   "COUNT(DISTINCT (ce.student_uuid, " +
+                   "COALESCE(cd.course_uuid, cd.program_uuid, si.class_definition_uuid))) AS total " +
                    "FROM class_enrollments ce " +
                    "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
                    "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
                    "WHERE cd.organisation_uuid = :organisationUuid " +
                    "AND ce.created_date >= :since " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
                    "GROUP BY 1 " +
                    "ORDER BY 1",
            nativeQuery = true)
@@ -208,6 +215,27 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<Object[]> findEnrolmentsByHourTodayForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                             @Param("startOfDay") LocalDateTime startOfDay);
+
+    /**
+     * Weekly enrolment counts for classes owned by the given organisation, from a
+     * cut-off date onward. Each ISO week counts <em>distinct students per distinct course</em>
+     * (same offering key as {@link #findEnrolmentTrendsForOrganisation}), excluding cancelled
+     * and waitlisted enrolments. Returns rows of {@code [week (IYYY-"W"IW string), total (long)]}.
+     */
+    @Query(value = "SELECT to_char(ce.created_date, 'IYYY-\"W\"IW') AS week, " +
+                   "COUNT(DISTINCT (ce.student_uuid, " +
+                   "COALESCE(cd.course_uuid, cd.program_uuid, si.class_definition_uuid))) AS total " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "AND ce.created_date >= :since " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "GROUP BY 1 " +
+                   "ORDER BY 1",
+           nativeQuery = true)
+    List<Object[]> findWeeklyEnrolmentGrowthForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                            @Param("since") LocalDateTime since);
 
     /**
      * Distinct active-enrolment counts per class definition for an organisation.
