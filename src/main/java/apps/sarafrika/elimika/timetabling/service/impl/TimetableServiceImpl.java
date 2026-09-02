@@ -92,6 +92,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final StudentLookupService studentLookupService;
     private final apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
     private final apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService organisationLookupService;
+    private final apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService organisationAffiliationService;
     private final InstructorLookupService instructorLookupService;
     private final ResourceBookingService resourceBookingService;
 
@@ -463,10 +464,34 @@ public class TimetableServiceImpl implements TimetableService {
 
         if (!createdEnrollments.isEmpty()) {
             publishClassEnrollmentNotifications(createdEnrollments.get(0), instancesToEnroll.get(0));
+            affiliateStudentWithClassOrganisation(studentUuid, classDefinitionUuid);
         }
 
         log.debug("Enrolled student into {} scheduled instances for class definition: {}", createdEnrollments.size(), classDefinitionUuid);
         return EnrollmentFactory.toDTOList(createdEnrollments);
+    }
+
+    /**
+     * When a student enrols in a class, make sure they are affiliated with the class's organisation
+     * and its training branch (in the {@code student} domain). Best-effort: a failure here must never
+     * roll back or block the enrolment itself.
+     */
+    private void affiliateStudentWithClassOrganisation(UUID studentUuid, UUID classDefinitionUuid) {
+        try {
+            UUID organisationUuid = classDefinitionLookupService.findOrganisationUuid(classDefinitionUuid).orElse(null);
+            if (organisationUuid == null) {
+                return;
+            }
+            UUID userUuid = studentLookupService.getStudentUserUuid(studentUuid).orElse(null);
+            if (userUuid == null) {
+                return;
+            }
+            UUID branchUuid = classDefinitionLookupService.findBranchUuid(classDefinitionUuid).orElse(null);
+            organisationAffiliationService.affiliateEnrolledStudent(userUuid, organisationUuid, branchUuid);
+        } catch (Exception e) {
+            log.warn("Could not affiliate student {} with the organisation of class {}: {}",
+                    studentUuid, classDefinitionUuid, e.getMessage());
+        }
     }
 
     @Override
@@ -530,6 +555,7 @@ public class TimetableServiceImpl implements TimetableService {
         eventPublisher.publishEvent(event);
         publishEnrollmentStatusChanged(savedEnrollment, instance);
         publishClassEnrollmentNotifications(savedEnrollment, instance);
+        affiliateStudentWithClassOrganisation(studentUuid, instance.getClassDefinitionUuid());
 
         log.debug("Enrolled student {} into scheduled instance {}", studentUuid, instanceUuid);
         return EnrollmentFactory.toDTO(savedEnrollment);

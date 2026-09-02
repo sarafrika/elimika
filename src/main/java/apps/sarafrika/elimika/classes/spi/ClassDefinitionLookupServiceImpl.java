@@ -51,6 +51,15 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
     }
 
     @Override
+    public Optional<UUID> findBranchUuid(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return Optional.empty();
+        }
+        return classDefinitionRepository.findByUuid(classDefinitionUuid)
+                .map(ClassDefinition::getBranchUuid);
+    }
+
+    @Override
     public Map<UUID, UUID> findOrganisationUuids(Collection<UUID> classDefinitionUuids) {
         if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
             return Map.of();

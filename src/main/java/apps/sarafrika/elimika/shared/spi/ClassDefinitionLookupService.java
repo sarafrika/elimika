@@ -36,6 +36,14 @@ public interface ClassDefinitionLookupService {
     Optional<UUID> findOrganisationUuid(UUID classDefinitionUuid);
 
     /**
+     * The training branch (location) a class is delivered at.
+     *
+     * @param classDefinitionUuid the class definition UUID
+     * @return the branch UUID, or empty when the class is missing or not tied to a branch
+     */
+    Optional<UUID> findBranchUuid(UUID classDefinitionUuid);
+
+    /**
      * Resolves the owning organisation of several class definitions in one query.
      * <p>
      * An instructor's schedule can span many sessions of a handful of classes, so resolving the

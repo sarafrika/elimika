@@ -31,4 +31,19 @@ public interface OrganisationAffiliationService {
      * @return {@code true} if a new affiliation was created, {@code false} if one already existed
      */
     boolean affiliateHiredInstructor(UUID userUuid, UUID organisationUuid, UUID branchUuid);
+
+    /**
+     * Affiliates a student with an organisation because they enrolled in one of its classes.
+     * <p>
+     * The affiliation is recorded in the {@code student} domain, scoped to the class's training
+     * branch when there is one. As with instructors, a user holds only one active affiliation per
+     * organisation: if the student is already affiliated - in any domain - the existing affiliation
+     * is left untouched, so enrolling never silently overwrites an existing role.
+     *
+     * @param userUuid         the student's user account
+     * @param organisationUuid the organisation that owns the class
+     * @param branchUuid       the class's training branch, or {@code null}
+     * @return {@code true} if a new affiliation was created, {@code false} if one already existed
+     */
+    boolean affiliateEnrolledStudent(UUID userUuid, UUID organisationUuid, UUID branchUuid);
 }

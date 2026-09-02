@@ -27,6 +27,7 @@ import java.util.UUID;
 public class OrganisationAffiliationServiceImpl implements OrganisationAffiliationService {
 
     private static final String INSTRUCTOR_DOMAIN = "instructor";
+    private static final String STUDENT_DOMAIN = "student";
 
     private final UserService userService;
     private final UserOrganisationDomainMappingRepository mappingRepository;
@@ -53,6 +54,30 @@ public class OrganisationAffiliationServiceImpl implements OrganisationAffiliati
         stampConsent(userUuid, organisationUuid);
 
         log.info("Affiliated hired instructor {} with organisation {}", userUuid, organisationUuid);
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean affiliateEnrolledStudent(UUID userUuid, UUID organisationUuid, UUID branchUuid) {
+        if (userUuid == null || organisationUuid == null) {
+            throw new IllegalArgumentException(
+                    "Both the student's user and the organisation are required to create an affiliation.");
+        }
+
+        Optional<UserOrganisationDomainMapping> existing =
+                mappingRepository.findActiveByUserAndOrganisation(userUuid, organisationUuid);
+        if (existing.isPresent()) {
+            log.debug("User {} is already affiliated with organisation {}; leaving the existing affiliation intact",
+                    userUuid, organisationUuid);
+            return false;
+        }
+
+        userService.assignUserToOrganisation(userUuid, organisationUuid, STUDENT_DOMAIN, branchUuid);
+        stampConsent(userUuid, organisationUuid);
+
+        log.info("Affiliated enrolled student {} with organisation {} (branch {})",
+                userUuid, organisationUuid, branchUuid);
         return true;
     }
 
