@@ -1,3 +1,10 @@
+# [2.139.0](https://github.com/sarafrika/elimika/compare/v2.138.2...v2.139.0) (2026-09-02)
+
+
+### Features
+
+* add training branch to class definitions ([8afae7f](https://github.com/sarafrika/elimika/commit/8afae7fee586a37585e9d5573d95e57b62f8a58e))
+
 ## [2.138.2](https://github.com/sarafrika/elimika/compare/v2.138.1...v2.138.2) (2026-09-02)
 
 
