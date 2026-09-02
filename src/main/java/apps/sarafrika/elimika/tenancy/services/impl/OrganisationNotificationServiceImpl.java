@@ -85,7 +85,11 @@ public class OrganisationNotificationServiceImpl implements OrganisationNotifica
                     null,
                     null,
                     organisationUuid,
-                    r.domain()));
+                    // Broadcast is domain-agnostic: a null recipient_domain matches every dashboard's
+                    // inbox filter, so recipients see it whichever workspace they are in. The member's
+                    // organisation-membership domain (r.domain()) is not a platform user_domain and
+                    // would hide the notification from every inbox.
+                    null));
         }
 
         NotificationDispatch dispatch = new NotificationDispatch();
