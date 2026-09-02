@@ -1,3 +1,10 @@
+## [2.138.2](https://github.com/sarafrika/elimika/compare/v2.138.1...v2.138.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* allow organisation announcement notification type and broadcast domain ([acf4a5c](https://github.com/sarafrika/elimika/commit/acf4a5c541d314cc759a204c02a369cbbd223911))
+
 ## [2.138.1](https://github.com/sarafrika/elimika/compare/v2.138.0...v2.138.1) (2026-09-02)
 
 
