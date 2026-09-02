@@ -26,13 +26,17 @@ import java.util.UUID;
 @Slf4j
 public class OrganisationNotificationServiceImpl implements OrganisationNotificationService {
 
-    /** The audiences the composer offers, mapped to the member domains they resolve to. */
+    /**
+     * The audiences the composer offers, mapped to the {@code domain_in_organisation} values a member
+     * is affiliated under — "admin" for organisation staff, "instructor", "student", "parent" — not
+     * the platform-level user_domain (an org admin is affiliated as "admin", not "organisation_user").
+     */
     private static final Map<String, List<String>> AUDIENCE_DOMAINS = Map.of(
-            "all", List.of("student", "instructor", "parent", "organisation_user"),
+            "all", List.of("student", "instructor", "admin", "parent"),
             "students", List.of("student"),
             "instructors", List.of("instructor"),
             "parents", List.of("parent"),
-            "staff", List.of("organisation_user")
+            "staff", List.of("admin")
     );
 
     private final UserService userService;
