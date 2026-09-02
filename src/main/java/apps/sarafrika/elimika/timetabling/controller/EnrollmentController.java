@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.WeeklyGrowthPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.OrganisationActivityEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
@@ -373,6 +374,26 @@ public class EnrollmentController {
         List<ClassEnrolmentCountDTO> counts =
                 timetableService.getClassEnrolmentCountsForOrganisation(organisationUuid);
         return ResponseEntity.ok(ApiResponse.success(counts, "Class enrolment counts retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get an organisation's activity feed",
+            description = "Recent, human-meaningful events across the organisation — students enrolling, "
+                    + "classes being opened and instructors being paid — newest first."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Activity feed retrieved successfully")
+    @GetMapping("/organisations/{organisationUuid}/activity-feed")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<OrganisationActivityEventDTO>>> getActivityFeed(
+            @Parameter(description = "UUID of the organisation to scope to")
+            @PathVariable UUID organisationUuid,
+            @Parameter(description = "Maximum number of events to return (1-100)")
+            @RequestParam(defaultValue = "20") int limit) {
+        log.debug("REST request for activity feed of organisation {} (limit {})", organisationUuid, limit);
+
+        List<OrganisationActivityEventDTO> events =
+                timetableService.getActivityFeedForOrganisation(organisationUuid, limit);
+        return ResponseEntity.ok(ApiResponse.success(events, "Activity feed retrieved successfully"));
     }
 
     @Operation(

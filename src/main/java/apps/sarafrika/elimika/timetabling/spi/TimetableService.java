@@ -406,6 +406,16 @@ public interface TimetableService {
     List<ClassEnrolmentCountDTO> getClassEnrolmentCountsForOrganisation(UUID organisationUuid);
 
     /**
+     * Recent activity for an organisation — students enrolling, classes opening and instructors
+     * being paid — newest first, capped at {@code limit} events.
+     *
+     * @param organisationUuid the organisation to scope to
+     * @param limit            the maximum number of events to return
+     * @return ordered list of {@link OrganisationActivityEventDTO}, newest first
+     */
+    List<OrganisationActivityEventDTO> getActivityFeedForOrganisation(UUID organisationUuid, int limit);
+
+    /**
      * Per-student enrolment/attendance summaries for an organisation.
      *
      * @param organisationUuid the organisation to scope to

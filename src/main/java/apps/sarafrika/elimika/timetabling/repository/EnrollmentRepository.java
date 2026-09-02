@@ -252,6 +252,42 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     List<Object[]> findClassEnrolmentCountsForOrganisation(@Param("organisationUuid") UUID organisationUuid);
 
     /**
+     * Recent, human-meaningful activity for an organisation, newest first: students enrolling,
+     * classes being opened, and instructors being paid. Returns rows of
+     * {@code [event_type (String), occurred_at (Timestamp), class_title (String),
+     * subject_uuid (UUID), amount (BigDecimal), currency_code (String)]} — the amount/currency are
+     * only populated for {@code PAYOUT} rows, and subject_uuid is null for {@code CLASS_OPENED}.
+     * Reads settled instructor obligations directly for the payout events; this is a read-only
+     * dashboard aggregation, deliberately spanning tables the way the other org analytics do.
+     */
+    @Query(value = "SELECT event_type, occurred_at, class_title, subject_uuid, amount, currency_code FROM ( " +
+                   "SELECT 'ENROLMENT' AS event_type, ce.created_date AS occurred_at, cd.title AS class_title, " +
+                   "       ce.student_uuid AS subject_uuid, CAST(NULL AS numeric) AS amount, " +
+                   "       CAST(NULL AS varchar) AS currency_code " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "UNION ALL " +
+                   "SELECT 'CLASS_OPENED', cd.created_date, cd.title, CAST(NULL AS uuid), " +
+                   "       CAST(NULL AS numeric), CAST(NULL AS varchar) " +
+                   "FROM class_definitions cd " +
+                   "WHERE cd.organisation_uuid = :organisationUuid " +
+                   "UNION ALL " +
+                   "SELECT 'PAYOUT', io.settled_at, cd.title, io.instructor_user_uuid, io.rate_amount, io.currency_code " +
+                   "FROM instructor_obligations io " +
+                   "LEFT JOIN class_definitions cd ON io.class_definition_uuid = cd.uuid " +
+                   "WHERE io.organisation_uuid = :organisationUuid " +
+                   "AND io.status = 'SETTLED' AND io.settled_at IS NOT NULL " +
+                   ") feed " +
+                   "ORDER BY occurred_at DESC " +
+                   "LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> findActivityFeedForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                   @Param("limit") int limit);
+
+    /**
      * Per-student enrolment/attendance summary for an organisation. Returns rows of
      * {@code [student_uuid (UUID), total (long), completed (long)]} where total
      * excludes cancelled/waitlisted and completed counts ATTENDED enrolments.

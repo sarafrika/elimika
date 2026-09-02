@@ -42,6 +42,7 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.WeeklyGrowthPointDTO;
+import apps.sarafrika.elimika.timetabling.spi.OrganisationActivityEventDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
@@ -1798,6 +1799,21 @@ public class TimetableServiceImpl implements TimetableService {
     public List<ClassEnrolmentCountDTO> getClassEnrolmentCountsForOrganisation(UUID organisationUuid) {
         return enrollmentRepository.findClassEnrolmentCountsForOrganisation(organisationUuid).stream()
                 .map(row -> new ClassEnrolmentCountDTO((UUID) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrganisationActivityEventDTO> getActivityFeedForOrganisation(UUID organisationUuid, int limit) {
+        int capped = Math.max(1, Math.min(limit, 100));
+        return enrollmentRepository.findActivityFeedForOrganisation(organisationUuid, capped).stream()
+                .map(row -> new OrganisationActivityEventDTO(
+                        (String) row[0],
+                        row[1] == null ? null : ((java.sql.Timestamp) row[1]).toLocalDateTime(),
+                        (String) row[2],
+                        (UUID) row[3],
+                        (java.math.BigDecimal) row[4],
+                        (String) row[5]))
                 .toList();
     }
 
