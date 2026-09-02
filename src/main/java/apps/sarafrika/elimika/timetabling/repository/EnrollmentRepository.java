@@ -281,11 +281,10 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                    "WHERE io.organisation_uuid = :organisationUuid " +
                    "AND io.status = 'SETTLED' AND io.settled_at IS NOT NULL " +
                    ") feed " +
-                   "ORDER BY occurred_at DESC " +
-                   "LIMIT :limit",
+                   "ORDER BY occurred_at DESC",
            nativeQuery = true)
     List<Object[]> findActivityFeedForOrganisation(@Param("organisationUuid") UUID organisationUuid,
-                                                   @Param("limit") int limit);
+                                                   Pageable pageable);
 
     /**
      * Per-student enrolment/attendance summary for an organisation. Returns rows of

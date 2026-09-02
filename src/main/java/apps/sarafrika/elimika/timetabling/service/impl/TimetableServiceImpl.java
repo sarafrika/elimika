@@ -1806,15 +1806,47 @@ public class TimetableServiceImpl implements TimetableService {
     @Transactional(readOnly = true)
     public List<OrganisationActivityEventDTO> getActivityFeedForOrganisation(UUID organisationUuid, int limit) {
         int capped = Math.max(1, Math.min(limit, 100));
-        return enrollmentRepository.findActivityFeedForOrganisation(organisationUuid, capped).stream()
+        return enrollmentRepository
+                .findActivityFeedForOrganisation(organisationUuid, org.springframework.data.domain.PageRequest.of(0, capped))
+                .stream()
                 .map(row -> new OrganisationActivityEventDTO(
                         (String) row[0],
-                        row[1] == null ? null : ((java.sql.Timestamp) row[1]).toLocalDateTime(),
+                        toLocalDateTime(row[1]),
                         (String) row[2],
-                        (UUID) row[3],
-                        (java.math.BigDecimal) row[4],
+                        toUuid(row[3]),
+                        toBigDecimal(row[4]),
                         (String) row[5]))
                 .toList();
+    }
+
+    /** Native-query timestamp columns come back as one of several JDBC types depending on driver
+     * and column type ({@code timestamptz} in particular); normalise them all to {@link java.time.LocalDateTime}. */
+    private static java.time.LocalDateTime toLocalDateTime(Object value) {
+        return switch (value) {
+            case null -> null;
+            case java.sql.Timestamp ts -> ts.toLocalDateTime();
+            case java.time.OffsetDateTime odt -> odt.toLocalDateTime();
+            case java.time.Instant instant -> java.time.LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+            case java.time.LocalDateTime ldt -> ldt;
+            default -> null;
+        };
+    }
+
+    private static UUID toUuid(Object value) {
+        return switch (value) {
+            case null -> null;
+            case UUID u -> u;
+            default -> UUID.fromString(value.toString());
+        };
+    }
+
+    private static java.math.BigDecimal toBigDecimal(Object value) {
+        return switch (value) {
+            case null -> null;
+            case java.math.BigDecimal bd -> bd;
+            case Number n -> java.math.BigDecimal.valueOf(n.doubleValue());
+            default -> new java.math.BigDecimal(value.toString());
+        };
     }
 
     @Override
