@@ -1,3 +1,15 @@
+# [2.135.0](https://github.com/sarafrika/elimika/compare/v2.134.8...v2.135.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* allow starting a class with attended or absent enrolments ([9757c8a](https://github.com/sarafrika/elimika/commit/9757c8ad9fa3d5bac762f1adb8b71fd8ca17706a))
+
+
+### Features
+
+* add weekly growth endpoint and count enrolment trends by unique student-course ([85fc271](https://github.com/sarafrika/elimika/commit/85fc271d6f771fd3e978728d32ff039758936059))
+
 ## [2.134.8](https://github.com/sarafrika/elimika/compare/v2.134.7...v2.134.8) (2026-09-01)
 
 
