@@ -83,6 +83,7 @@ public enum NotificationType {
     ORGANISATION_INVITATION("ORGANISATION_INVITATION", "organisation-invitation", "Organisation Invitation", NotificationCategory.SYSTEM_ADMIN),
     GUARDIAN_CONSENT_REQUEST("GUARDIAN_CONSENT_REQUEST", "guardian-consent-request", "Guardian Consent Request", NotificationCategory.SYSTEM_ADMIN),
     ORGANISATION_INVITATION_ACCEPTED("ORGANISATION_INVITATION_ACCEPTED", "invitation-accepted", "Invitation Accepted", NotificationCategory.SYSTEM_ADMIN),
+    ORGANISATION_ANNOUNCEMENT("ORGANISATION_ANNOUNCEMENT", "organisation-announcement", "Announcement", NotificationCategory.SYSTEM_ADMIN),
 
     // Engagement & Motivation
     WEEKLY_PROGRESS_SUMMARY("WEEKLY_PROGRESS_SUMMARY", "weekly-progress-summary", "Progress Summary", NotificationCategory.LEARNING_PROGRESS),
@@ -246,7 +247,8 @@ public enum NotificationType {
                  PROFILE_DOCUMENT_VERIFIED,
                  PROFILE_COMPLETION_REMINDER,
                  ORGANISATION_INVITATION,
-                 GUARDIAN_CONSENT_REQUEST -> null;
+                 GUARDIAN_CONSENT_REQUEST,
+                 ORGANISATION_ANNOUNCEMENT -> null;
         };
     }
 }

@@ -87,6 +87,9 @@ public class EmailTemplateService {
             case "invitation-accepted" ->
                 String.format("%s accepted your invitation",
                         event.getTemplateVariables().getOrDefault("recipientName", "Someone"));
+            case "organisation-announcement" ->
+                String.valueOf(event.getTemplateVariables().getOrDefault("title",
+                        event.getNotificationType().getDisplayName()));
             default ->
                 String.format("[%s] %s", applicationName, event.getNotificationType().getDisplayName());
         };
