@@ -1,3 +1,10 @@
+# [2.138.0](https://github.com/sarafrika/elimika/compare/v2.137.2...v2.138.0) (2026-09-02)
+
+
+### Features
+
+* add organisation outgoing notifications with dispatch record and send endpoint ([299cd89](https://github.com/sarafrika/elimika/commit/299cd895191ed4daa1cf0a68ba147f7b93ff1378))
+
 ## [2.137.2](https://github.com/sarafrika/elimika/compare/v2.137.1...v2.137.2) (2026-09-02)
 
 
