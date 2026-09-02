@@ -1,3 +1,10 @@
+## [2.137.2](https://github.com/sarafrika/elimika/compare/v2.137.1...v2.137.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* collapse activity feed enrolments to one per student and class ([9b92813](https://github.com/sarafrika/elimika/commit/9b92813268ae73c0d509a73a404e6023e987f8cd))
+
 ## [2.137.1](https://github.com/sarafrika/elimika/compare/v2.137.0...v2.137.1) (2026-09-02)
 
 
