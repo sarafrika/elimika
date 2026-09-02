@@ -259,9 +259,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
      * only populated for {@code PAYOUT} rows, and subject_uuid is null for {@code CLASS_OPENED}.
      * Reads settled instructor obligations directly for the payout events; this is a read-only
      * dashboard aggregation, deliberately spanning tables the way the other org analytics do.
+     * Enrolment events are collapsed to one per (student, class) at their latest enrolment time, so a
+     * learner attending many sessions of a class shows as a single "enrolled" entry, not one per session.
      */
     @Query(value = "SELECT event_type, occurred_at, class_title, subject_uuid, amount, currency_code FROM ( " +
-                   "SELECT 'ENROLMENT' AS event_type, ce.created_date AS occurred_at, cd.title AS class_title, " +
+                   "SELECT 'ENROLMENT' AS event_type, MAX(ce.created_date) AS occurred_at, cd.title AS class_title, " +
                    "       ce.student_uuid AS subject_uuid, CAST(NULL AS numeric) AS amount, " +
                    "       CAST(NULL AS varchar) AS currency_code " +
                    "FROM class_enrollments ce " +
@@ -269,6 +271,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                    "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
                    "WHERE cd.organisation_uuid = :organisationUuid " +
                    "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "GROUP BY ce.student_uuid, cd.uuid, cd.title " +
                    "UNION ALL " +
                    "SELECT 'CLASS_OPENED', cd.created_date, cd.title, CAST(NULL AS uuid), " +
                    "       CAST(NULL AS numeric), CAST(NULL AS varchar) " +
