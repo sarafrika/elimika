@@ -1,3 +1,10 @@
+## [2.137.1](https://github.com/sarafrika/elimika/compare/v2.137.0...v2.137.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* harden organisation activity feed limit and row mapping ([8365a61](https://github.com/sarafrika/elimika/commit/8365a618a663cf4372c24c07e72fdae2703405ed))
+
 # [2.137.0](https://github.com/sarafrika/elimika/compare/v2.136.0...v2.137.0) (2026-09-02)
 
 
