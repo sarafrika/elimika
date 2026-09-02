@@ -40,6 +40,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -134,7 +135,9 @@ class TimetableServiceImplTest {
         instance.setUuid(instanceUuid);
 
         when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
-        when(enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatus(instanceUuid, EnrollmentStatus.ENROLLED))
+        when(enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatusIn(
+                instanceUuid,
+                Set.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT)))
                 .thenReturn(1L);
         when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -187,7 +190,9 @@ class TimetableServiceImplTest {
         instance.setUuid(instanceUuid);
 
         when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(Optional.of(instance));
-        when(enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatus(instanceUuid, EnrollmentStatus.ENROLLED))
+        when(enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatusIn(
+                instanceUuid,
+                Set.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT)))
                 .thenReturn(0L);
 
         assertThatThrownBy(() -> timetableService.startScheduledInstance(instanceUuid))

@@ -154,6 +154,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     Long countEnrollmentsByScheduledInstanceAndStatus(@Param("scheduledInstanceUuid") UUID scheduledInstanceUuid,
                                                     @Param("status") EnrollmentStatus status);
 
+    @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.scheduledInstanceUuid = :scheduledInstanceUuid " +
+           "AND e.status IN :statuses")
+    Long countEnrollmentsByScheduledInstanceAndStatusIn(@Param("scheduledInstanceUuid") UUID scheduledInstanceUuid,
+                                                        @Param("statuses") Collection<EnrollmentStatus> statuses);
+
     @Query("SELECT e FROM Enrollment e WHERE e.attendanceMarkedAt IS NULL " +
            "AND e.status IN ('ENROLLED') " +
            "AND e.scheduledInstanceUuid IN " +

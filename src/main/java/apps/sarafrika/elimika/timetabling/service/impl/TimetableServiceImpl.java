@@ -95,6 +95,11 @@ public class TimetableServiceImpl implements TimetableService {
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
+    private static final Set<EnrollmentStatus> START_ELIGIBLE_ENROLLMENT_STATUSES = Set.of(
+            EnrollmentStatus.ENROLLED,
+            EnrollmentStatus.ATTENDED,
+            EnrollmentStatus.ABSENT
+    );
 
     // ===== Scheduling Operations =====
 
@@ -298,8 +303,7 @@ public class TimetableServiceImpl implements TimetableService {
             throw new IllegalArgumentException("Only scheduled instances can be started");
         }
         if (SchedulingStatus.SCHEDULED.equals(currentStatus)
-                && enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatus(
-                        instanceUuid, EnrollmentStatus.ENROLLED) <= 0) {
+                && countStartEligibleEnrollments(instanceUuid) <= 0) {
             throw new IllegalArgumentException("At least one enrolled student is required to start this class");
         }
 
@@ -1661,6 +1665,14 @@ public class TimetableServiceImpl implements TimetableService {
 
     private boolean isEnrollmentMilestone(long enrollmentCount) {
         return enrollmentCount == 1 || (enrollmentCount > 0 && enrollmentCount % 10 == 0);
+    }
+
+    private long countStartEligibleEnrollments(UUID instanceUuid) {
+        Long count = enrollmentRepository.countEnrollmentsByScheduledInstanceAndStatusIn(
+                instanceUuid,
+                START_ELIGIBLE_ENROLLMENT_STATUSES
+        );
+        return count == null ? 0 : count;
     }
 
     private String enrollmentNoticeBody(String classTitle, long enrollmentCount, boolean milestone) {
