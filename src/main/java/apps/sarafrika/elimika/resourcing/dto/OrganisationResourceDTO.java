@@ -52,17 +52,9 @@ public record OrganisationResourceDTO(
         @JsonProperty("total_quantity")
         Integer totalQuantity,
 
-        @Schema(description = "Human readable location", nullable = true)
+        @Schema(description = "Optional within-branch location label, e.g. 'Main Hall, 2nd floor'", nullable = true)
         @JsonProperty("location_name")
         String locationName,
-
-        @Schema(description = "Latitude of the resource location", nullable = true)
-        @JsonProperty("location_latitude")
-        BigDecimal locationLatitude,
-
-        @Schema(description = "Longitude of the resource location", nullable = true)
-        @JsonProperty("location_longitude")
-        BigDecimal locationLongitude,
 
         @Schema(description = "Whether the resource can currently be booked", example = "true")
         @JsonProperty("is_active")

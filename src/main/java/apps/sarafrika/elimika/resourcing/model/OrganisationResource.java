@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -44,12 +43,6 @@ public class OrganisationResource extends BaseEntity {
 
     @Column(name = "location_name")
     private String locationName;
-
-    @Column(name = "location_latitude")
-    private BigDecimal locationLatitude;
-
-    @Column(name = "location_longitude")
-    private BigDecimal locationLongitude;
 
     @Column(name = "is_active")
     private Boolean isActive;

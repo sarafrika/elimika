@@ -42,12 +42,6 @@ public class TrainingBranch extends BaseEntity {
     @Column(name = "poc_telephone")
     private String pocTelephone;
 
-    @Column(name = "capacity")
-    private Integer capacity;
-
-    @Column(name = "venue_type")
-    private String venueType;
-
     @Column(name = "active")
     private boolean active = true;
 

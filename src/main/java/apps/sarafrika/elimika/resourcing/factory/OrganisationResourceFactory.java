@@ -25,8 +25,6 @@ public class OrganisationResourceFactory {
                 entity.getSeatCapacity(),
                 entity.getTotalQuantity(),
                 entity.getLocationName(),
-                entity.getLocationLatitude(),
-                entity.getLocationLongitude(),
                 entity.getIsActive(),
                 entity.getCreatedDate(),
                 entity.getLastModifiedDate()
@@ -57,8 +55,6 @@ public class OrganisationResourceFactory {
         entity.setSeatCapacity(dto.seatCapacity());
         entity.setTotalQuantity(dto.totalQuantity());
         entity.setLocationName(dto.locationName());
-        entity.setLocationLatitude(dto.locationLatitude());
-        entity.setLocationLongitude(dto.locationLongitude());
         if (dto.isActive() != null) {
             entity.setIsActive(dto.isActive());
         }

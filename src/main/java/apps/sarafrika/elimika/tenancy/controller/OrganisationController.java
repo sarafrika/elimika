@@ -272,8 +272,6 @@ class OrganisationController {
                 trainingBranchDTO.pocEmail(),
                 trainingBranchDTO.pocTelephone(),
                 trainingBranchDTO.active(),
-                trainingBranchDTO.capacity(),
-                trainingBranchDTO.venueType(),
                 null, null
         );
         TrainingBranchDTO created = trainingBranchService.createTrainingBranch(branchWithOrgUuid);
