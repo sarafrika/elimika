@@ -1,3 +1,10 @@
+# [2.140.0](https://github.com/sarafrika/elimika/compare/v2.139.0...v2.140.0) (2026-09-02)
+
+
+### Features
+
+* affiliate students with class organisation and branch on enrolment ([1717610](https://github.com/sarafrika/elimika/commit/17176108f909f6e9f4e5cf0b9d80e214fae68a95))
+
 # [2.139.0](https://github.com/sarafrika/elimika/compare/v2.138.2...v2.139.0) (2026-09-02)
 
 
