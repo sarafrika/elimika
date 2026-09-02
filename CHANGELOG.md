@@ -1,3 +1,10 @@
+# [2.137.0](https://github.com/sarafrika/elimika/compare/v2.136.0...v2.137.0) (2026-09-02)
+
+
+### Features
+
+* add organisation activity feed endpoint ([079735e](https://github.com/sarafrika/elimika/commit/079735ee333d3f654adce9a8accc83914a69377a))
+
 # [2.136.0](https://github.com/sarafrika/elimika/compare/v2.135.0...v2.136.0) (2026-09-02)
 
 
