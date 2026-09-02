@@ -1,3 +1,10 @@
+# [2.136.0](https://github.com/sarafrika/elimika/compare/v2.135.0...v2.136.0) (2026-09-02)
+
+
+### Features
+
+* add organisation monthly settled payouts endpoint ([a1fc6c5](https://github.com/sarafrika/elimika/commit/a1fc6c58ae0c2a1e71ea6cd88ae91125ff8645cc))
+
 # [2.135.0](https://github.com/sarafrika/elimika/compare/v2.134.8...v2.135.0) (2026-09-02)
 
 
