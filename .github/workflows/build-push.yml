@@ -80,6 +80,9 @@ jobs:
     needs: check-changes
     if: needs.check-changes.outputs.should-build == 'true'
     runs-on: ubuntu-latest
+    # The suite runs ~105 test classes, several of them Testcontainers slices with a 2g heap.
+    # Without a cap a wedged container would sit on the runner for the default six hours.
+    timeout-minutes: 45
     steps:
       - name: Build Context
         env:
@@ -119,8 +122,20 @@ jobs:
         id: get_version
         run: echo "APP_VERSION=$(./gradlew properties --no-daemon | grep "version:" | awk '{print $2}')" >> $GITHUB_ENV
 
-      - name: Build JAR file with Gradle
-        run: ./gradlew clean build -x test
+      # `build` runs `check`, and therefore `test`, on purpose: this step is the gate that stands
+      # between an unverified tree and a pushed image. The Docker build below packages the same
+      # source with `bootJar` because Testcontainers cannot run inside an image build stage, so
+      # this is the only place the suite executes before publication. Do not add `-x test`.
+      - name: Build and test with Gradle
+        run: ./gradlew clean build --no-daemon
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/test
+          retention-days: 7
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3

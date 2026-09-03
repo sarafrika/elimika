@@ -9,10 +9,12 @@ This project, "elimika," is a Spring Boot application built with Gradle and Java
 The application can be built using Gradle. From the project root, execute:
 
 ```bash
-./gradlew clean build -x test
+./gradlew clean build
 ```
 
-This command will compile the Java code, run tests (unless `-x test` is used), and package the application into a JAR file located in `build/libs`.
+This command compiles the Java code, runs the full test suite and packages the application into a JAR file located in `build/libs`. It is the same command CI runs on every push to `main`, so a green local `build` is what a green pipeline means.
+
+The test suite is Testcontainers-based, so a running Docker daemon is required. Do not reach for `-x test` to get around a red suite: skipping the tests here is exactly what CI will not let you skip. If you only need the packaged artefact and nothing else — the container image build does — use `./gradlew bootJar`, which says it packages and makes no claim to have verified anything.
 
 ### Running with Docker Compose
 

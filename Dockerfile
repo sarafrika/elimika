@@ -17,8 +17,22 @@ RUN ./gradlew dependencies --no-daemon
 # Copy the entire source code
 COPY src ./src
 
-# Build the application and skip tests for a faster build
-RUN ./gradlew clean build -x test --no-daemon
+# Package the application. This stage deliberately does NOT run the test suite, and must not:
+# the suite is Testcontainers-based (build.gradle pulls org.testcontainers:junit-jupiter and
+# spring-boot-testcontainers) and needs a Docker daemon, which a `docker build` stage has no
+# access to. `bootJar` is used rather than the older `build -x test` so the command states what
+# it actually does - package - instead of naming the verifying task and then opting out of the
+# verification, which reads like an oversight and invites someone to "fix" it in either direction.
+#
+# The verification gate lives in .github/workflows/build-push.yml: the "Build and test with Gradle"
+# step runs `./gradlew clean build --no-daemon` (which runs `check`/`test`) and must pass before the
+# `docker build` step in that same job runs, so no image reaches Docker Hub from an unverified tree.
+# Building this Dockerfile by hand bypasses that gate - run `./gradlew build` yourself first.
+#
+# `bootJar` also leaves exactly one artefact in build/libs. `build` additionally emits
+# elimika-<version>-plain.jar, so the COPY below used to glob two files into one destination and
+# survived only because "-plain.jar" happens to sort before ".jar" and is therefore overwritten.
+RUN ./gradlew clean bootJar --no-daemon
 
 # Use a smaller JRE image for the runtime stage
 FROM eclipse-temurin:21-jre
