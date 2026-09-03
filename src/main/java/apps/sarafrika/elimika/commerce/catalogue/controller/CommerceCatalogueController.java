@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,6 +50,7 @@ public class CommerceCatalogueController {
 
     @Operation(summary = "Create catalogue mapping", description = "Creates a catalogue mapping for a course or class")
     @PostMapping
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> createCatalogItem(
             @Valid @RequestBody UpsertCommerceCatalogueItemRequest request) {
         CommerceCatalogueItemDTO dto = catalogService.createItem(request);
@@ -58,6 +60,7 @@ public class CommerceCatalogueController {
 
     @Operation(summary = "Update catalogue mapping", description = "Updates internal variant identifiers or status for an existing mapping")
     @PutMapping("/{catalogUuid}")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<CommerceCatalogueItemDTO>> updateCatalogItem(
             @PathVariable UUID catalogUuid,
             @Valid @RequestBody UpsertCommerceCatalogueItemRequest request) {

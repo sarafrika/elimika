@@ -22,8 +22,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,6 +39,12 @@ import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 @Service
 @RequiredArgsConstructor
 public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
+
+    /**
+     * Search keys an anonymous caller may not influence: the field name, its column name, and any
+     * operator-suffixed form of either (e.g. {@code publiclyVisible_noteq}, {@code publicly_visible_in}).
+     */
+    private static final Set<String> ANONYMOUS_RESERVED_FIELDS = Set.of("publiclyvisible", "publicly_visible", "active");
 
     private final CommerceCatalogueItemRepository catalogItemRepository;
     private final CurrencyService currencyService;
@@ -119,10 +127,8 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         if (Boolean.TRUE.equals(activeOnly)) {
             params.put("active", "true");
         }
-        applyPublicFilterWhenAnonymous(params);
 
-        Specification<CommerceCatalogueItem> spec = specificationBuilder.buildSpecification(
-                CommerceCatalogueItem.class, params);
+        Specification<CommerceCatalogueItem> spec = buildScopedSpecification(params, accessService.buildContext());
         List<CommerceCatalogueItem> entities = spec == null
                 ? catalogItemRepository.findAll()
                 : catalogItemRepository.findAll(spec);
@@ -131,11 +137,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     @Override
     public Page<CommerceCatalogueItemDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        Map<String, String> effectiveParams = new HashMap<>(searchParams);
-        applyPublicFilterWhenAnonymous(effectiveParams);
-
-        Specification<CommerceCatalogueItem> spec = specificationBuilder.buildSpecification(
-                CommerceCatalogueItem.class, effectiveParams);
+        Specification<CommerceCatalogueItem> spec = buildScopedSpecification(searchParams, accessService.buildContext());
         Page<CommerceCatalogueItem> page = spec == null
                 ? catalogItemRepository.findAll(pageable)
                 : catalogItemRepository.findAll(spec, pageable);
@@ -271,10 +273,38 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         };
     }
 
-    private void applyPublicFilterWhenAnonymous(Map<String, String> params) {
-        VisibilityContext context = accessService.buildContext();
-        if (!context.authenticated() && !params.containsKey("publiclyVisible")) {
-            params.put("publiclyVisible", "true");
+    /**
+     * Builds the search specification for the caller. Authenticated callers get exactly the filters they
+     * asked for. Anonymous callers are confined to public, active items by a server-side predicate that is
+     * ANDed onto the specification after the caller's filters have been built, so nothing in the request
+     * map can widen what they see; their own visibility/active keys are dropped rather than honoured.
+     */
+    private Specification<CommerceCatalogueItem> buildScopedSpecification(
+            Map<String, String> searchParams,
+            VisibilityContext context) {
+        Map<String, String> effectiveParams = new HashMap<>(searchParams);
+        if (!context.authenticated()) {
+            effectiveParams.keySet().removeIf(CommerceCatalogueServiceImpl::isAnonymousReservedParam);
         }
+
+        Specification<CommerceCatalogueItem> spec = specificationBuilder.buildSpecification(
+                CommerceCatalogueItem.class, effectiveParams);
+        if (context.authenticated()) {
+            return spec;
+        }
+
+        Specification<CommerceCatalogueItem> publicAndActive = (root, query, cb) -> cb.and(
+                cb.isTrue(root.get("publiclyVisible")),
+                cb.isTrue(root.get("active")));
+        return spec == null ? publicAndActive : spec.and(publicAndActive);
+    }
+
+    private static boolean isAnonymousReservedParam(String key) {
+        if (key == null) {
+            return false;
+        }
+        String normalised = key.toLowerCase(Locale.ROOT);
+        return ANONYMOUS_RESERVED_FIELDS.stream()
+                .anyMatch(field -> normalised.equals(field) || normalised.startsWith(field + "_"));
     }
 }
