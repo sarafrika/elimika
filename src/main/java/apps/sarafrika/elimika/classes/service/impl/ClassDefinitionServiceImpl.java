@@ -57,6 +57,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -155,7 +156,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         eventPublisher.publishEvent(event);
         
         log.info("Created class definition with UUID: {} and published ClassDefinedEvent", result.uuid());
-        return buildResponse(result);
+        // Every other response is built from toDTOWithSessionTemplates, which redacts; this one is
+        // assembled here from the freshly saved entity, so it has to redact for itself. Without it
+        // the create reply is the one place the pay is readable by someone the reads would refuse.
+        return buildResponse(redactInstructorPay(result));
     }
 
     @Override
@@ -592,22 +596,80 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     private boolean maySeeInstructorPay(ClassDefinitionDTO dto) {
+        return isPartyToInstructorRate(dto.defaultInstructorUuid(), dto.organisationUuid());
+    }
+
+    /**
+     * Whether the caller is party to the instructor's pay on a class: the instructor who earns it,
+     * a manager of the organisation that pays it, or a platform admin.
+     * <p>
+     * The same question decides two things, which is why it lives in one place. It decides who may
+     * read the pay off a stored class, and it decides for whom a figure left off a create request
+     * may be resolved from the instructor's approved rate card — the figures on that card are the
+     * party's own, and a back-filled price hands them back verbatim.
+     * <p>
+     * Fails closed: a caller who cannot be identified is not a party.
+     */
+    private boolean isPartyToInstructorRate(UUID instructorUuid, UUID organisationUuid) {
         try {
             if (domainSecurityService.isPlatformAdmin()) {
                 return true;
             }
-            if (dto.defaultInstructorUuid() != null
-                    && domainSecurityService.isInstructorWithUuid(dto.defaultInstructorUuid())) {
+            if (instructorUuid != null && domainSecurityService.isInstructorWithUuid(instructorUuid)) {
                 return true;
             }
-            // Memoised per organisation: a listing redacts row by row, and every row of the same
-            // organisation would otherwise repeat the membership query.
-            return domainSecurityService.belongsToOrganisationWithDomain(
-                    dto.organisationUuid(), UserDomain.organisation_user);
+            return managesOrganisation(organisationUuid);
         } catch (Exception e) {
             // Withholding is the safe failure: a reader who cannot be identified is not entitled.
             return false;
         }
+    }
+
+    /**
+     * Whether the caller is party to the <em>organisation's</em> own approved rate card for the
+     * class: a manager of the organisation named on it, or a platform admin.
+     * <p>
+     * The named instructor is deliberately not a party here, and that is the whole point of keeping
+     * this separate from {@link #isPartyToInstructorRate}. Naming an organisation on a class only
+     * requires that organisation to be approved for the same course — see
+     * {@code validateTrainingApprovals} — so an instructor approved for that course can name an
+     * organisation they have nothing to do with. Were the instructor half enough to open the card,
+     * such a caller could omit the sale price and have the organisation's negotiated rate written
+     * onto the class and handed straight back in the create response.
+     * <p>
+     * Fails closed: a caller who cannot be identified is not a party.
+     */
+    private boolean isPartyToOrganisationRate(UUID organisationUuid) {
+        try {
+            return domainSecurityService.isPlatformAdmin() || managesOrganisation(organisationUuid);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * The manager predicate, scoped to the organisation named on the class: both mappings are read
+     * for <em>that</em> organisation, never as a role the caller happens to hold somewhere.
+     * <p>
+     * It has to read both, because an organisation records its managers under either name — a
+     * member promoted to management gets an organisation-scoped {@code organisation_user}, while
+     * the organisation's own creator is saved as an organisation-scoped {@code admin} and picks up
+     * {@code organisation_user} only as a standalone domain, which carries no organisation and so
+     * can never satisfy an organisation-scoped lookup. Reading only the first name would hide an
+     * organisation's own margin from the person who founded it. This is the manager predicate the
+     * rest of the codebase already spells out the same way.
+     * <p>
+     * Both lookups go through the memoised organisation-scoped predicate, so a listing that redacts
+     * row by row asks the membership question once per organisation rather than once per row.
+     */
+    private boolean managesOrganisation(UUID organisationUuid) {
+        if (organisationUuid == null) {
+            return false;
+        }
+        return domainSecurityService.belongsToOrganisationWithDomain(
+                        organisationUuid, UserDomain.organisation_user)
+                || domainSecurityService.belongsToOrganisationWithDomain(
+                        organisationUuid, UserDomain.admin);
     }
 
     private List<ClassSessionTemplateDTO> loadSessionTemplates(UUID classDefinitionUuid) {
@@ -1049,6 +1111,16 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return Optional.empty();
     }
 
+    /**
+     * Reads an approved rate card only when the caller is party to that particular card, so a
+     * non-party sees the same empty result they would see if no card existed.
+     */
+    private Optional<BigDecimal> resolveApprovedRate(ClassDefinition entity,
+                                                     boolean isParty,
+                                                     Function<ClassDefinition, Optional<BigDecimal>> resolver) {
+        return isParty ? resolver.apply(entity) : Optional.empty();
+    }
+
     private void validateTrainingFee(ClassDefinition entity) {
         UUID courseUuid = entity.getCourseUuid();
         UUID programUuid = entity.getProgramUuid();
@@ -1066,40 +1138,61 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             throw new IllegalArgumentException("Location type is required when linking a class definition to a course or training program");
         }
 
+        // Two approved rate cards are readable from here, and they have two different owners. The
+        // instructor's card belongs to the instructor and to the organisation hiring them; the
+        // organisation's card belongs to the organisation alone. Each is consulted only for a
+        // caller party to that card, whether the read is a back-fill or a comparison — both leak
+        // the figure. A back-filled price is returned verbatim in the create response, and a
+        // comparison that decides whether the request is accepted is the same figure delivered one
+        // bit at a time to a caller free to resubmit. Keeping the two apart matters because naming
+        // an organisation on a class only requires that organisation to be approved for the course:
+        // an instructor may name one they do not belong to, and must not thereby read its card.
+        // Non-parties state the prices they mean and are held to the checks that use no card at all.
+        boolean partyToInstructorRate =
+                isPartyToInstructorRate(entity.getDefaultInstructorUuid(), entity.getOrganisationUuid());
+        boolean partyToOrganisationRate = isPartyToOrganisationRate(entity.getOrganisationUuid());
+
         if (entity.getSalePrice() == null) {
-            entity.setSalePrice(resolveOrganisationApprovedRate(entity)
-                    .or(() -> resolveInstructorApprovedRate(entity))
+            if (!partyToInstructorRate && !partyToOrganisationRate) {
+                throw new IllegalArgumentException(
+                        "Sale price is required unless the class names you as its instructor or an organisation you manage");
+            }
+            entity.setSalePrice(resolveApprovedRate(entity, partyToOrganisationRate, this::resolveOrganisationApprovedRate)
+                    .or(() -> resolveApprovedRate(entity, partyToInstructorRate, this::resolveInstructorApprovedRate))
                     .orElseThrow(() -> new IllegalStateException(String.format(
                             "No approved rate card found for the selected instructor/organisation on %s. Submit and approve a training application with rates first.",
                             courseUuid != null ? "course " + courseUuid : "training program " + programUuid))));
         }
 
         if (entity.getInstructorPay() == null) {
-            entity.setInstructorPay(resolveInstructorApprovedRate(entity).orElse(entity.getSalePrice()));
+            entity.setInstructorPay(partyToInstructorRate
+                    ? resolveInstructorApprovedRate(entity).orElse(entity.getSalePrice())
+                    : entity.getSalePrice());
         }
 
+        // Compares two figures the caller supplied, so it discloses nothing and applies to everyone.
         if (entity.getInstructorPay().compareTo(entity.getSalePrice()) > 0) {
-            throw new IllegalArgumentException(String.format(
-                    "Instructor pay %.2f cannot exceed the class sale price %.2f",
-                    entity.getInstructorPay(), entity.getSalePrice()));
+            throw new IllegalArgumentException("Instructor pay cannot exceed the class sale price");
         }
 
-        resolveInstructorApprovedRate(entity).ifPresent(approvedRate -> {
-            if (entity.getInstructorPay().compareTo(approvedRate) < 0) {
-                throw new IllegalArgumentException(String.format(
-                        "Instructor pay %.2f is below the instructor's approved rate %.2f for %s %s delivery.",
-                        entity.getInstructorPay(),
-                        approvedRate,
-                        entity.getSessionFormat(),
-                        entity.getLocationType()));
-            }
-        });
+        // The floor that protects the instructor, enforced against the party that is hiring them.
+        // Dropping the figure out of the message was not enough on its own: whether the request is
+        // accepted still answers "is the pay you named below the rate?", and a caller who may retry
+        // walks the boundary down to the cent. So the card is only opened for a caller it belongs
+        // to, for whom the answer discloses nothing they are not already entitled to read.
+        if (partyToInstructorRate) {
+            resolveInstructorApprovedRate(entity).ifPresent(approvedRate -> {
+                if (entity.getInstructorPay().compareTo(approvedRate) < 0) {
+                    throw new IllegalArgumentException(
+                            "Instructor pay is below the instructor's approved rate for this delivery format");
+                }
+            });
+        }
 
+        // The course minimum is published on the course itself, so this one is safe for everyone.
         BigDecimal minimumTrainingFee = resolveMinimumTrainingFee(courseUuid, programUuid);
         if (minimumTrainingFee != null && entity.getSalePrice().compareTo(minimumTrainingFee) < 0) {
-            throw new IllegalArgumentException(String.format(
-                    "Class sale price %.2f cannot be less than the course minimum training fee %.2f",
-                    entity.getSalePrice(), minimumTrainingFee));
+            throw new IllegalArgumentException("Class sale price cannot be less than the course minimum training fee");
         }
     }
 

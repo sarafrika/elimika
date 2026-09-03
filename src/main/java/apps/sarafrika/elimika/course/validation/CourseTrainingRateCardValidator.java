@@ -55,12 +55,8 @@ public class CourseTrainingRateCardValidator {
             throw new IllegalArgumentException(label + " cannot be negative");
         }
         if (value.compareTo(floor) < 0) {
-            throw new IllegalArgumentException(String.format(
-                    "%s %.4f cannot be less than the course minimum training fee %.2f per learner per hour",
-                    label,
-                    value,
-                    floor
-            ));
+            throw new IllegalArgumentException(
+                    label + " cannot be less than the course minimum training fee per learner per hour");
         }
     }
 
@@ -84,12 +80,8 @@ public class CourseTrainingRateCardValidator {
             return;
         }
         if (value.compareTo(floor) < 0) {
-            throw new IllegalArgumentException(String.format(
-                    "%s %.4f cannot be less than the course minimum training fee %.2f per learner per hour",
-                    label,
-                    value,
-                    floor
-            ));
+            throw new IllegalArgumentException(
+                    label + " cannot be less than the course minimum training fee per learner per hour");
         }
     }
 
