@@ -127,6 +127,12 @@ commerce:
     enabled: ${COMMERCE_INTERNAL_ENABLED:false}
     default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:KES}
   payment:
+    callback:
+      # Keycloak clients whose service-account token may read and settle an order that is not its
+      # own — the M-Pesa gateway posting to /orders/{id}/payment-callback. Any other service account
+      # is refused and logged; the reconciliation sweep below still settles the payment within the
+      # minute, so a wrong name here delays capture rather than losing it.
+      client-ids: ${COMMERCE_PAYMENT_CALLBACK_CLIENT_IDS:mpesa-service}
     reconciliation:
       # An STK prompt lives about a minute, so this sweep is deliberately tight: it is the safety net
       # for a payment whose callback never arrived and whose buyer closed the tab.

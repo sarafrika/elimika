@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVarian
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
@@ -46,6 +47,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -83,11 +85,18 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
         currencyValidator.validateActiveCurrency(currencyCode);
 
+        // Every cart is somebody's. A cart with no buyer on it could only ever be reached by
+        // guessing its id, so refusing to create one is cheaper than deciding later who owns it.
+        UUID buyerUuid = currentUserUuid();
+        if (buyerUuid == null) {
+            throw new AccessDeniedException("A cart can only be started by a signed-in buyer");
+        }
+
         CommerceCart cart = new CommerceCart();
         cart.setStatus(CartStatus.OPEN);
         cart.setCurrencyCode(currencyCode);
         cart.setRegionCode(regionResolver.resolveRegionCode(request.getRegionCode(), null));
-        cart.setUserUuid(currentUserUuid());
+        cart.setUserUuid(buyerUuid);
         cart = cartRepository.save(cart);
 
         if (!CollectionUtils.isEmpty(request.getItems())) {
@@ -109,9 +118,6 @@ public class InternalCartServiceImpl implements InternalCartService {
             return mapper.toCartResponse(cart);
         }
         ensureOpen(cart);
-        if (cart.getUserUuid() == null) {
-            cart.setUserUuid(currentUserUuid());
-        }
         addItemToCart(cart, request);
         recalcTotals(cart);
         refreshCartMetadata(cart);
@@ -125,10 +131,10 @@ public class InternalCartServiceImpl implements InternalCartService {
         ensureOpen(cart);
         UUID itemUuid = parseUuid(itemId);
         CommerceCartItem item = cartItemRepository.findByUuid(itemUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Cart item not found: " + itemId));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
         if (item.getCart() == null || item.getCart().getId() == null || cart.getId() == null
                 || !Objects.equals(item.getCart().getId(), cart.getId())) {
-            throw new IllegalArgumentException("Cart item does not belong to cart: " + cartId);
+            throw new ResourceNotFoundException("Cart item not found");
         }
 
         if (!CollectionUtils.isEmpty(cart.getItems())) {
@@ -338,17 +344,37 @@ public class InternalCartServiceImpl implements InternalCartService {
         return items;
     }
 
+    /**
+     * Loads a cart on behalf of the caller.
+     * <p>
+     * A cart belongs to the buyer recorded on it, and platform admins may see any cart. Nobody
+     * inherits a cart by holding its id: a cart whose buyer is not the caller is reported exactly
+     * like one that does not exist, so an id that leaks — out of a shared browser, a support thread
+     * — confirms nothing and buys nothing. Rows that predate buyer recording are attributed by
+     * {@code V202609041000__backfill_commerce_buyer_uuids.sql}; any the backfill could not match to
+     * an account are nobody's cart and are left to an administrator rather than handed to whoever
+     * asks first.
+     */
     private CommerceCart loadCart(String cartId) {
         UUID uuid = parseUuid(cartId);
-        return cartRepository.findByUuid(uuid)
-                .orElseThrow(() -> new IllegalArgumentException("Cart not found: " + cartId));
+        CommerceCart cart = cartRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
+        UUID callerUuid = currentUserUuid();
+        if (callerUuid != null && callerUuid.equals(cart.getUserUuid())) {
+            return cart;
+        }
+        if (domainSecurityService.isPlatformAdmin()) {
+            return cart;
+        }
+        throw new ResourceNotFoundException("Cart not found");
     }
 
     private UUID currentUserUuid() {
         try {
             return domainSecurityService.getCurrentUserUuid();
         } catch (Exception e) {
-            // A cart can be built before sign-in; the buyer is re-resolved when the order is recorded.
+            // A caller the platform cannot name owns nothing, so it neither starts a cart nor
+            // reaches one; treat the failure as "no buyer" and let the callers refuse.
             return null;
         }
     }
@@ -373,11 +399,21 @@ public class InternalCartServiceImpl implements InternalCartService {
                 && findExistingOrder(cart).isPresent();
     }
 
+    /**
+     * The order already placed for this cart, if the cart's own buyer placed it.
+     * <p>
+     * This is the second way an order is handed out — {@code completeCart} returns it and the
+     * idempotent early-returns above are gated on it — so it answers to ownership like the order
+     * service does. The buyer on an order is copied from the cart at completion, so a divergence
+     * means the two rows are not the same person's and the order is not this caller's to see.
+     */
     private Optional<CommerceOrder> findExistingOrder(CommerceCart cart) {
         if (cart == null || cart.getUuid() == null) {
             return Optional.empty();
         }
-        return orderRepository.findFirstByCart_UuidOrderByCreatedDateDesc(cart.getUuid());
+        return orderRepository.findFirstByCart_UuidOrderByCreatedDateDesc(cart.getUuid())
+                .filter(order -> order.getUserUuid() == null
+                        || Objects.equals(order.getUserUuid(), cart.getUserUuid()));
     }
 
     private boolean hasMatchingLineItem(CommerceCart cart, CartLineItemRequest request) {
