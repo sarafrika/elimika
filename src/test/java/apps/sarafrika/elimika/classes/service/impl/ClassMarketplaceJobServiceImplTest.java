@@ -2068,6 +2068,7 @@ class ClassMarketplaceJobServiceImplTest {
                 job.getDescription(),
                 instructorUuid,
                 job.getOrganisationUuid(),
+                null,
                 job.getCourseUuid(),
                 job.getProgramUuid(),
                 new BigDecimal("2500.00"),

@@ -252,7 +252,7 @@ class NotNullColumnDefaultsIntegrationTest {
     private ClassDefinitionCreateRequestDTO createRequest(RateBasis rateBasis) {
         return new ClassDefinitionCreateRequestDTO(
                 "Artificial Intelligence and Machine Learning", "Weekly cohort", null, null,
-                UUID.randomUUID(), null, null, null,
+                UUID.randomUUID(), null, null, null, null,
                 new BigDecimal("1750.00"), new BigDecimal("1750.00"), rateBasis,
                 ClassVisibility.PUBLIC, SessionFormat.GROUP,
                 LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),

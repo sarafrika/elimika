@@ -170,6 +170,7 @@ class BookingServiceImplTest {
                 null,
                 instructorUuid,
                 null,
+                null,
                 courseUuid,
                 null,
                 null,

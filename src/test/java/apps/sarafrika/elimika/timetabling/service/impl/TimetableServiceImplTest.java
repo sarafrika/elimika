@@ -99,6 +99,9 @@ class TimetableServiceImplTest {
     private apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService organisationLookupService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService organisationAffiliationService;
+
+    @Mock
     private InstructorLookupService instructorLookupService;
 
     @Mock
@@ -123,6 +126,7 @@ class TimetableServiceImplTest {
                 studentLookupService,
                 userLookupService,
                 organisationLookupService,
+                organisationAffiliationService,
                 instructorLookupService,
                 resourceBookingService
         );

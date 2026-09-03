@@ -87,7 +87,7 @@ class OrganisationResourceServiceImplTest {
     void createVenueRequiresSeatCapacity() {
         assertThatThrownBy(() -> service.createResource(ORG_UUID, new OrganisationResourceDTO(
                 null, null, null, ResourceType.VENUE, "Lab", null, null, null,
-                null, null, null, null, null, null)))
+                null, null, null, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("seat_capacity");
     }
@@ -96,7 +96,7 @@ class OrganisationResourceServiceImplTest {
     void createVenueRejectsTotalQuantity() {
         assertThatThrownBy(() -> service.createResource(ORG_UUID, new OrganisationResourceDTO(
                 null, null, null, ResourceType.VENUE, "Lab", null, 20, 5,
-                null, null, null, null, null, null)))
+                null, null, null, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("total_quantity");
     }
@@ -105,7 +105,7 @@ class OrganisationResourceServiceImplTest {
     void createEquipmentPoolRequiresTotalQuantity() {
         assertThatThrownBy(() -> service.createResource(ORG_UUID, new OrganisationResourceDTO(
                 null, null, null, ResourceType.EQUIPMENT_POOL, "Laptops", null, null, null,
-                null, null, null, null, null, null)))
+                null, null, null, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("total_quantity");
     }
@@ -114,7 +114,7 @@ class OrganisationResourceServiceImplTest {
     void createEquipmentPoolRejectsSeatCapacity() {
         assertThatThrownBy(() -> service.createResource(ORG_UUID, new OrganisationResourceDTO(
                 null, null, null, ResourceType.EQUIPMENT_POOL, "Laptops", null, 10, 10,
-                null, null, null, null, null, null)))
+                null, null, null, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("seat_capacity");
     }
@@ -161,7 +161,7 @@ class OrganisationResourceServiceImplTest {
 
         OrganisationResourceDTO change = new OrganisationResourceDTO(
                 null, null, null, ResourceType.EQUIPMENT_POOL, "Physics Lab", null, null, 5,
-                null, null, null, null, null, null);
+                null, null, null, null);
 
         assertThatThrownBy(() -> service.updateResource(ORG_UUID, entity.getUuid(), change))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -389,7 +389,7 @@ class OrganisationResourceServiceImplTest {
     private OrganisationResourceDTO venueDto(String name, int seatCapacity) {
         return new OrganisationResourceDTO(
                 null, null, null, ResourceType.VENUE, name, null, seatCapacity, null,
-                null, null, null, null, null, null);
+                null, null, null, null);
     }
 
     private OrganisationResource venueEntity(String name, int seatCapacity) {
