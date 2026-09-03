@@ -188,11 +188,20 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
      * Note: Read-only fields like uuid, createdDate, createdBy, fullName, verified, etc. are not updated.
      */
     private void updateCourseCreatorFields(CourseCreator existingCourseCreator, CourseCreatorDTO courseCreatorDTO) {
+        if (courseCreatorDTO.userUuid() != null
+                && !courseCreatorDTO.userUuid().equals(existingCourseCreator.getUserUuid())) {
+            // The owning user of a course creator profile is fixed at creation. Allowing an update to
+            // re-point it would hand the profile - and every document, course and qualification keyed to
+            // it - to another account.
+            throw new IllegalArgumentException("user_uuid cannot be reassigned on an existing course creator profile");
+        }
         applyCourseCreatorProfile(existingCourseCreator, courseCreatorDTO);
     }
 
     private void applyCourseCreatorProfile(CourseCreator courseCreator, CourseCreatorDTO courseCreatorDTO) {
-        courseCreator.setUserUuid(courseCreatorDTO.userUuid());
+        if (courseCreatorDTO.userUuid() != null) {
+            courseCreator.setUserUuid(courseCreatorDTO.userUuid());
+        }
         if (courseCreatorDTO.fullName() != null) {
             courseCreator.setFullName(courseCreatorDTO.fullName());
         }

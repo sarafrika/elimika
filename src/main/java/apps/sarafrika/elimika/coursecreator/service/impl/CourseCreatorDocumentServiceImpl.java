@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.coursecreator.service.CourseCreatorDocumentService
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
     private final MediaStorageService mediaStorageService;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DomainSecurityService domainSecurityService;
 
     @Override
     public CourseCreatorDocumentDTO createCourseCreatorDocument(CourseCreatorDocumentDTO documentDTO) {
@@ -74,13 +76,27 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
     }
 
     @Override
-    public CourseCreatorDocumentDTO updateCourseCreatorDocument(UUID uuid, CourseCreatorDocumentDTO documentDTO) {
-        CourseCreatorDocument existing = documentRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
-
-        if (documentDTO.courseCreatorUuid() != null) {
-            existing.setCourseCreatorUuid(documentDTO.courseCreatorUuid());
+    @Transactional(readOnly = true)
+    public List<CourseCreatorDocumentDTO> getVisibleDocumentsByCourseCreatorUuid(UUID courseCreatorUuid) {
+        List<CourseCreatorDocumentDTO> documents = getDocumentsByCourseCreatorUuid(courseCreatorUuid);
+        if (canSeeUnverifiedDocuments(courseCreatorUuid)) {
+            return documents;
         }
+        return documents.stream()
+                .filter(document -> Boolean.TRUE.equals(document.isVerified()))
+                .toList();
+    }
+
+    private boolean canSeeUnverifiedDocuments(UUID courseCreatorUuid) {
+        return domainSecurityService.isCourseCreatorWithUuid(courseCreatorUuid)
+                || domainSecurityService.isPlatformAdmin();
+    }
+
+    @Override
+    public CourseCreatorDocumentDTO updateCourseCreatorDocument(UUID courseCreatorUuid, UUID uuid,
+                                                                CourseCreatorDocumentDTO documentDTO) {
+        CourseCreatorDocument existing = findDocumentOfCourseCreator(courseCreatorUuid, uuid);
+
         if (documentDTO.documentTypeUuid() != null) {
             existing.setDocumentTypeUuid(documentDTO.documentTypeUuid());
         }
@@ -117,24 +133,13 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
         if (documentDTO.description() != null) {
             existing.setDescription(documentDTO.description());
         }
-        if (documentDTO.status() != null) {
-            existing.setStatus(documentDTO.status());
-        }
         if (documentDTO.expiryDate() != null) {
             existing.setExpiryDate(documentDTO.expiryDate());
         }
-        if (documentDTO.isVerified() != null) {
-            existing.setIsVerified(documentDTO.isVerified());
-        }
-        if (documentDTO.verifiedBy() != null) {
-            existing.setVerifiedBy(documentDTO.verifiedBy());
-        }
-        if (documentDTO.verifiedAt() != null) {
-            existing.setVerifiedAt(documentDTO.verifiedAt());
-        }
-        if (documentDTO.verificationNotes() != null) {
-            existing.setVerificationNotes(documentDTO.verificationNotes());
-        }
+
+        // Verification state (status, is_verified, verified_by/at, notes) is deliberately not writable here.
+        // It decides whether a document is visible beyond its owner, so it moves only through
+        // verifyCourseCreatorDocument, which is reserved for platform admins.
 
         return CourseCreatorDocumentFactory.toDTO(documentRepository.save(existing));
     }
@@ -156,12 +161,23 @@ public class CourseCreatorDocumentServiceImpl implements CourseCreatorDocumentSe
     }
 
     @Override
-    public void deleteCourseCreatorDocument(UUID uuid) {
-        CourseCreatorDocument document = documentRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
+    public void deleteCourseCreatorDocument(UUID courseCreatorUuid, UUID uuid) {
+        CourseCreatorDocument document = findDocumentOfCourseCreator(courseCreatorUuid, uuid);
         mediaStorageService.delete(document.getFilePath() != null
                 ? document.getFilePath() : document.getStoredFilename());
         documentRepository.deleteByUuid(uuid);
+    }
+
+    /**
+     * Loads a document and confirms it hangs off the course creator named in the request path. A caller
+     * authorised for their own profile must not be able to reach another creator's document by UUID, so a
+     * mismatch is reported as a missing document rather than as a forbidden one.
+     */
+    private CourseCreatorDocument findDocumentOfCourseCreator(UUID courseCreatorUuid, UUID uuid) {
+        return documentRepository.findByUuid(uuid)
+                .filter(document -> courseCreatorUuid != null
+                        && courseCreatorUuid.equals(document.getCourseCreatorUuid()))
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
     }
 
     private void publishDocumentVerifiedNotification(CourseCreatorDocument document) {

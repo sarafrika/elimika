@@ -13,9 +13,24 @@ public interface CourseCreatorDocumentService {
 
     List<CourseCreatorDocumentDTO> getDocumentsByCourseCreatorUuid(UUID courseCreatorUuid);
 
-    CourseCreatorDocumentDTO updateCourseCreatorDocument(UUID uuid, CourseCreatorDocumentDTO documentDTO);
+    /**
+     * Returns the documents of a course creator that the current caller is entitled to see.
+     * The owning course creator and platform admins see every document; any other authenticated
+     * caller sees only admin-verified documents, which is what the public profile renders.
+     */
+    List<CourseCreatorDocumentDTO> getVisibleDocumentsByCourseCreatorUuid(UUID courseCreatorUuid);
+
+    /**
+     * Updates a document that belongs to the given course creator. The document is looked up within
+     * that course creator so a caller authorised for their own profile cannot reach another creator's
+     * document by its UUID.
+     */
+    CourseCreatorDocumentDTO updateCourseCreatorDocument(UUID courseCreatorUuid, UUID uuid, CourseCreatorDocumentDTO documentDTO);
 
     CourseCreatorDocumentDTO verifyCourseCreatorDocument(UUID uuid, String verifiedBy, String verificationNotes);
 
-    void deleteCourseCreatorDocument(UUID uuid);
+    /**
+     * Deletes a document that belongs to the given course creator, scoped the same way as the update.
+     */
+    void deleteCourseCreatorDocument(UUID courseCreatorUuid, UUID uuid);
 }

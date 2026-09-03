@@ -38,6 +38,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -75,6 +76,23 @@ public class CourseCreatorController {
     private final StorageProperties storageProperties;
     private final ProfileDocumentUploadService profileDocumentUploadService;
 
+    // ===== AUTHORISATION NOTE =====
+    //
+    // Every mutation below is owner-or-platform-admin; verification is platform-admin only. The reads
+    // deliberately left open to any authenticated caller are the ones the public profile at
+    // /profile-user/{id} renders for a creator who is not the viewer:
+    //
+    //   GET /              , GET /{uuid}          , GET /search        - directory listing of creator profiles
+    //   GET /verified      , GET /count           , GET /{uuid}/verification-status
+    //   GET /{ccUuid}/skills, /education, /experience, /memberships, /certifications
+    //                                                                 - the professional qualification panels
+    //   GET /{ccUuid}/documents                                       - verified documents only for non-owners;
+    //                                                                   the service scopes the payload by viewer
+    //
+    // GET /unverified is a moderation queue rather than directory data and is restricted to platform admins,
+    // as are the five /{collection}/search endpoints, which otherwise let any caller pull a named victim's
+    // credential records by courseCreatorUuid. Document bytes stay owner-or-admin on this controller.
+
     // ===== COURSE CREATOR BASIC OPERATIONS =====
 
     @Operation(
@@ -86,6 +104,7 @@ public class CourseCreatorController {
                     @ApiResponse(responseCode = "400", description = "Invalid request data")
             }
     )
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin() or (#courseCreatorDTO.userUuid() != null and #courseCreatorDTO.userUuid().equals(@domainSecurityService.getCurrentUserUuid()))")
     @PostMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDTO>> createCourseCreator(
             @Valid @RequestBody CourseCreatorDTO courseCreatorDTO) {
@@ -135,6 +154,7 @@ public class CourseCreatorController {
                     @ApiResponse(responseCode = "404", description = "Course creator not found")
             }
     )
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#uuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDTO>> updateCourseCreator(
             @PathVariable UUID uuid,
@@ -152,6 +172,7 @@ public class CourseCreatorController {
                     @ApiResponse(responseCode = "404", description = "Course creator not found")
             }
     )
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#uuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{uuid}")
     public ResponseEntity<Void> deleteCourseCreator(@PathVariable UUID uuid) {
         courseCreatorService.deleteCourseCreator(uuid);
@@ -224,6 +245,7 @@ public class CourseCreatorController {
                     @ApiResponse(responseCode = "403", description = "Insufficient permissions")
             }
     )
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{uuid}/verify")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDTO>> verifyCourseCreator(
             @PathVariable UUID uuid,
@@ -243,6 +265,7 @@ public class CourseCreatorController {
                     @ApiResponse(responseCode = "403", description = "Insufficient permissions")
             }
     )
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{uuid}/unverify")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDTO>> unverifyCourseCreator(
             @PathVariable UUID uuid,
@@ -292,6 +315,7 @@ public class CourseCreatorController {
                     @ApiResponse(responseCode = "200", description = "Unverified course creators retrieved successfully")
             }
     )
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @GetMapping("/unverified")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorDTO>>> getUnverifiedCourseCreators(
             Pageable pageable) {
@@ -320,6 +344,7 @@ public class CourseCreatorController {
     // ===== COURSE CREATOR QUALIFICATION DATA =====
 
     @Operation(summary = "Add skill to course creator", description = "Captures a new competency for a course creator profile.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/skills")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorSkillDTO>> addCourseCreatorSkill(
             @PathVariable UUID courseCreatorUuid,
@@ -343,6 +368,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Update course creator skill", description = "Updates a recorded skill for a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{courseCreatorUuid}/skills/{skillUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorSkillDTO>> updateCourseCreatorSkill(
             @PathVariable UUID courseCreatorUuid,
@@ -355,6 +381,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Delete course creator skill", description = "Removes a skill record from a course creator profile.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{courseCreatorUuid}/skills/{skillUuid}")
     public ResponseEntity<Void> deleteCourseCreatorSkill(
             @PathVariable UUID courseCreatorUuid,
@@ -364,6 +391,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Add education record", description = "Captures an academic qualification for a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/education")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorEducationDTO>> addCourseCreatorEducation(
             @PathVariable UUID courseCreatorUuid,
@@ -387,6 +415,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Update education record", description = "Updates an existing course creator education entry.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{courseCreatorUuid}/education/{educationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorEducationDTO>> updateCourseCreatorEducation(
             @PathVariable UUID courseCreatorUuid,
@@ -399,6 +428,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Delete education record", description = "Deletes an education record from a course creator profile.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{courseCreatorUuid}/education/{educationUuid}")
     public ResponseEntity<Void> deleteCourseCreatorEducation(
             @PathVariable UUID courseCreatorUuid,
@@ -408,6 +438,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Add experience record", description = "Captures professional experience for a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/experience")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorExperienceDTO>> addCourseCreatorExperience(
             @PathVariable UUID courseCreatorUuid,
@@ -431,6 +462,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Update experience", description = "Updates a recorded work experience entry for a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{courseCreatorUuid}/experience/{experienceUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorExperienceDTO>> updateCourseCreatorExperience(
             @PathVariable UUID courseCreatorUuid,
@@ -443,6 +475,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Delete experience record", description = "Removes a course creator experience entry.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{courseCreatorUuid}/experience/{experienceUuid}")
     public ResponseEntity<Void> deleteCourseCreatorExperience(
             @PathVariable UUID courseCreatorUuid,
@@ -452,6 +485,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Add professional membership", description = "Captures an association or membership for a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/memberships")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorProfessionalMembershipDTO>> addCourseCreatorMembership(
             @PathVariable UUID courseCreatorUuid,
@@ -475,6 +509,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Update membership record", description = "Updates a course creator professional membership.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{courseCreatorUuid}/memberships/{membershipUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorProfessionalMembershipDTO>> updateCourseCreatorMembership(
             @PathVariable UUID courseCreatorUuid,
@@ -487,6 +522,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Delete membership record", description = "Deletes a course creator membership record.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{courseCreatorUuid}/memberships/{membershipUuid}")
     public ResponseEntity<Void> deleteCourseCreatorMembership(
             @PathVariable UUID courseCreatorUuid,
@@ -496,6 +532,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Add certification record", description = "Captures a certification or accreditation held by a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/certifications")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorCertificationDTO>> addCourseCreatorCertification(
             @PathVariable UUID courseCreatorUuid,
@@ -519,6 +556,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Update certification record", description = "Updates certification metadata for a course creator.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{courseCreatorUuid}/certifications/{certificationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorCertificationDTO>> updateCourseCreatorCertification(
             @PathVariable UUID courseCreatorUuid,
@@ -531,6 +569,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Delete certification record", description = "Deletes a certification entry from a course creator profile.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{courseCreatorUuid}/certifications/{certificationUuid}")
     public ResponseEntity<Void> deleteCourseCreatorCertification(
             @PathVariable UUID courseCreatorUuid,
@@ -542,6 +581,7 @@ public class CourseCreatorController {
     // ===== COURSE CREATOR DOCUMENTS =====
 
     @Operation(summary = "Add document to course creator", description = "Uploads and associates a document with a course creator")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/documents")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> addCourseCreatorDocument(
             @PathVariable UUID courseCreatorUuid,
@@ -567,6 +607,7 @@ public class CourseCreatorController {
                     - Stored via the platform StorageService under the `profile_documents` folder, partitioned by course creator UUID.
                     """
     )
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping(value = "/{courseCreatorUuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> uploadCourseCreatorDocument(
             @PathVariable UUID courseCreatorUuid,
@@ -629,16 +670,24 @@ public class CourseCreatorController {
                         .success(createdDocument, "Document uploaded successfully"));
     }
 
-    @Operation(summary = "Get course creator documents", description = "Retrieves all documents for a specific course creator")
+    @Operation(
+            summary = "Get course creator documents",
+            description = """
+                    Retrieves documents for a course creator. The owner and platform admins see every document;
+                    any other authenticated viewer sees only documents an admin has verified, because the public
+                    profile renders a creator's verified credentials.
+                    """
+    )
     @GetMapping("/{courseCreatorUuid}/documents")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseCreatorDocumentDTO>>> getCourseCreatorDocuments(
             @PathVariable UUID courseCreatorUuid) {
-        List<CourseCreatorDocumentDTO> documents = courseCreatorDocumentService.getDocumentsByCourseCreatorUuid(courseCreatorUuid);
+        List<CourseCreatorDocumentDTO> documents = courseCreatorDocumentService.getVisibleDocumentsByCourseCreatorUuid(courseCreatorUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(documents, "Documents fetched successfully"));
     }
 
     @Operation(summary = "Get course creator document media", description = "Streams an uploaded course creator document by stored relative path.")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @GetMapping("/{courseCreatorUuid}/documents/files/{*filePath}")
     public ResponseEntity<Resource> getCourseCreatorDocumentMedia(
             @PathVariable UUID courseCreatorUuid,
@@ -655,27 +704,30 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Update course creator document", description = "Updates a specific course creator document")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{courseCreatorUuid}/documents/{documentUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> updateCourseCreatorDocument(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID documentUuid,
             @Valid @RequestBody CourseCreatorDocumentDTO documentDTO) {
         validateCourseCreatorUuid(courseCreatorUuid, documentDTO.courseCreatorUuid());
-        CourseCreatorDocumentDTO updatedDocument = courseCreatorDocumentService.updateCourseCreatorDocument(documentUuid, documentDTO);
+        CourseCreatorDocumentDTO updatedDocument = courseCreatorDocumentService.updateCourseCreatorDocument(courseCreatorUuid, documentUuid, documentDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedDocument, "Document updated successfully"));
     }
 
     @Operation(summary = "Delete course creator document", description = "Removes a document from a course creator profile")
+    @PreAuthorize("@domainSecurityService.isCourseCreatorWithUuid(#courseCreatorUuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{courseCreatorUuid}/documents/{documentUuid}")
     public ResponseEntity<Void> deleteCourseCreatorDocument(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID documentUuid) {
-        courseCreatorDocumentService.deleteCourseCreatorDocument(documentUuid);
+        courseCreatorDocumentService.deleteCourseCreatorDocument(courseCreatorUuid, documentUuid);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Verify course creator document", description = "Marks a course creator document as verified")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{courseCreatorUuid}/documents/{documentUuid}/verify")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorDocumentDTO>> verifyCourseCreatorDocument(
             @PathVariable UUID courseCreatorUuid,
@@ -691,6 +743,7 @@ public class CourseCreatorController {
     // ===== QUALIFICATION SEARCH =====
 
     @Operation(summary = "Search course creator skills", description = "Advanced search endpoint for course creator skills using query parameters.")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @GetMapping("/skills/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorSkillDTO>>> searchCourseCreatorSkills(
             @RequestParam Map<String, String> searchParams,
@@ -702,6 +755,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Search course creator education", description = "Advanced search endpoint for course creator education history.")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @GetMapping("/education/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorEducationDTO>>> searchCourseCreatorEducation(
             @RequestParam Map<String, String> searchParams,
@@ -713,6 +767,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Search course creator experience", description = "Advanced search endpoint for course creator experience history.")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @GetMapping("/experience/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorExperienceDTO>>> searchCourseCreatorExperience(
             @RequestParam Map<String, String> searchParams,
@@ -724,6 +779,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Search course creator memberships", description = "Advanced search endpoint for course creator memberships.")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @GetMapping("/memberships/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorProfessionalMembershipDTO>>> searchCourseCreatorMemberships(
             @RequestParam Map<String, String> searchParams,
@@ -735,6 +791,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Search course creator certifications", description = "Advanced search endpoint for course creator certifications.")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @GetMapping("/certifications/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorCertificationDTO>>> searchCourseCreatorCertifications(
             @RequestParam Map<String, String> searchParams,

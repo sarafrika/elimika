@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.security;
 
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
@@ -31,8 +32,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers {@code administersOrganisationOf}, the org-scoped counterpart to
- * {@code isOrganizationAdmin()}.
+ * Covers the subject-scoped predicates: {@code administersOrganisationOf}, the org-scoped counterpart to
+ * {@code isOrganizationAdmin()}, and {@code isCourseCreatorWithUuid}, which ties a caller to the one
+ * course creator profile they own.
  * <p>
  * {@code isOrganizationAdmin()} answers a question about the caller alone, so it is satisfied by an
  * administrator of any organisation regardless of who the request is about. Anywhere the subject is
@@ -47,10 +49,13 @@ class DomainSecurityServiceTest {
     private static final UUID TARGET_UUID = UUID.randomUUID();
     private static final UUID SHARED_ORG_UUID = UUID.randomUUID();
     private static final UUID OTHER_ORG_UUID = UUID.randomUUID();
+    private static final UUID COURSE_CREATOR_UUID = UUID.randomUUID();
+    private static final UUID OTHER_COURSE_CREATOR_UUID = UUID.randomUUID();
 
     @Mock private UserLookupService userLookupService;
     @Mock private StudentLookupService studentLookupService;
     @Mock private InstructorLookupService instructorLookupService;
+    @Mock private CourseCreatorLookupService courseCreatorLookupService;
 
     private DomainSecurityService service;
 
@@ -59,7 +64,8 @@ class DomainSecurityServiceTest {
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
 
         service = new DomainSecurityService(
-                userLookupService, studentLookupService, instructorLookupService, new RequestScopedCache());
+                userLookupService, studentLookupService, instructorLookupService, courseCreatorLookupService,
+                new RequestScopedCache());
 
         authenticateAsJwtUser();
         when(userLookupService.findUserUuidByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(CALLER_UUID));
@@ -136,6 +142,63 @@ class DomainSecurityServiceTest {
         assertThat(service.administersOrganisationOf(TARGET_UUID)).isTrue();
 
         verify(userLookupService, times(1)).getUserOrganizations(TARGET_UUID);
+    }
+
+    @Test
+    void aCourseCreatorIsRecognisedByTheirOwnProfileUuid() {
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(CALLER_UUID))
+                .thenReturn(Optional.of(COURSE_CREATOR_UUID));
+
+        assertThat(service.isCourseCreatorWithUuid(COURSE_CREATOR_UUID)).isTrue();
+    }
+
+    @Test
+    void aCourseCreatorIsNotRecognisedByAnotherCreatorsProfileUuid() {
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(CALLER_UUID))
+                .thenReturn(Optional.of(COURSE_CREATOR_UUID));
+
+        assertThat(service.isCourseCreatorWithUuid(OTHER_COURSE_CREATOR_UUID)).isFalse();
+    }
+
+    @Test
+    void aCallerWithNoCourseCreatorProfileOwnsNothing() {
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(CALLER_UUID)).thenReturn(Optional.empty());
+
+        assertThat(service.isCourseCreatorWithUuid(COURSE_CREATOR_UUID)).isFalse();
+        assertThat(service.getCurrentCourseCreatorUuid()).isNull();
+    }
+
+    @Test
+    void aNullCourseCreatorUuidIsRefusedWithoutConsultingAnyone() {
+        assertThat(service.isCourseCreatorWithUuid(null)).isFalse();
+
+        verify(courseCreatorLookupService, times(0)).findCourseCreatorUuidByUserUuid(any());
+    }
+
+    @Test
+    void anUnauthenticatedCallerHasNoCourseCreatorProfile() {
+        SecurityContextHolder.clearContext();
+
+        assertThat(service.isCourseCreatorWithUuid(COURSE_CREATOR_UUID)).isFalse();
+    }
+
+    @Test
+    void aCourseCreatorLookupFailureDeniesRatherThanGrants() {
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(CALLER_UUID))
+                .thenThrow(new IllegalStateException("boom"));
+
+        assertThat(service.isCourseCreatorWithUuid(COURSE_CREATOR_UUID)).isFalse();
+    }
+
+    @Test
+    void theCourseCreatorProfileIsResolvedOncePerRequest() {
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(CALLER_UUID))
+                .thenReturn(Optional.of(COURSE_CREATOR_UUID));
+
+        assertThat(service.isCourseCreatorWithUuid(COURSE_CREATOR_UUID)).isTrue();
+        assertThat(service.isCourseCreatorWithUuid(COURSE_CREATOR_UUID)).isTrue();
+
+        verify(courseCreatorLookupService, times(1)).findCourseCreatorUuidByUserUuid(CALLER_UUID);
     }
 
     private void authenticateAsJwtUser() {

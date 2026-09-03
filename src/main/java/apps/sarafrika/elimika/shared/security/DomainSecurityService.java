@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.security;
 
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
@@ -30,6 +31,7 @@ public class DomainSecurityService {
     private static final String CACHE_USER_UUID = "security.userUuid";
     private static final String CACHE_STUDENT_UUID = "security.studentUuid";
     private static final String CACHE_INSTRUCTOR_UUID = "security.instructorUuid";
+    private static final String CACHE_COURSE_CREATOR_UUID = "security.courseCreatorUuid";
     private static final String CACHE_DOMAINS = "security.domains";
     private static final String CACHE_PLATFORM_ADMIN = "security.platformAdmin";
     private static final String CACHE_ADMINISTERS_USER_PREFIX = "security.administersUser.";
@@ -39,6 +41,7 @@ public class DomainSecurityService {
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
     private final InstructorLookupService instructorLookupService;
+    private final CourseCreatorLookupService courseCreatorLookupService;
     private final RequestScopedCache requestScopedCache;
 
     /**
@@ -273,6 +276,36 @@ public class DomainSecurityService {
             return false;
         }
         return studentUuid.equals(getCurrentStudentUuid());
+    }
+
+    /**
+     * Checks if the currently authenticated user owns a specific course creator profile.
+     */
+    public boolean isCourseCreatorWithUuid(UUID courseCreatorUuid) {
+        if (courseCreatorUuid == null) {
+            return false;
+        }
+        return courseCreatorUuid.equals(getCurrentCourseCreatorUuid());
+    }
+
+    /**
+     * Gets the course creator UUID of the current authenticated user, or null when the caller
+     * is not authenticated or has no course creator profile. Memoised per request because every
+     * owner-or-admin guard on the course creator routes asks the same question.
+     */
+    public UUID getCurrentCourseCreatorUuid() {
+        return requestScopedCache.get(CACHE_COURSE_CREATOR_UUID, () -> {
+            try {
+                UUID currentUserUuid = getCurrentUserUuid();
+                if (currentUserUuid == null) {
+                    return null;
+                }
+                return courseCreatorLookupService.findCourseCreatorUuidByUserUuid(currentUserUuid).orElse(null);
+            } catch (Exception e) {
+                log.error("Error resolving current course creator UUID", e);
+                return null;
+            }
+        });
     }
 
     /**

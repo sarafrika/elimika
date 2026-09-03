@@ -13,6 +13,7 @@
  *   <li>tenancy :: tenancy-spi - For user and domain lookup services</li>
  *   <li>student :: student-spi - For student lookup services</li>
  *   <li>instructor :: instructor-spi - For instructor lookup services</li>
+ *   <li>coursecreator :: coursecreator-spi - For course creator lookup services</li>
  * </ul>
  */
 @org.springframework.modulith.ApplicationModule(
@@ -22,6 +23,7 @@
                 "tenancy :: tenancy-spi",
                 "student :: student-spi",
                 "instructor :: instructor-spi",
+                "coursecreator :: coursecreator-spi",
                 "systemconfig"
         }
 )
