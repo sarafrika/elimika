@@ -8,7 +8,6 @@ import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
-import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
@@ -45,7 +44,6 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
-    private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
@@ -193,7 +191,9 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
                 return false;
             }
 
-            UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(userUuid).orElse(null);
+            // The caller's own instructor identity, resolved once per request: a gradebook page
+            // asks this for every course it renders.
+            UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
             if (instructorUuid != null && courseTrainingApplicationRepository
                     .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                             courseUuid,

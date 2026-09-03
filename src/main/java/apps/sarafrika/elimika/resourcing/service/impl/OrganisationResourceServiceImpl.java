@@ -21,7 +21,6 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -54,7 +53,6 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
     private final OrganisationResourceRepository resourceRepository;
     private final ResourceAvailabilityRuleRepository ruleRepository;
     private final ResourceBookingRepository bookingRepository;
-    private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
 
     // ===== Resources =====
@@ -399,10 +397,12 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
             throw new AccessDeniedException("An authenticated user is required for this action.");
         }
 
-        boolean hasOrganisationUserAccess = userLookupService.userBelongsToOrganizationWithDomain(
-                currentUserUuid, organisationUuid, UserDomain.organisation_user);
-        boolean hasAdminAccess = userLookupService.userBelongsToOrganizationWithDomain(
-                currentUserUuid, organisationUuid, UserDomain.admin);
+        // Memoised per organisation and domain: a resource calendar walks many rows behind one
+        // guard, and the membership answer cannot change mid-request.
+        boolean hasOrganisationUserAccess = domainSecurityService.belongsToOrganisationWithDomain(
+                organisationUuid, UserDomain.organisation_user);
+        boolean hasAdminAccess = domainSecurityService.belongsToOrganisationWithDomain(
+                organisationUuid, UserDomain.admin);
 
         if (!hasOrganisationUserAccess && !hasAdminAccess) {
             throw new AccessDeniedException(String.format(

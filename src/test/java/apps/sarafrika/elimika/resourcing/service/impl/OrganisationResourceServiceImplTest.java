@@ -16,7 +16,6 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,8 +53,6 @@ class OrganisationResourceServiceImplTest {
     @Mock
     private ResourceBookingRepository bookingRepository;
     @Mock
-    private UserLookupService userLookupService;
-    @Mock
     private DomainSecurityService domainSecurityService;
 
     private OrganisationResourceServiceImpl service;
@@ -63,9 +60,9 @@ class OrganisationResourceServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new OrganisationResourceServiceImpl(
-                resourceRepository, ruleRepository, bookingRepository, userLookupService, domainSecurityService);
+                resourceRepository, ruleRepository, bookingRepository, domainSecurityService);
         lenient().when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
-        lenient().when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, ORG_UUID, UserDomain.organisation_user))
+        lenient().when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
                 .thenReturn(true);
     }
 
@@ -130,9 +127,9 @@ class OrganisationResourceServiceImplTest {
 
     @Test
     void createRequiresOrganisationManagerAccess() {
-        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, ORG_UUID, UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
                 .thenReturn(false);
-        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, ORG_UUID, UserDomain.admin))
+        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.admin))
                 .thenReturn(false);
 
         assertThatThrownBy(() -> service.createResource(ORG_UUID, venueDto("Physics Lab", 30)))
@@ -142,9 +139,9 @@ class OrganisationResourceServiceImplTest {
 
     @Test
     void adminDomainAlsoGrantsAccess() {
-        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, ORG_UUID, UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
                 .thenReturn(false);
-        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, ORG_UUID, UserDomain.admin))
+        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.admin))
                 .thenReturn(true);
         when(resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(eq(ORG_UUID), any())).thenReturn(false);
         when(resourceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

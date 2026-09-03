@@ -13,7 +13,6 @@ import apps.sarafrika.elimika.tenancy.repository.SkillsFundSourceRepository;
 import apps.sarafrika.elimika.tenancy.repository.SkillsFundTransactionRepository;
 import apps.sarafrika.elimika.tenancy.repository.StudentGroupRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +65,6 @@ class OrganisationSecurityServiceTest {
     @Mock private SkillsFundSourceRepository skillsFundSourceRepository;
     @Mock private SkillsFundTransactionRepository skillsFundTransactionRepository;
     @Mock private CompetitionRepository competitionRepository;
-    @Mock private UserLookupService userLookupService;
     @Mock private DomainSecurityService domainSecurityService;
 
     private OrganisationSecurityService service;
@@ -78,14 +76,14 @@ class OrganisationSecurityServiceTest {
 
         service = new OrganisationSecurityService(
                 studentGroupRepository, trainingBranchRepository, skillsFundSourceRepository,
-                skillsFundTransactionRepository, competitionRepository, userLookupService,
+                skillsFundTransactionRepository, competitionRepository,
                 domainSecurityService, new RequestScopedCache());
 
         authenticateAsJwtUser();
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(CALLER_UUID);
         when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
-        when(userLookupService.userBelongsToOrganization(any(), any())).thenReturn(false);
-        when(userLookupService.userBelongsToOrganizationWithDomain(any(), any(), any())).thenReturn(false);
+        when(domainSecurityService.belongsToOrganisation(any())).thenReturn(false);
+        when(domainSecurityService.belongsToOrganisationWithDomain(any(), any())).thenReturn(false);
         when(studentGroupRepository.findByUuid(GROUP_UUID)).thenReturn(Optional.of(group(ORG_UUID)));
         when(trainingBranchRepository.findByUuidAndDeletedFalse(BRANCH_UUID))
                 .thenReturn(Optional.of(branch(ORG_UUID)));
@@ -128,7 +126,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aPlainMemberMayReadButNotManage() {
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadOrganisation(ORG_UUID)).isTrue();
         assertThat(service.canManageOrganisation(ORG_UUID)).isFalse();
@@ -138,7 +136,7 @@ class OrganisationSecurityServiceTest {
     void anAdminOfADifferentOrganisationGetsNothingHere() {
         // The actual hole: authority in one organisation must not reach another.
         belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(OTHER_ORG_UUID)).thenReturn(true);
 
         assertThat(service.canManageOrganisation(ORG_UUID)).isFalse();
         assertThat(service.canReadOrganisation(ORG_UUID)).isFalse();
@@ -172,7 +170,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aDomainLookupFailureDeniesRatherThanGrants() {
-        when(userLookupService.userBelongsToOrganizationWithDomain(any(), any(), any()))
+        when(domainSecurityService.belongsToOrganisationWithDomain(any(), any()))
                 .thenThrow(new IllegalStateException("lookup exploded"));
 
         assertThat(service.canManageOrganisation(ORG_UUID)).isFalse();
@@ -189,7 +187,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aMemberOfTheOwningOrganisationMayReadItsGroupsButNotChangeThem() {
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadGroup(GROUP_UUID)).isTrue();
         assertThat(service.canManageGroup(GROUP_UUID)).isFalse();
@@ -198,7 +196,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void anAdminOfADifferentOrganisationCannotTouchThisOrganisationsGroup() {
         belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(OTHER_ORG_UUID)).thenReturn(true);
 
         assertThat(service.canManageGroup(GROUP_UUID)).isFalse();
         assertThat(service.canReadGroup(GROUP_UUID)).isFalse();
@@ -235,7 +233,7 @@ class OrganisationSecurityServiceTest {
         // The group-scoped routes carry no organisation in the path, and adding members resolves it
         // twice over a single request. Without memoisation each guarded call is another round-trip.
         belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadGroup(GROUP_UUID)).isTrue();
         assertThat(service.canManageGroup(GROUP_UUID)).isTrue();
@@ -255,7 +253,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aMemberOfTheOwningOrganisationMayReadItsBranchesButNotChangeThem() {
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadBranch(BRANCH_UUID)).isTrue();
         assertThat(service.canManageBranch(BRANCH_UUID)).isFalse();
@@ -264,7 +262,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void anAdminOfADifferentOrganisationCannotTouchThisOrganisationsBranch() {
         belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(OTHER_ORG_UUID)).thenReturn(true);
 
         assertThat(service.canManageBranch(BRANCH_UUID)).isFalse();
         assertThat(service.canReadBranch(BRANCH_UUID)).isFalse();
@@ -290,7 +288,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void theOwningOrganisationOfABranchIsResolvedOncePerRequest() {
         belongsWithDomain(ORG_UUID, UserDomain.admin);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadBranch(BRANCH_UUID)).isTrue();
         assertThat(service.canManageBranch(BRANCH_UUID)).isTrue();
@@ -311,7 +309,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void aPlainMemberMayNotDeleteFundSourcesOrTransactions() {
         // Reading the fund is a membership question; moving money out of it is not.
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canManageFundSource(SOURCE_UUID)).isFalse();
         assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isFalse();
@@ -320,7 +318,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void anAdminOfADifferentOrganisationCannotTouchThisOrganisationsMoney() {
         belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(OTHER_ORG_UUID)).thenReturn(true);
 
         assertThat(service.canManageFundSource(SOURCE_UUID)).isFalse();
         assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isFalse();
@@ -374,7 +372,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aMemberOfTheOwningOrganisationMayReadItsCompetitionsButNotChangeThem() {
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadCompetition(COMPETITION_UUID)).isTrue();
         assertThat(service.canManageCompetition(COMPETITION_UUID)).isFalse();
@@ -383,7 +381,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void anAdminOfADifferentOrganisationCannotTouchThisOrganisationsCompetition() {
         belongsWithDomain(OTHER_ORG_UUID, UserDomain.admin);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, OTHER_ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(OTHER_ORG_UUID)).thenReturn(true);
 
         assertThat(service.canManageCompetition(COMPETITION_UUID)).isFalse();
         assertThat(service.canReadCompetition(COMPETITION_UUID)).isFalse();
@@ -410,7 +408,7 @@ class OrganisationSecurityServiceTest {
     void theOwningOrganisationOfACompetitionIsResolvedOncePerRequest() {
         // Removing a team resolves the competition for the guard and again for the service call.
         belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
-        when(userLookupService.userBelongsToOrganization(CALLER_UUID, ORG_UUID)).thenReturn(true);
+        when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadCompetition(COMPETITION_UUID)).isTrue();
         assertThat(service.canManageCompetition(COMPETITION_UUID)).isTrue();
@@ -419,7 +417,7 @@ class OrganisationSecurityServiceTest {
     }
 
     private void belongsWithDomain(UUID organisationUuid, UserDomain domain) {
-        when(userLookupService.userBelongsToOrganizationWithDomain(CALLER_UUID, organisationUuid, domain))
+        when(domainSecurityService.belongsToOrganisationWithDomain(organisationUuid, domain))
                 .thenReturn(true);
     }
 

@@ -209,7 +209,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, job.getOrganisationUuid(), UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
                 .thenReturn(true);
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid())).thenReturn(Optional.of(application));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), application.getInstructorUuid())).thenReturn(false);
@@ -616,7 +616,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, job.getOrganisationUuid(), UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
                 .thenReturn(true);
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid())).thenReturn(Optional.of(application));
         when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), application.getInstructorUuid())).thenReturn(false);
@@ -649,7 +649,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
                 .thenReturn(Optional.of(approvedApplication));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, job.getOrganisationUuid(), UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
                 .thenReturn(true);
         when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
@@ -890,8 +890,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(Optional.of(application));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("instructor@example.com"));
@@ -926,8 +925,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(Optional.of(application));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
 
         assertThatThrownBy(() -> service.withdrawApplication(job.getUuid(), application.getUuid(), null))
                 .isInstanceOf(IllegalStateException.class)
@@ -947,8 +945,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(Optional.of(application));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
 
         assertThatThrownBy(() -> service.withdrawApplication(job.getUuid(), application.getUuid(), null))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
@@ -966,8 +963,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
@@ -991,8 +987,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
@@ -1058,7 +1053,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
                 .thenReturn(Optional.of(approvedApplication));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, job.getOrganisationUuid(), UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
                 .thenReturn(true);
         when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
         when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), instructorUuid)).thenReturn(true);
@@ -1106,7 +1101,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(application));
@@ -1129,7 +1124,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(false));
 
         assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen to teach")))
@@ -1148,7 +1143,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(false);
 
@@ -1168,7 +1163,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(false);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
@@ -1191,7 +1186,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
@@ -1218,7 +1213,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(existing));
@@ -1243,7 +1238,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(existing));
@@ -1771,7 +1766,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
@@ -1802,7 +1797,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
@@ -1838,7 +1833,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
@@ -1861,7 +1856,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
         when(domainSecurityService.isInstructor()).thenReturn(true);
-        when(instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)).thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
@@ -2030,7 +2025,7 @@ class ClassMarketplaceJobServiceImplTest {
 
     private void allowOrganisationAccess(UUID currentUserUuid, UUID organisationUuid) {
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganizationWithDomain(currentUserUuid, organisationUuid, UserDomain.organisation_user))
+        when(domainSecurityService.belongsToOrganisationWithDomain(organisationUuid, UserDomain.organisation_user))
                 .thenReturn(true);
     }
 

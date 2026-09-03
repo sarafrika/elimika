@@ -2,12 +2,11 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.service.UserContextService;
-import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
+import apps.sarafrika.elimika.tenancy.security.OrganisationSecurityService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationInvitationService;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -52,7 +51,7 @@ public class OrganisationInvitationController {
 
     private final OrganisationInvitationService invitationService;
     private final UserContextService userContextService;
-    private final UserLookupService userLookupService;
+    private final OrganisationSecurityService organisationSecurityService;
 
     @Operation(
             summary = "Invite people to join the organisation",
@@ -138,20 +137,16 @@ public class OrganisationInvitationController {
     /**
      * Confirms the caller manages this organisation, and returns their user UUID.
      * <p>
-     * Platform admins are allowed through for support purposes; everyone else must hold
-     * an org-scoped {@code organisation_user} or {@code admin} mapping for this
-     * organisation specifically.
+     * Delegates to the tenant-scoped predicate rather than repeating it: platform admins are
+     * allowed through for support purposes, everyone else must hold an org-scoped
+     * {@code organisation_user} or {@code admin} mapping for this organisation specifically.
+     * Answering it there also means the three membership queries this used to issue per call are
+     * resolved once for the whole request.
      */
     private UUID requireOrganisationManager(UUID organisationUuid) {
         UUID callerUuid = userContextService.getCurrentUserUuid();
 
-        boolean manages = userLookupService.userHasGlobalDomain(callerUuid, UserDomain.admin)
-                || userLookupService.userBelongsToOrganizationWithDomain(
-                        callerUuid, organisationUuid, UserDomain.organisation_user)
-                || userLookupService.userBelongsToOrganizationWithDomain(
-                        callerUuid, organisationUuid, UserDomain.admin);
-
-        if (!manages) {
+        if (!organisationSecurityService.canManageOrganisation(organisationUuid)) {
             log.warn("User {} attempted to manage invitations for organisation {} without a manager role",
                     callerUuid, organisationUuid);
             throw new AccessDeniedException("You do not manage this organisation.");

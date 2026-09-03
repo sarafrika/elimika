@@ -2,9 +2,8 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
-import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
@@ -46,7 +45,7 @@ public class EnrollmentController {
 
     private final TimetableService timetableService;
     private final UserContextService userContextService;
-    private final UserLookupService userLookupService;
+    private final DomainSecurityService domainSecurityService;
 
     // ================================
     // ENROLLMENT OPERATIONS
@@ -432,8 +431,10 @@ public class EnrollmentController {
         log.debug("REST request for performance of student {} within organisation {}", studentUuid, organisationUuid);
 
         UUID callerUuid = userContextService.getCurrentUserUuid();
-        boolean permitted = userLookupService.userHasGlobalDomain(callerUuid, UserDomain.admin)
-                || userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
+        // Both halves are memoised for the request, so this guard costs nothing beyond the
+        // @PreAuthorize expressions that already asked the same questions.
+        boolean permitted = domainSecurityService.isPlatformAdmin()
+                || domainSecurityService.belongsToOrganisation(organisationUuid);
         if (!permitted) {
             log.warn("User {} attempted to read student performance for organisation {} without belonging to it",
                     callerUuid, organisationUuid);

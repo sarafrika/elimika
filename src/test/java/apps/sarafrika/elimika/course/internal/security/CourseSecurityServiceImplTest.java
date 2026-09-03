@@ -8,7 +8,6 @@ import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
-import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
@@ -50,7 +49,6 @@ class CourseSecurityServiceImplTest {
     @Mock private CourseTrainingApplicationRepository trainingApplicationRepository;
     @Mock private CourseEnrollmentRepository courseEnrollmentRepository;
     @Mock private CourseCreatorLookupService courseCreatorLookupService;
-    @Mock private InstructorLookupService instructorLookupService;
     @Mock private UserLookupService userLookupService;
     @Mock private DomainSecurityService domainSecurityService;
 
@@ -60,14 +58,14 @@ class CourseSecurityServiceImplTest {
     void setUp() {
         service = new CourseSecurityServiceImpl(
                 courseRepository, trainingApplicationRepository, courseEnrollmentRepository,
-                courseCreatorLookupService, instructorLookupService, userLookupService,
+                courseCreatorLookupService, userLookupService,
                 domainSecurityService, new RequestScopedCache());
 
         authenticateAsJwtUser();
         when(userLookupService.findUserUuidByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(USER_UUID));
         when(userLookupService.getUserOrganizations(USER_UUID)).thenReturn(List.of());
         when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(USER_UUID)).thenReturn(Optional.empty());
-        when(instructorLookupService.findInstructorUuidByUserUuid(USER_UUID)).thenReturn(Optional.empty());
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(null);
         when(courseRepository.findByUuid(COURSE_UUID)).thenReturn(Optional.of(new Course()));
     }
 
@@ -91,8 +89,7 @@ class CourseSecurityServiceImplTest {
     @Test
     void anInstructorApprovedToTrainTheCourseMayManageTheGradebook() {
         UUID instructorUuid = UUID.randomUUID();
-        when(instructorLookupService.findInstructorUuidByUserUuid(USER_UUID))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                 COURSE_UUID, CourseTrainingApplicantType.INSTRUCTOR, instructorUuid,
                 CourseTrainingApplicationStatus.APPROVED)).thenReturn(true);
@@ -103,8 +100,7 @@ class CourseSecurityServiceImplTest {
     @Test
     void anInstructorWithNoApprovalForThisCourseIsRefused() {
         UUID instructorUuid = UUID.randomUUID();
-        when(instructorLookupService.findInstructorUuidByUserUuid(USER_UUID))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                 any(), any(), any(), any())).thenReturn(false);
 
@@ -116,8 +112,7 @@ class CourseSecurityServiceImplTest {
     void anInstructorApprovedForADifferentCourseIsRefused() {
         UUID instructorUuid = UUID.randomUUID();
         UUID otherCourse = UUID.randomUUID();
-        when(instructorLookupService.findInstructorUuidByUserUuid(USER_UUID))
-                .thenReturn(Optional.of(instructorUuid));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                 eq(otherCourse), any(), any(), any())).thenReturn(true);
         when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(

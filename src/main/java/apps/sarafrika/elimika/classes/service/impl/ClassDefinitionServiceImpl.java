@@ -70,7 +70,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     private final ClassDefinitionRepository classDefinitionRepository;
     private final apps.sarafrika.elimika.shared.security.DomainSecurityService domainSecurityService;
-    private final apps.sarafrika.elimika.tenancy.spi.UserLookupService classReadUserLookupService;
     private final ClassSchedulingConflictRepository classSchedulingConflictRepository;
     private final ClassSessionTemplateRepository classSessionTemplateRepository;
     private final ClassDefinitionResourceRepository classDefinitionResourceRepository;
@@ -601,12 +600,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     && domainSecurityService.isInstructorWithUuid(dto.defaultInstructorUuid())) {
                 return true;
             }
-            UUID organisationUuid = dto.organisationUuid();
-            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
-            return organisationUuid != null
-                    && currentUserUuid != null
-                    && classReadUserLookupService.userBelongsToOrganizationWithDomain(
-                            currentUserUuid, organisationUuid, UserDomain.organisation_user);
+            // Memoised per organisation: a listing redacts row by row, and every row of the same
+            // organisation would otherwise repeat the membership query.
+            return domainSecurityService.belongsToOrganisationWithDomain(
+                    dto.organisationUuid(), UserDomain.organisation_user);
         } catch (Exception e) {
             // Withholding is the safe failure: a reader who cannot be identified is not entitled.
             return false;

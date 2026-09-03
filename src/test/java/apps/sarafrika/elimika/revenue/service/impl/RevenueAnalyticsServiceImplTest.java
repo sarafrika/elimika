@@ -10,7 +10,6 @@ import apps.sarafrika.elimika.commerce.internal.spi.CommercePaymentQueryService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService.RevenueShare;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
-import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.revenue.dto.RevenueAmountDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDashboardDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueScopeBreakdownDTO;
@@ -21,7 +20,6 @@ import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueQueryService;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
-import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -68,11 +66,7 @@ class RevenueAnalyticsServiceImplTest {
     @Mock
     private ClassDefinitionLookupService classDefinitionLookupService;
     @Mock
-    private InstructorLookupService instructorLookupService;
-    @Mock
     private CourseCreatorLookupService courseCreatorLookupService;
-    @Mock
-    private StudentLookupService studentLookupService;
     @Mock
     private StudentGuardianLookupService studentGuardianLookupService;
     @Mock
@@ -125,9 +119,7 @@ class RevenueAnalyticsServiceImplTest {
 
     private void stubInstructorLines(List<CommerceRevenueLineItem> lines, Map<UUID, RevenueShare> shares) {
         when(domainSecurityService.hasAnyDomain(UserDomain.instructor)).thenReturn(true);
-        when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
-        when(instructorLookupService.findInstructorUuidByUserUuid(USER_UUID))
-                .thenReturn(Optional.of(INSTRUCTOR_UUID));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(INSTRUCTOR_UUID);
         when(classDefinitionLookupService.findClassDefinitionUuidsByInstructorUuid(INSTRUCTOR_UUID))
                 .thenReturn(List.of(CLASS_UUID));
         when(revenueQueryService.findCapturedRevenueLinesByClassDefinitionUuids(any(), any(), anyList()))
@@ -363,8 +355,7 @@ class RevenueAnalyticsServiceImplTest {
         void spendIsStillGrossForNonEarners() {
             UUID studentUuid = UUID.randomUUID();
             when(domainSecurityService.hasAnyDomain(UserDomain.student)).thenReturn(true);
-            when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
-            when(studentLookupService.findStudentUuidByUserUuid(USER_UUID)).thenReturn(Optional.of(studentUuid));
+            when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
             when(revenueQueryService.findCapturedRevenueLinesByStudentUuids(any(), any(), anyList()))
                     .thenReturn(List.of(line(PurchaseScope.CLASS, "1000.00", "10.00", "198.00")));
 
@@ -385,8 +376,7 @@ class RevenueAnalyticsServiceImplTest {
         void studentSpendIsNotSharedDown() {
             UUID studentUuid = UUID.randomUUID();
             when(domainSecurityService.hasAnyDomain(UserDomain.student)).thenReturn(true);
-            when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
-            when(studentLookupService.findStudentUuidByUserUuid(USER_UUID)).thenReturn(Optional.of(studentUuid));
+            when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
             when(revenueQueryService.findCapturedRevenueLinesByStudentUuids(any(), any(), anyList()))
                     .thenReturn(List.of(line(PurchaseScope.CLASS, "1000.00")));
 

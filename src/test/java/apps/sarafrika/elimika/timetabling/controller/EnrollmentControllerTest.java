@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import apps.sarafrika.elimika.shared.service.UserContextService;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 
 import java.util.List;
 import java.util.UUID;
@@ -41,13 +41,13 @@ class EnrollmentControllerTest {
     private UserContextService userContextService;
 
     @Mock
-    private UserLookupService userLookupService;
+    private DomainSecurityService domainSecurityService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, userContextService, userLookupService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, userContextService, domainSecurityService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }

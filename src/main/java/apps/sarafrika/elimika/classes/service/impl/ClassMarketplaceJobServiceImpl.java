@@ -1157,13 +1157,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private void requireOrganisationManagerAccess(UUID organisationUuid) {
         UUID currentUserUuid = requireCurrentUserUuid();
 
-        boolean hasOrganisationUserAccess = userLookupService.userBelongsToOrganizationWithDomain(
-                currentUserUuid,
+        // Memoised per organisation and domain, so the several guarded steps of one job action
+        // share a single membership query.
+        boolean hasOrganisationUserAccess = domainSecurityService.belongsToOrganisationWithDomain(
                 organisationUuid,
                 UserDomain.organisation_user
         );
-        boolean hasAdminAccess = userLookupService.userBelongsToOrganizationWithDomain(
-                currentUserUuid,
+        boolean hasAdminAccess = domainSecurityService.belongsToOrganisationWithDomain(
                 organisationUuid,
                 UserDomain.admin
         );
@@ -1177,13 +1177,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private UUID resolveCurrentInstructorUuid() {
-        UUID currentUserUuid = requireCurrentUserUuid();
+        requireCurrentUserUuid(); // rejects an unauthenticated caller before anything else
         if (!domainSecurityService.isInstructor()) {
             throw new AccessDeniedException("Only instructors can apply to marketplace class jobs.");
         }
 
-        return instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)
-                .orElseThrow(() -> new AccessDeniedException("The current user does not have an instructor profile."));
+        // The caller's own instructor identity, resolved once per request rather than per step.
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+        if (instructorUuid == null) {
+            throw new AccessDeniedException("The current user does not have an instructor profile.");
+        }
+        return instructorUuid;
     }
 
     private UUID requireCurrentUserUuid() {

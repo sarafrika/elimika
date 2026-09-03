@@ -62,9 +62,6 @@ class ClassDefinitionServiceImplTest {
     private apps.sarafrika.elimika.shared.security.DomainSecurityService classReadDomainSecurityService;
 
     @Mock
-    private apps.sarafrika.elimika.tenancy.spi.UserLookupService classReadUserLookupService;
-
-    @Mock
     private ClassSchedulingConflictRepository classSchedulingConflictRepository;
 
     @Mock
@@ -124,7 +121,6 @@ class ClassDefinitionServiceImplTest {
         service = new ClassDefinitionServiceImpl(
                 classDefinitionRepository,
                 classReadDomainSecurityService,
-                classReadUserLookupService,
                 classSchedulingConflictRepository,
                 classSessionTemplateRepository,
                 classDefinitionResourceRepository,
@@ -388,8 +384,7 @@ class ClassDefinitionServiceImplTest {
         ClassDefinition entity = classWithPay();
         when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(false);
         when(classReadDomainSecurityService.isInstructorWithUuid(any())).thenReturn(false);
-        when(classReadDomainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
-        when(classReadUserLookupService.userBelongsToOrganizationWithDomain(any(), any(), any()))
+        when(classReadDomainSecurityService.belongsToOrganisationWithDomain(any(), any()))
                 .thenReturn(false);
 
         ClassDefinitionDTO dto = service.getClassDefinition(entity.getUuid()).classDefinition();
@@ -404,9 +399,8 @@ class ClassDefinitionServiceImplTest {
         ClassDefinition entity = classWithPay();
         when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(false);
         when(classReadDomainSecurityService.isInstructorWithUuid(any())).thenReturn(false);
-        when(classReadDomainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
-        when(classReadUserLookupService.userBelongsToOrganizationWithDomain(
-                any(), eq(entity.getOrganisationUuid()), any())).thenReturn(true);
+        when(classReadDomainSecurityService.belongsToOrganisationWithDomain(
+                eq(entity.getOrganisationUuid()), any())).thenReturn(true);
 
         ClassDefinitionDTO dto = service.getClassDefinition(entity.getUuid()).classDefinition();
 

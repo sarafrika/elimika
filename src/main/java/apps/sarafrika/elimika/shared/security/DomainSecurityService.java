@@ -29,8 +29,12 @@ public class DomainSecurityService {
 
     private static final String CACHE_USER_UUID = "security.userUuid";
     private static final String CACHE_STUDENT_UUID = "security.studentUuid";
+    private static final String CACHE_INSTRUCTOR_UUID = "security.instructorUuid";
     private static final String CACHE_DOMAINS = "security.domains";
+    private static final String CACHE_PLATFORM_ADMIN = "security.platformAdmin";
     private static final String CACHE_ADMINISTERS_USER_PREFIX = "security.administersUser.";
+    private static final String CACHE_ORG_DOMAIN_PREFIX = "security.orgDomain.";
+    private static final String CACHE_ORG_MEMBER_PREFIX = "security.orgMember.";
 
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
@@ -64,15 +68,21 @@ public class DomainSecurityService {
      * protect platform-infrastructure endpoints (e.g. currency and platform-fee
      * configuration) from org-scoped admins, who legitimately manage their own
      * organisation but must not administer platform-wide settings.
+     * <p>
+     * Memoised per request: the answer depends only on the caller, and it is the first thing most
+     * organisation-scoped predicates test before doing anything more expensive.
      */
     public boolean isPlatformAdmin() {
-        try {
-            UUID currentUserUuid = getCurrentUserUuid();
-            return currentUserUuid != null && userLookupService.userHasGlobalDomain(currentUserUuid, UserDomain.admin);
-        } catch (Exception e) {
-            log.error("Error checking platform admin status", e);
-            return false;
-        }
+        return requestScopedCache.get(CACHE_PLATFORM_ADMIN, () -> {
+            try {
+                UUID currentUserUuid = getCurrentUserUuid();
+                return currentUserUuid != null
+                        && userLookupService.userHasGlobalDomain(currentUserUuid, UserDomain.admin);
+            } catch (Exception e) {
+                log.error("Error checking platform admin status", e);
+                return false;
+            }
+        });
     }
 
     /**
@@ -103,10 +113,65 @@ public class DomainSecurityService {
                     return false;
                 }
                 return userLookupService.getUserOrganizations(targetUserUuid).stream()
-                        .anyMatch(organisationUuid -> userLookupService.userBelongsToOrganizationWithDomain(
-                                callerUuid, organisationUuid, UserDomain.admin));
+                        .anyMatch(organisationUuid -> belongsToOrganisationWithDomain(organisationUuid, UserDomain.admin));
             } catch (Exception e) {
                 log.error("Error checking administrative reach over user {}", targetUserUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller holds {@code domain} as an active org-scoped role <em>in this
+     * organisation</em>.
+     * <p>
+     * This is the building block behind every "does the caller belong to organisation X" decision.
+     * Memoised per request, per organisation and per domain, so a listing that checks fifty rows
+     * belonging to the same organisation costs one query rather than fifty. Fails closed.
+     *
+     * @param organisationUuid the organisation being acted on
+     * @param domain           the org-scoped role required
+     */
+    public boolean belongsToOrganisationWithDomain(UUID organisationUuid, UserDomain domain) {
+        if (organisationUuid == null || domain == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_ORG_DOMAIN_PREFIX + organisationUuid + "." + domain, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.userBelongsToOrganizationWithDomain(callerUuid, organisationUuid, domain);
+            } catch (Exception e) {
+                log.error("Error checking {} membership of organisation {}", domain, organisationUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller is an active member of this organisation, whatever role they hold in it.
+     * <p>
+     * The read counterpart to {@link #belongsToOrganisationWithDomain(UUID, UserDomain)}, memoised
+     * per request and per organisation for the same reason: the organisation-scoped read guards are
+     * evaluated once per row of a listing, and the answer cannot change mid-request. Fails closed.
+     *
+     * @param organisationUuid the organisation being read
+     */
+    public boolean belongsToOrganisation(UUID organisationUuid) {
+        if (organisationUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_ORG_MEMBER_PREFIX + organisationUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
+            } catch (Exception e) {
+                log.error("Error checking membership of organisation {}", organisationUuid, e);
                 return false;
             }
         });
@@ -186,46 +251,28 @@ public class DomainSecurityService {
 
     /**
      * Checks if the currently authenticated user belongs to a specific instructor.
+     * <p>
+     * Answered from the caller's memoised instructor identity, so checking a page of rows against
+     * their instructors costs one lookup for the whole request rather than one per row.
      */
     public boolean isInstructorWithUuid(UUID instructorUuid) {
-        try {
-            UUID currentUserUuid = getCurrentUserUuid();
-            if (currentUserUuid == null) {
-                return false;
-            }
-
-            UUID instructorUserUuid = instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid).orElse(null);
-            if (instructorUserUuid == null) {
-                return false;
-            }
-
-            return instructorUserUuid.equals(instructorUuid);
-        } catch (Exception e) {
-            log.error("Error checking instructor identity for instructorUuid: {}", instructorUuid, e);
+        if (instructorUuid == null) {
             return false;
         }
+        return instructorUuid.equals(getCurrentInstructorUuid());
     }
 
     /**
      * Checks if the currently authenticated user belongs to a specific student.
+     * <p>
+     * Answered from the caller's memoised student identity, so checking a page of rows against
+     * their students costs one lookup for the whole request rather than one per row.
      */
     public boolean isStudentWithUuid(UUID studentUuid) {
-        try {
-            UUID currentUserUuid = getCurrentUserUuid();
-            if (currentUserUuid == null) {
-                return false;
-            }
-
-            UUID studentUserUuid = studentLookupService.findStudentUuidByUserUuid(currentUserUuid).orElse(null);
-            if (studentUserUuid == null) {
-                return false;
-            }
-
-            return studentUserUuid.equals(studentUuid);
-        } catch (Exception e) {
-            log.error("Error checking student identity for studentUuid: {}", studentUuid, e);
+        if (studentUuid == null) {
             return false;
         }
+        return studentUuid.equals(getCurrentStudentUuid());
     }
 
     /**
@@ -288,6 +335,25 @@ public class DomainSecurityService {
                 return studentLookupService.findStudentUuidByUserUuid(currentUserUuid).orElse(null);
             } catch (Exception e) {
                 log.error("Error resolving current student UUID", e);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * Gets the instructor UUID of the current authenticated user, or null when the caller
+     * is not authenticated or has no instructor profile. Resolved once per request.
+     */
+    public UUID getCurrentInstructorUuid() {
+        return requestScopedCache.get(CACHE_INSTRUCTOR_UUID, () -> {
+            try {
+                UUID currentUserUuid = getCurrentUserUuid();
+                if (currentUserUuid == null) {
+                    return null;
+                }
+                return instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid).orElse(null);
+            } catch (Exception e) {
+                log.error("Error resolving current instructor UUID", e);
                 return null;
             }
         });

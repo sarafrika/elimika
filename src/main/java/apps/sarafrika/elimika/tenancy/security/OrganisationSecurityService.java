@@ -13,7 +13,6 @@ import apps.sarafrika.elimika.tenancy.repository.SkillsFundSourceRepository;
 import apps.sarafrika.elimika.tenancy.repository.SkillsFundTransactionRepository;
 import apps.sarafrika.elimika.tenancy.repository.StudentGroupRepository;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,7 +54,6 @@ public class OrganisationSecurityService {
     private final SkillsFundSourceRepository skillsFundSourceRepository;
     private final SkillsFundTransactionRepository skillsFundTransactionRepository;
     private final CompetitionRepository competitionRepository;
-    private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
 
@@ -81,10 +79,13 @@ public class OrganisationSecurityService {
                 return false;
             }
 
-            return userLookupService.userBelongsToOrganizationWithDomain(
-                            callerUuid, organisationUuid, UserDomain.organisation_user)
-                    || userLookupService.userBelongsToOrganizationWithDomain(
-                            callerUuid, organisationUuid, UserDomain.admin);
+            // Memoised per organisation and domain: every group-, branch-, fund- and
+            // competition-scoped guard funnels through here, so a single request asks this
+            // repeatedly about the same organisation.
+            return domainSecurityService.belongsToOrganisationWithDomain(
+                            organisationUuid, UserDomain.organisation_user)
+                    || domainSecurityService.belongsToOrganisationWithDomain(
+                            organisationUuid, UserDomain.admin);
         } catch (Exception e) {
             log.error("Error checking management rights for organisation {}", organisationUuid, e);
             return false;
@@ -110,7 +111,7 @@ public class OrganisationSecurityService {
                 return false;
             }
 
-            return userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
+            return domainSecurityService.belongsToOrganisation(organisationUuid);
         } catch (Exception e) {
             log.error("Error checking read rights for organisation {}", organisationUuid, e);
             return false;

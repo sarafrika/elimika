@@ -5,7 +5,6 @@ import apps.sarafrika.elimika.commerce.internal.spi.CommercePaymentView;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService.RevenueShare;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
-import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.revenue.dto.RevenueAnalyticsOverviewDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueAmountDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDashboardDTO;
@@ -24,7 +23,6 @@ import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
-import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -62,9 +60,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private final CommercePaymentQueryService paymentQueryService;
     private final CourseInfoService courseInfoService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
-    private final InstructorLookupService instructorLookupService;
     private final CourseCreatorLookupService courseCreatorLookupService;
-    private final StudentLookupService studentLookupService;
     private final StudentGuardianLookupService studentGuardianLookupService;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
@@ -412,11 +408,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private List<CommerceRevenueLineItem> loadStudentLines(DateRange range) {
-        UUID userUuid = domainSecurityService.getCurrentUserUuid();
-        if (userUuid == null) {
-            return List.of();
-        }
-        UUID studentUuid = studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+        UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
         if (studentUuid == null) {
             return List.of();
         }
@@ -462,11 +454,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private List<CommerceRevenueLineItem> loadInstructorLines(DateRange range) {
-        UUID userUuid = domainSecurityService.getCurrentUserUuid();
-        if (userUuid == null) {
-            return List.of();
-        }
-        UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(userUuid).orElse(null);
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
         if (instructorUuid == null) {
             return List.of();
         }
@@ -748,11 +736,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private List<UUID> resolveInstructorClassDefinitionUuids() {
-        UUID userUuid = domainSecurityService.getCurrentUserUuid();
-        if (userUuid == null) {
-            return List.of();
-        }
-        UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(userUuid).orElse(null);
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
         if (instructorUuid == null) {
             return List.of();
         }
@@ -780,11 +764,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private UUID resolveCurrentStudentUuid() {
-        UUID userUuid = domainSecurityService.getCurrentUserUuid();
-        if (userUuid == null) {
-            return null;
-        }
-        return studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+        return domainSecurityService.getCurrentStudentUuid();
     }
 
     private List<UUID> resolveGuardianStudentUuids() {
