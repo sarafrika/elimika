@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,7 @@ public class FilesController {
                     With prune=true, domain references to lost files are cleared so API responses stop
                     returning URLs that would 404 (users can then re-upload).
                     """)
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @PostMapping("/admin/reconcile")
     public ResponseEntity<ApiResponse<MediaReconciliationService.ReconcileReport>> reconcile(
             @Parameter(description = "Clear domain references whose files no longer exist on disk")
@@ -50,6 +52,7 @@ public class FilesController {
     @Operation(summary = "Sweep for orphaned files",
             description = "Reports files on disk that no database reference or registry entry points to. "
                     + "With deleteOrphans=true, the orphaned files are removed from disk.")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     @PostMapping("/admin/sweep")
     public ResponseEntity<ApiResponse<MediaReconciliationService.SweepReport>> sweep(
             @Parameter(description = "Delete the orphaned files instead of only reporting them")
