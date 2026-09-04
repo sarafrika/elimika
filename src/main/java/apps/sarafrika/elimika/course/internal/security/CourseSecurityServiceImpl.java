@@ -1,21 +1,31 @@
 package apps.sarafrika.elimika.course.internal.security;
 
+import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.Certificate;
+import apps.sarafrika.elimika.course.model.AssignmentSubmissionAttachment;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramRequirement;
+import apps.sarafrika.elimika.course.repository.AssignmentRepository;
+import apps.sarafrika.elimika.course.repository.AssignmentSubmissionAttachmentRepository;
+import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.repository.CertificateRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramRequirementRepository;
+import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
+import apps.sarafrika.elimika.course.repository.projection.MaterialCourseView;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
@@ -28,10 +38,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Internal implementation of course security operations.
@@ -49,9 +62,25 @@ import java.util.UUID;
 public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private static final String CACHE_ENROLLED_COURSES = "courseSecurity.enrolledCourses";
+    private static final String CACHE_QUIZ_COURSE = "courseSecurity.quizCourse.";
+    private static final String CACHE_ASSIGNMENT_COURSE = "courseSecurity.assignmentCourse.";
+    private static final String CACHE_MANAGEABLE_COURSES = "courseSecurity.manageableCourses";
+    private static final String CACHE_INSTRUCTOR_COURSES = "courseSecurity.instructorCourses.";
     private static final String CACHE_OWNED_PROGRAM_PREFIX = "courseSecurity.ownsProgram.";
     private static final String CACHE_TEACHABLE_COURSES = "courseSecurity.teachableCourses";
     private static final String CACHE_TEACHES_STUDENT_PREFIX = "courseSecurity.teachesStudent.";
+
+    /**
+     * Organisation-scoped roles that make a member part of an organisation's <em>teaching</em> side.
+     * <p>
+     * Membership alone is not one of them. An organisation's roster mixes its staff with the
+     * learners it enrolled, both carried by rows in the same table, and only the org-scoped domain
+     * tells them apart — so a training approval granted to an organisation must be read as granting
+     * its staff, never everyone it has ever invited.
+     */
+    private static final List<UserDomain> ORGANISATION_TEACHING_DOMAINS = List.of(
+            UserDomain.organisation_user, UserDomain.admin,
+            UserDomain.instructor, UserDomain.course_creator);
 
     /**
      * The org-scoped roles that make somebody staff of an organisation rather than one of its
@@ -62,15 +91,21 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
+    private final ProgramTrainingApplicationRepository programTrainingApplicationRepository;
+    private final ProgramCourseRepository programCourseRepository;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final QuizRepository quizRepository;
+    private final AssignmentRepository assignmentRepository;
+    private final AssignmentSubmissionRepository assignmentSubmissionRepository;
+    private final AssignmentSubmissionAttachmentRepository assignmentSubmissionAttachmentRepository;
     private final CertificateRepository certificateRepository;
+    private final TrainingProgramRepository trainingProgramRepository;
+    private final ProgramRequirementRepository programRequirementRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
-    private final TrainingProgramRepository trainingProgramRepository;
-    private final ProgramCourseRepository programCourseRepository;
-    private final ProgramRequirementRepository programRequirementRepository;
 
     /**
      * Checks if the currently authenticated user is the owner of the specified course.
@@ -130,6 +165,392 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             return false;
         }
     }
+
+    /**
+     * Grants content read access to the course owner or a member of an organisation
+     * approved to train the course. Admins are handled at the endpoint; enrolled
+     * learners use their own class flow, not this path.
+     */
+    @Override
+    public boolean canReadCourseContent(UUID courseUuid) {
+        if (isCourseOwner(courseUuid)) {
+            return true;
+        }
+        try {
+            UUID userUuid = currentUserUuid();
+            if (userUuid == null) {
+                return false;
+            }
+            return belongsToApprovedTrainingOrganisation(courseUuid, userUuid);
+        } catch (Exception e) {
+            log.error("Error checking content read access for course: {}", courseUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * True when the caller holds a course enrolment for this course that still allows access.
+     * <p>
+     * Resolves the student from the authenticated principal, never from a request parameter, so
+     * a learner cannot claim somebody else's enrolment. {@code course_enrollments} is unique on
+     * (student, course), so the lookup is unambiguous.
+     */
+    @Override
+    public boolean isEnrolledLearner(UUID courseUuid) {
+        return courseUuid != null && enrolledCourseUuids().contains(courseUuid);
+    }
+
+    /**
+     * The caller's enrolable courses, loaded once per request.
+     * <p>
+     * A learner holds a handful of enrolments, so fetching the whole set costs one query and then
+     * answers every course check by set membership. Checking course-by-course instead would cost a
+     * query per course, which a page listing material from several courses pays repeatedly.
+     */
+    @Override
+    public Set<UUID> enrolledCourseUuids() {
+        return requestScopedCache.get(CACHE_ENROLLED_COURSES, () -> {
+            try {
+                UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+                if (studentUuid == null) {
+                    return Set.<UUID>of();
+                }
+                return Set.copyOf(courseEnrollmentRepository.findCourseUuidsByStudentUuidAndStatusIn(
+                        studentUuid, EnrollmentStatus.ACCESS_ALLOWING));
+            } catch (Exception e) {
+                log.error("Error loading enrolled courses for the current caller", e);
+                return Set.<UUID>of();
+            }
+        });
+    }
+
+    /**
+     * Staff reading rights plus enrolled learners. See the SPI javadoc for why this is a sibling
+     * of {@link #canReadCourseContent(UUID)} rather than a widening of it.
+     */
+    @Override
+    public boolean canReadCourseAsLearner(UUID courseUuid) {
+        return canReadCourseContent(courseUuid) || isEnrolledLearner(courseUuid);
+    }
+
+    /**
+     * Grants gradebook access only where there is a real relationship to the course.
+     * <p>
+     * Deliberately stricter than a role check: holding the instructor or course_creator
+     * domain says nothing about whether this particular course is yours to mark. Answered from
+     * {@link #manageableCourseUuids()} so that the single-course question and the narrowing of a
+     * listing can never drift apart.
+     */
+    @Override
+    public boolean canManageCourseGradebook(UUID courseUuid) {
+        return courseUuid != null && manageableCourseUuids().contains(courseUuid);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Loaded once per request: a page that checks a dozen quizzes and assignments asks this
+     * question a dozen times, and the underlying joins do not change inside one request.
+     */
+    @Override
+    public Set<UUID> manageableCourseUuids() {
+        return requestScopedCache.get(CACHE_MANAGEABLE_COURSES, () -> manageableCoursesForUser(currentUserUuid()));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<UUID> manageableCourseUuidsForInstructor(UUID instructorUuid) {
+        if (instructorUuid == null) {
+            return Set.of();
+        }
+        return requestScopedCache.get(CACHE_INSTRUCTOR_COURSES + instructorUuid, () -> {
+            try {
+                return manageableCoursesForUser(
+                        instructorLookupService.getInstructorUserUuid(instructorUuid).orElse(null));
+            } catch (Exception e) {
+                log.error("Error resolving the courses instructor {} may mark", instructorUuid, e);
+                return Set.<UUID>of();
+            }
+        });
+    }
+
+    /**
+     * The four footings on which a user may mark a course, unioned: authorship, a personal training
+     * approval, an approval held by an organisation they teach for, and a programme-level approval
+     * on either footing, which covers every course inside that programme.
+     * <p>
+     * Programmes matter because a class may be scheduled against one instead of a course, and the
+     * instructor approved to deliver it holds no course-level application for its courses at all.
+     * Anything that throws resolves to "nothing", so a lookup failure denies rather than grants.
+     */
+    private Set<UUID> manageableCoursesForUser(UUID userUuid) {
+        if (userUuid == null) {
+            return Set.of();
+        }
+        try {
+            Set<UUID> courses = new HashSet<>();
+
+            courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid)
+                    .map(courseRepository::findUuidsByCourseCreatorUuid)
+                    .ifPresent(courses::addAll);
+
+            List<UUID> asInstructor = instructorLookupService.findInstructorUuidByUserUuid(userUuid)
+                    .map(List::of)
+                    .orElseGet(List::of);
+            List<UUID> asOrganisation = teachingOrganisationsOf(userUuid);
+
+            courses.addAll(approvedCourses(CourseTrainingApplicantType.INSTRUCTOR, asInstructor));
+            courses.addAll(approvedCourses(CourseTrainingApplicantType.ORGANISATION, asOrganisation));
+
+            Set<UUID> programmes = new HashSet<>();
+            programmes.addAll(approvedProgrammes(CourseTrainingApplicantType.INSTRUCTOR, asInstructor));
+            programmes.addAll(approvedProgrammes(CourseTrainingApplicantType.ORGANISATION, asOrganisation));
+            if (!programmes.isEmpty()) {
+                courses.addAll(programCourseRepository.findCourseUuidsByProgramUuidIn(programmes));
+            }
+
+            return Set.copyOf(courses);
+        } catch (Exception e) {
+            log.error("Error resolving the courses user {} may mark", userUuid, e);
+            return Set.of();
+        }
+    }
+
+    /**
+     * Organisations this user belongs to <em>as staff</em>. See
+     * {@link #ORGANISATION_TEACHING_DOMAINS} for why plain membership is not enough.
+     */
+    private List<UUID> teachingOrganisationsOf(UUID userUuid) {
+        return userLookupService.getUserOrganizations(userUuid).stream()
+                .filter(organisationUuid -> ORGANISATION_TEACHING_DOMAINS.stream()
+                        .anyMatch(domain -> userLookupService.userBelongsToOrganizationWithDomain(
+                                userUuid, organisationUuid, domain)))
+                .toList();
+    }
+
+    private List<UUID> approvedCourses(CourseTrainingApplicantType applicantType, Collection<UUID> applicants) {
+        return applicants.isEmpty()
+                ? List.of()
+                : courseTrainingApplicationRepository.findApprovedCourseUuids(
+                        applicantType, applicants, CourseTrainingApplicationStatus.APPROVED);
+    }
+
+    private List<UUID> approvedProgrammes(CourseTrainingApplicantType applicantType, Collection<UUID> applicants) {
+        return applicants.isEmpty()
+                ? List.of()
+                : programTrainingApplicationRepository.findApprovedProgramUuids(
+                        applicantType, applicants, CourseTrainingApplicationStatus.APPROVED);
+    }
+
+    /**
+     * Whether the caller may see and change the inside of a quiz: its questions, the {@code
+     * is_correct} flags on their options, and every learner's attempts at it.
+     * <p>
+     * A quiz hangs off a lesson rather than a course, so the decision is one join away — resolve the
+     * owning course, then defer to {@link #canManageCourseGradebook(UUID)}. The question an answer
+     * key poses is not "does this caller teach somewhere", which every instructor on the platform
+     * satisfies, but "is this quiz theirs to mark".
+     * <p>
+     * Not on {@link CourseSecuritySpi}: these are course-module-internal predicates reached from
+     * {@code @PreAuthorize} by bean name, and the SPI stays the cross-module contract.
+     *
+     * @param quizUuid UUID of the quiz to check
+     * @return true when the caller owns or is approved to train the quiz's course
+     */
+    public boolean canManageQuiz(UUID quizUuid) {
+        return materialCourse(CACHE_QUIZ_COURSE, quizUuid, quizRepository::findCourseViewByUuid)
+                .map(material -> canManageCourseGradebook(material.courseUuid()))
+                .orElse(false);
+    }
+
+    /**
+     * The assignment counterpart of {@link #canManageQuiz(UUID)}: whether this assignment's
+     * submissions, scores and per-assignment analytics are the caller's to read and to write.
+     *
+     * @param assignmentUuid UUID of the assignment to check
+     * @return true when the caller owns or is approved to train the assignment's course
+     */
+    public boolean canManageAssignment(UUID assignmentUuid) {
+        return materialCourse(CACHE_ASSIGNMENT_COURSE, assignmentUuid, assignmentRepository::findCourseViewByUuid)
+                .map(material -> canManageCourseGradebook(material.courseUuid()))
+                .orElse(false);
+    }
+
+    /**
+     * Whether the caller may act on, or ask about, one assignment submission as its marker: the
+     * assignment's course is theirs, <em>and</em> the submission is on that assignment.
+     * <p>
+     * Without the second half the assignment in the path is decoration. The guard would read
+     * {@code #assignmentUuid} while the handler wrote to {@code #submissionUuid}, so naming any
+     * assignment you legitimately mark would let you put a score and a comment on any submission on
+     * the platform.
+     *
+     * @param assignmentUuid UUID of the assignment named in the request path
+     * @param submissionUuid UUID of the submission being acted on
+     * @return true when the caller marks this assignment and the submission belongs to it
+     */
+    public boolean canManageAssignmentSubmission(UUID assignmentUuid, UUID submissionUuid) {
+        if (assignmentUuid == null || submissionUuid == null || !canManageAssignment(assignmentUuid)) {
+            return false;
+        }
+        try {
+            return assignmentSubmissionRepository.findByUuid(submissionUuid)
+                    .map(submission -> assignmentUuid.equals(submission.getAssignmentUuid()))
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error binding submission {} to assignment {}", submissionUuid, assignmentUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * Whether the caller holds a course enrolment for this quiz's course, whatever state it is in.
+     * <p>
+     * This is the learner half of the results endpoints, and it is deliberately weaker than
+     * {@link #isEnrolledLearner(UUID)}: that answers "may I still enter this course", which
+     * a dropped or suspended learner may not, while this answers "is this course part of my
+     * record", which stays true for as long as the enrolment exists. Losing access to a course
+     * must not delete the learner's own marks from their view, and the same reasoning covers
+     * unpublishing — a quiz withdrawn after the fact does not un-sit the attempt.
+     * <p>
+     * It grants the question, not the answer: which rows come back is separately narrowed to the
+     * caller's own enrolments by {@code LearnerAssessmentScope}. Both halves are needed.
+     *
+     * @param quizUuid UUID of the quiz to check
+     * @return true when the caller has a course enrolment on the quiz's course
+     */
+    public boolean hasCourseEnrollmentForQuiz(UUID quizUuid) {
+        return materialCourse(CACHE_QUIZ_COURSE, quizUuid, quizRepository::findCourseViewByUuid)
+                .map(material -> holdsCourseEnrollment(material.courseUuid()))
+                .orElse(false);
+    }
+
+    /**
+     * The assignment counterpart of {@link #hasCourseEnrollmentForQuiz(UUID)}.
+     *
+     * @param assignmentUuid UUID of the assignment to check
+     * @return true when the caller has a course enrolment on the assignment's course
+     */
+    public boolean hasCourseEnrollmentForAssignment(UUID assignmentUuid) {
+        return materialCourse(CACHE_ASSIGNMENT_COURSE, assignmentUuid, assignmentRepository::findCourseViewByUuid)
+                .map(material -> holdsCourseEnrollment(material.courseUuid()))
+                .orElse(false);
+    }
+
+    /**
+     * Whether a submitted file may be served to the caller, given only its storage path.
+     * <p>
+     * A path is not an authorization subject, so the decision starts by resolving it back to the
+     * attachment row and thence to the submission that owns it — the same question the attachment
+     * listing answers, asked one indirection later. An unknown path is refused: nothing that is not
+     * a recorded submission attachment is served through this route.
+     *
+     * @param filePath stored relative path of the submitted file
+     * @return true when the caller owns the submission or marks its assignment
+     */
+    public boolean canReadSubmissionMedia(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return false;
+        }
+        try {
+            String storagePath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
+            return assignmentSubmissionAttachmentRepository.findByStoragePath(storagePath).stream()
+                    .map(AssignmentSubmissionAttachment::getSubmissionUuid)
+                    .anyMatch(this::canReachSubmission);
+        } catch (Exception e) {
+            log.error("Error checking submission media access for path: {}", filePath, e);
+            return false;
+        }
+    }
+
+    /**
+     * True when the caller either handed this submission in or marks the assignment it answers.
+     */
+    private boolean canReachSubmission(UUID submissionUuid) {
+        if (ownsAssignmentSubmission(submissionUuid)) {
+            return true;
+        }
+        return assignmentSubmissionRepository.findByUuid(submissionUuid)
+                .map(AssignmentSubmission::getAssignmentUuid)
+                .map(this::canManageAssignment)
+                .orElse(false);
+    }
+
+    /**
+     * True when the caller has any course enrolment on this course, in any state.
+     */
+    private boolean holdsCourseEnrollment(UUID courseUuid) {
+        if (courseUuid == null) {
+            return false;
+        }
+        try {
+            UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+            return studentUuid != null
+                    && courseEnrollmentRepository.existsByStudentUuidAndCourseUuid(studentUuid, courseUuid);
+        } catch (Exception e) {
+            log.error("Error checking course enrolment for course: {}", courseUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * Whether this assignment submission is the calling learner's own work.
+     * <p>
+     * Submissions are keyed by course enrolment rather than by student, so proving ownership means
+     * walking submission → enrolment → student and comparing against the authenticated principal,
+     * never against a request parameter. Enrolment status is deliberately not consulted: a learner
+     * who has since dropped the course still owns the files they handed in.
+     *
+     * @param submissionUuid UUID of the assignment submission
+     * @return true when the submission belongs to the caller's own course enrolment
+     */
+    public boolean ownsAssignmentSubmission(UUID submissionUuid) {
+        if (submissionUuid == null) {
+            return false;
+        }
+        try {
+            UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+            if (studentUuid == null) {
+                return false;
+            }
+            return assignmentSubmissionRepository.findByUuid(submissionUuid)
+                    .map(AssignmentSubmission::getEnrollmentUuid)
+                    .flatMap(courseEnrollmentRepository::findByUuid)
+                    .map(CourseEnrollment::getStudentUuid)
+                    .map(studentUuid::equals)
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error checking submission ownership for submission: {}", submissionUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * Resolves the course that owns a piece of assessment material, memoised for the request.
+     * <p>
+     * Every guarded assessment route pays this walk before its handler runs, and a page that lists
+     * a quiz's questions then fetches each question's options asks about the same quiz repeatedly.
+     * Caching the projection keeps that at one query. Anything that fails to resolve stays empty,
+     * so the callers above deny rather than guess.
+     */
+    private Optional<MaterialCourseView> materialCourse(String cachePrefix, UUID uuid,
+                                                        Function<UUID, Optional<MaterialCourseView>> resolver) {
+        if (uuid == null) {
+            return Optional.empty();
+        }
+        return requestScopedCache.get(cachePrefix + uuid, () -> {
+            try {
+                return resolver.apply(uuid);
+            } catch (Exception e) {
+                log.error("Error resolving the course owning assessment material: {}", uuid, e);
+                return Optional.<MaterialCourseView>empty();
+            }
+        });
+    }
+
+    // ===== training-program ownership and program-scoped writes (unit u08) =====
 
     /**
      * Checks if the currently authenticated user created the specified training program.
@@ -243,108 +664,7 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
                 || isProgramOwner(payloadProgramUuid);
     }
 
-    /**
-     * Grants content read access to the course owner or a member of an organisation
-     * approved to train the course. Admins are handled at the endpoint; enrolled
-     * learners use their own class flow, not this path.
-     */
-    @Override
-    public boolean canReadCourseContent(UUID courseUuid) {
-        if (isCourseOwner(courseUuid)) {
-            return true;
-        }
-        try {
-            UUID userUuid = currentUserUuid();
-            if (userUuid == null) {
-                return false;
-            }
-            return belongsToApprovedTrainingOrganisation(courseUuid, userUuid);
-        } catch (Exception e) {
-            log.error("Error checking content read access for course: {}", courseUuid, e);
-            return false;
-        }
-    }
-
-    /**
-     * True when the caller holds a course enrolment for this course that still allows access.
-     * <p>
-     * Resolves the student from the authenticated principal, never from a request parameter, so
-     * a learner cannot claim somebody else's enrolment. {@code course_enrollments} is unique on
-     * (student, course), so the lookup is unambiguous.
-     */
-    @Override
-    public boolean isEnrolledLearner(UUID courseUuid) {
-        return courseUuid != null && enrolledCourseUuids().contains(courseUuid);
-    }
-
-    /**
-     * The caller's enrolable courses, loaded once per request.
-     * <p>
-     * A learner holds a handful of enrolments, so fetching the whole set costs one query and then
-     * answers every course check by set membership. Checking course-by-course instead would cost a
-     * query per course, which a page listing material from several courses pays repeatedly.
-     */
-    @Override
-    public Set<UUID> enrolledCourseUuids() {
-        return requestScopedCache.get(CACHE_ENROLLED_COURSES, () -> {
-            try {
-                UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
-                if (studentUuid == null) {
-                    return Set.<UUID>of();
-                }
-                return Set.copyOf(courseEnrollmentRepository.findCourseUuidsByStudentUuidAndStatusIn(
-                        studentUuid, EnrollmentStatus.ACCESS_ALLOWING));
-            } catch (Exception e) {
-                log.error("Error loading enrolled courses for the current caller", e);
-                return Set.<UUID>of();
-            }
-        });
-    }
-
-    /**
-     * Staff reading rights plus enrolled learners. See the SPI javadoc for why this is a sibling
-     * of {@link #canReadCourseContent(UUID)} rather than a widening of it.
-     */
-    @Override
-    public boolean canReadCourseAsLearner(UUID courseUuid) {
-        return canReadCourseContent(courseUuid) || isEnrolledLearner(courseUuid);
-    }
-
-    /**
-     * Grants gradebook access only where there is a real relationship to the course.
-     * <p>
-     * Deliberately stricter than a role check: holding the instructor or course_creator
-     * domain says nothing about whether this particular course is yours to mark.
-     */
-    @Override
-    public boolean canManageCourseGradebook(UUID courseUuid) {
-        if (isCourseOwner(courseUuid)) {
-            return true;
-        }
-        try {
-            UUID userUuid = currentUserUuid();
-            if (userUuid == null) {
-                return false;
-            }
-
-            // The caller's own instructor identity, resolved once per request: a gradebook page
-            // asks this for every course it renders.
-            UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
-            if (instructorUuid != null && courseTrainingApplicationRepository
-                    .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
-                            courseUuid,
-                            CourseTrainingApplicantType.INSTRUCTOR,
-                            instructorUuid,
-                            CourseTrainingApplicationStatus.APPROVED)) {
-                return true;
-            }
-
-            return belongsToApprovedTrainingOrganisation(courseUuid, userUuid);
-        } catch (Exception e) {
-            log.error("Error checking gradebook access for course: {}", courseUuid, e);
-            return false;
-        }
-    }
+    // ===== certificate issuance, revocation and reads (unit u17) =====
 
     /**
      * True when the caller may mint, amend or revoke a certificate for this course or program.
@@ -636,14 +956,12 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
         }
     }
 
-    // "True when the caller authored this training program" is answered by the public,
-    // memoised isProgramOwner(UUID) above. That one accepts the caller's instructor profile as
-    // well as their course-creator profile, because the instructor dashboard's program builder
-    // stamps course_creator_uuid with the instructor UUID; a course-creator-only test would lock
-    // program authors out of their own work. Certificate authorisation uses that same definition.
-
     /**
      * True when the user belongs to an organisation approved to train this course.
+     * <p>
+     * Membership is enough here because this backs reading course <em>material</em>, which an
+     * organisation's learners are meant to see. Marking is a different question and asks a stricter
+     * one — see {@link #teachingOrganisationsOf(UUID)}.
      */
     private boolean belongsToApprovedTrainingOrganisation(UUID courseUuid, UUID userUuid) {
         List<UUID> organisationUuids = userLookupService.getUserOrganizations(userUuid);

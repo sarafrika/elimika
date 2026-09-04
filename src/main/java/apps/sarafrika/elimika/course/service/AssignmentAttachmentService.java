@@ -12,5 +12,15 @@ public interface AssignmentAttachmentService {
 
     List<AssignmentAttachmentDTO> getAttachmentsByAssignment(UUID assignmentUuid);
 
-    void deleteAttachment(UUID uuid);
+    /**
+     * Removes one attachment from the assignment it belongs to.
+     * <p>
+     * The assignment is part of the address. Its guard is what decides whether the caller may
+     * change this assignment's material, so an attachment left unbound to it would let anyone
+     * holding one assignment delete the briefs and datasets hanging off every other.
+     *
+     * @param assignmentUuid the assignment the attachment must belong to
+     * @param attachmentUuid the attachment to remove
+     */
+    void deleteAttachment(UUID assignmentUuid, UUID attachmentUuid);
 }

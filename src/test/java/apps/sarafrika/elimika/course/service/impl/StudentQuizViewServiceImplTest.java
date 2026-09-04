@@ -83,7 +83,8 @@ class StudentQuizViewServiceImplTest {
         StudentQuizAccessValidator accessValidator = new StudentQuizAccessValidator(
                 lessonRepository,
                 learnerAssessmentScope,
-                domainSecurityService
+                domainSecurityService,
+                courseSecurityService
         );
         service = new StudentQuizViewServiceImpl(
                 quizRepository,
@@ -106,8 +107,7 @@ class StudentQuizViewServiceImplTest {
         UUID optionUuid = UUID.randomUUID();
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
-        when(domainSecurityService.isStudent()).thenReturn(true);
-        when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(true);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
         when(quizQuestionRepository.findByQuizUuidOrderByDisplayOrderAsc(quizUuid))
                 .thenReturn(List.of(question(questionUuid, quizUuid)));
         when(quizQuestionOptionRepository.findByQuestionUuidOrderByDisplayOrderAsc(questionUuid))
@@ -130,12 +130,12 @@ class StudentQuizViewServiceImplTest {
         UUID studentUuid = UUID.randomUUID();
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
-        when(domainSecurityService.isStudent()).thenReturn(true);
-        when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(false);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(UUID.randomUUID());
+        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(false);
 
         assertThatThrownBy(() -> service.getStudentQuiz(quizUuid, enrollmentUuid))
                 .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("own course enrollment");
+                .hasMessageContaining("owns this course enrollment");
 
         verify(quizQuestionRepository, never()).findByQuizUuidOrderByDisplayOrderAsc(quizUuid);
     }
@@ -153,8 +153,7 @@ class StudentQuizViewServiceImplTest {
         UUID responseUuid = UUID.randomUUID();
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
-        when(domainSecurityService.isStudent()).thenReturn(true);
-        when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(true);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
         when(quizAttemptRepository.findByUuid(attemptUuid))
                 .thenReturn(Optional.of(attempt(attemptUuid, quizUuid, enrollmentUuid, AttemptStatus.GRADED)));
         when(quizResponseRepository.findByAttemptUuid(attemptUuid))
@@ -183,8 +182,7 @@ class StudentQuizViewServiceImplTest {
         UUID attemptUuid = UUID.randomUUID();
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
-        when(domainSecurityService.isStudent()).thenReturn(true);
-        when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(true);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
         when(quizAttemptRepository.findByUuid(attemptUuid))
                 .thenReturn(Optional.of(attempt(attemptUuid, quizUuid, enrollmentUuid, AttemptStatus.SUBMITTED)));
 
@@ -208,7 +206,8 @@ class StudentQuizViewServiceImplTest {
         UUID responseUuid = UUID.randomUUID();
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
-        when(domainSecurityService.isInstructorOrAdmin()).thenReturn(true);
+        // Marking this course is what lets staff open a learner's attempt; the domain alone is not.
+        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(true);
         when(quizAttemptRepository.findByUuid(attemptUuid))
                 .thenReturn(Optional.of(attempt(attemptUuid, quizUuid, enrollmentUuid, AttemptStatus.SUBMITTED)));
         when(quizResponseRepository.findByAttemptUuid(attemptUuid))

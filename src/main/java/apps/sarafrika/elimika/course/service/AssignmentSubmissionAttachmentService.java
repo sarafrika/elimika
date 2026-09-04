@@ -12,5 +12,16 @@ public interface AssignmentSubmissionAttachmentService {
 
     List<AssignmentSubmissionAttachmentDTO> getAttachmentsBySubmission(UUID submissionUuid);
 
-    void deleteAttachment(UUID uuid);
+    /**
+     * Removes one attachment from the submission it belongs to.
+     * <p>
+     * The submission is part of the address, not decoration: an attachment UUID on its own says
+     * nothing about whose work it is, so a caller entitled to their own submission could name
+     * anybody's file and have it deleted. Deleting is therefore refused unless the attachment is
+     * actually filed under the submission named.
+     *
+     * @param submissionUuid the submission the attachment must belong to
+     * @param attachmentUuid the attachment to remove
+     */
+    void deleteAttachment(UUID submissionUuid, UUID attachmentUuid);
 }

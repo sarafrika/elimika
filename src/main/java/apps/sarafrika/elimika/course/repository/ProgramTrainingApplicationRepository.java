@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
@@ -68,4 +70,21 @@ public interface ProgramTrainingApplicationRepository extends JpaRepository<Prog
     boolean existsForCourseCreator(@Param("applicantType") CourseTrainingApplicantType applicantType,
                                    @Param("applicantUuid") UUID applicantUuid,
                                    @Param("courseCreatorUuid") UUID courseCreatorUuid);
+
+    /**
+     * Programs one set of applicants is approved to deliver, as bare UUIDs.
+     * <p>
+     * A class may be scheduled against a program rather than a course, and an instructor approved
+     * that way holds no {@code course_training_applications} row for the courses inside it. This is
+     * the first hop of resolving such an approval to the courses it actually covers.
+     */
+    @Query("""
+            SELECT a.programUuid FROM ProgramTrainingApplication a
+            WHERE a.applicantType = :applicantType
+              AND a.applicantUuid IN :applicantUuids
+              AND a.status = :status
+            """)
+    List<UUID> findApprovedProgramUuids(@Param("applicantType") CourseTrainingApplicantType applicantType,
+                                        @Param("applicantUuids") Collection<UUID> applicantUuids,
+                                        @Param("status") CourseTrainingApplicationStatus status);
 }

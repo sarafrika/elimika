@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -87,6 +88,23 @@ public interface AssignmentSubmissionRepository extends JpaRepository<Assignment
         ORDER BY s.submittedAt ASC
         """)
     List<AssignmentSubmission> findPendingGradingByInstructor(@Param("instructorUuid") UUID instructorUuid);
+
+    /**
+     * Submissions in a given state on a given set of courses, oldest first.
+     * <p>
+     * A submission names its assignment, and an assignment its lesson, so the course a piece of
+     * work belongs to is two joins away. Doing them in the query is what lets a grading queue be
+     * restricted to the courses its instructor is actually approved to teach.
+     */
+    @Query("""
+            SELECT s FROM AssignmentSubmission s
+            JOIN Assignment a ON a.uuid = s.assignmentUuid
+            JOIN Lesson l ON l.uuid = a.lessonUuid
+            WHERE s.status = :status AND l.courseUuid IN :courseUuids
+            ORDER BY s.submittedAt ASC
+            """)
+    List<AssignmentSubmission> findByStatusAndCourseUuidIn(@Param("status") SubmissionStatus status,
+                                                           @Param("courseUuids") Collection<UUID> courseUuids);
 
     /**
      * Find all submissions graded by specific instructor

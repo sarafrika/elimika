@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.dto.StudentQuizQuestionDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizQuestionOptionDTO;
 import apps.sarafrika.elimika.course.dto.StudentQuizReviewDTO;
 import apps.sarafrika.elimika.course.internal.StudentQuizAccessValidator;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.model.QuizAttempt;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
@@ -74,7 +75,8 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
     @Override
     public StudentQuizReviewDTO getStudentQuizReview(UUID quizUuid, UUID attemptUuid, UUID enrollmentUuid) {
         Quiz quiz = loadQuiz(quizUuid);
-        UUID resolvedEnrollmentUuid = accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid).getUuid();
+        CourseEnrollment enrollment = accessValidator.requireEnrollmentAccess(quiz, enrollmentUuid);
+        UUID resolvedEnrollmentUuid = enrollment.getUuid();
 
         QuizAttempt attempt = quizAttemptRepository.findByUuid(attemptUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -84,9 +86,9 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
                 || !resolvedEnrollmentUuid.equals(attempt.getEnrollmentUuid())) {
             throw new AccessDeniedException("Quiz attempt does not belong to the requested enrollment.");
         }
-        // Students may only review graded attempts. Instructors/admins may also open a submitted
-        // (pending) attempt so they can read and grade its text responses.
-        boolean canReviewPending = accessValidator.isManager();
+        // Students may only review graded attempts. Staff who mark this course may also open a
+        // submitted (pending) attempt so they can read and grade its text responses.
+        boolean canReviewPending = accessValidator.marksCourse(enrollment.getCourseUuid());
         if (attempt.getStatus() == AttemptStatus.IN_PROGRESS
                 || (attempt.getStatus() != AttemptStatus.GRADED && !canReviewPending)) {
             throw new IllegalStateException("Quiz review is available only after the attempt has been graded.");

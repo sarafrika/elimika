@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.service.AssignmentSubmissionService;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.spi.AssessmentCompletedNotificationRequestedEvent;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
@@ -35,6 +36,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,6 +54,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     private final LessonRepository lessonRepository;
     private final DomainSecurityService domainSecurityService;
     private final LearnerAssessmentScope learnerAssessmentScope;
+    private final CourseSecuritySpi courseSecurityService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
@@ -273,12 +276,24 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
                 .collect(Collectors.toList());
     }
 
+    /**
+     * One instructor's grading queue: work still awaiting a mark on the courses that instructor is
+     * approved to teach.
+     * <p>
+     * The instructor UUID used to be ignored entirely and every SUBMITTED row on the platform came
+     * back — submission text, files, scores and instructor comments for learners the caller had no
+     * relationship with. An instructor with no teaching reach has an empty queue, not everyone's.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<AssignmentSubmissionDTO> getPendingGrading(UUID instructorUuid) {
-        // This would typically require a join with Assignment table to filter by instructor
-        // For now, returning all submissions with SUBMITTED status
-        return assignmentSubmissionRepository.findByStatus(SubmissionStatus.SUBMITTED)
+        Set<UUID> courseUuids = courseSecurityService.manageableCourseUuidsForInstructor(instructorUuid);
+        if (courseUuids.isEmpty()) {
+            return List.of();
+        }
+
+        return assignmentSubmissionRepository
+                .findByStatusAndCourseUuidIn(SubmissionStatus.SUBMITTED, courseUuids)
                 .stream()
                 .map(AssignmentSubmissionFactory::toDTO)
                 .collect(Collectors.toList());

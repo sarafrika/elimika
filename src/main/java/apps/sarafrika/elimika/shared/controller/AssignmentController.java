@@ -63,6 +63,71 @@ public class AssignmentController {
      */
     static final String LEARNER_ASSIGNMENT_READ = "@learnerContentAccess.canReadAssignment(#assignmentUuid)";
     static final String LEARNER_ASSIGNMENT_READ_BY_UUID = "@learnerContentAccess.canReadAssignment(#uuid)";
+    /**
+     * Marking one assignment's work, reading the scores that come out of it, and changing the
+     * material handed out with it all belong to the course that owns the assignment.
+     * <p>
+     * {@link #MANAGEMENT_ACCESS} only asked whether the caller held a teaching domain
+     * <em>somewhere</em> on the platform, so any instructor could grade any course's submissions,
+     * read its score distribution and delete its briefs. This asks whether this assignment's course
+     * is theirs — as its owner, as an instructor approved to train it, or through an organisation
+     * approved to train it.
+     */
+    static final String ASSIGNMENT_MANAGEMENT = "@courseSecurityService.canManageAssignment(#assignmentUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * The same decision for the assignment's own record, whose routes name it {@code uuid} rather
+     * than {@code assignmentUuid}. Rewriting an assignment and deleting it are the two most
+     * destructive things that can be done to a course's material — the delete takes every learner's
+     * submission with it — so they ask the same question the rest of the assignment's endpoints do.
+     */
+    static final String ASSIGNMENT_MANAGEMENT_BY_UUID = "@courseSecurityService.canManageAssignment(#uuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * Submissions carry every learner's score, so reading them is the course's teaching staff plus
+     * the learners on the course itself. The learner half only opens the endpoint: {@code
+     * LearnerAssessmentScope} still narrows the rows a learner receives to their own enrolments, so
+     * a classmate's marks never travel.
+     * <p>
+     * The learner half asks for an enrolment in any state rather than a currently-open one: a
+     * learner who dropped or was suspended from a course still handed that work in, and must keep
+     * being able to see it.
+     */
+    static final String ASSIGNMENT_RESULTS_ACCESS = ASSIGNMENT_MANAGEMENT
+            + " or @courseSecurityService.hasCourseEnrollmentForAssignment(#assignmentUuid)";
+    /**
+     * Writing to one submission — a score, a comment, a return for revision — requires both halves
+     * of its address: the assignment must be the caller's to mark, and the submission must be on
+     * that assignment. Checking only the first would leave the submission in the path unbound, so
+     * naming an assignment you legitimately mark would let you grade anybody's work anywhere.
+     */
+    static final String SUBMISSION_MANAGEMENT =
+            "@courseSecurityService.canManageAssignmentSubmission(#assignmentUuid, #submissionUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * One submission's attachments are the learner's own handed-in files. Being enrolled alongside
+     * them is not enough — the previous role-only check let any student on the platform list and
+     * delete anybody's uploads — so the learner half is ownership of this very submission.
+     * <p>
+     * The guard reaches only as far as the submission; the attachment inside it is bound to that
+     * submission by {@code AssignmentSubmissionAttachmentService#deleteAttachment}, without which a
+     * learner could pass their own submission and somebody else's file.
+     */
+    static final String SUBMISSION_ATTACHMENT_ACCESS = SUBMISSION_MANAGEMENT
+            + " or @courseSecurityService.ownsAssignmentSubmission(#submissionUuid)";
+    /**
+     * A submitted file is addressed by storage path rather than by submission, so the path is
+     * resolved back to the submission that owns it and the same two parties are admitted: the
+     * learner who uploaded it and the staff who mark its assignment.
+     */
+    static final String SUBMISSION_MEDIA_ACCESS = "@courseSecurityService.canReadSubmissionMedia(#filePath) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * A grading queue is personal. Any instructor could previously read any other instructor's
+     * pending work, learners and scores included, by putting their UUID in the path.
+     */
+    static final String OWN_INSTRUCTOR_QUEUE = "@domainSecurityService.isInstructorWithUuid(#instructorUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
 
     private final AssignmentService assignmentService;
     private final AssignmentSubmissionService assignmentSubmissionService;
@@ -133,6 +198,7 @@ public class AssignmentController {
             }
     )
     @PutMapping("/{uuid}")
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT_BY_UUID)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentDTO>> updateAssignment(
             @PathVariable UUID uuid,
             @Valid @RequestBody AssignmentDTO assignmentDTO) {
@@ -150,6 +216,7 @@ public class AssignmentController {
             }
     )
     @DeleteMapping("/{uuid}")
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT_BY_UUID)
     public ResponseEntity<Void> deleteAssignment(@PathVariable UUID uuid) {
         assignmentService.deleteAssignment(uuid);
         return ResponseEntity.noContent().build();
@@ -172,6 +239,7 @@ public class AssignmentController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentAttachmentDTO>> uploadAssignmentAttachment(
             @PathVariable UUID assignmentUuid,
             @RequestParam("file") MultipartFile file
@@ -224,11 +292,12 @@ public class AssignmentController {
             description = "Removes a specific assignment attachment."
     )
     @DeleteMapping("/{assignmentUuid}/attachments/{attachmentUuid}")
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT)
     public ResponseEntity<Void> deleteAssignmentAttachment(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID attachmentUuid
     ) {
-        assignmentAttachmentService.deleteAttachment(attachmentUuid);
+        assignmentAttachmentService.deleteAttachment(assignmentUuid, attachmentUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -354,7 +423,7 @@ public class AssignmentController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(SUBMISSION_ATTACHMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionAttachmentDTO>> uploadSubmissionAttachment(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,
@@ -400,7 +469,7 @@ public class AssignmentController {
             description = "Retrieves assignment submission attachment files by their stored relative path."
     )
     @GetMapping("/submission-media/{*filePath}")
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(SUBMISSION_MEDIA_ACCESS)
     public ResponseEntity<Resource> getSubmissionMedia(
             @PathVariable String filePath
     ) {
@@ -412,7 +481,7 @@ public class AssignmentController {
             description = "Retrieves all attachments for a specific assignment submission."
     )
     @GetMapping("/{assignmentUuid}/submissions/{submissionUuid}/attachments")
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(SUBMISSION_ATTACHMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionAttachmentDTO>>> getSubmissionAttachments(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid
@@ -432,7 +501,7 @@ public class AssignmentController {
             description = "Removes a specific submission attachment."
     )
     @DeleteMapping("/{assignmentUuid}/submissions/{submissionUuid}/attachments/{attachmentUuid}")
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(SUBMISSION_ATTACHMENT_ACCESS)
     public ResponseEntity<Void> deleteSubmissionAttachment(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,
@@ -443,7 +512,7 @@ public class AssignmentController {
             throw new IllegalArgumentException("Submission does not belong to the specified assignment");
         }
 
-        assignmentSubmissionAttachmentService.deleteAttachment(attachmentUuid);
+        assignmentSubmissionAttachmentService.deleteAttachment(submissionUuid, attachmentUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -453,7 +522,7 @@ public class AssignmentController {
                     + "learner's submissions; students see only submissions on their own enrolments."
     )
     @GetMapping("/{assignmentUuid}/submissions")
-    @PreAuthorize(STUDENT_ACCESS)
+    @PreAuthorize(ASSIGNMENT_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionDTO>>> getAssignmentSubmissions(
             @PathVariable UUID assignmentUuid) {
         List<AssignmentSubmissionDTO> submissions = assignmentSubmissionService.getSubmissionsByAssignment(assignmentUuid);
@@ -466,6 +535,7 @@ public class AssignmentController {
             description = "Grades a student's assignment submission with score and comments."
     )
     @PostMapping("/{assignmentUuid}/submissions/{submissionUuid}/grade")
+    @PreAuthorize(SUBMISSION_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> gradeSubmission(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,
@@ -483,6 +553,7 @@ public class AssignmentController {
             description = "Returns a submission to student with feedback for revision."
     )
     @PostMapping("/{assignmentUuid}/submissions/{submissionUuid}/return")
+    @PreAuthorize(SUBMISSION_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> returnSubmission(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,
@@ -500,6 +571,7 @@ public class AssignmentController {
             description = "Returns analytics data for assignment submissions including category distribution."
     )
     @GetMapping("/{assignmentUuid}/analytics")
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<Map<String, Long>>> getSubmissionAnalytics(
             @PathVariable UUID assignmentUuid) {
         Map<String, Long> analytics = assignmentSubmissionService.getSubmissionCategoryDistribution(assignmentUuid);
@@ -512,6 +584,7 @@ public class AssignmentController {
             description = "Returns the average score for all graded submissions of an assignment."
     )
     @GetMapping("/{assignmentUuid}/average-score")
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<Double>> getAverageScore(
             @PathVariable UUID assignmentUuid) {
         Double averageScore = assignmentSubmissionService.getAverageSubmissionScore(assignmentUuid);
@@ -524,6 +597,7 @@ public class AssignmentController {
             description = "Returns submissions with scores above 85%."
     )
     @GetMapping("/{assignmentUuid}/high-performance")
+    @PreAuthorize(ASSIGNMENT_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionDTO>>> getHighPerformanceSubmissions(
             @PathVariable UUID assignmentUuid) {
         List<AssignmentSubmissionDTO> highPerformers = assignmentSubmissionService.getHighPerformanceSubmissions(assignmentUuid);
@@ -538,6 +612,7 @@ public class AssignmentController {
             description = "Retrieves all submissions pending grading for a specific instructor."
     )
     @GetMapping("/instructor/{instructorUuid}/pending-grading")
+    @PreAuthorize(OWN_INSTRUCTOR_QUEUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<AssignmentSubmissionDTO>>> getPendingGrading(
             @PathVariable UUID instructorUuid) {
         List<AssignmentSubmissionDTO> pendingSubmissions = assignmentSubmissionService.getPendingGrading(instructorUuid);

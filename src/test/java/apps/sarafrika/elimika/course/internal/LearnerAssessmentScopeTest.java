@@ -30,6 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -56,8 +57,8 @@ class LearnerAssessmentScopeTest {
     }
 
     @Test
-    void teachingStaffAreNotNarrowedToOwnEnrollments() {
-        when(domainSecurityService.isInstructorOrAdmin()).thenReturn(true);
+    void onlyPlatformAdminsSeeAssessmentRowsUnnarrowed() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
 
         Specification<QuizAttempt> base = (root, query, cb) -> null;
         assertThat(scope.restrictToCaller(base, "enrollmentUuid")).isSameAs(base);
@@ -65,7 +66,43 @@ class LearnerAssessmentScopeTest {
     }
 
     @Test
-    void courseCreatorsAreNotNarrowedToOwnEnrollments() {
+    void holdingATeachingDomainDoesNotWidenTheRowsAStaffCallerSees() {
+        // The domain is platform-wide. Answering it here handed every instructor every learner's
+        // attempts for any quiz they cared to name; the course-scoped set is what "mine" means.
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(courseSecurityService.manageableCourseUuids()).thenReturn(Set.of());
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        Specification<QuizAttempt> base = (root, query, cb) -> null;
+        Specification<QuizAttempt> restricted = scope.restrictToCaller(base, "enrollmentUuid");
+        assertThat(restricted).isNotSameAs(base);
+
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Predicate nothing = mock(Predicate.class);
+        when(cb.disjunction()).thenReturn(nothing);
+
+        assertThat(restricted.toPredicate(mock(Root.class), mock(CriteriaQuery.class), cb)).isSameAs(nothing);
+    }
+
+    @Test
+    void staffSeeLearnersOnTheCoursesTheyMark() {
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(courseSecurityService.manageableCourseUuids()).thenReturn(Set.of(UUID.randomUUID()));
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        Specification<QuizAttempt> restricted = scope.restrictToCaller(null, "enrollmentUuid");
+
+        CriteriaQuery<?> query = mock(CriteriaQuery.class, RETURNS_DEEP_STUBS);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class, RETURNS_DEEP_STUBS);
+        assertThat(restricted.toPredicate(mock(Root.class, RETURNS_DEEP_STUBS), query, cb)).isNotNull();
+
+        // Matched through the enrolments on those courses, never by matching nothing.
+        verify(query).subquery(UUID.class);
+        verify(cb, never()).disjunction();
+    }
+
+    @Test
+    void courseCreatorsCountAsStaffForDraftVisibility() {
         when(domainSecurityService.isInstructorOrAdmin()).thenReturn(false);
         when(domainSecurityService.isCourseCreator()).thenReturn(true);
 
@@ -95,8 +132,8 @@ class LearnerAssessmentScopeTest {
     void studentSpecificationMatchesOnlyOwnEnrollments() {
         UUID studentUuid = UUID.randomUUID();
         UUID enrollmentUuid = UUID.randomUUID();
-        when(domainSecurityService.isInstructorOrAdmin()).thenReturn(false);
-        when(domainSecurityService.isCourseCreator()).thenReturn(false);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(courseSecurityService.manageableCourseUuids()).thenReturn(Set.of());
         when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
         when(courseEnrollmentRepository.findEnrollmentUuidsByStudentUuid(studentUuid))
                 .thenReturn(List.of(enrollmentUuid));
@@ -153,7 +190,7 @@ class LearnerAssessmentScopeTest {
                 .thenReturn(Optional.of(studentUuid));
         when(courseEnrollmentRepository.findByStudentUuidAndCourseUuid(studentUuid, courseUuid))
                 .thenReturn(Optional.of(enrollment));
-        when(domainSecurityService.isStudent()).thenReturn(false);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
 
         assertThat(scope.resolveEnrollment(courseUuid, classEnrollmentUuid)).isSameAs(enrollment);
     }
@@ -215,12 +252,41 @@ class LearnerAssessmentScopeTest {
         UUID otherStudent = UUID.randomUUID();
         CourseEnrollment theirs = enrollment(suppliedUuid, otherStudent, courseUuid, EnrollmentStatus.ACTIVE);
         when(courseEnrollmentRepository.findByUuid(suppliedUuid)).thenReturn(Optional.of(theirs));
-        when(domainSecurityService.isStudent()).thenReturn(true);
-        when(domainSecurityService.isStudentWithUuid(otherStudent)).thenReturn(false);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(UUID.randomUUID());
 
         assertThatThrownBy(() -> scope.resolveEnrollment(courseUuid, suppliedUuid))
                 .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("their own course enrollment");
+                .hasMessageContaining("Only the learner who owns this course enrollment");
+    }
+
+    @Test
+    void anInstructorWhoDoesNotMarkTheCourseMayNotActThroughItsEnrolments() {
+        // Being staff somewhere is not the licence: the review flow hands back the answer key and
+        // a named learner's answers, so it has to be staff on *this* course.
+        UUID courseUuid = UUID.randomUUID();
+        UUID suppliedUuid = UUID.randomUUID();
+        CourseEnrollment theirs =
+                enrollment(suppliedUuid, UUID.randomUUID(), courseUuid, EnrollmentStatus.ACTIVE);
+        when(courseEnrollmentRepository.findByUuid(suppliedUuid)).thenReturn(Optional.of(theirs));
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(false);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+
+        assertThatThrownBy(() -> scope.resolveEnrollment(courseUuid, suppliedUuid))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void staffWhoMarkTheCourseMayActThroughALearnersEnrolment() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID suppliedUuid = UUID.randomUUID();
+        CourseEnrollment theirs =
+                enrollment(suppliedUuid, UUID.randomUUID(), courseUuid, EnrollmentStatus.ACTIVE);
+        when(courseEnrollmentRepository.findByUuid(suppliedUuid)).thenReturn(Optional.of(theirs));
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(true);
+
+        assertThat(scope.resolveEnrollment(courseUuid, suppliedUuid)).isSameAs(theirs);
     }
 
     // ===== ENROLMENT OWNERSHIP =====
@@ -272,8 +338,8 @@ class LearnerAssessmentScopeTest {
 
     @Test
     void studentWithoutEnrollmentsMatchesNothingRatherThanEverything() {
-        when(domainSecurityService.isInstructorOrAdmin()).thenReturn(false);
-        when(domainSecurityService.isCourseCreator()).thenReturn(false);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(courseSecurityService.manageableCourseUuids()).thenReturn(Set.of());
         when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
 
         Specification<QuizAttempt> restricted = scope.restrictToCaller(null, "enrollmentUuid");

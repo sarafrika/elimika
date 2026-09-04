@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -77,4 +78,21 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
     boolean existsForCourseCreator(@Param("applicantType") CourseTrainingApplicantType applicantType,
                                    @Param("applicantUuid") UUID applicantUuid,
                                    @Param("courseCreatorUuid") UUID courseCreatorUuid);
+
+    /**
+     * Courses one set of applicants is approved to train, as bare UUIDs.
+     * <p>
+     * Authorization asks "which courses may this caller mark?" once per request and then answers by
+     * set membership. Loading the identifiers alone keeps that a single projection query instead of
+     * an existence check per course, and instantiates no application rows the decision never reads.
+     */
+    @Query("""
+            SELECT a.courseUuid FROM CourseTrainingApplication a
+            WHERE a.applicantType = :applicantType
+              AND a.applicantUuid IN :applicantUuids
+              AND a.status = :status
+            """)
+    List<UUID> findApprovedCourseUuids(@Param("applicantType") CourseTrainingApplicantType applicantType,
+                                       @Param("applicantUuids") Collection<UUID> applicantUuids,
+                                       @Param("status") CourseTrainingApplicationStatus status);
 }

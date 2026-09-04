@@ -58,13 +58,21 @@ public class AssignmentAttachmentServiceImpl implements AssignmentAttachmentServ
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * An attachment filed under a different assignment is reported as missing rather than as
+     * forbidden, so the route cannot be used to confirm that another course's material exists.
+     */
     @Override
-    public void deleteAttachment(UUID uuid) {
-        AssignmentAttachment attachment = attachmentRepository.findByUuid(uuid)
+    public void deleteAttachment(UUID assignmentUuid, UUID attachmentUuid) {
+        AssignmentAttachment attachment = attachmentRepository.findByUuid(attachmentUuid)
+                .filter(candidate -> candidate.getAssignmentUuid() != null
+                        && candidate.getAssignmentUuid().equals(assignmentUuid))
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ATTACHMENT_NOT_FOUND_TEMPLATE, uuid)));
+                        String.format(ATTACHMENT_NOT_FOUND_TEMPLATE, attachmentUuid)));
         mediaStorageService.delete(attachment.getStoredFilename() != null
                 ? attachment.getStoredFilename() : attachment.getFileUrl());
-        attachmentRepository.deleteByUuid(uuid);
+        attachmentRepository.deleteByUuid(attachmentUuid);
     }
 }

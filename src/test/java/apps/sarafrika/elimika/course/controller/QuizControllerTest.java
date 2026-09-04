@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -144,7 +143,9 @@ class QuizControllerTest {
                 null
         );
 
-        when(quizQuestionOptionService.search(eq(Map.of("questionUuid", questionUuid.toString())), any(Pageable.class)))
+        // Addressed by quiz *and* question: the service proves the question sits under the quiz
+        // before it hands back any is_correct flag.
+        when(quizQuestionOptionService.getOptionsForQuestion(eq(quizUuid), eq(questionUuid), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(option)));
 
         mockMvc.perform(get("/api/v1/quizzes/{quizUuid}/questions/{questionUuid}/options", quizUuid, questionUuid))

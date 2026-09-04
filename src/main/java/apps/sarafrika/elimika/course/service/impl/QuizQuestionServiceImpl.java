@@ -4,15 +4,22 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizQuestionDTO;
 import apps.sarafrika.elimika.course.factory.QuizQuestionFactory;
+import apps.sarafrika.elimika.course.model.Lesson;
+import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
 import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
 import apps.sarafrika.elimika.course.repository.QuizResponseRepository;
 import apps.sarafrika.elimika.course.service.QuizQuestionService;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -30,6 +38,8 @@ public class QuizQuestionServiceImpl implements QuizQuestionService {
 
     private final QuizQuestionRepository quizQuestionRepository;
     private final QuizResponseRepository quizResponseRepository;
+    private final CourseSecuritySpi courseSecurityService;
+    private final DomainSecurityService domainSecurityService;
 
     private final GenericSpecificationBuilder<QuizQuestion> specificationBuilder;
 
@@ -90,6 +100,85 @@ public class QuizQuestionServiceImpl implements QuizQuestionService {
         Specification<QuizQuestion> spec = specificationBuilder.buildSpecification(
                 QuizQuestion.class, searchParams);
         return quizQuestionRepository.findAll(spec, pageable).map(QuizQuestionFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<QuizQuestionDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        Specification<QuizQuestion> spec = specificationBuilder.buildSpecification(
+                QuizQuestion.class, searchParams);
+        return quizQuestionRepository.findAll(restrictToMarkedQuizzes(spec), pageable)
+                .map(QuizQuestionFactory::toDTO);
+    }
+
+    /**
+     * Keeps a question search inside the courses the caller marks.
+     * <p>
+     * A question hangs off a quiz, a quiz off a lesson and a lesson off a course, and none of those
+     * hops is a JPA association, so the restriction is a subquery over the pair rather than a join
+     * path. Only a platform admin searches unnarrowed; a caller who marks nothing matches nothing,
+     * which is the safe direction to fail in.
+     */
+    private Specification<QuizQuestion> restrictToMarkedQuizzes(Specification<QuizQuestion> base) {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return base;
+        }
+
+        Set<UUID> markedCourses = courseSecurityService.manageableCourseUuids();
+        Specification<QuizQuestion> mine = markedCourses.isEmpty()
+                ? (root, query, cb) -> cb.disjunction()
+                : (root, query, cb) -> {
+                    Subquery<UUID> quizzes = query.subquery(UUID.class);
+                    Root<Quiz> quiz = quizzes.from(Quiz.class);
+                    Root<Lesson> lesson = quizzes.from(Lesson.class);
+                    quizzes.select(quiz.get("uuid"))
+                            .where(cb.and(
+                                    cb.equal(lesson.get("uuid"), quiz.get("lessonUuid")),
+                                    lesson.get("courseUuid").in(markedCourses)));
+                    return root.get("quizUuid").in(quizzes);
+                };
+
+        return base == null ? mine : base.and(mine);
+    }
+
+    @Override
+    public QuizQuestionDTO addQuestionToQuiz(UUID quizUuid, QuizQuestionDTO questionDTO) {
+        QuizQuestion question = QuizQuestionFactory.toEntity(questionDTO);
+        question.setQuizUuid(quizUuid);
+        if (question.getPoints() == null) {
+            question.setPoints(new BigDecimal("1.00"));
+        }
+        return QuizQuestionFactory.toDTO(quizQuestionRepository.save(question));
+    }
+
+    @Override
+    public QuizQuestionDTO updateQuestionInQuiz(UUID quizUuid, UUID questionUuid, QuizQuestionDTO questionDTO) {
+        QuizQuestion existing = requireQuestionInQuiz(quizUuid, questionUuid);
+        updateQuizQuestionFields(existing, questionDTO);
+        // The body may edit the question, never move it to another quiz.
+        existing.setQuizUuid(quizUuid);
+        return QuizQuestionFactory.toDTO(quizQuestionRepository.save(existing));
+    }
+
+    @Override
+    public void deleteQuestionFromQuiz(UUID quizUuid, UUID questionUuid) {
+        requireQuestionInQuiz(quizUuid, questionUuid);
+        quizQuestionRepository.deleteByUuid(questionUuid);
+    }
+
+    /**
+     * Proves the question sits under the quiz the caller was authorised against. Without this the
+     * quiz in the path is decoration: the guard reads it, the handler ignores it, and a caller who
+     * legitimately owns one quiz can rewrite the questions of any other.
+     */
+    private QuizQuestion requireQuestionInQuiz(UUID quizUuid, UUID questionUuid) {
+        QuizQuestion question = quizQuestionRepository.findByUuid(questionUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(QUIZ_QUESTION_NOT_FOUND_TEMPLATE, questionUuid)));
+        if (!quizUuid.equals(question.getQuizUuid())) {
+            throw new AccessDeniedException("Quiz question does not belong to the requested quiz.");
+        }
+        return question;
     }
 
     // Domain-specific methods leveraging QuizQuestionDTO computed properties
@@ -188,10 +277,9 @@ public class QuizQuestionServiceImpl implements QuizQuestionService {
 
     public void reorderQuestions(UUID quizUuid, List<UUID> questionUuids) {
         for (int i = 0; i < questionUuids.size(); i++) {
-            int finalI = i;
-            QuizQuestion question = quizQuestionRepository.findByUuid(questionUuids.get(i))
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(QUIZ_QUESTION_NOT_FOUND_TEMPLATE, questionUuids.get(finalI))));
+            // Each UUID in the body must name a question of this quiz, or reordering one quiz would
+            // let a caller renumber another's.
+            QuizQuestion question = requireQuestionInQuiz(quizUuid, questionUuids.get(i));
 
             question.setDisplayOrder(i + 1);
             quizQuestionRepository.save(question);

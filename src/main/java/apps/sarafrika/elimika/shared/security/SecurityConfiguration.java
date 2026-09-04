@@ -64,7 +64,10 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.GET, "/api/v1/courses/content-media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/v1/assignments/submission-media/**").permitAll()
+                                // Handed-in work is not public media: a submitted file is served
+                                // only to the learner who uploaded it or the staff who mark its
+                                // assignment, which needs an authenticated principal to decide.
+                                .requestMatchers(HttpMethod.GET, "/api/v1/assignments/submission-media/**").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/classes/media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/certificates/files/**").permitAll()
                                 // Certificate verification answers "valid or not" and nothing else.

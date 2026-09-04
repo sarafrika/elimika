@@ -49,6 +49,33 @@ public class QuizController {
      */
     private static final String LEARNER_QUIZ_READ = "@learnerContentAccess.canReadQuiz(#quizUuid)";
     private static final String LEARNER_QUIZ_READ_BY_UUID = "@learnerContentAccess.canReadQuiz(#uuid)";
+    /**
+     * The inside of one quiz — its questions and, on their options, the {@code is_correct} answer
+     * key — belongs to the course that owns the quiz.
+     * <p>
+     * {@link #MANAGEMENT_ACCESS} only asked whether the caller held a teaching domain
+     * <em>somewhere</em> on the platform, so any instructor of any course could read any other
+     * course's answer keys and rewrite its questions. This asks the question that was meant: is
+     * this quiz's course yours to mark, as its owner, as an instructor approved to train it, or
+     * through an organisation approved to train it.
+     */
+    private static final String QUIZ_MANAGEMENT = "@courseSecurityService.canManageQuiz(#quizUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /** The same decision for routes that name the quiz {@code uuid} rather than {@code quizUuid}. */
+    private static final String QUIZ_MANAGEMENT_BY_UUID = "@courseSecurityService.canManageQuiz(#uuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * Attempts, and the sittings that produce them, belong to the course's teaching staff plus the
+     * learners on the course itself. The learner half only opens the endpoint: {@code
+     * LearnerAssessmentScope} still narrows the rows a learner receives to their own enrolments, so
+     * a classmate's marks never travel.
+     * <p>
+     * The learner half asks for an enrolment in any state rather than a currently-open one, because
+     * these routes cover a learner reading back their own past work: dropping a course does not
+     * un-sit the quizzes taken while on it.
+     */
+    private static final String QUIZ_RESULTS_ACCESS = QUIZ_MANAGEMENT
+            + " or @courseSecurityService.hasCourseEnrollmentForQuiz(#quizUuid)";
 
     private final QuizService quizService;
     private final QuizQuestionService quizQuestionService;
@@ -64,7 +91,7 @@ public class QuizController {
             description = "Retrieves a quiz payload for students without configured answer keys."
     )
     @GetMapping("/{quizUuid}/student-view")
-    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    @PreAuthorize(QUIZ_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentQuizDTO>> getStudentQuizView(
             @PathVariable UUID quizUuid,
             @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid) {
@@ -78,7 +105,7 @@ public class QuizController {
             description = "Retrieves a student's graded quiz review, including correct answers after grading."
     )
     @GetMapping("/{quizUuid}/attempts/{attemptUuid}/review")
-    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    @PreAuthorize(QUIZ_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentQuizReviewDTO>> getStudentQuizReview(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
@@ -100,7 +127,7 @@ public class QuizController {
             }
     )
     @PostMapping("/{quizUuid}/attempts")
-    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    @PreAuthorize(QUIZ_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> startQuizAttempt(
             @PathVariable UUID quizUuid,
             @RequestParam(name = "enrollment_uuid", required = false) UUID enrollmentUuid) {
@@ -116,7 +143,7 @@ public class QuizController {
                     + "to autosave progress before submitting."
     )
     @PutMapping("/{quizUuid}/attempts/{attemptUuid}/responses")
-    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    @PreAuthorize(QUIZ_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> saveQuizResponses(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
@@ -138,7 +165,7 @@ public class QuizController {
             }
     )
     @PostMapping("/{quizUuid}/attempts/{attemptUuid}/submit")
-    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    @PreAuthorize(QUIZ_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> submitQuizAttempt(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
@@ -157,7 +184,7 @@ public class QuizController {
                     + "its grade synced to the gradebook."
     )
     @PostMapping("/{quizUuid}/attempts/{attemptUuid}/questions/{questionUuid}/grade")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> gradeQuizTextResponse(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,
@@ -230,7 +257,7 @@ public class QuizController {
             }
     )
     @PutMapping("/{uuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT_BY_UUID)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizDTO>> updateQuiz(
             @PathVariable UUID uuid,
             @Valid @RequestBody QuizDTO quizDTO) {
@@ -248,7 +275,7 @@ public class QuizController {
             }
     )
     @DeleteMapping("/{uuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT_BY_UUID)
     public ResponseEntity<Void> deleteQuiz(@PathVariable UUID uuid) {
         quizService.deleteQuiz(uuid);
         return ResponseEntity.noContent().build();
@@ -261,11 +288,11 @@ public class QuizController {
             description = "Creates a new question for the specified quiz with automatic ordering."
     )
     @PostMapping("/{quizUuid}/questions")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionDTO>> addQuizQuestion(
             @PathVariable UUID quizUuid,
             @Valid @RequestBody QuizQuestionDTO questionDTO) {
-        QuizQuestionDTO createdQuestion = quizQuestionService.createQuizQuestion(questionDTO);
+        QuizQuestionDTO createdQuestion = quizQuestionService.addQuestionToQuiz(quizUuid, questionDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdQuestion, "Question added successfully"));
@@ -276,7 +303,7 @@ public class QuizController {
             description = "Retrieves all questions for a quiz in display order with computed properties."
     )
     @GetMapping("/{quizUuid}/questions")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<QuizQuestionDTO>>> getQuizQuestions(
             @PathVariable UUID quizUuid) {
         List<QuizQuestionDTO> questions = quizQuestionService.getQuestionsByQuiz(quizUuid);
@@ -289,12 +316,12 @@ public class QuizController {
             description = "Updates a specific question within a quiz."
     )
     @PutMapping("/{quizUuid}/questions/{questionUuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionDTO>> updateQuizQuestion(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
             @Valid @RequestBody QuizQuestionDTO questionDTO) {
-        QuizQuestionDTO updatedQuestion = quizQuestionService.updateQuizQuestion(questionUuid, questionDTO);
+        QuizQuestionDTO updatedQuestion = quizQuestionService.updateQuestionInQuiz(quizUuid, questionUuid, questionDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedQuestion, "Question updated successfully"));
     }
@@ -304,11 +331,11 @@ public class QuizController {
             description = "Removes a question from a quiz including all options and responses."
     )
     @DeleteMapping("/{quizUuid}/questions/{questionUuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<Void> deleteQuizQuestion(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid) {
-        quizQuestionService.deleteQuizQuestion(questionUuid);
+        quizQuestionService.deleteQuestionFromQuiz(quizUuid, questionUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -317,7 +344,7 @@ public class QuizController {
             description = "Updates the display order of questions within a quiz."
     )
     @PostMapping("/{quizUuid}/questions/reorder")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> reorderQuizQuestions(
             @PathVariable UUID quizUuid,
             @RequestBody List<UUID> questionUuids) {
@@ -333,12 +360,13 @@ public class QuizController {
             description = "Creates a new option for a multiple choice or true/false question."
     )
     @PostMapping("/{quizUuid}/questions/{questionUuid}/options")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionOptionDTO>> addQuestionOption(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
             @Valid @RequestBody QuizQuestionOptionDTO optionDTO) {
-        QuizQuestionOptionDTO createdOption = quizQuestionOptionService.createQuizQuestionOption(optionDTO);
+        QuizQuestionOptionDTO createdOption = quizQuestionOptionService.addOptionToQuestion(
+                quizUuid, questionUuid, optionDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdOption, "Option added successfully"));
@@ -349,13 +377,13 @@ public class QuizController {
             description = "Retrieves all options for a specific question."
     )
     @GetMapping("/{quizUuid}/questions/{questionUuid}/options")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizQuestionOptionDTO>>> getQuestionOptions(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("questionUuid", questionUuid.toString());
-        Page<QuizQuestionOptionDTO> options = quizQuestionOptionService.search(searchParams, pageable);
+        Page<QuizQuestionOptionDTO> options = quizQuestionOptionService.getOptionsForQuestion(
+                quizUuid, questionUuid, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(options, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -367,13 +395,14 @@ public class QuizController {
             description = "Updates a specific option for a question."
     )
     @PutMapping("/{quizUuid}/questions/{questionUuid}/options/{optionUuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizQuestionOptionDTO>> updateQuestionOption(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
             @PathVariable UUID optionUuid,
             @Valid @RequestBody QuizQuestionOptionDTO optionDTO) {
-        QuizQuestionOptionDTO updatedOption = quizQuestionOptionService.updateQuizQuestionOption(optionUuid, optionDTO);
+        QuizQuestionOptionDTO updatedOption = quizQuestionOptionService.updateOptionInQuestion(
+                quizUuid, questionUuid, optionUuid, optionDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedOption, "Option updated successfully"));
     }
@@ -383,12 +412,12 @@ public class QuizController {
             description = "Removes an option from a question."
     )
     @DeleteMapping("/{quizUuid}/questions/{questionUuid}/options/{optionUuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<Void> deleteQuestionOption(
             @PathVariable UUID quizUuid,
             @PathVariable UUID questionUuid,
             @PathVariable UUID optionUuid) {
-        quizQuestionOptionService.deleteQuizQuestionOption(optionUuid);
+        quizQuestionOptionService.deleteOptionFromQuestion(quizUuid, questionUuid, optionUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -400,7 +429,7 @@ public class QuizController {
                     + "every learner's attempts; students see only attempts on their own enrolments."
     )
     @GetMapping("/{quizUuid}/attempts")
-    @PreAuthorize(STUDENT_QUIZ_ACCESS)
+    @PreAuthorize(QUIZ_RESULTS_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<QuizAttemptDTO>>> getQuizAttempts(
             @PathVariable UUID quizUuid,
             Pageable pageable) {
@@ -431,7 +460,7 @@ public class QuizController {
             description = "Returns distribution of question types within a quiz."
     )
     @GetMapping("/{quizUuid}/question-distribution")
-    @PreAuthorize(MANAGEMENT_ACCESS)
+    @PreAuthorize(QUIZ_MANAGEMENT)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<Map<String, Long>>> getQuestionDistribution(
             @PathVariable UUID quizUuid) {
         Map<String, Long> distribution = quizQuestionService.getQuestionCategoryDistribution(quizUuid);
@@ -495,7 +524,7 @@ public class QuizController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<QuizQuestionDTO> questions = quizQuestionService.search(searchParams, pageable);
+        Page<QuizQuestionDTO> questions = quizQuestionService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(questions, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

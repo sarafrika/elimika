@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.internal.LearnerMaterialScope;
+import apps.sarafrika.elimika.course.internal.MaterialLessonGuard;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentDTO;
@@ -29,11 +30,14 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final GenericSpecificationBuilder<Assignment> specificationBuilder;
     private final LearnerMaterialScope learnerMaterialScope;
     private final AssignmentMediaValidationService assignmentMediaValidationService;
+    private final MaterialLessonGuard materialLessonGuard;
 
     private static final String ASSIGNMENT_NOT_FOUND_TEMPLATE = "Assignment with ID %s not found";
 
     @Override
     public AssignmentDTO createAssignment(AssignmentDTO assignmentDTO) {
+        materialLessonGuard.requireManageableLesson(assignmentDTO.lessonUuid());
+
         Assignment assignment = AssignmentFactory.toEntity(assignmentDTO);
 
         String[] normalizedSubmissionTypes = assignmentMediaValidationService.normalizeSubmissionTypes(assignment.getSubmissionTypes());
@@ -106,6 +110,11 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private void updateAssignmentFields(Assignment existingAssignment, AssignmentDTO dto) {
         if (dto.lessonUuid() != null) {
+            // The endpoint guard vouched for the course the assignment is in, not for the one the
+            // body is moving it to, so a re-parent is authorised against its destination as well.
+            if (!dto.lessonUuid().equals(existingAssignment.getLessonUuid())) {
+                materialLessonGuard.requireManageableLesson(dto.lessonUuid());
+            }
             existingAssignment.setLessonUuid(dto.lessonUuid());
         }
         if (dto.scope() != null) {

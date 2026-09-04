@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.internal.LearnerMaterialScope;
+import apps.sarafrika.elimika.course.internal.MaterialLessonGuard;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.QuizDTO;
@@ -29,11 +30,14 @@ public class QuizServiceImpl implements QuizService {
     private final GenericSpecificationBuilder<Quiz> specificationBuilder;
     private final LearnerMaterialScope learnerMaterialScope;
     private final QuizAttemptRepository quizAttemptRepository;
+    private final MaterialLessonGuard materialLessonGuard;
 
     private static final String QUIZ_NOT_FOUND_TEMPLATE = "Quiz with ID %s not found";
 
     @Override
     public QuizDTO createQuiz(QuizDTO quizDTO) {
+        materialLessonGuard.requireManageableLesson(quizDTO.lessonUuid());
+
         Quiz quiz = QuizFactory.toEntity(quizDTO);
 
         // Set defaults based on QuizDTO business logic
@@ -103,6 +107,11 @@ public class QuizServiceImpl implements QuizService {
 
     private void updateQuizFields(Quiz existingQuiz, QuizDTO dto) {
         if (dto.lessonUuid() != null) {
+            // The endpoint guard vouched for the course the quiz is in, not for the one the body is
+            // moving it to, so a re-parent is authorised against its destination as well.
+            if (!dto.lessonUuid().equals(existingQuiz.getLessonUuid())) {
+                materialLessonGuard.requireManageableLesson(dto.lessonUuid());
+            }
             existingQuiz.setLessonUuid(dto.lessonUuid());
         }
         if (dto.scope() != null) {

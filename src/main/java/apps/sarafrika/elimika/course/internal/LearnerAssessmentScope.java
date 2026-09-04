@@ -7,12 +7,17 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -42,8 +47,12 @@ public class LearnerAssessmentScope {
     private final RequestScopedCache requestScopedCache;
 
     /**
-     * Whether the caller may see every learner's work. Mirrors the management domains the
-     * assessment endpoints were originally restricted to, so staff listings are unchanged.
+     * Whether the caller is teaching staff rather than a learner, and so may be shown unpublished
+     * material in a listing.
+     * <p>
+     * A platform-wide domain test, and therefore <em>not</em> fit to decide whose work a caller may
+     * read — {@link #restrictToCaller(Specification, String)} answers that per course instead.
+     * Kept for the material listings that only need to know "draft or published".
      */
     public boolean seesAllLearners() {
         return requestScopedCache.get(CACHE_SEES_ALL, () ->
@@ -69,22 +78,49 @@ public class LearnerAssessmentScope {
     }
 
     /**
-     * Narrows a query to the caller's own enrollments unless they are teaching staff.
+     * Narrows a query of learner work to the rows the caller is entitled to see: their own, plus —
+     * for teaching staff — every learner on a course they actually mark.
+     * <p>
+     * Holding a teaching domain is not the question. The domain is platform-wide, so answering it
+     * would hand every instructor and course creator every learner's attempts and submissions for
+     * any quiz or assignment they cared to name; the course-scoped set is what "my learners" means.
+     * Only a platform admin sees the query unnarrowed.
+     * <p>
+     * Staff are matched through a subquery rather than by expanding their courses into enrolment
+     * UUIDs, because a popular course has thousands of enrolments and an {@code IN} list of that
+     * size is not a query plan anybody wants.
      *
      * @param base                the query so far, may be {@code null} for "no filter yet"
      * @param enrollmentAttribute name of the entity attribute holding the enrollment UUID
      */
     public <T> Specification<T> restrictToCaller(Specification<T> base, String enrollmentAttribute) {
-        if (seesAllLearners()) {
+        if (domainSecurityService.isPlatformAdmin()) {
             return base;
         }
 
         Set<UUID> ownEnrollments = callerEnrollmentUuids();
-        Specification<T> own = ownEnrollments.isEmpty()
-                ? (root, query, cb) -> cb.disjunction()
-                : (root, query, cb) -> root.get(enrollmentAttribute).in(ownEnrollments);
+        Set<UUID> markedCourses = courseSecurityService.manageableCourseUuids();
 
-        return base == null ? own : base.and(own);
+        Specification<T> visible = (root, query, cb) -> {
+            List<Predicate> alternatives = new ArrayList<>();
+            if (!ownEnrollments.isEmpty()) {
+                alternatives.add(root.get(enrollmentAttribute).in(ownEnrollments));
+            }
+            if (!markedCourses.isEmpty()) {
+                Subquery<UUID> enrolmentsOnMyCourses = query.subquery(UUID.class);
+                Root<CourseEnrollment> enrolment = enrolmentsOnMyCourses.from(CourseEnrollment.class);
+                enrolmentsOnMyCourses.select(enrolment.get("uuid"))
+                        .where(enrolment.get("courseUuid").in(markedCourses));
+                alternatives.add(root.get(enrollmentAttribute).in(enrolmentsOnMyCourses));
+            }
+            return switch (alternatives.size()) {
+                case 0 -> cb.disjunction();
+                case 1 -> alternatives.get(0);
+                default -> cb.or(alternatives.toArray(new Predicate[0]));
+            };
+        };
+
+        return base == null ? visible : base.and(visible);
     }
 
     /**
@@ -116,8 +152,9 @@ public class LearnerAssessmentScope {
      * @param supplied   enrolment UUID from the request, may be {@code null}
      * @throws IllegalArgumentException  when a staff caller omits the enrolment
      * @throws ResourceNotFoundException when no enrolment can be resolved
-     * @throws AccessDeniedException     when the enrolment is not the caller's, is for another
-     *                                   course, or no longer allows access
+     * @throws AccessDeniedException     when the enrolment is neither the caller's own nor on a
+     *                                   course they mark, is for another course, or no longer
+     *                                   allows access
      */
     public CourseEnrollment resolveEnrollment(UUID courseUuid, UUID supplied) {
         CourseEnrollment enrollment = supplied == null
@@ -130,11 +167,30 @@ public class LearnerAssessmentScope {
         if (enrollment.getStatus() == null || !enrollment.getStatus().allowsAccess()) {
             throw new AccessDeniedException("Course enrollment does not allow access to this course.");
         }
-        if (domainSecurityService.isStudent()
-                && !domainSecurityService.isStudentWithUuid(enrollment.getStudentUuid())) {
-            throw new AccessDeniedException("Students may only act through their own course enrollment.");
-        }
+        requireMayActThrough(courseUuid, enrollment);
         return enrollment;
+    }
+
+    /**
+     * Two kinds of caller may act through an enrolment: the learner it belongs to, and the staff
+     * who mark that course.
+     * <p>
+     * The earlier form of this check exempted anyone who was not a student, which read as "staff
+     * are trusted" but meant "everybody else is": any instructor on the platform could name any
+     * enrolment on any course and be handed that learner's answers and the quiz's answer key. Being
+     * staff <em>somewhere</em> is not the licence; marking <em>this</em> course is.
+     */
+    private void requireMayActThrough(UUID courseUuid, CourseEnrollment enrollment) {
+        UUID callerStudentUuid = domainSecurityService.getCurrentStudentUuid();
+        if (callerStudentUuid != null && callerStudentUuid.equals(enrollment.getStudentUuid())) {
+            return;
+        }
+        if (courseSecurityService.canManageCourseGradebook(courseUuid)
+                || domainSecurityService.isPlatformAdmin()) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Only the learner who owns this course enrollment, or staff who mark its course, may act through it.");
     }
 
     /**

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionRequest;
 import apps.sarafrika.elimika.course.internal.AssignmentMediaValidationService;
 import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
@@ -65,6 +66,8 @@ class AssignmentSubmissionServiceImplTest {
     @Mock
     private LearnerAssessmentScope learnerAssessmentScope;
     @Mock
+    private CourseSecuritySpi courseSecurityService;
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     private AssignmentSubmissionServiceImpl service;
@@ -81,6 +84,7 @@ class AssignmentSubmissionServiceImplTest {
                 lessonRepository,
                 domainSecurityService,
                 learnerAssessmentScope,
+                courseSecurityService,
                 eventPublisher
         );
     }

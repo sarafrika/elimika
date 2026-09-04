@@ -130,4 +130,30 @@ public interface CourseSecuritySpi {
      * @return true if the current user may manage the course's gradebook
      */
     boolean canManageCourseGradebook(UUID courseUuid);
+
+    /**
+     * Every course the current caller may mark: the ones they authored, the ones they are approved
+     * to train as an instructor, the ones an organisation they teach for is approved to train, and
+     * the courses inside any training programme approved on either footing.
+     * <p>
+     * This is the same decision {@link #canManageCourseGradebook(UUID)} makes, exposed as a set so
+     * that a <em>listing</em> can be narrowed to it. Filtering rows by "is this row's course one of
+     * mine" is the only way a search endpoint can stop handing one course's teaching staff another
+     * course's learners; asking per row would cost a query per row.
+     *
+     * @return the caller's manageable course UUIDs, never null
+     */
+    Set<UUID> manageableCourseUuids();
+
+    /**
+     * The same set for a <em>named</em> instructor rather than the caller.
+     * <p>
+     * A personal work queue is addressed by instructor UUID, so the rows it may contain are decided
+     * by that instructor's approvals, not by whoever is looking — otherwise a platform admin
+     * opening somebody's queue would see their own courses in it.
+     *
+     * @param instructorUuid the instructor whose teaching reach is wanted
+     * @return the instructor's manageable course UUIDs, never null
+     */
+    Set<UUID> manageableCourseUuidsForInstructor(UUID instructorUuid);
 }

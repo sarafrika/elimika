@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.repository.LessonRepository;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -28,6 +29,7 @@ public class StudentQuizAccessValidator {
     private final LessonRepository lessonRepository;
     private final LearnerAssessmentScope learnerAssessmentScope;
     private final DomainSecurityService domainSecurityService;
+    private final CourseSecuritySpi courseSecurityService;
 
     /**
      * Resolves the enrolment the caller should act through for this quiz, and asserts they may use
@@ -61,11 +63,16 @@ public class StudentQuizAccessValidator {
     }
 
     /**
-     * Whether the current caller is teaching/administering staff (instructor, admin or course
-     * creator) rather than a student. Managers may review submitted-but-ungraded attempts in
-     * order to grade text responses, which students cannot.
+     * Whether the caller marks this course, and so may open a submitted-but-ungraded attempt in
+     * order to grade its text responses — which the learner who sat it may not do.
+     * <p>
+     * Asked per course rather than per role. Holding the instructor or course_creator domain says
+     * only that the caller teaches <em>somewhere</em>, and an ungraded attempt shows the correct
+     * answers alongside the learner's, so a platform-wide test would hand every instructor every
+     * course's answer key the moment a learner submitted.
      */
-    public boolean isManager() {
-        return domainSecurityService.isInstructorOrAdmin() || domainSecurityService.isCourseCreator();
+    public boolean marksCourse(UUID courseUuid) {
+        return courseSecurityService.canManageCourseGradebook(courseUuid)
+                || domainSecurityService.isPlatformAdmin();
     }
 }
