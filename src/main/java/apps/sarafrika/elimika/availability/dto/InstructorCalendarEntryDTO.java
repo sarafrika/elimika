@@ -69,6 +69,33 @@ public record InstructorCalendarEntryDTO(
         String organisationName
 ) {
 
+    /**
+     * The same entry reduced to when it is and whether it is free.
+     * <p>
+     * The calendar is a booking surface, so anyone deciding when to approach an instructor needs to
+     * see which windows are already taken. None of them needs to see <em>what</em> is in the window:
+     * the class title, the class it belongs to, where it is delivered, why a session was cancelled
+     * and which organisation the instructor is delivering it for are the instructor's business and
+     * that of the parties who run the class. The identifier and the window survive so a calendar can
+     * still lay the entry out; everything describing it goes.
+     */
+    public InstructorCalendarEntryDTO redacted() {
+        return new InstructorCalendarEntryDTO(
+                uuid,
+                entryType,
+                startTime,
+                endTime,
+                availabilityType,
+                isAvailable,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
     public enum CalendarEntryType {
         AVAILABILITY,
         BLOCKED,

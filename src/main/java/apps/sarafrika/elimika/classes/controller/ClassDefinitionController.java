@@ -63,6 +63,14 @@ import java.util.UUID;
  * restricted to the parties who run it, and the roster — the one response here that carries other
  * learners' identities — is filtered to what each caller is party to. See
  * {@link ClassAccessSecurityService} and {@link EnrollmentVisibilityService}.
+ * <p>
+ * Every route that changes an <em>existing</em> class — its definition, its media, its session
+ * templates, its deactivation — is gated on {@code canManageClass}, which admits only the class's
+ * own instructor, a manager of the organisation that owns it, and the platform admin. Without that
+ * gate the update route is enough on its own to take a class over: it accepts
+ * {@code default_instructor_uuid}, so naming yourself in the body of a stranger's class made you
+ * its instructor. The update route asks the wider {@code canUpdateClass}, which additionally
+ * requires rights over any organisation the payload would re-home the class to.
  */
 @RestController
 @RequestMapping("/api/v1/classes")
@@ -289,7 +297,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid thumbnail file")
     @PostMapping(value = "/{uuid}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
+    @PreAuthorize("@domainSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> uploadClassThumbnail(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -306,7 +314,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid promotional video file")
     @PostMapping(value = "/{uuid}/promotional-video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
+    @PreAuthorize("@domainSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> uploadClassPromotionalVideo(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -334,7 +342,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Scheduling conflicts detected")
     @PostMapping("/{uuid}/session-templates")
-    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
+    @PreAuthorize("@domainSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<ClassSessionTemplateScheduleResponseDTO>> addSessionTemplate(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -357,7 +365,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definition deactivated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @DeleteMapping("/{uuid}")
-    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
+    @PreAuthorize("@domainSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<Void>> deactivateClassDefinition(
             @Parameter(description = "UUID of the class definition to deactivate", required = true)
             @PathVariable UUID uuid) {

@@ -66,9 +66,12 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    public AvailabilitySlotDTO updateAvailabilitySlot(UUID slotUuid, AvailabilitySlotDTO slot) {
-        log.debug("Updating availability slot: {}", slotUuid);
-        
+    public AvailabilitySlotDTO updateAvailabilitySlot(UUID instructorUuid, UUID slotUuid, AvailabilitySlotDTO slot) {
+        log.debug("Updating availability slot {} for instructor {}", slotUuid, instructorUuid);
+
+        if (instructorUuid == null) {
+            throw new IllegalArgumentException("Instructor UUID cannot be null");
+        }
         if (slotUuid == null) {
             throw new IllegalArgumentException("Slot UUID cannot be null");
         }
@@ -76,9 +79,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             throw new IllegalArgumentException("Availability slot cannot be null");
         }
 
-        InstructorAvailability entity = availabilityRepository.findByUuid(slotUuid)
-            .orElseThrow(() -> new ResourceNotFoundException(
-                String.format(AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE, slotUuid)));
+        InstructorAvailability entity = findOwnedSlot(instructorUuid, slotUuid);
 
         AvailabilityFactory.updateEntityFromDTO(entity, slot);
         InstructorAvailability savedEntity = availabilityRepository.save(entity);
@@ -90,16 +91,17 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
-    public void deleteAvailabilitySlot(UUID slotUuid) {
-        log.debug("Deleting availability slot: {}", slotUuid);
-        
+    public void deleteAvailabilitySlot(UUID instructorUuid, UUID slotUuid) {
+        log.debug("Deleting availability slot {} for instructor {}", slotUuid, instructorUuid);
+
+        if (instructorUuid == null) {
+            throw new IllegalArgumentException("Instructor UUID cannot be null");
+        }
         if (slotUuid == null) {
             throw new IllegalArgumentException("Slot UUID cannot be null");
         }
 
-        InstructorAvailability entity = availabilityRepository.findByUuid(slotUuid)
-            .orElseThrow(() -> new ResourceNotFoundException(
-                String.format(AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE, slotUuid)));
+        InstructorAvailability entity = findOwnedSlot(instructorUuid, slotUuid);
 
         availabilityRepository.delete(entity);
         log.debug("Deleted availability slot: {}", slotUuid);
@@ -252,6 +254,20 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             case MONTHLY -> matchesMonthlyPattern(slot, date);
             case CUSTOM -> matchesCustomPattern(slot, date);
         };
+    }
+
+    /**
+     * Loads a slot that is on the given instructor's calendar, in one read.
+     * <p>
+     * A slot belonging to a different instructor is reported as missing rather than as forbidden:
+     * the caller is entitled to know about their own calendar and nothing else, so which of somebody
+     * else's slot UUIDs happen to be real is not an answer this should give.
+     */
+    private InstructorAvailability findOwnedSlot(UUID instructorUuid, UUID slotUuid) {
+        return availabilityRepository.findByUuid(slotUuid)
+                .filter(entity -> instructorUuid.equals(entity.getInstructorUuid()))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE, slotUuid)));
     }
 
     private void publishAvailabilityChanged(UUID instructorUuid, AvailabilityType type, LocalDate effectiveDate, String description) {

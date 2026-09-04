@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.dto.InstructorCalendarEntryDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleLookupService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -33,6 +35,15 @@ import java.util.UUID;
  * - /api/v1/instructors/{instructorUuid}/availability/check - Check availability
  * - /api/v1/instructors/{instructorUuid}/availability/calendar - Merged calendar feed
  *
+ * <p>Access falls into three bands. Every write — clearing a calendar, and creating, updating or
+ * deleting a slot — belongs to the instructor named in the path, or to a platform admin; the two
+ * slot-specific writes additionally require the slot to be on that instructor's calendar, which the
+ * availability service enforces as it loads it. The raw slot listing is the instructor's own
+ * configuration record and is restricted the same way. Free/busy is the exception: a student
+ * choosing when to book has to see it, so {@code /calendar} and {@code /check} answer any signed-in
+ * caller — but {@code /calendar} hands anyone other than the instructor a redacted feed, windows
+ * without the sessions that fill them.</p>
+ *
  * @author Wilfred Njuguna
  * @version 1.0
  * @since 2024-09-05
@@ -47,6 +58,7 @@ public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
     private final InstructorScheduleLookupService instructorScheduleLookupService;
+    private final DomainSecurityService domainSecurityService;
 
     // ================================
     // AVAILABILITY BULK OPERATIONS & CALENDAR
@@ -58,6 +70,7 @@ public class AvailabilityController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Availability cleared successfully")
     @DeleteMapping
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<Void>> clearInstructorAvailability(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid) {
         log.debug("REST request to clear all availability for instructor: {}", instructorUuid);
@@ -72,7 +85,15 @@ public class AvailabilityController {
 
     @Operation(
         summary = "Get merged instructor calendar",
-        description = "Returns a merged feed of availability slots, blocked time, and scheduled instances for the instructor within a date range."
+        description = """
+            Returns a merged feed of availability slots, blocked time, and scheduled instances for
+            the instructor within a date range.
+
+            Anyone signed in may read it, because choosing when to book an instructor means seeing
+            which windows are free. Callers other than the instructor themselves get each entry
+            reduced to its window and whether it is free: titles, the class and organisation behind
+            a session, its location and any cancellation reason are dropped.
+            """
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Calendar retrieved successfully")
     @GetMapping("/calendar")
@@ -99,7 +120,11 @@ public class AvailabilityController {
                 instructorUuid, startDate, endDate);
         scheduledInstances.forEach(instance -> entries.add(mapScheduledInstanceEntry(instance)));
 
-        return ResponseEntity.ok(ApiResponse.success(entries, "Instructor calendar retrieved successfully"));
+        List<InstructorCalendarEntryDTO> visible = ownsCalendar(instructorUuid)
+                ? entries
+                : entries.stream().map(InstructorCalendarEntryDTO::redacted).toList();
+
+        return ResponseEntity.ok(ApiResponse.success(visible, "Instructor calendar retrieved successfully"));
     }
 
     @Operation(
@@ -132,10 +157,11 @@ public class AvailabilityController {
 
     @Operation(
         summary = "List availability slots for an instructor",
-        description = "Returns all availability slots configured for the instructor."
+        description = "Returns all availability slots configured for the instructor. Restricted to the instructor themselves."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slots retrieved successfully")
     @GetMapping("/slots")
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<List<AvailabilitySlotDTO>>> getAvailabilitySlots(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid) {
         log.debug("REST request to list availability slots for instructor: {}", instructorUuid);
@@ -149,6 +175,7 @@ public class AvailabilityController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Availability slot created successfully")
     @PostMapping("/slots")
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> createAvailabilitySlot(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
             @Valid @RequestBody AvailabilitySlotDTO slot) {
@@ -165,13 +192,14 @@ public class AvailabilityController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability slot updated successfully")
     @PutMapping("/slots/{slotUuid}")
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<AvailabilitySlotDTO>> updateAvailabilitySlot(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
             @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid,
             @Valid @RequestBody AvailabilitySlotDTO slot) {
         log.debug("REST request to update availability slot {} for instructor: {}", slotUuid, instructorUuid);
         validateInstructorMatch(instructorUuid, slot.instructorUuid());
-        AvailabilitySlotDTO updated = availabilityService.updateAvailabilitySlot(slotUuid, slot);
+        AvailabilitySlotDTO updated = availabilityService.updateAvailabilitySlot(instructorUuid, slotUuid, slot);
         return ResponseEntity.ok(ApiResponse.success(updated, "Availability slot updated successfully"));
     }
 
@@ -181,11 +209,12 @@ public class AvailabilityController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Availability slot deleted successfully")
     @DeleteMapping("/slots/{slotUuid}")
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<Void>> deleteAvailabilitySlot(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
             @Parameter(description = "UUID of the availability slot") @PathVariable UUID slotUuid) {
         log.debug("REST request to delete availability slot {} for instructor: {}", slotUuid, instructorUuid);
-        availabilityService.deleteAvailabilitySlot(slotUuid);
+        availabilityService.deleteAvailabilitySlot(instructorUuid, slotUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -194,6 +223,11 @@ public class AvailabilityController {
             throw new IllegalArgumentException(
                     "instructor_uuid in the request body must match the instructor in the path");
         }
+    }
+
+    private boolean ownsCalendar(UUID instructorUuid) {
+        return domainSecurityService.isInstructorWithUuid(instructorUuid)
+                || domainSecurityService.isPlatformAdmin();
     }
 
     private InstructorCalendarEntryDTO mapAvailabilityEntry(LocalDate date, AvailabilitySlotDTO slot) {

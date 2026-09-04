@@ -3,7 +3,10 @@ package apps.sarafrika.elimika.availability.controller;
 import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleLookupService;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleStatus;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,12 +24,15 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,9 +58,15 @@ class AvailabilityControllerTest {
     @Autowired
     private AvailabilityService availabilityService;
 
+    @Autowired
+    private InstructorScheduleLookupService instructorScheduleLookupService;
+
+    @Autowired
+    private DomainSecurityService domainSecurityService;
+
     @BeforeEach
     void setUp() {
-        reset(availabilityService);
+        reset(availabilityService, instructorScheduleLookupService, domainSecurityService);
     }
 
     private AvailabilitySlotDTO sampleSlot(UUID uuid, UUID instructorUuid) {
@@ -110,6 +122,59 @@ class AvailabilityControllerTest {
         verify(availabilityService).getAvailabilityForInstructor(INSTRUCTOR_UUID);
     }
 
+    @Test
+    void theInstructorSeesTheirOwnCalendarInFull() throws Exception {
+        givenOneScheduledSession();
+        when(domainSecurityService.isInstructorWithUuid(INSTRUCTOR_UUID)).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/calendar", INSTRUCTOR_UUID)
+                        .param("start_date", "2026-03-02")
+                        .param("end_date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].title").value("Introduction to Java"))
+                .andExpect(jsonPath("$.data[0].organisation_name").value("Sarafrika Technical College"))
+                .andExpect(jsonPath("$.data[0].class_definition_uuid").isNotEmpty());
+    }
+
+    @Test
+    void everybodyElseSeesTheWindowButNotWhatFillsIt() throws Exception {
+        // A student choosing when to book needs the busy block; nothing about it is theirs to read.
+        givenOneScheduledSession();
+        when(domainSecurityService.isInstructorWithUuid(INSTRUCTOR_UUID)).thenReturn(false);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/calendar", INSTRUCTOR_UUID)
+                        .param("start_date", "2026-03-02")
+                        .param("end_date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].start_time").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].is_available").value(false))
+                .andExpect(jsonPath("$.data[0].title").doesNotExist())
+                .andExpect(jsonPath("$.data[0].class_definition_uuid").doesNotExist())
+                .andExpect(jsonPath("$.data[0].location_type").doesNotExist())
+                .andExpect(jsonPath("$.data[0].source").doesNotExist())
+                .andExpect(jsonPath("$.data[0].organisation_uuid").doesNotExist())
+                .andExpect(jsonPath("$.data[0].organisation_name").doesNotExist());
+    }
+
+    private void givenOneScheduledSession() {
+        when(availabilityService.getAvailabilityForDate(eq(INSTRUCTOR_UUID), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(instructorScheduleLookupService.getScheduleForInstructor(
+                eq(INSTRUCTOR_UUID), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(new InstructorScheduleEntry(
+                        UUID.randomUUID(),
+                        LocalDateTime.of(2026, 3, 2, 9, 0),
+                        LocalDateTime.of(2026, 3, 2, 10, 30),
+                        InstructorScheduleStatus.SCHEDULED,
+                        "Introduction to Java",
+                        UUID.randomUUID(),
+                        "ONLINE",
+                        "Instructor unavailable",
+                        UUID.randomUUID(),
+                        "Sarafrika Technical College")));
+    }
+
     static class MockConfig {
         @Bean
         AvailabilityService availabilityService() {
@@ -119,6 +184,11 @@ class AvailabilityControllerTest {
         @Bean
         InstructorScheduleLookupService instructorScheduleLookupService() {
             return Mockito.mock(InstructorScheduleLookupService.class);
+        }
+
+        @Bean
+        DomainSecurityService domainSecurityService() {
+            return Mockito.mock(DomainSecurityService.class);
         }
 
         @Bean

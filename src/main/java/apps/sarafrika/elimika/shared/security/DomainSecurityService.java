@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.shared.security;
 
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
@@ -41,12 +43,16 @@ public class DomainSecurityService {
     private static final String CACHE_ORG_MEMBER_PREFIX = "security.orgMember.";
     private static final String CACHE_STAFFS_USER_PREFIX = "security.staffsUser.";
     private static final String CACHE_STAFFS_ORG_PREFIX = "security.staffsOrganisation.";
+    private static final String CACHE_MANAGES_CLASS_PREFIX = "security.managesClass.";
+    private static final String CACHE_ENROLLED_IN_CLASS_PREFIX = "security.enrolledInClass.";
     private static final String CACHE_MANAGES_USER_PREFIX = "security.managesUser.";
 
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
     private final InstructorLookupService instructorLookupService;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final ClassDefinitionLookupService classDefinitionLookupService;
+    private final EnrollmentLookupService enrollmentLookupService;
     private final RequestScopedCache requestScopedCache;
 
     /**
@@ -357,6 +363,104 @@ public class DomainSecurityService {
                         callerUuid, organisationUuid, UserDomain.organisation_user);
             } catch (Exception e) {
                 log.error("Error checking organisation staff membership of organisation {}", organisationUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller may change a class — its definition, its assessment schedule, its session
+     * calendar, anything that alters the class for everybody enrolled in it.
+     * <p>
+     * Three parties qualify, and only in relation to <em>this</em> class: the platform admin, the
+     * instructor the class is assigned to, and a manager of the organisation that owns it. A role
+     * held elsewhere grants nothing here, which is why this resolves the class first and asks about
+     * the caller second. {@code default_instructor_uuid} is the only instructor link a class has, so
+     * it is the whole of the instructor question; the organisation is absent on instructor-owned
+     * classes, and then the instructor branch is the only way through.
+     * <p>
+     * The organisation branch mirrors {@code canManageOrganisation} in tenancy: an org-scoped
+     * {@code organisation_user} or {@code admin} mapping for that organisation specifically.
+     * <p>
+     * Fails closed and is memoised per request and per class, because a request that touches several
+     * schedules of one class would otherwise re-read the class and re-query the caller's mappings
+     * every time.
+     *
+     * @param classDefinitionUuid the class being changed
+     */
+    public boolean canManageClass(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_MANAGES_CLASS_PREFIX + classDefinitionUuid, () -> {
+            try {
+                if (isPlatformAdmin()) {
+                    return true;
+                }
+
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    log.debug("No authenticated user; refusing management of class {}", classDefinitionUuid);
+                    return false;
+                }
+
+                UUID instructorUuid = classDefinitionLookupService
+                        .findDefaultInstructorUuid(classDefinitionUuid).orElse(null);
+                if (instructorUuid != null && isInstructorWithUuid(instructorUuid)) {
+                    return true;
+                }
+
+                UUID organisationUuid = classDefinitionLookupService
+                        .findOrganisationUuid(classDefinitionUuid).orElse(null);
+                if (organisationUuid == null) {
+                    return false;
+                }
+
+                return userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.organisation_user)
+                        || userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.admin);
+            } catch (Exception e) {
+                log.error("Error checking management rights over class {}", classDefinitionUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller may read what a class has scheduled — which assignments and quizzes are
+     * set, when they are due, how many attempts are allowed.
+     * <p>
+     * Everyone who may change the schedule may obviously read it, and so may a learner enrolled in
+     * the class: due dates and attempt limits are what the cohort came for. Nobody else, because the
+     * schedule names the instructor, the lessons and the per-class overrides of a class the caller
+     * has no relationship with.
+     * <p>
+     * Enrolment is asked of the caller's <em>own</em> student profile, never of a student identifier
+     * supplied by the client, and any enrolment record counts — a learner who has completed or
+     * withdrawn from the class still has a legitimate history with it. Fails closed and is memoised
+     * per request and per class.
+     *
+     * @param classDefinitionUuid the class whose schedule is being read
+     */
+    public boolean canViewClassSchedule(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return false;
+        }
+        if (canManageClass(classDefinitionUuid)) {
+            return true;
+        }
+        return requestScopedCache.get(CACHE_ENROLLED_IN_CLASS_PREFIX + classDefinitionUuid, () -> {
+            try {
+                UUID studentUuid = getCurrentStudentUuid();
+                if (studentUuid == null) {
+                    return false;
+                }
+                return enrollmentLookupService
+                        .findMostRecentEnrollmentForClassDefinition(studentUuid, classDefinitionUuid)
+                        .isPresent();
+            } catch (Exception e) {
+                log.error("Error checking read access to the schedule of class {}", classDefinitionUuid, e);
                 return false;
             }
         });

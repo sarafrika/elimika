@@ -36,24 +36,34 @@ public interface AvailabilityService {
     AvailabilitySlotDTO createAvailabilitySlot(AvailabilitySlotDTO slot);
 
     /**
-     * Updates an existing availability slot.
+     * Updates one of an instructor's own availability slots.
+     * <p>
+     * The slot is named by its own UUID, which says nothing about whose calendar it is on, so the
+     * instructor it must belong to is part of the operation rather than something a caller checks
+     * beforehand: a slot on somebody else's calendar is reported as not found, exactly as a slot
+     * that never existed would be.
      *
+     * @param instructorUuid The instructor the slot must belong to
      * @param slotUuid The UUID of the availability slot to update
      * @param slot The updated availability slot data
      * @return The updated availability slot
-     * @throws IllegalArgumentException if the UUID is null or invalid
-     * @throws RuntimeException if availability slot is not found
+     * @throws IllegalArgumentException if either UUID is null or invalid
+     * @throws RuntimeException if the slot is not found on that instructor's calendar
      */
-    AvailabilitySlotDTO updateAvailabilitySlot(UUID slotUuid, AvailabilitySlotDTO slot);
+    AvailabilitySlotDTO updateAvailabilitySlot(UUID instructorUuid, UUID slotUuid, AvailabilitySlotDTO slot);
 
     /**
-     * Deletes an availability slot.
+     * Deletes one of an instructor's own availability slots.
+     * <p>
+     * Scoped to the owning instructor for the same reason as
+     * {@link #updateAvailabilitySlot(UUID, UUID, AvailabilitySlotDTO)}.
      *
+     * @param instructorUuid The instructor the slot must belong to
      * @param slotUuid The UUID of the availability slot to delete
-     * @throws IllegalArgumentException if the UUID is null or invalid
-     * @throws RuntimeException if availability slot is not found
+     * @throws IllegalArgumentException if either UUID is null or invalid
+     * @throws RuntimeException if the slot is not found on that instructor's calendar
      */
-    void deleteAvailabilitySlot(UUID slotUuid);
+    void deleteAvailabilitySlot(UUID instructorUuid, UUID slotUuid);
 
     /**
      * Retrieves an availability slot by its UUID.
