@@ -1,8 +1,11 @@
 package apps.sarafrika.elimika.course.internal.security;
 
+import apps.sarafrika.elimika.course.model.Certificate;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramRequirement;
+import apps.sarafrika.elimika.course.repository.CertificateRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
@@ -16,6 +19,7 @@ import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,10 +50,20 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private static final String CACHE_ENROLLED_COURSES = "courseSecurity.enrolledCourses";
     private static final String CACHE_OWNED_PROGRAM_PREFIX = "courseSecurity.ownsProgram.";
+    private static final String CACHE_TEACHABLE_COURSES = "courseSecurity.teachableCourses";
+    private static final String CACHE_TEACHES_STUDENT_PREFIX = "courseSecurity.teachesStudent.";
+
+    /**
+     * The org-scoped roles that make somebody staff of an organisation rather than one of its
+     * learners. Mirrors the set the organisation invitation flow issues, minus {@code student}.
+     */
+    private static final List<UserDomain> ORGANISATION_STAFF_DOMAINS =
+            List.of(UserDomain.instructor, UserDomain.organisation_user, UserDomain.admin);
 
     private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final CertificateRepository certificateRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
@@ -331,6 +345,302 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             return false;
         }
     }
+
+    /**
+     * True when the caller may mint, amend or revoke a certificate for this course or program.
+     * <p>
+     * A certificate is an assertion about somebody's achievement, so the right to make one is the
+     * teaching right over the work it attests to: for a course, its author, an instructor approved
+     * to train it, or the teaching staff of an organisation approved to train it; for a program,
+     * its author. Platform admins are granted at the endpoint.
+     * <p>
+     * Exactly one of the two identifiers may be set. Neither means the record names nothing to be
+     * authorised against; <em>both</em> means the payload names two subjects while the check could
+     * only ever consider one, which is how a caller entitled to a course would otherwise mint an
+     * assertion about somebody else's program. Both cases fail closed here, and the service rejects
+     * them outright so the caller gets a 400 rather than a puzzling 403.
+     *
+     * @param courseUuid  the course the certificate attests to, or null for a program certificate
+     * @param programUuid the program the certificate attests to, or null for a course certificate
+     */
+    public boolean canAwardCertificate(UUID courseUuid, UUID programUuid) {
+        if (courseUuid != null && programUuid != null) {
+            return false;
+        }
+        if (courseUuid != null) {
+            return canTeachCourse(courseUuid);
+        }
+        if (programUuid != null) {
+            return isProgramOwner(programUuid);
+        }
+        return false;
+    }
+
+    /**
+     * True when the caller may read every certificate issued under a training program.
+     * <p>
+     * The listing is the program's whole cohort, grades included, so it belongs to whoever authors
+     * the program. Platform admins are granted at the endpoint.
+     *
+     * @param programUuid the program whose certificates are being listed
+     */
+    public boolean canReadProgramCertificates(UUID programUuid) {
+        return programUuid != null && isProgramOwner(programUuid);
+    }
+
+    /**
+     * True when the caller actually teaches this course: its author, an instructor individually
+     * approved to train it, or the teaching staff of an organisation approved to train it.
+     * <p>
+     * Deliberately narrower than {@link #canManageCourseGradebook(UUID)}, whose organisation branch
+     * admits <em>any</em> member of an approved organisation. Organisations enrol their learners as
+     * members too, so that branch would hand a student of an approved organisation the right to
+     * issue certificates in its name. Here the organisation only carries the right through to
+     * someone holding a teaching or management role in that same organisation.
+     */
+    private boolean canTeachCourse(UUID courseUuid) {
+        if (isCourseOwner(courseUuid)) {
+            return true;
+        }
+        try {
+            UUID userUuid = currentUserUuid();
+            if (userUuid == null) {
+                return false;
+            }
+
+            // The caller's own instructor identity, resolved once per request.
+            UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+            if (instructorUuid != null && courseTrainingApplicationRepository
+                    .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                            courseUuid,
+                            CourseTrainingApplicantType.INSTRUCTOR,
+                            instructorUuid,
+                            CourseTrainingApplicationStatus.APPROVED)) {
+                return true;
+            }
+
+            for (UUID organisationUuid : staffedOrganisationUuids(userUuid)) {
+                if (courseTrainingApplicationRepository
+                        .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                                courseUuid,
+                                CourseTrainingApplicantType.ORGANISATION,
+                                organisationUuid,
+                                CourseTrainingApplicationStatus.APPROVED)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("Error checking teaching rights over course: {}", courseUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * The organisations the caller is <em>staff</em> of, as opposed to merely a member of.
+     * <p>
+     * Membership of an organisation covers its learners as much as its employees — the invitation
+     * flow issues {@code student} alongside {@code instructor}, {@code organisation_user} and
+     * {@code admin} — so anywhere an organisation's own rights are being passed through to a
+     * person, the org-scoped role has to be read as well as the membership. Each domain is checked
+     * against <em>that</em> organisation, never as a role held elsewhere.
+     */
+    private List<UUID> staffedOrganisationUuids(UUID userUuid) {
+        return userLookupService.getUserOrganizations(userUuid).stream()
+                .filter(organisationUuid -> isOrganisationStaff(userUuid, organisationUuid))
+                .toList();
+    }
+
+    /**
+     * True when the user holds a teaching or management role in this specific organisation.
+     */
+    private boolean isOrganisationStaff(UUID userUuid, UUID organisationUuid) {
+        for (UserDomain domain : ORGANISATION_STAFF_DOMAINS) {
+            if (userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, domain)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The same right as {@link #canAwardCertificate(UUID, UUID)}, resolved from an issued
+     * certificate. An unknown certificate is not authorisable, so this is false.
+     *
+     * @param certificateUuid the certificate being amended, uploaded to or revoked
+     */
+    public boolean canManageCertificate(UUID certificateUuid) {
+        Certificate certificate = findCertificate(certificateUuid);
+        return certificate != null
+                && canAwardCertificate(certificate.getCourseUuid(), certificate.getProgramUuid());
+    }
+
+    /**
+     * True when the caller may read a single issued certificate — the learner it was awarded to,
+     * the staff who could have awarded it, or a manager of an organisation the learner belongs to.
+     * <p>
+     * Reading matters as much as issuing here: the record carries the learner's final grade.
+     * Platform admins are granted at the endpoint.
+     *
+     * @param certificateUuid the certificate being read
+     */
+    public boolean canReadCertificate(UUID certificateUuid) {
+        return canRead(findCertificate(certificateUuid));
+    }
+
+    /**
+     * {@link #canReadCertificate(UUID)} addressed by the printed certificate number.
+     * <p>
+     * The number is what a holder shows a third party, so the route that takes it is the one most
+     * likely to be guessed at; it returns the whole record, grade included, which is why it is
+     * guarded like any other read rather than left open. The boolean-only verification route is
+     * the one meant for a stranger holding a certificate.
+     *
+     * @param certificateNumber the printed certificate number
+     */
+    public boolean canReadCertificateByNumber(String certificateNumber) {
+        if (certificateNumber == null || certificateNumber.isBlank()) {
+            return false;
+        }
+        try {
+            return canRead(certificateRepository.findByCertificateNumber(certificateNumber).orElse(null));
+        } catch (Exception e) {
+            log.error("Error checking read access for a certificate number", e);
+            return false;
+        }
+    }
+
+    /**
+     * True when the caller may read a learner's certificates as a list — the learner themselves, a
+     * manager of an organisation they belong to, or staff who teach them.
+     * <p>
+     * "Teaches them" is deliberately a relationship and not a role: holding the instructor domain
+     * says nothing about whether this particular learner's results are yours to see. The caller's
+     * own teachable courses are loaded once and intersected with the learner's enrolments, so the
+     * check costs a fixed handful of queries however many courses either side has. Platform admins
+     * are granted at the endpoint.
+     *
+     * @param studentUuid the learner whose certificates are being listed
+     */
+    public boolean canReadStudentCertificates(UUID studentUuid) {
+        if (studentUuid == null) {
+            return false;
+        }
+        if (domainSecurityService.isStudentWithUuid(studentUuid)
+                || domainSecurityService.managesOrganisationOfStudent(studentUuid)) {
+            return true;
+        }
+        return teachesStudent(studentUuid);
+    }
+
+    /**
+     * True when at least one course the learner is enrolled on is one the caller may teach.
+     * <p>
+     * Memoised per learner because an instructor's roster page asks the same question for every
+     * learner it renders.
+     */
+    private boolean teachesStudent(UUID studentUuid) {
+        return requestScopedCache.get(CACHE_TEACHES_STUDENT_PREFIX + studentUuid, () -> {
+            try {
+                Set<UUID> teachable = teachableCourseUuids();
+                if (teachable.isEmpty()) {
+                    return false;
+                }
+                return courseEnrollmentRepository
+                        .findCourseUuidsByStudentUuidAndStatusIn(studentUuid, List.of(EnrollmentStatus.values()))
+                        .stream()
+                        .anyMatch(teachable::contains);
+            } catch (Exception e) {
+                log.error("Error checking teaching relationship with student {}", studentUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Every course the caller may teach: the ones they authored, the ones they are individually
+     * approved to train, and the ones an organisation they are <em>staff</em> of is approved to
+     * train.
+     * <p>
+     * Loaded whole, once per request, so that questions of the form "does this caller teach any of
+     * these courses" cost one load rather than a lookup per course. The organisation branch is
+     * filtered by org-scoped role for the same reason issuance is: an organisation enrols its
+     * learners as members, and a learner of an approved organisation is not thereby entitled to
+     * every classmate's results.
+     */
+    private Set<UUID> teachableCourseUuids() {
+        return requestScopedCache.get(CACHE_TEACHABLE_COURSES, () -> {
+            try {
+                UUID userUuid = currentUserUuid();
+                if (userUuid == null) {
+                    return Set.<UUID>of();
+                }
+                Set<UUID> courseUuids = new HashSet<>();
+                courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid)
+                        .ifPresent(courseCreatorUuid ->
+                                courseUuids.addAll(courseRepository.findUuidsByCourseCreatorUuid(courseCreatorUuid)));
+                UUID callerInstructorUuid = domainSecurityService.getCurrentInstructorUuid();
+                if (callerInstructorUuid != null) {
+                    addApprovedTrainingCourses(courseUuids, callerInstructorUuid);
+                }
+                for (UUID organisationUuid : staffedOrganisationUuids(userUuid)) {
+                    addApprovedTrainingCourses(courseUuids, organisationUuid);
+                }
+                return Set.copyOf(courseUuids);
+            } catch (Exception e) {
+                log.error("Error loading teachable courses for the current caller", e);
+                return Set.<UUID>of();
+            }
+        });
+    }
+
+    /**
+     * Adds the courses an applicant — an instructor profile or an organisation — is approved to
+     * train. Applicant identifiers are drawn from separate pools, so the type need not be repeated.
+     */
+    private void addApprovedTrainingCourses(Set<UUID> courseUuids, UUID applicantUuid) {
+        for (CourseTrainingApplication application : courseTrainingApplicationRepository
+                .findByApplicantUuidAndStatus(applicantUuid, CourseTrainingApplicationStatus.APPROVED)) {
+            courseUuids.add(application.getCourseUuid());
+        }
+    }
+
+    /**
+     * Shared body of the certificate read checks, over an already-loaded record.
+     */
+    private boolean canRead(Certificate certificate) {
+        if (certificate == null) {
+            return false;
+        }
+        if (domainSecurityService.isStudentWithUuid(certificate.getStudentUuid())) {
+            return true;
+        }
+        if (canAwardCertificate(certificate.getCourseUuid(), certificate.getProgramUuid())) {
+            return true;
+        }
+        return domainSecurityService.managesOrganisationOfStudent(certificate.getStudentUuid());
+    }
+
+    /**
+     * Loads a certificate for an authorization decision, treating any failure as "no such record".
+     */
+    private Certificate findCertificate(UUID certificateUuid) {
+        if (certificateUuid == null) {
+            return null;
+        }
+        try {
+            return certificateRepository.findByUuid(certificateUuid).orElse(null);
+        } catch (Exception e) {
+            log.error("Error loading certificate {} for an authorization check", certificateUuid, e);
+            return null;
+        }
+    }
+
+    // "True when the caller authored this training program" is answered by the public,
+    // memoised isProgramOwner(UUID) above. That one accepts the caller's instructor profile as
+    // well as their course-creator profile, because the instructor dashboard's program builder
+    // stamps course_creator_uuid with the instructor UUID; a course-creator-only test would lock
+    // program authors out of their own work. Certificate authorisation uses that same definition.
 
     /**
      * True when the user belongs to an organisation approved to train this course.

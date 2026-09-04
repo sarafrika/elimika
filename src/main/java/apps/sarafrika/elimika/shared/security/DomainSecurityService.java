@@ -45,6 +45,8 @@ public class DomainSecurityService {
     private static final String CACHE_STAFFS_ORG_PREFIX = "security.staffsOrganisation.";
     private static final String CACHE_MANAGES_CLASS_PREFIX = "security.managesClass.";
     private static final String CACHE_ENROLLED_IN_CLASS_PREFIX = "security.enrolledInClass.";
+    private static final String CACHE_STUDENT_USER_PREFIX = "security.studentUser.";
+    private static final String CACHE_MANAGES_STUDENT_PREFIX = "security.managesStudent.";
     private static final String CACHE_MANAGES_USER_PREFIX = "security.managesUser.";
 
     private final UserLookupService userLookupService;
@@ -462,6 +464,73 @@ public class DomainSecurityService {
             } catch (Exception e) {
                 log.error("Error checking read access to the schedule of class {}", classDefinitionUuid, e);
                 return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller manages an organisation the <em>learner</em> belongs to.
+     * <p>
+     * Two things separate this from {@link #administersOrganisationOf(UUID)}. Learner-owned
+     * records are addressed by <em>student</em> UUID rather than user UUID, so the student's
+     * owning user has to be resolved first — passing a student UUID straight into the user-scoped
+     * check finds no organisations and fails closed, silently locking the manager out. And the
+     * manager of an organisation on this platform is not only its {@code admin}: the invitation
+     * flow issues {@code organisation_user} and {@code admin} alike as management roles, and
+     * {@code OrganisationSecurityService.canManageOrganisation} accepts both. This accepts both
+     * too, so that the organisation dashboard's own staff can read their members' records.
+     * <p>
+     * Both halves stay organisation-scoped: the domain is looked up <em>for the organisation the
+     * learner is in</em>, never as a role the caller holds somewhere else. Fails closed, and is
+     * memoised per request and per learner.
+     *
+     * @param studentUuid the student profile being read
+     */
+    public boolean managesOrganisationOfStudent(UUID studentUuid) {
+        if (studentUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_MANAGES_STUDENT_PREFIX + studentUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                UUID studentUserUuid = userBehindStudent(studentUuid);
+                if (studentUserUuid == null) {
+                    return false;
+                }
+                return userLookupService.getUserOrganizations(studentUserUuid).stream()
+                        .anyMatch(organisationUuid -> managesOrganisation(callerUuid, organisationUuid));
+            } catch (Exception e) {
+                log.error("Error checking management reach over student {}", studentUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller holds a management role — {@code organisation_user} or {@code admin} —
+     * in this specific organisation.
+     */
+    private boolean managesOrganisation(UUID callerUuid, UUID organisationUuid) {
+        return userLookupService.userBelongsToOrganizationWithDomain(
+                        callerUuid, organisationUuid, UserDomain.organisation_user)
+                || userLookupService.userBelongsToOrganizationWithDomain(
+                        callerUuid, organisationUuid, UserDomain.admin);
+    }
+
+    /**
+     * Resolves the user a student profile belongs to, memoised per request because a roster page
+     * asks for the same learner from several guards.
+     */
+    private UUID userBehindStudent(UUID studentUuid) {
+        return requestScopedCache.get(CACHE_STUDENT_USER_PREFIX + studentUuid, () -> {
+            try {
+                return studentLookupService.getStudentUserUuid(studentUuid).orElse(null);
+            } catch (Exception e) {
+                log.error("Error resolving the user behind student {}", studentUuid, e);
+                return null;
             }
         });
     }

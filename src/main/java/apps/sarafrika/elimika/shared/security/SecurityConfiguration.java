@@ -67,6 +67,11 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.GET, "/api/v1/assignments/submission-media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/classes/media/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/certificates/files/**").permitAll()
+                                // Certificate verification answers "valid or not" and nothing else.
+                                // A stranger holding a printed certificate has no account here, so
+                                // this is the one certificate route that must work without a token;
+                                // every route that discloses the record itself stays authenticated.
+                                .requestMatchers(HttpMethod.GET, "/api/v1/certificates/verify/*").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/commerce/catalogue/**").permitAll()
                                 // Whether this environment collects money decides how the cart routes
                                 // a learner, which the page must know before anyone signs in.

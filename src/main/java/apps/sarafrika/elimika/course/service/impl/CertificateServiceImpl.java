@@ -51,6 +51,7 @@ public class CertificateServiceImpl implements CertificateService {
 
     @Override
     public CertificateDTO createCertificate(CertificateDTO certificateDTO) {
+        requireExactlyOneSubject(certificateDTO.courseUuid(), certificateDTO.programUuid());
         if (certificateDTO.templateUuid() != null
                 && !certificateTemplateRepository.existsByUuid(certificateDTO.templateUuid())) {
             throw new ResourceNotFoundException(
@@ -316,16 +317,43 @@ public class CertificateServiceImpl implements CertificateService {
                         "No active " + templateType.getValue() + " certificate template configured"));
     }
 
+    /**
+     * A certificate names exactly one thing it attests to. Accepting both a course and a program
+     * would let a payload name two subjects while only one of them was ever authorised, and
+     * accepting neither would leave a record asserting nothing about anything.
+     */
+    private void requireExactlyOneSubject(UUID courseUuid, UUID programUuid) {
+        if (courseUuid != null && programUuid != null) {
+            throw new IllegalArgumentException(
+                    "A certificate attests to either a course or a program, not both");
+        }
+        if (courseUuid == null && programUuid == null) {
+            throw new IllegalArgumentException(
+                    "A certificate must name the course or the program it attests to");
+        }
+    }
+
+    /**
+     * What a certificate attests to is fixed when it is issued.
+     * <p>
+     * Who may amend a certificate is decided from the course or program it already names, so a
+     * body that moves it to a different one would be authorised against the record it is leaving
+     * rather than the record it is joining — that is how staff entitled to course A would mint an
+     * assertion about course B, or about a program they have nothing to do with. Re-pointing is
+     * therefore refused outright; a mistaken certificate is revoked and a correct one issued.
+     * Passing the existing value back unchanged, as the PDF upload does, is fine.
+     */
+    private void requireSameSubject(UUID existingValue, UUID submittedValue, String field) {
+        if (submittedValue != null && !submittedValue.equals(existingValue)) {
+            throw new IllegalArgumentException(
+                    "A certificate's " + field + " cannot be changed after it has been issued");
+        }
+    }
+
     private void updateCertificateFields(Certificate existingCertificate, CertificateDTO dto) {
-        if (dto.studentUuid() != null) {
-            existingCertificate.setStudentUuid(dto.studentUuid());
-        }
-        if (dto.courseUuid() != null) {
-            existingCertificate.setCourseUuid(dto.courseUuid());
-        }
-        if (dto.programUuid() != null) {
-            existingCertificate.setProgramUuid(dto.programUuid());
-        }
+        requireSameSubject(existingCertificate.getStudentUuid(), dto.studentUuid(), "student");
+        requireSameSubject(existingCertificate.getCourseUuid(), dto.courseUuid(), "course");
+        requireSameSubject(existingCertificate.getProgramUuid(), dto.programUuid(), "program");
         if (dto.templateUuid() != null) {
             existingCertificate.setTemplateUuid(dto.templateUuid());
         }

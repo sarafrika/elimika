@@ -1,6 +1,9 @@
 package apps.sarafrika.elimika.course.internal.security;
 
+import apps.sarafrika.elimika.course.model.Certificate;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.TrainingProgram;
+import apps.sarafrika.elimika.course.repository.CertificateRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
@@ -13,6 +16,7 @@ import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,10 +55,11 @@ class CourseSecurityServiceImplTest {
     @Mock private CourseRepository courseRepository;
     @Mock private CourseTrainingApplicationRepository trainingApplicationRepository;
     @Mock private CourseEnrollmentRepository courseEnrollmentRepository;
+    @Mock private CertificateRepository certificateRepository;
+    @Mock private TrainingProgramRepository trainingProgramRepository;
     @Mock private CourseCreatorLookupService courseCreatorLookupService;
     @Mock private UserLookupService userLookupService;
     @Mock private DomainSecurityService domainSecurityService;
-    @Mock private TrainingProgramRepository trainingProgramRepository;
     @Mock private ProgramCourseRepository programCourseRepository;
     @Mock private ProgramRequirementRepository programRequirementRepository;
 
@@ -64,7 +69,7 @@ class CourseSecurityServiceImplTest {
     void setUp() {
         service = new CourseSecurityServiceImpl(
                 courseRepository, trainingApplicationRepository, courseEnrollmentRepository,
-                courseCreatorLookupService, userLookupService,
+                certificateRepository, courseCreatorLookupService, userLookupService,
                 domainSecurityService, new RequestScopedCache(), trainingProgramRepository,
                 programCourseRepository, programRequirementRepository);
 
@@ -243,6 +248,145 @@ class CourseSecurityServiceImplTest {
         assertThat(service.isEnrolledLearner(COURSE_UUID)).isTrue();
         assertThat(service.isEnrolledLearner(otherCourse)).isTrue();
         assertThat(service.isEnrolledLearner(UUID.randomUUID())).isFalse();
+    }
+
+    // ===== CERTIFICATE ISSUANCE =====
+
+    @Test
+    void anInstructorApprovedToTrainTheCourseMayAwardItsCertificates() {
+        UUID instructorUuid = UUID.randomUUID();
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                COURSE_UUID, CourseTrainingApplicantType.INSTRUCTOR, instructorUuid,
+                CourseTrainingApplicationStatus.APPROVED)).thenReturn(true);
+
+        assertThat(service.canAwardCertificate(COURSE_UUID, null)).isTrue();
+    }
+
+    @Test
+    void aLearnerOfAnApprovedOrganisationMayNotAwardItsCertificates() {
+        // An organisation enrols its students as members too, so membership alone cannot carry
+        // the organisation's teaching rights through to the person.
+        UUID organisationUuid = UUID.randomUUID();
+        when(userLookupService.getUserOrganizations(USER_UUID)).thenReturn(List.of(organisationUuid));
+        when(userLookupService.userBelongsToOrganizationWithDomain(any(), any(), any())).thenReturn(false);
+        when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                COURSE_UUID, CourseTrainingApplicantType.ORGANISATION, organisationUuid,
+                CourseTrainingApplicationStatus.APPROVED)).thenReturn(true);
+
+        assertThat(service.canAwardCertificate(COURSE_UUID, null)).isFalse();
+    }
+
+    @Test
+    void anInstructorEmployedByAnApprovedOrganisationMayAwardItsCertificates() {
+        UUID organisationUuid = UUID.randomUUID();
+        when(userLookupService.getUserOrganizations(USER_UUID)).thenReturn(List.of(organisationUuid));
+        when(userLookupService.userBelongsToOrganizationWithDomain(
+                USER_UUID, organisationUuid, UserDomain.instructor)).thenReturn(true);
+        when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                COURSE_UUID, CourseTrainingApplicantType.ORGANISATION, organisationUuid,
+                CourseTrainingApplicationStatus.APPROVED)).thenReturn(true);
+
+        assertThat(service.canAwardCertificate(COURSE_UUID, null)).isTrue();
+    }
+
+    @Test
+    void aPayloadNamingBothACourseAndAProgramIsRefused() {
+        // Only one of the two can be authorised, so naming both would smuggle the other one past.
+        UUID creatorUuid = UUID.randomUUID();
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(USER_UUID))
+                .thenReturn(Optional.of(creatorUuid));
+        Course course = new Course();
+        course.setCourseCreatorUuid(creatorUuid);
+        when(courseRepository.findByUuid(COURSE_UUID)).thenReturn(Optional.of(course));
+
+        assertThat(service.canAwardCertificate(COURSE_UUID, UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    void aPayloadNamingNeitherACourseNorAProgramIsRefused() {
+        assertThat(service.canAwardCertificate(null, null)).isFalse();
+    }
+
+    @Test
+    void theProgramAuthorMayAwardAndListItsCertificates() {
+        UUID creatorUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(USER_UUID))
+                .thenReturn(Optional.of(creatorUuid));
+        TrainingProgram program = new TrainingProgram();
+        program.setCourseCreatorUuid(creatorUuid);
+        when(trainingProgramRepository.findByUuid(programUuid)).thenReturn(Optional.of(program));
+
+        assertThat(service.canAwardCertificate(null, programUuid)).isTrue();
+        assertThat(service.canReadProgramCertificates(programUuid)).isTrue();
+    }
+
+    @Test
+    void somebodyElsesProgramCertificatesAreRefused() {
+        UUID programUuid = UUID.randomUUID();
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(USER_UUID))
+                .thenReturn(Optional.of(UUID.randomUUID()));
+        TrainingProgram program = new TrainingProgram();
+        program.setCourseCreatorUuid(UUID.randomUUID());
+        when(trainingProgramRepository.findByUuid(programUuid)).thenReturn(Optional.of(program));
+
+        assertThat(service.canReadProgramCertificates(programUuid)).isFalse();
+        assertThat(service.canAwardCertificate(null, programUuid)).isFalse();
+    }
+
+    // ===== CERTIFICATE READS =====
+
+    @Test
+    void theLearnerNamedOnACertificateMayReadIt() {
+        UUID certificateUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        Certificate certificate = new Certificate();
+        certificate.setStudentUuid(studentUuid);
+        certificate.setCourseUuid(COURSE_UUID);
+        when(certificateRepository.findByUuid(certificateUuid)).thenReturn(Optional.of(certificate));
+        when(domainSecurityService.isStudentWithUuid(studentUuid)).thenReturn(true);
+
+        assertThat(service.canReadCertificate(certificateUuid)).isTrue();
+    }
+
+    @Test
+    void anUnrelatedCallerMayNotReadACertificate() {
+        UUID certificateUuid = UUID.randomUUID();
+        Certificate certificate = new Certificate();
+        certificate.setStudentUuid(UUID.randomUUID());
+        certificate.setCourseUuid(COURSE_UUID);
+        when(certificateRepository.findByUuid(certificateUuid)).thenReturn(Optional.of(certificate));
+
+        assertThat(service.canReadCertificate(certificateUuid)).isFalse();
+    }
+
+    @Test
+    void anOrganisationManagerMayListTheirMembersCertificates() {
+        UUID studentUuid = UUID.randomUUID();
+        when(domainSecurityService.managesOrganisationOfStudent(studentUuid)).thenReturn(true);
+
+        assertThat(service.canReadStudentCertificates(studentUuid)).isTrue();
+    }
+
+    @Test
+    void aCallerWhoTeachesNothingTheLearnerTakesIsRefusedTheirCertificates() {
+        UUID studentUuid = UUID.randomUUID();
+
+        assertThat(service.canReadStudentCertificates(studentUuid)).isFalse();
+    }
+
+    @Test
+    void teachingACourseTheLearnerIsEnrolledOnGrantsTheirCertificates() {
+        UUID studentUuid = UUID.randomUUID();
+        UUID creatorUuid = UUID.randomUUID();
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(USER_UUID))
+                .thenReturn(Optional.of(creatorUuid));
+        when(courseRepository.findUuidsByCourseCreatorUuid(creatorUuid)).thenReturn(List.of(COURSE_UUID));
+        when(courseEnrollmentRepository.findCourseUuidsByStudentUuidAndStatusIn(eq(studentUuid), any()))
+                .thenReturn(List.of(COURSE_UUID));
+
+        assertThat(service.canReadStudentCertificates(studentUuid)).isTrue();
     }
 
     private void enrolledIn(UUID courseUuid, EnrollmentStatus status) {

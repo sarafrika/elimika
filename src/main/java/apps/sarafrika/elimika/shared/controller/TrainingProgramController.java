@@ -476,11 +476,21 @@ public class TrainingProgramController {
 
     // ===== PROGRAM CERTIFICATES =====
 
+    /**
+     * The program-scoped twin of {@code GET /api/v1/certificates/search}: it hands the same
+     * certificate search a {@code programUuid} filter and returns whole certificate records, final
+     * grades included, for everyone who completed the program. Guarding the certificate controller
+     * alone would have left this route as an unlocked side door onto the same data, so it carries
+     * the matching guard — the program's author, plus platform admins.
+     */
     @Operation(
             summary = "Get program certificates",
-            description = "Retrieves all certificates issued for program completions."
+            description = "Retrieves all certificates issued for program completions. Restricted to the "
+                    + "program's author and platform administrators, because it returns learners' grades."
     )
     @GetMapping("/{programUuid}/certificates")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin() "
+            + "or @courseSecurityService.canReadProgramCertificates(#programUuid)")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CertificateDTO>>> getProgramCertificates(
             @PathVariable UUID programUuid,
             Pageable pageable) {
