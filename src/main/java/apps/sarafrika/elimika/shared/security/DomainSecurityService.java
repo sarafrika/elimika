@@ -41,6 +41,7 @@ public class DomainSecurityService {
     private static final String CACHE_ORG_MEMBER_PREFIX = "security.orgMember.";
     private static final String CACHE_STAFFS_USER_PREFIX = "security.staffsUser.";
     private static final String CACHE_STAFFS_ORG_PREFIX = "security.staffsOrganisation.";
+    private static final String CACHE_MANAGES_USER_PREFIX = "security.managesUser.";
 
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
@@ -208,6 +209,48 @@ public class DomainSecurityService {
                 return userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
             } catch (Exception e) {
                 log.error("Error checking membership of organisation {}", organisationUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller <em>manages</em> an organisation the target user currently belongs to —
+     * holds an org-scoped {@code organisation_user} or {@code admin} mapping there.
+     * <p>
+     * The manager counterpart of {@link #administersOrganisationOf(UUID)}. That predicate admits
+     * only org-scoped {@code admin}; this one uses the same manager definition the organisation
+     * endpoints enforce (see {@code OrganisationSecurityService#canManageOrganisation}), so an
+     * organisation's control user reaches its members' records the same way its admin does. Like
+     * its sibling it is subject-scoped — managing organisation A says nothing about a member of
+     * organisation B — fails closed, and is memoised per request and per target.
+     * <p>
+     * The target's organisations come from {@link UserLookupService#getActiveUserOrganizations}
+     * rather than {@code getUserOrganizations}: removing somebody from an organisation is a soft
+     * delete, so the unfiltered lookup keeps naming organisations they have already left and would
+     * leave an ex-member reachable to their former managers indefinitely. The caller's side of the
+     * test is already live-only, since
+     * {@link UserLookupService#userBelongsToOrganizationWithDomain} matches active mappings.
+     *
+     * @param targetUserUuid the user being acted on
+     */
+    public boolean managesOrganisationOf(UUID targetUserUuid) {
+        if (targetUserUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_MANAGES_USER_PREFIX + targetUserUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.getActiveUserOrganizations(targetUserUuid).stream()
+                        .anyMatch(organisationUuid -> userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.organisation_user)
+                                || userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.admin));
+            } catch (Exception e) {
+                log.error("Error checking management reach over user {}", targetUserUuid, e);
                 return false;
             }
         });

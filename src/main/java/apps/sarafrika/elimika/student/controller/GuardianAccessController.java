@@ -30,14 +30,24 @@ public class GuardianAccessController {
     private final GuardianAccessService guardianAccessService;
     private final DomainSecurityService domainSecurityService;
 
+    /**
+     * Creating a link grants the named user the {@code parent} domain and standing access to this
+     * learner's record, so it is gated on custody of the learner — the learner themselves, a manager
+     * of an organisation they belong to, or a platform admin — rather than on holding the
+     * {@code instructor} or {@code admin} domain somewhere. A domain a user can hold platform-wide
+     * says nothing about which children they may appoint guardians for, and the previous role check
+     * let any instructor grant anyone, themselves included, guardian access to any learner.
+     */
     @PostMapping("/links")
-    @PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@studentDirectorySecurityService.canManageGuardianLinksFor(#request.studentUuid())")
     @Operation(
             summary = "Link a guardian to a learner",
-            description = "Grants a guardian/parent access to monitor a learner using their own credentials.",
+            description = "Grants a guardian/parent access to monitor a learner using their own credentials. "
+                    + "Restricted to the learner, a manager of one of the learner's organisations, or a platform admin.",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Guardian link created",
-                            content = @Content(schema = @Schema(implementation = GuardianStudentLinkDTO.class)))
+                            content = @Content(schema = @Schema(implementation = GuardianStudentLinkDTO.class))),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller has no custody of that learner")
             }
     )
     public ResponseEntity<ApiResponse<GuardianStudentLinkDTO>> createLink(
@@ -48,11 +58,18 @@ public class GuardianAccessController {
                 .body(ApiResponse.success(dto, "Guardian linked to student successfully"));
     }
 
+    /**
+     * Revoking is the same custody test as creating, widened by one party: the guardian on the link
+     * may always give up their own access.
+     */
     @DeleteMapping("/links/{linkUuid}")
-    @PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@studentDirectorySecurityService.canRevokeGuardianLink(#linkUuid)")
     @Operation(summary = "Revoke guardian access",
+            description = "Restricted to the learner, a manager of one of the learner's organisations, "
+                    + "a platform admin, or the guardian giving up their own access.",
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Guardian access revoked")
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Guardian access revoked"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not revoke that link")
             })
     public ResponseEntity<ApiResponse<Void>> revokeLink(@PathVariable UUID linkUuid,
                                                         @RequestParam(required = false) String reason) {

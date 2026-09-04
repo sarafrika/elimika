@@ -192,4 +192,20 @@ public class UserLookupServiceImpl implements UserLookupService {
     public boolean existsByKeycloakId(String keycloakId) {
         return userRepository.existsByKeycloakId(keycloakId);
     }
+
+    @Override
+    public List<UUID> getActiveUserOrganizations(UUID userUuid) {
+        if (userUuid == null) {
+            return List.of();
+        }
+        return userOrganisationDomainMappingRepository.findDistinctOrganisationUuidsByUser(userUuid);
+    }
+
+    @Override
+    public List<UUID> getOrganizationMemberUserUuids(UUID organizationUuid) {
+        if (organizationUuid == null) {
+            return List.of();
+        }
+        return userOrganisationDomainMappingRepository.findDistinctUserUuidsByOrganisation(organizationUuid);
+    }
 }

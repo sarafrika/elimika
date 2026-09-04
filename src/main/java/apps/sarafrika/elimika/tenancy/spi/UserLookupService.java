@@ -128,6 +128,31 @@ public interface UserLookupService {
     List<UUID> getUserOrganizations(UUID userUuid);
 
     /**
+     * Gets the organisation UUIDs a user <em>currently</em> belongs to — mappings that are still
+     * active and not soft-deleted.
+     * <p>
+     * {@link #getUserOrganizations(UUID)} answers from every mapping row ever written, and removing
+     * a member is a soft delete ({@code active = false, deleted = true}), so it keeps naming
+     * organisations the user has already left. Any authorization decision keyed on "we share an
+     * organisation" must use this method, otherwise a removed member stays reachable to their former
+     * organisation forever.
+     *
+     * @param userUuid The UUID of the user
+     * @return List of organisation UUIDs with a live membership (empty if none)
+     */
+    List<UUID> getActiveUserOrganizations(UUID userUuid);
+
+    /**
+     * Gets the user UUIDs of every current member of an organisation, whatever organisation-scoped
+     * domain they hold there. Lets a caller resolve one organisation's people in a single query
+     * instead of testing membership per row, and without reaching into tenancy's membership table.
+     *
+     * @param organizationUuid The UUID of the organization
+     * @return distinct user UUIDs (empty if the organization has no current members)
+     */
+    List<UUID> getOrganizationMemberUserUuids(UUID organizationUuid);
+
+    /**
      * Checks if a user belongs to a specific organization.
      *
      * @param userUuid The UUID of the user

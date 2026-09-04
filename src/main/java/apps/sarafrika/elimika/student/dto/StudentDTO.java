@@ -177,6 +177,41 @@ public record StudentDTO(
 ) {
 
     /**
+     * The directory projection of this record: display identity only.
+     * <p>
+     * A student profile is two things wearing one shape. The public half — uuid, the linked user,
+     * the derived full name, the bio the learner wrote for their profile page — is what every
+     * roster row, enrolment table and public profile in the product renders, for learners the
+     * viewer has no relationship with. The private half is contact data for a minor's guardians:
+     * two names and two mobile numbers, plus the demographic tag that says the learner is a child,
+     * and the audit trail naming the account that last touched the record.
+     * <p>
+     * The private half is never a display field, so callers without a relationship to the student
+     * are served this projection instead of being refused: they keep the names they need to draw a
+     * screen and lose the guardian contacts they never rendered. Mirrors the bargain
+     * {@code GET /api/v1/users/directory} already makes for user records.
+     *
+     * @return a copy carrying the display fields, with guardian, demographic and audit data cleared
+     */
+    public StudentDTO toDirectoryProjection() {
+        return new StudentDTO(
+                uuid,
+                userUuid,
+                fullName,
+                null,
+                null,
+                null,
+                null,
+                null,
+                bio,
+                createdDate,
+                null,
+                updatedDate,
+                null
+        );
+    }
+
+    /**
      * Checks if the student has a secondary guardian configured.
      *
      * @return true if second guardian name and mobile are both provided, false otherwise
