@@ -106,6 +106,12 @@ APP_KEYCLOAK_ADMIN_CLIENTSECRET=[YOUR_ADMIN_CLI_SECRET]
 # Encryption Configuration
 ENCRYPTION_SECRET_KEY=your-secret-encryption-key
 ENCRYPTION_SALT=your-encryption-salt
+
+# API Documentation Access
+# true serves /v3/api-docs and the Swagger UI anonymously, which is what you want on a
+# workstation. Defaults to false, restricting them to platform administrators; keep it false
+# on any host that is reachable from outside. See docs/api-documentation-access.md.
+APP_API_DOCS_PUBLIC=true
 ```
 
 Replace `[YOUR_ADMIN_CLI_SECRET]` with the client secret from Keycloak.
@@ -167,6 +173,7 @@ services:
     environment:
       SERVER_PORT: 30000
       SPRING_PROFILES_ACTIVE: prod
+      APP_API_DOCS_PUBLIC: ${APP_API_DOCS_PUBLIC:-false}
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}

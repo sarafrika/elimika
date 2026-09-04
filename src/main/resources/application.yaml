@@ -68,6 +68,19 @@ spring:
 
 # Application-specific configuration
 app:
+  # The OpenAPI specification enumerates every route, parameter and payload the API accepts,
+  # administrative ones included, so it is not public content. Off means platform administrators
+  # only (see SecurityConfiguration); an environment that genuinely wants a browsable spec — a
+  # workstation, a sandbox, or staging while the frontend client is regenerated from it — sets
+  # APP_API_DOCS_PUBLIC=true in its own environment.
+  #
+  # This is a plain flag rather than a profile check on purpose: docker/.env.sample ships
+  # SPRING_PROFILES_ACTIVE=dev and docker/compose.yaml reads the profile from that .env, so
+  # "dev only" would not keep a deployed server closed. Documented in
+  # docs/api-documentation-access.md.
+  api-docs:
+    public: ${APP_API_DOCS_PUBLIC:false}
+
   bootstrap:
     admin:
       enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
@@ -167,6 +180,21 @@ mpesa:
       token-uri: ${MPESA_OAUTH_TOKEN_URI:${app.keycloak.serverUrl}/realms/${app.keycloak.realm}/protocol/openid-connect/token}
       client-id: ${MPESA_CLIENT_ID:${APP_KEYCLOAK_CLIENTID:elimika-backend}}
       client-secret: ${MPESA_CLIENT_SECRET:${APP_KEYCLOAK_CLIENTSECRET:}}
+
+# OpenAPI / Swagger configuration.
+#
+# SecurityConfiguration reads api-docs.path and swagger-ui.path back out and derives its guard
+# from them (see apiDocumentationPaths()), including the .yaml and grouped aliases springdoc
+# registers off the same property, so moving a path here moves the guard with it. show-actuator
+# stays false so the actuator endpoints never leak into the published specification, and the
+# actuator-hosted springdoc endpoints stay unregistered because management.endpoints.web.exposure
+# below lists only health, info and metrics.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  show-actuator: false
 
 # Actuator configuration
 management:

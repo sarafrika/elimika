@@ -25,6 +25,7 @@ The service runs on Spring Boot with Spring Modulith, Jakarta Validation, and JP
 3. Generate the external Docker network used by the stack if it does not already exist: `docker network create sarafrika`.
 4. Start the backing services: `docker compose -f docker/compose.yaml up -d` (or the extended compose file from `install.md`).
 5. Launch the API locally: `SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun`. Override ports and secrets through environment variables as needed.
+6. To browse Swagger UI at `http://localhost:8080/swagger-ui/index.html` without a Keycloak token, add `APP_API_DOCS_PUBLIC=true` to your `.env`. It defaults to `false`, which restricts the OpenAPI specification and the UI to platform administrators; see `docs/api-documentation-access.md`.
 
 ## Running Tests & Tooling
 - `./gradlew test` runs the JUnit 5 suite.
@@ -33,7 +34,7 @@ The service runs on Spring Boot with Spring Modulith, Jakarta Validation, and JP
 - `pnpm release` triggers semantic-release; keep this for CI pipelines to avoid double-tagging.
 
 ## Deployment Notes
-The production container image is published as `sarafrika/elimika`. The provided `docker/compose.yaml` mounts persistent volumes for storage and logs, exposes port `30000`, and expects configuration via `.env`. Health checks rely on the Spring Boot actuator endpoint.
+The production container image is published as `sarafrika/elimika`. The provided `docker/compose.yaml` mounts persistent volumes for storage and logs, exposes port `30000`, and expects configuration via `.env`. Health checks rely on the Spring Boot actuator endpoint, which stays anonymous; the rest of `/actuator` (info, metrics) requires authentication. Leave `APP_API_DOCS_PUBLIC` unset or `false` on any deployed host so the OpenAPI specification is not served anonymously — `docs/api-documentation-access.md` covers the flag and how to regenerate the frontend client against a closed spec.
 
 ## Project Structure
 ```
@@ -48,4 +49,5 @@ AGENTS.md                                 # Contributor and workflow guidelines
 ## Further Reading
 - `AGENTS.md` for contributor guidelines and workflow expectations
 - `install.md` for the full Docker-based setup walkthrough
+- `docs/api-documentation-access.md` for who may read the OpenAPI specification and how to configure it
 - `docs/guides/` for deep dives into each domain and feature area
