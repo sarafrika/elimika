@@ -28,8 +28,16 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    @Operation(summary = "Create a booking for a course/instructor slot")
+    @Operation(
+            summary = "Create a booking for a course/instructor slot",
+            description = "Bookable by the learner themselves, by an administrator of an organisation "
+                    + "that learner belongs to, or by a platform admin. The booking commits the named "
+                    + "learner to a priced session, so the caller must be able to act for them."
+    )
     @PostMapping
+    @PreAuthorize("@domainSecurityService.isStudentWithUuid(#request.studentUuid()) "
+            + "or @domainSecurityService.administersOrganisationOfStudent(#request.studentUuid()) "
+            + "or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<BookingResponseDTO>> createBooking(
             @Valid @RequestBody CreateBookingRequestDTO request) {
         log.debug("Request to create booking for instructor {} and course {}", request.instructorUuid(), request.courseUuid());
@@ -83,8 +91,16 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.success(session, "Booking payment session created"));
     }
 
-    @Operation(summary = "Payment callback to update booking status")
+    @Operation(
+            summary = "Payment callback to update booking status",
+            description = "Settles a booking's payment state, which confirms the booking and finalises "
+                    + "the enrolment. The route sits behind an authenticated filter chain, so no gateway "
+                    + "reaches it unauthenticated and there is no signature to verify against; until a "
+                    + "real engine is wired up (the gateway client is a placeholder) it is restricted to "
+                    + "platform admins rather than to any signed-in user."
+    )
     @PostMapping("/{bookingUuid}/payment-callback")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<BookingResponseDTO>> paymentCallback(
             @Parameter(description = "Booking UUID") @PathVariable UUID bookingUuid,
             @Valid @RequestBody BookingPaymentUpdateRequestDTO request) {

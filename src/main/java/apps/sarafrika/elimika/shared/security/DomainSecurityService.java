@@ -47,6 +47,8 @@ public class DomainSecurityService {
     private static final String CACHE_ENROLLED_IN_CLASS_PREFIX = "security.enrolledInClass.";
     private static final String CACHE_STUDENT_USER_PREFIX = "security.studentUser.";
     private static final String CACHE_MANAGES_STUDENT_PREFIX = "security.managesStudent.";
+    private static final String CACHE_STUDENT_OWNER_PREFIX = "security.studentOwner.";
+    private static final String CACHE_INSTRUCTOR_OWNER_PREFIX = "security.instructorOwner.";
     private static final String CACHE_MANAGES_USER_PREFIX = "security.managesUser.";
 
     private final UserLookupService userLookupService;
@@ -533,6 +535,55 @@ public class DomainSecurityService {
                 return null;
             }
         });
+    }
+
+    /**
+     * True when the caller administers an organisation the owner of the given <em>student
+     * profile</em> belongs to.
+     * <p>
+     * Routes keyed on a learner carry the student profile identifier, not the user identifier that
+     * {@link #administersOrganisationOf(UUID)} expects, so this resolves the owning user first and
+     * then defers to it. Fails closed when the profile is unknown or has no owner. The profile to
+     * user resolution is memoised per request and per student because a single request may test the
+     * same subject from more than one expression.
+     *
+     * @param studentUuid the student profile being acted on
+     */
+    public boolean administersOrganisationOfStudent(UUID studentUuid) {
+        if (studentUuid == null) {
+            return false;
+        }
+        UUID ownerUuid = requestScopedCache.get(CACHE_STUDENT_OWNER_PREFIX + studentUuid, () -> {
+            try {
+                return studentLookupService.getStudentUserUuid(studentUuid).orElse(null);
+            } catch (Exception e) {
+                log.error("Error resolving owning user of student {}", studentUuid, e);
+                return null;
+            }
+        });
+        return administersOrganisationOf(ownerUuid);
+    }
+
+    /**
+     * True when the caller administers an organisation the owner of the given <em>instructor
+     * profile</em> belongs to. The instructor-side counterpart of
+     * {@link #administersOrganisationOfStudent(UUID)}; see it for why the indirection is needed.
+     *
+     * @param instructorUuid the instructor profile being acted on
+     */
+    public boolean administersOrganisationOfInstructor(UUID instructorUuid) {
+        if (instructorUuid == null) {
+            return false;
+        }
+        UUID ownerUuid = requestScopedCache.get(CACHE_INSTRUCTOR_OWNER_PREFIX + instructorUuid, () -> {
+            try {
+                return instructorLookupService.getInstructorUserUuid(instructorUuid).orElse(null);
+            } catch (Exception e) {
+                log.error("Error resolving owning user of instructor {}", instructorUuid, e);
+                return null;
+            }
+        });
+        return administersOrganisationOf(ownerUuid);
     }
 
     /**

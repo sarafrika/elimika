@@ -32,7 +32,9 @@ public class StudentBookingController {
 
     @Operation(summary = "Get student bookings")
     @GetMapping
-    @PreAuthorize("@domainSecurityService.isStudentWithUuid(#studentUuid) or @domainSecurityService.isOrganizationAdmin()")
+    @PreAuthorize("@domainSecurityService.isStudentWithUuid(#studentUuid) "
+            + "or @domainSecurityService.administersOrganisationOfStudent(#studentUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()")
     public ResponseEntity<ApiResponse<PagedDTO<BookingResponseDTO>>> getStudentBookings(
             @Parameter(description = "Student UUID") @PathVariable UUID studentUuid,
             @Parameter(description = "Optional booking status filter (e.g., payment_required)")
