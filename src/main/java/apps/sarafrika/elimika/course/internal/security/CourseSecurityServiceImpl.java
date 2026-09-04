@@ -1,9 +1,14 @@
 package apps.sarafrika.elimika.course.internal.security;
 
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.ProgramCourse;
+import apps.sarafrika.elimika.course.model.ProgramRequirement;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
+import apps.sarafrika.elimika.course.repository.ProgramRequirementRepository;
+import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
@@ -19,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +45,7 @@ import java.util.UUID;
 public class CourseSecurityServiceImpl implements CourseSecuritySpi {
 
     private static final String CACHE_ENROLLED_COURSES = "courseSecurity.enrolledCourses";
+    private static final String CACHE_OWNED_PROGRAM_PREFIX = "courseSecurity.ownsProgram.";
 
     private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
@@ -47,6 +54,9 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
+    private final TrainingProgramRepository trainingProgramRepository;
+    private final ProgramCourseRepository programCourseRepository;
+    private final ProgramRequirementRepository programRequirementRepository;
 
     /**
      * Checks if the currently authenticated user is the owner of the specified course.
@@ -105,6 +115,118 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             log.error("Error checking course ownership for course: {}", courseUuid, e);
             return false;
         }
+    }
+
+    /**
+     * Checks if the currently authenticated user created the specified training program.
+     * <p>
+     * A program is owned the way a course is, through its creator's profile, so this resolves
+     * JWT → User → profile → TrainingProgram exactly as {@link #isCourseOwner(UUID)} does.
+     * <p>
+     * Two profiles have to be tried, not one. The course-creator dashboard stamps
+     * {@code course_creator_uuid} with the caller's course-creator profile, but the instructor
+     * dashboard's program builder stamps it with the caller's <em>instructor</em> profile, so
+     * programs authored there are on record under an instructor UUID. Accepting either is what
+     * keeps an instructor able to edit, publish and delete the programs they built; narrowing to
+     * the course-creator profile alone would lock them out of their own work.
+     * <p>
+     * Memoised per request and per program because the route guard and the service behind it both
+     * ask, and each answer costs a program load.
+     *
+     * @param programUuid UUID of the training program to check
+     * @return true if the current user created the program, false otherwise
+     */
+    @Override
+    public boolean isProgramOwner(UUID programUuid) {
+        if (programUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_OWNED_PROGRAM_PREFIX + programUuid, () -> {
+            try {
+                UUID userUuid = currentUserUuid();
+                if (userUuid == null) {
+                    return false;
+                }
+                Set<UUID> creatorIdentities = programCreatorIdentities(userUuid);
+                if (creatorIdentities.isEmpty()) {
+                    return false;
+                }
+                return trainingProgramRepository.findByUuid(programUuid)
+                        .map(program -> program.getCourseCreatorUuid() != null
+                                && creatorIdentities.contains(program.getCourseCreatorUuid()))
+                        .orElse(false);
+            } catch (Exception e) {
+                log.error("Error checking program ownership for program: {}", programUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * The profile UUIDs a training program's {@code course_creator_uuid} may legitimately hold for
+     * this user - their course-creator profile and their instructor profile. See
+     * {@link #isProgramOwner(UUID)} for why both count.
+     * <p>
+     * Only ever asked of the caller, so the instructor half comes from the caller's memoised
+     * instructor identity rather than a fresh lookup per program.
+     */
+    private Set<UUID> programCreatorIdentities(UUID userUuid) {
+        Set<UUID> identities = new HashSet<>();
+        courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid).ifPresent(identities::add);
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+        if (instructorUuid != null) {
+            identities.add(instructorUuid);
+        }
+        return identities;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The association is resolved first and its own program decides, because
+     * {@code ProgramCourseServiceImpl} writes the row named by {@code programCourseUuid} and never
+     * looks at the path - so trusting the path would let a caller quote a program they own alongside
+     * a stranger's row.
+     */
+    @Override
+    public boolean canWriteProgramCourse(UUID programUuid, UUID programCourseUuid, UUID payloadProgramUuid) {
+        UUID owningProgramUuid = programCourseUuid == null
+                ? programUuid
+                : programCourseRepository.findByUuid(programCourseUuid)
+                        .map(ProgramCourse::getProgramUuid)
+                        .orElse(programUuid);
+        return ownsBothPrograms(owningProgramUuid, payloadProgramUuid);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Resolved exactly as {@link #canWriteProgramCourse(UUID, UUID, UUID)} is, and for the same
+     * reason: {@code ProgramRequirementServiceImpl} writes the row named by {@code requirementUuid}
+     * and ignores the path.
+     */
+    @Override
+    public boolean canWriteProgramRequirement(UUID programUuid, UUID requirementUuid, UUID payloadProgramUuid) {
+        UUID owningProgramUuid = requirementUuid == null
+                ? programUuid
+                : programRequirementRepository.findByUuid(requirementUuid)
+                        .map(ProgramRequirement::getProgramUuid)
+                        .orElse(programUuid);
+        return ownsBothPrograms(owningProgramUuid, payloadProgramUuid);
+    }
+
+    /**
+     * The caller must own the program the row lives in and, when the body names a program to move it
+     * to, own that one too - otherwise a program's courses or requirements could be pushed into a
+     * stranger's program.
+     */
+    private boolean ownsBothPrograms(UUID owningProgramUuid, UUID payloadProgramUuid) {
+        if (!isProgramOwner(owningProgramUuid)) {
+            return false;
+        }
+        return payloadProgramUuid == null
+                || payloadProgramUuid.equals(owningProgramUuid)
+                || isProgramOwner(payloadProgramUuid);
     }
 
     /**

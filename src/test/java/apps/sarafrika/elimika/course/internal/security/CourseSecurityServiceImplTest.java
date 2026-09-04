@@ -4,6 +4,9 @@ import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
+import apps.sarafrika.elimika.course.repository.ProgramRequirementRepository;
+import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
@@ -51,6 +54,9 @@ class CourseSecurityServiceImplTest {
     @Mock private CourseCreatorLookupService courseCreatorLookupService;
     @Mock private UserLookupService userLookupService;
     @Mock private DomainSecurityService domainSecurityService;
+    @Mock private TrainingProgramRepository trainingProgramRepository;
+    @Mock private ProgramCourseRepository programCourseRepository;
+    @Mock private ProgramRequirementRepository programRequirementRepository;
 
     private CourseSecurityServiceImpl service;
 
@@ -59,7 +65,8 @@ class CourseSecurityServiceImplTest {
         service = new CourseSecurityServiceImpl(
                 courseRepository, trainingApplicationRepository, courseEnrollmentRepository,
                 courseCreatorLookupService, userLookupService,
-                domainSecurityService, new RequestScopedCache());
+                domainSecurityService, new RequestScopedCache(), trainingProgramRepository,
+                programCourseRepository, programRequirementRepository);
 
         authenticateAsJwtUser();
         when(userLookupService.findUserUuidByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(USER_UUID));

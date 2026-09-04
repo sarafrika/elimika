@@ -22,6 +22,54 @@ public interface CourseSecuritySpi {
     boolean isCourseOwner(UUID courseUuid);
 
     /**
+     * Checks if the currently authenticated user created the specified training program.
+     * <p>
+     * The program-side sibling of {@link #isCourseOwner(UUID)}. A program records its author in
+     * {@code course_creator_uuid}, but that column holds the author's course-creator profile when
+     * the program was built from the course-creator dashboard and their instructor profile when it
+     * was built from the instructor dashboard, so either profile counts as ownership.
+     *
+     * @param programUuid UUID of the training program to check
+     * @return true if the current user created the program, false otherwise
+     */
+    boolean isProgramOwner(UUID programUuid);
+
+    /**
+     * Checks whether the current user may add, change or remove the given course-to-program
+     * association.
+     * <p>
+     * The association's own {@code program_uuid} decides, not the path: the service acts on the row
+     * identified by {@code programCourseUuid} and never reads the path variable, so authorising the
+     * path alone would let a caller name a program they own and a row belonging to somebody else.
+     * When no such row exists the path's program decides instead, leaving the service free to answer
+     * 404 for an owner who quoted a stale identifier.
+     * <p>
+     * {@code payloadProgramUuid} is the program the request body names, which for an update is the
+     * program the row would be <em>moved</em> to; it must be owned as well, or {@code null} when the
+     * request names none.
+     *
+     * @param programUuid UUID of the program on the request path
+     * @param programCourseUuid UUID of the program-course association being written, or null on create
+     * @param payloadProgramUuid UUID of the program named in the request body, or null when absent
+     * @return true if the current user may perform the write
+     */
+    boolean canWriteProgramCourse(UUID programUuid, UUID programCourseUuid, UUID payloadProgramUuid);
+
+    /**
+     * Checks whether the current user may add, change or remove the given program requirement.
+     * <p>
+     * The requirement-side sibling of
+     * {@link #canWriteProgramCourse(UUID, UUID, UUID)}, and resolved the same way: the requirement's
+     * own program decides, falling back to the path's program when the requirement does not exist.
+     *
+     * @param programUuid UUID of the program on the request path
+     * @param requirementUuid UUID of the requirement being written, or null on create
+     * @param payloadProgramUuid UUID of the program named in the request body, or null when absent
+     * @return true if the current user may perform the write
+     */
+    boolean canWriteProgramRequirement(UUID programUuid, UUID requirementUuid, UUID payloadProgramUuid);
+
+    /**
      * Checks whether the current user may read the course's lesson content.
      * <p>
      * True for the course owner or a member of an organisation approved to train

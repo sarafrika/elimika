@@ -28,7 +28,11 @@ import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -46,8 +50,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -63,6 +70,42 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
     private static final String APPLICATION_NOT_FOUND_TEMPLATE = "Training application %s not found for program %s";
     private static final String SYSTEM_USER = "SYSTEM";
+
+    /**
+     * Organisation-scoped roles that let someone act for the organisation rather than merely belong
+     * to it. Membership alone is too broad to hand over the organisation's negotiated rate cards or
+     * the right to apply in its name: the same mapping table holds its students, their guardians and
+     * the instructors it has engaged. These are the two domains
+     * {@code OrganisationSecurityService#canManageOrganisation} admits, and this gate deliberately
+     * matches it so "may act for the organisation" means one thing across the platform.
+     */
+    private static final List<UserDomain> ORGANISATION_STAFF_DOMAINS =
+            List.of(UserDomain.organisation_user, UserDomain.admin);
+
+    /**
+     * The fields {@link #toNonPartyDTO(ProgramTrainingApplication)} withholds, normalised the way
+     * {@link #searchField(String)} normalises an incoming key. Masking a field in the response is
+     * worthless while the same field can still be filtered or sorted on, so a search that mentions
+     * one of these is answered without the rows that would have been masked.
+     */
+    private static final Set<String> CONFIDENTIAL_FIELDS = Set.of(
+            "ratecurrency",
+            "privateonlinehourlyrate", "privateinpersonhourlyrate",
+            "grouponlinehourlyrate", "groupinpersonhourlyrate",
+            "privateonlinesessionrate", "privateinpersonsessionrate",
+            "grouponlinesessionrate", "groupinpersonsessionrate",
+            "privateonlinedailyrate", "privateinpersondailyrate",
+            "grouponlinedailyrate", "groupinpersondailyrate",
+            "applicationnotes", "reviewnotes", "reviewedby",
+            "createdby", "lastmodifiedby", "updatedby");
+
+    /**
+     * Mirrors the operation suffixes {@code GenericSpecificationBuilder} recognises, so a key is
+     * reduced to its field the same way the builder reduces it.
+     */
+    private static final Set<String> SEARCH_OPERATIONS = Set.of(
+            "eq", "gt", "lt", "gte", "lte", "like", "startswith", "endswith",
+            "in", "notin", "noteq", "between", "notingroup");
 
     private final TrainingProgramRepository trainingProgramRepository;
     private final ProgramTrainingApplicationRepository applicationRepository;
@@ -82,10 +125,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     public ProgramTrainingApplicationDTO submitApplication(UUID programUuid, ProgramTrainingApplicationRequest request) {
         log.debug("Submitting training application for program {} by {} {}", programUuid, request.applicantType(), request.applicantUuid());
 
-        if (CourseTrainingApplicantType.INSTRUCTOR.equals(request.applicantType())
-                && !domainSecurityService.isInstructorWithUuid(request.applicantUuid())) {
-            throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
-        }
+        ensureSubmitApplicantOwnedByCurrentUser(request.applicantType(), request.applicantUuid());
 
         TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
@@ -244,6 +284,11 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     public ProgramTrainingApplicationDTO getApplication(UUID programUuid, UUID applicationUuid) {
         log.debug("Fetching training application {} for program {}", applicationUuid, programUuid);
         ProgramTrainingApplication application = findApplication(programUuid, applicationUuid);
+        if (!canReadApplication(application)) {
+            // Anyone else must not learn that the application exists, so this is the same 404 as a miss.
+            throw new ResourceNotFoundException(
+                    String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, programUuid));
+        }
         return ProgramTrainingApplicationFactory.toDTO(application);
     }
 
@@ -269,14 +314,252 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         Map<String, String> normalizedParams = searchParams == null ? new HashMap<>() : new HashMap<>(searchParams);
         normalizedParams.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().isBlank());
 
+        // The application row carries no creator column; a creator filter is answered by naming
+        // their programs, exactly as the course search names the creator's courses.
+        UUID requestedCourseCreatorUuid = null;
+        String courseCreatorParam = extractSearchParam(normalizedParams, "course_creator_uuid", "courseCreatorUuid");
+        if (courseCreatorParam != null) {
+            try {
+                requestedCourseCreatorUuid = UUID.fromString(courseCreatorParam.trim());
+                String programUuidsList = programUuidsCreatedBy(requestedCourseCreatorUuid).stream()
+                        .map(UUID::toString)
+                        .collect(Collectors.joining(","));
+
+                if (programUuidsList.isEmpty()) {
+                    return Page.empty(pageable);
+                }
+
+                normalizedParams.put("programUuid_in", programUuidsList);
+            } catch (IllegalArgumentException ex) {
+                log.warn("Invalid course_creator_uuid value: {}", courseCreatorParam);
+            }
+        }
+
+        CallerScope scope = resolveCallerScope(
+                requestedCourseCreatorUuid, mentionsConfidentialField(normalizedParams, pageable));
+
         Specification<ProgramTrainingApplication> specification =
                 specificationBuilder.buildSpecification(ProgramTrainingApplication.class, normalizedParams);
+        if (scope != null) {
+            Specification<ProgramTrainingApplication> visible = scope.toSpecification();
+            specification = specification == null ? visible : specification.and(visible);
+        }
 
         Page<ProgramTrainingApplication> page = specification != null
                 ? applicationRepository.findAll(specification, pageable)
                 : applicationRepository.findAll(pageable);
 
-        return page.map(ProgramTrainingApplicationFactory::toDTO);
+        return page.map(application -> scope == null || scope.isParty(application)
+                ? ProgramTrainingApplicationFactory.toDTO(application)
+                : toNonPartyDTO(application));
+    }
+
+    /**
+     * What the caller may see of other people's applications, or {@code null} when nothing needs
+     * hiding: a platform admin, or a course creator whose search already names themselves and is
+     * therefore confined to their own programs.
+     * <p>
+     * Everyone else is a party to an application only as its applicant (their instructor profile,
+     * or an organisation they are staff of) or as the creator of the program it targets; those rows
+     * come back whole. An organisation additionally needs to know which instructors are approved on
+     * the programs it is itself approved to train, so it can staff its classes - those rows come back
+     * without the rate card and notes, which were negotiated with the program creator, not with the
+     * organisation. Nothing else is visible.
+     *
+     * @param requestedCourseCreatorUuid the creator the search names, if any
+     * @param confidentialFieldQueried whether the request filters or sorts on a field the masked view
+     *                                 withholds; when it does, the masked rows are left out of the
+     *                                 result entirely rather than being ordered or sifted by a value
+     *                                 the caller is not allowed to read
+     */
+    private CallerScope resolveCallerScope(UUID requestedCourseCreatorUuid, boolean confidentialFieldQueried) {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return null;
+        }
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        if (callerUuid == null) {
+            return CallerScope.NONE;
+        }
+
+        Set<UUID> creatorIdentities = programCreatorIdentities(callerUuid);
+        if (requestedCourseCreatorUuid != null && creatorIdentities.contains(requestedCourseCreatorUuid)) {
+            return null;
+        }
+
+        UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(callerUuid).orElse(null);
+        Set<UUID> organisationUuids = staffedOrganisations(callerUuid);
+        Set<UUID> ownedProgramUuids = programUuidsCreatedBy(creatorIdentities);
+        return new CallerScope(instructorUuid, organisationUuids, ownedProgramUuids, !confidentialFieldQueried);
+    }
+
+    /**
+     * The organisations the caller searches on behalf of: those they hold an active organisation
+     * scoped staff role in. Plain membership is not enough - the same mapping table records an
+     * organisation's students and parents, and an organisation's negotiated rates are not theirs.
+     */
+    private Set<UUID> staffedOrganisations(UUID callerUuid) {
+        return userLookupService.getUserOrganizations(callerUuid).stream()
+                .filter(organisationUuid -> isOrganisationStaff(callerUuid, organisationUuid))
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Whether the request filters or sorts on a field the masked view withholds.
+     */
+    private boolean mentionsConfidentialField(Map<String, String> searchParams, Pageable pageable) {
+        boolean filtered = searchParams.keySet().stream()
+                .anyMatch(key -> CONFIDENTIAL_FIELDS.contains(searchField(key)));
+        boolean sorted = pageable != null && pageable.getSort().stream()
+                .anyMatch(order -> CONFIDENTIAL_FIELDS.contains(searchField(order.getProperty())));
+        return filtered || sorted;
+    }
+
+    /**
+     * Reduces a search or sort key to the field it addresses: drops a trailing operation suffix, then
+     * folds case and underscores so {@code private_online_hourly_rate_gt} and
+     * {@code privateOnlineHourlyRate} land on the same name, exactly as the specification builder's
+     * field map does.
+     */
+    private static String searchField(String key) {
+        if (key == null) {
+            return "";
+        }
+        String field = key;
+        int lastUnderscore = field.lastIndexOf('_');
+        if (lastUnderscore > 0
+                && SEARCH_OPERATIONS.contains(field.substring(lastUnderscore + 1).toLowerCase(Locale.ROOT))) {
+            field = field.substring(0, lastUnderscore);
+        }
+        return field.toLowerCase(Locale.ROOT).replace("_", "");
+    }
+
+    /**
+     * The profile UUIDs a program's {@code course_creator_uuid} may legitimately hold for this user.
+     * The course-creator dashboard stamps that column with their course-creator profile while the
+     * instructor dashboard's program builder stamps it with their instructor profile, so a caller
+     * authors programs under either identity and both must count as theirs.
+     */
+    private Set<UUID> programCreatorIdentities(UUID userUuid) {
+        Set<UUID> identities = new HashSet<>();
+        courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid).ifPresent(identities::add);
+        instructorLookupService.findInstructorUuidByUserUuid(userUuid).ifPresent(identities::add);
+        return identities;
+    }
+
+    private Set<UUID> programUuidsCreatedBy(UUID courseCreatorUuid) {
+        return programUuidsCreatedBy(Set.of(courseCreatorUuid));
+    }
+
+    private Set<UUID> programUuidsCreatedBy(Set<UUID> creatorUuids) {
+        return creatorUuids.stream()
+                .map(trainingProgramRepository::findByCourseCreatorUuid)
+                .flatMap(List::stream)
+                .map(TrainingProgram::getUuid)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * The identities a caller searches as. Turned into a predicate so scoping happens in the query
+     * rather than by filtering a page after the fact, which would break paging.
+     */
+    private record CallerScope(UUID instructorUuid,
+                               Set<UUID> organisationUuids,
+                               Set<UUID> ownedProgramUuids,
+                               boolean includeApprovedProgramPeers) {
+
+        private static final CallerScope NONE = new CallerScope(null, Set.of(), Set.of(), false);
+
+        /** True when the caller is the applicant or the program creator, i.e. may see everything on the row. */
+        boolean isParty(ProgramTrainingApplication application) {
+            if (ownedProgramUuids.contains(application.getProgramUuid())) {
+                return true;
+            }
+            if (CourseTrainingApplicantType.INSTRUCTOR.equals(application.getApplicantType())) {
+                return instructorUuid != null && instructorUuid.equals(application.getApplicantUuid());
+            }
+            if (CourseTrainingApplicantType.ORGANISATION.equals(application.getApplicantType())) {
+                return organisationUuids.contains(application.getApplicantUuid());
+            }
+            return false;
+        }
+
+        Specification<ProgramTrainingApplication> toSpecification() {
+            return (root, query, cb) -> {
+                List<Predicate> visible = new ArrayList<>();
+                if (instructorUuid != null) {
+                    visible.add(cb.and(
+                            cb.equal(root.get("applicantType"), CourseTrainingApplicantType.INSTRUCTOR),
+                            cb.equal(root.get("applicantUuid"), instructorUuid)));
+                }
+                if (!organisationUuids.isEmpty()) {
+                    visible.add(cb.and(
+                            cb.equal(root.get("applicantType"), CourseTrainingApplicantType.ORGANISATION),
+                            root.get("applicantUuid").in(organisationUuids)));
+                }
+                if (!organisationUuids.isEmpty() && includeApprovedProgramPeers) {
+                    Subquery<UUID> programsApprovedForOrganisation = query.subquery(UUID.class);
+                    Root<ProgramTrainingApplication> organisationApplication =
+                            programsApprovedForOrganisation.from(ProgramTrainingApplication.class);
+                    programsApprovedForOrganisation.select(organisationApplication.get("programUuid")).where(
+                            cb.equal(organisationApplication.get("applicantType"), CourseTrainingApplicantType.ORGANISATION),
+                            organisationApplication.get("applicantUuid").in(organisationUuids),
+                            cb.equal(organisationApplication.get("status"), CourseTrainingApplicationStatus.APPROVED));
+                    visible.add(cb.and(
+                            cb.equal(root.get("applicantType"), CourseTrainingApplicantType.INSTRUCTOR),
+                            cb.equal(root.get("status"), CourseTrainingApplicationStatus.APPROVED),
+                            root.get("programUuid").in(programsApprovedForOrganisation)));
+                }
+                if (!ownedProgramUuids.isEmpty()) {
+                    visible.add(root.get("programUuid").in(ownedProgramUuids));
+                }
+                return visible.isEmpty() ? cb.disjunction() : cb.or(visible.toArray(Predicate[]::new));
+            };
+        }
+    }
+
+    /**
+     * The view a non-party gets: who is approved to deliver which program, and nothing the applicant
+     * negotiated with the program creator.
+     */
+    private static ProgramTrainingApplicationDTO toNonPartyDTO(ProgramTrainingApplication application) {
+        return new ProgramTrainingApplicationDTO(
+                application.getUuid(),
+                application.getProgramUuid(),
+                application.getApplicantType(),
+                application.getApplicantUuid(),
+                application.getStatus(),
+                null,
+                null,
+                null,
+                null,
+                application.getReviewedAt(),
+                application.getCreatedDate(),
+                null,
+                application.getLastModifiedDate(),
+                null
+        );
+    }
+
+    private String extractSearchParam(Map<String, String> searchParams, String... keys) {
+        String extractedValue = null;
+        var iterator = searchParams.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            for (String key : keys) {
+                if (matchesSearchKey(entry.getKey(), key)) {
+                    if (extractedValue == null && entry.getValue() != null && !entry.getValue().isBlank()) {
+                        extractedValue = entry.getValue();
+                    }
+                    iterator.remove();
+                    break;
+                }
+            }
+        }
+        return extractedValue;
+    }
+
+    private boolean matchesSearchKey(String candidate, String key) {
+        return candidate.equals(key) || candidate.startsWith(key + "_");
     }
 
     private ProgramTrainingApplication updateExistingApplication(ProgramTrainingApplication existing,
@@ -334,24 +617,88 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         target.setGroupInpersonDailyRate(rateCard.groupInpersonDailyRate());
     }
 
-    private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+    /**
+     * Whether the caller may read this application in full: a platform admin, the creator of the
+     * program it targets, or the applicant.
+     */
+    private boolean canReadApplication(ProgramTrainingApplication application) {
+        return domainSecurityService.isPlatformAdmin()
+                || isProgramOwnedByCurrentUser(application.getProgramUuid())
+                || isApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
+    }
+
+    private boolean isProgramOwnedByCurrentUser(UUID programUuid) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        if (callerUuid == null) {
+            return false;
+        }
+        Set<UUID> creatorIdentities = programCreatorIdentities(callerUuid);
+        if (creatorIdentities.isEmpty()) {
+            return false;
+        }
+        return trainingProgramRepository.findByUuid(programUuid)
+                .map(program -> program.getCourseCreatorUuid() != null
+                        && creatorIdentities.contains(program.getCourseCreatorUuid()))
+                .orElse(false);
+    }
+
+    /**
+     * Whether the caller is the applicant: their own instructor profile, or an organisation they
+     * hold a staff role in. Bare membership of the organisation is not enough - the same mapping
+     * table records its students and their guardians, and applying to deliver a program on the
+     * organisation's terms is not theirs to do.
+     */
+    private boolean isApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
         if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
-            if (!domainSecurityService.isInstructorWithUuid(applicantUuid)) {
-                throw new AccessDeniedException("You may only manage your own training applications.");
-            }
-            return;
+            return domainSecurityService.isInstructorWithUuid(applicantUuid);
         }
 
         if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
             UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
-            if (currentUserUuid == null
-                    || !userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid)) {
-                throw new AccessDeniedException("You may only manage training applications for your organisation.");
-            }
-            return;
+            return currentUserUuid != null && isOrganisationStaff(currentUserUuid, applicantUuid);
         }
 
+        return false;
+    }
+
+    /**
+     * Whether the user holds an active organisation-scoped staff role in the organisation.
+     */
+    private boolean isOrganisationStaff(UUID userUuid, UUID organisationUuid) {
+        return ORGANISATION_STAFF_DOMAINS.stream()
+                .anyMatch(domain -> userLookupService.userBelongsToOrganizationWithDomain(
+                        userUuid, organisationUuid, domain));
+    }
+
+    private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+        if (isApplicantOwnedByCurrentUser(applicantType, applicantUuid)) {
+            return;
+        }
+        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
+            throw new AccessDeniedException("You may only manage training applications for your organisation.");
+        }
         throw new AccessDeniedException("You may only manage your own training applications.");
+    }
+
+    /**
+     * Guards the submit path. The applicant named in the body is the party the rate card and any
+     * resulting approval belong to, so the caller has to be that party: their own instructor profile,
+     * or an organisation they hold a staff role in. Without this an applicant type of
+     * {@code organisation} let any authenticated user file an application - and a rate card - in a
+     * stranger's organisation's name.
+     */
+    private void ensureSubmitApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+        if (isApplicantOwnedByCurrentUser(applicantType, applicantUuid)) {
+            return;
+        }
+        if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
+            throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
+        }
+        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
+            throw new AccessDeniedException(
+                    "Organisations may only submit training applications for organisations they are staff of.");
+        }
+        throw new AccessDeniedException("You may only submit your own training applications.");
     }
 
     private ProgramTrainingApplication findApplication(UUID programUuid, UUID applicationUuid) {

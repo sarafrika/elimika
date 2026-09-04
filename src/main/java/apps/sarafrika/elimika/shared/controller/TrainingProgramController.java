@@ -99,12 +99,14 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Update training program",
-            description = "Updates an existing training program with selective field updates.",
+            description = "Updates an existing training program with selective field updates. Restricted to the program's creator and platform admins.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Program updated successfully"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program"),
                     @ApiResponse(responseCode = "404", description = "Program not found")
             }
     )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> updateTrainingProgram(
             @PathVariable UUID uuid,
@@ -116,12 +118,14 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Delete training program",
-            description = "Permanently removes a training program and its associated data.",
+            description = "Permanently removes a training program and its associated data. Restricted to the program's creator and platform admins.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Program deleted successfully"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program"),
                     @ApiResponse(responseCode = "404", description = "Program not found")
             }
     )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<Void>> deleteTrainingProgram(@PathVariable UUID uuid) {
         trainingProgramService.deleteTrainingProgram(uuid);
@@ -131,12 +135,14 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Publish training program",
-            description = "Publishes a program making it available for enrollment.",
+            description = "Publishes a program making it available for enrollment. Restricted to the program's creator and platform admins.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Program published successfully"),
-                    @ApiResponse(responseCode = "400", description = "Program not ready for publishing")
+                    @ApiResponse(responseCode = "400", description = "Program not ready for publishing"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program")
             }
     )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{uuid}/publish")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> publishProgram(
             @PathVariable UUID uuid) {
@@ -197,8 +203,15 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Add course to program",
-            description = "Associates a course with a program, setting sequence and requirement status."
+            description = "Associates a course with a program, setting sequence and requirement status. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Course added to program"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program")
+            }
     )
+    @PreAuthorize("@courseSecurityService.canWriteProgramCourse(#programUuid, null, #programCourseDTO.programUuid())"
+            + " or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{programUuid}/courses")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramCourseDTO>> addProgramCourse(
             @PathVariable UUID programUuid,
@@ -247,8 +260,16 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Update program course",
-            description = "Updates course association settings within a program."
+            description = "Updates course association settings within a program. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Program course updated"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program"),
+                    @ApiResponse(responseCode = "404", description = "Program course not found")
+            }
     )
+    @PreAuthorize("@courseSecurityService.canWriteProgramCourse(#programUuid, #courseUuid, #programCourseDTO.programUuid())"
+            + " or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{programUuid}/courses/{courseUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramCourseDTO>> updateProgramCourse(
             @PathVariable UUID programUuid,
@@ -261,8 +282,16 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Remove course from program",
-            description = "Removes the association between a course and program."
+            description = "Removes the association between a course and program. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Course removed from program"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program"),
+                    @ApiResponse(responseCode = "404", description = "Program course not found")
+            }
     )
+    @PreAuthorize("@courseSecurityService.canWriteProgramCourse(#programUuid, #courseUuid, null)"
+            + " or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{programUuid}/courses/{courseUuid}")
     public ResponseEntity<Void> removeProgramCourse(
             @PathVariable UUID programUuid,
@@ -368,8 +397,15 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Add requirement to program",
-            description = "Adds a new requirement or prerequisite to a program."
+            description = "Adds a new requirement or prerequisite to a program. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Requirement added to program"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program")
+            }
     )
+    @PreAuthorize("@courseSecurityService.canWriteProgramRequirement(#programUuid, null, #requirementDTO.programUuid())"
+            + " or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{programUuid}/requirements")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramRequirementDTO>> addProgramRequirement(
             @PathVariable UUID programUuid,
@@ -398,8 +434,16 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Update program requirement",
-            description = "Updates a specific requirement for a program."
+            description = "Updates a specific requirement for a program. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Requirement updated"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program"),
+                    @ApiResponse(responseCode = "404", description = "Requirement not found")
+            }
     )
+    @PreAuthorize("@courseSecurityService.canWriteProgramRequirement(#programUuid, #requirementUuid, #requirementDTO.programUuid())"
+            + " or @domainSecurityService.isPlatformAdmin()")
     @PutMapping("/{programUuid}/requirements/{requirementUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramRequirementDTO>> updateProgramRequirement(
             @PathVariable UUID programUuid,
@@ -412,8 +456,16 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Delete program requirement",
-            description = "Removes a requirement from a program."
+            description = "Removes a requirement from a program. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Requirement removed"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program"),
+                    @ApiResponse(responseCode = "404", description = "Requirement not found")
+            }
     )
+    @PreAuthorize("@courseSecurityService.canWriteProgramRequirement(#programUuid, #requirementUuid, null)"
+            + " or @domainSecurityService.isPlatformAdmin()")
     @DeleteMapping("/{programUuid}/requirements/{requirementUuid}")
     public ResponseEntity<Void> deleteProgramRequirement(
             @PathVariable UUID programUuid,
@@ -617,7 +669,16 @@ public class TrainingProgramController {
                     - Applicants submit once per program. Rejected applications can be resubmitted, which reopens the request.
                     - Duplicate pending or approved submissions are rejected with clear error messages. Revoked applicants must resubmit to regain access.
                     - Program creators review applications using the approval endpoints below.
-                    """
+
+                    The applicant named in the body must be the caller: their own instructor profile, or an
+                    organisation they hold an organisation-scoped `organisation_user` or `admin` role in.
+                    Applying in another party's name is rejected with 403.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Training application submitted"),
+                    @ApiResponse(responseCode = "403", description = "Caller is not the named applicant"),
+                    @ApiResponse(responseCode = "404", description = "Program not found")
+            }
     )
     @PostMapping("/{programUuid}/training-applications")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> submitProgramTrainingApplication(
@@ -633,8 +694,12 @@ public class TrainingProgramController {
             summary = "List program training applications",
             description = """
                     Retrieves applications for a program. Optionally filter by status using `status=pending|approved|rejected|revoked`.
+
+                    Restricted to the program creator and platform admins: every application carries the applicant's
+                    rate card, which is theirs and the program creator's business alone.
                     """
     )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid) or @domainSecurityService.isPlatformAdmin()")
     @GetMapping("/{programUuid}/training-applications")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<ProgramTrainingApplicationDTO>>> listProgramTrainingApplications(
             @PathVariable UUID programUuid,
@@ -660,8 +725,15 @@ public class TrainingProgramController {
             summary = "Search program training applications",
             description = """
                     Advanced search for training applications using flexible operators on any DTO field.
-                    Supports filters such as `status`, `applicantType`, `programUuid`, `applicantUuid`,
+                    Supports filters such as `status`, `applicantType`, `programUuid`, `applicantUuid`, `course_creator_uuid`,
                     `createdDate_between`, and more.
+
+                    Results are always confined to what the caller is a party to: their own instructor applications,
+                    those of organisations they are staff of, and every application on programs they created. An
+                    organisation additionally sees which instructors are approved on programs it is approved to
+                    train, without their rate cards - and those instructors drop out of the result entirely when the
+                    request filters or sorts on a withheld field, so a rate card cannot be read back a comparison at
+                    a time. Platform admins see everything.
                     """
     )
     @GetMapping("/training-applications/search")
@@ -678,7 +750,10 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Get program training application",
-            description = "Retrieves a specific training application for a program."
+            description = """
+                    Retrieves a specific training application for a program. Readable by the program creator, the
+                    applicant and platform admins; anyone else receives 404.
+                    """
     )
     @GetMapping("/{programUuid}/training-applications/{applicationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> getProgramTrainingApplication(
@@ -694,8 +769,10 @@ public class TrainingProgramController {
             description = """
                     Applies a decision to an instructor or organisation application to deliver the training program.
                     Use the `action` query parameter with values `approve`, `reject`, or `revoke`.
+                    Restricted to the program creator and platform admins.
                     """
     )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid) or @domainSecurityService.isPlatformAdmin()")
     @PostMapping("/{programUuid}/training-applications/{applicationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTrainingApplicationDTO>> decideOnProgramTrainingApplication(
             @PathVariable UUID programUuid,
