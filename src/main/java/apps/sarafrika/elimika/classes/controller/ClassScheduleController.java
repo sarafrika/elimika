@@ -11,11 +11,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * The assessment calendar of one class: when its assignments and quizzes fall due.
+ * <p>
+ * Every route here is keyed on {@code classUuid}, and writing to it decides what the learners in
+ * that class are marked on and by when. So the six mutations are restricted to the parties who run
+ * the class — its instructor, a manager of the owning organisation, or a platform admin — rather
+ * than to anyone holding a role somewhere on the platform. Reading the calendar stays open to any
+ * signed-in caller: a learner has to see their own deadlines, and the schedule names no one.
+ */
 @RestController
 @RequestMapping(ClassScheduleController.API_ROOT_PATH)
 @RequiredArgsConstructor
@@ -40,6 +50,7 @@ public class ClassScheduleController {
 
     @Operation(summary = "Create an assignment schedule for a class definition")
     @PostMapping("/assignments")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classUuid)")
     public ResponseEntity<ApiResponse<ClassAssignmentScheduleDTO>> createAssignmentSchedule(
             @Parameter(description = "Class definition UUID", required = true)
             @PathVariable UUID classUuid,
@@ -52,6 +63,7 @@ public class ClassScheduleController {
 
     @Operation(summary = "Update an assignment schedule for a class definition")
     @PatchMapping("/assignments/{scheduleUuid}")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classUuid)")
     public ResponseEntity<ApiResponse<ClassAssignmentScheduleDTO>> updateAssignmentSchedule(
             @Parameter(description = "Class definition UUID", required = true)
             @PathVariable UUID classUuid,
@@ -65,6 +77,7 @@ public class ClassScheduleController {
 
     @Operation(summary = "Delete an assignment schedule for a class definition")
     @DeleteMapping("/assignments/{scheduleUuid}")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classUuid)")
     public ResponseEntity<Void> deleteAssignmentSchedule(
             @Parameter(description = "Class definition UUID", required = true)
             @PathVariable UUID classUuid,
@@ -88,6 +101,7 @@ public class ClassScheduleController {
 
     @Operation(summary = "Create a quiz schedule for a class definition")
     @PostMapping("/quizzes")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classUuid)")
     public ResponseEntity<ApiResponse<ClassQuizScheduleDTO>> createQuizSchedule(
             @Parameter(description = "Class definition UUID", required = true)
             @PathVariable UUID classUuid,
@@ -100,6 +114,7 @@ public class ClassScheduleController {
 
     @Operation(summary = "Update a quiz schedule for a class definition")
     @PatchMapping("/quizzes/{scheduleUuid}")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classUuid)")
     public ResponseEntity<ApiResponse<ClassQuizScheduleDTO>> updateQuizSchedule(
             @Parameter(description = "Class definition UUID", required = true)
             @PathVariable UUID classUuid,
@@ -113,6 +128,7 @@ public class ClassScheduleController {
 
     @Operation(summary = "Delete a quiz schedule for a class definition")
     @DeleteMapping("/quizzes/{scheduleUuid}")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classUuid)")
     public ResponseEntity<Void> deleteQuizSchedule(
             @Parameter(description = "Class definition UUID", required = true)
             @PathVariable UUID classUuid,

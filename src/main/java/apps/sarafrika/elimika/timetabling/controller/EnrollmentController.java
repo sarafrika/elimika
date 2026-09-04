@@ -2,8 +2,6 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
-import apps.sarafrika.elimika.shared.security.DomainSecurityService;
-import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
@@ -14,6 +12,7 @@ import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
@@ -27,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -36,6 +34,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Enrolments, attendance and the figures drawn from them.
+ * <p>
+ * Every row here names a learner, so the guards are asked against the class the row sits in rather
+ * than against the caller's roles: the register of a class belongs to whoever runs that class.
+ * Where the caller chooses the filter — the enrolment search — the rows cannot be settled in
+ * advance, so they are filtered one by one instead of the request being refused outright, leaving
+ * each caller the rows they are party to. Organisation-wide figures are for that organisation's
+ * managers; belonging to the organisation as a learner or a contracted trainer is not enough.
+ *
+ * @see EnrollmentVisibilityService
+ */
 @RestController
 @RequestMapping("/api/v1/enrollment")
 @RequiredArgsConstructor
@@ -44,8 +54,7 @@ import java.util.UUID;
 public class EnrollmentController {
 
     private final TimetableService timetableService;
-    private final UserContextService userContextService;
-    private final DomainSecurityService domainSecurityService;
+    private final EnrollmentVisibilityService enrollmentVisibilityService;
 
     // ================================
     // ENROLLMENT OPERATIONS
@@ -88,7 +97,8 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid cancellation request")
     @DeleteMapping("/{enrollmentUuid}")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#enrollmentUuid) or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#enrollmentUuid) "
+            + "or @enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
     public ResponseEntity<ApiResponse<Void>> cancelEnrollment(
             @Parameter(description = "UUID of the enrollment to cancel")
             @PathVariable UUID enrollmentUuid,
@@ -109,7 +119,7 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Attendance already marked")
     @PatchMapping("/{enrollmentUuid}/attendance")
-    @PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
     public ResponseEntity<ApiResponse<Void>> markAttendance(
             @Parameter(description = "UUID of the enrollment")
             @PathVariable UUID enrollmentUuid,
@@ -130,7 +140,8 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
     @GetMapping("/{enrollmentUuid}")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#enrollmentUuid) or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@enrollmentSecurityService.isOwner(#enrollmentUuid) "
+            + "or @enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
     public ResponseEntity<ApiResponse<EnrollmentDTO>> getEnrollment(
             @Parameter(description = "UUID of the enrollment to retrieve")
             @PathVariable UUID enrollmentUuid) {
@@ -143,7 +154,7 @@ public class EnrollmentController {
     @Operation(summary = "Get all enrollments for a scheduled instance")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully")
     @GetMapping("/instance/{instanceUuid}")
-    @PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@enrollmentVisibilityService.canManageClassOfInstance(#instanceUuid)")
     public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getEnrollmentsForInstance(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid) {
@@ -155,16 +166,22 @@ public class EnrollmentController {
 
     @Operation(
             summary = "Search enrollments",
-            description = "Search enrollments using query parameters such as student_uuid and class_definition_uuid."
+            description = "Search enrollments using query parameters such as student_uuid and class_definition_uuid. "
+                    + "The filter is the caller's to choose, so the result is confined to the rows they are party "
+                    + "to: enrolments in a class they run, and their own. Rows in anyone else's class are not "
+                    + "returned and are not counted in the total, since a filter answered over withheld rows "
+                    + "would disclose them just as plainly."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment search completed successfully")
     @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<PagedDTO<EnrollmentDTO>>> searchEnrollments(
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         log.debug("REST request to search enrollments with params: {}", searchParams);
 
-        Page<EnrollmentDTO> results = timetableService.searchEnrollments(searchParams, pageable);
+        Page<EnrollmentDTO> results = enrollmentVisibilityService.visibleToCaller(
+                timetableService.searchEnrollments(searchParams, pageable));
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(results, baseUrl), "Enrollment search completed successfully"));
     }
@@ -280,7 +297,7 @@ public class EnrollmentController {
     @Operation(summary = "Get enrollment count for a scheduled instance")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment count retrieved successfully")
     @GetMapping("/instance/{instanceUuid}/count")
-    @PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize("@enrollmentVisibilityService.canManageClassOfInstance(#instanceUuid)")
     public ResponseEntity<ApiResponse<Long>> getEnrollmentCount(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid) {
@@ -310,7 +327,7 @@ public class EnrollmentController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrolment trends retrieved successfully")
     @GetMapping("/organisations/{organisationUuid}/enrolment-trends")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<EnrolmentTrendPointDTO>>> getEnrolmentTrends(
             @Parameter(description = "UUID of the organisation to scope the trend to")
             @PathVariable UUID organisationUuid,
@@ -329,7 +346,7 @@ public class EnrollmentController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Today's growth retrieved successfully")
     @GetMapping("/organisations/{organisationUuid}/today-growth")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<TodayGrowthPointDTO>>> getTodayGrowth(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid) {
@@ -346,7 +363,7 @@ public class EnrollmentController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Weekly growth retrieved successfully")
     @GetMapping("/organisations/{organisationUuid}/weekly-growth")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<WeeklyGrowthPointDTO>>> getWeeklyGrowth(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid,
@@ -364,7 +381,7 @@ public class EnrollmentController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class enrolment counts retrieved successfully")
     @GetMapping("/organisations/{organisationUuid}/class-enrolment-counts")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<ClassEnrolmentCountDTO>>> getClassEnrolmentCounts(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid) {
@@ -382,7 +399,7 @@ public class EnrollmentController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Activity feed retrieved successfully")
     @GetMapping("/organisations/{organisationUuid}/activity-feed")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<OrganisationActivityEventDTO>>> getActivityFeed(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid,
@@ -401,7 +418,7 @@ public class EnrollmentController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrolment summaries retrieved successfully")
     @GetMapping("/organisations/{organisationUuid}/student-summaries")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<StudentEnrolmentSummaryDTO>>> getStudentSummaries(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid) {
@@ -420,26 +437,15 @@ public class EnrollmentController {
                     "through this endpoint by construction, not by filtering afterwards."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student performance retrieved successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not belong to this organisation")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/students/{studentUuid}/performance")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<OrganisationStudentPerformanceDTO>>> getStudentPerformance(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid,
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid) {
         log.debug("REST request for performance of student {} within organisation {}", studentUuid, organisationUuid);
-
-        UUID callerUuid = userContextService.getCurrentUserUuid();
-        // Both halves are memoised for the request, so this guard costs nothing beyond the
-        // @PreAuthorize expressions that already asked the same questions.
-        boolean permitted = domainSecurityService.isPlatformAdmin()
-                || domainSecurityService.belongsToOrganisation(organisationUuid);
-        if (!permitted) {
-            log.warn("User {} attempted to read student performance for organisation {} without belonging to it",
-                    callerUuid, organisationUuid);
-            throw new AccessDeniedException("You do not belong to this organisation.");
-        }
 
         List<OrganisationStudentPerformanceDTO> performance =
                 timetableService.getStudentPerformanceForOrganisation(organisationUuid, studentUuid);

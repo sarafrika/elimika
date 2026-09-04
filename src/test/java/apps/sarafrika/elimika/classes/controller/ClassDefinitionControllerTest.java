@@ -17,10 +17,12 @@ import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.security.ClassAccessSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -867,6 +869,21 @@ class ClassDefinitionControllerTest {
         @Bean
         ClassReviewService classReviewService() {
             return Mockito.mock(ClassReviewService.class);
+        }
+
+        @Bean
+        ClassAccessSecurityService classAccessSecurityService() {
+            return Mockito.mock(ClassAccessSecurityService.class);
+        }
+
+        @Bean
+        EnrollmentVisibilityService enrollmentVisibilityService() {
+            // Filtering is the security layer's own concern and is exercised there; here it stands
+            // aside so the controller's mapping of a roster is what the assertions see.
+            EnrollmentVisibilityService enrollmentVisibilityService = Mockito.mock(EnrollmentVisibilityService.class);
+            when(enrollmentVisibilityService.visibleToCaller(any(UUID.class), Mockito.anyList()))
+                    .thenAnswer(invocation -> invocation.getArgument(1));
+            return enrollmentVisibilityService;
         }
 
         @Bean

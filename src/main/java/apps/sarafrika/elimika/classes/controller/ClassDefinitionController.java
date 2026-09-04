@@ -14,11 +14,13 @@ import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassReviewService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.security.ClassAccessSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.storage.service.StorageService;
 import apps.sarafrika.elimika.shared.storage.util.StoragePathUtils;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -52,12 +54,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Class definitions and the schedule built from them.
+ * <p>
+ * Reading and writing are guarded differently on purpose. What classes exist, when they run and how
+ * they are rated is catalogue: a learner has to be able to browse it before they belong to anything,
+ * so those listings stay open to any signed-in caller. Creating, changing or retiring a class is
+ * restricted to the parties who run it, and the roster — the one response here that carries other
+ * learners' identities — is filtered to what each caller is party to. See
+ * {@link ClassAccessSecurityService} and {@link EnrollmentVisibilityService}.
+ */
 @RestController
 @RequestMapping("/api/v1/classes")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Class Definition Management", description = "APIs for creating and managing class definitions and scheduling.")
-
 public class ClassDefinitionController {
 
     private final ClassDefinitionServiceInterface classDefinitionService;
@@ -68,6 +79,8 @@ public class ClassDefinitionController {
     private final ObjectMapper objectMapper;
     private final Validator validator;
     private final ClassReviewService classReviewService;
+    private final ClassAccessSecurityService classAccessSecurityService;
+    private final EnrollmentVisibilityService enrollmentVisibilityService;
 
     // ================================
     // CORE CLASS DEFINITION MANAGEMENT
@@ -77,6 +90,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("@classAccessSecurityService.canCreateClass(#request.organisationUuid(), #request.defaultInstructorUuid())")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinition(
             @Valid @RequestBody ClassDefinitionCreateRequestDTO request) {
         log.debug("REST request to create class definition: {}", request.title());
@@ -104,6 +118,7 @@ public class ClassDefinitionController {
             @RequestParam(value = "marketing_video", required = false) MultipartFile marketingVideo,
             @RequestParam(value = "marketingVideo", required = false) MultipartFile camelCaseMarketingVideo) {
         ClassDefinitionCreateRequestDTO request = resolveMultipartCreateRequest(requestPart, classDefinitionPart, formFields);
+        classAccessSecurityService.ensureMayCreateClass(request.organisationUuid(), request.defaultInstructorUuid());
         log.debug("REST multipart request to create class definition: {}", request.title());
 
         try {
@@ -122,6 +137,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Class definition created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PostMapping(value = "/program/{programUuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("@classAccessSecurityService.canCreateClass(#request.organisationUuid(), #request.defaultInstructorUuid())")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> createClassDefinitionForProgram(
             @Parameter(description = "UUID of the training program", required = true)
             @PathVariable UUID programUuid,
@@ -160,6 +176,7 @@ public class ClassDefinitionController {
             @RequestParam(value = "marketing_video", required = false) MultipartFile marketingVideo,
             @RequestParam(value = "marketingVideo", required = false) MultipartFile camelCaseMarketingVideo) {
         ClassDefinitionCreateRequestDTO request = resolveMultipartCreateRequest(requestPart, classDefinitionPart, formFields);
+        classAccessSecurityService.ensureMayCreateClass(request.organisationUuid(), request.defaultInstructorUuid());
         log.debug("REST multipart request to create class definition: {} for training program: {}",
                 request.title(), programUuid);
 
@@ -181,7 +198,11 @@ public class ClassDefinitionController {
         }
     }
 
-    @Operation(summary = "List enrollments for a class definition across all scheduled instances")
+    @Operation(summary = "List enrollments for a class definition across all scheduled instances",
+            description = "Whoever runs the class - its instructor, a manager of the owning organisation, "
+                    + "or a platform admin - receives the roster in full. Any other caller receives only "
+                    + "their own enrolment in it, so a learner can still confirm the seat they hold without "
+                    + "reading off a directory of their classmates.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully")
     @GetMapping("/{uuid}/enrollments")
     public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getEnrollmentsForClass(
@@ -189,7 +210,8 @@ public class ClassDefinitionController {
             @PathVariable UUID uuid) {
         log.debug("REST request to get enrollments for class definition: {}", uuid);
 
-        List<EnrollmentDTO> enrollments = timetableService.getEnrollmentsForClass(uuid);
+        List<EnrollmentDTO> enrollments = enrollmentVisibilityService.visibleToCaller(
+                uuid, timetableService.getEnrollmentsForClass(uuid));
         return ResponseEntity.ok(ApiResponse.success(enrollments, "Enrollments retrieved successfully"));
     }
 
@@ -199,6 +221,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Student is not eligible to review this class")
     @PostMapping("/{uuid}/reviews")
+    @PreAuthorize("@domainSecurityService.isStudentWithUuid(#reviewRequest.studentUuid())")
     public ResponseEntity<ApiResponse<ClassReviewDTO>> submitClassReview(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -250,6 +273,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data")
     @PutMapping("/{uuid}")
+    @PreAuthorize("@classAccessSecurityService.canUpdateClass(#uuid, #request.organisationUuid())")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> updateClassDefinition(
             @Parameter(description = "UUID of the class definition to update", required = true)
             @PathVariable UUID uuid,
@@ -265,6 +289,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid thumbnail file")
     @PostMapping(value = "/{uuid}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> uploadClassThumbnail(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -281,6 +306,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid promotional video file")
     @PostMapping(value = "/{uuid}/promotional-video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<ClassDefinitionResponseDTO>> uploadClassPromotionalVideo(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -308,6 +334,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Scheduling conflicts detected")
     @PostMapping("/{uuid}/session-templates")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<ClassSessionTemplateScheduleResponseDTO>> addSessionTemplate(
             @Parameter(description = "UUID of the class definition", required = true)
             @PathVariable UUID uuid,
@@ -330,6 +357,7 @@ public class ClassDefinitionController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definition deactivated successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @DeleteMapping("/{uuid}")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#uuid)")
     public ResponseEntity<ApiResponse<Void>> deactivateClassDefinition(
             @Parameter(description = "UUID of the class definition to deactivate", required = true)
             @PathVariable UUID uuid) {

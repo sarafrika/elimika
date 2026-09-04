@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -16,9 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import apps.sarafrika.elimika.shared.service.UserContextService;
-import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,16 +36,13 @@ class EnrollmentControllerTest {
     private TimetableService timetableService;
 
     @Mock
-    private UserContextService userContextService;
-
-    @Mock
-    private DomainSecurityService domainSecurityService;
+    private EnrollmentVisibilityService enrollmentVisibilityService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, userContextService, domainSecurityService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, enrollmentVisibilityService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }
