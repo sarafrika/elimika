@@ -48,6 +48,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
@@ -56,7 +57,6 @@ import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import org.springframework.web.multipart.MultipartFile;
-import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService;
 import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
@@ -67,6 +67,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,6 +104,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final String DEFAULT_SCHEDULE_TIMEZONE = "UTC";
     private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
+    private static final String CACHE_PAY_VISIBLE = "marketplaceJob.payVisible";
 
     private final ClassMarketplaceJobRepository jobRepository;
     private final ClassMarketplaceJobApplicationRepository applicationRepository;
@@ -116,6 +118,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final StudentGroupLookupService studentGroupLookupService;
     private final InstructorLookupService instructorLookupService;
     private final DomainSecurityService domainSecurityService;
+    private final RequestScopedCache requestScopedCache;
     private final ClassDefinitionServiceInterface classDefinitionService;
     private final ResourceBookingService resourceBookingService;
     private final ResourceLookupService resourceLookupService;
@@ -287,7 +290,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                                        ClassMarketplaceJobApplicationStatus status,
                                                                        org.springframework.data.domain.Pageable pageable) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
-        requireOrganisationManagerAccess(job.getOrganisationUuid());
+        requireOrganisationApplicationReadAccess(job.getOrganisationUuid());
         if (status == null) {
             return applicationRepository.findByJobUuidOrderByCreatedDateDesc(jobUuid, pageable)
                     .map(application -> toApplicationDTO(application, job));
@@ -301,20 +304,56 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
                                                                       org.springframework.data.domain.Pageable pageable) {
         UUID instructorUuid = resolveCurrentInstructorUuid();
-        return listInstructorApplications(instructorUuid, status, pageable);
+        return findInstructorApplications(instructorUuid, status, pageable).map(this::toApplicationDTO);
     }
 
+    /**
+     * An instructor's applications carry review notes and rate figures, so who is asking decides
+     * what comes back. The instructor sees all of their own and so does a platform admin, which is
+     * what the admin console's user dossier reads. An organisation manager sees only the ones made
+     * to their own organisations' jobs — the same rows {@link #listJobApplications} would already
+     * give them, job by job. Anyone else gets an empty page rather than a refusal, so the route
+     * confirms nothing about an instructor it will not show.
+     */
     @Override
     @Transactional(readOnly = true)
     public Page<ClassMarketplaceJobApplicationDTO> listInstructorApplications(UUID instructorUuid,
                                                                               ClassMarketplaceJobApplicationStatus status,
                                                                               org.springframework.data.domain.Pageable pageable) {
-        if (status == null) {
-            return applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable)
-                    .map(this::toApplicationDTO);
+        UUID currentUserUuid = requireCurrentUserUuid();
+        if (domainSecurityService.isInstructorWithUuid(instructorUuid) || domainSecurityService.isPlatformAdmin()) {
+            return findInstructorApplications(instructorUuid, status, pageable).map(this::toApplicationDTO);
         }
-        return applicationRepository.findByInstructorUuidAndStatusOrderByCreatedDateDesc(instructorUuid, status, pageable)
+
+        // Resolving what the caller manages first means a signed-in stranger — the common case on a
+        // route addressed by instructor uuid — costs one membership lookup and never touches the
+        // applications table.
+        List<UUID> managedOrganisations = organisationsManagedBy(currentUserUuid);
+        if (managedOrganisations.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return applicationRepository
+                .findByInstructorUuidAndJobOrganisations(instructorUuid, status, managedOrganisations, pageable)
                 .map(this::toApplicationDTO);
+    }
+
+    private Page<ClassMarketplaceJobApplication> findInstructorApplications(UUID instructorUuid,
+                                                                            ClassMarketplaceJobApplicationStatus status,
+                                                                            Pageable pageable) {
+        if (status == null) {
+            return applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable);
+        }
+        return applicationRepository.findByInstructorUuidAndStatusOrderByCreatedDateDesc(instructorUuid, status, pageable);
+    }
+
+    /**
+     * The organisations the given user may act for, drawn from their own memberships so the answer
+     * is bounded by who they are rather than by how many organisations exist.
+     */
+    private List<UUID> organisationsManagedBy(UUID userUuid) {
+        return userLookupService.getUserOrganizations(userUuid).stream()
+                .filter(domainSecurityService::managesOrganisation)
+                .toList();
     }
 
     @Override
@@ -560,11 +599,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
             if (job.getInstructorPay() != null && job.getInstructorPay().compareTo(approvedRate) < 0) {
                 throw new IllegalArgumentException(String.format(
-                        "This posting offers %s %s, which is below the instructor's approved rate of %s "
-                                + "for %s %s sessions.",
-                        job.getInstructorPay(),
-                        (job.getRateBasis() == null ? RateBasis.PER_HOUR : job.getRateBasis()).getValue(),
-                        approvedRate, job.getSessionFormat(), job.getLocationType()));
+                        "This posting's instructor pay is below the instructor's approved rate for %s %s sessions.",
+                        job.getSessionFormat(), job.getLocationType()));
             }
         });
 
@@ -765,15 +801,12 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         BigDecimal instructorPay = request.instructorPay() != null ? request.instructorPay() : salePrice;
 
         if (instructorPay.compareTo(salePrice) > 0) {
-            throw new IllegalArgumentException(String.format(
-                    "Instructor pay %s cannot exceed the sale price %s.", instructorPay, salePrice));
+            throw new IllegalArgumentException("Instructor pay cannot exceed the sale price.");
         }
 
         BigDecimal minimumTrainingFee = resolveMinimumTrainingFeeForRequest(request);
         if (minimumTrainingFee != null && salePrice.compareTo(minimumTrainingFee) < 0) {
-            throw new IllegalArgumentException(String.format(
-                    "Sale price %s cannot be less than the course minimum training fee %s.",
-                    salePrice, minimumTrainingFee));
+            throw new IllegalArgumentException("Sale price cannot be less than the course minimum training fee.");
         }
 
         job.setSalePrice(salePrice);
@@ -1156,24 +1189,28 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
     private void requireOrganisationManagerAccess(UUID organisationUuid) {
         UUID currentUserUuid = requireCurrentUserUuid();
-
-        // Memoised per organisation and domain, so the several guarded steps of one job action
-        // share a single membership query.
-        boolean hasOrganisationUserAccess = domainSecurityService.belongsToOrganisationWithDomain(
-                organisationUuid,
-                UserDomain.organisation_user
-        );
-        boolean hasAdminAccess = domainSecurityService.belongsToOrganisationWithDomain(
-                organisationUuid,
-                UserDomain.admin
-        );
-
-        if (!hasOrganisationUserAccess && !hasAdminAccess) {
+        // managesOrganisation is itself memoised per organisation, so the several guarded steps of
+        // one job action share a single membership query.
+        if (!domainSecurityService.managesOrganisation(organisationUuid)) {
             throw new AccessDeniedException(String.format(
                     "User %s is not allowed to manage marketplace jobs for organisation %s.",
                     currentUserUuid,
                     organisationUuid));
         }
+    }
+
+    /**
+     * Reading a job's applications is open to the posting organisation's managers and to platform
+     * admins, who reach the same rows from the other direction through
+     * {@link #listInstructorApplications}. Kept separate from
+     * {@link #requireOrganisationManagerAccess} so that admitting admins to a read does not admit
+     * them to posting, cancelling or deciding on another organisation's jobs.
+     */
+    private void requireOrganisationApplicationReadAccess(UUID organisationUuid) {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return;
+        }
+        requireOrganisationManagerAccess(organisationUuid);
     }
 
     private UUID resolveCurrentInstructorUuid() {
@@ -1492,6 +1529,35 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         return value;
     }
 
+    /**
+     * Next to the sale price, the pay an advert offers gives away the organisation's margin. It
+     * belongs to the people who set it — the posting organisation's managers and platform admins —
+     * and to the audience the advert is written for: instructors who could actually take the work.
+     * <p>
+     * That audience is deliberately the <em>verified</em> instructors rather than everyone holding
+     * the {@code instructor} domain. The domain is self-service, so gating on it would leave the
+     * figure readable by any signed-in user who first created an instructor profile; verification
+     * is an administrator's decision, and it is already the bar
+     * {@link #ensureInstructorEligibleToApply} sets before an instructor may apply, so nobody who
+     * can act on the number is denied it. Every other signed-in browser of the marketplace —
+     * learners, guardians, course creators, unverified applicants and managers of rival
+     * organisations — reads the advert without it. The DTO omits null fields, so the figure is
+     * absent from their JSON rather than present and empty.
+     */
+    private boolean canSeeInstructorPay(ClassMarketplaceJob job) {
+        return payVisibleToCallerEverywhere()
+                || domainSecurityService.managesOrganisation(job.getOrganisationUuid());
+    }
+
+    /**
+     * The half of {@link #canSeeInstructorPay} that does not depend on which job is being read,
+     * memoised because a marketplace page asks it once per advert.
+     */
+    private boolean payVisibleToCallerEverywhere() {
+        return requestScopedCache.get(CACHE_PAY_VISIBLE,
+                () -> domainSecurityService.isVerifiedInstructor() || domainSecurityService.isPlatformAdmin());
+    }
+
     private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job) {
         return new ClassMarketplaceJobDTO(
                 job.getUuid(),
@@ -1501,7 +1567,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getTitle(),
                 job.getDescription(),
                 job.getSalePrice(),
-                job.getInstructorPay(),
+                canSeeInstructorPay(job) ? job.getInstructorPay() : null,
                 job.getRateBasis(),
                 job.getStatus(),
                 job.getClassVisibility(),

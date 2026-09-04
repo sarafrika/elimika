@@ -34,6 +34,8 @@ public class DomainSecurityService {
     private static final String CACHE_COURSE_CREATOR_UUID = "security.courseCreatorUuid";
     private static final String CACHE_DOMAINS = "security.domains";
     private static final String CACHE_PLATFORM_ADMIN = "security.platformAdmin";
+    private static final String CACHE_VERIFIED_INSTRUCTOR = "security.verifiedInstructor";
+    private static final String CACHE_MANAGES_ORGANISATION_PREFIX = "security.managesOrganisation.";
     private static final String CACHE_ADMINISTERS_USER_PREFIX = "security.administersUser.";
     private static final String CACHE_ORG_DOMAIN_PREFIX = "security.orgDomain.";
     private static final String CACHE_ORG_MEMBER_PREFIX = "security.orgMember.";
@@ -85,6 +87,35 @@ public class DomainSecurityService {
                         && userLookupService.userHasGlobalDomain(currentUserUuid, UserDomain.admin);
             } catch (Exception e) {
                 log.error("Error checking platform admin status", e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller has an instructor profile that an administrator has verified.
+     * <p>
+     * {@link #isInstructor()} only reports the {@code instructor} user-domain, and that domain is
+     * self-service — anyone authenticated can create an instructor profile and hold it — so it
+     * cannot carry an authorization decision. {@code admin_verified} can only be set through the
+     * platform-admin console, which makes this the weakest instructor predicate that is not
+     * self-grantable, and the same bar the marketplace already applies before an instructor may
+     * apply to a job.
+     * <p>
+     * Fails closed, and is memoised because a listing asks once per row.
+     */
+    public boolean isVerifiedInstructor() {
+        return requestScopedCache.get(CACHE_VERIFIED_INSTRUCTOR, () -> {
+            try {
+                UUID currentUserUuid = getCurrentUserUuid();
+                if (currentUserUuid == null) {
+                    return false;
+                }
+                return instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid)
+                        .flatMap(instructorLookupService::isInstructorAdminVerified)
+                        .orElse(false);
+            } catch (Exception e) {
+                log.error("Error checking instructor verification status", e);
                 return false;
             }
         });
@@ -177,6 +208,40 @@ public class DomainSecurityService {
                 return userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
             } catch (Exception e) {
                 log.error("Error checking membership of organisation {}", organisationUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller holds an org-scoped {@code organisation_user} or {@code admin} mapping
+     * <em>for this organisation specifically</em>.
+     * <p>
+     * The organisation-scoped counterpart to {@link #isOrganizationAdmin()} for requests that name
+     * the organisation rather than a user: the same manager predicate the tenancy module exposes as
+     * {@code canManageOrganisation}, minus its platform-admin passthrough, made available here for
+     * modules that may only depend on {@code shared}. Callers that want platform admins through
+     * compose it with {@link #isPlatformAdmin()}. Fails closed, and is memoised per organisation
+     * because a listing that spans many organisations asks once per row.
+     *
+     * @param organisationUuid the organisation being acted on
+     */
+    public boolean managesOrganisation(UUID organisationUuid) {
+        if (organisationUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_MANAGES_ORGANISATION_PREFIX + organisationUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.organisation_user)
+                        || userLookupService.userBelongsToOrganizationWithDomain(
+                                callerUuid, organisationUuid, UserDomain.admin);
+            } catch (Exception e) {
+                log.error("Error checking management rights over organisation {}", organisationUuid, e);
                 return false;
             }
         });

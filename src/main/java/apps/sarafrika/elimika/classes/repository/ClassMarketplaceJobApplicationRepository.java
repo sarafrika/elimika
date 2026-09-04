@@ -50,4 +50,26 @@ public interface ClassMarketplaceJobApplicationRepository extends JpaRepository<
             """)
     boolean existsByInstructorUuidAndJobOrganisationUuidIn(@Param("instructorUuid") UUID instructorUuid,
                                                            @Param("organisationUuids") Collection<UUID> organisationUuids);
+
+    /**
+     * One instructor's applications, restricted to the jobs posted by the given organisations.
+     * <p>
+     * The restriction is expressed in the query rather than by filtering a full by-instructor scan
+     * in memory, so an organisation manager reading an instructor's history pays for one page and
+     * cannot be used to force a table scan.
+     */
+    @Query("""
+            SELECT application FROM ClassMarketplaceJobApplication application
+            WHERE application.instructorUuid = :instructorUuid
+              AND (:status IS NULL OR application.status = :status)
+              AND application.jobUuid IN (
+                    SELECT job.uuid FROM ClassMarketplaceJob job
+                    WHERE job.organisationUuid IN :organisationUuids)
+            ORDER BY application.createdDate DESC
+            """)
+    Page<ClassMarketplaceJobApplication> findByInstructorUuidAndJobOrganisations(
+            @Param("instructorUuid") UUID instructorUuid,
+            @Param("status") ClassMarketplaceJobApplicationStatus status,
+            @Param("organisationUuids") Collection<UUID> organisationUuids,
+            Pageable pageable);
 }

@@ -77,7 +77,8 @@ public class ClassMarketplaceJobController {
         return ResponseEntity.ok(ApiResponse.success(result, "Thumbnail uploaded successfully"));
     }
 
-    @Operation(summary = "List marketplace class jobs")
+    @Operation(summary = "List marketplace class jobs",
+            description = "instructor_pay is included only for admin-verified instructors, managers of the posting organisation and platform admins; other callers receive the advert without it")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobDTO>>> listJobs(
             @RequestParam(value = "organisation_uuid", required = false) UUID organisationUuid,
@@ -101,7 +102,8 @@ public class ClassMarketplaceJobController {
                 "Marketplace class jobs retrieved successfully"));
     }
 
-    @Operation(summary = "Get a marketplace class job")
+    @Operation(summary = "Get a marketplace class job",
+            description = "instructor_pay is included only for admin-verified instructors, managers of the posting organisation and platform admins; other callers receive the advert without it")
     @GetMapping("/{jobUuid}")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobDTO>> getJob(@PathVariable UUID jobUuid) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -178,7 +180,8 @@ public class ClassMarketplaceJobController {
         ));
     }
 
-    @Operation(summary = "List applications for a marketplace class job")
+    @Operation(summary = "List applications for a marketplace class job",
+            description = "Restricted to managers of the organisation that posted the job, and to platform admins")
     @GetMapping("/{jobUuid}/applications")
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobApplicationDTO>>> listJobApplications(
             @PathVariable UUID jobUuid,
@@ -216,7 +219,8 @@ public class ClassMarketplaceJobController {
                 "Marketplace class job applications retrieved successfully"));
     }
 
-    @Operation(summary = "List marketplace class job applications for an instructor")
+    @Operation(summary = "List marketplace class job applications for an instructor",
+            description = "The instructor and platform admins see every application; an organisation manager sees only those made to their organisation's jobs; anyone else receives an empty page")
     @GetMapping("/applications/instructor/{instructorUuid}")
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobApplicationDTO>>> listInstructorApplications(
             @PathVariable UUID instructorUuid,

@@ -28,7 +28,7 @@ import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
-import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
@@ -131,6 +131,8 @@ class ClassMarketplaceJobServiceImplTest {
     @Mock
     private apps.sarafrika.elimika.shared.storage.config.StorageProperties storageProperties;
 
+    private final RequestScopedCache requestScopedCache = new RequestScopedCache();
+
     private ClassMarketplaceJobServiceImpl service;
 
     @BeforeEach
@@ -148,6 +150,7 @@ class ClassMarketplaceJobServiceImplTest {
                 studentGroupLookupService,
                 instructorLookupService,
                 domainSecurityService,
+                requestScopedCache,
                 classDefinitionService,
                 resourceBookingService,
                 resourceLookupService,
@@ -180,6 +183,8 @@ class ClassMarketplaceJobServiceImplTest {
         ClassMarketplaceJobApplication application = sampleApplication(UUID.randomUUID(), instructorUuid);
         application.setStatus(ClassMarketplaceJobApplicationStatus.PENDING);
 
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructorWithUuid(instructorUuid)).thenReturn(true);
         when(applicationRepository.findByInstructorUuidAndStatusOrderByCreatedDateDesc(
                 instructorUuid,
                 ClassMarketplaceJobApplicationStatus.PENDING,
@@ -209,8 +214,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
-                .thenReturn(true);
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid())).thenReturn(Optional.of(application));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), application.getInstructorUuid())).thenReturn(false);
 
@@ -616,8 +620,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
-                .thenReturn(true);
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid())).thenReturn(Optional.of(application));
         when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), application.getInstructorUuid())).thenReturn(false);
 
@@ -649,8 +652,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
                 .thenReturn(Optional.of(approvedApplication));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
-                .thenReturn(true);
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
         when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid())).thenReturn(List.of(sessionTemplate));
@@ -1053,8 +1055,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approvedApplication.getUuid()))
                 .thenReturn(Optional.of(approvedApplication));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(domainSecurityService.belongsToOrganisationWithDomain(job.getOrganisationUuid(), UserDomain.organisation_user))
-                .thenReturn(true);
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
         when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
         when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), instructorUuid)).thenReturn(true);
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid())).thenReturn(List.of(sessionTemplate));
@@ -1303,6 +1304,98 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(dto.instructorAdminVerified()).isTrue();
         assertThat(dto.trainingApproved()).isTrue();
         assertThat(dto.approvedRate()).isEqualByComparingTo(new BigDecimal("300.00"));
+    }
+
+    @Test
+    void listInstructorApplicationsReturnsEmptyPageForCallerWhoManagesNothing() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.getUserOrganizations(currentUserUuid)).thenReturn(List.of());
+
+        var result = service.listInstructorApplications(instructorUuid, null, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+        verify(applicationRepository, never())
+                .findByInstructorUuidOrderByCreatedDateDesc(any(), any());
+        verify(applicationRepository, never())
+                .findByInstructorUuidAndJobOrganisations(any(), any(), any(), any());
+    }
+
+    @Test
+    void listInstructorApplicationsLimitsManagerToTheirOwnOrganisationsJobs() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID managedOrganisationUuid = UUID.randomUUID();
+        UUID otherOrganisationUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        ClassMarketplaceJobApplication application = sampleApplication(UUID.randomUUID(), instructorUuid);
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.getUserOrganizations(currentUserUuid))
+                .thenReturn(List.of(managedOrganisationUuid, otherOrganisationUuid));
+        when(domainSecurityService.managesOrganisation(managedOrganisationUuid)).thenReturn(true);
+        when(domainSecurityService.managesOrganisation(otherOrganisationUuid)).thenReturn(false);
+        when(applicationRepository.findByInstructorUuidAndJobOrganisations(
+                instructorUuid, null, List.of(managedOrganisationUuid), pageable))
+                .thenReturn(new PageImpl<>(List.of(application), pageable, 1));
+
+        var result = service.listInstructorApplications(instructorUuid, null, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(applicationRepository).findByInstructorUuidAndJobOrganisations(
+                instructorUuid, null, List.of(managedOrganisationUuid), pageable);
+    }
+
+    @Test
+    void listJobsHidesInstructorPayFromCallersWhoAreNotVerifiedInstructorsOrManagers() {
+        ClassMarketplaceJob job = sampleJob();
+        job.setInstructorPay(new BigDecimal("18000.00"));
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(jobRepository.search(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
+
+        var page = service.listJobs(null, null, null, null, pageable);
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().getFirst().salePrice()).isEqualTo(job.getSalePrice());
+        assertThat(page.getContent().getFirst().instructorPay()).isNull();
+    }
+
+    @Test
+    void listJobsKeepsInstructorPayForVerifiedInstructors() {
+        ClassMarketplaceJob job = sampleJob();
+        job.setInstructorPay(new BigDecimal("18000.00"));
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(domainSecurityService.isVerifiedInstructor()).thenReturn(true);
+        when(jobRepository.search(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
+
+        var page = service.listJobs(null, null, null, null, pageable);
+
+        assertThat(page.getContent().getFirst().instructorPay())
+                .isEqualByComparingTo(new BigDecimal("18000.00"));
+    }
+
+    @Test
+    void listJobsKeepsInstructorPayForTheOrganisationThatPostedIt() {
+        ClassMarketplaceJob job = sampleJob();
+        job.setInstructorPay(new BigDecimal("18000.00"));
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
+        when(jobRepository.search(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
+
+        var page = service.listJobs(null, null, null, null, pageable);
+
+        assertThat(page.getContent().getFirst().instructorPay())
+                .isEqualByComparingTo(new BigDecimal("18000.00"));
     }
 
     @Test
@@ -2025,8 +2118,7 @@ class ClassMarketplaceJobServiceImplTest {
 
     private void allowOrganisationAccess(UUID currentUserUuid, UUID organisationUuid) {
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(domainSecurityService.belongsToOrganisationWithDomain(organisationUuid, UserDomain.organisation_user))
-                .thenReturn(true);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(true);
     }
 
     private ClassMarketplaceJobApplication sampleApplication(UUID jobUuid, UUID instructorUuid) {
