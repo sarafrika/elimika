@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
@@ -107,6 +108,12 @@ class TimetableServiceImplTest {
     @Mock
     private apps.sarafrika.elimika.resourcing.spi.ResourceBookingService resourceBookingService;
 
+    @Mock
+    private DomainSecurityService domainSecurityService;
+
+    @Mock
+    private apps.sarafrika.elimika.timetabling.security.TimetableSecurityService timetableSecurityService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -128,7 +135,9 @@ class TimetableServiceImplTest {
                 organisationLookupService,
                 organisationAffiliationService,
                 instructorLookupService,
-                resourceBookingService
+                resourceBookingService,
+                domainSecurityService,
+                timetableSecurityService
         );
     }
 
@@ -565,6 +574,7 @@ class TimetableServiceImplTest {
         UUID courseUuid = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 20);
 
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
         when(learnerProgressLookupService.findCourseProgress(studentUuid, pageable))
                 .thenReturn(new PageImpl<>(List.of(new LearnerCourseProgressView(
                         UUID.randomUUID(),

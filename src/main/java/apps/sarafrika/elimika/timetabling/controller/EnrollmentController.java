@@ -53,6 +53,52 @@ import java.util.UUID;
 @Tag(name = "Enrollment API", description = "Student enrollment and attendance management")
 public class EnrollmentController {
 
+    /**
+     * Every organisation-scoped route below answers a question about one organisation's learners,
+     * classes or money, so each is confined to the people who run that organisation — an org-scoped
+     * {@code organisation_user} or {@code admin} of it — plus platform admins doing support. The
+     * check is against the organisation named in the path, never a role held somewhere else.
+     */
+    private static final String MANAGE_ORGANISATION =
+            "@domainSecurityService.isPlatformAdmin() or @domainSecurityService.managesOrganisation(#organisationUuid)";
+
+    /**
+     * A session's roster is the list of learners sitting in one organisation's class, so reaching it
+     * takes a relationship to that session — teaching it, owning the class, or running the
+     * organisation behind it — not merely holding the {@code instructor} or {@code admin} domain
+     * somewhere on the platform.
+     */
+    private static final String READ_INSTANCE_ROSTER =
+            "@timetableSecurityService.canReadInstanceRoster(#instanceUuid)";
+
+    /**
+     * The same reach, expressed over a single enrolment: the caller must hold the session the
+     * enrolment sits on. Routes a learner may also use spell out their own ownership alongside it.
+     */
+    private static final String ACCESS_ENROLMENT =
+            "@timetableSecurityService.canAccessEnrolment(#enrollmentUuid)";
+
+    /**
+     * A learner's enrolment record is theirs. It also belongs, in part, to the institutions they
+     * joined — so those who share a session with them may read it, and no one else. Holding the
+     * {@code instructor} domain elsewhere on the platform is not a relationship with this learner.
+     */
+    private static final String READ_LEARNER_RECORD =
+            "@enrollmentSecurityService.isOwner(#studentUuid, 'student') or "
+                    + "@timetableSecurityService.canReadLearnerRecord(#studentUuid)";
+
+    /**
+     * Eligibility carries the learner's age and whether their date of birth is on file, so it is a
+     * fact about one named person and cannot be gated on a domain the caller happens to hold
+     * somewhere on the platform. It is asked before any enrolment exists, though, so a shared session
+     * is not available to scope it either; the class in the path is. Either the learner is asking
+     * about themselves, or the caller holds the class they are being signed up to — its instructor,
+     * a manager of the owning organisation, or a platform administrator.
+     */
+    private static final String CHECK_ELIGIBILITY =
+            "@enrollmentSecurityService.isOwner(#studentUuid, 'student') or "
+                    + "@timetableSecurityService.canReadClassRoster(#classDefinitionUuid)";
+
     private final TimetableService timetableService;
     private final EnrollmentVisibilityService enrollmentVisibilityService;
 
@@ -96,7 +142,13 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Enrollment cancelled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid cancellation request")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller neither owns the enrolment nor holds its session")
     @DeleteMapping("/{enrollmentUuid}")
+    // Two units guarded this route. canManageClassOfEnrollment is the narrower of the two: it
+    // admits the class's own instructor, a manager of the owning organisation and platform admins,
+    // but not whoever merely happens to be scheduled on one sitting of the class -- any instructor
+    // can schedule an instance through the timetabling API, so that would be self-grantable.
+    // ACCESS_ENROLMENT is the wider reading of the same rule; the narrower one is enforced.
     @PreAuthorize("@enrollmentSecurityService.isOwner(#enrollmentUuid) "
             + "or @enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
     public ResponseEntity<ApiResponse<Void>> cancelEnrollment(
@@ -118,7 +170,9 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance marked successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Attendance already marked")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not hold the session this enrolment sits on")
     @PatchMapping("/{enrollmentUuid}/attendance")
+    // See cancelEnrollment: the narrower of the two guards proposed for this route is enforced.
     @PreAuthorize("@enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
     public ResponseEntity<ApiResponse<Void>> markAttendance(
             @Parameter(description = "UUID of the enrollment")
@@ -139,7 +193,13 @@ public class EnrollmentController {
     @Operation(summary = "Get an enrollment by UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller neither owns the enrolment nor holds its session")
     @GetMapping("/{enrollmentUuid}")
+    // Two units guarded this route. canManageClassOfEnrollment is the narrower of the two: it
+    // admits the class's own instructor, a manager of the owning organisation and platform admins,
+    // but not whoever merely happens to be scheduled on one sitting of the class -- any instructor
+    // can schedule an instance through the timetabling API, so that would be self-grantable.
+    // ACCESS_ENROLMENT is the wider reading of the same rule; the narrower one is enforced.
     @PreAuthorize("@enrollmentSecurityService.isOwner(#enrollmentUuid) "
             + "or @enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
     public ResponseEntity<ApiResponse<EnrollmentDTO>> getEnrollment(
@@ -151,9 +211,17 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.success(result, "Enrollment retrieved successfully"));
     }
 
-    @Operation(summary = "Get all enrollments for a scheduled instance")
+    @Operation(
+            summary = "Get all enrollments for a scheduled instance",
+            description = "The learners on one session's roster, with their enrolment status. Reserved "
+                    + "for the people who hold that session — the instructor teaching it, the owner of "
+                    + "the class, or a manager of the organisation behind it — and platform administrators."
+    )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not hold this session")
     @GetMapping("/instance/{instanceUuid}")
+    // Narrower than READ_INSTANCE_ROSTER by design: running the class the session belongs to,
+    // rather than being scheduled on the session, which an instructor can arrange for themselves.
     @PreAuthorize("@enrollmentVisibilityService.canManageClassOfInstance(#instanceUuid)")
     public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> getEnrollmentsForInstance(
             @Parameter(description = "UUID of the scheduled instance")
@@ -168,9 +236,10 @@ public class EnrollmentController {
             summary = "Search enrollments",
             description = "Search enrollments using query parameters such as student_uuid and class_definition_uuid. "
                     + "The filter is the caller's to choose, so the result is confined to the rows they are party "
-                    + "to: enrolments in a class they run, and their own. Rows in anyone else's class are not "
-                    + "returned and are not counted in the total, since a filter answered over withheld rows "
-                    + "would disclose them just as plainly."
+                    + "to: enrolments in a class they run -- their own classes and those of organisations they "
+                    + "manage -- and their own enrolments. Platform administrators are unrestricted. Rows in "
+                    + "anyone else's class are not returned and are not counted in the total, since a filter "
+                    + "answered over withheld rows would disclose them just as plainly."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment search completed successfully")
     @GetMapping("/search")
@@ -188,8 +257,9 @@ public class EnrollmentController {
 
     @Operation(summary = "Get scheduled instance enrollments for a specific student")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student scheduled instance enrollments retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller shares no session with this learner")
     @GetMapping("/student/{studentUuid}/scheduled-instances")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize(READ_LEARNER_RECORD)
     public ResponseEntity<ApiResponse<PagedDTO<EnrollmentDTO>>> getScheduledInstanceEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,
@@ -203,10 +273,17 @@ public class EnrollmentController {
                 "Student scheduled instance enrollments retrieved successfully"));
     }
 
-    @Operation(summary = "Check whether a student may join a class before they pay for it")
+    @Operation(
+            summary = "Check whether a student may join a class before they pay for it",
+            description = "Answers yes or no for one learner against one class. It is asked before the "
+                    + "enrolment exists, so a shared session cannot be required; the reach is over the "
+                    + "class instead — the learner themselves, or whoever holds the class they are being "
+                    + "signed up to."
+    )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Eligibility resolved")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the learner nor a holder of this class")
     @GetMapping("/eligibility/{classDefinitionUuid}/student/{studentUuid}")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize(CHECK_ELIGIBILITY)
     public ResponseEntity<ApiResponse<ClassEnrolmentEligibilityDTO>> getClassEnrolmentEligibility(
             @Parameter(description = "UUID of the class definition")
             @PathVariable UUID classDefinitionUuid,
@@ -221,8 +298,9 @@ public class EnrollmentController {
 
     @Operation(summary = "Get class enrollments for a specific student")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student class enrollments retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller shares no session with this learner")
     @GetMapping("/student/{studentUuid}/classes")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize(READ_LEARNER_RECORD)
     public ResponseEntity<ApiResponse<PagedDTO<StudentClassEnrollmentSummaryDTO>>> getClassEnrollmentsForStudent(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,
@@ -263,11 +341,16 @@ public class EnrollmentController {
 
     @Operation(
             summary = "Get overall student enrollment overview",
-            description = "Retrieves overall class and course enrollments for a student without requiring scheduled-instance inspection."
+            description = "Retrieves overall class and course enrollments for a student without requiring " +
+                    "scheduled-instance inspection. Composing two views does not widen either of them: the " +
+                    "course-progress half is the platform-wide record, so it is filled in only for the " +
+                    "student themselves and platform administrators, exactly as the /courses route allows. " +
+                    "Anyone else sees the class half and an empty course half."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrollment overview retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller shares no session with this learner")
     @GetMapping("/student/{studentUuid}/overview")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize(READ_LEARNER_RECORD)
     public ResponseEntity<ApiResponse<StudentEnrollmentOverviewDTO>> getEnrollmentOverviewForStudent(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,
@@ -296,7 +379,10 @@ public class EnrollmentController {
 
     @Operation(summary = "Get enrollment count for a scheduled instance")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrollment count retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not hold this session")
     @GetMapping("/instance/{instanceUuid}/count")
+    // Narrower than READ_INSTANCE_ROSTER by design: running the class the session belongs to,
+    // rather than being scheduled on the session, which an instructor can arrange for themselves.
     @PreAuthorize("@enrollmentVisibilityService.canManageClassOfInstance(#instanceUuid)")
     public ResponseEntity<ApiResponse<Long>> getEnrollmentCount(
             @Parameter(description = "UUID of the scheduled instance")
@@ -326,8 +412,9 @@ public class EnrollmentController {
             description = "Monthly enrolment counts across all classes owned by the organisation, oldest month first."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Enrolment trends retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/enrolment-trends")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<EnrolmentTrendPointDTO>>> getEnrolmentTrends(
             @Parameter(description = "UUID of the organisation to scope the trend to")
             @PathVariable UUID organisationUuid,
@@ -345,8 +432,9 @@ public class EnrollmentController {
             description = "Hourly enrolment counts for the current day across all classes owned by the organisation."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Today's growth retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/today-growth")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<TodayGrowthPointDTO>>> getTodayGrowth(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid) {
@@ -362,8 +450,9 @@ public class EnrollmentController {
                     "across all classes owned by the organisation, oldest week first."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Weekly growth retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/weekly-growth")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<WeeklyGrowthPointDTO>>> getWeeklyGrowth(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid,
@@ -380,8 +469,9 @@ public class EnrollmentController {
             description = "Distinct active-enrolment counts for each class definition the organisation owns."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class enrolment counts retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/class-enrolment-counts")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<ClassEnrolmentCountDTO>>> getClassEnrolmentCounts(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid) {
@@ -395,11 +485,13 @@ public class EnrollmentController {
     @Operation(
             summary = "Get an organisation's activity feed",
             description = "Recent, human-meaningful events across the organisation — students enrolling, "
-                    + "classes being opened and instructors being paid — newest first."
+                    + "classes being opened and instructors being paid — newest first. The amount and "
+                    + "currency on PAYOUT events are disclosed only to those who manage the organisation."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Activity feed retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/activity-feed")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<OrganisationActivityEventDTO>>> getActivityFeed(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid,
@@ -417,8 +509,9 @@ public class EnrollmentController {
             description = "Per-student total and attended (completed) enrolment counts across the organisation's classes."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student enrolment summaries retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/student-summaries")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<StudentEnrolmentSummaryDTO>>> getStudentSummaries(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid) {
@@ -434,12 +527,13 @@ public class EnrollmentController {
             description = "Per-class attendance and performance for a single student, confined to the " +
                     "organisation's own classes. An organisation may only see how a student is doing " +
                     "at its own institution; their learning elsewhere on the platform is unreachable " +
-                    "through this endpoint by construction, not by filtering afterwards."
+                    "through this endpoint by construction, not by filtering afterwards. Only those " +
+                    "who manage the organisation may ask; being a fellow member of it is not enough."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student performance retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping("/organisations/{organisationUuid}/students/{studentUuid}/performance")
-    @PreAuthorize("@classAccessSecurityService.managesOrganisation(#organisationUuid)")
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<OrganisationStudentPerformanceDTO>>> getStudentPerformance(
             @Parameter(description = "UUID of the organisation to scope to")
             @PathVariable UUID organisationUuid,

@@ -51,11 +51,11 @@ import java.util.UUID;
 public class InstructorObligationController {
 
     /**
-     * Obligations are organisation money. Reading them is open to any member of the organisation;
-     * asserting that one has been paid — or withdrawing one — is a management act.
+     * Obligations are organisation money, and each row names an instructor and what they are owed —
+     * a private figure between the organisation and that instructor. Reading the ledger is therefore
+     * a management act, as is asserting that a row has been paid or withdrawing one. An instructor
+     * reads their own side of it through the statement routes below, which are scoped to them.
      */
-    private static final String READ_ORGANISATION =
-            "@organisationSecurityService.canReadOrganisation(#organisationUuid)";
     private static final String MANAGE_ORGANISATION =
             "@organisationSecurityService.canManageOrganisation(#organisationUuid)";
     private static final String READ_STATEMENT =
@@ -68,7 +68,7 @@ public class InstructorObligationController {
             description = "One row per delivered session, at the rate that stood when the session completed. "
                     + "Optionally narrowed to a single instructor and/or status.")
     @GetMapping("/organisations/{organisationUuid}/instructor-obligations")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<PagedDTO<InstructorObligationDTO>>> listObligations(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid,
@@ -89,7 +89,7 @@ public class InstructorObligationController {
             description = "Money the organisation has actually paid out to instructors, one figure per "
                     + "calendar month over the trailing window (inclusive of the current month), oldest first.")
     @GetMapping("/organisations/{organisationUuid}/instructor-obligations/monthly-settlements")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<MonthlyPayoutPointDTO>>> getMonthlySettlements(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid,

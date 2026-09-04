@@ -10,6 +10,8 @@ import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEve
 import apps.sarafrika.elimika.shared.event.timetabling.ClassSessionCompletedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.timetabling.security.TimetableSecurityService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
@@ -47,6 +49,9 @@ import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentCountDTO;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrolmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -62,6 +67,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -95,6 +101,8 @@ public class TimetableServiceImpl implements TimetableService {
     private final apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService organisationAffiliationService;
     private final InstructorLookupService instructorLookupService;
     private final ResourceBookingService resourceBookingService;
+    private final DomainSecurityService domainSecurityService;
+    private final TimetableSecurityService timetableSecurityService;
 
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
@@ -777,6 +785,17 @@ public class TimetableServiceImpl implements TimetableService {
         return new PageImpl<>(summaries, pageable, classDefinitionUuids.getTotalElements());
     }
 
+    /**
+     * A learner's course progress is their whole record on the platform, gathered from wherever they
+     * study — so it belongs to them, and to platform administrators supporting them. An institution
+     * that wants to know how one of its learners is doing has the organisation-scoped performance
+     * view, which cannot see past its own classes.
+     * <p>
+     * The rule lives here rather than only on the route because the enrolment overview composes this
+     * view with another that a wider audience may read; a composite must not hand out more than the
+     * views it is made of. Callers who may not see it get an empty page rather than a refusal, so the
+     * half of the overview they are entitled to still renders.
+     */
     @Override
     @Transactional(readOnly = true)
     public Page<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid, Pageable pageable) {
@@ -784,6 +803,12 @@ public class TimetableServiceImpl implements TimetableService {
 
         if (studentUuid == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
+        }
+
+        if (!studentUuid.equals(domainSecurityService.getCurrentStudentUuid())
+                && !domainSecurityService.isPlatformAdmin()) {
+            log.debug("Withholding platform-wide course progress of student {} from the current caller", studentUuid);
+            return Page.empty(pageable);
         }
 
         return learnerProgressLookupService.findCourseProgress(studentUuid, pageable)
@@ -883,13 +908,92 @@ public class TimetableServiceImpl implements TimetableService {
         }
 
         Specification<Enrollment> specification = enrollmentSpecBuilder.buildSpecification(Enrollment.class, normalizedParams);
-        Page<Enrollment> page = specification != null
-                ? enrollmentRepository.findAll(specification, pageable)
+        Specification<Enrollment> reach = enrolmentVisibilityScope();
+        Specification<Enrollment> combined = reach == null
+                ? specification
+                : specification == null ? reach : specification.and(reach);
+        Page<Enrollment> page = combined != null
+                ? enrollmentRepository.findAll(combined, pageable)
                 : enrollmentRepository.findAll(pageable);
 
         return page.map(EnrollmentFactory::toDTO);
     }
 
+    /**
+     * Confines an enrolment search to what the caller is entitled to see, or {@code null} when the
+     * caller is a platform administrator and nothing is withheld.
+     * <p>
+     * Everyone else reaches enrolments along three legs, OR-ed together: every class of an
+     * organisation they manage, every session they instruct (as the class's default instructor or as
+     * the instructor scheduled on the session itself), and their own enrolments as a learner. A caller
+     * with none of those gets an empty page rather than a 403 — the search is a filter over a
+     * collection, not a request for one named resource, and an empty result reveals nothing.
+     * <p>
+     * The reachable classes are resolved up front and bound as an IN-list — an organisation has
+     * classes in the tens, and the list is the caller's own — but the sessions of those classes are
+     * left to a subquery, since a busy organisation's timetable runs to thousands of rows and binding
+     * every one of them would be the part that hurts.
+     */
+    private Specification<Enrollment> enrolmentVisibilityScope() {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return null;
+        }
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        if (callerUuid == null) {
+            return (root, query, criteriaBuilder) -> criteriaBuilder.disjunction();
+        }
+
+        Set<UUID> visibleClassUuids = new HashSet<>();
+        for (UUID organisationUuid : userLookupService.getUserOrganizations(callerUuid)) {
+            if (domainSecurityService.managesOrganisation(organisationUuid)) {
+                visibleClassUuids.addAll(
+                        classDefinitionLookupService.findClassDefinitionUuidsByOrganisationUuid(organisationUuid));
+            }
+        }
+        UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(callerUuid).orElse(null);
+        if (instructorUuid != null) {
+            visibleClassUuids.addAll(
+                    classDefinitionLookupService.findClassDefinitionUuidsByInstructorUuid(instructorUuid));
+        }
+        UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> legs = new ArrayList<>();
+            if (!visibleClassUuids.isEmpty() || instructorUuid != null) {
+                Subquery<UUID> visibleInstances = query.subquery(UUID.class);
+                Root<ScheduledInstance> instance = visibleInstances.from(ScheduledInstance.class);
+                List<Predicate> instanceLegs = new ArrayList<>();
+                if (!visibleClassUuids.isEmpty()) {
+                    instanceLegs.add(instance.get("classDefinitionUuid").in(visibleClassUuids));
+                }
+                if (instructorUuid != null) {
+                    instanceLegs.add(criteriaBuilder.equal(instance.get("instructorUuid"), instructorUuid));
+                }
+                visibleInstances.select(instance.<UUID>get("uuid"))
+                        .where(criteriaBuilder.or(instanceLegs.toArray(new Predicate[0])));
+                legs.add(root.get("scheduledInstanceUuid").in(visibleInstances));
+            }
+            if (studentUuid != null) {
+                legs.add(criteriaBuilder.equal(root.get("studentUuid"), studentUuid));
+            }
+            return legs.isEmpty()
+                    ? criteriaBuilder.disjunction()
+                    : criteriaBuilder.or(legs.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * A class's enrolment list is every learner across every sitting the class has run — the same
+     * roster the per-session route serves, only wider — so it is confined to the people who hold the
+     * class: its default instructor, an instructor scheduled on one of its sessions, a manager of the
+     * owning organisation, or a platform administrator.
+     * <p>
+     * A learner is narrowed to their own rows rather than refused. The pages a student reaches this
+     * from ask the list one question — "which enrolment of mine is this?" — and answering it does not
+     * require handing them the identifiers of everyone sitting beside them. Anyone else sees nothing.
+     * The rule lives here rather than on the route because the route is in another module and the
+     * guarantee belongs to the data.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<EnrollmentDTO> getEnrollmentsForClass(UUID classDefinitionUuid) {
@@ -900,7 +1004,18 @@ public class TimetableServiceImpl implements TimetableService {
         }
 
         List<Enrollment> enrollments = enrollmentRepository.findByClassDefinitionUuid(classDefinitionUuid);
-        return EnrollmentFactory.toDTOList(enrollments);
+        if (timetableSecurityService.canReadClassRoster(classDefinitionUuid)) {
+            return EnrollmentFactory.toDTOList(enrollments);
+        }
+
+        UUID callerStudentUuid = domainSecurityService.getCurrentStudentUuid();
+        if (callerStudentUuid == null) {
+            log.debug("Withholding the roster of class {} from a caller who does not hold it", classDefinitionUuid);
+            return List.of();
+        }
+        return EnrollmentFactory.toDTOList(enrollments.stream()
+                .filter(enrollment -> callerStudentUuid.equals(enrollment.getStudentUuid()))
+                .toList());
     }
 
     @Override
@@ -1828,10 +1943,21 @@ public class TimetableServiceImpl implements TimetableService {
                 .toList();
     }
 
+    /**
+     * The feed's {@code PAYOUT} rows carry what the organisation settled with a named instructor — a
+     * private figure between those two parties — so the amount and its currency are filled in only
+     * for the people who run the organisation, or a platform admin. The route that serves this feed
+     * demands exactly that, so the condition always holds there today; it is kept because the
+     * guarantee belongs to the data rather than to one route, and the next caller of this service
+     * inherits it instead of having to remember it. Anyone reaching the feed another way still sees
+     * that an instructor was paid for a class, just not how much.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<OrganisationActivityEventDTO> getActivityFeedForOrganisation(UUID organisationUuid, int limit) {
         int capped = Math.max(1, Math.min(limit, 100));
+        boolean discloseSettlements = domainSecurityService.isPlatformAdmin()
+                || domainSecurityService.managesOrganisation(organisationUuid);
         return enrollmentRepository
                 .findActivityFeedForOrganisation(organisationUuid, org.springframework.data.domain.PageRequest.of(0, capped))
                 .stream()
@@ -1840,8 +1966,8 @@ public class TimetableServiceImpl implements TimetableService {
                         toLocalDateTime(row[1]),
                         (String) row[2],
                         toUuid(row[3]),
-                        toBigDecimal(row[4]),
-                        (String) row[5]))
+                        discloseSettlements ? toBigDecimal(row[4]) : null,
+                        discloseSettlements ? (String) row[5] : null))
                 .toList();
     }
 

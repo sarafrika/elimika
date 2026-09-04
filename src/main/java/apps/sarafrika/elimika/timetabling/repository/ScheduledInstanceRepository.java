@@ -29,6 +29,13 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
 
     Page<ScheduledInstance> findByClassDefinitionUuid(UUID classDefinitionUuid, Pageable pageable);
 
+    /**
+     * Whether an instructor is scheduled on any sitting of a class. Asked while deciding whether the
+     * caller may see that class's roster, so it must not drag the timetable of a busy class into
+     * memory to answer a yes-or-no question.
+     */
+    boolean existsByClassDefinitionUuidAndInstructorUuid(UUID classDefinitionUuid, UUID instructorUuid);
+
     List<ScheduledInstance> findByStatus(SchedulingStatus status);
 
     List<ScheduledInstance> findByInstructorUuidAndStatus(UUID instructorUuid, SchedulingStatus status);
