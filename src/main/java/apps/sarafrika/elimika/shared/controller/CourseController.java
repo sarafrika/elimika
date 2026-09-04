@@ -35,7 +35,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1034,8 +1033,12 @@ public class CourseController {
                     - **Approved to train:** full read access to every lesson's content.
 
                     Content is read-only here regardless of access; only the course creator can edit it.
+
+                    Restricted to members of the organisation named in the path (or a platform admin), so
+                    one organisation's approval can never be used to read content on another's behalf.
                     """
     )
+    @PreAuthorize("@organisationSecurityService.canReadOrganisation(#organisationUuid)")
     @GetMapping("/{courseUuid}/organisations/{organisationUuid}/content")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<OrganisationCourseContentDTO>> getOrganisationCourseContent(
             @PathVariable UUID courseUuid,
@@ -1329,6 +1332,11 @@ public class CourseController {
             summary = "List training applications",
             description = """
                     Retrieves applications for a course. Optionally filter by status using `status=pending|approved|rejected|revoked`.
+
+                    Scoped like the search endpoint: the course creator and platform admins read every application in
+                    full, an applicant reads its own, and everybody else sees only the *approved* ones - the course's
+                    instructor directory - stripped of the rate card and the review notes, which are the applicant's
+                    and the course creator's business alone.
                     """
     )
     @GetMapping("/{courseUuid}/training-applications")
@@ -1341,11 +1349,8 @@ public class CourseController {
                 .filter(s -> !s.isBlank())
                 .map(CourseTrainingApplicationStatus::fromValue);
 
-        Map<String, String> filters = new HashMap<>();
-        filters.put("courseUuid", courseUuid.toString());
-        statusFilter.ifPresent(applicationStatus -> filters.put("status", applicationStatus.getValue()));
-
-        Page<CourseTrainingApplicationDTO> applications = courseTrainingApplicationService.search(filters, pageable);
+        Page<CourseTrainingApplicationDTO> applications =
+                courseTrainingApplicationService.getApplications(courseUuid, statusFilter, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(applications, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -1358,6 +1363,13 @@ public class CourseController {
                     Advanced search for training applications using flexible operators on any DTO field.
                     Supports filters such as `status`, `applicantType`, `courseUuid`, `applicantUuid`, `course_creator_uuid`,
                     `createdDate_between`, and more.
+
+                    Every caller reads in full only what they are a party to: their own instructor applications,
+                    those of organisations they belong to, and every application on courses they created. Platform
+                    admins read everything. Approved applications are additionally visible to anyone - that is the
+                    course's instructor directory - but with the rate card, the notes and the reviewer stripped off,
+                    and with any filter or sort naming one of those fields ignored so the page cannot be used to
+                    read them back.
                     """
     )
     @GetMapping("/training-applications/search")
@@ -1374,7 +1386,10 @@ public class CourseController {
 
     @Operation(
             summary = "Get training application",
-            description = "Retrieves a specific training application for a course."
+            description = """
+                    Retrieves a specific training application for a course. Readable by the course creator, the
+                    applicant and platform admins; anyone else receives 404.
+                    """
     )
     @GetMapping("/{courseUuid}/training-applications/{applicationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainingApplicationDTO>> getTrainingApplication(
@@ -1458,14 +1473,20 @@ public class CourseController {
 
     @Operation(
             summary = "Get course enrollments",
-            description = "Retrieves enrollment data for a specific course with analytics."
+            description = """
+                    Retrieves enrollment data for a specific course with analytics.
+
+                    The roster is scoped to the caller by the enrolment service: the course creator, instructors and
+                    organisations approved to deliver the course, and platform admins read every enrolment; a learner
+                    enrolled in the course reads only their own; anybody else browsing the catalogue gets the
+                    enrolment tally alone, with no learner identity, progress or grade on it.
+                    """
     )
     @GetMapping("/{courseUuid}/enrollments")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseEnrollmentDTO>>> getCourseEnrollments(
             @PathVariable UUID courseUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("courseUuid", courseUuid.toString());
-        Page<CourseEnrollmentDTO> enrollments = courseEnrollmentService.search(searchParams, pageable);
+        Page<CourseEnrollmentDTO> enrollments = courseEnrollmentService.getCourseEnrollmentsForCaller(courseUuid, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(enrollments, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

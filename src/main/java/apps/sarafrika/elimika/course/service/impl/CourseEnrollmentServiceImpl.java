@@ -9,7 +9,9 @@ import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,6 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +37,8 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
     private final CourseRepository courseRepository;
     private final GenericSpecificationBuilder<CourseEnrollment> specificationBuilder;
     private final AgeVerificationService ageVerificationService;
+    private final CourseSecuritySpi courseSecurityService;
+    private final DomainSecurityService domainSecurityService;
 
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Course enrollment with ID %s not found";
 
@@ -105,6 +110,53 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
         Specification<CourseEnrollment> spec = specificationBuilder.buildSpecification(
                 CourseEnrollment.class, searchParams);
         return courseEnrollmentRepository.findAll(spec, pageable).map(CourseEnrollmentFactory::toDTO);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The filters are built here rather than taken from the request, so the only thing the caller
+     * chooses is the page.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CourseEnrollmentDTO> getCourseEnrollmentsForCaller(UUID courseUuid, Pageable pageable) {
+        Map<String, String> filters = new HashMap<>();
+        filters.put("courseUuid", courseUuid.toString());
+
+        if (domainSecurityService.isPlatformAdmin() || courseSecurityService.canManageCourseGradebook(courseUuid)) {
+            return search(filters, pageable);
+        }
+
+        UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+        if (studentUuid != null && courseSecurityService.isEnrolledLearner(courseUuid)) {
+            filters.put("studentUuid", studentUuid.toString());
+            return search(filters, pageable);
+        }
+
+        return search(filters, pageable).map(CourseEnrollmentServiceImpl::toEnrolmentTally);
+    }
+
+    /**
+     * A row that still counts towards the page total but names nobody: the course it belongs to and
+     * whether it is running, dropped or finished - which the public completion-rate figure already
+     * says in aggregate - and nothing else.
+     */
+    private static CourseEnrollmentDTO toEnrolmentTally(CourseEnrollmentDTO enrollment) {
+        return new CourseEnrollmentDTO(
+                null,
+                null,
+                enrollment.courseUuid(),
+                null,
+                null,
+                enrollment.status(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     @Override
