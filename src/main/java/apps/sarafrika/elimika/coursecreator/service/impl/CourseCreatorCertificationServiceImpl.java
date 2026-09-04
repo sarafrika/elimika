@@ -44,6 +44,7 @@ public class CourseCreatorCertificationServiceImpl implements CourseCreatorCerti
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorCertificationDTO> getAllCourseCreatorCertifications(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreatorCertification.class, pageable);
         return certificationRepository.findAll(pageable).map(CourseCreatorCertificationFactory::toDTO);
     }
 
@@ -94,6 +95,7 @@ public class CourseCreatorCertificationServiceImpl implements CourseCreatorCerti
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorCertificationDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreatorCertification.class, pageable);
         Specification<CourseCreatorCertification> spec = specificationBuilder.buildSpecification(CourseCreatorCertification.class, searchParams);
         return certificationRepository.findAll(spec, pageable).map(CourseCreatorCertificationFactory::toDTO);
     }

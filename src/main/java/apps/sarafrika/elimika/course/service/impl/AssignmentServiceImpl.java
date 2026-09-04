@@ -67,6 +67,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentDTO> getAllAssignments(Pageable pageable) {
+        specificationBuilder.validateSortProperties(Assignment.class, pageable);
         return assignmentRepository.findAll(pageable).map(AssignmentFactory::toDTO);
     }
 
@@ -94,6 +95,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Assignment.class, pageable);
         Specification<Assignment> spec = specificationBuilder.buildSpecification(
                 Assignment.class, searchParams);
         return assignmentRepository.findAll(spec, pageable).map(AssignmentFactory::toDTO);
@@ -102,6 +104,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Assignment.class, pageable);
         Specification<Assignment> spec = specificationBuilder.buildSpecification(
                 Assignment.class, searchParams);
         return assignmentRepository.findAll(learnerMaterialScope.restrictAssignments(spec), pageable)

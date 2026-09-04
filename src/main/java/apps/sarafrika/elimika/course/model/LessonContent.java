@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
@@ -14,12 +15,15 @@ import java.util.UUID;
 public class LessonContent extends BaseEntity {
 
     @Column(name = "lesson_uuid")
+    @Filterable
     private UUID lessonUuid;
 
     @Column(name = "content_type_uuid")
+    @Filterable
     private UUID contentTypeUuid;
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description")
@@ -38,9 +42,11 @@ public class LessonContent extends BaseEntity {
     private String mimeType;
 
     @Column(name = "display_order")
+    @Filterable
     private Integer displayOrder;
 
     @Column(name = "is_required")
+    @Filterable
     private Boolean isRequired;
 
     /**

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.course.util.converter.CourseAssessmentAggregationStrategyConverter;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -24,12 +25,15 @@ import java.util.UUID;
 public class CourseAssessment extends BaseEntity {
 
     @Column(name = "course_uuid")
+    @Filterable
     private UUID courseUuid;
 
     @Column(name = "assessment_type")
+    @Filterable
     private String assessmentType;
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description")
@@ -43,17 +47,20 @@ public class CourseAssessment extends BaseEntity {
     private CourseAssessmentAggregationStrategy aggregationStrategy;
 
     @Column(name = "rubric_uuid")
+    @Filterable
     private UUID rubricUuid;
 
     @Column(name = "sync_class_attendance")
     private Boolean syncClassAttendance;
 
     @Column(name = "is_required")
+    @Filterable
     private Boolean isRequired;
 
     // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
     // null here would be sent explicitly and defeat that default — initialise it on the Java side.
     @Column(name = "active", nullable = false)
+    @Filterable
     private Boolean active = Boolean.TRUE;
 
     /**

@@ -70,6 +70,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public Page<StudentDTO> getAllStudents(Pageable pageable) {
+        specificationBuilder.validateSortProperties(Student.class, pageable);
         return studentRepository.findAll(pageable).map(StudentFactory::toDTO);
     }
 
@@ -99,6 +100,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public Page<StudentDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Student.class, pageable);
         Specification<Student> spec = specificationBuilder.buildSpecification(Student.class, searchParams);
         Page<Student> emailContact = studentRepository.findAll(spec, pageable);
         return emailContact.map(StudentFactory::toDTO);

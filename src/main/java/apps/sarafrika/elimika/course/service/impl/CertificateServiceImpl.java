@@ -98,6 +98,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     @Transactional(readOnly = true)
     public Page<CertificateDTO> getAllCertificates(Pageable pageable) {
+        specificationBuilder.validateSortProperties(Certificate.class, pageable);
         return certificateRepository.findAll(pageable).map(CertificateFactory::toDTO);
     }
 
@@ -125,6 +126,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     @Transactional(readOnly = true)
     public Page<CertificateDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Certificate.class, pageable);
         Specification<Certificate> spec = specificationBuilder.buildSpecification(
                 Certificate.class, searchParams);
         return certificateRepository.findAll(spec, pageable).map(CertificateFactory::toDTO);

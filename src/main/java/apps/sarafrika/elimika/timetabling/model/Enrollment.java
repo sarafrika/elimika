@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.timetabling.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.timetabling.util.converter.EnrollmentStatusConverter;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,9 +32,11 @@ import java.util.UUID;
 public class Enrollment extends BaseEntity {
     
     @Column(name = "scheduled_instance_uuid")
+    @Filterable
     private UUID scheduledInstanceUuid;
     
     @Column(name = "student_uuid")
+    @Filterable
     private UUID studentUuid;
     
     @Column(name = "reserved_until")
@@ -41,6 +44,7 @@ public class Enrollment extends BaseEntity {
 
     @Column(name = "status")
     @Convert(converter = EnrollmentStatusConverter.class)
+    @Filterable
     private EnrollmentStatus status;
     
     @Column(name = "attendance_marked_at")

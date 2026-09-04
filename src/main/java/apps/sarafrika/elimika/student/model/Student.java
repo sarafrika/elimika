@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.student.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -16,9 +17,11 @@ import java.util.UUID;
 @Getter @Setter @AllArgsConstructor @NoArgsConstructor
 public class Student extends BaseEntity {
     @Column(name = "user_uuid")
+    @Filterable
     private UUID userUuid;
 
     @Column(name = "full_name")
+    @Filterable
     private String fullName;
 
     @Column(name = "guardian_1_name")

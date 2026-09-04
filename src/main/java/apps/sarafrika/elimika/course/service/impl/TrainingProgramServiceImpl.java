@@ -81,6 +81,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     @Override
     @Transactional(readOnly = true)
     public Page<TrainingProgramDTO> getAllTrainingPrograms(Pageable pageable) {
+        specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
         return trainingProgramRepository.findAll(pageable).map(TrainingProgramFactory::toDTO);
     }
 
@@ -108,6 +109,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     @Override
     @Transactional(readOnly = true)
     public Page<TrainingProgramDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
         Specification<TrainingProgram> spec = specificationBuilder.buildSpecification(
                 TrainingProgram.class, searchParams);
         return trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);

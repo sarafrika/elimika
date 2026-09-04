@@ -335,6 +335,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             }
         }
 
+        specificationBuilder.validateSortProperties(ProgramTrainingApplication.class, pageable);
+
         CallerScope scope = resolveCallerScope(
                 requestedCourseCreatorUuid, mentionsConfidentialField(normalizedParams, pageable));
 
@@ -540,6 +542,12 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         );
     }
 
+    /**
+     * A training application carries no creator column of its own, so a {@code course_creator_uuid}
+     * filter is lifted off the map and re-expressed as the set of programs that creator owns. The
+     * key is removed either way: leaving it in place would reach the default-deny generic builder
+     * and reject the whole request.
+     */
     private String extractSearchParam(Map<String, String> searchParams, String... keys) {
         String extractedValue = null;
         var iterator = searchParams.entrySet().iterator();

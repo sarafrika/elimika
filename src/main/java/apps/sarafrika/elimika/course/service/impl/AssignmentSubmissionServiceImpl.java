@@ -100,6 +100,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentSubmissionDTO> getAllAssignmentSubmissions(Pageable pageable) {
+        specificationBuilder.validateSortProperties(AssignmentSubmission.class, pageable);
         return assignmentSubmissionRepository.findAll(pageable)
                 .map(AssignmentSubmissionFactory::toDTO);
     }
@@ -128,6 +129,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentSubmissionDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(AssignmentSubmission.class, pageable);
         Specification<AssignmentSubmission> spec = specificationBuilder.buildSpecification(
                 AssignmentSubmission.class, searchParams);
         return assignmentSubmissionRepository.findAll(spec, pageable)
@@ -137,6 +139,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     @Override
     @Transactional(readOnly = true)
     public Page<AssignmentSubmissionDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(AssignmentSubmission.class, pageable);
         Specification<AssignmentSubmission> spec = specificationBuilder.buildSpecification(
                 AssignmentSubmission.class, searchParams);
         return assignmentSubmissionRepository

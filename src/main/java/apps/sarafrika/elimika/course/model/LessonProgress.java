@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.ProgressStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ProgressStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -24,13 +25,16 @@ import java.util.UUID;
 public class LessonProgress extends BaseEntity {
 
     @Column(name = "enrollment_uuid")
+    @Filterable
     private UUID enrollmentUuid;
 
     @Column(name = "lesson_uuid")
+    @Filterable
     private UUID lessonUuid;
 
     @Column(name = "status")
     @Convert(converter = ProgressStatusConverter.class)
+    @Filterable
     private ProgressStatus status;
 
     @Column(name = "started_at")

@@ -64,6 +64,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorDTO> getAllCourseCreators(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreator.class, pageable);
         return courseCreatorRepository.findAll(pageable).map(CourseCreatorFactory::toDTO);
     }
 
@@ -92,6 +93,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreator.class, pageable);
         Specification<CourseCreator> spec = specificationBuilder.buildSpecification(CourseCreator.class, searchParams);
         return courseCreatorRepository.findAll(spec, pageable).map(CourseCreatorFactory::toDTO);
     }

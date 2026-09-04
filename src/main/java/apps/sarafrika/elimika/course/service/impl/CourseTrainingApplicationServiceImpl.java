@@ -281,6 +281,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             }
         }
 
+        // Checked against what the client actually sent, before the redaction pass below narrows it.
+        specificationBuilder.validateSortProperties(CourseTrainingApplication.class, pageable);
+
         CallerScope scope = resolveCallerScope(requestedCourseCreatorUuid);
 
         Pageable effectivePageable = pageable;

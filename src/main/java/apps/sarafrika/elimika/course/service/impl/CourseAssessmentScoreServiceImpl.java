@@ -64,6 +64,7 @@ public class CourseAssessmentScoreServiceImpl implements CourseAssessmentScoreSe
     @Override
     @Transactional(readOnly = true)
     public Page<CourseAssessmentScoreDTO> getAllCourseAssessmentScores(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseAssessmentScore.class, pageable);
         return courseAssessmentScoreRepository.findAll(pageable).map(CourseAssessmentScoreFactory::toDTO);
     }
 
@@ -100,6 +101,7 @@ public class CourseAssessmentScoreServiceImpl implements CourseAssessmentScoreSe
     @Override
     @Transactional(readOnly = true)
     public Page<CourseAssessmentScoreDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseAssessmentScore.class, pageable);
         Specification<CourseAssessmentScore> spec = specificationBuilder.buildSpecification(
                 CourseAssessmentScore.class, searchParams);
         return courseAssessmentScoreRepository.findAll(spec, pageable).map(CourseAssessmentScoreFactory::toDTO);

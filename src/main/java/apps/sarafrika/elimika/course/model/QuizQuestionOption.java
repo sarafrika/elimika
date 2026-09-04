@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import java.util.UUID;
 public class QuizQuestionOption extends BaseEntity {
 
     @Column(name = "question_uuid")
+    @Filterable
     private UUID questionUuid;
 
     @Column(name = "option_text")
@@ -25,6 +27,7 @@ public class QuizQuestionOption extends BaseEntity {
     // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
     // null here would be sent explicitly and defeat that default — initialise it on the Java side.
     @Column(name = "display_order", nullable = false)
+    @Filterable
     private Integer displayOrder = 1;
 
     /**

@@ -146,6 +146,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
     @Override
     @Transactional(readOnly = true)
     public Page<TrainingBranchDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(TrainingBranch.class, pageable);
         Specification<TrainingBranch> spec = specificationBuilder.buildSpecification(TrainingBranch.class, searchParams);
         // Add deleted=false filter to search
         Specification<TrainingBranch> notDeletedSpec = (root, query, criteriaBuilder) ->

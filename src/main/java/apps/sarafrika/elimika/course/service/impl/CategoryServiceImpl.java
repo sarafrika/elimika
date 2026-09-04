@@ -55,6 +55,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional(readOnly = true)
     public Page<CategoryDTO> getAllCategories(Pageable pageable) {
+        specificationBuilder.validateSortProperties(Category.class, pageable);
         return categoryRepository.findAll(pageable).map(CategoryFactory::toDTO);
     }
 
@@ -82,6 +83,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional(readOnly = true)
     public Page<CategoryDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Category.class, pageable);
         Specification<Category> spec = specificationBuilder.buildSpecification(
                 Category.class, searchParams);
         return categoryRepository.findAll(spec, pageable).map(CategoryFactory::toDTO);

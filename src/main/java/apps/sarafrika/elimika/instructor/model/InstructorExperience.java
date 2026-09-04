@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.instructor.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -21,12 +22,15 @@ import java.util.UUID;
 public class InstructorExperience extends BaseEntity {
 
     @Column(name = "instructor_uuid")
+    @Filterable
     private UUID instructorUuid;
 
     @Column(name = "position")
+    @Filterable
     private String position;
 
     @Column(name = "organization_name")
+    @Filterable
     private String organizationName;
 
     @Column(name = "responsibilities", columnDefinition = "TEXT")
@@ -38,11 +42,14 @@ public class InstructorExperience extends BaseEntity {
     private BigDecimal yearsOfExperience;
 
     @Column(name = "start_date")
+    @Filterable
     private LocalDate startDate;
 
     @Column(name = "end_date")
+    @Filterable
     private LocalDate endDate;
 
     @Column(name = "is_current_position")
+    @Filterable
     private Boolean isCurrentPosition;
 }

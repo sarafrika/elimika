@@ -58,6 +58,7 @@ public class InstructorExperienceServiceImpl implements InstructorExperienceServ
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorExperienceDTO> getAllInstructorExperience(Pageable pageable) {
+        specificationBuilder.validateSortProperties(InstructorExperience.class, pageable);
         return instructorExperienceRepository.findAll(pageable).map(InstructorExperienceFactory::toDTO);
     }
 
@@ -89,6 +90,7 @@ public class InstructorExperienceServiceImpl implements InstructorExperienceServ
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorExperienceDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(InstructorExperience.class, pageable);
         Specification<InstructorExperience> spec = specificationBuilder.buildSpecification(InstructorExperience.class, searchParams);
         return instructorExperienceRepository.findAll(spec, pageable).map(InstructorExperienceFactory::toDTO);
     }

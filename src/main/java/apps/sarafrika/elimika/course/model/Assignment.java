@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.course.util.converter.AssignmentScopeConverter;
 import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Convert;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class Assignment extends BaseEntity {
 
     @Column(name = "lesson_uuid")
+    @Filterable
     private UUID lessonUuid;
 
     @Convert(converter = AssignmentScopeConverter.class)
@@ -32,12 +34,14 @@ public class Assignment extends BaseEntity {
     private AssignmentScope scope = AssignmentScope.COURSE_TEMPLATE;
 
     @Column(name = "class_definition_uuid")
+    @Filterable
     private UUID classDefinitionUuid;
 
     @Column(name = "source_assignment_uuid")
     private UUID sourceAssignmentUuid;
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description")
@@ -47,6 +51,7 @@ public class Assignment extends BaseEntity {
     private String instructions;
 
     @Column(name = "due_date")
+    @Filterable
     private LocalDateTime dueDate;
 
     // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
@@ -61,5 +66,6 @@ public class Assignment extends BaseEntity {
     private String[] submissionTypes;
 
     @Column(name = "is_published")
+    @Filterable
     private Boolean isPublished;
 }

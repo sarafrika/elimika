@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.shared.model;
 
 import apps.sarafrika.elimika.shared.internal.DatabaseAuditListener;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,14 +33,17 @@ public abstract class BaseEntity {
 
     @UuidGenerator
     @Column(name = "uuid")
+    @Filterable
     private UUID uuid;
 
     @CreatedDate
     @Column(nullable = false, updatable = false, name = "created_date")
+    @Filterable
     private LocalDateTime createdDate;
 
     @LastModifiedDate
     @Column(insertable = false, name = "updated_date")
+    @Filterable
     private LocalDateTime lastModifiedDate;
 
     @CreatedBy

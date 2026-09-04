@@ -4,6 +4,8 @@ package apps.sarafrika.elimika.course.repository;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
@@ -25,6 +27,9 @@ public interface TrainingProgramRepository extends JpaRepository<TrainingProgram
     List<TrainingProgram> findByCategoryUuid(UUID categoryUuid);
 
     List<TrainingProgram> findByCourseCreatorUuid(UUID courseCreatorUuid);
+
+    @Query("select p.uuid from TrainingProgram p where p.courseCreatorUuid = :courseCreatorUuid")
+    List<UUID> findUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 
     List<TrainingProgram> findByStatus(ContentStatus status);
 

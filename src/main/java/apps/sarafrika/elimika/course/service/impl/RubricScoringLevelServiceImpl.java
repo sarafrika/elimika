@@ -91,6 +91,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
     @Override
     @Transactional(readOnly = true)
     public Page<RubricScoringLevelDTO> getAllRubricScoringLevels(Pageable pageable) {
+        specificationBuilder.validateSortProperties(RubricScoringLevel.class, pageable);
         return rubricScoringLevelRepository.findAll(pageable)
                 .map(RubricScoringLevelFactory::toDTO);
     }
@@ -131,6 +132,7 @@ public class RubricScoringLevelServiceImpl implements RubricScoringLevelService 
     @Override
     @Transactional(readOnly = true)
     public Page<RubricScoringLevelDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(RubricScoringLevel.class, pageable);
         Specification<RubricScoringLevel> spec = specificationBuilder.buildSpecification(
                 RubricScoringLevel.class, searchParams);
         return rubricScoringLevelRepository.findAll(spec, pageable)

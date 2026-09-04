@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import jakarta.persistence.criteria.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +39,17 @@ public class CourseSpecificationBuilder {
     }
 
     /**
+     * Rejects an ordering on a column that is not exposed for filtering, so a page of courses cannot
+     * be ranked by {@code price} or {@code minimumTrainingFee}. Delegates to the generic allow-list.
+     *
+     * @param pageable the bound page request whose sort orders are checked
+     * @throws IllegalArgumentException when a sort property is not exposed
+     */
+    public void validateSortProperties(Pageable pageable) {
+        genericSpecificationBuilder.validateSortProperties(Course.class, pageable);
+    }
+
+    /**
      * Builds a comprehensive specification from search parameters.
      * Supports both generic field searches and custom course-specific searches.
      */
@@ -52,18 +64,14 @@ public class CourseSpecificationBuilder {
         String categoryName = searchParams.get("category_name");
         String difficultyName = searchParams.get("difficulty_name");
         String lifecycleStage = searchParams.get("lifecycle_stage");
-        String isFree = searchParams.get("is_free");
         String isPublished = searchParams.get("is_published");
         String isDraft = searchParams.get("is_draft");
         String isArchived = searchParams.get("is_archived");
         String isInReview = searchParams.get("is_in_review");
-        String minPrice = searchParams.get("min_price");
-        String maxPrice = searchParams.get("max_price");
-        String minTrainingFee = searchParams.get("min_training_fee");
-        String maxTrainingFee = searchParams.get("max_training_fee");
         String hasEnrollments = searchParams.get("has_enrollments");
         String acceptsNewEnrollments = searchParams.get("accepts_new_enrollments");
         String courseCreatorUuid = searchParams.get("course_creator_uuid");
+        String instructorUuid = searchParams.getOrDefault("instructor_uuid", searchParams.get("instructor_uuid_eq"));
         String active = searchParams.get("active");
 
         // Handle category name search
@@ -97,42 +105,6 @@ public class CourseSpecificationBuilder {
             specifications.add(hasStatus(ContentStatus.IN_REVIEW));
         }
 
-        // Handle price range
-        if (minPrice != null) {
-            try {
-                BigDecimal min = new BigDecimal(minPrice);
-                specifications.add(priceGreaterThanOrEqual(min));
-            } catch (NumberFormatException e) {
-                log.warn("Invalid min_price value: {}", minPrice);
-            }
-        }
-        if (maxPrice != null) {
-            try {
-                BigDecimal max = new BigDecimal(maxPrice);
-                specifications.add(priceLessThanOrEqual(max));
-            } catch (NumberFormatException e) {
-                log.warn("Invalid max_price value: {}", maxPrice);
-            }
-        }
-
-        if (minTrainingFee != null) {
-            try {
-                BigDecimal minFee = new BigDecimal(minTrainingFee);
-                specifications.add(minimumTrainingFeeGreaterThanOrEqual(minFee));
-            } catch (NumberFormatException e) {
-                log.warn("Invalid min_training_fee value: {}", minTrainingFee);
-            }
-        }
-
-        if (maxTrainingFee != null) {
-            try {
-                BigDecimal maxFee = new BigDecimal(maxTrainingFee);
-                specifications.add(minimumTrainingFeeLessThanOrEqual(maxFee));
-            } catch (NumberFormatException e) {
-                log.warn("Invalid max_training_fee value: {}", maxTrainingFee);
-            }
-        }
-
         // Handle enrollment-based searches
         if (hasEnrollments != null) {
             boolean withEnrollments = Boolean.parseBoolean(hasEnrollments);
@@ -155,6 +127,16 @@ public class CourseSpecificationBuilder {
             }
         }
 
+        // A course has no instructor of its own - it is owned by its creator - so the legacy
+        // instructor_uuid key scopes the result to the courses that creator owns.
+        if (instructorUuid != null && !instructorUuid.trim().isEmpty()) {
+            try {
+                specifications.add(hasCourseCreator(UUID.fromString(instructorUuid.trim())));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid instructor_uuid value: {}", instructorUuid);
+            }
+        }
+
         // Handle active status
         if (active != null) {
             boolean isActive = Boolean.parseBoolean(active);
@@ -170,13 +152,11 @@ public class CourseSpecificationBuilder {
         remainingParams.remove("is_draft");
         remainingParams.remove("is_archived");
         remainingParams.remove("is_in_review");
-        remainingParams.remove("min_price");
-        remainingParams.remove("max_price");
-        remainingParams.remove("min_training_fee");
-        remainingParams.remove("max_training_fee");
         remainingParams.remove("has_enrollments");
         remainingParams.remove("accepts_new_enrollments");
         remainingParams.remove("course_creator_uuid");
+        remainingParams.remove("instructor_uuid");
+        remainingParams.remove("instructor_uuid_eq");
         remainingParams.remove("active");
 
         if (!remainingParams.isEmpty()) {
@@ -277,32 +257,6 @@ public class CourseSpecificationBuilder {
     public Specification<Course> hasStatus(ContentStatus status) {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.equal(root.get("status"), status);
-    }
-
-    /**
-     * Filter courses with price greater than or equal to minimum.
-     */
-    public Specification<Course> priceGreaterThanOrEqual(BigDecimal minPrice) {
-        return (root, query, criteriaBuilder) ->
-                criteriaBuilder.greaterThanOrEqualTo(root.get("price"), minPrice);
-    }
-
-    /**
-     * Filter courses with price less than or equal to maximum.
-     */
-    public Specification<Course> priceLessThanOrEqual(BigDecimal maxPrice) {
-        return (root, query, criteriaBuilder) ->
-                criteriaBuilder.lessThanOrEqualTo(root.get("price"), maxPrice);
-    }
-
-    public Specification<Course> minimumTrainingFeeGreaterThanOrEqual(BigDecimal minFee) {
-        return (root, query, criteriaBuilder) ->
-                criteriaBuilder.greaterThanOrEqualTo(root.get("minimumTrainingFee"), minFee);
-    }
-
-    public Specification<Course> minimumTrainingFeeLessThanOrEqual(BigDecimal maxFee) {
-        return (root, query, criteriaBuilder) ->
-                criteriaBuilder.lessThanOrEqualTo(root.get("minimumTrainingFee"), maxFee);
     }
 
     /**

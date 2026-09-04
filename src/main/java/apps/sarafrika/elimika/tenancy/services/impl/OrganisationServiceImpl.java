@@ -176,6 +176,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Override
     @Transactional(readOnly = true)
     public Page<OrganisationDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Organisation.class, pageable);
         Specification<Organisation> spec = specificationBuilder.buildSpecification(Organisation.class, searchParams);
         // Add deleted=false filter to search
         Specification<Organisation> notDeletedSpec = (root, query, criteriaBuilder) ->

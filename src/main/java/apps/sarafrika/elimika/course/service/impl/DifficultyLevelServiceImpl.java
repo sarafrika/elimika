@@ -52,6 +52,7 @@ public class DifficultyLevelServiceImpl implements DifficultyLevelService {
     @Override
     @Transactional(readOnly = true)
     public Page<DifficultyLevelDTO> getAllDifficultyLevels(Pageable pageable) {
+        specificationBuilder.validateSortProperties(DifficultyLevel.class, pageable);
         return difficultyLevelRepository.findAll(pageable).map(DifficultyLevelFactory::toDTO);
     }
 
@@ -79,6 +80,7 @@ public class DifficultyLevelServiceImpl implements DifficultyLevelService {
     @Override
     @Transactional(readOnly = true)
     public Page<DifficultyLevelDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(DifficultyLevel.class, pageable);
         Specification<DifficultyLevel> spec = specificationBuilder.buildSpecification(
                 DifficultyLevel.class, searchParams);
         return difficultyLevelRepository.findAll(spec, pageable).map(DifficultyLevelFactory::toDTO);

@@ -50,6 +50,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     @Override
     @Transactional(readOnly = true)
     public Page<RubricScoringDTO> getAllRubricScorings(Pageable pageable) {
+        specificationBuilder.validateSortProperties(RubricScoring.class, pageable);
         return rubricScoringRepository.findAll(pageable).map(RubricScoringFactory::toDTO);
     }
 
@@ -77,6 +78,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     @Override
     @Transactional(readOnly = true)
     public Page<RubricScoringDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(RubricScoring.class, pageable);
         Specification<RubricScoring> spec = specificationBuilder.buildSpecification(
                 RubricScoring.class, searchParams);
         return rubricScoringRepository.findAll(spec, pageable).map(RubricScoringFactory::toDTO);

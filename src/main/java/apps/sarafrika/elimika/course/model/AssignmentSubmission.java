@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.SubmissionStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -25,9 +26,11 @@ import java.util.UUID;
 public class AssignmentSubmission extends BaseEntity {
 
     @Column(name = "enrollment_uuid")
+    @Filterable
     private UUID enrollmentUuid;
 
     @Column(name = "assignment_uuid")
+    @Filterable
     private UUID assignmentUuid;
 
     @Column(name = "submission_text")
@@ -37,10 +40,12 @@ public class AssignmentSubmission extends BaseEntity {
     private String[] fileUrls;
 
     @Column(name = "submitted_at")
+    @Filterable
     private LocalDateTime submittedAt;
 
     @Column(name = "status")
     @Convert(converter =  SubmissionStatusConverter.class)
+    @Filterable
     private SubmissionStatus status;
 
     @Column(name = "score")

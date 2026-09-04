@@ -77,6 +77,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseEnrollmentDTO> getAllCourseEnrollments(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseEnrollment.class, pageable);
         return courseEnrollmentRepository.findAll(pageable).map(CourseEnrollmentFactory::toDTO);
     }
 
@@ -107,6 +108,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseEnrollmentDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseEnrollment.class, pageable);
         Specification<CourseEnrollment> spec = specificationBuilder.buildSpecification(
                 CourseEnrollment.class, searchParams);
         return courseEnrollmentRepository.findAll(spec, pageable).map(CourseEnrollmentFactory::toDTO);

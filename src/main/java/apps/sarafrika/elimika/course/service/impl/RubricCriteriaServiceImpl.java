@@ -52,6 +52,7 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
     @Override
     @Transactional(readOnly = true)
     public Page<RubricCriteriaDTO> getAllRubricCriterias(Pageable pageable) {
+        specificationBuilder.validateSortProperties(RubricCriteria.class, pageable);
         return rubricCriteriaRepository.findAll(pageable).map(RubricCriteriaFactory::toDTO);
     }
 
@@ -79,6 +80,7 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
     @Override
     @Transactional(readOnly = true)
     public Page<RubricCriteriaDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(RubricCriteria.class, pageable);
         Specification<RubricCriteria> spec = specificationBuilder.buildSpecification(
                 RubricCriteria.class, searchParams);
         return rubricCriteriaRepository.findAll(spec, pageable).map(RubricCriteriaFactory::toDTO);

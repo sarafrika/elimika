@@ -54,6 +54,7 @@ public class LessonProgressServiceImpl implements LessonProgressService {
     @Override
     @Transactional(readOnly = true)
     public Page<LessonProgressDTO> getAllLessonProgresses(Pageable pageable) {
+        specificationBuilder.validateSortProperties(LessonProgress.class, pageable);
         return lessonProgressRepository.findAll(pageable).map(LessonProgressFactory::toDTO);
     }
 
@@ -81,6 +82,7 @@ public class LessonProgressServiceImpl implements LessonProgressService {
     @Override
     @Transactional(readOnly = true)
     public Page<LessonProgressDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(LessonProgress.class, pageable);
         Specification<LessonProgress> spec = specificationBuilder.buildSpecification(
                 LessonProgress.class, searchParams);
         return lessonProgressRepository.findAll(spec, pageable).map(LessonProgressFactory::toDTO);

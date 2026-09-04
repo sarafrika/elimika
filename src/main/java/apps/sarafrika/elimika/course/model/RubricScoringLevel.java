@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,9 +27,11 @@ import java.util.UUID;
 public class RubricScoringLevel extends BaseEntity {
 
     @Column(name = "rubric_uuid")
+    @Filterable
     private UUID rubricUuid;
 
     @Column(name = "name", length = 50)
+    @Filterable
     private String name;
 
     @Column(name = "description")
@@ -38,11 +41,13 @@ public class RubricScoringLevel extends BaseEntity {
     private BigDecimal points;
 
     @Column(name = "level_order")
+    @Filterable
     private Integer levelOrder;
 
     @Column(name = "color_code", length = 7)
     private String colorCode;
 
     @Column(name = "is_passing")
+    @Filterable
     private Boolean isPassing;
 }

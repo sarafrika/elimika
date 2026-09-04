@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.instructor.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -18,9 +19,11 @@ import java.util.UUID;
 public class Instructor extends BaseEntity {
 
     @Column(name = "user_uuid")
+    @Filterable
     private UUID userUuid;
 
     @Column(name = "full_name")
+    @Filterable
     private String fullName;
 
     @Column(name = "location_name")
@@ -42,6 +45,7 @@ public class Instructor extends BaseEntity {
     private String professionalHeadline;
 
     @Column(name="admin_verified")
+    @Filterable
     private Boolean adminVerified;
 }
 

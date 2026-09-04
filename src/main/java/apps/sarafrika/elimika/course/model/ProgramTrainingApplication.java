@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -28,13 +29,16 @@ import java.util.UUID;
 public class ProgramTrainingApplication extends BaseEntity {
 
     @Column(name = "program_uuid")
+    @Filterable
     private UUID programUuid;
 
     @Column(name = "applicant_type")
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicantTypeConverter.class)
+    @Filterable
     private CourseTrainingApplicantType applicantType;
 
     @Column(name = "applicant_uuid")
+    @Filterable
     private UUID applicantUuid;
 
     @Column(name = "rate_currency")
@@ -78,6 +82,7 @@ public class ProgramTrainingApplication extends BaseEntity {
 
     @Column(name = "status")
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)
+    @Filterable
     private CourseTrainingApplicationStatus status;
 
     @Column(name = "application_notes")
@@ -90,5 +95,6 @@ public class ProgramTrainingApplication extends BaseEntity {
     private String reviewedBy;
 
     @Column(name = "reviewed_at")
+    @Filterable
     private LocalDateTime reviewedAt;
 }

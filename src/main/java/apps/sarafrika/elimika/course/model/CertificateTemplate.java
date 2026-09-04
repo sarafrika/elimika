@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.TemplateTypeConverter;
 import apps.sarafrika.elimika.course.util.enums.TemplateType;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -21,10 +22,12 @@ import lombok.Setter;
 public class CertificateTemplate extends BaseEntity {
 
     @Column(name = "name")
+    @Filterable
     private String name;
 
     @Column(name = "template_type")
     @Convert(converter = TemplateTypeConverter.class)
+    @Filterable
     private TemplateType templateType;
 
     @Column(name = "template_html")
@@ -37,5 +40,6 @@ public class CertificateTemplate extends BaseEntity {
     private String backgroundImageUrl;
 
     @Column(name = "is_active")
+    @Filterable
     private Boolean isActive;
 }

@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.util.converter.QuizScopeConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.QuizScope;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class Quiz extends BaseEntity {
 
     @Column(name = "lesson_uuid")
+    @Filterable
     private UUID lessonUuid;
 
     @Convert(converter = QuizScopeConverter.class)
@@ -33,12 +35,14 @@ public class Quiz extends BaseEntity {
     private QuizScope scope = QuizScope.COURSE_TEMPLATE;
 
     @Column(name = "class_definition_uuid")
+    @Filterable
     private UUID classDefinitionUuid;
 
     @Column(name = "source_quiz_uuid")
     private UUID sourceQuizUuid;
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description")
@@ -61,8 +65,10 @@ public class Quiz extends BaseEntity {
 
     @Column(name = "status")
     @Convert(converter = ContentStatusConverter.class)
+    @Filterable
     private ContentStatus status;
 
     @Column(name = "active")
+    @Filterable
     private Boolean active;
 }

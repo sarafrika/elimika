@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.shared.utils;
 import jakarta.persistence.Column;
 import jakarta.persistence.criteria.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
@@ -17,10 +19,22 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Builds JPA {@link Specification}s from a flat {@code searchParams} request map.
+ * <p>
+ * Filtering and sorting are default-deny: a request key is only honoured when it resolves to an
+ * entity field annotated with {@link Filterable}. Anything else - an unknown column, a typo, or a
+ * column that exists but is deliberately not exposed - raises {@link IllegalArgumentException},
+ * which the global handler turns into a 400. Silently dropping such keys would leak the shape of
+ * the table through the resulting row counts.
+ */
 @Component
 @Slf4j
 public class GenericSpecificationBuilder<T> {
-    private static final List<String> EXCLUDED_PARAMS = List.of("page", "size", "sort");
+    private static final String SORT_PARAM = "sort";
+    private static final List<String> EXCLUDED_PARAMS = List.of("page", "size", SORT_PARAM);
+    private static final Set<String> SORT_DIRECTION_TOKENS = Set.of("asc", "desc", "ignorecase");
+    private static final int MAX_ECHOED_KEY_LENGTH = 64;
     private static final Set<String> SUPPORTED_OPERATIONS = Set.of(
             "eq",
             "gt",
@@ -37,6 +51,7 @@ public class GenericSpecificationBuilder<T> {
             "notingroup"
     );
     private final Map<Class<?>, Map<String, String>> fieldColumnCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Set<String>> sortablePropertyCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Map<String, Class<?>>> relationshipCache = new ConcurrentHashMap<>();
     private final Map<RelationshipKey, String> inverseRelationshipCache = new ConcurrentHashMap<>();
 
@@ -45,8 +60,102 @@ public class GenericSpecificationBuilder<T> {
 
     public Specification<T> buildSpecification(Class<T> entityClass, Map<String, String> searchParams) {
         Map<String, String> fieldColumnMap = getFieldColumnMap(entityClass);
+        if (searchParams != null) {
+            validateSortExpression(entityClass, searchParams.get(SORT_PARAM));
+        }
         List<SearchCriteria> criteriaList = buildSearchCriteria(searchParams, fieldColumnMap);
         return criteriaList.isEmpty() ? null : createSpecification(criteriaList);
+    }
+
+    /**
+     * Validates every ordering carried by a bound {@link Pageable} against the allow-list.
+     * <p>
+     * Sorting is as good an oracle as filtering: ordering a page by an unexposed column ranks the
+     * whole table by that column. The bound {@code Pageable} is the only place where <em>all</em>
+     * orderings are visible - a repeated {@code ?sort=} parameter collapses to its first value in
+     * the {@code searchParams} map while Spring still applies every one of them - so services must
+     * validate here, including on endpoints that build their own {@code searchParams} map.
+     *
+     * @throws IllegalArgumentException when a sort property is not annotated {@link Filterable}
+     */
+    public void validateSortProperties(Class<?> entityClass, Pageable pageable) {
+        if (pageable == null || pageable.isUnpaged()) {
+            return;
+        }
+        validateSortProperties(entityClass, pageable.getSort());
+    }
+
+    private void validateSortProperties(Class<?> entityClass, Sort sort) {
+        if (sort == null || sort.isUnsorted()) {
+            return;
+        }
+        for (Sort.Order order : sort) {
+            validateSortProperty(entityClass, order.getProperty());
+        }
+    }
+
+    /**
+     * Validates the raw {@code sort} request value that rides in the {@code searchParams} map, for
+     * endpoints whose caller passes the sort as a query parameter rather than a bound {@link Pageable}.
+     */
+    private void validateSortExpression(Class<?> entityClass, String sortExpression) {
+        if (sortExpression == null || sortExpression.isBlank()) {
+            return;
+        }
+        for (String token : sortExpression.split(",")) {
+            String property = token.trim();
+            if (property.isEmpty() || SORT_DIRECTION_TOKENS.contains(property.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            validateSortProperty(entityClass, property);
+        }
+    }
+
+    /**
+     * A sort property is checked against JPA property names rather than the filter alias map: the
+     * alias map also holds column names, and a column name whose entity field is spelled differently
+     * ({@code organisation_id} for the field {@code organisation}) would pass the check and then blow
+     * up inside Spring Data as a 500 instead of being rejected as a 400.
+     */
+    private void validateSortProperty(Class<?> entityClass, String property) {
+        if (!getSortableProperties(entityClass).contains(normaliseSortProperty(property))) {
+            throw new IllegalArgumentException("Unsupported sort property: " + sanitiseForMessage(property));
+        }
+    }
+
+    /**
+     * Spring Data resolves {@code created_date} to the field {@code createdDate}, so underscores are
+     * insignificant when matching a requested sort property to a field name.
+     */
+    private String normaliseSortProperty(String property) {
+        return property.replace("_", "").toLowerCase(Locale.ROOT);
+    }
+
+    private Set<String> getSortableProperties(Class<?> entityClass) {
+        return sortablePropertyCache.computeIfAbsent(entityClass, this::buildSortableProperties);
+    }
+
+    private Set<String> buildSortableProperties(Class<?> entityClass) {
+        Set<String> properties = new HashSet<>();
+        Class<?> currentClass = entityClass;
+        while (currentClass != null) {
+            for (Field field : currentClass.getDeclaredFields()) {
+                if (field.isAnnotationPresent(Filterable.class)) {
+                    properties.add(normaliseSortProperty(field.getName()));
+                }
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+        return Collections.unmodifiableSet(properties);
+    }
+
+    /**
+     * Echoes a rejected request key back to the caller without letting arbitrary payload through:
+     * anything outside an identifier is dropped and the result is capped.
+     */
+    private String sanitiseForMessage(String key) {
+        String cleaned = key.replaceAll("[^A-Za-z0-9_.]", "");
+        return cleaned.length() > MAX_ECHOED_KEY_LENGTH ? cleaned.substring(0, MAX_ECHOED_KEY_LENGTH) : cleaned;
     }
 
     private Map<String, String> getFieldColumnMap(Class<?> entityClass) {
@@ -70,9 +179,12 @@ public class GenericSpecificationBuilder<T> {
     private void addSearchCriteria(List<SearchCriteria> criteriaList, String key, String value, Map<String, String> fieldColumnMap) {
         SearchCriteriaInfo criteriaInfo = parseSearchKey(key);
         String resolvedField = fieldColumnMap.get(criteriaInfo.fieldName().toLowerCase());
+        if (resolvedField == null) {
+            throw new IllegalArgumentException("Unsupported search field: " + sanitiseForMessage(criteriaInfo.fieldName()));
+        }
 
         criteriaList.add(new SearchCriteria(
-                resolvedField != null ? resolvedField : criteriaInfo.fieldName(),
+                resolvedField,
                 criteriaInfo.operation(),
                 value
         ));
@@ -116,6 +228,10 @@ public class GenericSpecificationBuilder<T> {
     }
 
     private void processField(Field field, Map<String, String> fieldColumnMap) {
+        if (!field.isAnnotationPresent(Filterable.class)) {
+            return;
+        }
+
         String fieldName = field.getName();
         fieldColumnMap.put(fieldName.toLowerCase(), fieldName);
 

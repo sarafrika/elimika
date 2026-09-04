@@ -61,6 +61,7 @@ public class LessonContentServiceImpl implements LessonContentService {
     @Override
     @Transactional(readOnly = true)
     public Page<LessonContentDTO> getAllLessonContents(Pageable pageable) {
+        specificationBuilder.validateSortProperties(LessonContent.class, pageable);
         return lessonContentRepository.findAll(pageable).map(LessonContentFactory::toDTO);
     }
 
@@ -88,6 +89,7 @@ public class LessonContentServiceImpl implements LessonContentService {
     @Override
     @Transactional(readOnly = true)
     public Page<LessonContentDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(LessonContent.class, pageable);
         Specification<LessonContent> spec = specificationBuilder.buildSpecification(
                 LessonContent.class, searchParams);
         return lessonContentRepository.findAll(spec, pageable).map(LessonContentFactory::toDTO);

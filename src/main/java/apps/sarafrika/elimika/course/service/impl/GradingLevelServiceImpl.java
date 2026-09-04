@@ -47,6 +47,7 @@ public class GradingLevelServiceImpl implements GradingLevelService {
     @Override
     @Transactional(readOnly = true)
     public Page<GradingLevelDTO> getAllGradingLevels(Pageable pageable) {
+        specificationBuilder.validateSortProperties(GradingLevel.class, pageable);
         return gradingLevelRepository.findAll(pageable).map(GradingLevelFactory::toDTO);
     }
 
@@ -74,6 +75,7 @@ public class GradingLevelServiceImpl implements GradingLevelService {
     @Override
     @Transactional(readOnly = true)
     public Page<GradingLevelDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(GradingLevel.class, pageable);
         Specification<GradingLevel> spec = specificationBuilder.buildSpecification(
                 GradingLevel.class, searchParams);
         return gradingLevelRepository.findAll(spec, pageable).map(GradingLevelFactory::toDTO);

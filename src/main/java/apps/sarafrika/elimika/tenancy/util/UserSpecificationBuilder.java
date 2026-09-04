@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +41,17 @@ public class UserSpecificationBuilder {
     private static final String PARAM_ACTIVE_IN_ORGANISATION = "active_in_organisation";
     private static final String PARAM_FULL_NAME = "full_name";
     private static final String PARAM_FULL_NAME_LIKE = "full_name_like";
+
+    /**
+     * Rejects an ordering on a column that is not exposed for filtering, so that a page of users
+     * cannot be ranked by an unexposed column. Delegates to the generic builder's allow-list.
+     *
+     * @param pageable the bound page request whose sort orders are checked
+     * @throws IllegalArgumentException when a sort property is not exposed
+     */
+    public void validateSortProperties(Pageable pageable) {
+        genericBuilder.validateSortProperties(User.class, pageable);
+    }
 
     /**
      * Builds a complete user specification from search parameters.

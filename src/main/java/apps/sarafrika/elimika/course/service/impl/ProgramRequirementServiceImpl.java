@@ -52,6 +52,7 @@ public class ProgramRequirementServiceImpl implements ProgramRequirementService 
     @Override
     @Transactional(readOnly = true)
     public Page<ProgramRequirementDTO> getAllProgramRequirements(Pageable pageable) {
+        specificationBuilder.validateSortProperties(ProgramRequirement.class, pageable);
         return programRequirementRepository.findAll(pageable).map(ProgramRequirementFactory::toDTO);
     }
 
@@ -79,6 +80,7 @@ public class ProgramRequirementServiceImpl implements ProgramRequirementService 
     @Override
     @Transactional(readOnly = true)
     public Page<ProgramRequirementDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(ProgramRequirement.class, pageable);
         Specification<ProgramRequirement> spec = specificationBuilder.buildSpecification(
                 ProgramRequirement.class, searchParams);
         return programRequirementRepository.findAll(spec, pageable).map(ProgramRequirementFactory::toDTO);

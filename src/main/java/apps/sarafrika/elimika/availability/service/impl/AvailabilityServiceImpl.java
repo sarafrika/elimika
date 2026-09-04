@@ -128,6 +128,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     public Page<AvailabilitySlotDTO> search(Map<String, String> searchParams, Pageable pageable) {
         log.debug("Searching availability with params: {}", searchParams);
 
+        specificationBuilder.validateSortProperties(InstructorAvailability.class, pageable);
         Specification<InstructorAvailability> spec = specificationBuilder.buildSpecification(InstructorAvailability.class, searchParams);
         Page<InstructorAvailability> entities = availabilityRepository.findAll(spec, pageable);
 

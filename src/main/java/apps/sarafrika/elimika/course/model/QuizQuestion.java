@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,18 +21,21 @@ import java.util.UUID;
 public class QuizQuestion extends BaseEntity {
 
     @Column(name = "quiz_uuid")
+    @Filterable
     private UUID quizUuid;
 
     @Column(name = "question_text")
     private String questionText;
 
     @Column(name = "question_type")
+    @Filterable
     private QuestionType questionType;
 
     @Column(name = "points")
     private BigDecimal points;
 
     @Column(name = "display_order")
+    @Filterable
     private Integer displayOrder;
 
     /**

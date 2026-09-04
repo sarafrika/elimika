@@ -58,6 +58,7 @@ public class ContentProgressServiceImpl implements ContentProgressService {
     @Override
     @Transactional(readOnly = true)
     public Page<ContentProgressDTO> getAllContentProgresses(Pageable pageable) {
+        specificationBuilder.validateSortProperties(ContentProgress.class, pageable);
         return contentProgressRepository.findAll(pageable).map(ContentProgressFactory::toDTO);
     }
 
@@ -85,6 +86,7 @@ public class ContentProgressServiceImpl implements ContentProgressService {
     @Override
     @Transactional(readOnly = true)
     public Page<ContentProgressDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(ContentProgress.class, pageable);
         Specification<ContentProgress> spec = specificationBuilder.buildSpecification(
                 ContentProgress.class, searchParams);
         return contentProgressRepository.findAll(spec, pageable).map(ContentProgressFactory::toDTO);

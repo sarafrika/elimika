@@ -44,6 +44,7 @@ public class CourseCreatorProfessionalMembershipServiceImpl implements CourseCre
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorProfessionalMembershipDTO> getAllCourseCreatorProfessionalMemberships(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreatorProfessionalMembership.class, pageable);
         return membershipRepository.findAll(pageable).map(CourseCreatorProfessionalMembershipFactory::toDTO);
     }
 
@@ -85,6 +86,7 @@ public class CourseCreatorProfessionalMembershipServiceImpl implements CourseCre
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorProfessionalMembershipDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreatorProfessionalMembership.class, pageable);
         Specification<CourseCreatorProfessionalMembership> spec = specificationBuilder.buildSpecification(CourseCreatorProfessionalMembership.class, searchParams);
         return membershipRepository.findAll(spec, pageable).map(CourseCreatorProfessionalMembershipFactory::toDTO);
     }

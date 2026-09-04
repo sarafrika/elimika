@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -21,12 +22,15 @@ import java.time.LocalDateTime;
 public class Organisation extends BaseEntity {
 
     @Column(name = "name")
+    @Filterable
     private String name;
 
     @Column(name = "description")
+    @Filterable
     private String description;
 
     @Column(name = "active")
+    @Filterable
     private boolean active = true;
 
 
@@ -35,6 +39,7 @@ public class Organisation extends BaseEntity {
 
 
     @Column(name = "slug")
+    @Filterable
     private String slug;
 
     @Column(name = "lat")
@@ -44,16 +49,19 @@ public class Organisation extends BaseEntity {
     private BigDecimal longitude;
 
     @Column(name = "deleted")
+    @Filterable
     private boolean deleted = false;
 
 
     @Column(name = "location")
+    @Filterable
     private String location;
 
     @Column(name = "country")
     private String country;
 
     @Column(name = "admin_verified")
+    @Filterable
     private Boolean adminVerified = false;
 
     /** When the organisation submitted itself for admin verification; null if never submitted. */

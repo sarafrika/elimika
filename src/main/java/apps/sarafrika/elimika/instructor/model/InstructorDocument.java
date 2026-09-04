@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.instructor.model;
 
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -24,19 +25,24 @@ import java.util.UUID;
 public class InstructorDocument extends BaseEntity {
 
     @Column(name = "instructor_uuid")
+    @Filterable
     private UUID instructorUuid;
 
     @Column(name = "document_type_uuid")
+    @Filterable
     private UUID documentTypeUuid;
 
     // Optional references to specific records
     @Column(name = "education_uuid")
+    @Filterable
     private UUID educationUuid;
 
     @Column(name = "experience_uuid")
+    @Filterable
     private UUID experienceUuid;
 
     @Column(name = "membership_uuid")
+    @Filterable
     private UUID membershipUuid;
 
     // File information
@@ -61,15 +67,18 @@ public class InstructorDocument extends BaseEntity {
 
     // Metadata
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "upload_date")
+    @Filterable
     private LocalDateTime uploadDate;
 
     @Column(name = "is_verified")
+    @Filterable
     private Boolean isVerified;
 
     @Column(name = "verified_by")
@@ -85,8 +94,10 @@ public class InstructorDocument extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "document_status_enum")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Filterable
     private DocumentStatus status;
 
     @Column(name = "expiry_date")
+    @Filterable
     private LocalDate expiryDate;
 }

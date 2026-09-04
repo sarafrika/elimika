@@ -52,6 +52,7 @@ public class ContentTypeServiceImpl implements ContentTypeService {
     @Override
     @Transactional(readOnly = true)
     public Page<ContentTypeDTO> getAllContentTypes(Pageable pageable) {
+        specificationBuilder.validateSortProperties(ContentType.class, pageable);
         return contentTypeRepository.findAll(pageable).map(ContentTypeFactory::toDTO);
     }
 
@@ -79,6 +80,7 @@ public class ContentTypeServiceImpl implements ContentTypeService {
     @Override
     @Transactional(readOnly = true)
     public Page<ContentTypeDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(ContentType.class, pageable);
         Specification<ContentType> spec = specificationBuilder.buildSpecification(
                 ContentType.class, searchParams);
         return contentTypeRepository.findAll(spec, pageable).map(ContentTypeFactory::toDTO);

@@ -70,6 +70,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorDTO> getAllInstructors(Pageable pageable) {
+        specificationBuilder.validateSortProperties(Instructor.class, pageable);
         return instructorRepository.findAll(pageable).map(InstructorFactory::toDTO);
     }
 
@@ -98,6 +99,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, searchParams);
         return instructorRepository.findAll(spec, pageable).map(InstructorFactory::toDTO);
     }

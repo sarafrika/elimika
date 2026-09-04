@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -21,20 +22,25 @@ import java.util.UUID;
 public class CourseCreatorProfessionalMembership extends BaseEntity {
 
     @Column(name = "course_creator_uuid")
+    @Filterable
     private UUID courseCreatorUuid;
 
     @Column(name = "organization_name")
+    @Filterable
     private String organizationName;
 
     @Column(name = "membership_number")
     private String membershipNumber;
 
     @Column(name = "start_date")
+    @Filterable
     private LocalDate startDate;
 
     @Column(name = "end_date")
+    @Filterable
     private LocalDate endDate;
 
     @Column(name = "is_active")
+    @Filterable
     private Boolean isActive = true;
 }

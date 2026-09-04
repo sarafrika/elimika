@@ -51,6 +51,7 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
     @Override
     @Transactional(readOnly = true)
     public Page<CertificateTemplateDTO> getAllCertificateTemplates(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CertificateTemplate.class, pageable);
         return certificateTemplateRepository.findAll(pageable).map(CertificateTemplateFactory::toDTO);
     }
 
@@ -78,6 +79,7 @@ public class CertificateTemplateServiceImpl implements CertificateTemplateServic
     @Override
     @Transactional(readOnly = true)
     public Page<CertificateTemplateDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CertificateTemplate.class, pageable);
         Specification<CertificateTemplate> spec = specificationBuilder.buildSpecification(
                 CertificateTemplate.class, searchParams);
         return certificateTemplateRepository.findAll(spec, pageable).map(CertificateTemplateFactory::toDTO);

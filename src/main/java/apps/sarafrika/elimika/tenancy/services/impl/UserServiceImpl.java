@@ -117,6 +117,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public Page<UserDTO> getAllUsers(Pageable pageable) {
         log.debug("Retrieving all users with pagination: {}", pageable);
+        userSpecificationBuilder.validateSortProperties(pageable);
         Page<User> users = userRepository.findAll(pageable);
         return users.map(this::toUserDTO);
     }
@@ -368,6 +369,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable) {
         log.debug("Searching users with params: {}", searchParams);
+        userSpecificationBuilder.validateSortProperties(pageable);
         Specification<User> spec = userSpecificationBuilder.buildUserSpecification(searchParams);
         Page<User> users = userRepository.findAll(spec, pageable);
         return users.map(this::toUserDTO);

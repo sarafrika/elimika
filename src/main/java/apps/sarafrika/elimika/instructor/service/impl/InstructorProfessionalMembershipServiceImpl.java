@@ -59,6 +59,7 @@ public class InstructorProfessionalMembershipServiceImpl implements InstructorPr
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorProfessionalMembershipDTO> getAllInstructorProfessionalMemberships(Pageable pageable) {
+        specificationBuilder.validateSortProperties(InstructorProfessionalMembership.class, pageable);
         return membershipRepository.findAll(pageable).map(InstructorProfessionalMembershipFactory::toDTO);
     }
 
@@ -90,6 +91,7 @@ public class InstructorProfessionalMembershipServiceImpl implements InstructorPr
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorProfessionalMembershipDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(InstructorProfessionalMembership.class, pageable);
         Specification<InstructorProfessionalMembership> spec = specificationBuilder.buildSpecification(InstructorProfessionalMembership.class, searchParams);
         return membershipRepository.findAll(spec, pageable).map(InstructorProfessionalMembershipFactory::toDTO);
     }

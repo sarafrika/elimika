@@ -110,6 +110,7 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
     @Override
     @Transactional(readOnly = true)
     public Page<CourseTrainingRequirementDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseTrainingRequirement.class, pageable);
         Specification<CourseTrainingRequirement> spec = specificationBuilder.buildSpecification(CourseTrainingRequirement.class, searchParams);
         return repository.findAll(spec, pageable).map(CourseTrainingRequirementFactory::toDTO);
     }

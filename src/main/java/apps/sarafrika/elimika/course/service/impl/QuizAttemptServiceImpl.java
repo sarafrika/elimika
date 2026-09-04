@@ -81,6 +81,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     @Override
     @Transactional(readOnly = true)
     public Page<QuizAttemptDTO> getAllQuizAttempts(Pageable pageable) {
+        specificationBuilder.validateSortProperties(QuizAttempt.class, pageable);
         return quizAttemptRepository.findAll(pageable).map(QuizAttemptFactory::toDTO);
     }
 
@@ -124,6 +125,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     @Override
     @Transactional(readOnly = true)
     public Page<QuizAttemptDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(QuizAttempt.class, pageable);
         Specification<QuizAttempt> spec = specificationBuilder.buildSpecification(
                 QuizAttempt.class, searchParams);
         return quizAttemptRepository.findAll(spec, pageable).map(QuizAttemptFactory::toDTO);
@@ -132,6 +134,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
     @Override
     @Transactional(readOnly = true)
     public Page<QuizAttemptDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(QuizAttempt.class, pageable);
         Specification<QuizAttempt> spec = specificationBuilder.buildSpecification(
                 QuizAttempt.class, searchParams);
         return quizAttemptRepository

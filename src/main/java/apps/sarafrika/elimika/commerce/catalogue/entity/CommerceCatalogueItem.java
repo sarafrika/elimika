@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.commerce.catalogue.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -17,12 +18,15 @@ import lombok.Setter;
 public class CommerceCatalogueItem extends BaseEntity {
 
     @Column(name = "course_uuid")
+    @Filterable
     private UUID courseUuid;
 
     @Column(name = "class_definition_uuid")
+    @Filterable
     private UUID classDefinitionUuid;
 
     @Column(name = "program_uuid")
+    @Filterable
     private UUID programUuid;
 
     @Column(name = "product_code")
@@ -35,8 +39,10 @@ public class CommerceCatalogueItem extends BaseEntity {
     private String currencyCode;
 
     @Column(name = "active")
+    @Filterable
     private boolean active = true;
 
     @Column(name = "publicly_visible")
+    @Filterable
     private boolean publiclyVisible = true;
 }

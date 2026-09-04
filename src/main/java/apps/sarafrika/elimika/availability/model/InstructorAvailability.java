@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.availability.model;
 import apps.sarafrika.elimika.availability.util.converter.AvailabilityTypeConverter;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,19 +20,24 @@ import java.util.UUID;
 public class InstructorAvailability extends BaseEntity {
     
     @Column(name = "instructor_uuid")
+    @Filterable
     private UUID instructorUuid;
     
     @Column(name = "availability_type")
     @Convert(converter = AvailabilityTypeConverter.class)
+    @Filterable
     private AvailabilityType availabilityType;
     
     @Column(name = "day_of_week")
+    @Filterable
     private Integer dayOfWeek;
     
     @Column(name = "day_of_month")
+    @Filterable
     private Integer dayOfMonth;
     
     @Column(name = "specific_date")
+    @Filterable
     private LocalDate specificDate;
     
     @Column(name = "start_time")
@@ -44,15 +50,18 @@ public class InstructorAvailability extends BaseEntity {
     private String customPattern;
     
     @Column(name = "is_available")
+    @Filterable
     private Boolean isAvailable = true;
     
     @Column(name = "recurrence_interval")
     private Integer recurrenceInterval;
     
     @Column(name = "effective_start_date")
+    @Filterable
     private LocalDate effectiveStartDate;
     
     @Column(name = "effective_end_date")
+    @Filterable
     private LocalDate effectiveEndDate;
 
     @Column(name = "color_code")

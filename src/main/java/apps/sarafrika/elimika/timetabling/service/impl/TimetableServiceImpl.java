@@ -907,6 +907,7 @@ public class TimetableServiceImpl implements TimetableService {
             }
         }
 
+        enrollmentSpecBuilder.validateSortProperties(Enrollment.class, pageable);
         Specification<Enrollment> specification = enrollmentSpecBuilder.buildSpecification(Enrollment.class, normalizedParams);
         Specification<Enrollment> reach = enrolmentVisibilityScope();
         Specification<Enrollment> combined = reach == null

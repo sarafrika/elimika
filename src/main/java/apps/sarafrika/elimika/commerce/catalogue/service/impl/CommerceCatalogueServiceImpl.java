@@ -137,6 +137,9 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     @Override
     public Page<CommerceCatalogueItemDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        // The sort allow-list is applied to what the client asked for; visibility is then enforced
+        // inside the query itself rather than by filtering rows afterwards.
+        specificationBuilder.validateSortProperties(CommerceCatalogueItem.class, pageable);
         Specification<CommerceCatalogueItem> spec = buildScopedSpecification(searchParams, accessService.buildContext());
         Page<CommerceCatalogueItem> page = spec == null
                 ? catalogItemRepository.findAll(pageable)

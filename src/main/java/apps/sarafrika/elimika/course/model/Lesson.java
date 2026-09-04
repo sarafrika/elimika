@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -24,12 +25,15 @@ public class Lesson extends BaseEntity {
 
     // Lesson duration is defined when classes are scheduled; no time estimates are persisted here.
     @Column(name = "course_uuid")
+    @Filterable
     private UUID courseUuid;
 
     @Column(name = "lesson_number")
+    @Filterable
     private Integer lessonNumber;
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description")
@@ -40,9 +44,11 @@ public class Lesson extends BaseEntity {
 
     @Column(name = "status")
     @Convert(converter = ContentStatusConverter.class)
+    @Filterable
     private ContentStatus status;
 
     @Column(name = "active")
+    @Filterable
     private Boolean active;
 
     /**

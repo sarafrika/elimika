@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -20,15 +21,19 @@ import java.util.UUID;
 public class CourseCreatorEducation extends BaseEntity {
 
     @Column(name = "course_creator_uuid")
+    @Filterable
     private UUID courseCreatorUuid;
 
     @Column(name = "qualification")
+    @Filterable
     private String qualification;
 
     @Column(name = "field_of_study")
+    @Filterable
     private String fieldOfStudy;
 
     @Column(name = "school_name")
+    @Filterable
     private String schoolName;
 
     @Column(name = "start_year")

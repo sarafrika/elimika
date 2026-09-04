@@ -52,6 +52,7 @@ public class ProgramCourseServiceImpl implements ProgramCourseService {
     @Override
     @Transactional(readOnly = true)
     public Page<ProgramCourseDTO> getAllProgramCourses(Pageable pageable) {
+        specificationBuilder.validateSortProperties(ProgramCourse.class, pageable);
         return programCourseRepository.findAll(pageable).map(ProgramCourseFactory::toDTO);
     }
 
@@ -79,6 +80,7 @@ public class ProgramCourseServiceImpl implements ProgramCourseService {
     @Override
     @Transactional(readOnly = true)
     public Page<ProgramCourseDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(ProgramCourse.class, pageable);
         Specification<ProgramCourse> spec = specificationBuilder.buildSpecification(
                 ProgramCourse.class, searchParams);
         return programCourseRepository.findAll(spec, pageable).map(ProgramCourseFactory::toDTO);

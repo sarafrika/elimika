@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.AttemptStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -25,18 +26,23 @@ import java.util.UUID;
 public class QuizAttempt extends BaseEntity {
 
     @Column(name = "enrollment_uuid")
+    @Filterable
     private UUID enrollmentUuid;
 
     @Column(name = "quiz_uuid")
+    @Filterable
     private UUID quizUuid;
 
     @Column(name = "attempt_number")
+    @Filterable
     private Integer attemptNumber;
 
     @Column(name = "started_at")
+    @Filterable
     private LocalDateTime startedAt;
 
     @Column(name = "submitted_at")
+    @Filterable
     private LocalDateTime submittedAt;
 
     @Column(name = "time_taken_minutes")
@@ -52,10 +58,12 @@ public class QuizAttempt extends BaseEntity {
     private BigDecimal percentage;
 
     @Column(name = "is_passed")
+    @Filterable
     private Boolean isPassed;
 
     @Column(name = "status")
     @Convert(converter = AttemptStatusConverter.class)
+    @Filterable
     private AttemptStatus status;
 
     @Column(name = "graded_by")

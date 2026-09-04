@@ -118,6 +118,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseDTO> getAllCourses(Pageable pageable) {
+        courseSpecificationBuilder.validateSortProperties(pageable);
         Page<Course> coursePage = courseRepository.findAll(pageable);
 
         return coursePage.map(course -> {
@@ -265,6 +266,7 @@ public class CourseServiceImpl implements CourseService {
     @Transactional(readOnly = true)
     public Page<CourseDTO> search(Map<String, String> searchParams, Pageable pageable) {
         log.debug("Searching courses with params: {}", searchParams);
+        courseSpecificationBuilder.validateSortProperties(pageable);
         Specification<Course> spec = courseSpecificationBuilder.buildCourseSpecification(searchParams);
 
         Page<Course> coursePage = courseRepository.findAll(spec, pageable);

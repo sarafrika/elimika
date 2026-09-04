@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,12 +19,15 @@ import java.util.UUID;
 public class TrainingBranch extends BaseEntity {
 
     @Column(name = "organisation_uuid")
+    @Filterable
     private UUID organisationUuid;
 
     @Column(name = "branch_name")
+    @Filterable
     private String branchName;
 
     @Column(name = "address")
+    @Filterable
     private String address;
 
 
@@ -34,6 +38,7 @@ public class TrainingBranch extends BaseEntity {
     private java.math.BigDecimal longitude;
 
     @Column(name = "poc_name")
+    @Filterable
     private String pocName;
 
     @Column(name = "poc_email")
@@ -43,8 +48,10 @@ public class TrainingBranch extends BaseEntity {
     private String pocTelephone;
 
     @Column(name = "active")
+    @Filterable
     private boolean active = true;
 
     @Column(name = "deleted")
+    @Filterable
     private boolean deleted = false;
 }

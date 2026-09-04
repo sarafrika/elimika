@@ -54,6 +54,7 @@ public class InstructorSkillServiceImpl implements InstructorSkillService {
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorSkillDTO> getAllInstructorSkills(Pageable pageable) {
+        specificationBuilder.validateSortProperties(InstructorSkill.class, pageable);
         return instructorSkillRepository.findAll(pageable).map(InstructorSkillFactory::toDTO);
     }
 
@@ -80,6 +81,7 @@ public class InstructorSkillServiceImpl implements InstructorSkillService {
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorSkillDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(InstructorSkill.class, pageable);
         Specification<InstructorSkill> spec = specificationBuilder.buildSpecification(InstructorSkill.class, searchParams);
         return instructorSkillRepository.findAll(spec, pageable).map(InstructorSkillFactory::toDTO);
     }

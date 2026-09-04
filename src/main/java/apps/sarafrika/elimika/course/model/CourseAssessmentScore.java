@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class CourseAssessmentScore extends BaseEntity {
 
     @Column(name = "enrollment_uuid")
+    @Filterable
     private UUID enrollmentUuid;
 
     @Column(name = "assessment_uuid")
+    @Filterable
     private UUID assessmentUuid;
 
     @Column(name = "score")

@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.util.converter.CourseTrainingRequirementTyp
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingRequirementProvider;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingRequirementType;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -25,13 +26,16 @@ import java.util.UUID;
 public class CourseTrainingRequirement extends BaseEntity {
 
     @Column(name = "course_uuid", nullable = false)
+    @Filterable
     private UUID courseUuid;
 
     @Column(name = "requirement_type", nullable = false)
     @Convert(converter = CourseTrainingRequirementTypeConverter.class)
+    @Filterable
     private CourseTrainingRequirementType requirementType;
 
     @Column(name = "name", nullable = false)
+    @Filterable
     private String name;
 
     @Column(name = "description")
@@ -45,9 +49,11 @@ public class CourseTrainingRequirement extends BaseEntity {
 
     @Column(name = "provided_by")
     @Convert(converter = CourseTrainingRequirementProviderConverter.class)
+    @Filterable
     private CourseTrainingRequirementProvider providedBy;
 
     @Column(name = "is_mandatory", nullable = false)
+    @Filterable
     private Boolean isMandatory = true;
 
     /**

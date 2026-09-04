@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,15 +24,19 @@ import java.util.UUID;
 public class Course extends BaseEntity {
 
     @Column(name = "name")
+    @Filterable
     private String name;
 
     @Column(name = "course_creator_uuid")
+    @Filterable
     private UUID courseCreatorUuid;
 
     @Column(name = "difficulty_uuid")
+    @Filterable
     private UUID difficultyUuid;
 
     @Column(name = "description")
+    @Filterable
     private String description;
 
     @Column(name = "objectives")
@@ -81,12 +86,15 @@ public class Course extends BaseEntity {
 
     @Column(name = "status")
     @Convert(converter = ContentStatusConverter.class)
+    @Filterable
     private ContentStatus status;
 
     @Column(name = "active")
+    @Filterable
     private Boolean active;
 
     @Column(name = "admin_approved")
+    @Filterable
     private Boolean adminApproved;
 
     /**
@@ -95,6 +103,7 @@ public class Course extends BaseEntity {
      * catalogue filters already exclude it.
      */
     @Column(name = "parent_course_uuid")
+    @Filterable
     private UUID parentCourseUuid;
 
     // Many-to-many relationship with categories through junction table

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -24,12 +25,15 @@ import java.util.UUID;
 public class TrainingProgram extends BaseEntity {
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "course_creator_uuid")
+    @Filterable
     private UUID courseCreatorUuid;
 
     @Column(name = "category_uuid")
+    @Filterable
     private UUID categoryUuid;
 
     @Column(name = "description")
@@ -54,17 +58,21 @@ public class TrainingProgram extends BaseEntity {
     private BigDecimal price;
 
     @Column(name = "is_published")
+    @Filterable
     private Boolean isPublished;
 
     @Column(name = "is_active")
+    @Filterable
     private Boolean active;
 
     // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
     // null here would be sent explicitly and defeat that default — initialise it on the Java side.
     @Column(name = "status", nullable = false)
     @Convert(converter = ContentStatusConverter.class)
+    @Filterable
     private ContentStatus status = ContentStatus.DRAFT;
 
     @Column(name = "admin_approved")
+    @Filterable
     private Boolean adminApproved;
 }

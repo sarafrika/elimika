@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.ContentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -23,26 +24,33 @@ import java.util.UUID;
 public class AssessmentRubric extends BaseEntity {
 
     @Column(name = "title")
+    @Filterable
     private String title;
 
     @Column(name = "description")
+    @Filterable
     private String description;
 
 
     @Column(name = "rubric_type")
+    @Filterable
     private String rubricType;
 
     @Column(name = "course_creator_uuid")
+    @Filterable
     private UUID courseCreatorUuid;
 
     @Column(name = "is_public")
+    @Filterable
     private Boolean isPublic;
 
     @Column(name = "status")
     @Convert(converter = ContentStatusConverter.class)
+    @Filterable
     private ContentStatus status;
 
     @Column(name = "is_active")
+    @Filterable
     private Boolean isActive;
 
     @Column(name = "total_weight", precision = 5, scale = 2)

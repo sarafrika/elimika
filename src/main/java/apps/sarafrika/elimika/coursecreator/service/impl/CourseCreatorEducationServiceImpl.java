@@ -53,6 +53,7 @@ public class CourseCreatorEducationServiceImpl implements CourseCreatorEducation
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorEducationDTO> getAllCourseCreatorEducation(Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreatorEducation.class, pageable);
         return educationRepository.findAll(pageable).map(CourseCreatorEducationFactory::toDTO);
     }
 
@@ -99,6 +100,7 @@ public class CourseCreatorEducationServiceImpl implements CourseCreatorEducation
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorEducationDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(CourseCreatorEducation.class, pageable);
         Specification<CourseCreatorEducation> spec = specificationBuilder.buildSpecification(CourseCreatorEducation.class, searchParams);
         return educationRepository.findAll(spec, pageable).map(CourseCreatorEducationFactory::toDTO);
     }

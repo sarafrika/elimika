@@ -60,6 +60,7 @@ public class LessonServiceImpl implements LessonService {
     @Override
     @Transactional(readOnly = true)
     public Page<LessonDTO> getAllLessons(Pageable pageable) {
+        specificationBuilder.validateSortProperties(Lesson.class, pageable);
         return lessonRepository.findAll(pageable).map(LessonFactory::toDTO);
     }
 
@@ -87,6 +88,7 @@ public class LessonServiceImpl implements LessonService {
     @Override
     @Transactional(readOnly = true)
     public Page<LessonDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        specificationBuilder.validateSortProperties(Lesson.class, pageable);
         Specification<Lesson> spec = specificationBuilder.buildSpecification(
                 Lesson.class, searchParams);
         return lessonRepository.findAll(spec, pageable).map(LessonFactory::toDTO);

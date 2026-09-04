@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.enums.Gender;
+import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -15,21 +16,27 @@ import java.time.LocalDate;
 @NoArgsConstructor @AllArgsConstructor
 public class User extends BaseEntity {
     @Column(name = "first_name")
+    @Filterable
     private String firstName;
 
     @Column(name = "middle_name")
+    @Filterable
     private String middleName;
 
     @Column(name = "last_name")
+    @Filterable
     private String lastName;
 
     @Column(name = "email")
+    @Filterable
     private String email;
 
     @Column(name = "username")
+    @Filterable
     private String username;
 
     @Column(name = "user_no")
+    @Filterable
     private String userNo;
 
     @Column(name = "profile_image_url")
@@ -42,6 +49,7 @@ public class User extends BaseEntity {
     private String phoneNumber;
 
     @Column(name = "active", nullable = false)
+    @Filterable
     private boolean active = true;
 
     @Column(name = "keycloak_id")
@@ -50,6 +58,7 @@ public class User extends BaseEntity {
     @Column(name="gender", columnDefinition = "gender")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
+    @Filterable
     private Gender gender;
 
     /**
