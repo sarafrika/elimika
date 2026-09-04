@@ -34,6 +34,13 @@ public class StudentGroupController {
      * Student groups are organisation property: who is in a cohort is roster data, and changing a
      * cohort changes who gets enrolled downstream. Both are scoped to the owning organisation, which
      * for the group-scoped routes has to be resolved from the group itself since the path omits it.
+     * <p>
+     * The group listings and membership rows carry identifiers only, so membership of the
+     * organisation is enough to read them. The roster listing is the exception and takes management
+     * rights instead: {@code StudentGroupRosterEntryDTO} carries every student's email, phone number
+     * and date of birth, which is more contact detail per row than the user record itself exposes,
+     * and reading rights are satisfied by any mapping in the organisation — including the student's
+     * own. Its only callers are the organisation dashboard's students and groups pages.
      */
     private static final String READ_ORGANISATION =
             "@organisationSecurityService.canReadOrganisation(#organisationUuid)";
@@ -122,7 +129,7 @@ public class StudentGroupController {
                     + "paginated table. Optionally narrowed by branch, academic tier or a single group. Age is not "
                     + "returned; derive it from dob.")
     @GetMapping("/organisations/{organisationUuid}/student-group-members")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<PagedDTO<StudentGroupRosterEntryDTO>>> listRoster(
             @PathVariable UUID organisationUuid,
             @RequestParam(required = false) UUID branchUuid,

@@ -12,9 +12,24 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ProgramTrainingApplicationRepository extends JpaRepository<ProgramTrainingApplication, Long>,
         JpaSpecificationExecutor<ProgramTrainingApplication> {
+
+    /**
+     * Whether this instructor has applied to train any programme owned by this course creator. The
+     * programme-shaped twin of
+     * {@code CourseTrainingApplicationRepository#existsForInstructorApplicantAndCourseCreator}.
+     */
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN TRUE ELSE FALSE END " +
+           "FROM ProgramTrainingApplication a JOIN TrainingProgram tp ON a.programUuid = tp.uuid " +
+           "WHERE a.applicantUuid = :instructorUuid " +
+           "AND a.applicantType = apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType.INSTRUCTOR " +
+           "AND tp.courseCreatorUuid = :courseCreatorUuid")
+    boolean existsForInstructorApplicantAndCourseCreator(@Param("instructorUuid") UUID instructorUuid,
+                                                         @Param("courseCreatorUuid") UUID courseCreatorUuid);
 
     Optional<ProgramTrainingApplication> findByUuid(UUID uuid);
 

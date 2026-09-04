@@ -56,6 +56,21 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
             @Param("studentUuid") UUID studentUuid,
             @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids);
 
+    /**
+     * Whether this instructor leads any scheduled instance this student holds an enrolment on.
+     * <p>
+     * Backs the contact-visibility check: an instructor has to be able to reach the learners on
+     * their own register. Status is deliberately not filtered — a waitlisted or cancelled learner
+     * is exactly the one an instructor most often needs to phone — and the join is to the instance
+     * rather than to the class definition so that a stand-in who was scheduled for a single session
+     * is included and an instructor who merely owns the definition is not.
+     */
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN TRUE ELSE FALSE END " +
+           "FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE e.studentUuid = :studentUuid AND si.instructorUuid = :instructorUuid")
+    boolean existsForStudentAndInstructor(@Param("studentUuid") UUID studentUuid,
+                                          @Param("instructorUuid") UUID instructorUuid);
+
     List<Enrollment> findByScheduledInstanceUuid(UUID scheduledInstanceUuid);
 
     List<Enrollment> findByStatus(EnrollmentStatus status);

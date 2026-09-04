@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.UserContactSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
@@ -12,7 +13,9 @@ import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.SchemaProperty;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +79,13 @@ class UserController {
     private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
     private final DomainSecurityService domainSecurityService;
+    /**
+     * Not a {@code @PreAuthorize} bean reference: the answer selects a payload shape rather than
+     * allowing or denying the request, so it is asked in the handler. It lives in a service all the
+     * same, because an authorization predicate is domain logic and the next route that needs the
+     * same question must get the same answer.
+     */
+    private final UserContactSecurityService userContactSecurityService;
 
     // ================================
     // CORE USER MANAGEMENT
@@ -134,28 +144,64 @@ class UserController {
     }
 
     /**
-     * Deliberately left at the global {@code authenticated()} baseline.
+     * Stays open to every authenticated caller, but no longer answers everyone the same way.
      * <p>
      * This is the platform's people directory, not a private record: instructor cards, student
      * lists, class waiting lists, enrolment tables, the calendar and the public profile page all
      * resolve a name and an avatar through it, for users the caller has no organisational
      * relationship with. Narrowing it to self-or-admin would blank out most of the product for
-     * ordinary learners and instructors.
+     * ordinary learners and instructors, so the request is never refused on identity grounds.
      * <p>
-     * The real exposure here is the shape of the payload — {@link UserDTO} carries email, phone
-     * number and date of birth alongside the display fields — and the fix for that is redacting the
-     * response for non-self callers, not refusing the request. Tracked separately.
+     * What changes with the caller is the shape of the payload. {@link UserDTO} carries email,
+     * phone number, date of birth, username and the organisation affiliations, and none of that
+     * belongs in a roster row. Who has a claim to it is
+     * {@link UserContactSecurityService#canReadContactDetails(UUID) one question asked in one place}
+     * — the account holder, a platform administrator, a manager of an organisation the account
+     * belongs to, or somebody who stands in a working relationship with them, such as the
+     * instructor whose register they are on or the course creator whose course they applied to
+     * teach. Everyone else receives the same {@link UserSummaryDTO} projection that
+     * {@link #getUserDirectory} serves: the display identity, and nothing that identifies the
+     * person outside the platform.
+     * <p>
+     * Neither branch is free — the contact test costs at least one lookup, and the full record
+     * costs the domain and affiliation fan-out on top — but the whole answer is memoised for the
+     * request, so a handler that consults it more than once pays once.
+     * <p>
+     * Both branches answer 404 for an unknown UUID. That is not a leak: any authenticated caller
+     * may learn that an account exists, because that is what a directory is for.
      */
-    @Operation(summary = "Get a user by UUID")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User retrieved successfully")
+    @Operation(summary = "Get a user by UUID",
+            description = "Returns the full User record to the account holder, to platform administrators, "
+                    + "to a manager of one of the account's organisations, and to a caller with a working "
+                    + "relationship to them - the instructor whose class they are enrolled or waitlisted on, "
+                    + "or the course creator whose course or programme they are enrolled on or have applied "
+                    + "to teach. Every other authenticated caller receives the UserSummary directory "
+                    + "projection: display identity only, with no email, phone number, date of birth or "
+                    + "username.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+            description = "User retrieved successfully. `data` is a User for privileged callers and a "
+                    + "UserSummary otherwise.",
+            content = @Content(mediaType = APPLICATION_JSON_VALUE, schemaProperties = {
+                    @SchemaProperty(name = "success", schema = @Schema(type = "boolean")),
+                    @SchemaProperty(name = "data", schema = @Schema(oneOf = {UserDTO.class, UserSummaryDTO.class})),
+                    @SchemaProperty(name = "message", schema = @Schema(type = "string"))
+            }))
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "No authenticated caller")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<UserDTO>> getUserByUuid(
+    @PreAuthorize(AUTHENTICATED)
+    public ResponseEntity<ApiResponse<?>> getUserByUuid(
             @Parameter(description = "UUID of the user to retrieve. Must be an existing user identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid) {
-        UserDTO user = userService.getUserByUuid(uuid);
-        return ResponseEntity.ok(ApiResponse.success(user, "User retrieved successfully"));
+        if (userContactSecurityService.canReadContactDetails(uuid)) {
+            UserDTO user = userService.getUserByUuid(uuid);
+            return ResponseEntity.ok(ApiResponse.success(user, "User retrieved successfully"));
+        }
+        UserSummaryDTO summary = userService.getUserDirectory(List.of(uuid)).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for UUID: " + uuid));
+        return ResponseEntity.ok(ApiResponse.success(summary, "User retrieved successfully"));
     }
 
     /**

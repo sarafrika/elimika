@@ -13,9 +13,27 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface CourseTrainingApplicationRepository extends JpaRepository<CourseTrainingApplication, Long>,
         JpaSpecificationExecutor<CourseTrainingApplication> {
+
+    /**
+     * Whether this instructor has applied to train any course owned by this course creator.
+     * <p>
+     * Backs the contact-visibility check on the applicant review screens: a creator deciding on an
+     * application has to be able to contact the applicant. Status is not filtered — the point of
+     * reaching out is usually that the application is still undecided — and the applicant type is,
+     * because an organisation applicant's identifier is an organisation, not a person.
+     */
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN TRUE ELSE FALSE END " +
+           "FROM CourseTrainingApplication a JOIN Course c ON a.courseUuid = c.uuid " +
+           "WHERE a.applicantUuid = :instructorUuid " +
+           "AND a.applicantType = apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType.INSTRUCTOR " +
+           "AND c.courseCreatorUuid = :courseCreatorUuid")
+    boolean existsForInstructorApplicantAndCourseCreator(@Param("instructorUuid") UUID instructorUuid,
+                                                         @Param("courseCreatorUuid") UUID courseCreatorUuid);
 
     Optional<CourseTrainingApplication> findByUuid(UUID uuid);
 

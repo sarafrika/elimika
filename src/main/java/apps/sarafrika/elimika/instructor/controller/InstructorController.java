@@ -460,15 +460,31 @@ public class InstructorController {
                 .success(reviews, "Instructor reviews fetched successfully"));
     }
 
+    /**
+     * The one route on this controller that needs a guard, because it is the one that returns other
+     * people's contact details in bulk.
+     * <p>
+     * {@code OrgInstructorSummaryDTO} carries {@code email}, and the path names an organisation
+     * rather than the caller, so at the bare {@code authenticated()} baseline any signed-in account
+     * could walk organisation UUIDs and harvest every active instructor's address. Management rights
+     * over the named organisation is the right bar: the summaries are the organisation's own staff
+     * directory, and the callers are the organisation dashboard's instructor list, instructor detail
+     * and class-creation pages.
+     */
     @Operation(
             summary = "Get organisation instructor directory summaries",
             description = "Returns one aggregated row per active instructor in the organisation — identity, " +
                     "highest qualification, a representative skill, average rating, review count, and the number " +
                     "of class definitions they lead. Scoped strictly to the given organisation, and readable " +
                     "only from inside it: the rows carry members' email addresses, so a caller has to staff " +
-                    "this organisation rather than merely hold an organisation role somewhere."
+                    "this organisation rather than merely hold an organisation role somewhere. Platform " +
+                    "administrators pass too."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor summaries retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage the organisation")
+    // Both units guarding this route landed on the same predicate: organisation-scoped
+    // organisation_user or admin, plus platform admins. That is exactly what
+    // organisationSecurityService.canManageOrganisation resolves to, so one annotation carries both.
     @PreAuthorize(ORGANISATION_STAFF_OR_PLATFORM_ADMIN)
     @GetMapping("/organisations/{organisationUuid}/summaries")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO>>> getOrganisationInstructorSummaries(

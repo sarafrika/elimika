@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.UserContactSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
@@ -44,8 +45,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Covers the two halves of the users-search lockdown: the self-scoped identity route that replaced
- * the sign-in bootstrap, and the general search that could only be closed once it existed.
+ * Covers the users routes that decide what a caller may learn about somebody else: the self-scoped
+ * identity route that replaced the sign-in bootstrap, the general search that could only be closed
+ * once it existed, the batch directory, and the single-record route that now answers with the
+ * directory projection unless the caller has a claim to the person's contact details.
  * <p>
  * The filter chain here permits every request on purpose, so the only thing that can refuse one is
  * the {@code @PreAuthorize} on the handler. Production additionally refuses anonymous callers at the
@@ -70,9 +73,12 @@ class UserControllerTest {
     @Autowired
     private DomainSecurityService domainSecurityService;
 
+    @Autowired
+    private UserContactSecurityService userContactSecurityService;
+
     @BeforeEach
     void setUp() {
-        reset(userService, domainSecurityService);
+        reset(userService, domainSecurityService, userContactSecurityService);
     }
 
     // ================================
@@ -177,6 +183,97 @@ class UserControllerTest {
                         .with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].uuid").value(CALLER_UUID.toString()));
+    }
+
+    // ================================
+    // GET /api/v1/users/{uuid}
+    // ================================
+
+    /**
+     * The leak this route existed to close: any signed-in account could read anybody's email, phone
+     * number and date of birth just by holding their UUID, which every roster hands out.
+     */
+    @Test
+    @DisplayName("a caller with no claim to the person gets the directory projection, not the record")
+    void userByUuidWithholdsContactDetailsFromUnrelatedCaller() throws Exception {
+        UUID target = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(userContactSecurityService.canReadContactDetails(target)).thenReturn(false);
+        when(userService.getUserDirectory(List.of(target))).thenReturn(List.of(summary(target, "Jane", "Doe")));
+
+        mockMvc.perform(get("/api/v1/users/" + target).with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(target.toString()))
+                .andExpect(jsonPath("$.data.full_name").value("Jane A. Doe"))
+                .andExpect(jsonPath("$.data.email").doesNotExist())
+                .andExpect(jsonPath("$.data.phone_number").doesNotExist())
+                .andExpect(jsonPath("$.data.dob").doesNotExist())
+                .andExpect(jsonPath("$.data.username").doesNotExist())
+                .andExpect(jsonPath("$.data.keycloak_id").doesNotExist());
+
+        verify(userService, never()).getUserByUuid(any());
+    }
+
+    /**
+     * The other half: withholding contact details from everyone would blank out the instructor's
+     * student list, the waiting list and the organisation roster, so a caller the contact predicate
+     * accepts must still get the whole record.
+     */
+    @Test
+    @DisplayName("a caller with a claim to the person still gets the full record")
+    void userByUuidServesTheRecordToAPrivilegedCaller() throws Exception {
+        UUID target = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(userContactSecurityService.canReadContactDetails(target)).thenReturn(true);
+        when(userService.getUserByUuid(target)).thenReturn(user(target, List.of("student")));
+
+        mockMvc.perform(get("/api/v1/users/" + target).with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(target.toString()))
+                .andExpect(jsonPath("$.data.email").value("jane.doe@example.com"))
+                .andExpect(jsonPath("$.data.dob").value("1990-01-01"));
+
+        verify(userService, never()).getUserDirectory(any());
+    }
+
+    /**
+     * The payload shape is chosen by the contact predicate alone. Nothing else in the handler may
+     * decide it, or the two branches drift apart.
+     */
+    @Test
+    @DisplayName("the payload shape follows the contact predicate, which is asked for the subject")
+    void userByUuidAsksTheContactPredicateForTheSubject() throws Exception {
+        UUID target = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        when(userContactSecurityService.canReadContactDetails(target)).thenReturn(false);
+        when(userService.getUserDirectory(List.of(target))).thenReturn(List.of(summary(target, "John", "Smith")));
+
+        mockMvc.perform(get("/api/v1/users/" + target).with(jwt()))
+                .andExpect(status().isOk());
+
+        verify(userContactSecurityService).canReadContactDetails(target);
+    }
+
+    /**
+     * A UUID that resolves to nothing must answer 404 on the summary branch too, rather than an
+     * empty 200 that a client would render as a blank person.
+     */
+    @Test
+    @DisplayName("answers 404 on the summary branch when the account does not exist")
+    void userByUuidIsNotFoundOnTheSummaryBranch() throws Exception {
+        UUID missing = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        when(userContactSecurityService.canReadContactDetails(missing)).thenReturn(false);
+        when(userService.getUserDirectory(List.of(missing))).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/users/" + missing).with(jwt()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("refuses an unauthenticated caller")
+    void userByUuidRefusesUnauthenticatedCaller() throws Exception {
+        mockMvc.perform(get("/api/v1/users/22222222-2222-2222-2222-222222222222"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).getUserByUuid(any());
+        verify(userService, never()).getUserDirectory(any());
     }
 
     // ================================
@@ -330,6 +427,11 @@ class UserControllerTest {
         @Bean
         DomainSecurityService domainSecurityService() {
             return Mockito.mock(DomainSecurityService.class);
+        }
+
+        @Bean
+        UserContactSecurityService userContactSecurityService() {
+            return Mockito.mock(UserContactSecurityService.class);
         }
 
         @Bean

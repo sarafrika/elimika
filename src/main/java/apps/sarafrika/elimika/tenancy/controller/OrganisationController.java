@@ -40,6 +40,15 @@ class OrganisationController {
      * Everything under {@code /{uuid}} acts on one named organisation, so it is authorised against
      * that organisation and nothing else: a manager of organisation A must not be able to read or
      * change organisation B simply by putting B's UUID in the path.
+     * <p>
+     * Which of the two applies is decided by the payload, not by whether the verb reads or writes.
+     * The routes that hand back {@link UserDTO} — the organisation roster and the branch rosters,
+     * plain and domain-filtered — carry email, phone number, date of birth, username and Keycloak id
+     * for every row, so they take {@link #MANAGE_ORGANISATION}. {@link #READ_ORGANISATION} is
+     * satisfied by any membership mapping at all, active or not and of any domain, which on those
+     * routes would let one student page every classmate's and every teacher's contact details; the
+     * domain-filtered form would not even require knowing a UUID first. Nothing in the product loses
+     * out: every caller of them is the organisation dashboard, which only a manager reaches.
      */
     private static final String READ_ORGANISATION = "@organisationSecurityService.canReadOrganisation(#uuid)";
     private static final String MANAGE_ORGANISATION = "@organisationSecurityService.canManageOrganisation(#uuid)";
@@ -174,7 +183,7 @@ class OrganisationController {
     @Operation(summary = "Get users by organisation ID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Users retrieved successfully")
     @GetMapping("/{uuid}/users")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<PagedDTO<UserDTO>>> getUsersByOrganisation(
             @Parameter(description = "UUID of the organisation to get users for. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -197,7 +206,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @GetMapping("/{uuid}/users/domain/{domainName}")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<UserDTO>>> getUsersByOrganisationAndDomain(
             @Parameter(description = "UUID of the organisation to get users for. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -386,7 +395,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Branch users retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @GetMapping("/{uuid}/training-branches/{branchUuid}/users")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<UserDTO>>> getBranchUsers(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -407,7 +416,7 @@ class OrganisationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Training branch not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid domain name")
     @GetMapping("/{uuid}/training-branches/{branchUuid}/users/domain/{domainName}")
-    @PreAuthorize(READ_ORGANISATION)
+    @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<List<UserDTO>>> getBranchUsersByDomain(
             @Parameter(description = "UUID of the organisation that owns the training branch. Must be an existing organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)

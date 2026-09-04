@@ -20,6 +20,19 @@ import java.util.UUID;
 @Repository
 public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollment, Long>,
         JpaSpecificationExecutor<CourseEnrollment> {
+    /**
+     * Whether this student holds a course enrolment on any course owned by this course creator.
+     * <p>
+     * Backs the contact-visibility check on the course creator's enrolled-learner page. Enrolment
+     * status is not filtered: a creator chasing a learner who dropped needs to reach them exactly
+     * as much as one chasing an active learner.
+     */
+    @Query("SELECT CASE WHEN COUNT(ce) > 0 THEN TRUE ELSE FALSE END " +
+           "FROM CourseEnrollment ce JOIN Course c ON ce.courseUuid = c.uuid " +
+           "WHERE ce.studentUuid = :studentUuid AND c.courseCreatorUuid = :courseCreatorUuid")
+    boolean existsForStudentAndCourseCreator(@Param("studentUuid") UUID studentUuid,
+                                             @Param("courseCreatorUuid") UUID courseCreatorUuid);
+
     Optional<CourseEnrollment> findByUuid(UUID uuid);
 
     Optional<CourseEnrollment> findByUuidAndCourseUuid(UUID uuid, UUID courseUuid);
