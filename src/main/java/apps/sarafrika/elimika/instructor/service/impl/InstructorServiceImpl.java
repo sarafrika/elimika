@@ -46,6 +46,7 @@ public class InstructorServiceImpl implements InstructorService {
     public InstructorDTO createInstructor(InstructorDTO instructorDTO) {
         Instructor instructor = instructorRepository.findByUserUuid(instructorDTO.userUuid())
                 .orElseGet(Instructor::new);
+        instructor.setUserUuid(instructorDTO.userUuid());
         applyInstructorProfile(instructor, instructorDTO);
         instructor.setAdminVerified(false);
 
@@ -190,8 +191,14 @@ public class InstructorServiceImpl implements InstructorService {
         applyInstructorProfile(existingInstructor, instructorDTO);
     }
 
+    /**
+     * Copies the editable profile fields across. Deliberately does not touch {@code userUuid}: which
+     * account a profile belongs to is settled when the profile is created and is what the route
+     * guard on every instructor operation is checked against, so honouring a {@code user_uuid} in an
+     * update body would let an instructor move their own profile onto somebody else's account — or
+     * clear it — and take the guard with it.
+     */
     private void applyInstructorProfile(Instructor instructor, InstructorDTO instructorDTO) {
-        instructor.setUserUuid(instructorDTO.userUuid());
         if (instructorDTO.locationName() != null) {
             instructor.setLocationName(instructorDTO.locationName());
         }

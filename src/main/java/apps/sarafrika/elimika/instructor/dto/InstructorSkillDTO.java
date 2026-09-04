@@ -125,6 +125,28 @@ public record InstructorSkillDTO(
 ) {
 
     /**
+     * A copy of this skill bound to the given instructor.
+     * <p>
+     * Sub-resources are addressed under the instructor that owns them, and that path segment is what
+     * the route guard checks. Pinning the record to it means the {@code instructor_uuid} in the
+     * request body is never trusted: a stale or forged one cannot file the record under somebody
+     * else's profile, and a client that sends the wrong one still gets the write it asked for.
+     */
+    public InstructorSkillDTO withInstructorUuid(UUID targetInstructorUuid) {
+        return new InstructorSkillDTO(
+                uuid,
+                targetInstructorUuid,
+                skillName,
+                proficiencyLevel,
+                createdDate,
+                createdBy,
+                updatedDate,
+                updatedBy
+        );
+    }
+
+
+    /**
      * Returns a human-readable description of the proficiency level.
      *
      * @return Proficiency level description

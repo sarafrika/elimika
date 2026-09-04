@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.instructor.dto.InstructorDocumentDTO;
 import apps.sarafrika.elimika.instructor.model.InstructorDocument;
 import apps.sarafrika.elimika.instructor.repository.InstructorDocumentRepository;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
@@ -38,6 +39,9 @@ class InstructorDocumentServiceImplTest {
     @Mock
     private MediaStorageService mediaStorageService;
 
+    @Mock
+    private DomainSecurityService domainSecurityService;
+
     private InstructorDocumentServiceImpl service;
 
     @BeforeEach
@@ -47,7 +51,8 @@ class InstructorDocumentServiceImplTest {
                 specificationBuilder,
                 instructorLookupService,
                 eventPublisher,
-                mediaStorageService
+                mediaStorageService,
+                domainSecurityService
         );
     }
 

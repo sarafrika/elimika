@@ -1,9 +1,12 @@
 package apps.sarafrika.elimika.instructor.controller;
 
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
+import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.CredentialsDocumentUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
@@ -28,6 +31,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -35,9 +39,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 /**
  * REST Controller for managing instructor operations and related entities.
@@ -50,6 +57,27 @@ public class InstructorController {
 
     public static final String API_ROOT_PATH = "/api/v1/instructors";
 
+    private static final String PLATFORM_ADMIN = "@domainSecurityService.isPlatformAdmin()";
+    private static final String PROFILE_OWNER_OR_PLATFORM_ADMIN =
+            "@domainSecurityService.isInstructorWithUuid(#uuid) or @domainSecurityService.isPlatformAdmin()";
+    private static final String OWNER_OR_PLATFORM_ADMIN =
+            "@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * The organisation directory names an organisation rather than a person, so it is guarded by
+     * membership of that organisation: holding {@code organisation_user} elsewhere reaches nothing.
+     */
+    private static final String ORGANISATION_STAFF_OR_PLATFORM_ADMIN =
+            "@domainSecurityService.staffsOrganisation(#organisationUuid) or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * Credential documents are also read by the people entitled to review them: a platform admin
+     * running the verification queue, staff of an organisation the instructor belongs to, and
+     * whoever is deciding an application the instructor themselves lodged. Every one of those is a
+     * relationship to this instructor rather than a role held in the abstract - see
+     * {@link apps.sarafrika.elimika.instructor.security.InstructorCredentialSecurityService}.
+     */
+    private static final String CREDENTIAL_ACCESS =
+            "@instructorCredentialSecurityService.canReadCredentials(#instructorUuid)";
+
     private final InstructorService instructorService;
     private final InstructorDocumentService instructorDocumentService;
     private final InstructorEducationService instructorEducationService;
@@ -60,6 +88,8 @@ public class InstructorController {
     private final StorageProperties storageProperties;
     private final InstructorReviewService instructorReviewService;
     private final ProfileDocumentUploadService profileDocumentUploadService;
+    private final DomainSecurityService domainSecurityService;
+    private final InstructorLookupService instructorLookupService;
 
     // ===== INSTRUCTOR BASIC OPERATIONS =====
 
@@ -72,6 +102,7 @@ public class InstructorController {
                     @ApiResponse(responseCode = "400", description = "Invalid request data")
             }
     )
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin() or #instructorDTO.userUuid() == @domainSecurityService.getCurrentUserUuid()")
     @PostMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDTO>> createInstructor(@Valid @RequestBody InstructorDTO instructorDTO) {
         InstructorDTO createdInstructor = instructorService.createInstructor(instructorDTO);
@@ -118,6 +149,7 @@ public class InstructorController {
                     @ApiResponse(responseCode = "404", description = "Instructor not found")
             }
     )
+    @PreAuthorize(PROFILE_OWNER_OR_PLATFORM_ADMIN)
     @PutMapping("/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDTO>> updateInstructor(
             @PathVariable UUID uuid,
@@ -135,6 +167,7 @@ public class InstructorController {
                     @ApiResponse(responseCode = "404", description = "Instructor not found")
             }
     )
+    @PreAuthorize(PROFILE_OWNER_OR_PLATFORM_ADMIN)
     @DeleteMapping("/{uuid}")
     public ResponseEntity<Void> deleteInstructor(@PathVariable UUID uuid) {
         instructorService.deleteInstructor(uuid);
@@ -215,12 +248,14 @@ public class InstructorController {
     // ===== INSTRUCTOR DOCUMENTS =====
 
     @Operation(summary = "Add document to instructor", description = "Uploads and associates a document with an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PostMapping("/{instructorUuid}/documents")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> addInstructorDocument(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorDocumentDTO documentDTO) {
 
-        InstructorDocumentDTO createdDocument = instructorDocumentService.createInstructorDocument(documentDTO);
+        InstructorDocumentDTO createdDocument = instructorDocumentService
+                .createInstructorDocument(documentDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdDocument, "Document added successfully"));
@@ -240,6 +275,7 @@ public class InstructorController {
                     - Stored via the platform StorageService under the `profile_documents` folder, partitioned by instructor UUID.
                     """
     )
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PostMapping(value = "/{instructorUuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> uploadInstructorDocument(
             @PathVariable UUID instructorUuid,
@@ -303,6 +339,7 @@ public class InstructorController {
     }
 
     @Operation(summary = "Get instructor documents", description = "Retrieves all documents for a specific instructor")
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{instructorUuid}/documents")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<InstructorDocumentDTO>>> getInstructorDocuments(
             @PathVariable UUID instructorUuid) {
@@ -312,6 +349,7 @@ public class InstructorController {
     }
 
     @Operation(summary = "Get instructor document media", description = "Streams an uploaded instructor document by stored relative path.")
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{instructorUuid}/documents/files/{*filePath}")
     public ResponseEntity<Resource> getInstructorDocumentMedia(
             @PathVariable UUID instructorUuid,
@@ -328,32 +366,42 @@ public class InstructorController {
     }
 
     @Operation(summary = "Update instructor document", description = "Updates a specific document")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PutMapping("/{instructorUuid}/documents/{documentUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> updateInstructorDocument(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID documentUuid,
             @Valid @RequestBody InstructorDocumentDTO documentDTO) {
-        InstructorDocumentDTO updatedDocument = instructorDocumentService.updateInstructorDocument(documentUuid, documentDTO);
+        requireOwnedBy(instructorUuid, instructorDocumentService.getInstructorDocumentByUuid(documentUuid).instructorUuid(),
+                "Instructor document", documentUuid);
+        InstructorDocumentDTO updatedDocument = instructorDocumentService
+                .updateInstructorDocument(documentUuid, documentDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedDocument, "Document updated successfully"));
     }
 
     @Operation(summary = "Delete instructor document", description = "Removes a document from an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @DeleteMapping("/{instructorUuid}/documents/{documentUuid}")
     public ResponseEntity<Void> deleteInstructorDocument(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID documentUuid) {
+        requireOwnedBy(instructorUuid, instructorDocumentService.getInstructorDocumentByUuid(documentUuid).instructorUuid(),
+                "Instructor document", documentUuid);
         instructorDocumentService.deleteInstructorDocument(documentUuid);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Verify instructor document", description = "Marks a document as verified")
+    @PreAuthorize(PLATFORM_ADMIN)
     @PostMapping("/{instructorUuid}/documents/{documentUuid}/verify")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDocumentDTO>> verifyDocument(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID documentUuid,
             @RequestParam String verifiedBy,
             @RequestParam(required = false) String verificationNotes) {
+        requireOwnedBy(instructorUuid, instructorDocumentService.getInstructorDocumentByUuid(documentUuid).instructorUuid(),
+                "Instructor document", documentUuid);
         InstructorDocumentDTO verifiedDocument = instructorDocumentService.verifyDocument(documentUuid, verifiedBy, verificationNotes);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(verifiedDocument, "Document verified successfully"));
@@ -416,9 +464,12 @@ public class InstructorController {
             summary = "Get organisation instructor directory summaries",
             description = "Returns one aggregated row per active instructor in the organisation — identity, " +
                     "highest qualification, a representative skill, average rating, review count, and the number " +
-                    "of class definitions they lead. Scoped strictly to the given organisation."
+                    "of class definitions they lead. Scoped strictly to the given organisation, and readable " +
+                    "only from inside it: the rows carry members' email addresses, so a caller has to staff " +
+                    "this organisation rather than merely hold an organisation role somewhere."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor summaries retrieved successfully")
+    @PreAuthorize(ORGANISATION_STAFF_OR_PLATFORM_ADMIN)
     @GetMapping("/organisations/{organisationUuid}/summaries")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO>>> getOrganisationInstructorSummaries(
             @PathVariable UUID organisationUuid) {
@@ -466,18 +517,27 @@ public class InstructorController {
     // ===== INSTRUCTOR EDUCATION =====
 
     @Operation(summary = "Add education to instructor", description = "Adds educational qualification to an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PostMapping("/{instructorUuid}/education")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorEducationDTO>> addInstructorEducation(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorEducationDTO educationDTO) {
 
-        InstructorEducationDTO createdEducation = instructorEducationService.createInstructorEducation(educationDTO);
+        InstructorEducationDTO createdEducation = instructorEducationService
+                .createInstructorEducation(educationDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdEducation, "Education record added successfully"));
     }
 
-    @Operation(summary = "Get instructor education", description = "Retrieves all education records for a specific instructor")
+    @Operation(
+            summary = "Get instructor education",
+            description = "Retrieves all education records for the instructor named in the path. Education " +
+                    "records carry certificate numbers, so this is answered to the instructor themselves, a " +
+                    "platform admin, staff of an organisation they belong to, and whoever is deciding an " +
+                    "application they lodged."
+    )
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{instructorUuid}/education")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<InstructorEducationDTO>>> getInstructorEducation(
             @PathVariable UUID instructorUuid) {
@@ -487,21 +547,28 @@ public class InstructorController {
     }
 
     @Operation(summary = "Update instructor education", description = "Updates a specific education record")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PutMapping("/{instructorUuid}/education/{educationUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorEducationDTO>> updateInstructorEducation(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID educationUuid,
             @Valid @RequestBody InstructorEducationDTO educationDTO) {
-        InstructorEducationDTO updatedEducation = instructorEducationService.updateInstructorEducation(educationUuid, educationDTO);
+        requireOwnedBy(instructorUuid, instructorEducationService.getInstructorEducationByUuid(educationUuid).instructorUuid(),
+                "Instructor education", educationUuid);
+        InstructorEducationDTO updatedEducation = instructorEducationService
+                .updateInstructorEducation(educationUuid, educationDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedEducation, "Education record updated successfully"));
     }
 
     @Operation(summary = "Delete instructor education", description = "Removes an education record from an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @DeleteMapping("/{instructorUuid}/education/{educationUuid}")
     public ResponseEntity<Void> deleteInstructorEducation(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID educationUuid) {
+        requireOwnedBy(instructorUuid, instructorEducationService.getInstructorEducationByUuid(educationUuid).instructorUuid(),
+                "Instructor education", educationUuid);
         instructorEducationService.deleteInstructorEducation(educationUuid);
         return ResponseEntity.noContent().build();
     }
@@ -509,12 +576,14 @@ public class InstructorController {
     // ===== INSTRUCTOR EXPERIENCE =====
 
     @Operation(summary = "Add experience to instructor", description = "Adds work experience to an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PostMapping("/{instructorUuid}/experience")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorExperienceDTO>> addInstructorExperience(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorExperienceDTO experienceDTO) {
 
-        InstructorExperienceDTO createdExperience = instructorExperienceService.createInstructorExperience(experienceDTO);
+        InstructorExperienceDTO createdExperience = instructorExperienceService
+                .createInstructorExperience(experienceDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdExperience, "Experience record added successfully"));
@@ -534,21 +603,28 @@ public class InstructorController {
     }
 
     @Operation(summary = "Update instructor experience", description = "Updates a specific experience record")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PutMapping("/{instructorUuid}/experience/{experienceUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorExperienceDTO>> updateInstructorExperience(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID experienceUuid,
             @Valid @RequestBody InstructorExperienceDTO experienceDTO) {
-        InstructorExperienceDTO updatedExperience = instructorExperienceService.updateInstructorExperience(experienceUuid, experienceDTO);
+        requireOwnedBy(instructorUuid, instructorExperienceService.getInstructorExperienceByUuid(experienceUuid).instructorUuid(),
+                "Instructor experience", experienceUuid);
+        InstructorExperienceDTO updatedExperience = instructorExperienceService
+                .updateInstructorExperience(experienceUuid, experienceDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedExperience, "Experience record updated successfully"));
     }
 
     @Operation(summary = "Delete instructor experience", description = "Removes an experience record from an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @DeleteMapping("/{instructorUuid}/experience/{experienceUuid}")
     public ResponseEntity<Void> deleteInstructorExperience(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID experienceUuid) {
+        requireOwnedBy(instructorUuid, instructorExperienceService.getInstructorExperienceByUuid(experienceUuid).instructorUuid(),
+                "Instructor experience", experienceUuid);
         instructorExperienceService.deleteInstructorExperience(experienceUuid);
         return ResponseEntity.noContent().build();
     }
@@ -556,25 +632,34 @@ public class InstructorController {
     // ===== INSTRUCTOR PROFESSIONAL MEMBERSHIPS =====
 
     @Operation(summary = "Add membership to instructor", description = "Adds professional membership to an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PostMapping("/{instructorUuid}/memberships")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorProfessionalMembershipDTO>> addInstructorMembership(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorProfessionalMembershipDTO membershipDTO) {
 
         InstructorProfessionalMembershipDTO createdMembership = instructorProfessionalMembershipService
-                .createInstructorProfessionalMembership(membershipDTO);
+                .createInstructorProfessionalMembership(membershipDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdMembership, "Membership record added successfully"));
     }
 
-    @Operation(summary = "Get instructor memberships", description = "Retrieves all membership records for a specific instructor")
+    @Operation(
+            summary = "Get instructor memberships",
+            description = "Retrieves all membership records for the instructor named in the path. Membership " +
+                    "numbers are credential material, so this is answered to the instructor themselves, a " +
+                    "platform admin, staff of an organisation they belong to, and whoever is deciding an " +
+                    "application they lodged."
+    )
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{instructorUuid}/memberships")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorProfessionalMembershipDTO>>> getInstructorMemberships(
             @PathVariable UUID instructorUuid,
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
-        Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
+        Page<InstructorProfessionalMembershipDTO> memberships =
+                instructorProfessionalMembershipService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(memberships, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -582,21 +667,30 @@ public class InstructorController {
     }
 
     @Operation(summary = "Update instructor membership", description = "Updates a specific membership record")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PutMapping("/{instructorUuid}/memberships/{membershipUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorProfessionalMembershipDTO>> updateInstructorMembership(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID membershipUuid,
             @Valid @RequestBody InstructorProfessionalMembershipDTO membershipDTO) {
-        InstructorProfessionalMembershipDTO updatedMembership = instructorProfessionalMembershipService.updateInstructorProfessionalMembership(membershipUuid, membershipDTO);
+        requireOwnedBy(instructorUuid, instructorProfessionalMembershipService
+                .getInstructorProfessionalMembershipByUuid(membershipUuid).instructorUuid(),
+                "Instructor professional membership", membershipUuid);
+        InstructorProfessionalMembershipDTO updatedMembership = instructorProfessionalMembershipService
+                .updateInstructorProfessionalMembership(membershipUuid, membershipDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedMembership, "Membership record updated successfully"));
     }
 
     @Operation(summary = "Delete instructor membership", description = "Removes a membership record from an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @DeleteMapping("/{instructorUuid}/memberships/{membershipUuid}")
     public ResponseEntity<Void> deleteInstructorMembership(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID membershipUuid) {
+        requireOwnedBy(instructorUuid, instructorProfessionalMembershipService
+                .getInstructorProfessionalMembershipByUuid(membershipUuid).instructorUuid(),
+                "Instructor professional membership", membershipUuid);
         instructorProfessionalMembershipService.deleteInstructorProfessionalMembership(membershipUuid);
         return ResponseEntity.noContent().build();
     }
@@ -604,12 +698,14 @@ public class InstructorController {
     // ===== INSTRUCTOR SKILLS =====
 
     @Operation(summary = "Add skill to instructor", description = "Adds a skill to an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PostMapping("/{instructorUuid}/skills")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorSkillDTO>> addInstructorSkill(
             @PathVariable UUID instructorUuid,
             @Valid @RequestBody InstructorSkillDTO skillDTO) {
 
-        InstructorSkillDTO createdSkill = instructorSkillService.createInstructorSkill(skillDTO);
+        InstructorSkillDTO createdSkill = instructorSkillService
+                .createInstructorSkill(skillDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(apps.sarafrika.elimika.shared.dto.ApiResponse
                         .success(createdSkill, "Skill added successfully"));
@@ -629,21 +725,28 @@ public class InstructorController {
     }
 
     @Operation(summary = "Update instructor skill", description = "Updates a specific skill record")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @PutMapping("/{instructorUuid}/skills/{skillUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorSkillDTO>> updateInstructorSkill(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID skillUuid,
             @Valid @RequestBody InstructorSkillDTO skillDTO) {
-        InstructorSkillDTO updatedSkill = instructorSkillService.updateInstructorSkill(skillUuid, skillDTO);
+        requireOwnedBy(instructorUuid, instructorSkillService.getInstructorSkillByUuid(skillUuid).instructorUuid(),
+                "Instructor skill", skillUuid);
+        InstructorSkillDTO updatedSkill = instructorSkillService
+                .updateInstructorSkill(skillUuid, skillDTO.withInstructorUuid(instructorUuid));
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedSkill, "Skill updated successfully"));
     }
 
     @Operation(summary = "Delete instructor skill", description = "Removes a skill from an instructor")
+    @PreAuthorize(OWNER_OR_PLATFORM_ADMIN)
     @DeleteMapping("/{instructorUuid}/skills/{skillUuid}")
     public ResponseEntity<Void> deleteInstructorSkill(
             @PathVariable UUID instructorUuid,
             @PathVariable UUID skillUuid) {
+        requireOwnedBy(instructorUuid, instructorSkillService.getInstructorSkillByUuid(skillUuid).instructorUuid(),
+                "Instructor skill", skillUuid);
         instructorSkillService.deleteInstructorSkill(skillUuid);
         return ResponseEntity.noContent().build();
     }
@@ -670,6 +773,9 @@ public class InstructorController {
                     - `isVerified=false&expiryDate_lte=2025-12-31` - Unverified expiring documents
                     - `status_noteq=EXPIRED&expiryDate_lt=2025-07-02` - Non-expired but overdue docs
                     
+                    Platform administrators search across every instructor. Any other caller only ever
+                    sees their own documents: instructor filters they supply are replaced with their own profile.
+
                     For complete operator documentation, see the main search endpoint.
                     """
     )
@@ -682,7 +788,8 @@ public class InstructorController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<InstructorDocumentDTO> documents = instructorDocumentService.search(searchParams, pageable);
+        Page<InstructorDocumentDTO> documents =
+                searchScopedToCaller(searchParams, pageable, instructorDocumentService::search);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(documents, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -703,6 +810,13 @@ public class InstructorController {
                     - `yearCompleted_between=2015,2020` - Completed between 2015-2020
                     - `certificateNumber_noteq=null` - Has certificate number
                     
+                    Platform administrators search across every instructor. Any other caller only ever
+                    sees their own education: instructor filters they supply are replaced with their own
+                    profile. Somebody else's qualifications are read through
+                    `GET /{instructorUuid}/education`, which admits only the parties related to that
+                    instructor. Certificate numbers travel with these records, so neither route is a
+                    directory.
+                    
                     For complete operator documentation, see the main search endpoint.
                     """
     )
@@ -715,7 +829,8 @@ public class InstructorController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<InstructorEducationDTO> education = instructorEducationService.search(searchParams, pageable);
+        Page<InstructorEducationDTO> education =
+                searchScopedToCaller(searchParams, pageable, instructorEducationService::search);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(education, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -740,6 +855,12 @@ public class InstructorController {
                     **Experience Analysis Queries:**
                     - `isCurrentPosition=false&endDate_gte=2023-01-01` - Recent past positions
                     - `yearsOfExperience_between=3,10` - Mid-level experience (3-10 years)
+                    
+                    Deliberately cross-instructor, and the only search here that is. The instructor
+                    directory reads one page of instructors and then one experience query for all of
+                    them, so scoping this to the caller would leave every listing blank. It returns
+                    only what the directory already shows on a public profile - post, employer, dates -
+                    and nothing a credential is proved with.
                     
                     For complete operator documentation, see the main search endpoint.
                     """
@@ -778,6 +899,13 @@ public class InstructorController {
                     - `isActive=false&endDate_gte=2024-01-01` - Recently expired memberships
                     - `startDate_between=2020-01-01,2023-12-31` - Joined between 2020-2023
                     
+                    Platform administrators search across every instructor. Any other caller only ever
+                    sees their own memberships: instructor filters they supply are replaced with their
+                    own profile. Somebody else's are read through
+                    `GET /{instructorUuid}/memberships`, which admits only the parties related to that
+                    instructor. Membership numbers travel with these records, so neither route is a
+                    directory.
+                    
                     For complete operator documentation, see the main search endpoint.
                     """
     )
@@ -790,7 +918,8 @@ public class InstructorController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<InstructorProfessionalMembershipDTO> memberships = instructorProfessionalMembershipService.search(searchParams, pageable);
+        Page<InstructorProfessionalMembershipDTO> memberships =
+                searchScopedToCaller(searchParams, pageable, instructorProfessionalMembershipService::search);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(memberships, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -816,6 +945,9 @@ public class InstructorController {
                     
                     **Proficiency Levels:** BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
                     
+                    Cross-instructor for the same reason as the experience search: this is what the
+                    instructor directory filters on, and a skill is public profile copy.
+                    
                     For complete operator documentation, see the main search endpoint.
                     """
     )
@@ -833,5 +965,64 @@ public class InstructorController {
                 .success(PagedDTO.from(skills, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
                         "Skills search completed successfully"));
+    }
+
+    // ===== OWNERSHIP GUARDS =====
+
+    /**
+     * Sub-resource routes name the owning instructor in the path and the record in a second path
+     * segment. The route-level guard settles who may act as {@code instructorUuid}; this settles
+     * that the record really belongs to them, so an instructor cannot reach another instructor's
+     * record by pairing a foreign record UUID with their own profile UUID. A mismatch is reported
+     * as not found, because the caller has no business learning the record exists.
+     */
+    private static void requireOwnedBy(UUID instructorUuid, UUID recordInstructorUuid, String label, UUID recordUuid) {
+        if (!instructorUuid.equals(recordInstructorUuid)) {
+            throw new ResourceNotFoundException(String.format("%s with ID %s not found", label, recordUuid));
+        }
+    }
+
+    /**
+     * Runs a sub-resource search that must never reach beyond the caller's own profile.
+     * <p>
+     * A platform admin searches the whole platform; anybody else is answered from their own
+     * instructor profile only, and a caller who has no instructor profile gets an empty page rather
+     * than a page of somebody else's records.
+     */
+    private <T> Page<T> searchScopedToCaller(Map<String, String> searchParams,
+                                             Pageable pageable,
+                                             BiFunction<Map<String, String>, Pageable, Page<T>> search) {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return search.apply(searchParams, pageable);
+        }
+        UUID callerInstructorUuid = currentInstructorUuid();
+        if (callerInstructorUuid == null) {
+            return Page.empty(pageable);
+        }
+        return search.apply(scopedToInstructor(searchParams, callerInstructorUuid), pageable);
+    }
+
+    private UUID currentInstructorUuid() {
+        UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+        if (currentUserUuid == null) {
+            return null;
+        }
+        return instructorLookupService.findInstructorUuidByUserUuid(currentUserUuid).orElse(null);
+    }
+
+    /**
+     * Rewrites a search so it can only match the given instructor's records: every instructor filter
+     * the client supplied (any spelling, any operator) is dropped and replaced with an exact match
+     * on that profile.
+     */
+    private static Map<String, String> scopedToInstructor(Map<String, String> searchParams, UUID instructorUuid) {
+        Map<String, String> scoped = new HashMap<>();
+        searchParams.forEach((key, value) -> {
+            if (!key.toLowerCase(Locale.ROOT).replace("_", "").startsWith("instructoruuid")) {
+                scoped.put(key, value);
+            }
+        });
+        scoped.put("instructorUuid", instructorUuid.toString());
+        return scoped;
     }
 }

@@ -37,6 +37,8 @@ public class DomainSecurityService {
     private static final String CACHE_ADMINISTERS_USER_PREFIX = "security.administersUser.";
     private static final String CACHE_ORG_DOMAIN_PREFIX = "security.orgDomain.";
     private static final String CACHE_ORG_MEMBER_PREFIX = "security.orgMember.";
+    private static final String CACHE_STAFFS_USER_PREFIX = "security.staffsUser.";
+    private static final String CACHE_STAFFS_ORG_PREFIX = "security.staffsOrganisation.";
 
     private final UserLookupService userLookupService;
     private final StudentLookupService studentLookupService;
@@ -175,6 +177,78 @@ public class DomainSecurityService {
                 return userLookupService.userBelongsToOrganization(callerUuid, organisationUuid);
             } catch (Exception e) {
                 log.error("Error checking membership of organisation {}", organisationUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller holds a staff role — {@code admin} or {@code organisation_user} — <em>in
+     * an organisation the target user belongs to</em>.
+     * <p>
+     * The wider sibling of {@link #administersOrganisationOf(UUID)}, for the work an organisation's
+     * back office does on its own people rather than the work only its administrator may do: seeing
+     * a member's file, not changing what the organisation is. Both domains are read organisation by
+     * organisation, so holding {@code organisation_user} platform-wide grants nothing here — the
+     * caller has to hold it inside an organisation this particular user is in.
+     * <p>
+     * Fails closed, and is memoised per request and per target because the answer costs a query per
+     * organisation the target belongs to.
+     *
+     * @param targetUserUuid the user being acted on
+     */
+    public boolean staffsOrganisationOf(UUID targetUserUuid) {
+        if (targetUserUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_STAFFS_USER_PREFIX + targetUserUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.getUserOrganizations(targetUserUuid).stream()
+                        .anyMatch(organisationUuid ->
+                                userLookupService.userBelongsToOrganizationWithDomain(
+                                        callerUuid, organisationUuid, UserDomain.admin)
+                                        || userLookupService.userBelongsToOrganizationWithDomain(
+                                        callerUuid, organisationUuid, UserDomain.organisation_user));
+            } catch (Exception e) {
+                log.error("Error checking organisation staff reach over user {}", targetUserUuid, e);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * True when the caller holds a staff role — {@code admin} or {@code organisation_user} — <em>in
+     * this particular organisation</em>.
+     * <p>
+     * The counterpart of {@link #staffsOrganisationOf(UUID)} for routes that name the organisation
+     * rather than one of its people. Both domains are read against the named organisation, so
+     * holding {@code organisation_user} platform-wide or in a different organisation grants nothing:
+     * an organisation's roster is readable only from inside it.
+     * <p>
+     * Fails closed, and is memoised per request and per organisation.
+     *
+     * @param organisationUuid the organisation whose own material is being read
+     */
+    public boolean staffsOrganisation(UUID organisationUuid) {
+        if (organisationUuid == null) {
+            return false;
+        }
+        return requestScopedCache.get(CACHE_STAFFS_ORG_PREFIX + organisationUuid, () -> {
+            try {
+                UUID callerUuid = getCurrentUserUuid();
+                if (callerUuid == null) {
+                    return false;
+                }
+                return userLookupService.userBelongsToOrganizationWithDomain(
+                        callerUuid, organisationUuid, UserDomain.admin)
+                        || userLookupService.userBelongsToOrganizationWithDomain(
+                        callerUuid, organisationUuid, UserDomain.organisation_user);
+            } catch (Exception e) {
+                log.error("Error checking organisation staff membership of organisation {}", organisationUuid, e);
                 return false;
             }
         });

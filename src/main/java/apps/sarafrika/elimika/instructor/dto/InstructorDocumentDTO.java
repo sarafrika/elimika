@@ -306,6 +306,45 @@ public record InstructorDocumentDTO(
 ) {
 
     /**
+     * A copy of this document bound to the given instructor.
+     * <p>
+     * Sub-resources are addressed under the instructor that owns them, and that path segment is what
+     * the route guard checks. Pinning the record to it means the {@code instructor_uuid} in the
+     * request body is never trusted: a stale or forged one cannot file the record under somebody
+     * else's profile, and a client that sends the wrong one still gets the write it asked for.
+     */
+    public InstructorDocumentDTO withInstructorUuid(UUID targetInstructorUuid) {
+        return new InstructorDocumentDTO(
+                uuid,
+                targetInstructorUuid,
+                documentTypeUuid,
+                educationUuid,
+                experienceUuid,
+                membershipUuid,
+                originalFilename,
+                storedFilename,
+                filePath,
+                fileSizeBytes,
+                mimeType,
+                fileHash,
+                title,
+                description,
+                uploadDate,
+                isVerified,
+                verifiedBy,
+                verifiedAt,
+                verificationNotes,
+                status,
+                expiryDate,
+                createdDate,
+                createdBy,
+                updatedDate,
+                updatedBy
+        );
+    }
+
+
+    /**
      * Returns a human-readable formatted file size.
      *
      * @return Formatted file size string (e.g., "2.5 MB", "1.2 KB")

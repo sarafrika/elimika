@@ -187,6 +187,33 @@ public record InstructorExperienceDTO(
 ) {
 
     /**
+     * A copy of this experience record bound to the given instructor.
+     * <p>
+     * Sub-resources are addressed under the instructor that owns them, and that path segment is what
+     * the route guard checks. Pinning the record to it means the {@code instructor_uuid} in the
+     * request body is never trusted: a stale or forged one cannot file the record under somebody
+     * else's profile, and a client that sends the wrong one still gets the write it asked for.
+     */
+    public InstructorExperienceDTO withInstructorUuid(UUID targetInstructorUuid) {
+        return new InstructorExperienceDTO(
+                uuid,
+                targetInstructorUuid,
+                position,
+                organizationName,
+                responsibilities,
+                yearsOfExperience,
+                startDate,
+                endDate,
+                isCurrentPosition,
+                createdDate,
+                createdBy,
+                updatedDate,
+                updatedBy
+        );
+    }
+
+
+    /**
      * Calculates the duration of employment in months based on start and end dates.
      *
      * @return Duration in months, null if dates are not available

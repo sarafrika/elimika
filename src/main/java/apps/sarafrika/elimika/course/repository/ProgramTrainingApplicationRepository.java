@@ -7,6 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -35,4 +37,20 @@ public interface ProgramTrainingApplicationRepository extends JpaRepository<Prog
     Page<ProgramTrainingApplication> findByProgramUuidAndStatus(UUID programUuid,
                                                                 CourseTrainingApplicationStatus status,
                                                                 Pageable pageable);
+
+    /**
+     * The programme counterpart of
+     * {@link CourseTrainingApplicationRepository#existsForCourseCreator}: whether the applicant has
+     * applied to any training programme the given creator owns, at any status.
+     */
+    @Query("""
+            SELECT COUNT(application) > 0 FROM ProgramTrainingApplication application
+            JOIN TrainingProgram program ON program.uuid = application.programUuid
+            WHERE application.applicantType = :applicantType
+              AND application.applicantUuid = :applicantUuid
+              AND program.courseCreatorUuid = :courseCreatorUuid
+            """)
+    boolean existsForCourseCreator(@Param("applicantType") CourseTrainingApplicantType applicantType,
+                                   @Param("applicantUuid") UUID applicantUuid,
+                                   @Param("courseCreatorUuid") UUID courseCreatorUuid);
 }

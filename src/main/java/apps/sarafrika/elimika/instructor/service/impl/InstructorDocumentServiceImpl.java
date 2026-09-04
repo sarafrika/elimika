@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.instructor.repository.InstructorDocumentRepository
 import apps.sarafrika.elimika.instructor.service.InstructorDocumentService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +37,7 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
     private final InstructorLookupService instructorLookupService;
     private final ApplicationEventPublisher eventPublisher;
     private final MediaStorageService mediaStorageService;
+    private final DomainSecurityService domainSecurityService;
 
     private static final String INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE = "Instructor document with ID %s not found";
 
@@ -126,10 +128,19 @@ public class InstructorDocumentServiceImpl implements InstructorDocumentService 
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Approving a credential document is the same act as approving the profile it backs, so it
+     * carries the same restraint: an administrator who also holds another domain cannot sign off
+     * their own papers. Mirrors the guard {@code InstructorServiceImpl#verifyInstructor} applies.
+     */
     @Override
     public InstructorDocumentDTO verifyDocument(UUID uuid, String verifiedBy, String verificationNotes) {
         InstructorDocument document = instructorDocumentRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
+
+        instructorLookupService.getInstructorUserUuid(document.getInstructorUuid())
+                .ifPresent(ownerUserUuid -> domainSecurityService
+                        .enforceNotSelfApprovingProfile(ownerUserUuid, "instructor"));
 
         document.setIsVerified(true);
         document.setVerifiedBy(verifiedBy);
