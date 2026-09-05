@@ -6,8 +6,11 @@ import apps.sarafrika.elimika.shared.spi.revenue.CommercePlatformFeeSummary;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueQueryService;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
+import apps.sarafrika.elimika.shared.spi.revenue.CourseSalesSummary;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -128,6 +131,30 @@ public class CommerceRevenueQueryServiceImpl implements CommerceRevenueQueryServ
             return Page.empty(pageable);
         }
         return purchaseItemRepository.findSalesByStudentUuids(startDate, endDate, paymentStatus, scope, studentUuids, pageable);
+    }
+
+    @Override
+    public CourseSalesSummary summariseSalesForCourse(UUID courseUuid) {
+        if (courseUuid == null) {
+            return CourseSalesSummary.empty();
+        }
+        return new CourseSalesSummary(
+                orZero(purchaseItemRepository.sumCapturedTotalForCourse(courseUuid)),
+                orZero(purchaseItemRepository.sumCapturedPlatformFeeForCourse(courseUuid)),
+                purchaseItemRepository.countCapturedOrdersForCourse(courseUuid),
+                purchaseItemRepository.countRefundedOrdersForCourse(courseUuid));
+    }
+
+    @Override
+    public BigDecimal sumCapturedCreditsForClassDefinitions(Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return orZero(purchaseItemRepository.sumCapturedCreditsForClassDefinitions(classDefinitionUuids));
+    }
+
+    private static BigDecimal orZero(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 
     @Override

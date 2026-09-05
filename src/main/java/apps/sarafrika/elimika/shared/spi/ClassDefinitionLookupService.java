@@ -55,6 +55,32 @@ public interface ClassDefinitionLookupService {
      */
     Map<UUID, UUID> findOrganisationUuids(Collection<UUID> classDefinitionUuids);
 
+    /**
+     * The classes delivering a course, reduced to exactly what a statistics reader needs.
+     * <p>
+     * Returns identifiers and an aggregate seat capacity — never per-class seat counts. Seats filled
+     * beside seats offered, next to a published price, turns a course page into a revenue
+     * calculator, so the capacity is summed here and only ever leaves as a ratio.
+     *
+     * @param courseUuid the course whose classes are wanted
+     * @return the scope, empty when the course has no classes
+     */
+    CourseClassScope findClassScopeForCourse(UUID courseUuid);
+
+    /**
+     * The subset of {@link #findClassScopeForCourse(UUID)} delivered by one trainer: classes the
+     * instructor leads, plus classes owned by any of the given organisations. Passing no instructor
+     * and no organisation yields an empty scope rather than everybody's classes.
+     *
+     * @param courseUuid        the course whose classes are wanted
+     * @param instructorUuid    the instructor whose classes count, or null
+     * @param organisationUuids the organisations whose classes count; may be empty
+     * @return the trainer's scope, empty when they deliver none of the course
+     */
+    CourseClassScope findClassScopeForCourseAndTrainer(UUID courseUuid,
+                                                       UUID instructorUuid,
+                                                       Collection<UUID> organisationUuids);
+
     List<UUID> findClassDefinitionUuidsByInstructorUuid(UUID instructorUuid);
 
     List<UUID> findClassDefinitionUuidsByOrganisationUuid(UUID organisationUuid);
@@ -75,6 +101,24 @@ public interface ClassDefinitionLookupService {
                         snapshot.maxParticipants(),
                         snapshot.allowWaitlist(),
                         snapshot.classReminderMinutes()));
+    }
+
+    /**
+     * The classes delivering a course.
+     *
+     * @param allClassUuids       every class definition for the course, running or not
+     * @param activeClassUuids    the subset still active
+     * @param activeSeatCapacity  seats offered across the active classes. Deliberately an aggregate:
+     *                            callers publish a fill percentage, never the seat counts behind it.
+     */
+    record CourseClassScope(
+            List<UUID> allClassUuids,
+            List<UUID> activeClassUuids,
+            long activeSeatCapacity
+    ) {
+        public static CourseClassScope empty() {
+            return new CourseClassScope(List.of(), List.of(), 0L);
+        }
     }
 
     record ClassDefinitionSnapshot(
