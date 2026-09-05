@@ -129,6 +129,12 @@ public class SecurityConfiguration {
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/media/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/content-media/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews").permitAll()
+                            // The course record's own endpoint. It resolves the caller's access
+                            // itself and hands an anonymous browser the same `prospect` summary the
+                            // catalogue already shows — outline, counts and rating, no lesson
+                            // bodies and no lesson uuids. Authenticating changes what it returns,
+                            // never whether it answers, so the catalogue page needs no token.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/content").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()
                             // Handed-in work is not public media: a submitted file is served
                             // only to the learner who uploaded it or the staff who mark its

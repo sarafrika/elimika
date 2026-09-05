@@ -52,6 +52,33 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
                                                                         UUID applicantUuid,
                                                                         CourseTrainingApplicationStatus status);
 
+    /**
+     * Whether any of these applicants holds an application on this course at the given status.
+     * <p>
+     * A caller can be staff of several organisations, so "is my side approved to train this?" is a
+     * question about a set rather than a single applicant. Asked as one existence query so a viewer
+     * belonging to a dozen schools costs the same as one belonging to a single school.
+     * <p>
+     * Callers must not pass an empty collection — an empty {@code IN} list is a query the database
+     * need never be asked.
+     */
+    boolean existsByCourseUuidAndApplicantTypeAndApplicantUuidInAndStatus(UUID courseUuid,
+                                                                          CourseTrainingApplicantType applicantType,
+                                                                          Collection<UUID> applicantUuids,
+                                                                          CourseTrainingApplicationStatus status);
+
+    /**
+     * Whether any of these applicants has an application on this course at all, whatever its status.
+     * <p>
+     * Separates "applied and waiting" from "never applied", which are two different pages for the
+     * viewer: one is told where their application stands, the other is invited to make one.
+     * <p>
+     * Callers must not pass an empty collection.
+     */
+    boolean existsByCourseUuidAndApplicantTypeAndApplicantUuidIn(UUID courseUuid,
+                                                                 CourseTrainingApplicantType applicantType,
+                                                                 Collection<UUID> applicantUuids);
+
     Page<CourseTrainingApplication> findByCourseUuid(UUID courseUuid, Pageable pageable);
 
     Page<CourseTrainingApplication> findByCourseUuidAndStatus(UUID courseUuid,

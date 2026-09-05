@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.dto;
 
+import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,14 +9,17 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Course content served to an organisation, gated by whether that organisation has an
- * approved application to train the course.
+ * Course content scoped to whoever asked for it.
  * <p>
- * Not approved: a summary the school can use to decide whether to apply — lesson outline,
- * content counts and rating, but no lesson bodies. Approved: full read access to every
- * lesson's content. Content is never editable here; only the course creator can edit it.
+ * {@code access} names the footing the caller is on — creator, admin, organisation, instructor,
+ * student, pending, applicant or prospect — and {@code full_access} says whether that footing
+ * carries the right to read lesson bodies. When it does not, the lessons carry an outline and
+ * nothing else: no content items, no lesson identifiers. The summary is still enough to decide
+ * whether to apply or enrol, which is its whole purpose.
+ * <p>
+ * Content is never editable here whatever the access; only the course creator may edit it.
  */
-@Schema(name = "OrganisationCourseContent", description = "Approval-gated course content for an organisation. Summary when not approved, full content when approved.")
+@Schema(name = "OrganisationCourseContent", description = "Course content scoped to the caller. Outline only unless the caller's access carries full read rights.")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OrganisationCourseContentDTO(
 
@@ -23,7 +27,11 @@ public record OrganisationCourseContentDTO(
         @JsonProperty("course_uuid")
         UUID courseUuid,
 
-        @Schema(description = "True when the organisation is approved to train and therefore has full read access.", example = "false")
+        @Schema(description = "The footing the caller views this course on. Resolved server-side; never re-derived by the client.", example = "prospect")
+        @JsonProperty("access")
+        CourseContentAccess access,
+
+        @Schema(description = "True when the caller's access carries full read rights and lesson content is therefore included.", example = "false")
         @JsonProperty("full_access")
         boolean fullAccess,
 
@@ -39,7 +47,7 @@ public record OrganisationCourseContentDTO(
         @JsonProperty("total_reviews")
         int totalReviews,
 
-        @Schema(description = "Lessons. Outline only until approved, then with full content.")
+        @Schema(description = "Lessons. Outline only without full access, then with full content.")
         @JsonProperty("lessons")
         List<OrganisationCourseLessonDTO> lessons
 ) {

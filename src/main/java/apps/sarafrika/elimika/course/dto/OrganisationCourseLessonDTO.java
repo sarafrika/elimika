@@ -8,17 +8,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A single lesson as seen by an organisation viewing a course.
+ * A single lesson as seen by whoever asked for the course's content.
  * <p>
- * When the organisation is not approved to train the course, only the outline is
- * returned ({@code uuid} and {@code contents} are omitted) so no lesson content leaks.
- * Once approved, the lesson {@code uuid} and full {@code contents} are included.
+ * Without full read access only the outline is returned — {@code uuid} and {@code contents} are
+ * both omitted, so neither the lesson bodies nor the identifiers that would fetch them one by one
+ * ever reach the caller. With full access the lesson {@code uuid} and its {@code contents} are
+ * included.
  */
-@Schema(name = "OrganisationCourseLesson", description = "Lesson outline (always) plus content (only when the organisation is approved to train).")
+@Schema(name = "OrganisationCourseLesson", description = "Lesson outline (always) plus content (only when the caller has full read access).")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OrganisationCourseLessonDTO(
 
-        @Schema(description = "Lesson identifier. Only present when the organisation has full read access.", accessMode = Schema.AccessMode.READ_ONLY)
+        @Schema(description = "Lesson identifier. Only present when the caller has full read access.", accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty("uuid")
         UUID uuid,
 
@@ -42,7 +43,7 @@ public record OrganisationCourseLessonDTO(
         @JsonProperty("content_count")
         int contentCount,
 
-        @Schema(description = "Full lesson content. Only present when the organisation has full read access.")
+        @Schema(description = "Full lesson content. Only present when the caller has full read access.")
         @JsonProperty("contents")
         List<LessonContentDTO> contents
 ) {

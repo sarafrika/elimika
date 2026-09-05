@@ -89,7 +89,7 @@ class CourseSecurityServiceImplTest {
                 assignmentSubmissionRepository, assignmentSubmissionAttachmentRepository,
                 certificateRepository, trainingProgramRepository, programRequirementRepository,
                 courseCreatorLookupService, instructorLookupService, userLookupService,
-                domainSecurityService, new RequestScopedCache());
+                domainSecurityService, new TeachingOrganisations(userLookupService), new RequestScopedCache());
 
         authenticateAsJwtUser();
         when(userLookupService.findUserUuidByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(USER_UUID));

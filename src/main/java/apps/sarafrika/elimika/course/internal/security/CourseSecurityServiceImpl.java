@@ -71,18 +71,6 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private static final String CACHE_TEACHES_STUDENT_PREFIX = "courseSecurity.teachesStudent.";
 
     /**
-     * Organisation-scoped roles that make a member part of an organisation's <em>teaching</em> side.
-     * <p>
-     * Membership alone is not one of them. An organisation's roster mixes its staff with the
-     * learners it enrolled, both carried by rows in the same table, and only the org-scoped domain
-     * tells them apart — so a training approval granted to an organisation must be read as granting
-     * its staff, never everyone it has ever invited.
-     */
-    private static final List<UserDomain> ORGANISATION_TEACHING_DOMAINS = List.of(
-            UserDomain.organisation_user, UserDomain.admin,
-            UserDomain.instructor, UserDomain.course_creator);
-
-    /**
      * The org-scoped roles that make somebody staff of an organisation rather than one of its
      * learners. Mirrors the set the organisation invitation flow issues, minus {@code student}.
      */
@@ -105,6 +93,7 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
     private final DomainSecurityService domainSecurityService;
+    private final TeachingOrganisations teachingOrganisations;
     private final RequestScopedCache requestScopedCache;
 
     /**
@@ -319,15 +308,11 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     }
 
     /**
-     * Organisations this user belongs to <em>as staff</em>. See
-     * {@link #ORGANISATION_TEACHING_DOMAINS} for why plain membership is not enough.
+     * Organisations this user belongs to <em>as staff</em>. See {@link TeachingOrganisations} for
+     * why plain membership is not enough.
      */
     private List<UUID> teachingOrganisationsOf(UUID userUuid) {
-        return userLookupService.getUserOrganizations(userUuid).stream()
-                .filter(organisationUuid -> ORGANISATION_TEACHING_DOMAINS.stream()
-                        .anyMatch(domain -> userLookupService.userBelongsToOrganizationWithDomain(
-                                userUuid, organisationUuid, domain)))
-                .toList();
+        return teachingOrganisations.of(userUuid);
     }
 
     private List<UUID> approvedCourses(CourseTrainingApplicantType applicantType, Collection<UUID> applicants) {

@@ -84,7 +84,7 @@ public class CourseController {
     private final CourseCategoryService courseCategoryService;
     private final CourseReviewService courseReviewService;
     private final CourseRecommendationService courseRecommendationService;
-    private final OrganisationCourseContentService organisationCourseContentService;
+    private final CourseContentService courseContentService;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final MediaStorageService mediaStorageService;
@@ -1024,27 +1024,67 @@ public class CourseController {
     }
 
     @Operation(
-            summary = "Get course content for an organisation (approval-gated)",
+            summary = "Get course content scoped to the caller",
             description = """
-                    Returns course content scoped to what a given organisation is allowed to see.
+                    Returns a course's content on whatever footing the caller stands, and says which
+                    footing that is.
 
-                    - **Not approved to train:** a decision-making summary — lesson outline, content
-                      counts and rating — with no lesson bodies, so full content never leaks.
-                    - **Approved to train:** full read access to every lesson's content.
+                    The response carries an `access` string — one of `creator`, `admin`,
+                    `organisation`, `instructor`, `student`, `pending`, `applicant` or `prospect` —
+                    resolved server-side, first match wins. It is the single input a client needs to
+                    decide what page to render; clients must not re-derive it from the signed-in
+                    user's domain, because only the server knows whether an application was approved
+                    or an approval has since been revoked.
 
-                    Content is read-only here regardless of access; only the course creator can edit it.
+                    - **`creator`, `admin`, `organisation`, `instructor`, `student`:** `full_access`
+                      is true and every lesson arrives with its `uuid` and `contents`.
+                    - **`pending`, `applicant`, `prospect`:** `full_access` is false and the lessons
+                      carry an outline only — title, description, objectives and a content count.
+                      Neither the content items nor the lesson `uuid` are transmitted, so there is
+                      nothing to filter client-side and nothing to fetch one lesson at a time.
+
+                    Content is read-only here whatever the access; only the course creator can edit it.
+
+                    Open to anonymous callers, who resolve to `prospect` and receive the same public
+                    summary the catalogue already shows.
+                    """
+    )
+    @PreAuthorize("permitAll()")
+    @GetMapping("/{courseUuid}/content")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<OrganisationCourseContentDTO>> getCourseContent(
+            @PathVariable UUID courseUuid) {
+        OrganisationCourseContentDTO content = courseContentService.getContentForCaller(courseUuid);
+        String message = content.fullAccess()
+                ? "Full course content retrieved"
+                : "Course summary retrieved (caller has no full-content access)";
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(content, message));
+    }
+
+    @Operation(
+            summary = "Get course content for an organisation (deprecated)",
+            deprecated = true,
+            description = """
+                    **Deprecated — use `GET /api/v1/courses/{courseUuid}/content`.**
+
+                    Superseded because it can only answer for a viewer who has an organisation: a
+                    course creator has none, and held at `prospect` forever. Retained as an alias so
+                    existing clients keep working; it delegates to the same assembly and returns the
+                    same shape, with `access` resolved for the organisation in the path rather than
+                    for the caller.
 
                     Restricted to members of the organisation named in the path (or a platform admin), so
                     one organisation's approval can never be used to read content on another's behalf.
                     """
     )
+    @Deprecated(since = "2.142.0", forRemoval = true)
+    @SuppressWarnings("removal")
     @PreAuthorize("@organisationSecurityService.canReadOrganisation(#organisationUuid)")
     @GetMapping("/{courseUuid}/organisations/{organisationUuid}/content")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<OrganisationCourseContentDTO>> getOrganisationCourseContent(
             @PathVariable UUID courseUuid,
             @PathVariable UUID organisationUuid) {
         OrganisationCourseContentDTO content =
-                organisationCourseContentService.getContentForOrganisation(courseUuid, organisationUuid);
+                courseContentService.getContentForOrganisation(courseUuid, organisationUuid);
         String message = content.fullAccess()
                 ? "Full course content retrieved"
                 : "Course summary retrieved (organisation not approved to train)";
