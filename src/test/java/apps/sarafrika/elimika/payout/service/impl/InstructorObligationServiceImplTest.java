@@ -88,7 +88,7 @@ class InstructorObligationServiceImplTest {
                         classDefinitionUuid, UUID.randomUUID(), null, "Piano Grade 3", "desc",
                         instructorPay.add(new BigDecimal("500.00")), instructorPay, basis,
                         ClassVisibility.PRIVATE, LocationType.ONLINE,
-                        20, Boolean.TRUE, 30)));
+                        20, Boolean.TRUE, 30, null, null)));
     }
 
     @Test
@@ -132,7 +132,7 @@ class InstructorObligationServiceImplTest {
                         classDefinitionUuid, UUID.randomUUID(), null, "Piano Grade 3", "desc",
                         instructorPay.add(new BigDecimal("500.00")), instructorPay, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR,
                         ClassVisibility.PRIVATE, LocationType.ONLINE,
-                        20, Boolean.TRUE, 30)));
+                        20, Boolean.TRUE, 30, null, null)));
     }
 
     @Test

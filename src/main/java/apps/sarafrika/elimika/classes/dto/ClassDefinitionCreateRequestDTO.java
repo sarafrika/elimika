@@ -133,11 +133,18 @@ public record ClassDefinitionCreateRequestDTO(
         @JsonProperty("academic_period_end_date")
         LocalDate academicPeriodEndDate,
 
-        @Schema(description = "**[OPTIONAL]** Registration period start date.", format = "date")
+        // Newly required: a class cannot be created without saying when it takes enrolments, because
+        // the gate now refuses a seat outside those dates and a class with no window would be a class
+        // nobody could ever join. This tightens an existing field, so every create form has to send
+        // both before this ships — a caller that omits them now gets a 400 where it used to get a
+        // class with no window. Editing a class does not require them; see the update request.
+        @Schema(description = "**[REQUIRED]** First day, inclusive, on which students may enrol.", format = "date")
+        @NotNull(message = "Registration period start date is required")
         @JsonProperty("registration_period_start_date")
         LocalDate registrationPeriodStartDate,
 
-        @Schema(description = "**[OPTIONAL]** Registration period end date.", format = "date")
+        @Schema(description = "**[REQUIRED]** Last day, inclusive, on which students may enrol.", format = "date")
+        @NotNull(message = "Registration period end date is required")
         @JsonProperty("registration_period_end_date")
         LocalDate registrationPeriodEndDate,
 

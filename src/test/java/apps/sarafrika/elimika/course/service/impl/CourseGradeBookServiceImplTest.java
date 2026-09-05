@@ -498,6 +498,8 @@ class CourseGradeBookServiceImplTest {
                         null,
                         null,
                         null,
+                        null,
+                        null,
                         null
                 )));
 
@@ -568,6 +570,8 @@ class CourseGradeBookServiceImplTest {
                         null,
                         null,
                         null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR,
+                        null,
+                        null,
                         null,
                         null,
                         null,

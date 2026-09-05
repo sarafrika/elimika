@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.shared.spi;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,9 @@ public interface ClassDefinitionLookupService {
                         snapshot.locationType(),
                         snapshot.maxParticipants(),
                         snapshot.allowWaitlist(),
-                        snapshot.classReminderMinutes()));
+                        snapshot.classReminderMinutes(),
+                        snapshot.registrationOpensOn(),
+                        snapshot.registrationClosesOn()));
     }
 
     record ClassDefinitionSnapshot(
@@ -90,6 +93,12 @@ public interface ClassDefinitionLookupService {
             LocationType locationType,
             Integer maxParticipants,
             Boolean allowWaitlist,
-            Integer classReminderMinutes
+            Integer classReminderMinutes,
+
+            /** First day, inclusive, on which this class accepts enrolments. */
+            LocalDate registrationOpensOn,
+
+            /** Last day, inclusive, on which this class accepts enrolments. */
+            LocalDate registrationClosesOn
     ) { }
 }

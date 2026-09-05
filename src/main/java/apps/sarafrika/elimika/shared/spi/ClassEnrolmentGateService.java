@@ -13,7 +13,8 @@ public interface ClassEnrolmentGateService {
 
     /**
      * Why this buyer may not join, judged from the records the platform already holds — their
-     * recorded date of birth against the course's age limits, seats, and existing enrolment.
+     * recorded date of birth against the course's age limits, the class's registration window,
+     * seats, and existing enrolment.
      * <p>
      * Takes the buyer's <em>user</em> UUID so the caller needs no knowledge of student profiles;
      * the student behind the user is resolved on the other side of this contract.

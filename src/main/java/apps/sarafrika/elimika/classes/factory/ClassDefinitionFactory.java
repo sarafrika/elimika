@@ -7,8 +7,14 @@ import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ClassDefinitionFactory {
+
+    /** Matches the sentinel the backfill migration wrote for classes with no academic period. */
+    private static final LocalDate OPEN_ENDED_REGISTRATION = LocalDate.of(2099, 12, 31);
 
     public static ClassDefinitionDTO toDTO(ClassDefinition entity) {
         if (entity == null) {
@@ -80,8 +86,8 @@ public class ClassDefinitionFactory {
         entity.setDefaultEndTime(dto.defaultEndTime());
         entity.setAcademicPeriodStartDate(dto.academicPeriodStartDate());
         entity.setAcademicPeriodEndDate(dto.academicPeriodEndDate());
-        entity.setRegistrationPeriodStartDate(dto.registrationPeriodStartDate());
-        entity.setRegistrationPeriodEndDate(dto.registrationPeriodEndDate());
+        entity.setRegistrationPeriodStartDate(registrationOpensOn(dto));
+        entity.setRegistrationPeriodEndDate(registrationClosesOn(dto));
         entity.setClassReminderMinutes(dto.classReminderMinutes());
         entity.setClassColor(dto.classColor());
         entity.setLocationType(dto.locationType());
@@ -95,6 +101,36 @@ public class ClassDefinitionFactory {
         entity.setVenueResourceUuid(dto.venueResourceUuid());
         entity.setMarketplaceJobUuid(dto.marketplaceJobUuid());
         return entity;
+    }
+
+    /**
+     * The registration window is mandatory in the schema and required of every API caller, but a
+     * class can also be raised internally — a marketplace job that finds its instructor becomes a
+     * class, and a job may carry no window of its own. Rather than fail that insert, fall back the
+     * same way the backfill migration did: open at the academic period start, or the day the class
+     * is raised.
+     */
+    private static LocalDate registrationOpensOn(ClassDefinitionDTO dto) {
+        if (dto.registrationPeriodStartDate() != null) {
+            return dto.registrationPeriodStartDate();
+        }
+        return dto.academicPeriodStartDate() != null
+                ? dto.academicPeriodStartDate()
+                : LocalDate.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * Closes at the academic period end, or at the far-future sentinel the migration used, so a
+     * class raised without a stated window stays open rather than arriving already shut. Never
+     * before the day it opens.
+     */
+    private static LocalDate registrationClosesOn(ClassDefinitionDTO dto) {
+        if (dto.registrationPeriodEndDate() != null) {
+            return dto.registrationPeriodEndDate();
+        }
+        LocalDate opensOn = registrationOpensOn(dto);
+        LocalDate academicEnd = dto.academicPeriodEndDate();
+        return academicEnd != null && !academicEnd.isBefore(opensOn) ? academicEnd : OPEN_ENDED_REGISTRATION;
     }
 
     public static void updateEntityFromDTO(ClassDefinition entity, ClassDefinitionDTO dto) {

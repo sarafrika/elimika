@@ -122,11 +122,18 @@ public record ClassDefinitionUpdateRequestDTO(
         @JsonProperty("academic_period_end_date")
         LocalDate academicPeriodEndDate,
 
-        @Schema(description = "**[OPTIONAL]** Registration period start date.", format = "date")
+        // Required to create a class, but not to edit one. An update applies only the fields it
+        // carries, so omitting these keeps the window the class already has — and every class has
+        // one, because the column is NOT NULL and creation demands it. Requiring them here would
+        // reject an unrelated edit, such as changing a fee, that has nothing to say about enrolment
+        // dates.
+        @Schema(description = "**[OPTIONAL]** First day, inclusive, on which students may enrol. "
+                + "Leave out to keep the current one.", format = "date")
         @JsonProperty("registration_period_start_date")
         LocalDate registrationPeriodStartDate,
 
-        @Schema(description = "**[OPTIONAL]** Registration period end date.", format = "date")
+        @Schema(description = "**[OPTIONAL]** Last day, inclusive, on which students may enrol. "
+                + "Leave out to keep the current one.", format = "date")
         @JsonProperty("registration_period_end_date")
         LocalDate registrationPeriodEndDate,
 

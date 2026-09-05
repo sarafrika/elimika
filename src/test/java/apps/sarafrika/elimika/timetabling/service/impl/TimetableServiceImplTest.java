@@ -57,6 +57,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TimetableServiceImplTest {
 
+    /** Every class now carries a registration window; these fixtures use one that is currently open. */
+    private static final LocalDate OPEN_WINDOW_START = LocalDate.now(java.time.ZoneOffset.UTC).minusDays(7);
+    private static final LocalDate OPEN_WINDOW_END = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(7);
+
     @Mock
     private ScheduledInstanceRepository scheduledInstanceRepository;
 
@@ -617,7 +621,9 @@ class TimetableServiceImplTest {
                         null,
                         20,
                         true,
-                        null
+                        null,
+                        OPEN_WINDOW_START,
+                        OPEN_WINDOW_END
                 )));
         when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(false);
 
@@ -656,7 +662,9 @@ class TimetableServiceImplTest {
                         apps.sarafrika.elimika.shared.enums.LocationType.HYBRID,
                         24,
                         true,
-                        null
+                        null,
+                        OPEN_WINDOW_START,
+                        OPEN_WINDOW_END
                 )));
         when(scheduledInstanceRepository.save(any(ScheduledInstance.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -773,7 +781,8 @@ class TimetableServiceImplTest {
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
                         classDefinitionUuid, courseUuid, null, "Dairy", null,
-                        null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30)));
+                        null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30,
+                        OPEN_WINDOW_START, OPEN_WINDOW_END)));
         when(courseInfoService.getAgeLimits(courseUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.course.spi.CourseInfoService.AgeLimits(min, max)));
     }
@@ -822,7 +831,8 @@ class TimetableServiceImplTest {
         UUID studentUuid = UUID.randomUUID();
         when(classDefinitionLookupService.findByUuid(classUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
-                        classUuid, courseUuid, null, "Dairy", null, null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30)));
+                        classUuid, courseUuid, null, "Dairy", null, null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30,
+                        OPEN_WINDOW_START, OPEN_WINDOW_END)));
         when(courseInfoService.getAgeLimits(courseUuid)).thenReturn(Optional.empty());
         when(scheduledInstanceRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of());
         when(enrollmentRepository.findByStudentUuid(studentUuid)).thenReturn(List.of());
@@ -982,7 +992,8 @@ class TimetableServiceImplTest {
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
                         classDefinitionUuid, courseUuid, null, "Dairy", null,
-                        null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30)));
+                        null, null, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, null, null, 20, true, 30,
+                        OPEN_WINDOW_START, OPEN_WINDOW_END)));
         when(courseInfoService.getAgeLimits(courseUuid)).thenReturn(Optional.empty());
     }
 
