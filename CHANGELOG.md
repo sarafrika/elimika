@@ -1,3 +1,10 @@
+## [2.141.1](https://github.com/sarafrika/elimika/compare/v2.141.0...v2.141.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* **deps:** bump js-yaml override to 4.3.1 to close two high-severity advisories ([587efce](https://github.com/sarafrika/elimika/commit/587efce1b47692b659453efddeeedbafbcb8be45))
+
 # [2.141.0](https://github.com/sarafrika/elimika/compare/v2.140.0...v2.141.0) (2026-09-05)
 
 
