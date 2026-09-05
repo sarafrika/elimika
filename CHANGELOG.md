@@ -1,3 +1,37 @@
+# [2.141.0](https://github.com/sarafrika/elimika/compare/v2.140.0...v2.141.0) (2026-09-05)
+
+
+### Bug Fixes
+
+* **assessments:** scope quiz and assignment access to the owning course and bind nested records to it ([008fed8](https://github.com/sarafrika/elimika/commit/008fed8560034ffb8abd2784623b8786cf9158f9))
+* **booking:** scope admin access to the booking parties and guard create and payment callback ([b01102c](https://github.com/sarafrika/elimika/commit/b01102c592a36e4fe7e95236b1dfd4d61ab754a4))
+* **catalogue:** enforce visibility in the query and restrict writes ([48ff770](https://github.com/sarafrika/elimika/commit/48ff7700179c2aa8cd06a673c3ab45f8d9b843c6))
+* **certificates:** authorise certificate routes by relationship and make verification public ([772ca43](https://github.com/sarafrika/elimika/commit/772ca430de6956a5e7252e2a36031c23282384c9))
+* **commerce:** restrict cart and order access to the buyer, admins and the gateway ([ddaf93b](https://github.com/sarafrika/elimika/commit/ddaf93bf4c6516128f3f5f76e61ecb8c36899194))
+* **course-creator:** guard profile routes and scope document reads to the viewer ([838b804](https://github.com/sarafrika/elimika/commit/838b8048acaf2318c3cbb1bcd673f755b5acf4bd))
+* **courses:** withhold rate cards, learner rosters and org content from non-parties ([f1cc95c](https://github.com/sarafrika/elimika/commit/f1cc95c1e0517f09c955d29cb87f60d88b3e781e))
+* **files:** restrict media reconcile and sweep to platform admins ([7c549df](https://github.com/sarafrika/elimika/commit/7c549df3eb334fe07a61f2f2a57978d672b4ccbf))
+* **instructor:** scope credential and directory reads to related parties and pin profile ownership ([a4eb6cf](https://github.com/sarafrika/elimika/commit/a4eb6cf855fba30a21d41e6c233ce606062f845f))
+* **marketplace:** scope job application reads and gate advert pay on verified instructors ([1488440](https://github.com/sarafrika/elimika/commit/1488440113866e83b3febf4bab7eff0357e3d2e2))
+* **pricing:** limit approved rate card reads to each card's own party and stop echoing rate figures ([8e0a6cf](https://github.com/sarafrika/elimika/commit/8e0a6cf06afee1c608f8add0ac8a9a51d88daf73))
+* **programs:** scope training application access to its parties and restrict program writes to the creator ([7e0df47](https://github.com/sarafrika/elimika/commit/7e0df4709164da4ddf96ac7db2e691cdb7948bb4))
+* **scheduling:** gate class and availability endpoints on the caller's relation to them ([b110dc6](https://github.com/sarafrika/elimika/commit/b110dc6d62ecdc36052618513224b593be1b9c49))
+* **security:** restrict every OpenAPI spec alias to platform admins and authenticate actuator internals ([028d4a8](https://github.com/sarafrika/elimika/commit/028d4a8f5f4d90cac3494164a80b7a3f01c7374a))
+* **security:** scope class writes, enrolment rosters and organisation figures to their owning parties ([63d9f9a](https://github.com/sarafrika/elimika/commit/63d9f9a2f9b85bdd505f4d9db0c0198242b29cb6))
+* **security:** scope contact details on user and organisation roster routes ([e935f57](https://github.com/sarafrika/elimika/commit/e935f5737577af98690ac3214d1b4bde714f2e95))
+* **security:** scope enrolment, roster, eligibility and obligation access to the party they belong to ([3a8567b](https://github.com/sarafrika/elimika/commit/3a8567b5eeb40af82ccbfb68655bfdc83a32f9d3))
+* **students:** restrict guardian contacts, student writes and guardian links to the learner's own party ([b586e75](https://github.com/sarafrika/elimika/commit/b586e7551f2b49a69fb67db63571f9db4d25d4d9))
+
+
+### Features
+
+* **search:** allow-list filterable and sortable entity fields ([e537b59](https://github.com/sarafrika/elimika/commit/e537b59ca8c67c4874b96e4b7b13cab1ddc5c11d))
+
+
+### Performance Improvements
+
+* **security:** resolve caller identity and organisation membership once per request ([ac10b88](https://github.com/sarafrika/elimika/commit/ac10b88fc349d170bc0ed32c32dc9ebdfec08f76))
+
 # [2.140.0](https://github.com/sarafrika/elimika/compare/v2.139.0...v2.140.0) (2026-09-02)
 
 
