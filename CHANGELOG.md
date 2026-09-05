@@ -1,3 +1,10 @@
+## [2.141.2](https://github.com/sarafrika/elimika/compare/v2.141.1...v2.141.2) (2026-09-05)
+
+
+### Bug Fixes
+
+* **security:** let the dev profile decide whether the OpenAPI spec is public ([d6c3b3c](https://github.com/sarafrika/elimika/commit/d6c3b3c92a47f01d803d3de1026f46d84c433f6a))
+
 ## [2.141.1](https://github.com/sarafrika/elimika/compare/v2.141.0...v2.141.1) (2026-09-05)
 
 
