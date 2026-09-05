@@ -123,3 +123,15 @@ curl -o /dev/null -s -w '%{http_code}\n' https://<host>/actuator/metrics
 
 If `/actuator/health` returns anything but 200 to an anonymous caller, the deployment will
 flap: `docker/compose.yaml`'s healthcheck has no credentials.
+
+## How the gate is decided
+
+The `dev` profile serves the specification anonymously; `prod` restricts it to platform
+administrators. This mirrors the commerce module, where `DevCommerceAccessServiceImpl` is
+`@Profile("dev")` and relaxes the paywall while `CommerceAccessServiceImpl` is `@Profile("!dev")`
+and enforces it — staging is the relaxed environment by design, and the frontend's generated client
+is regenerated from staging's spec.
+
+`APP_API_DOCS_PUBLIC` remains as a per-host override and takes precedence over the profile, so it
+is deliberately **not** shipped in `docker/.env.sample` — an explicit value there would silence the
+profile default on every host provisioned from it.

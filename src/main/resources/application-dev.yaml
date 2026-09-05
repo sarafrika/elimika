@@ -1,0 +1,19 @@
+# Development and staging overrides.
+#
+# The `dev` profile marks the relaxed environments — a workstation or the staging VPS — as opposed
+# to `prod`, which is what a real deployment runs. The commerce module already draws the line here:
+# DevCommerceAccessServiceImpl is @Profile("dev") and grants universal course access, while
+# CommerceAccessServiceImpl is @Profile("!dev") and enforces the paywall. Anything that should be
+# open on staging and closed in production belongs in this file, for the same reason.
+app:
+  api-docs:
+    # Serve /v3/api-docs, its .yaml and grouped aliases, and the Swagger UI anonymously.
+    #
+    # Under `prod` this stays false (see application.yaml) and the specification — which maps the
+    # whole internal and administrative surface — is platform-admin only. On staging it is open,
+    # because the frontend's generated client is regenerated from precisely this endpoint
+    # (elimika-ui/openapi-ts.config.ts fetches it unauthenticated) and because browsing the API is
+    # the point of a staging server.
+    #
+    # APP_API_DOCS_PUBLIC still overrides this in either direction if an environment needs it.
+    public: true

@@ -74,9 +74,9 @@ app:
   # workstation, a sandbox, or staging while the frontend client is regenerated from it — sets
   # APP_API_DOCS_PUBLIC=true in its own environment.
   #
-  # This is a plain flag rather than a profile check on purpose: docker/.env.sample ships
-  # SPRING_PROFILES_ACTIVE=dev and docker/compose.yaml reads the profile from that .env, so
-  # "dev only" would not keep a deployed server closed. Documented in
+  # The `dev` profile turns this on (application-dev.yaml), the same way the commerce module
+  # relaxes its paywall for dev — so staging serves the spec that the frontend regenerates its
+  # client from, and prod does not. APP_API_DOCS_PUBLIC overrides either way. Documented in
   # docs/api-documentation-access.md.
   api-docs:
     public: ${APP_API_DOCS_PUBLIC:false}
