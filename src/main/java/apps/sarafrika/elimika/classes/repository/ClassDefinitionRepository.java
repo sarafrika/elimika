@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.repository;
 
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
+import apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -38,4 +39,38 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
 
     @Query("SELECT cd FROM ClassDefinition cd WHERE cd.defaultInstructorUuid = :instructorUuid AND cd.isActive = true")
     List<ClassDefinition> findActiveClassesForInstructor(@Param("instructorUuid") UUID instructorUuid);
+
+    /**
+     * Active class counts on one course, grouped by the instructor delivering them.
+     * <p>
+     * Aggregated in the database because the caller wants a number per trainer, not the classes:
+     * a class definition carries the sale price, the instructor pay and the meeting link, and none
+     * of that has any business being loaded to compute a count.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount(
+                       cd.defaultInstructorUuid, COUNT(cd))
+            FROM ClassDefinition cd
+            WHERE cd.courseUuid = :courseUuid
+              AND cd.isActive = true
+              AND cd.defaultInstructorUuid IN :instructorUuids
+            GROUP BY cd.defaultInstructorUuid
+            """)
+    List<TrainerClassCount> countActiveByCourseAndInstructor(@Param("courseUuid") UUID courseUuid,
+                                                             @Param("instructorUuids") Collection<UUID> instructorUuids);
+
+    /**
+     * Active class counts on one course, grouped by the organisation running them.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount(
+                       cd.organisationUuid, COUNT(cd))
+            FROM ClassDefinition cd
+            WHERE cd.courseUuid = :courseUuid
+              AND cd.isActive = true
+              AND cd.organisationUuid IN :organisationUuids
+            GROUP BY cd.organisationUuid
+            """)
+    List<TrainerClassCount> countActiveByCourseAndOrganisation(@Param("courseUuid") UUID courseUuid,
+                                                               @Param("organisationUuids") Collection<UUID> organisationUuids);
 }

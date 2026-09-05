@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -80,6 +81,7 @@ public class CourseController {
     private final CourseRequirementService courseRequirementService;
     private final CourseTrainingRequirementService courseTrainingRequirementService;
     private final CourseTrainingApplicationService courseTrainingApplicationService;
+    private final CourseTrainerDirectoryService courseTrainerDirectoryService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
     private final CourseReviewService courseReviewService;
@@ -1303,6 +1305,40 @@ public class CourseController {
                 courseDraftService.resolveEditableCourseUuid(courseUuid),
                 courseDraftService.resolveEditableTrainingRequirementUuid(courseUuid, requirementUuid));
         return ResponseEntity.noContent().build();
+    }
+
+    // ===== COURSE TRAINER DIRECTORY =====
+
+    @Operation(
+            summary = "List approved trainers",
+            description = """
+                    Who is approved to deliver this course: the instructors and organisations a learner,
+                    an organisation or the creator would find on the course record.
+
+                    **What each caller gets**
+                    - Everyone sees the approved list — name, where the trainer works, when they were
+                      approved, and how many active classes they run on this course.
+                    - The course creator and platform admins additionally see each trainer's `rate_card`
+                      and the `pending_count` of applications still awaiting a decision. For anyone else
+                      those keys are **absent from the JSON**, not null and not zero: the rates are never
+                      loaded, so there is nothing to redact.
+
+                    **Sorting** is limited to `display_name`, `approved_at` and `active_class_count`.
+                    Any other sort property — a rate column above all — is rejected with `400`, because
+                    ordering by a hidden field reads it back one comparison at a time.
+
+                    `location` is a place in words, such as the organisation's town or the instructor's
+                    stated locality. It is never coordinates.
+                    """
+    )
+    @GetMapping("/{courseUuid}/trainers")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseTrainerDirectoryDTO>> getCourseTrainers(
+            @PathVariable UUID courseUuid,
+            @PageableDefault(size = 200) Pageable pageable) {
+
+        CourseTrainerDirectoryDTO directory = courseTrainerDirectoryService.getTrainerDirectory(courseUuid, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(directory, "Course trainers retrieved successfully"));
     }
 
     // ===== COURSE TRAINING APPLICATIONS =====

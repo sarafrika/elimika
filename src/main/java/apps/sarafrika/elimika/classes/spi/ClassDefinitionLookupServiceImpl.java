@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.spi;
 
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
+import apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 
 import java.util.Collection;
@@ -105,6 +106,43 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
+    }
+
+    @Override
+    public Map<UUID, Long> countActiveCourseClassesByInstructor(UUID courseUuid, Collection<UUID> instructorUuids) {
+        Collection<UUID> requested = distinct(instructorUuids);
+        if (courseUuid == null || requested.isEmpty()) {
+            return Map.of();
+        }
+        return toCountMap(classDefinitionRepository.countActiveByCourseAndInstructor(courseUuid, requested));
+    }
+
+    @Override
+    public Map<UUID, Long> countActiveCourseClassesByOrganisation(UUID courseUuid, Collection<UUID> organisationUuids) {
+        Collection<UUID> requested = distinct(organisationUuids);
+        if (courseUuid == null || requested.isEmpty()) {
+            return Map.of();
+        }
+        return toCountMap(classDefinitionRepository.countActiveByCourseAndOrganisation(courseUuid, requested));
+    }
+
+    private static Collection<UUID> distinct(Collection<UUID> uuids) {
+        if (uuids == null || uuids.isEmpty()) {
+            return List.of();
+        }
+        return uuids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static Map<UUID, Long> toCountMap(List<TrainerClassCount> counts) {
+        Map<UUID, Long> byTrainer = new LinkedHashMap<>();
+        for (TrainerClassCount count : counts) {
+            if (count.trainerUuid() != null) {
+                byTrainer.put(count.trainerUuid(), count.classCount());
+            }
+        }
+        return byTrainer;
     }
 
     private static ClassDefinitionSnapshot toSnapshot(ClassDefinition entity) {
