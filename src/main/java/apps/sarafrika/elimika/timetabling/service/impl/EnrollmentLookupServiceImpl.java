@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -76,6 +79,35 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
         }
         return enrollmentRepository.findLatestActiveByStudentAndCourseUuid(studentUuid, courseUuid)
                 .map(this::toSnapshot);
+    }
+
+    @Override
+    public long countDistinctLearnersForClassDefinitions(Collection<UUID> classDefinitionUuids) {
+        Collection<UUID> classes = sanitise(classDefinitionUuids);
+        return classes.isEmpty() ? 0L
+                : enrollmentRepository.countDistinctStudentsByClassDefinitionUuidIn(classes);
+    }
+
+    @Override
+    public long countFilledSeatsForClassDefinitions(Collection<UUID> classDefinitionUuids) {
+        Collection<UUID> classes = sanitise(classDefinitionUuids);
+        if (classes.isEmpty()) {
+            return 0L;
+        }
+        long filled = 0L;
+        for (Object[] row : enrollmentRepository.countDistinctStudentsGroupedByClassDefinition(classes)) {
+            if (row.length > 1 && row[1] instanceof Number learners) {
+                filled += learners.longValue();
+            }
+        }
+        return filled;
+    }
+
+    private static Collection<UUID> sanitise(Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            return List.of();
+        }
+        return classDefinitionUuids.stream().filter(Objects::nonNull).distinct().toList();
     }
 
     private ClassEnrollmentStatusSnapshot toSnapshot(Enrollment enrollment) {

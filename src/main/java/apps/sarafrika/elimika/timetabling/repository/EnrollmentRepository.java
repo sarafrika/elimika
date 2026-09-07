@@ -117,6 +117,33 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     long countDistinctStudentsByClassDefinitionUuidAndStatus(@Param("classDefinitionUuid") UUID classDefinitionUuid,
                                                              @Param("status") EnrollmentStatus status);
 
+    /**
+     * Distinct learners holding a live enrolment on any of the given classes.
+     * <p>
+     * Aggregated in the database rather than by loading the register: a course's whole delivery
+     * history can be tens of thousands of enrolment rows, and the caller only wants the count.
+     */
+    @Query("SELECT COUNT(DISTINCT e.studentUuid) FROM Enrollment e " +
+           "JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE si.classDefinitionUuid IN :classDefinitionUuids " +
+           "AND e.status NOT IN ('CANCELLED', 'WAITLISTED')")
+    long countDistinctStudentsByClassDefinitionUuidIn(
+            @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids);
+
+    /**
+     * Distinct learners per class across the given classes, as {@code [class_definition_uuid (UUID),
+     * learners (Long)]}. Summing the values gives filled seats, which is not the same figure as
+     * {@link #countDistinctStudentsByClassDefinitionUuidIn(Collection)}: a learner on two classes
+     * fills two seats.
+     */
+    @Query("SELECT si.classDefinitionUuid, COUNT(DISTINCT e.studentUuid) FROM Enrollment e " +
+           "JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE si.classDefinitionUuid IN :classDefinitionUuids " +
+           "AND e.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+           "GROUP BY si.classDefinitionUuid")
+    List<Object[]> countDistinctStudentsGroupedByClassDefinition(
+            @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids);
+
     @Query("SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
            "WHERE e.studentUuid = :studentUuid " +
            "AND si.instructorUuid = :instructorUuid " +

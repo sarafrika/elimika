@@ -79,6 +79,15 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
                                                                  CourseTrainingApplicantType applicantType,
                                                                  Collection<UUID> applicantUuids);
 
+    /**
+     * How many applications a course holds at one status.
+     * <p>
+     * Counted rather than listed: the public statistics block advertises how many trainers are
+     * approved to deliver a course, and it must not become a way to enumerate who they are or what
+     * they charge.
+     */
+    long countByCourseUuidAndStatus(UUID courseUuid, CourseTrainingApplicationStatus status);
+
     Page<CourseTrainingApplication> findByCourseUuid(UUID courseUuid, Pageable pageable);
 
     Page<CourseTrainingApplication> findByCourseUuidAndStatus(UUID courseUuid,

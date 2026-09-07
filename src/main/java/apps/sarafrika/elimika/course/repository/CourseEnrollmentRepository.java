@@ -51,6 +51,13 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
 
     boolean existsByCourseUuidAndStatusIn(UUID courseUuid, List<EnrollmentStatus> statuses);
 
+    /**
+     * Every enrolment the course has ever taken, at any status. Feeds the owner-only enrolment
+     * total on the course statistics block; counted in the database because the figure is a number,
+     * not a roster.
+     */
+    long countByCourseUuid(UUID courseUuid);
+
     long countByStatus(EnrollmentStatus status);
 
     long countByEnrollmentDateAfter(LocalDateTime enrolledAfter);

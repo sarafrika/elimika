@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.shared.spi.enrollment;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -82,4 +83,28 @@ public interface EnrollmentLookupService {
      * @return Optional containing the most recent active class enrollment status snapshot
      */
     Optional<ClassEnrollmentStatusSnapshot> findMostRecentActiveEnrollmentForCourse(UUID studentUuid, UUID courseUuid);
+
+    /**
+     * How many distinct learners hold a live enrolment on any of these classes.
+     * <p>
+     * Distinct, because a learner is enrolled once per scheduled session: counting rows would report
+     * a term of weekly sessions as thirteen learners. Cancelled and waitlisted enrolments do not
+     * count — neither describes somebody who was taught.
+     *
+     * @param classDefinitionUuids the classes to count across; empty yields zero
+     * @return the number of distinct learners
+     */
+    long countDistinctLearnersForClassDefinitions(Collection<UUID> classDefinitionUuids);
+
+    /**
+     * How many seats these classes have filled, counting each learner once per class they are on.
+     * <p>
+     * Differs from {@link #countDistinctLearnersForClassDefinitions(Collection)} in that a learner
+     * attending two of the classes occupies two seats but is one learner. Only ever published as a
+     * ratio against capacity.
+     *
+     * @param classDefinitionUuids the classes to count across; empty yields zero
+     * @return the number of filled seats
+     */
+    long countFilledSeatsForClassDefinitions(Collection<UUID> classDefinitionUuids);
 }

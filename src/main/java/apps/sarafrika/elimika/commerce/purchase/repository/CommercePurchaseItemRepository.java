@@ -4,8 +4,10 @@ import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -357,6 +359,71 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
             @Param("studentUuids") List<UUID> studentUuids,
             Pageable pageable
     );
+
+    /**
+     * Captured line totals for one course. Null when the course has never sold; the caller decides
+     * what an absent total means rather than a {@code coalesce} deciding it is zero revenue.
+     */
+    @Query("""
+            select sum(i.total)
+            from CommercePurchaseItem i
+            join i.purchase p
+            where i.courseUuid = :courseUuid
+              and lower(p.paymentStatus) = 'captured'
+            """)
+    BigDecimal sumCapturedTotalForCourse(@Param("courseUuid") UUID courseUuid);
+
+    /**
+     * The platform's share of those captured lines. Lines settled before the fee was charged off the
+     * top carry no apportioned fee at all, so this understates rather than guesses.
+     */
+    @Query("""
+            select sum(i.platformFeeAmount)
+            from CommercePurchaseItem i
+            join i.purchase p
+            where i.courseUuid = :courseUuid
+              and lower(p.paymentStatus) = 'captured'
+            """)
+    BigDecimal sumCapturedPlatformFeeForCourse(@Param("courseUuid") UUID courseUuid);
+
+    /**
+     * Distinct captured orders containing the course. Counted on the order rather than the line so a
+     * basket holding two of the course's classes is one sale, not two.
+     */
+    @Query("""
+            select count(distinct p.orderId)
+            from CommercePurchaseItem i
+            join i.purchase p
+            where i.courseUuid = :courseUuid
+              and lower(p.paymentStatus) = 'captured'
+            """)
+    long countCapturedOrdersForCourse(@Param("courseUuid") UUID courseUuid);
+
+    /**
+     * Distinct refunded orders containing the course. A partial refund counts: the learner's money
+     * went back, and a refunded-orders figure that ignored partials would flatter the course.
+     */
+    @Query("""
+            select count(distinct p.orderId)
+            from CommercePurchaseItem i
+            join i.purchase p
+            where i.courseUuid = :courseUuid
+              and lower(p.paymentStatus) in ('refunded', 'partially_refunded')
+            """)
+    long countRefundedOrdersForCourse(@Param("courseUuid") UUID courseUuid);
+
+    /**
+     * What earners were credited for captured sales of the given classes.
+     */
+    @Query("""
+            select sum(i.creditedAmount)
+            from CommercePurchaseItem i
+            join i.purchase p
+            where i.classDefinitionUuid in :classDefinitionUuids
+              and lower(p.paymentStatus) = 'captured'
+            """)
+    BigDecimal sumCapturedCreditsForClassDefinitions(
+            @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids);
 
     @Query("""
             select case when count(i) > 0 then true else false end

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -79,6 +80,66 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
             }
         }
         return organisationsByClass;
+    }
+
+    @Override
+    public CourseClassScope findClassScopeForCourse(UUID courseUuid) {
+        if (courseUuid == null) {
+            return CourseClassScope.empty();
+        }
+        return toScope(classDefinitionRepository.findClassSeatingByCourseUuid(courseUuid));
+    }
+
+    @Override
+    public CourseClassScope findClassScopeForCourseAndTrainer(UUID courseUuid,
+                                                              UUID instructorUuid,
+                                                              Collection<UUID> organisationUuids) {
+        boolean noOrganisations = organisationUuids == null || organisationUuids.isEmpty();
+        if (courseUuid == null || (instructorUuid == null && noOrganisations)) {
+            return CourseClassScope.empty();
+        }
+
+        List<Object[]> rows = new ArrayList<>();
+        if (instructorUuid != null) {
+            rows.addAll(classDefinitionRepository
+                    .findClassSeatingByCourseUuidAndInstructorUuid(courseUuid, instructorUuid));
+        }
+        if (!noOrganisations) {
+            rows.addAll(classDefinitionRepository
+                    .findClassSeatingByCourseUuidAndOrganisationUuidIn(courseUuid, organisationUuids));
+        }
+        return toScope(rows);
+    }
+
+    /**
+     * Folds seating rows into a scope, keyed on the class UUID so a class that an instructor leads
+     * <em>and</em> their organisation owns is counted once rather than twice.
+     */
+    private static CourseClassScope toScope(List<Object[]> rows) {
+        Map<UUID, Object[]> distinct = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            UUID classUuid = (UUID) row[0];
+            if (classUuid != null) {
+                distinct.putIfAbsent(classUuid, row);
+            }
+        }
+        if (distinct.isEmpty()) {
+            return CourseClassScope.empty();
+        }
+
+        List<UUID> all = List.copyOf(distinct.keySet());
+        List<UUID> active = new ArrayList<>();
+        long capacity = 0L;
+        for (Object[] row : distinct.values()) {
+            if (!Boolean.TRUE.equals(row[1])) {
+                continue;
+            }
+            active.add((UUID) row[0]);
+            if (row[2] instanceof Number seats) {
+                capacity += seats.longValue();
+            }
+        }
+        return new CourseClassScope(all, List.copyOf(active), capacity);
     }
 
     @Override
