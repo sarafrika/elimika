@@ -85,8 +85,9 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
      * How many applications a course holds at one status.
      * <p>
      * Counted rather than listed: the public statistics block advertises how many trainers are
-     * approved to deliver a course, and it must not become a way to enumerate who they are or what
-     * they charge.
+     * approved to deliver a course, and the trainer directory says how many applications are still
+     * awaiting a decision. Neither may become a way to enumerate who the applicants are or what
+     * they charge, and a count never loads the rate cards the pending rows carry.
      */
     long countByCourseUuidAndStatus(UUID courseUuid, CourseTrainingApplicationStatus status);
 
@@ -176,10 +177,4 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
             """)
     List<CourseTrainerRateView> findTrainerDirectoryWithRates(@Param("courseUuid") UUID courseUuid,
                                                               @Param("status") CourseTrainingApplicationStatus status);
-
-    /**
-     * How many applications on this course are still awaiting a decision. Answered by a count so the
-     * pending rows — which carry the rate cards their applicants proposed — are never loaded.
-     */
-    long countByCourseUuidAndStatus(UUID courseUuid, CourseTrainingApplicationStatus status);
 }
