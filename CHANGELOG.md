@@ -1,3 +1,18 @@
+# [2.142.0](https://github.com/sarafrika/elimika/compare/v2.141.2...v2.142.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **courses:** collapse the duplicate approved-application count into one declaration ([e0fd751](https://github.com/sarafrika/elimika/commit/e0fd751495bf3b3cd0af1590eb65a0a4afdb100e))
+
+
+### Features
+
+* **classes:** require and enforce the class registration window ([0345921](https://github.com/sarafrika/elimika/commit/03459217088c354b495964929ec815d37159f8b5))
+* **courses:** expose course statistics scoped to the caller ([0acbce3](https://github.com/sarafrika/elimika/commit/0acbce352f361ad59763afda745f6015314600ff))
+* **courses:** list approved trainers with rate cards restricted to the course owner ([4bfc5df](https://github.com/sarafrika/elimika/commit/4bfc5df6d5c4cdcd5d5a8c856d6b58b28937aeeb))
+* **courses:** serve course content scoped to the caller ([d9a420c](https://github.com/sarafrika/elimika/commit/d9a420c7fbfc82f27f63060017e9a98c18d1cb9a))
+
 ## [2.141.2](https://github.com/sarafrika/elimika/compare/v2.141.1...v2.141.2) (2026-09-05)
 
 
