@@ -236,11 +236,15 @@ class CourseStatsAccessIntegrationTest {
 
     private UUID classDefinition(UUID courseUuid, UUID instructorUuid, String title, int seats, boolean active) {
         UUID uuid = UUID.randomUUID();
+        // The registration window is mandatory on the table. Statistics say nothing about it, so it is
+        // opened wide around today and every assertion here reads is_active instead.
         jdbc.update("INSERT INTO class_definitions (uuid, title, default_instructor_uuid, course_uuid, "
                 + "default_start_time, default_end_time, location_type, class_visibility, session_format, "
-                + "max_participants, is_active, created_by) "
+                + "max_participants, is_active, registration_period_start_date, "
+                + "registration_period_end_date, created_by) "
                 + "VALUES (?, ?, ?, ?, TIMESTAMPTZ '2026-01-05 09:00:00+00', "
-                + "TIMESTAMPTZ '2026-01-05 10:30:00+00', 'ONLINE', 'PUBLIC', 'GROUP', ?, ?, 'test')",
+                + "TIMESTAMPTZ '2026-01-05 10:30:00+00', 'ONLINE', 'PUBLIC', 'GROUP', ?, ?, "
+                + "(now() AT TIME ZONE 'UTC')::date - 30, (now() AT TIME ZONE 'UTC')::date + 365, 'test')",
                 uuid, title, instructorUuid, courseUuid, seats, active);
         return uuid;
     }

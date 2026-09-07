@@ -339,11 +339,14 @@ class CourseTrainerDirectoryIntegrationTest {
     }
 
     private void classDefinition(UUID courseUuid, UUID organisationUuid, UUID instructorUuid, boolean active) {
+        // The registration window is mandatory on the table. The directory counts active classes and
+        // never consults the window, so it is opened wide around today.
         jdbc.update("INSERT INTO class_definitions (uuid, title, default_instructor_uuid, organisation_uuid, "
                         + "course_uuid, default_start_time, default_end_time, class_visibility, session_format, "
-                        + "is_active, created_by) "
+                        + "is_active, registration_period_start_date, registration_period_end_date, created_by) "
                         + "VALUES (?, 'Welding cohort', ?, ?, ?, '2026-04-01 09:00:00'::timestamp, "
-                        + "'2026-04-01 10:30:00'::timestamp, 'PUBLIC', 'GROUP', ?, 'test')",
+                        + "'2026-04-01 10:30:00'::timestamp, 'PUBLIC', 'GROUP', ?, "
+                        + "(now() AT TIME ZONE 'UTC')::date - 30, (now() AT TIME ZONE 'UTC')::date + 365, 'test')",
                 UUID.randomUUID(), instructorUuid, organisationUuid, courseUuid, active);
     }
 }
