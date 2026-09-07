@@ -1,3 +1,10 @@
+## [2.142.2](https://github.com/sarafrika/elimika/compare/v2.142.1...v2.142.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **classes:** stop class listings disclosing instructor pay through sorting and organisation payables ([b3e5f0f](https://github.com/sarafrika/elimika/commit/b3e5f0f0ee8bdda5bd9406e8e8224a3d66576c78))
+
 ## [2.142.1](https://github.com/sarafrika/elimika/compare/v2.142.0...v2.142.1) (2026-09-07)
 
 
