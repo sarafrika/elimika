@@ -117,7 +117,7 @@ class InstructorObligationLedgerIntegrationTest {
                 .thenReturn(Optional.of(new ClassDefinitionSnapshot(
                         classDefinitionUuid, UUID.randomUUID(), null, "Class", "desc",
                         new BigDecimal(fee), new BigDecimal(fee), apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, ClassVisibility.PRIVATE, LocationType.ONLINE,
-                        20, Boolean.TRUE, 30)));
+                        20, Boolean.TRUE, 30, null, null)));
     }
 
     @Test

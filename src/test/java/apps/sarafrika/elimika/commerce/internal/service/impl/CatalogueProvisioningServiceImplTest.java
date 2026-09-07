@@ -73,6 +73,8 @@ class CatalogueProvisioningServiceImplTest {
                         null,
                         30,
                         true,
+                        null,
+                        null,
                         null
                 );
 

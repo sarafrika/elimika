@@ -66,6 +66,8 @@ class ClassDefinitionAuthorizationTest {
               "session_format": "GROUP",
               "default_start_time": "2026-03-02T09:00:00",
               "default_end_time": "2026-03-02T10:30:00",
+              "registration_period_start_date": "2026-02-01",
+              "registration_period_end_date": "2026-03-01",
               "location_type": "ONLINE"
             }
             """;

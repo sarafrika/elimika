@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.timetabling.spi;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.LocalDate;
+
 @Schema(
         name = "ClassEnrolmentEligibility",
         description = "Whether a student may join a class, decided from the records the platform already "
@@ -42,8 +44,38 @@ public record ClassEnrolmentEligibilityDTO(
         @JsonProperty("already_enrolled")
         boolean alreadyEnrolled,
 
+        @Schema(description = "**[READ-ONLY]** True when today falls inside the class's registration window.")
+        @JsonProperty("registration_open")
+        boolean registrationOpen,
+
+        @Schema(description = "**[READ-ONLY]** The dates between which this class accepts enrolments.", nullable = true)
+        @JsonProperty("registration_window")
+        RegistrationWindow registrationWindow,
+
         @Schema(description = "**[READ-ONLY]** Why the student cannot join, phrased for them to read. Null when eligible.", nullable = true)
         @JsonProperty("reason")
         String reason
 ) {
+
+    /**
+     * The days on which a class accepts enrolments, both ends inclusive.
+     * <p>
+     * These dates are published on the class listing, so naming them in a refusal tells the learner
+     * nothing they could not already read.
+     */
+    @Schema(
+            name = "ClassRegistrationWindow",
+            description = "The first and last day, both inclusive, on which a class accepts enrolments."
+    )
+    public record RegistrationWindow(
+
+            @Schema(description = "**[READ-ONLY]** First day enrolment is accepted.", format = "date")
+            @JsonProperty("opens_on")
+            LocalDate opensOn,
+
+            @Schema(description = "**[READ-ONLY]** Last day enrolment is accepted.", format = "date")
+            @JsonProperty("closes_on")
+            LocalDate closesOn
+    ) {
+    }
 }

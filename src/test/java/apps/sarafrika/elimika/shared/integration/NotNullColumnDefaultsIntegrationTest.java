@@ -51,7 +51,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -256,7 +258,11 @@ class NotNullColumnDefaultsIntegrationTest {
                 new BigDecimal("1750.00"), new BigDecimal("1750.00"), rateBasis,
                 ClassVisibility.PUBLIC, SessionFormat.GROUP,
                 LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),
-                null, null, null, null, null, null,
+                null, null,
+                // The registration window is mandatory in the schema now, and a create request may
+                // no longer leave it out.
+                LocalDate.now(ZoneOffset.UTC), LocalDate.now(ZoneOffset.UTC).plusMonths(1),
+                null, null,
                 LocationType.ONLINE, null, null, null, "https://meet.example.com/ai",
                 5, true, true, List.of());
     }

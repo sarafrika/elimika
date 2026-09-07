@@ -147,7 +147,7 @@ class CommerceCatalogueServiceImplTest {
                 Optional.of(new apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot(
                         classUuid, UUID.randomUUID(), null, "Dairy", null,
                         new java.math.BigDecimal("3000.00"), new java.math.BigDecimal("2000.00"),
-                        basis, null, null, 20, true, 30)));
+                        basis, null, null, 20, true, 30, null, null)));
 
         return service.getByCourseOrClassOrProgram(null, classUuid, null).getFirst().unitAmount();
     }

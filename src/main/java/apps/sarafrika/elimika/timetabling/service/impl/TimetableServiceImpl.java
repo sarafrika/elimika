@@ -104,6 +104,10 @@ public class TimetableServiceImpl implements TimetableService {
     private final DomainSecurityService domainSecurityService;
     private final TimetableSecurityService timetableSecurityService;
 
+    /** How a registration date is written back to a learner, rather than how the column stores it. */
+    private static final java.time.format.DateTimeFormatter REGISTRATION_WINDOW_DATE_FORMAT =
+            java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.ENGLISH);
+
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
     private static final Set<EnrollmentStatus> START_ELIGIBLE_ENROLLMENT_STATUSES = Set.of(
@@ -392,6 +396,7 @@ public class TimetableServiceImpl implements TimetableService {
 
         enforceClassContentApproval(classDefinitionUuid);
         enforceClassAgeLimits(studentUuid, classDefinitionUuid);
+        enforceClassRegistrationWindow(classDefinitionUuid, studentUuid);
         commercePaywallService.verifyClassEnrollmentAccess(studentUuid, classDefinitionUuid);
 
         List<ScheduledInstance> scheduledInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
@@ -521,6 +526,7 @@ public class TimetableServiceImpl implements TimetableService {
         if (classDefinitionUuid != null) {
             enforceClassContentApproval(classDefinitionUuid);
             enforceClassAgeLimits(studentUuid, classDefinitionUuid);
+            enforceClassRegistrationWindow(classDefinitionUuid, studentUuid);
         }
 
         Optional<Enrollment> existing = enrollmentRepository.findByScheduledInstanceUuidAndStudentUuid(instanceUuid, studentUuid);
@@ -1406,6 +1412,11 @@ public class TimetableServiceImpl implements TimetableService {
     /**
      * Same rules as {@link #enrollStudent}, decided from our own records and reported instead of
      * thrown. A learner should be told they are too young before they are charged, not after.
+     * <p>
+     * The registration window it reports is read from {@link #findRegistrationWindowBlocker}, the
+     * same method {@link #enrollStudent} refuses on, so the answer given here and the answer given
+     * at the door cannot drift apart. Cart, checkout and payment reach this method through
+     * {@code ClassEnrolmentGateService}.
      */
     @Override
     @Transactional(readOnly = true)
@@ -1478,6 +1489,20 @@ public class TimetableServiceImpl implements TimetableService {
         Optional<ScheduledInstance> conflictingInstance =
                 findFirstStudentConflict(studentUuid, instancesNeedingSeat);
 
+        // Asked of the one method that owns the window rule, rather than decided again here.
+        Optional<String> registrationWindowBlocker = snapshot.flatMap(this::findRegistrationWindowBlocker);
+        boolean registrationOpen = registrationWindowBlocker.isEmpty();
+        LocalDate opensOn = snapshot
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::registrationOpensOn)
+                .orElse(null);
+        LocalDate closesOn = snapshot
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::registrationClosesOn)
+                .orElse(null);
+        ClassEnrolmentEligibilityDTO.RegistrationWindow registrationWindow =
+                opensOn == null && closesOn == null
+                        ? null
+                        : new ClassEnrolmentEligibilityDTO.RegistrationWindow(opensOn, closesOn);
+
         String reason = null;
         if (!dateOfBirthOnFile) {
             reason = "Add your date of birth to your profile so we can check this class's age requirement.";
@@ -1487,6 +1512,8 @@ public class TimetableServiceImpl implements TimetableService {
             reason = String.format("This class is for ages %d and under. Your profile says you are %d.", maxAge, studentAge);
         } else if (alreadyEnrolled) {
             reason = "You are already enrolled in this class.";
+        } else if (registrationWindowBlocker.isPresent()) {
+            reason = registrationWindowBlocker.get();
         } else if (instances.isEmpty()) {
             reason = "This class has no scheduled sessions yet.";
         } else if (conflictingInstance.isPresent()) {
@@ -1506,7 +1533,115 @@ public class TimetableServiceImpl implements TimetableService {
                 ageOk,
                 seatsAvailable,
                 alreadyEnrolled,
+                registrationOpen,
+                registrationWindow,
                 reason);
+    }
+
+    /**
+     * Why this class is not taking enrolments today, or empty when it is.
+     * <p>
+     * The registration window is the class's own opening hours, decided when it was created and
+     * published on its listing. Both ends count as open days, and "today" is UTC — the same clock
+     * every other date in this service is read against.
+     * <p>
+     * This method owns that rule outright. The eligibility report above asks it, the buying paths
+     * reach it through {@code ClassEnrolmentGateService}, and
+     * {@link #enforceClassRegistrationWindow} turns the same answer into a refusal at the enrolment
+     * door, so there is one definition of "closed" and not four.
+     */
+    private Optional<String> findRegistrationWindowBlocker(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        if (snapshot == null) {
+            return Optional.empty();
+        }
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate opensOn = snapshot.registrationOpensOn();
+        LocalDate closesOn = snapshot.registrationClosesOn();
+
+        if (opensOn != null && today.isBefore(opensOn)) {
+            return Optional.of(String.format(
+                    "Registration for this class opens on %s.", formatWindowDate(opensOn)));
+        }
+        if (closesOn != null && today.isAfter(closesOn)) {
+            return Optional.of(String.format(
+                    "Registration for this class closed on %s.", formatWindowDate(closesOn)));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Refuses an enrolment made outside the class's registration window.
+     * <p>
+     * Enrolling is the act the window governs, so it is judged on the act and not only on the
+     * purchase that usually precedes one: {@code POST /api/v1/enrollments} reaches
+     * {@link #enrollStudent} with no cart behind it, and an instructor or admin can call it on a
+     * learner's behalf. Checking it here rather than in the gate alone is what makes the window
+     * binding instead of advisory.
+     * <p>
+     * A student already holding a live seat on this class is let through. That hold is only ever
+     * taken by checkout, after this same rule has already passed, and it expires within minutes;
+     * refusing to convert it would strand a seat the platform granted and has very likely charged
+     * for, which is the one outcome worse than a late enrolment.
+     */
+    private void enforceClassRegistrationWindow(UUID classDefinitionUuid, UUID studentUuid) {
+        if (classDefinitionUuid == null) {
+            return;
+        }
+        Optional<String> blocker = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .flatMap(this::findRegistrationWindowBlocker);
+        if (blocker.isEmpty()
+                || holdsLiveSeat(studentUuid, classDefinitionUuid)
+                || staffEnrollingOnBehalf(classDefinitionUuid, studentUuid)) {
+            return;
+        }
+        throw new IllegalStateException(blocker.get());
+    }
+
+    /**
+     * True when the caller is staff acting for a learner rather than the learner acting for
+     * themselves.
+     * <p>
+     * The window tells learners when a class is open; it is not meant to overrule the person
+     * running that class. An instructor taking a late joiner, or an admin repairing a roster, has
+     * made a deliberate decision about their own class, and the alternative — editing the
+     * advertised dates to admit one person — corrupts the very record the window exists to publish.
+     * <p>
+     * Deliberately narrow in two ways. A learner enrolling themselves never qualifies, whatever
+     * other domains they happen to hold, so the ordinary self-service path stays bound by the
+     * window. And the staff test is scoped to <em>this</em> class rather than to a globally held
+     * role: an instructor may override for a class they run, not for anyone else's. A caller with
+     * no identity at all — a system-initiated enrolment behind a payment, say — is therefore judged
+     * by the window like any learner, and falls back to the seat-hold escape above.
+     */
+    private boolean staffEnrollingOnBehalf(UUID classDefinitionUuid, UUID studentUuid) {
+        if (studentUuid != null && domainSecurityService.isStudentWithUuid(studentUuid)) {
+            return false;
+        }
+        return domainSecurityService.isPlatformAdmin()
+                || domainSecurityService.canManageClass(classDefinitionUuid);
+    }
+
+    /** True when this student is holding an unexpired seat reservation on any session of the class. */
+    private boolean holdsLiveSeat(UUID studentUuid, UUID classDefinitionUuid) {
+        if (studentUuid == null) {
+            return false;
+        }
+        Set<UUID> classInstances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid).stream()
+                .map(ScheduledInstance::getUuid)
+                .collect(Collectors.toSet());
+        if (classInstances.isEmpty()) {
+            return false;
+        }
+        LocalDateTime now = currentUtcTime();
+        return Optional.ofNullable(enrollmentRepository.findByStudentUuid(studentUuid)).orElse(List.of()).stream()
+                .filter(enrollment -> classInstances.contains(enrollment.getScheduledInstanceUuid()))
+                .anyMatch(enrollment -> enrollment.getStatus() == EnrollmentStatus.RESERVED
+                        && !hasLapsed(enrollment, now));
+    }
+
+    /** The window's dates are public on the class listing, so a refusal may name them. */
+    private static String formatWindowDate(LocalDate date) {
+        return date == null ? "" : date.format(REGISTRATION_WINDOW_DATE_FORMAT);
     }
 
     /**
