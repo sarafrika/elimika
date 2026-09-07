@@ -1,3 +1,10 @@
+## [2.142.1](https://github.com/sarafrika/elimika/compare/v2.142.0...v2.142.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **courses:** let the stats response advertise its ApiResponse envelope ([e8d6a88](https://github.com/sarafrika/elimika/commit/e8d6a883cdd01e9980a1e5dda0106ec13cbc8a9c))
+
 # [2.142.0](https://github.com/sarafrika/elimika/compare/v2.141.2...v2.142.0) (2026-09-07)
 
 
