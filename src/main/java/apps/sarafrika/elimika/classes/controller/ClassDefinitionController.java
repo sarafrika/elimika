@@ -263,7 +263,10 @@ public class ClassDefinitionController {
         return ResponseEntity.ok(ApiResponse.success(summary, "Class rating summary fetched successfully"));
     }
 
-    @Operation(summary = "Get a class definition by UUID")
+    @Operation(summary = "Get a class definition by UUID",
+            description = "sale_price is the public price. instructor_pay is included only for the parties to it — "
+                    + "the class's own instructor, managers of the organisation that owns it and platform admins; "
+                    + "every other caller receives the class without the field.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definition retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition not found")
     @GetMapping("/{uuid}")
@@ -379,7 +382,11 @@ public class ClassDefinitionController {
     // CLASS DEFINITION QUERIES
     // ================================
 
-    @Operation(summary = "Get class definitions for a course")
+    @Operation(summary = "Get class definitions for a course",
+            description = "The catalogue a learner browses before enrolling: what classes run on this course, when "
+                    + "and at what sale_price. instructor_pay is included only for the parties to it — each class's "
+                    + "own instructor, managers of the organisation that owns it and platform admins — so the "
+                    + "organisation's margin is not published alongside its price.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/course/{courseUuid}")
     public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForCourse(
@@ -443,10 +450,15 @@ public class ClassDefinitionController {
             description = "Aggregated from the instructor obligation ledger: one row was written per delivered "
                     + "session at the training fee that stood on the day, so re-rating a class does not change "
                     + "what has already been earned. Settled sessions move from amount_owed to amount_settled. "
-                    + "Use /api/v1/organisations/{organisationUuid}/instructor-obligations for the row-level detail.")
+                    + "Use /api/v1/organisations/{organisationUuid}/instructor-obligations for the row-level detail. "
+                    + "Restricted to the organisation's managers and platform admins.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor payables retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}/instructor-payables")
-    @PreAuthorize("@organisationSecurityService.canReadOrganisation(#organisationUuid)")
+    // What the organisation pays each of its trainers, summed — the same figure a class response
+    // withholds from everyone but a manager, and here it is every trainer's at once. Membership is
+    // not the bar: an org-scoped learner or instructor is a member. This is the guard the row-level
+    // obligations endpoint this description points at already applies.
+    @PreAuthorize("@organisationSecurityService.canManageOrganisation(#organisationUuid)")
     public ResponseEntity<ApiResponse<List<apps.sarafrika.elimika.classes.dto.OrganisationInstructorPayableDTO>>> getInstructorPayablesForOrganisation(
             @Parameter(description = "UUID of the organisation", required = true)
             @PathVariable UUID organisationUuid) {
@@ -457,8 +469,12 @@ public class ClassDefinitionController {
         return ResponseEntity.ok(ApiResponse.success(result, "Instructor payables retrieved successfully"));
     }
 
-    @Operation(summary = "Get all class definitions")
+    @Operation(summary = "Get all class definitions",
+            description = "instructor_pay is included only for the parties to it, as on every other class read. "
+                    + "Sorting by it is rejected with 400 for everyone, parties included: ordering a listing by a "
+                    + "figure it does not print would disclose the same figure one comparison at a time.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a field the listing withholds")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<ClassDefinitionResponseDTO>>> getAllClassDefinitions(
             Pageable pageable) {

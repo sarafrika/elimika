@@ -47,6 +47,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -90,6 +91,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
+    /**
+     * Sort properties a class listing refuses, in the form Spring Data matches them — lower case
+     * with separators removed, so {@code instructor_pay} and {@code instructorPay} are one name.
+     * The set holds exactly what {@link ClassDefinitionDTO#withoutInstructorPay()} strips: a figure
+     * added there has to be added here too, or the listing will sort by what it will not print.
+     */
+    private static final Set<String> UNSORTABLE_PROPERTIES = Set.of("instructorpay");
 
     @Override
     public ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
@@ -595,6 +603,36 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return maySeeInstructorPay(dto) ? dto : dto.withoutInstructorPay();
     }
 
+    /**
+     * Refuses an ordering that names a figure the payload withholds.
+     * <p>
+     * Redaction settles what a response prints; ordering is a second way to read the same column.
+     * A caller who may order the whole catalogue by {@code instructor_pay} can rank every class by
+     * what its trainer earns, and next to the {@code sale_price} each row publishes that is the
+     * organisation's margin — arrived at without the field ever being printed. Honouring the sort
+     * on a column we have just stripped hands the information back one comparison at a time.
+     * <p>
+     * Refused for everyone, parties included: ordering by the pay is not a supported query, which is
+     * the line the course trainer directory already draws around rate cards. Refused rather than
+     * quietly dropped, so a client that asked for it finds out that it did not happen.
+     *
+     * @throws IllegalArgumentException when the sort names a withheld figure
+     */
+    private static void rejectSortOnWithheldFigures(Pageable pageable) {
+        if (pageable == null || pageable.getSort().isUnsorted()) {
+            return;
+        }
+        for (Sort.Order order : pageable.getSort()) {
+            String property = order.getProperty() == null
+                    ? ""
+                    : order.getProperty().toLowerCase(Locale.ROOT).replace("_", "");
+            if (UNSORTABLE_PROPERTIES.contains(property)) {
+                throw new IllegalArgumentException("Unsupported sort property: instructor_pay. "
+                        + "Class listings cannot be ordered by what an instructor is paid.");
+            }
+        }
+    }
+
     private boolean maySeeInstructorPay(ClassDefinitionDTO dto) {
         return isPartyToInstructorRate(dto.defaultInstructorUuid(), dto.organisationUuid());
     }
@@ -975,6 +1013,9 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     @Transactional(readOnly = true)
     public Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable) {
         log.debug("Finding all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
+
+        // Rejected before a row is read, so a refused sort tells the caller nothing about the data.
+        rejectSortOnWithheldFigures(pageable);
 
         return classDefinitionRepository.findAll(pageable)
                 .map(this::toDTOWithSessionTemplates)
