@@ -4,8 +4,6 @@ import apps.sarafrika.elimika.course.dto.CourseStatsDTO;
 import apps.sarafrika.elimika.course.service.CourseStatsService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -53,8 +51,7 @@ public class CourseStatsController {
                     """,
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                            responseCode = "200", description = "Statistics retrieved successfully",
-                            content = @Content(schema = @Schema(implementation = CourseStatsDTO.class))),
+                            responseCode = "200", description = "Statistics retrieved successfully"),
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(
                             responseCode = "404", description = "Course not found")
             }
