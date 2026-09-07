@@ -85,6 +85,29 @@ public interface ClassDefinitionLookupService {
 
     List<UUID> findClassDefinitionUuidsByOrganisationUuid(UUID organisationUuid);
 
+    /**
+     * How many active classes each of these instructors is running on one course.
+     * <p>
+     * Counted in the database and grouped in one query: a course's trainer directory asks this of
+     * every row at once, and answering it by fetching each instructor's classes and sizing the list
+     * would load whole class definitions — titles, prices, meeting links — to produce an integer.
+     *
+     * @param courseUuid      the course the classes must belong to
+     * @param instructorUuids candidate instructor identifiers; nulls are ignored
+     * @return active class count keyed by instructor UUID, omitting instructors running none
+     */
+    Map<UUID, Long> countActiveCourseClassesByInstructor(UUID courseUuid, Collection<UUID> instructorUuids);
+
+    /**
+     * How many active classes each of these organisations is running on one course. The organisation
+     * counterpart of {@link #countActiveCourseClassesByInstructor(UUID, Collection)}.
+     *
+     * @param courseUuid        the course the classes must belong to
+     * @param organisationUuids candidate organisation identifiers; nulls are ignored
+     * @return active class count keyed by organisation UUID, omitting organisations running none
+     */
+    Map<UUID, Long> countActiveCourseClassesByOrganisation(UUID courseUuid, Collection<UUID> organisationUuids);
+
     default Optional<ClassDefinitionSnapshot> findByUuidWithoutCourse(UUID classDefinitionUuid) {
         return findByUuid(classDefinitionUuid).map(snapshot ->
                 new ClassDefinitionSnapshot(

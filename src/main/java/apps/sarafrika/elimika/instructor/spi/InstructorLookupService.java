@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.instructor.spi;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,5 +57,18 @@ public interface InstructorLookupService {
      * @return Optional containing the verification flag, or empty if instructor not found
      */
     Optional<Boolean> isInstructorAdminVerified(UUID instructorUuid);
+
+    /**
+     * Resolves the directory identity of several instructors in one query.
+     * <p>
+     * Exists so a listing that shows a handful of instructors costs one query rather than three per
+     * row, and so that what a listing may know about an instructor is decided here, once, rather
+     * than by each caller trimming an {@link InstructorDTO} down. Coordinates are not part of it —
+     * see {@link InstructorDirectoryEntry}.
+     *
+     * @param instructorUuids candidate instructor identifiers; nulls are ignored
+     * @return directory entries keyed by instructor UUID, omitting identifiers that do not resolve
+     */
+    Map<UUID, InstructorDirectoryEntry> findInstructorDirectoryEntries(Collection<UUID> instructorUuids);
 
 }

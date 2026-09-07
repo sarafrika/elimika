@@ -33,4 +33,17 @@ public interface OrganisationLookupService {
      * @return names keyed by organisation UUID, omitting identifiers that do not resolve
      */
     Map<UUID, String> findOrganisationNames(Collection<UUID> organisationUuids);
+
+    /**
+     * Resolves the town each organisation gives as its base, for several organisations in one query.
+     * <p>
+     * The town, and nothing finer. An organisation record also holds latitude and longitude, and a
+     * directory that says where a training provider operates has no business publishing a point on
+     * a map — so this returns the human-readable {@code location} field only, and callers wanting to
+     * show "where" must use it rather than formatting the coordinates themselves.
+     *
+     * @param organisationUuids candidate organisation identifiers; nulls are ignored
+     * @return town keyed by organisation UUID, omitting organisations that name no town
+     */
+    Map<UUID, String> findOrganisationTowns(Collection<UUID> organisationUuids);
 }

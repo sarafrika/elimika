@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
+import apps.sarafrika.elimika.tenancy.repository.projection.OrganisationTownView;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,23 @@ public class OrganisationLookupServiceImpl implements OrganisationLookupService 
             }
         }
         return names;
+    }
+
+    @Override
+    public Map<UUID, String> findOrganisationTowns(Collection<UUID> organisationUuids) {
+        Collection<UUID> requested = distinct(organisationUuids);
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, String> towns = new LinkedHashMap<>();
+        for (OrganisationTownView view : organisationRepository.findTownsByUuidIn(requested)) {
+            String town = view.town();
+            if (view.organisationUuid() != null && town != null && !town.isBlank()) {
+                towns.put(view.organisationUuid(), town.trim());
+            }
+        }
+        return towns;
     }
 
     private Collection<UUID> distinct(Collection<UUID> organisationUuids) {

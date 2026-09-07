@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.repository;
 
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
+import apps.sarafrika.elimika.course.repository.projection.CourseTrainerRateView;
+import apps.sarafrika.elimika.course.repository.projection.CourseTrainerView;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import org.springframework.data.domain.Page;
@@ -131,4 +133,53 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
     List<UUID> findApprovedCourseUuids(@Param("applicantType") CourseTrainingApplicantType applicantType,
                                        @Param("applicantUuids") Collection<UUID> applicantUuids,
                                        @Param("status") CourseTrainingApplicationStatus status);
+
+    /**
+     * The course's trainer directory for a caller who may not see what anyone charges.
+     * <p>
+     * A projection rather than a filtered entity read: the select list names three columns and no
+     * rate column, so the figures are never fetched, never held in a managed entity, and cannot be
+     * blanked-but-present in anything downstream. Ordered by approval date so the result is stable
+     * before the service applies whatever ordering the caller asked for.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.course.repository.projection.CourseTrainerView(
+                       application.applicantType, application.applicantUuid, application.reviewedAt)
+            FROM CourseTrainingApplication application
+            WHERE application.courseUuid = :courseUuid
+              AND application.status = :status
+            ORDER BY application.reviewedAt DESC NULLS LAST, application.applicantUuid ASC
+            """)
+    List<CourseTrainerView> findTrainerDirectory(@Param("courseUuid") UUID courseUuid,
+                                                 @Param("status") CourseTrainingApplicationStatus status);
+
+    /**
+     * The same directory with the rate cards attached, for the course owner and platform admins.
+     * <p>
+     * Deliberately a second query rather than a flag on the first: the caller's entitlement decides
+     * which method is invoked, so an unprivileged request has no path that reaches these columns.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.course.repository.projection.CourseTrainerRateView(
+                       application.applicantType, application.applicantUuid, application.reviewedAt,
+                       application.rateCurrency,
+                       application.privateOnlineHourlyRate, application.privateInpersonHourlyRate,
+                       application.groupOnlineHourlyRate, application.groupInpersonHourlyRate,
+                       application.privateOnlineSessionRate, application.privateInpersonSessionRate,
+                       application.groupOnlineSessionRate, application.groupInpersonSessionRate,
+                       application.privateOnlineDailyRate, application.privateInpersonDailyRate,
+                       application.groupOnlineDailyRate, application.groupInpersonDailyRate)
+            FROM CourseTrainingApplication application
+            WHERE application.courseUuid = :courseUuid
+              AND application.status = :status
+            ORDER BY application.reviewedAt DESC NULLS LAST, application.applicantUuid ASC
+            """)
+    List<CourseTrainerRateView> findTrainerDirectoryWithRates(@Param("courseUuid") UUID courseUuid,
+                                                              @Param("status") CourseTrainingApplicationStatus status);
+
+    /**
+     * How many applications on this course are still awaiting a decision. Answered by a count so the
+     * pending rows — which carry the rate cards their applicants proposed — are never loaded.
+     */
+    long countByCourseUuidAndStatus(UUID courseUuid, CourseTrainingApplicationStatus status);
 }

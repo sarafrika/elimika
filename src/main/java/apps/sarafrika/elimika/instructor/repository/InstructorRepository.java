@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.instructor.repository;
 
 import apps.sarafrika.elimika.instructor.model.Instructor;
+import apps.sarafrika.elimika.instructor.spi.InstructorDirectoryEntry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -83,6 +85,23 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
     boolean existsByUserUuid(UUID userUuid);
 
     Optional<Instructor> findByUserUuid(UUID userUuid);
+
+    /**
+     * Directory identity for several instructors at once, as a projection.
+     * <p>
+     * The three columns a listing may show, and none of the ones next to them: {@code lat} and
+     * {@code long} live on this row, and a listing that says an instructor works in Kisumu must not
+     * be able to say where in Kisumu. Not selecting them is the guarantee; trimming a loaded entity
+     * would not be.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.instructor.spi.InstructorDirectoryEntry(
+                       instructor.uuid, instructor.fullName, instructor.locationName,
+                       COALESCE(instructor.adminVerified, FALSE))
+            FROM Instructor instructor
+            WHERE instructor.uuid IN :uuids
+            """)
+    List<InstructorDirectoryEntry> findDirectoryEntriesByUuidIn(@Param("uuids") Collection<UUID> uuids);
 
     /**
      * Find instructors by their verification status with pagination.
