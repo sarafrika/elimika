@@ -57,6 +57,15 @@ public class MediaReconciliationService {
     private record MediaColumn(String table, String column, boolean nullable) {
     }
 
+    /**
+     * Field names inside {@code course_version_snapshots.snapshot} that hold a storage key.
+     * Matched at any depth: {@code thumbnail_url} sits on the course, {@code file_url} on lesson
+     * content and on assignment attachments. Hard-coded rather than derived so a typo in the
+     * serialiser cannot silently widen what the sweeper deletes.
+     */
+    private static final List<String> SNAPSHOT_MEDIA_FIELDS =
+            List.of("thumbnail_url", "banner_url", "intro_video_url", "file_url");
+
     public record DeadReference(String table, String column, UUID rowUuid, String value, boolean nullable) {
     }
 
@@ -264,6 +273,35 @@ public class MediaReconciliationService {
                 keys.add(key);
             }
         });
+        collectSnapshotKeys(keys);
         return keys;
+    }
+
+    /**
+     * Media a course version still points at.
+     * <p>
+     * A snapshot is not a domain column, so nothing above sees it: a file referenced only by an
+     * approved version of a course looked like an orphan, and {@code sweep(true)} would delete it.
+     * The version would survive as a record and render as broken images — the one failure a version
+     * history cannot recover from, because the bytes are gone.
+     * <p>
+     * The paths are matched by field name at any depth rather than by position, so a snapshot
+     * schema that grows a new media field is covered without editing this query. Keys that no
+     * longer resolve are collected anyway; over-retaining a file costs disk, under-retaining costs
+     * the version.
+     */
+    private void collectSnapshotKeys(Set<String> keys) {
+        for (String field : SNAPSHOT_MEDIA_FIELDS) {
+            jdbcTemplate.query(
+                    "SELECT DISTINCT value #>> '{}' FROM course_version_snapshots s, "
+                            + "LATERAL jsonb_path_query(s.snapshot, '$.**." + field + "') AS value "
+                            + "WHERE jsonb_typeof(value) = 'string'",
+                    rs -> {
+                        String key = FileUrlResolver.toKey(rs.getString(1));
+                        if (key != null) {
+                            keys.add(key);
+                        }
+                    });
+        }
     }
 }
