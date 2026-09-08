@@ -136,6 +136,26 @@ class CourseContentAccessIntegrationTest {
     }
 
     @Test
+    @DisplayName("An anonymous browser is sent the course itself, so a public course page can render")
+    void anonymousBrowserIsSentTheCourseProfile() throws Exception {
+        String body = mockMvc.perform(get(contentUrl()))
+                .andExpect(status().isOk())
+                // Following a link out of the catalogue used to 404 for a logged-out visitor: the
+                // page needed the course record, and that endpoint is authenticated.
+                .andExpect(jsonPath("$.data.course.name").value("Course with a syllabus worth guarding"))
+                .andExpect(jsonPath("$.data.course.published").value(true))
+                .andReturn().getResponse().getContentAsString();
+
+        // The profile is public, so it must carry none of the commercial terms that made the course
+        // record authenticated in the first place.
+        assertThat(body)
+                .doesNotContain("minimum_training_fee")
+                .doesNotContain("creator_share_percentage")
+                .doesNotContain("instructor_share_percentage")
+                .doesNotContain("revenue_share_notes");
+    }
+
+    @Test
     @DisplayName("An anonymous browser resolves to prospect and is sent the same outline")
     void anonymousBrowserIsAProspect() throws Exception {
         String body = mockMvc.perform(get(contentUrl()))

@@ -117,7 +117,9 @@ class CatalogueCourseProjectionIntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].course.duration_hours").value(12))
                 .andExpect(jsonPath("$.data.content[0].course.duration_minutes").value(30))
                 .andExpect(jsonPath("$.data.content[0].course.category_names[0]").value("Music"))
-                .andExpect(jsonPath("$.data.content[0].course.thumbnail_url").value("courses/piano.png"))
+                // A resolved URL, not the bare storage key: next/image rejects a key with
+                // "url parameter is invalid", which is what broke the home page thumbnails.
+                .andExpect(jsonPath("$.data.content[0].course.thumbnail_url").value("/api/v1/files/courses/piano.png"))
                 .andExpect(jsonPath("$.data.content[0].course.published").value(true))
                 .andExpect(jsonPath("$.data.content[0].course.accepts_new_enrollments").value(true));
     }

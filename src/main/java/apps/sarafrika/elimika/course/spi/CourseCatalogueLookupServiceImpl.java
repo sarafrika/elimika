@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.spi.CourseCatalogueLookupService;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.shared.spi.CourseCatalogueSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,7 @@ public class CourseCatalogueLookupServiceImpl implements CourseCatalogueLookupSe
                     course.getUuid(),
                     course.getName(),
                     course.getDescription(),
-                    course.getThumbnailUrl(),
+                    FileUrlResolver.publicUrl(course.getThumbnailUrl()),
                     course.getDurationHours(),
                     course.getDurationMinutes(),
                     categories.getOrDefault(course.getUuid(), List.of()),

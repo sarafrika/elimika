@@ -7,7 +7,13 @@ import apps.sarafrika.elimika.course.dto.OrganisationCourseLessonDTO;
 import apps.sarafrika.elimika.course.internal.security.CourseContentAccessResolver;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.LessonRepository;
+import apps.sarafrika.elimika.course.dto.PublicCourseProfileDTO;
+import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
+import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
+import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.course.service.CourseContentService;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.course.service.CourseReviewService;
 import apps.sarafrika.elimika.course.service.LessonContentService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
@@ -25,6 +31,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CourseContentServiceImpl implements CourseContentService {
 
+    private final CourseRepository courseRepository;
+    private final CourseCategoryMappingRepository mappingRepository;
+    private final CourseTrainingRequirementRepository trainingRequirementRepository;
+    private final CourseCreatorLookupService courseCreatorLookupService;
     private final LessonRepository lessonRepository;
     private final LessonContentService lessonContentService;
     private final CourseReviewService courseReviewService;
@@ -71,7 +81,62 @@ public class CourseContentServiceImpl implements CourseContentService {
                 lessons.size(),
                 averageRating(reviews),
                 reviews.size(),
-                lessonViews);
+                lessonViews,
+                courseProfile(courseUuid));
+    }
+
+    /**
+     * The course itself, so a public course page needs no second, authenticated request.
+     * Null when the row has gone: an empty profile would only turn missing into blank.
+     */
+    private PublicCourseProfileDTO courseProfile(UUID courseUuid) {
+        return courseRepository.findByUuid(courseUuid)
+                .map(course -> new PublicCourseProfileDTO(
+                        course.getName(),
+                        course.getDescription(),
+                        course.getObjectives(),
+                        course.getPrerequisites(),
+                        FileUrlResolver.publicUrl(course.getThumbnailUrl()),
+                        FileUrlResolver.publicUrl(course.getBannerUrl()),
+                        FileUrlResolver.publicUrl(course.getIntroVideoUrl()),
+                        course.getDurationHours(),
+                        course.getDurationMinutes(),
+                        mappingRepository.findCategoryNamesByCourseUuid(courseUuid),
+                        course.getPrice(),
+                        course.getClassLimit(),
+                        course.getAgeLowerLimit(),
+                        course.getAgeUpperLimit(),
+                        course.getStatus() == ContentStatus.PUBLISHED,
+                        Boolean.TRUE.equals(course.getActive())
+                                && Boolean.TRUE.equals(course.getAdminApproved())
+                                && (course.getStatus() == ContentStatus.PUBLISHED
+                                        || course.getStatus() == ContentStatus.DRAFT),
+                        course.getCourseCreatorUuid(),
+                        creatorName(course.getCourseCreatorUuid()),
+                        trainingRequirements(courseUuid),
+                        course.getLastModifiedDate() == null
+                                ? null
+                                : course.getLastModifiedDate().toString()))
+                .orElse(null);
+    }
+
+    private String creatorName(UUID courseCreatorUuid) {
+        if (courseCreatorUuid == null) {
+            return null;
+        }
+        return courseCreatorLookupService
+                .findFullNamesByUuids(List.of(courseCreatorUuid))
+                .get(courseCreatorUuid);
+    }
+
+    private List<PublicCourseProfileDTO.PublicCourseTrainingRequirement> trainingRequirements(UUID courseUuid) {
+        return trainingRequirementRepository.findByCourseUuid(courseUuid).stream()
+                .map(requirement -> new PublicCourseProfileDTO.PublicCourseTrainingRequirement(
+                        requirement.getName(),
+                        requirement.getDescription(),
+                        requirement.getQuantity(),
+                        requirement.getUnit()))
+                .toList();
     }
 
     /**

@@ -49,6 +49,12 @@ public record OrganisationCourseContentDTO(
 
         @Schema(description = "Lessons. Outline only without full access, then with full content.")
         @JsonProperty("lessons")
-        List<OrganisationCourseLessonDTO> lessons
+        List<OrganisationCourseLessonDTO> lessons,
+
+        @Schema(description = "The course itself: title, blurb, objectives, prerequisites and what a "
+                + "trainer must supply. Present for every caller, so a course page can be rendered "
+                + "without a second, authenticated request. Carries no commercial terms.")
+        @JsonProperty("course")
+        PublicCourseProfileDTO course
 ) {
 }

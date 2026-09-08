@@ -19,7 +19,7 @@ import java.util.UUID;
  * @param uuid                  the course
  * @param name                  display title
  * @param description           rich-text blurb, as authored
- * @param thumbnailUrl          storage key, not a resolved URL
+ * @param thumbnailUrl          resolved public URL, as every other course response returns
  * @param durationHours         hours component of the advertised duration
  * @param durationMinutes       minutes component of the advertised duration
  * @param categoryNames         the disciplines it is filed under
