@@ -1,3 +1,20 @@
+# [2.143.0](https://github.com/sarafrika/elimika/compare/v2.142.3...v2.143.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **catalogue:** carry the course on catalogue rows so a listing needs no per-row fetch ([7cdc259](https://github.com/sarafrika/elimika/commit/7cdc25980b99c9e5fda83e8b6d51d753d314d643))
+* **courses:** publish a course's drafted lessons so its curriculum is visible ([a3b0b9d](https://github.com/sarafrika/elimika/commit/a3b0b9de66adc695b6ba0182d62f4cc6cf7dada1))
+* **storage:** keep media a course version still points at out of the orphan sweep ([f3d7b00](https://github.com/sarafrika/elimika/commit/f3d7b0012fd495101ce3abbb957df903bbabf7c3))
+
+
+### Features
+
+* **courses:** embed referenced rubrics by value in course version snapshots ([c423360](https://github.com/sarafrika/elimika/commit/c423360c9878d5850cd17007cefaf40315d2ffff))
+* **courses:** pin each enrolment to the course version it was sold against ([c283226](https://github.com/sarafrika/elimika/commit/c283226fe2ce87af76f1079a07ff24aa8b4a37f5))
+* **courses:** record every content column in a course version snapshot ([8066bd9](https://github.com/sarafrika/elimika/commit/8066bd998056510751a32776ce220de004029f1f))
+* **courses:** restore an approved course version into the draft for review ([b6163fb](https://github.com/sarafrika/elimika/commit/b6163fb1f4c89dbee2d2a9ed65997cec160e72a4))
+
 ## [2.142.3](https://github.com/sarafrika/elimika/compare/v2.142.2...v2.142.3) (2026-09-08)
 
 
