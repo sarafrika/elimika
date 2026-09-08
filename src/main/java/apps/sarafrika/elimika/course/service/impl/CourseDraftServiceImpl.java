@@ -44,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -89,6 +90,20 @@ public class CourseDraftServiceImpl implements CourseDraftService {
 
     private static final String COURSE_NOT_FOUND = "Course not found with UUID: %s";
     private static final String DRAFT_NOT_FOUND = "No open draft edit for course: %s";
+
+    /**
+     * Shape of the JSON in {@code course_version_snapshots.snapshot}.
+     * <p>
+     * 1 — the original tree. Carried no quiz answer options, no assignment attachments, no
+     * practice activities, and dropped the scoring columns from quizzes and questions, so a
+     * v1 row records roughly half a course and cannot be restored from.
+     * 2 — every content column of every table beneath the course, rubric pointers included.
+     * Rubric bodies are still referenced rather than embedded; see the versioning plan.
+     * <p>
+     * Rows written before this field existed have no {@code schema_version} key at all; read
+     * an absent key as 1.
+     */
+    static final int SNAPSHOT_SCHEMA_VERSION = 2;
 
     // ---------------------------------------------------------------- open / find
 
@@ -675,6 +690,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         Course course = findCourse(courseUuid);
 
         ObjectNode root = objectMapper.createObjectNode();
+        root.put("schema_version", SNAPSHOT_SCHEMA_VERSION);
         root.set("course", courseNode(course));
 
         ArrayNode categories = root.putArray("category_uuids");
@@ -691,8 +707,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             an.put("uuid", str(assessment.getUuid()));
             an.put("title", assessment.getTitle());
             an.put("assessment_type", assessment.getAssessmentType());
-            an.put("weight_percentage",
-                    assessment.getWeightPercentage() == null ? null : assessment.getWeightPercentage().toPlainString());
+            an.put("weight_percentage", dec(assessment.getWeightPercentage()));
+            an.put("rubric_uuid", str(assessment.getRubricUuid()));
             an.put("active", assessment.getActive());
             ArrayNode items = an.putArray("line_items");
             for (CourseAssessmentLineItem item :
@@ -701,6 +717,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 inode.put("uuid", str(item.getUuid()));
                 inode.put("title", item.getTitle());
                 inode.put("display_order", item.getDisplayOrder());
+                inode.put("rubric_uuid", str(item.getRubricUuid()));
                 inode.put("active", item.getActive());
             }
         }
@@ -759,6 +776,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         node.put("title", lesson.getTitle());
         node.put("description", lesson.getDescription());
         node.put("learning_objectives", lesson.getLearningObjectives());
+        node.put("status", lesson.getStatus() == null ? null : lesson.getStatus().getValue());
         node.put("active", lesson.getActive());
 
         ArrayNode content = node.putArray("content");
@@ -770,6 +788,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             cn.put("description", c.getDescription());
             cn.put("content_text", c.getContentText());
             cn.put("file_url", c.getFileUrl());
+            cn.put("file_size_bytes", c.getFileSizeBytes());
+            cn.put("mime_type", c.getMimeType());
             cn.put("display_order", c.getDisplayOrder());
             cn.put("is_required", c.getIsRequired());
         }
@@ -780,13 +800,36 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             qn.put("uuid", str(q.getUuid()));
             qn.put("title", q.getTitle());
             qn.put("description", q.getDescription());
+            qn.put("instructions", q.getInstructions());
+            qn.put("time_limit_minutes", q.getTimeLimitMinutes());
+            qn.put("attempts_allowed", q.getAttemptsAllowed());
+            qn.put("passing_score", dec(q.getPassingScore()));
+            qn.put("rubric_uuid", str(q.getRubricUuid()));
+            qn.put("scope", q.getScope() == null ? null : q.getScope().getValue());
+            qn.put("status", q.getStatus() == null ? null : q.getStatus().getValue());
             qn.put("active", q.getActive());
+
             ArrayNode questions = qn.putArray("questions");
             for (QuizQuestion question : quizQuestionRepository.findByQuizUuidOrderByDisplayOrderAsc(q.getUuid())) {
                 ObjectNode qq = questions.addObject();
                 qq.put("uuid", str(question.getUuid()));
                 qq.put("question_text", question.getQuestionText());
+                qq.put("question_type",
+                        question.getQuestionType() == null ? null : question.getQuestionType().getValue());
+                qq.put("points", dec(question.getPoints()));
                 qq.put("display_order", question.getDisplayOrder());
+
+                // The answer key. Without it a snapshot cannot say what the quiz counted as
+                // correct, which is most of what versioning an assessment is for.
+                ArrayNode options = qq.putArray("options");
+                for (QuizQuestionOption option :
+                        quizQuestionOptionRepository.findByQuestionUuidOrderByDisplayOrderAsc(question.getUuid())) {
+                    ObjectNode on = options.addObject();
+                    on.put("uuid", str(option.getUuid()));
+                    on.put("option_text", option.getOptionText());
+                    on.put("is_correct", option.getIsCorrect());
+                    on.put("display_order", option.getDisplayOrder());
+                }
             }
         }
 
@@ -796,7 +839,42 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             an.put("uuid", str(a.getUuid()));
             an.put("title", a.getTitle());
             an.put("description", a.getDescription());
+            an.put("instructions", a.getInstructions());
+            an.put("due_date", a.getDueDate() == null ? null : a.getDueDate().toString());
+            an.put("rubric_uuid", str(a.getRubricUuid()));
+            an.put("max_points", dec(a.getMaxPoints()));
+            an.put("scope", a.getScope() == null ? null : a.getScope().getValue());
+            putStrings(an, "submission_types", a.getSubmissionTypes());
             an.put("is_published", a.getIsPublished());
+
+            ArrayNode attachments = an.putArray("attachments");
+            for (AssignmentAttachment att : assignmentAttachmentRepository.findByAssignmentUuid(a.getUuid())) {
+                ObjectNode atn = attachments.addObject();
+                atn.put("uuid", str(att.getUuid()));
+                atn.put("original_filename", att.getOriginalFilename());
+                atn.put("stored_filename", att.getStoredFilename());
+                // Storage key, not a resolved URL — the same rule the course media follows.
+                atn.put("file_url", att.getFileUrl());
+                atn.put("file_size_bytes", att.getFileSizeBytes());
+                atn.put("mime_type", att.getMimeType());
+            }
+        }
+
+        ArrayNode practice = node.putArray("practice_activities");
+        for (LessonPracticeActivity p :
+                practiceActivityRepository.findByLessonUuidOrderByDisplayOrderAsc(lesson.getUuid())) {
+            ObjectNode pn = practice.addObject();
+            pn.put("uuid", str(p.getUuid()));
+            pn.put("title", p.getTitle());
+            pn.put("instructions", p.getInstructions());
+            pn.put("activity_type", p.getActivityType() == null ? null : p.getActivityType().getValue());
+            pn.put("grouping", p.getGrouping() == null ? null : p.getGrouping().getValue());
+            pn.put("estimated_minutes", p.getEstimatedMinutes());
+            pn.put("expected_output", p.getExpectedOutput());
+            putStrings(pn, "materials", p.getMaterials());
+            pn.put("display_order", p.getDisplayOrder());
+            pn.put("status", p.getStatus() == null ? null : p.getStatus().getValue());
+            pn.put("active", p.getActive());
         }
         return node;
     }
@@ -1182,6 +1260,26 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     private Course findCourse(UUID uuid) {
         return courseRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_NOT_FOUND, uuid)));
+    }
+
+    /**
+     * A {@code text[]} column as a JSON array. Always writes the key, so a reader can tell an
+     * empty list from a column that was never serialised; a null array is written as null.
+     */
+    private static void putStrings(ObjectNode node, String field, String[] values) {
+        if (values == null) {
+            node.putNull(field);
+            return;
+        }
+        ArrayNode array = node.putArray(field);
+        for (String value : values) {
+            array.add(value);
+        }
+    }
+
+    /** BigDecimal as a plain string, so a scale of 2 never arrives as 1.0E+2. */
+    private static String dec(BigDecimal value) {
+        return value == null ? null : value.toPlainString();
     }
 
     private static String str(UUID uuid) {
