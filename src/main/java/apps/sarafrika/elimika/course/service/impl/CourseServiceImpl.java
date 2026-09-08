@@ -6,7 +6,9 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
+import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
 import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.CourseCategoryService;
@@ -54,6 +56,7 @@ import java.util.UUID;
 public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
+    private final LessonRepository lessonRepository;
     private final CourseCategoryMappingRepository mappingRepository;
     private final CourseSpecificationBuilder courseSpecificationBuilder;
     private final LessonService lessonService;
@@ -316,9 +319,42 @@ public class CourseServiceImpl implements CourseService {
         course.setActive(true);
 
         Course publishedCourse = courseRepository.save(course);
+        publishDraftedLessons(uuid);
         log.info("Successfully published course: {}", uuid);
 
         return getCourseByUuid(uuid);
+    }
+
+    /**
+     * Publishing a course publishes the lessons it was built from.
+     * <p>
+     * A lesson's status is stamped from the course's status at the moment the lesson is written,
+     * and the ordinary build order is to draft the course, add its lessons, then publish it — so
+     * without this step every lesson of a freshly published course stays DRAFT. That is not a
+     * cosmetic mismatch: {@code GET /courses/{uuid}/content} withholds draft lessons from every
+     * footing that is not building the course, so a published course answered prospects
+     * <em>and its own enrolled students</em> with an empty curriculum and {@code total_lessons: 0}
+     * while plainly having lessons.
+     * <p>
+     * Only lessons still sitting at DRAFT are moved. One the creator archived stays archived, and a
+     * lesson drafted later against an already-published course is untouched until the next publish
+     * — hiding genuinely unfinished material is the rule this restores, not one it removes.
+     */
+    private void publishDraftedLessons(UUID courseUuid) {
+        List<Lesson> drafts = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(courseUuid).stream()
+                .filter(lesson -> lesson.getStatus() == ContentStatus.DRAFT)
+                .toList();
+
+        if (drafts.isEmpty()) {
+            return;
+        }
+
+        drafts.forEach(lesson -> {
+            lesson.setStatus(ContentStatus.PUBLISHED);
+            lesson.setActive(true);
+        });
+        lessonRepository.saveAll(drafts);
+        log.info("Published {} drafted lesson(s) alongside course {}", drafts.size(), courseUuid);
     }
 
     @Override
