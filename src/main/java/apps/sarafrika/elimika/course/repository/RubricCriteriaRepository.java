@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,6 +21,9 @@ public interface RubricCriteriaRepository extends JpaRepository<RubricCriteria, 
     boolean existsByUuid(UUID uuid);
 
     Page<RubricCriteria> findAllByRubricUuid(UUID rubricUuid, Pageable pageable);
+
+    /** Every criterion of one rubric, in display order. Used when a rubric is embedded in a course version snapshot. */
+    List<RubricCriteria> findByRubricUuidOrderByDisplayOrderAsc(UUID rubricUuid);
 
     Optional<RubricCriteria> findByUuidAndRubricUuid(UUID uuid, UUID rubricUuid);
 

@@ -1,6 +1,10 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseEditDiffDTO;
+import apps.sarafrika.elimika.course.model.AssessmentRubric;
+import apps.sarafrika.elimika.course.model.RubricCriteria;
+import apps.sarafrika.elimika.course.model.RubricScoring;
+import apps.sarafrika.elimika.course.model.RubricScoringLevel;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentAttachment;
 import apps.sarafrika.elimika.course.model.Course;
@@ -17,6 +21,10 @@ import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
 import apps.sarafrika.elimika.course.model.QuizQuestionOption;
 import apps.sarafrika.elimika.course.repository.AssignmentAttachmentRepository;
+import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
+import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
+import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
+import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
@@ -85,6 +93,10 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     private final CourseAssessmentLineItemRepository lineItemRepository;
     private final CourseRequirementRepository requirementRepository;
     private final CourseTrainingRequirementRepository trainingRequirementRepository;
+    private final AssessmentRubricRepository assessmentRubricRepository;
+    private final RubricCriteriaRepository rubricCriteriaRepository;
+    private final RubricScoringLevelRepository rubricScoringLevelRepository;
+    private final RubricScoringRepository rubricScoringRepository;
     private final CourseVersionSnapshotRepository snapshotRepository;
     private final ObjectMapper objectMapper;
 
@@ -98,12 +110,16 @@ public class CourseDraftServiceImpl implements CourseDraftService {
      * practice activities, and dropped the scoring columns from quizzes and questions, so a
      * v1 row records roughly half a course and cannot be restored from.
      * 2 — every content column of every table beneath the course, rubric pointers included.
-     * Rubric bodies are still referenced rather than embedded; see the versioning plan.
+     * Rubric bodies were still referenced rather than embedded.
+     * 3 — referenced rubrics embedded by value under {@code rubrics}: the rubric, its criteria,
+     * its scoring levels and the matrix cells between them. Rubrics are shared library objects, so
+     * a pointer alone could not say what a learner was actually graded against once the rubric was
+     * edited.
      * <p>
      * Rows written before this field existed have no {@code schema_version} key at all; read
      * an absent key as 1.
      */
-    static final int SNAPSHOT_SCHEMA_VERSION = 2;
+    static final int SNAPSHOT_SCHEMA_VERSION = 3;
 
     // ---------------------------------------------------------------- open / find
 
@@ -696,9 +712,14 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         ArrayNode categories = root.putArray("category_uuids");
         mappingRepository.findByCourseUuid(courseUuid).forEach(m -> categories.add(m.getCategoryUuid().toString()));
 
+        // Rubrics are shared library objects, so several holders across the course can point at
+        // the same one. Collect the references as the tree is walked and embed each rubric once,
+        // at the root, rather than repeating it under every quiz and assignment that uses it.
+        Set<UUID> referencedRubrics = new LinkedHashSet<>();
+
         ArrayNode lessons = root.putArray("lessons");
         for (Lesson lesson : lessonRepository.findByCourseUuidOrderByLessonNumberAsc(courseUuid)) {
-            lessons.add(lessonNode(lesson));
+            lessons.add(lessonNode(lesson, referencedRubrics));
         }
 
         ArrayNode assessments = root.putArray("assessments");
@@ -709,6 +730,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             an.put("assessment_type", assessment.getAssessmentType());
             an.put("weight_percentage", dec(assessment.getWeightPercentage()));
             an.put("rubric_uuid", str(assessment.getRubricUuid()));
+            note(referencedRubrics, assessment.getRubricUuid());
             an.put("active", assessment.getActive());
             ArrayNode items = an.putArray("line_items");
             for (CourseAssessmentLineItem item :
@@ -718,6 +740,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 inode.put("title", item.getTitle());
                 inode.put("display_order", item.getDisplayOrder());
                 inode.put("rubric_uuid", str(item.getRubricUuid()));
+                note(referencedRubrics, item.getRubricUuid());
                 inode.put("active", item.getActive());
             }
         }
@@ -738,7 +761,83 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             rn.put("quantity", req.getQuantity());
             rn.put("unit", req.getUnit());
         }
+
+        ArrayNode rubrics = root.putArray("rubrics");
+        for (UUID rubricUuid : referencedRubrics) {
+            ObjectNode rubric = rubricNode(rubricUuid);
+            if (rubric != null) {
+                rubrics.add(rubric);
+            }
+        }
         return root;
+    }
+
+    /**
+     * One rubric, by value: the rubric row, its criteria, its scoring levels, and the matrix cells
+     * that say what each criterion looks like at each level.
+     * <p>
+     * Returns null for a pointer that resolves to nothing. A dangling rubric_uuid is a data problem
+     * worth seeing in the live tree, but writing a null into an immutable version record helps
+     * nobody — the pointer is still there in the holder that carried it.
+     */
+    private ObjectNode rubricNode(UUID rubricUuid) {
+        AssessmentRubric rubric = assessmentRubricRepository.findByUuid(rubricUuid).orElse(null);
+        if (rubric == null) {
+            return null;
+        }
+
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("uuid", str(rubric.getUuid()));
+        node.put("title", rubric.getTitle());
+        node.put("description", rubric.getDescription());
+        node.put("rubric_type", rubric.getRubricType());
+        node.put("course_creator_uuid", str(rubric.getCourseCreatorUuid()));
+        node.put("is_public", rubric.getIsPublic());
+        node.put("status", rubric.getStatus() == null ? null : rubric.getStatus().getValue());
+        node.put("is_active", rubric.getIsActive());
+        node.put("total_weight", dec(rubric.getTotalWeight()));
+        node.put("weight_unit", rubric.getWeightUnit());
+        node.put("uses_custom_levels", rubric.getUsesCustomLevels());
+        node.put("max_score", dec(rubric.getMaxScore()));
+        node.put("min_passing_score", dec(rubric.getMinPassingScore()));
+
+        ArrayNode criteria = node.putArray("criteria");
+        for (RubricCriteria c : rubricCriteriaRepository.findByRubricUuidOrderByDisplayOrderAsc(rubricUuid)) {
+            ObjectNode cn = criteria.addObject();
+            cn.put("uuid", str(c.getUuid()));
+            cn.put("component_name", c.getComponentName());
+            cn.put("description", c.getDescription());
+            cn.put("display_order", c.getDisplayOrder());
+        }
+
+        ArrayNode levels = node.putArray("scoring_levels");
+        for (RubricScoringLevel l : rubricScoringLevelRepository.findByRubricUuidOrderByLevelOrder(rubricUuid)) {
+            ObjectNode ln = levels.addObject();
+            ln.put("uuid", str(l.getUuid()));
+            ln.put("name", l.getName());
+            ln.put("description", l.getDescription());
+            ln.put("points", dec(l.getPoints()));
+            ln.put("level_order", l.getLevelOrder());
+            ln.put("color_code", l.getColorCode());
+            ln.put("is_passing", l.getIsPassing());
+        }
+
+        // Here the two uuids are the content: they are what pairs a criterion with a level.
+        ArrayNode scoring = node.putArray("scoring");
+        for (RubricScoring cell : rubricScoringRepository.findByRubricUuid(rubricUuid)) {
+            ObjectNode sn = scoring.addObject();
+            sn.put("uuid", str(cell.getUuid()));
+            sn.put("criteria_uuid", str(cell.getCriteriaUuid()));
+            sn.put("rubric_scoring_level_uuid", str(cell.getRubricScoringLevelUuid()));
+            sn.put("description", cell.getDescription());
+        }
+        return node;
+    }
+
+    private static void note(Set<UUID> sink, UUID rubricUuid) {
+        if (rubricUuid != null) {
+            sink.add(rubricUuid);
+        }
     }
 
     private ObjectNode courseNode(Course course) {
@@ -769,7 +868,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         return node;
     }
 
-    private ObjectNode lessonNode(Lesson lesson) {
+    private ObjectNode lessonNode(Lesson lesson, Set<UUID> referencedRubrics) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("uuid", str(lesson.getUuid()));
         node.put("lesson_number", lesson.getLessonNumber());
@@ -805,6 +904,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             qn.put("attempts_allowed", q.getAttemptsAllowed());
             qn.put("passing_score", dec(q.getPassingScore()));
             qn.put("rubric_uuid", str(q.getRubricUuid()));
+            note(referencedRubrics, q.getRubricUuid());
             qn.put("scope", q.getScope() == null ? null : q.getScope().getValue());
             qn.put("status", q.getStatus() == null ? null : q.getStatus().getValue());
             qn.put("active", q.getActive());
@@ -842,6 +942,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             an.put("instructions", a.getInstructions());
             an.put("due_date", a.getDueDate() == null ? null : a.getDueDate().toString());
             an.put("rubric_uuid", str(a.getRubricUuid()));
+            note(referencedRubrics, a.getRubricUuid());
             an.put("max_points", dec(a.getMaxPoints()));
             an.put("scope", a.getScope() == null ? null : a.getScope().getValue());
             putStrings(an, "submission_types", a.getSubmissionTypes());

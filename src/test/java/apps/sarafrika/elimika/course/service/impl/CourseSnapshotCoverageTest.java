@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.model.AssignmentAttachment;
 import apps.sarafrika.elimika.course.model.Course;
@@ -9,6 +10,10 @@ import apps.sarafrika.elimika.course.model.LessonPracticeActivity;
 import apps.sarafrika.elimika.course.model.Quiz;
 import apps.sarafrika.elimika.course.model.QuizQuestion;
 import apps.sarafrika.elimika.course.model.QuizQuestionOption;
+import apps.sarafrika.elimika.course.model.RubricCriteria;
+import apps.sarafrika.elimika.course.model.RubricScoring;
+import apps.sarafrika.elimika.course.model.RubricScoringLevel;
+import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentAttachmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository;
@@ -24,6 +29,9 @@ import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.repository.QuizQuestionOptionRepository;
 import apps.sarafrika.elimika.course.repository.QuizQuestionRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
+import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
+import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
+import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,7 +91,8 @@ class CourseSnapshotCoverageTest {
             "QuizQuestionOption.questionUuid", "QuizQuestionOption.sourceOptionUuid",
             "Assignment.lessonUuid", "Assignment.classDefinitionUuid", "Assignment.sourceAssignmentUuid",
             "AssignmentAttachment.assignmentUuid",
-            "LessonPracticeActivity.lessonUuid"
+            "LessonPracticeActivity.lessonUuid",
+            "RubricCriteria.rubricUuid", "RubricScoringLevel.rubricUuid"
     );
 
     @Mock private CourseRepository courseRepository;
@@ -100,12 +109,17 @@ class CourseSnapshotCoverageTest {
     @Mock private CourseAssessmentLineItemRepository lineItemRepository;
     @Mock private CourseRequirementRepository requirementRepository;
     @Mock private CourseTrainingRequirementRepository trainingRequirementRepository;
+    @Mock private AssessmentRubricRepository assessmentRubricRepository;
+    @Mock private RubricCriteriaRepository rubricCriteriaRepository;
+    @Mock private RubricScoringLevelRepository rubricScoringLevelRepository;
+    @Mock private RubricScoringRepository rubricScoringRepository;
     @Mock private CourseVersionSnapshotRepository snapshotRepository;
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks private CourseDraftServiceImpl service;
 
     private final UUID courseUuid = UUID.randomUUID();
+    private final UUID rubricUuid = UUID.randomUUID();
     private JsonNode tree;
 
     @BeforeEach
@@ -130,6 +144,29 @@ class CourseSnapshotCoverageTest {
         quiz.setLessonUuid(lesson.getUuid());
         quiz.setTitle("Check yourself");
         quiz.setPassingScore(new BigDecimal("60.00"));
+        quiz.setRubricUuid(rubricUuid);
+
+        AssessmentRubric rubric = new AssessmentRubric();
+        rubric.setUuid(rubricUuid);
+        rubric.setTitle("Technique and musicality");
+        rubric.setMaxScore(new BigDecimal("20.00"));
+
+        RubricCriteria criterion = new RubricCriteria();
+        criterion.setUuid(UUID.randomUUID());
+        criterion.setRubricUuid(rubricUuid);
+        criterion.setComponentName("Hand position");
+
+        RubricScoringLevel level = new RubricScoringLevel();
+        level.setUuid(UUID.randomUUID());
+        level.setRubricUuid(rubricUuid);
+        level.setName("Secure");
+        level.setPoints(new BigDecimal("5.00"));
+
+        RubricScoring cell = new RubricScoring();
+        cell.setUuid(UUID.randomUUID());
+        cell.setCriteriaUuid(criterion.getUuid());
+        cell.setRubricScoringLevelUuid(level.getUuid());
+        cell.setDescription("Wrists level, fingers curved throughout.");
 
         QuizQuestion question = new QuizQuestion();
         question.setUuid(UUID.randomUUID());
@@ -172,6 +209,10 @@ class CourseSnapshotCoverageTest {
         when(assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(any())).thenReturn(List.of());
         when(requirementRepository.findByCourseUuid(any())).thenReturn(List.of());
         when(trainingRequirementRepository.findByCourseUuid(any())).thenReturn(List.of());
+        when(assessmentRubricRepository.findByUuid(rubricUuid)).thenReturn(Optional.of(rubric));
+        when(rubricCriteriaRepository.findByRubricUuidOrderByDisplayOrderAsc(any())).thenReturn(List.of(criterion));
+        when(rubricScoringLevelRepository.findByRubricUuidOrderByLevelOrder(any())).thenReturn(List.of(level));
+        when(rubricScoringRepository.findByRubricUuid(any())).thenReturn(List.of(cell));
 
         tree = service.snapshotTree(courseUuid);
     }
@@ -193,6 +234,12 @@ class CourseSnapshotCoverageTest {
         collectMissing(Assignment.class, assignment, missing);
         collectMissing(AssignmentAttachment.class, assignment.path("attachments").path(0), missing);
         collectMissing(LessonPracticeActivity.class, lesson.path("practice_activities").path(0), missing);
+
+        JsonNode rubric = tree.path("rubrics").path(0);
+        collectMissing(AssessmentRubric.class, rubric, missing);
+        collectMissing(RubricCriteria.class, rubric.path("criteria").path(0), missing);
+        collectMissing(RubricScoringLevel.class, rubric.path("scoring_levels").path(0), missing);
+        collectMissing(RubricScoring.class, rubric.path("scoring").path(0), missing);
 
         assertThat(missing)
                 .withFailMessage("""
@@ -221,6 +268,24 @@ class CourseSnapshotCoverageTest {
 
         assertThat(option.path("option_text").asText()).isEqualTo("Level with the keys");
         assertThat(option.path("is_correct").asBoolean()).isTrue();
+    }
+
+    @Test
+    @DisplayName("A referenced rubric is embedded by value, once, at the root")
+    void rubricIsEmbeddedNotJustPointedAt() {
+        JsonNode rubrics = tree.path("rubrics");
+        assertThat(rubrics).hasSize(1);
+
+        JsonNode rubric = rubrics.path(0);
+        assertThat(rubric.path("title").asText()).isEqualTo("Technique and musicality");
+        assertThat(rubric.path("criteria").path(0).path("component_name").asText()).isEqualTo("Hand position");
+        assertThat(rubric.path("scoring_levels").path(0).path("name").asText()).isEqualTo("Secure");
+        assertThat(rubric.path("scoring").path(0).path("description").asText())
+                .isEqualTo("Wrists level, fingers curved throughout.");
+
+        // The holder keeps its pointer, so a reader can tell which rubric graded which quiz.
+        assertThat(tree.path("lessons").path(0).path("quizzes").path(0).path("rubric_uuid").asText())
+                .isEqualTo(rubricUuid.toString());
     }
 
     private static void collectMissing(Class<?> entity, JsonNode node, Set<String> missing) {
