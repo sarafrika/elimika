@@ -165,6 +165,7 @@ public class CourseEnrollmentSyncService {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 

@@ -33,6 +33,17 @@ public class CourseEnrollment extends BaseEntity {
     @Filterable
     private UUID courseUuid;
 
+    /**
+     * The course version this enrolment was sold against, from
+     * {@code course_version_snapshots.version_number}.
+     * <p>
+     * NULL follows the live course, and is correct in two cases: the enrolment predates version
+     * pinning, or the course has never had an edit promoted and so has no version to point at.
+     */
+    @Column(name = "course_version")
+    @Filterable
+    private Integer courseVersion;
+
     @Column(name = "enrollment_date")
     @Filterable
     private LocalDateTime enrollmentDate;

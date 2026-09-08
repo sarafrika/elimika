@@ -5,8 +5,10 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseEnrollmentDTO;
 import apps.sarafrika.elimika.course.factory.CourseEnrollmentFactory;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseVersionSnapshot;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
+import apps.sarafrika.elimika.course.repository.CourseVersionSnapshotRepository;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
@@ -36,6 +38,7 @@ import java.util.UUID;
 public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
 
     private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final CourseVersionSnapshotRepository snapshotRepository;
     private final CourseRepository courseRepository;
     private final GenericSpecificationBuilder<CourseEnrollment> specificationBuilder;
     private final AgeVerificationService ageVerificationService;
@@ -63,6 +66,22 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
         if (enrollment.getProgressPercentage() == null) {
             enrollment.setProgressPercentage(BigDecimal.ZERO);
         }
+        /*
+         * Pin the version the learner is buying.
+         *
+         * Course content is edited in place — an approved edit is promoted onto the live rows — so
+         * without this a learner who paid for one syllabus could find a different one the next
+         * morning, with no record anywhere of which one they were sold. The number is read from the
+         * course's latest snapshot rather than supplied by the caller: a client asking to be
+         * enrolled against version 2 of a course now on version 5 is either confused or lying.
+         *
+         * Null when the course has never had an edit promoted, which is not a gap — there is no
+         * version to name, and the live course is the only content there has ever been.
+         */
+        enrollment.setCourseVersion(snapshotRepository
+                .findTopByCourseUuidOrderByVersionNumberDesc(course.getUuid())
+                .map(CourseVersionSnapshot::getVersionNumber)
+                .orElse(null));
 
         CourseEnrollment savedEnrollment = courseEnrollmentRepository.save(enrollment);
         return CourseEnrollmentFactory.toDTO(savedEnrollment);
@@ -165,6 +184,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
                 null,
                 null,
                 enrollment.status(),
+                null,
                 null,
                 null,
                 null,

@@ -21,6 +21,7 @@ public class CourseEnrollmentFactory {
                 courseEnrollment.getCompletionDate(),
                 courseEnrollment.getStatus(),
                 courseEnrollment.getProgressPercentage(),
+                courseEnrollment.getCourseVersion(),
                 courseEnrollment.getFinalGrade(),
                 courseEnrollment.getCreatedDate(),
                 courseEnrollment.getCreatedBy(),

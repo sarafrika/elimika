@@ -117,6 +117,16 @@ public record CourseEnrollmentDTO(
         BigDecimal progressPercentage,
 
         @Schema(
+                description = "**[READ-ONLY]** The course version this enrolment was sold against. "
+                        + "Null follows the live course: the enrolment predates version pinning, or "
+                        + "the course has no promoted version yet.",
+                example = "3",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "course_version", access = JsonProperty.Access.READ_ONLY)
+        Integer courseVersion,
+
+        @Schema(
                 description = "**[OPTIONAL]** Final grade achieved by the student in the course.",
                 example = "85.50",
                 minimum = "0",
