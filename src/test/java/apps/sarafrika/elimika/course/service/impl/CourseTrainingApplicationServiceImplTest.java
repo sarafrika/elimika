@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
+import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -15,7 +16,10 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.security.ActingDomainCap;
+import apps.sarafrika.elimika.shared.security.ActingDomainResolver;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,6 +87,10 @@ class CourseTrainingApplicationServiceImplTest {
                 specificationBuilder,
                 currencyService,
                 domainSecurityService,
+                // Built for real: outside a request there is no acting-domain header, so the cap
+                // resolves to "unspecified" and permits every footing — which is the behaviour a
+                // caller that sends no header keeps getting, and what these cases exercise.
+                new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache()))),
                 rateCardValidator,
                 courseCreatorLookupService,
                 instructorLookupService,

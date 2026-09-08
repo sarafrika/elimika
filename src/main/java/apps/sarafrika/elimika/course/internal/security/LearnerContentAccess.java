@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.projection.MaterialCourseView;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
+import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import lombok.RequiredArgsConstructor;
@@ -56,15 +57,40 @@ public class LearnerContentAccess {
     private final CourseRubricAssociationRepository courseRubricAssociationRepository;
     private final CourseSecuritySpi courseSecurityService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseFootingCap courseFootingCap;
     private final RequestScopedCache requestScopedCache;
 
     /**
      * Whether the caller is teaching/administering staff rather than a learner. Staff see drafts;
      * learners never do.
+     * <p>
+     * Capped by the dashboard the request came from, because this bypass is the raw-material
+     * counterpart of the course record's leak: an account that is both an administrator and a
+     * learner passed it on every page, so the lesson, quiz and assignment routes would hand over the
+     * very bodies the course endpoint had just declined to send. On a learner's or a guardian's
+     * dashboard the bypass no longer applies and the caller takes the enrolment test everybody else
+     * takes. Every other dashboard permits some staff footing, so an instructor reading as an
+     * instructor, or a school's staff reading as their school, keep exactly the access they had.
      */
     public boolean isStaff() {
         return requestScopedCache.get(CACHE_STAFF, () ->
-                domainSecurityService.isInstructorOrAdmin() || domainSecurityService.isCourseCreator());
+                courseFootingCap.permitsAnyStaffFooting()
+                        && (domainSecurityService.isInstructorOrAdmin()
+                                || domainSecurityService.isCourseCreator()));
+    }
+
+    /**
+     * A platform administrator, asked on a dashboard entitled to answer yes.
+     * <p>
+     * Exists so that {@code @PreAuthorize} expressions granting administrators an outright bypass
+     * can be capped the same way the rest of this class is. Calling
+     * {@code domainSecurityService.isPlatformAdmin()} straight from an expression asks about the
+     * account rather than about the request, and gets the same answer on every page — which is the
+     * whole defect.
+     */
+    public boolean isPlatformAdmin() {
+        return courseFootingCap.permits(CourseContentAccess.ADMIN)
+                && domainSecurityService.isPlatformAdmin();
     }
 
     /**

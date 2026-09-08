@@ -121,6 +121,12 @@ class ClassDefinitionServiceImplTest {
         service = new ClassDefinitionServiceImpl(
                 classDefinitionRepository,
                 classReadDomainSecurityService,
+                // Built for real: outside a request there is no acting-domain header, so the cap
+                // resolves to "unspecified" and permits every domain — the uncapped behaviour these
+                // cases exercise, and what a caller that sends no header keeps getting.
+                new apps.sarafrika.elimika.shared.security.ActingDomainCap(
+                        new apps.sarafrika.elimika.shared.security.ActingDomainResolver(
+                                new apps.sarafrika.elimika.shared.security.RequestScopedCache())),
                 classSchedulingConflictRepository,
                 classSessionTemplateRepository,
                 classDefinitionResourceRepository,

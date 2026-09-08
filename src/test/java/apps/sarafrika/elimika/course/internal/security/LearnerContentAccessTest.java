@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.course.repository.CourseRubricAssociationRepositor
 import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
+import apps.sarafrika.elimika.shared.security.ActingDomainCap;
+import apps.sarafrika.elimika.shared.security.ActingDomainResolver;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import org.junit.jupiter.api.AfterEach;
@@ -53,10 +55,17 @@ class LearnerContentAccessTest {
 
     @BeforeEach
     void setUp() {
+        RequestScopedCache requestScopedCache = new RequestScopedCache();
+        // The cap is built for real rather than mocked: the request bound below carries no
+        // acting-domain header, so it resolves to "unspecified" and permits every footing. These
+        // cases are therefore the uncapped behaviour, which is exactly what a caller that sends no
+        // header has to keep getting.
         access = new LearnerContentAccess(
                 quizRepository, assignmentRepository, lessonRepository,
                 courseRubricAssociationRepository, courseSecurityService,
-                domainSecurityService, new RequestScopedCache());
+                domainSecurityService,
+                new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(requestScopedCache))),
+                requestScopedCache);
 
         when(domainSecurityService.isInstructorOrAdmin()).thenReturn(false);
         when(domainSecurityService.isCourseCreator()).thenReturn(false);

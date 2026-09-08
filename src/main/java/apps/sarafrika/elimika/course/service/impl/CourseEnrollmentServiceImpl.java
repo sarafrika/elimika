@@ -7,9 +7,11 @@ import apps.sarafrika.elimika.course.factory.CourseEnrollmentFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
+import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
+import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
@@ -39,6 +41,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
     private final AgeVerificationService ageVerificationService;
     private final CourseSecuritySpi courseSecurityService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseFootingCap courseFootingCap;
 
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Course enrollment with ID %s not found";
 
@@ -119,6 +122,12 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
      * <p>
      * The filters are built here rather than taken from the request, so the only thing the caller
      * chooses is the page.
+     * <p>
+     * Which branch a caller takes is capped by the dashboard they are on. The named roster is a
+     * staff view of the course, and an account that is both an administrator and a learner was
+     * being handed it on their own learner dashboard: every classmate's student UUID, progress and
+     * status on a course they had no standing in. Capped, the same account falls through to the row
+     * that is theirs, or to the anonymised tally, exactly as any other learner does.
      */
     @Override
     @Transactional(readOnly = true)
@@ -126,7 +135,11 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
         Map<String, String> filters = new HashMap<>();
         filters.put("courseUuid", courseUuid.toString());
 
-        if (domainSecurityService.isPlatformAdmin() || courseSecurityService.canManageCourseGradebook(courseUuid)) {
+        boolean readsRoster =
+                (courseFootingCap.permits(CourseContentAccess.ADMIN) && domainSecurityService.isPlatformAdmin())
+                        || (courseFootingCap.permitsAnyStaffFooting()
+                                && courseSecurityService.canManageCourseGradebook(courseUuid));
+        if (readsRoster) {
             return search(filters, pageable);
         }
 

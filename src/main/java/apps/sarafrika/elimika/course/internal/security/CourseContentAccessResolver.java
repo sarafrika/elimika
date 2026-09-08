@@ -32,6 +32,14 @@ import java.util.UUID;
  * page they want. Anything that throws resolves to {@link CourseContentAccess#PROSPECT}, so a
  * lookup failure narrows what is sent rather than widening it.
  * <p>
+ * The ladder answers "what is the highest footing this person holds", which on its own is the same
+ * answer on every page. One account is routinely an administrator, an instructor and a learner at
+ * once, and such a user reading their own learner dashboard was handed an administrator's course —
+ * full lesson bodies on a course they had never enrolled in. {@link CourseFootingCap} supplies the
+ * other half of the question: each rung is now skipped unless the dashboard the request came from
+ * is allowed to stand on it. Skipping a rung only ever moves the caller further down the ladder, so
+ * a footing can be narrowed by the acting dashboard and never widened by it.
+ * <p>
  * Memoised per request: a request that asks twice — the endpoint and, later, an assembler — costs
  * one resolution.
  */
@@ -49,6 +57,7 @@ public class CourseContentAccessResolver {
     private final DomainSecurityService domainSecurityService;
     private final TeachingOrganisations teachingOrganisations;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
+    private final CourseFootingCap courseFootingCap;
     private final RequestScopedCache requestScopedCache;
 
     /**
@@ -67,6 +76,11 @@ public class CourseContentAccessResolver {
      * <p>
      * Backs the deprecated organisation-scoped route, where the caller may be an admin reading for
      * a school they are not a member of: the answer has to describe the school, not the reader.
+     * <p>
+     * Capped by the reader's dashboard all the same. Describing the school is what decides the
+     * footing, but transmitting the syllabus is still a thing done to somebody, and a route that
+     * takes the organisation from the path would otherwise be the way around every cap on the one
+     * beside it: name any approved school and read the course from a learner's page.
      *
      * @param courseUuid       the course being read
      * @param organisationUuid the organisation the content is scoped to
@@ -79,10 +93,12 @@ public class CourseContentAccessResolver {
         }
         try {
             List<UUID> applicants = List.of(organisationUuid);
-            if (approved(courseUuid, CourseTrainingApplicantType.ORGANISATION, applicants)) {
+            if (mayStandOn(CourseContentAccess.ORGANISATION)
+                    && approved(courseUuid, CourseTrainingApplicantType.ORGANISATION, applicants)) {
                 return CourseContentAccess.ORGANISATION;
             }
-            if (applied(courseUuid, CourseTrainingApplicantType.ORGANISATION, applicants)) {
+            if (mayStandOn(CourseContentAccess.PENDING)
+                    && applied(courseUuid, CourseTrainingApplicantType.ORGANISATION, applicants)) {
                 return CourseContentAccess.PENDING;
             }
             return CourseContentAccess.PROSPECT;
@@ -92,12 +108,21 @@ public class CourseContentAccessResolver {
         }
     }
 
+    /**
+     * The ladder, with every rung guarded by the dashboard the request came from.
+     * <p>
+     * Each test is {@code mayStandOn(rung) && <the real entitlement check>}, and the order of the
+     * conjunction is the cheap half first: a dashboard that cannot reach a rung never pays for the
+     * query that would have decided it. A capped rung falls through to the next one rather than
+     * failing the whole resolution, which is what makes a student-acting administrator who is
+     * genuinely enrolled land on {@code STUDENT} instead of on nothing.
+     */
     private CourseContentAccess resolve(UUID courseUuid) {
         try {
-            if (courseSecurityService.isCourseOwner(courseUuid)) {
+            if (mayStandOn(CourseContentAccess.CREATOR) && courseSecurityService.isCourseOwner(courseUuid)) {
                 return CourseContentAccess.CREATOR;
             }
-            if (domainSecurityService.isPlatformAdmin()) {
+            if (mayStandOn(CourseContentAccess.ADMIN) && domainSecurityService.isPlatformAdmin()) {
                 return CourseContentAccess.ADMIN;
             }
 
@@ -107,29 +132,35 @@ public class CourseContentAccessResolver {
                 return CourseContentAccess.PROSPECT;
             }
 
-            List<UUID> organisations = teachingOrganisations.of(userUuid);
+            boolean readsAsOrganisation = mayStandOn(CourseContentAccess.ORGANISATION);
+            List<UUID> organisations = readsAsOrganisation ? teachingOrganisations.of(userUuid) : List.of();
             if (approved(courseUuid, CourseTrainingApplicantType.ORGANISATION, organisations)) {
                 return CourseContentAccess.ORGANISATION;
             }
 
-            UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+            boolean readsAsInstructor = mayStandOn(CourseContentAccess.INSTRUCTOR);
+            UUID instructorUuid = readsAsInstructor ? domainSecurityService.getCurrentInstructorUuid() : null;
             List<UUID> instructors = instructorUuid == null ? List.of() : List.of(instructorUuid);
             if (approved(courseUuid, CourseTrainingApplicantType.INSTRUCTOR, instructors)) {
                 return CourseContentAccess.INSTRUCTOR;
             }
 
-            if (courseSecurityService.isEnrolledLearner(courseUuid)) {
+            if (mayStandOn(CourseContentAccess.STUDENT) && courseSecurityService.isEnrolledLearner(courseUuid)) {
                 return CourseContentAccess.STUDENT;
             }
 
             // Every approved footing has already returned, so an application that exists here is by
-            // definition one that has not been approved.
-            if (applied(courseUuid, CourseTrainingApplicantType.ORGANISATION, organisations)
-                    || applied(courseUuid, CourseTrainingApplicantType.INSTRUCTOR, instructors)) {
+            // definition one that has not been approved. The applicant lists are the capped ones, so
+            // an instructor's dashboard never reports pending on the strength of a school's
+            // application, nor a school's on the strength of one of its instructors'.
+            if (mayStandOn(CourseContentAccess.PENDING)
+                    && (applied(courseUuid, CourseTrainingApplicantType.ORGANISATION, organisations)
+                            || applied(courseUuid, CourseTrainingApplicantType.INSTRUCTOR, instructors))) {
                 return CourseContentAccess.PENDING;
             }
 
-            if (domainSecurityService.hasAnyDomain(TEACHING_DOMAINS)) {
+            if (mayStandOn(CourseContentAccess.APPLICANT)
+                    && domainSecurityService.hasAnyDomain(TEACHING_DOMAINS)) {
                 return CourseContentAccess.APPLICANT;
             }
 
@@ -138,6 +169,11 @@ public class CourseContentAccessResolver {
             log.error("Error resolving content access for course {}", courseUuid, e);
             return CourseContentAccess.PROSPECT;
         }
+    }
+
+    /** Whether the dashboard this request came from is allowed to stand on {@code footing}. */
+    private boolean mayStandOn(CourseContentAccess footing) {
+        return courseFootingCap.permits(footing);
     }
 
     private boolean approved(UUID courseUuid, CourseTrainingApplicantType type, Collection<UUID> applicants) {

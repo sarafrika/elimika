@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.dto.CourseTrainerDirectoryDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainerSummaryDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
+import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.projection.CourseTrainerRateView;
@@ -50,6 +51,14 @@ import java.util.stream.Collectors;
  * an endpoint that never prints it. Only the three fields this directory itself publishes may be
  * sorted on, and anything else is rejected outright rather than quietly dropped, so a client using
  * a field that does not exist finds out.
+ * <p>
+ * Which of the two paths runs is decided by ownership or platform administration <em>capped by the
+ * dashboard the request came from</em>, through {@link CourseFootingCap}. Like the statistics
+ * endpoint, this reads no {@code CourseContentAccess} of its own, so it was a third place the same
+ * defect surfaced: a platform administrator on their own learner dashboard ran the privileged query
+ * and was told what every approved trainer charges, along with how many applications are still
+ * pending. Because the cap is applied before the query is chosen, a capped caller's rates are not
+ * filtered out on the way to the wire — they are never read.
  */
 @Service
 @RequiredArgsConstructor
@@ -69,6 +78,7 @@ public class CourseTrainerDirectoryServiceImpl implements CourseTrainerDirectory
     private final CourseTrainingApplicationRepository applicationRepository;
     private final CourseSecuritySpi courseSecurityService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseFootingCap courseFootingCap;
     private final OrganisationLookupService organisationLookupService;
     private final InstructorLookupService instructorLookupService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
@@ -82,8 +92,9 @@ public class CourseTrainerDirectoryServiceImpl implements CourseTrainerDirectory
         // Validated before a row is read, so a rejected sort tells the caller nothing about the data.
         Comparator<CourseTrainerSummaryDTO> ordering = orderingFor(pageable);
 
-        boolean mayReadCommercialTerms =
-                courseSecurityService.isCourseOwner(courseUuid) || domainSecurityService.isPlatformAdmin();
+        boolean mayReadCommercialTerms = courseFootingCap.permitsCommercials(
+                courseSecurityService.isCourseOwner(courseUuid),
+                domainSecurityService.isPlatformAdmin());
 
         List<CourseTrainerSummaryDTO> trainers = mayReadCommercialTerms
                 ? withRates(courseUuid)

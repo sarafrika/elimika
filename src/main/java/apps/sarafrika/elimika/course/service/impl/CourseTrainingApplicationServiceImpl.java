@@ -7,10 +7,12 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.service.CourseTrainingApplicationService;
+import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
@@ -69,6 +71,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final GenericSpecificationBuilder<CourseTrainingApplication> specificationBuilder;
     private final CurrencyService currencyService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseFootingCap courseFootingCap;
     private final CourseTrainingRateCardValidator rateCardValidator;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final InstructorLookupService instructorLookupService;
@@ -323,9 +326,16 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
      * organisations all browse - but readable only in the redacted form of {@link #toNonPartyDTO},
      * without the rate card and notes the applicant negotiated with the course creator alone.
      * Applications still under review, rejected or revoked stay between those two parties.
+     * <p>
+     * Every identity below is capped by the dashboard the request came from, because an unscoped
+     * answer here is the negotiated rate card — twelve hourly, session and daily rates, the currency
+     * and the reviewer's notes — plus the applications that were rejected or revoked. An account
+     * that is both an administrator and a learner was reading all of it from their own learner
+     * dashboard. Capped, that same account has no identity left to search as and receives the
+     * redacted directory every other learner gets.
      */
     private CallerScope resolveCallerScope(UUID requestedCourseCreatorUuid) {
-        if (domainSecurityService.isPlatformAdmin()) {
+        if (courseFootingCap.permits(CourseContentAccess.ADMIN) && domainSecurityService.isPlatformAdmin()) {
             return null;
         }
         UUID callerUuid = domainSecurityService.getCurrentUserUuid();
@@ -333,15 +343,22 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             return CallerScope.NONE;
         }
 
-        UUID callerCourseCreatorUuid = courseCreatorLookupService.findCourseCreatorUuidByUserUuid(callerUuid).orElse(null);
+        boolean readsAsCreator = courseFootingCap.permits(CourseContentAccess.CREATOR);
+        UUID callerCourseCreatorUuid = readsAsCreator
+                ? courseCreatorLookupService.findCourseCreatorUuidByUserUuid(callerUuid).orElse(null)
+                : null;
         if (callerCourseCreatorUuid != null && callerCourseCreatorUuid.equals(requestedCourseCreatorUuid)) {
             return null;
         }
 
-        UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(callerUuid).orElse(null);
-        Set<UUID> organisationUuids = Set.copyOf(userLookupService.getUserOrganizations(callerUuid));
+        UUID instructorUuid = courseFootingCap.permits(CourseContentAccess.INSTRUCTOR)
+                ? instructorLookupService.findInstructorUuidByUserUuid(callerUuid).orElse(null)
+                : null;
+        Set<UUID> organisationUuids = courseFootingCap.permits(CourseContentAccess.ORGANISATION)
+                ? Set.copyOf(userLookupService.getUserOrganizations(callerUuid))
+                : Set.<UUID>of();
         Set<UUID> ownedCourseUuids = callerCourseCreatorUuid == null
-                ? Set.of()
+                ? Set.<UUID>of()
                 : Set.copyOf(courseRepository.findUuidsByCourseCreatorUuid(callerCourseCreatorUuid));
         return new CallerScope(instructorUuid, organisationUuids, ownedCourseUuids);
     }
@@ -548,10 +565,15 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     /**
      * Whether the caller may read this application in full: a platform admin, the creator of the
      * course it targets, or the applicant.
+     * <p>
+     * Each of the three is paired with the footing it belongs to, so the dashboard the caller is on
+     * decides which of them may still speak. Reading in full means the rate card, so this is the
+     * single-application form of the same rule the search applies to a page of them.
      */
     private boolean canReadApplication(CourseTrainingApplication application) {
-        return domainSecurityService.isPlatformAdmin()
-                || isCourseOwnedByCurrentUser(application.getCourseUuid())
+        return (courseFootingCap.permits(CourseContentAccess.ADMIN) && domainSecurityService.isPlatformAdmin())
+                || (courseFootingCap.permits(CourseContentAccess.CREATOR)
+                        && isCourseOwnedByCurrentUser(application.getCourseUuid()))
                 || isApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
     }
 
@@ -569,12 +591,21 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 .orElse(false);
     }
 
+    /**
+     * Each applicant kind is gated on its own footing, so an instructor reading from their
+     * organisation's dashboard, or a school's staff reading from an instructor dashboard, is
+     * narrowed to the identity that page is about rather than to whichever of the two is stronger.
+     */
     private boolean isApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
         if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
-            return domainSecurityService.isInstructorWithUuid(applicantUuid);
+            return courseFootingCap.permits(CourseContentAccess.INSTRUCTOR)
+                    && domainSecurityService.isInstructorWithUuid(applicantUuid);
         }
 
         if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
+            if (!courseFootingCap.permits(CourseContentAccess.ORGANISATION)) {
+                return false;
+            }
             UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
             return currentUserUuid != null
                     && userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid);

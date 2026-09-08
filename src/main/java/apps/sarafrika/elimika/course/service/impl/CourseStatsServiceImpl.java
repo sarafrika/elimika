@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.dto.CourseStatsDTO;
 import apps.sarafrika.elimika.course.dto.CourseStatsOwnerDTO;
 import apps.sarafrika.elimika.course.dto.CourseStatsPublicDTO;
 import apps.sarafrika.elimika.course.dto.CourseStatsScopedDTO;
+import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
@@ -12,6 +13,7 @@ import apps.sarafrika.elimika.course.service.CourseReviewService;
 import apps.sarafrika.elimika.course.service.CourseService;
 import apps.sarafrika.elimika.course.service.CourseStatsService;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
+import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -41,6 +43,13 @@ import java.util.UUID;
  * one yes-or-no: the same request yields a public block for everyone, a scoped block for some, and
  * an owner block for fewer still. What an unentitled caller gets is not a filtered block but no
  * block, so nothing they may not see is ever serialised.
+ * <p>
+ * Each of those decisions is additionally capped by the dashboard the request came from, through
+ * {@link CourseFootingCap}. This endpoint reads no {@code CourseContentAccess} and never consulted
+ * the content resolver, so it carried its own separate instance of the same defect: a platform
+ * administrator browsing their own learner dashboard was handed the owner block — gross sales, the
+ * platform fee, the paid and refunded order counts — on a course they had no relationship with.
+ * Capping the content resolver alone would have closed the syllabus and left the money open.
  */
 @Service
 @RequiredArgsConstructor
@@ -76,6 +85,7 @@ public class CourseStatsServiceImpl implements CourseStatsService {
     private final CourseReviewService courseReviewService;
     private final CourseSecuritySpi courseSecurityService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseFootingCap courseFootingCap;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final EnrollmentLookupService enrollmentLookupService;
     private final CommerceRevenueQueryService commerceRevenueQueryService;
@@ -94,8 +104,11 @@ public class CourseStatsServiceImpl implements CourseStatsService {
         TrainerScope trainer = approvedTrainerScope(courseUuid);
         CourseStatsScopedDTO scoped = trainer.approved() ? scopedStats(courseUuid, trainer) : null;
 
-        boolean readsCommerce = courseSecurityService.isCourseOwner(courseUuid)
-                || domainSecurityService.isPlatformAdmin();
+        // Capped rather than merely tested: each clause keeps its own real check, and the dashboard
+        // only decides which of them may still speak for this request.
+        boolean readsCommerce = courseFootingCap.permitsCommercials(
+                courseSecurityService.isCourseOwner(courseUuid),
+                domainSecurityService.isPlatformAdmin());
         CourseStatsOwnerDTO owner = readsCommerce ? ownerStats(courseUuid) : null;
 
         return new CourseStatsDTO(publicStats, scoped, owner);
@@ -167,6 +180,11 @@ public class CourseStatsServiceImpl implements CourseStatsService {
      * Only {@code APPROVED} counts. Anybody may submit an application and thereby put themselves in
      * {@code PENDING}, so treating pending as a footing would let a caller unlock the scoped block
      * on any course on the platform by asking for it.
+     * <p>
+     * Both sides are capped by the acting dashboard, and separately, because they answer different
+     * questions: an instructor's page reports what that instructor teaches, a school's page what the
+     * school teaches, and neither is a fact a learner's or a guardian's page has any business
+     * carrying. A dashboard that cannot reach the footing never runs the lookup behind it.
      */
     private TrainerScope approvedTrainerScope(UUID courseUuid) {
         try {
@@ -175,16 +193,20 @@ public class CourseStatsServiceImpl implements CourseStatsService {
                 return TrainerScope.none();
             }
 
-            UUID instructorUuid = instructorLookupService.findInstructorUuidByUserUuid(userUuid)
-                    .filter(candidate -> isApprovedApplicant(
-                            courseUuid, CourseTrainingApplicantType.INSTRUCTOR, candidate))
-                    .orElse(null);
+            UUID instructorUuid = courseFootingCap.permits(CourseContentAccess.INSTRUCTOR)
+                    ? instructorLookupService.findInstructorUuidByUserUuid(userUuid)
+                            .filter(candidate -> isApprovedApplicant(
+                                    courseUuid, CourseTrainingApplicantType.INSTRUCTOR, candidate))
+                            .orElse(null)
+                    : null;
 
-            List<UUID> organisationUuids = userLookupService.getActiveUserOrganizations(userUuid).stream()
-                    .filter(this::teachesFor)
-                    .filter(organisationUuid -> isApprovedApplicant(
-                            courseUuid, CourseTrainingApplicantType.ORGANISATION, organisationUuid))
-                    .toList();
+            List<UUID> organisationUuids = courseFootingCap.permits(CourseContentAccess.ORGANISATION)
+                    ? userLookupService.getActiveUserOrganizations(userUuid).stream()
+                            .filter(this::teachesFor)
+                            .filter(organisationUuid -> isApprovedApplicant(
+                                    courseUuid, CourseTrainingApplicantType.ORGANISATION, organisationUuid))
+                            .toList()
+                    : List.<UUID>of();
 
             return new TrainerScope(instructorUuid, organisationUuids);
         } catch (Exception e) {

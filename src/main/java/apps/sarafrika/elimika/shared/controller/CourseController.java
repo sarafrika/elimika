@@ -68,9 +68,14 @@ public class CourseController {
     /**
      * A single lesson and its content. Decided on the lesson rather than the path's course, so an
      * unpublished lesson stays invisible to learners even inside a course they are enrolled in.
+     * <p>
+     * The administrator clause goes through {@code learnerContentAccess} rather than straight to
+     * {@code domainSecurityService}, so that it is capped by the dashboard the request came from.
+     * Asked of the account, it answered yes on a learner's page too, and handed the lesson body to
+     * an administrator who had never enrolled.
      */
     private static final String LESSON_LEARNER_READ =
-            "@learnerContentAccess.canReadLesson(#lessonUuid) or @domainSecurityService.isPlatformAdmin()";
+            "@learnerContentAccess.canReadLesson(#lessonUuid) or @learnerContentAccess.isPlatformAdmin()";
 
     private final CourseService courseService;
     private final CourseDraftService courseDraftService;

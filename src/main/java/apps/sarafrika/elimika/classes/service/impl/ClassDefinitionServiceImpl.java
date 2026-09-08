@@ -72,6 +72,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     private final ClassDefinitionRepository classDefinitionRepository;
     private final apps.sarafrika.elimika.shared.security.DomainSecurityService domainSecurityService;
+    private final apps.sarafrika.elimika.shared.security.ActingDomainCap actingDomainCap;
     private final ClassSchedulingConflictRepository classSchedulingConflictRepository;
     private final ClassSessionTemplateRepository classSessionTemplateRepository;
     private final ClassDefinitionResourceRepository classDefinitionResourceRepository;
@@ -633,8 +634,39 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
     }
 
+    /**
+     * The read half of {@link #isPartyToInstructorRate}, additionally capped by the dashboard the
+     * request came from.
+     * <p>
+     * Being party to the agreement is a fact about the account, and an account that administers the
+     * platform is party to every one of them — so a user who is both an administrator and a learner
+     * read what each trainer is paid straight off the class list on their own learner dashboard.
+     * Each clause is paired with the domain it belongs to, so the administrator's blanket answer
+     * only speaks on an administrator's page, the instructor's only on theirs, and the
+     * organisation manager's only on the school's.
+     * <p>
+     * The cap sits here rather than inside {@code isPartyToInstructorRate} deliberately: that method
+     * also decides whether a figure omitted from a <em>create</em> request may be back-filled from
+     * the party's own rate card, and narrowing a write by the caller's page would change what gets
+     * stored, not merely what gets shown.
+     */
     private boolean maySeeInstructorPay(ClassDefinitionDTO dto) {
-        return isPartyToInstructorRate(dto.defaultInstructorUuid(), dto.organisationUuid());
+        try {
+            if (actingDomainCap.permits(UserDomain.admin) && domainSecurityService.isPlatformAdmin()) {
+                return true;
+            }
+            UUID instructorUuid = dto.defaultInstructorUuid();
+            if (actingDomainCap.permits(UserDomain.instructor)
+                    && instructorUuid != null
+                    && domainSecurityService.isInstructorWithUuid(instructorUuid)) {
+                return true;
+            }
+            return actingDomainCap.permits(UserDomain.organisation_user)
+                    && managesOrganisation(dto.organisationUuid());
+        } catch (Exception e) {
+            // Withholding is the safe failure: a reader who cannot be identified is not entitled.
+            return false;
+        }
     }
 
     /**

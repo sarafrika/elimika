@@ -250,7 +250,10 @@ public class SecurityConfiguration {
                 HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
                 HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
                 "X-Requested-With",
-                "X-Auth-Token"
+                "X-Auth-Token",
+                // The dashboard a browser is calling from. Without it on this list a preflight
+                // strips the header and every request silently reverts to the uncapped footing.
+                ActingDomainResolver.HEADER
         ));
 
         config.setAllowedMethods(Arrays.asList(
