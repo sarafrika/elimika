@@ -1,3 +1,10 @@
+## [2.142.3](https://github.com/sarafrika/elimika/compare/v2.142.2...v2.142.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **course:** cap the course record's footing to the caller's acting dashboard ([c95df99](https://github.com/sarafrika/elimika/commit/c95df9968afd1d81b264d5276ff9f6c3d7939785))
+
 ## [2.142.2](https://github.com/sarafrika/elimika/compare/v2.142.1...v2.142.2) (2026-09-07)
 
 
