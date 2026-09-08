@@ -135,7 +135,12 @@ public class CourseContentServiceImpl implements CourseContentService {
                         requirement.getName(),
                         requirement.getDescription(),
                         requirement.getQuantity(),
-                        requirement.getUnit()))
+                        requirement.getUnit(),
+                        requirement.getRequirementType() == null
+                                ? null : requirement.getRequirementType().getValue(),
+                        requirement.getProvidedBy() == null
+                                ? null : requirement.getProvidedBy().getValue(),
+                        requirement.getIsMandatory()))
                 .toList();
     }
 

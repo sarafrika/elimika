@@ -120,7 +120,19 @@ public record PublicCourseProfileDTO(
 
             @Schema(description = "Unit the quantity is counted in.", example = "per class")
             @JsonProperty("unit")
-            String unit
+            String unit,
+
+            @Schema(description = "What kind of thing this is.", example = "equipment")
+            @JsonProperty("requirement_type")
+            String requirementType,
+
+            @Schema(description = "Who supplies it.", example = "instructor")
+            @JsonProperty("provided_by")
+            String providedBy,
+
+            @Schema(description = "Whether delivery depends on it.", example = "true")
+            @JsonProperty("is_mandatory")
+            Boolean isMandatory
     ) {
     }
 }
