@@ -1,3 +1,10 @@
+# [2.144.0](https://github.com/sarafrika/elimika/compare/v2.143.1...v2.144.0) (2026-09-08)
+
+
+### Features
+
+* **courses:** carry requirement type, provider and mandatory flag on the public profile ([b8ad6b1](https://github.com/sarafrika/elimika/commit/b8ad6b155128679b783fcf7a254429571b321b34))
+
 ## [2.143.1](https://github.com/sarafrika/elimika/compare/v2.143.0...v2.143.1) (2026-09-08)
 
 
