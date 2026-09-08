@@ -1,3 +1,10 @@
+## [2.143.1](https://github.com/sarafrika/elimika/compare/v2.143.0...v2.143.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **courses:** serve the course itself on the public content endpoint ([1d62f76](https://github.com/sarafrika/elimika/commit/1d62f76c06a1d4fd916e7e4c34e9bb39017800a0))
+
 # [2.143.0](https://github.com/sarafrika/elimika/compare/v2.142.3...v2.143.0) (2026-09-08)
 
 
