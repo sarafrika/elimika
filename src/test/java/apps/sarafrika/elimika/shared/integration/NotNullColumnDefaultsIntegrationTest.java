@@ -44,6 +44,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -80,6 +81,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @Import({CourseAssessmentServiceImpl.class, GenericSpecificationBuilder.class,
         NotNullColumnDefaultsIntegrationTest.TestConfig.class})
+// The container dies with this class; a cached context must not outlive it.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DisplayName("NOT NULL columns whose default lives on the entity")
 class NotNullColumnDefaultsIntegrationTest {
 

@@ -6,6 +6,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -35,6 +36,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * up to the version immediately preceding the skills fund change, then the rest — so that the legacy
  * rows exist at the moment the migration that has to cope with them runs.
  */
+// The container dies with this class; a cached context must not outlive it.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Testcontainers
 @DisplayName("Skills fund schema migration against PostgreSQL")
 class SkillsFundSchemaIntegrationTest {

@@ -44,6 +44,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.modulith.events.IncompleteEventPublications;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -78,6 +79,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Import(WalletCreditEventDurabilityIntegrationTest.TestConfig.class)
 // No ambient transaction: this mirrors production, where OrderServiceImpl publishes the event
 // outside any transaction.
+// The container dies with this class; a cached context must not outlive it.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DisplayName("Wallet credit event durability")
 class WalletCreditEventDurabilityIntegrationTest {

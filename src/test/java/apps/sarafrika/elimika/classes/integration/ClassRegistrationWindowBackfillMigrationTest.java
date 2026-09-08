@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.integration;
 
+import org.springframework.test.annotation.DirtiesContext;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * backfill existed to repair; Flyway would have aborted, marked the migration failed and left the
  * application unable to start.
  */
+// The container dies with this class; a cached context must not outlive it.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Testcontainers
 @DisplayName("The registration window backfill leaves every open class open")
 class ClassRegistrationWindowBackfillMigrationTest {
