@@ -44,6 +44,9 @@ class CommerceCatalogueServiceImplTest {
     private CommerceCatalogueAccessService accessService;
 
     @Mock
+    private apps.sarafrika.elimika.shared.spi.CourseCatalogueLookupService courseCatalogueLookupService;
+
+    @Mock
     private CommerceProductVariantRepository variantRepository;
 
     @Mock
@@ -61,6 +64,7 @@ class CommerceCatalogueServiceImplTest {
                 currencyService,
                 specificationBuilder,
                 accessService,
+                courseCatalogueLookupService,
                 variantRepository,
                 classScheduleService,
                 catalogueClassDefinitionLookupService);

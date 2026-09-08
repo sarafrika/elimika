@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.commerce.catalogue.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import apps.sarafrika.elimika.shared.spi.CourseCatalogueSnapshot;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -61,5 +62,16 @@ public record CommerceCatalogueItemDTO(
 
         @Schema(description = "Last updated timestamp")
         @JsonProperty("updated_date")
-        LocalDateTime updatedDate) {
+        LocalDateTime updatedDate,
+
+        @Schema(description = """
+                Public attributes of the course this entry sells, so a storefront can render a
+                catalogue page without fetching each course separately.
+
+                Present on course-backed entries returned by `/search`; null for class- and
+                program-backed entries, and on endpoints that do not resolve it. Carries display
+                fields only — the course's commercial terms are not part of this projection.
+                """)
+        @JsonProperty("course")
+        CourseCatalogueSnapshot course) {
 }

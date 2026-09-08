@@ -6,10 +6,15 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface CourseCreatorRepository extends JpaRepository<CourseCreator, Long>, JpaSpecificationExecutor<CourseCreator> {
+
+    /** Creators by uuid, for listings that must not resolve one name per row. */
+    List<CourseCreator> findByUuidIn(Collection<UUID> uuids);
 
     Optional<CourseCreator> findByUuid(UUID uuid);
 

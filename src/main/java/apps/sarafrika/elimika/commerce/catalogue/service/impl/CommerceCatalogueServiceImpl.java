@@ -26,7 +26,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.spi.CourseCatalogueLookupService;
+import apps.sarafrika.elimika.shared.spi.CourseCatalogueSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -50,6 +53,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     private final CurrencyService currencyService;
     private final GenericSpecificationBuilder<CommerceCatalogueItem> specificationBuilder;
     private final CommerceCatalogueAccessService accessService;
+    private final CourseCatalogueLookupService courseCatalogueLookupService;
     private final CommerceProductVariantRepository variantRepository;
     private final ClassScheduleService classScheduleService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
@@ -144,7 +148,25 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         Page<CommerceCatalogueItem> page = spec == null
                 ? catalogItemRepository.findAll(pageable)
                 : catalogItemRepository.findAll(spec, pageable);
-        return page.map(this::toDto);
+
+        /*
+         * Resolve every course on the page in one go.
+         *
+         * A catalogue row carries a course uuid and a price and nothing a storefront can render, so
+         * clients fetched each course themselves — one request per row, against an endpoint that
+         * needs a token. The public catalogue therefore came back empty for anonymous visitors
+         * while the page's own counters, which never made that call, still reported courses.
+         *
+         * Attaching the projection here costs three queries for the whole page however long it is,
+         * and the storefront needs no per-row call at all.
+         */
+        Map<UUID, CourseCatalogueSnapshot> courses = courseCatalogueLookupService.findPublicByUuids(
+                page.getContent().stream()
+                        .map(CommerceCatalogueItem::getCourseUuid)
+                        .filter(Objects::nonNull)
+                        .toList());
+
+        return page.map(entity -> toDto(entity, courses.get(entity.getCourseUuid())));
     }
 
     private void applyRequest(CommerceCatalogueItem entity, UpsertCommerceCatalogueItemRequest request) {
@@ -179,8 +201,14 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         }
     }
 
+    /** Without a course projection: the shape every endpoint but {@code /search} returns. */
     private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity) {
+        return toDto(entity, null);
+    }
+
+    private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity, CourseCatalogueSnapshot course) {
         return CommerceCatalogueItemDTO.builder()
+                .course(course)
                 .uuid(entity.getUuid())
                 .courseUuid(entity.getCourseUuid())
                 .classDefinitionUuid(entity.getClassDefinitionUuid())

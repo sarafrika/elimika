@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,5 +54,19 @@ public class CourseCreatorLookupServiceImpl implements CourseCreatorLookupServic
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    @Override
+    public Map<UUID, String> findFullNamesByUuids(Collection<UUID> courseCreatorUuids) {
+        if (courseCreatorUuids == null || courseCreatorUuids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> names = new HashMap<>();
+        for (CourseCreator creator : courseCreatorRepository.findByUuidIn(courseCreatorUuids)) {
+            if (creator.getFullName() != null) {
+                names.put(creator.getUuid(), creator.getFullName());
+            }
+        }
+        return names;
     }
 }

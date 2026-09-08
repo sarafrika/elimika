@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.coursecreator.spi;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,4 +49,15 @@ public interface CourseCreatorLookupService {
      * @return Optional containing completion state, or empty if the user has no course creator profile
      */
     Optional<Boolean> getCourseCreatorProfileCompleteByUserUuid(UUID userUuid);
+
+    /**
+     * Display names for many creators at once, keyed by creator uuid.
+     * <p>
+     * Batch because the caller is a listing: resolving one name per row is the N+1 this replaces.
+     * Creators that do not exist are absent from the map rather than mapped to null.
+     *
+     * @param courseCreatorUuids the creators to name
+     * @return full name by creator uuid, never null
+     */
+    Map<UUID, String> findFullNamesByUuids(Collection<UUID> courseCreatorUuids);
 }

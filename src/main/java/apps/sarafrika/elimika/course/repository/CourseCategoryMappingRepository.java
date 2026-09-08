@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -75,6 +76,21 @@ public interface CourseCategoryMappingRepository extends JpaRepository<CourseCat
         ORDER BY c.name
         """)
     List<String> findCategoryNamesByCourseUuid(@Param("courseUuid") UUID courseUuid);
+
+    /**
+     * Category names for many courses at once, as {@code [courseUuid, name]} rows.
+     * <p>
+     * The single-course query above is fine for a course page; running it per row of a catalogue
+     * listing is the N+1 this exists to avoid.
+     */
+    @Query("""
+        SELECT ccm.courseUuid, c.name
+        FROM CourseCategoryMapping ccm
+        JOIN Category c ON ccm.categoryUuid = c.uuid
+        WHERE ccm.courseUuid IN :courseUuids
+        ORDER BY c.name
+        """)
+    List<Object[]> findCategoryNamesByCourseUuidIn(@Param("courseUuids") Collection<UUID> courseUuids);
 
     /**
      * Get course UUIDs for a specific category
