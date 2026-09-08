@@ -42,6 +42,11 @@ import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.service.CourseDraftService;
 import apps.sarafrika.elimika.course.util.CourseRevenueShareValidator;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
+import apps.sarafrika.elimika.course.util.enums.PracticeActivityGrouping;
+import apps.sarafrika.elimika.course.util.enums.PracticeActivityType;
+import apps.sarafrika.elimika.course.util.enums.QuestionType;
+import apps.sarafrika.elimika.course.util.enums.QuizScope;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +58,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -683,6 +689,362 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         liveReqs.values().stream()
                 .filter(r -> !retained.contains(r.getUuid()))
                 .forEach(trainingRequirementRepository::delete);
+    }
+
+    // ---------------------------------------------------------------- restore
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Implemented as clone-then-replace rather than as a diff. {@link #openDraft} already knows how
+     * to produce a draft course row, so restore borrows it and then throws the cloned children away
+     * and rebuilds them from the snapshot. A draft has no learner data hanging off it — that is the
+     * whole point of the shadow row — so wiping its children costs nothing, and rebuilding from one
+     * source is far easier to reason about than reconciling two trees field by field.
+     */
+    @Override
+    public Course restore(UUID liveCourseUuid, Integer versionNumber) {
+        CourseVersionSnapshot version = snapshotRepository
+                .findByCourseUuidAndVersionNumber(liveCourseUuid, versionNumber)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Course %s has no version %s", liveCourseUuid, versionNumber)));
+
+        // Refuse rather than overwrite. An open draft is somebody's unfinished work, and restoring
+        // over it would destroy an edit that was never reviewed or rejected.
+        if (courseRepository.findByParentCourseUuid(liveCourseUuid).isPresent()) {
+            throw new IllegalStateException(
+                    "Course " + liveCourseUuid + " already has an open edit. Promote or discard it before "
+                            + "restoring version " + versionNumber + ".");
+        }
+
+        Course draft = openDraft(liveCourseUuid);
+        JsonNode tree = version.getSnapshot();
+
+        wipeDraftChildren(draft.getUuid());
+        applyCourseNode(draft, tree.path("course"));
+        courseRepository.save(draft);
+
+        restoreCategories(draft.getUuid(), tree.path("category_uuids"));
+        restoreLessons(draft.getUuid(), liveCourseUuid, tree.path("lessons"));
+        restoreAssessments(draft.getUuid(), liveCourseUuid, tree.path("assessments"));
+        restoreRequirements(draft.getUuid(), tree.path("requirements"));
+        restoreTrainingRequirements(draft.getUuid(), tree.path("training_requirements"));
+
+        log.info("Restored course {} version {} into draft {}", liveCourseUuid, versionNumber, draft.getUuid());
+        return draft;
+    }
+
+    /**
+     * Everything {@link #openDraft} cloned, removed so the snapshot can be laid down cleanly.
+     * Deleting a draft lesson cascades to its content, quizzes, assignments and practice activities.
+     */
+    private void wipeDraftChildren(UUID draftCourseUuid) {
+        lessonRepository.deleteAll(lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draftCourseUuid));
+        assessmentRepository.deleteAll(assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draftCourseUuid));
+        requirementRepository.deleteAll(requirementRepository.findByCourseUuid(draftCourseUuid));
+        trainingRequirementRepository.deleteAll(trainingRequirementRepository.findByCourseUuid(draftCourseUuid));
+        mappingRepository.deleteAll(mappingRepository.findByCourseUuid(draftCourseUuid));
+    }
+
+    private void applyCourseNode(Course draft, JsonNode node) {
+        draft.setName(text(node, "name"));
+        draft.setDescription(text(node, "description"));
+        draft.setObjectives(text(node, "objectives"));
+        draft.setPrerequisites(text(node, "prerequisites"));
+        draft.setDifficultyUuid(uuid(node, "difficulty_uuid"));
+        draft.setDurationHours(integer(node, "duration_hours"));
+        draft.setDurationMinutes(integer(node, "duration_minutes"));
+        draft.setClassLimit(integer(node, "class_limit"));
+        draft.setPrice(decimal(node, "price"));
+        draft.setMinimumTrainingFee(decimal(node, "minimum_training_fee"));
+        draft.setCreatorSharePercentage(decimal(node, "creator_share_percentage"));
+        draft.setInstructorSharePercentage(decimal(node, "instructor_share_percentage"));
+        draft.setRevenueShareNotes(text(node, "revenue_share_notes"));
+        draft.setAgeLowerLimit(integer(node, "age_lower_limit"));
+        draft.setAgeUpperLimit(integer(node, "age_upper_limit"));
+        draft.setThumbnailUrl(text(node, "thumbnail_url"));
+        draft.setBannerUrl(text(node, "banner_url"));
+        draft.setIntroVideoUrl(text(node, "intro_video_url"));
+    }
+
+    private void restoreCategories(UUID draftCourseUuid, JsonNode categories) {
+        for (JsonNode category : categories) {
+            UUID categoryUuid = parseUuid(category.asText(null));
+            if (categoryUuid == null) {
+                continue;
+            }
+            CourseCategoryMapping mapping = new CourseCategoryMapping();
+            mapping.setCourseUuid(draftCourseUuid);
+            mapping.setCategoryUuid(categoryUuid);
+            mappingRepository.save(mapping);
+        }
+    }
+
+    private void restoreLessons(UUID draftCourseUuid, UUID liveCourseUuid, JsonNode lessons) {
+        Set<UUID> liveLessons = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(liveCourseUuid).stream()
+                .map(Lesson::getUuid)
+                .collect(Collectors.toSet());
+
+        for (JsonNode node : lessons) {
+            Lesson lesson = new Lesson();
+            lesson.setCourseUuid(draftCourseUuid);
+            lesson.setLessonNumber(integer(node, "lesson_number"));
+            lesson.setTitle(text(node, "title"));
+            lesson.setDescription(text(node, "description"));
+            lesson.setLearningObjectives(text(node, "learning_objectives"));
+            lesson.setStatus(contentStatus(node, "status"));
+            lesson.setActive(bool(node, "active"));
+            lesson.setSourceLessonUuid(liveLink(node, liveLessons));
+            Lesson saved = lessonRepository.save(lesson);
+
+            restoreContent(saved.getUuid(), node.path("content"));
+            restoreQuizzes(saved.getUuid(), node.path("quizzes"));
+            restoreAssignments(saved.getUuid(), node.path("assignments"));
+            restorePracticeActivities(saved.getUuid(), node.path("practice_activities"));
+        }
+    }
+
+    private void restoreContent(UUID draftLessonUuid, JsonNode items) {
+        for (JsonNode node : items) {
+            LessonContent content = new LessonContent();
+            content.setLessonUuid(draftLessonUuid);
+            content.setContentTypeUuid(uuid(node, "content_type_uuid"));
+            content.setTitle(text(node, "title"));
+            content.setDescription(text(node, "description"));
+            content.setContentText(text(node, "content_text"));
+            content.setFileUrl(text(node, "file_url"));
+            content.setFileSizeBytes(longOf(node, "file_size_bytes"));
+            content.setMimeType(text(node, "mime_type"));
+            content.setDisplayOrder(integer(node, "display_order"));
+            content.setIsRequired(bool(node, "is_required"));
+            content.setSourceContentUuid(uuid(node, "uuid"));
+            lessonContentRepository.save(content);
+        }
+    }
+
+    private void restoreQuizzes(UUID draftLessonUuid, JsonNode quizzes) {
+        for (JsonNode node : quizzes) {
+            Quiz quiz = new Quiz();
+            quiz.setLessonUuid(draftLessonUuid);
+            quiz.setTitle(text(node, "title"));
+            quiz.setDescription(text(node, "description"));
+            quiz.setInstructions(text(node, "instructions"));
+            quiz.setTimeLimitMinutes(integer(node, "time_limit_minutes"));
+            quiz.setAttemptsAllowed(integer(node, "attempts_allowed"));
+            quiz.setPassingScore(decimal(node, "passing_score"));
+            quiz.setRubricUuid(uuid(node, "rubric_uuid"));
+            quiz.setStatus(contentStatus(node, "status"));
+            quiz.setActive(bool(node, "active"));
+            String scope = text(node, "scope");
+            if (scope != null) {
+                quiz.setScope(QuizScope.fromValue(scope));
+            }
+            quiz.setSourceQuizUuid(uuid(node, "uuid"));
+            Quiz saved = quizRepository.save(quiz);
+
+            for (JsonNode questionNode : node.path("questions")) {
+                QuizQuestion question = new QuizQuestion();
+                question.setQuizUuid(saved.getUuid());
+                question.setQuestionText(text(questionNode, "question_text"));
+                String type = text(questionNode, "question_type");
+                if (type != null) {
+                    question.setQuestionType(QuestionType.fromValue(type));
+                }
+                question.setPoints(decimal(questionNode, "points"));
+                question.setDisplayOrder(integer(questionNode, "display_order"));
+                question.setSourceQuestionUuid(uuid(questionNode, "uuid"));
+                QuizQuestion savedQuestion = quizQuestionRepository.save(question);
+
+                for (JsonNode optionNode : questionNode.path("options")) {
+                    QuizQuestionOption option = new QuizQuestionOption();
+                    option.setQuestionUuid(savedQuestion.getUuid());
+                    option.setOptionText(text(optionNode, "option_text"));
+                    option.setIsCorrect(bool(optionNode, "is_correct"));
+                    Integer order = integer(optionNode, "display_order");
+                    if (order != null) {
+                        option.setDisplayOrder(order);
+                    }
+                    option.setSourceOptionUuid(uuid(optionNode, "uuid"));
+                    quizQuestionOptionRepository.save(option);
+                }
+            }
+        }
+    }
+
+    private void restoreAssignments(UUID draftLessonUuid, JsonNode assignments) {
+        for (JsonNode node : assignments) {
+            Assignment assignment = new Assignment();
+            assignment.setLessonUuid(draftLessonUuid);
+            assignment.setTitle(text(node, "title"));
+            assignment.setDescription(text(node, "description"));
+            assignment.setInstructions(text(node, "instructions"));
+            String due = text(node, "due_date");
+            if (due != null) {
+                assignment.setDueDate(LocalDateTime.parse(due));
+            }
+            assignment.setRubricUuid(uuid(node, "rubric_uuid"));
+            BigDecimal maxPoints = decimal(node, "max_points");
+            if (maxPoints != null) {
+                assignment.setMaxPoints(maxPoints);
+            }
+            String scope = text(node, "scope");
+            if (scope != null) {
+                assignment.setScope(AssignmentScope.fromValue(scope));
+            }
+            assignment.setSubmissionTypes(strings(node, "submission_types"));
+            assignment.setIsPublished(bool(node, "is_published"));
+            assignment.setSourceAssignmentUuid(uuid(node, "uuid"));
+            Assignment saved = assignmentRepository.save(assignment);
+
+            for (JsonNode attachmentNode : node.path("attachments")) {
+                AssignmentAttachment attachment = new AssignmentAttachment();
+                attachment.setAssignmentUuid(saved.getUuid());
+                attachment.setOriginalFilename(text(attachmentNode, "original_filename"));
+                attachment.setStoredFilename(text(attachmentNode, "stored_filename"));
+                attachment.setFileUrl(text(attachmentNode, "file_url"));
+                attachment.setFileSizeBytes(longOf(attachmentNode, "file_size_bytes"));
+                attachment.setMimeType(text(attachmentNode, "mime_type"));
+                assignmentAttachmentRepository.save(attachment);
+            }
+        }
+    }
+
+    private void restorePracticeActivities(UUID draftLessonUuid, JsonNode activities) {
+        for (JsonNode node : activities) {
+            LessonPracticeActivity activity = new LessonPracticeActivity();
+            activity.setLessonUuid(draftLessonUuid);
+            activity.setTitle(text(node, "title"));
+            activity.setInstructions(text(node, "instructions"));
+            String type = text(node, "activity_type");
+            if (type != null) {
+                activity.setActivityType(PracticeActivityType.fromValue(type));
+            }
+            String grouping = text(node, "grouping");
+            if (grouping != null) {
+                activity.setGrouping(PracticeActivityGrouping.fromValue(grouping));
+            }
+            activity.setEstimatedMinutes(integer(node, "estimated_minutes"));
+            activity.setExpectedOutput(text(node, "expected_output"));
+            activity.setMaterials(strings(node, "materials"));
+            activity.setDisplayOrder(integer(node, "display_order"));
+            activity.setStatus(contentStatus(node, "status"));
+            activity.setActive(bool(node, "active"));
+            practiceActivityRepository.save(activity);
+        }
+    }
+
+    private void restoreAssessments(UUID draftCourseUuid, UUID liveCourseUuid, JsonNode assessments) {
+        for (JsonNode node : assessments) {
+            CourseAssessment assessment = new CourseAssessment();
+            assessment.setCourseUuid(draftCourseUuid);
+            assessment.setTitle(text(node, "title"));
+            assessment.setAssessmentType(text(node, "assessment_type"));
+            assessment.setWeightPercentage(decimal(node, "weight_percentage"));
+            assessment.setRubricUuid(uuid(node, "rubric_uuid"));
+            assessment.setActive(bool(node, "active"));
+            CourseAssessment saved = assessmentRepository.save(assessment);
+
+            for (JsonNode itemNode : node.path("line_items")) {
+                CourseAssessmentLineItem item = new CourseAssessmentLineItem();
+                item.setCourseAssessmentUuid(saved.getUuid());
+                item.setTitle(text(itemNode, "title"));
+                item.setDisplayOrder(integer(itemNode, "display_order"));
+                item.setRubricUuid(uuid(itemNode, "rubric_uuid"));
+                item.setActive(bool(itemNode, "active"));
+                lineItemRepository.save(item);
+            }
+        }
+    }
+
+    private void restoreRequirements(UUID draftCourseUuid, JsonNode requirements) {
+        for (JsonNode node : requirements) {
+            CourseRequirement requirement = new CourseRequirement();
+            requirement.setCourseUuid(draftCourseUuid);
+            requirement.setRequirementText(text(node, "requirement_text"));
+            requirement.setIsMandatory(bool(node, "is_mandatory"));
+            requirementRepository.save(requirement);
+        }
+    }
+
+    private void restoreTrainingRequirements(UUID draftCourseUuid, JsonNode requirements) {
+        for (JsonNode node : requirements) {
+            CourseTrainingRequirement requirement = new CourseTrainingRequirement();
+            requirement.setCourseUuid(draftCourseUuid);
+            requirement.setName(text(node, "name"));
+            requirement.setQuantity(integer(node, "quantity"));
+            requirement.setUnit(text(node, "unit"));
+            trainingRequirementRepository.save(requirement);
+        }
+    }
+
+    /**
+     * The live row this snapshot row should be promoted onto, or null to add it.
+     * <p>
+     * A snapshot records the uuid the row had when it was live, so the uuid is the link. If that
+     * row is still there, promotion updates it in place and learner progress against it survives;
+     * if it has since been deleted, the restore re-adds it as new content.
+     */
+    private UUID liveLink(JsonNode node, Set<UUID> liveUuids) {
+        UUID recorded = uuid(node, "uuid");
+        return recorded != null && liveUuids.contains(recorded) ? recorded : null;
+    }
+
+    // ---------------------------------------------------------------- json readers
+
+    private static String text(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : value.asText();
+    }
+
+    private static Integer integer(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : value.asInt();
+    }
+
+    private static Long longOf(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : value.asLong();
+    }
+
+    private static Boolean bool(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : value.asBoolean();
+    }
+
+    private static BigDecimal decimal(JsonNode node, String field) {
+        String raw = text(node, field);
+        return raw == null ? null : new BigDecimal(raw);
+    }
+
+    private static UUID uuid(JsonNode node, String field) {
+        return parseUuid(text(node, field));
+    }
+
+    private static UUID parseUuid(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static ContentStatus contentStatus(JsonNode node, String field) {
+        String raw = text(node, field);
+        return raw == null ? null : ContentStatus.fromValue(raw);
+    }
+
+    /** A snapshot array back to the {@code text[]} column it came from. */
+    private static String[] strings(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull() || !value.isArray()) {
+            return null;
+        }
+        List<String> values = new ArrayList<>();
+        value.forEach(element -> values.add(element.isNull() ? null : element.asText()));
+        return values.toArray(new String[0]);
     }
 
     // ---------------------------------------------------------------- snapshot

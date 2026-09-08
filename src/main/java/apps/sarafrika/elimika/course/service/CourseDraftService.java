@@ -65,6 +65,26 @@ public interface CourseDraftService {
     CourseEditDiffDTO diff(UUID liveCourseUuid);
 
     /**
+     * Loads an approved version back into the course's draft, ready for review.
+     * <p>
+     * Restore deliberately does not touch the live course. It materialises the snapshot into the
+     * shadow draft and stops, so putting an old version back travels the same review-and-promote
+     * road as any other edit — and a creator can look at the diff before anyone commits to it.
+     * <p>
+     * Rows the snapshot shares a uuid with are linked back to their live counterparts, so promotion
+     * updates them in place and learner progress survives. A lesson the snapshot carries that no
+     * longer exists live is re-added; a live lesson the snapshot never had is dropped on promotion.
+     *
+     * @param liveCourseUuid the published course to restore into
+     * @param versionNumber  the version to load, from {@code course_version_snapshots}
+     * @return the draft holding the restored content
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if that version
+     *         does not exist for that course
+     * @throws IllegalStateException if an edit is already open — restoring would silently discard it
+     */
+    Course restore(UUID liveCourseUuid, Integer versionNumber);
+
+    /**
      * The course a creator's authoring write should actually land on.
      * <p>
      * For a live, approved course this is its draft — opened on demand — so lesson and content

@@ -18,4 +18,7 @@ public interface CourseVersionSnapshotRepository extends JpaRepository<CourseVer
     Optional<CourseVersionSnapshot> findTopByCourseUuidOrderByVersionNumberDesc(UUID courseUuid);
 
     Optional<CourseVersionSnapshot> findByUuid(UUID uuid);
+
+    /** One named version of a course, for restoring it into a draft. */
+    Optional<CourseVersionSnapshot> findByCourseUuidAndVersionNumber(UUID courseUuid, Integer versionNumber);
 }

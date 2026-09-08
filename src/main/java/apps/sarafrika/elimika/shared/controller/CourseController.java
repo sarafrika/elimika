@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.controller;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
+import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
@@ -921,6 +922,45 @@ public class CourseController {
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(versions, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
                         "Course version history retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Restore a course version",
+            description = """
+                    Loads an approved version back into the course's **draft**, ready for review.
+
+                    Restore never touches the live course. The snapshot is materialised into the
+                    shadow draft row, so putting an old version back travels the same
+                    review-and-promote road as any other edit — `GET /{uuid}/edit/diff` shows what
+                    it would change before anyone commits to it, and the live course keeps serving
+                    its current content until the edit is approved.
+
+                    Rows the version shares a uuid with are linked back to their live counterparts,
+                    so promotion updates them in place and learner progress survives. A lesson the
+                    version carries that no longer exists live is re-added; a live lesson the
+                    version never had is dropped when the edit is promoted.
+
+                    Fails with 409 if an edit is already open — restoring over it would silently
+                    discard work that was never reviewed. Promote or discard that edit first.
+
+                    **Authorization:** Only the course owner.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Version restored into the draft"),
+                    @ApiResponse(responseCode = "403", description = "Not the course owner"),
+                    @ApiResponse(responseCode = "404", description = "No such version for this course"),
+                    @ApiResponse(responseCode = "409", description = "An edit is already open")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#uuid)")
+    @PostMapping("/{uuid}/versions/{versionNumber}/restore")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> restoreCourseVersion(
+            @Parameter(description = "UUID of the course") @PathVariable UUID uuid,
+            @Parameter(description = "Version number to restore") @PathVariable Integer versionNumber) {
+        Course draft = courseDraftService.restore(uuid, versionNumber);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                courseService.getCourseByUuid(draft.getUuid()),
+                "Version " + versionNumber + " restored into the draft; review and promote it to go live"));
     }
 
     // ===== LESSON CONTENT =====
