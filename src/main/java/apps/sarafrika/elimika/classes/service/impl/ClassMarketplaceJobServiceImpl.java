@@ -1149,15 +1149,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         return expandSessionTemplates(loadSessionTemplates(jobUuid));
     }
 
-    // Expanded exactly the way class creation expands it. Should the expander ever start reading a
-    // template's zone, this call has to follow, or holds and scheduled instances drift apart.
+    // Expanded exactly the way class creation expands it, template zone included: a rule authored as
+    // "every Wednesday" has to mean Wednesday where it was written, or holds and scheduled instances
+    // land on different days whenever a session sits within the zone's offset of midnight.
     private List<OccurrenceWindow> expandSessionTemplates(List<ClassSessionTemplateDTO> templates) {
         List<OccurrenceWindow> occurrences = new ArrayList<>();
         for (ClassSessionTemplateDTO template : templates) {
             occurrences.addAll(RecurrenceExpander.expand(
                     template.startTime(),
                     template.endTime(),
-                    RecurrencePatterns.fromRecurrenceDTO(template.recurrence())));
+                    RecurrencePatterns.fromRecurrenceDTO(template.recurrence()),
+                    normalizeTimezone(template.timezone())));
         }
         return occurrences;
     }
