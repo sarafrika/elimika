@@ -25,8 +25,19 @@ public class DocumentTypeService {
     private final ObjectMapper objectMapper;
 
     public List<DocumentTypeOptionDTO> listDocumentTypes() {
-        return documentTypeRepository.findAll(SORT_BY_NAME_ASC)
-                .stream()
+        return listDocumentTypes(null);
+    }
+
+    /**
+     * Lists document types for one onboarding flow. A blank filter returns the whole
+     * catalogue so existing callers keep their behaviour.
+     */
+    public List<DocumentTypeOptionDTO> listDocumentTypes(String appliesTo) {
+        List<DocumentType> documentTypes = StringUtils.hasText(appliesTo)
+                ? documentTypeRepository.findByAppliesToIgnoreCase(appliesTo.trim(), SORT_BY_NAME_ASC)
+                : documentTypeRepository.findAll(SORT_BY_NAME_ASC);
+
+        return documentTypes.stream()
                 .map(this::toOption)
                 .toList();
     }
@@ -38,7 +49,9 @@ public class DocumentTypeService {
                 documentType.getDescription(),
                 documentType.getMaxFileSizeMb(),
                 parseAllowedExtensions(documentType.getAllowedExtensions()),
-                documentType.getIsRequired()
+                documentType.getIsRequired(),
+                documentType.getAppliesTo(),
+                documentType.getRequiresExpiry()
         );
     }
 

@@ -28,4 +28,10 @@ public class DocumentType extends BaseEntity {
 
     @Column(name = "is_required")
     private Boolean isRequired;
+
+    @Column(name = "applies_to")
+    private String appliesTo;
+
+    @Column(name = "requires_expiry")
+    private Boolean requiresExpiry;
 }

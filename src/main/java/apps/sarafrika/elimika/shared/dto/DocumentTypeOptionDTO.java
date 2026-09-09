@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.UUID;
 
-@Schema(name = "DocumentTypeOption", description = "Selectable document type metadata for instructor and course creator uploads")
+@Schema(name = "DocumentTypeOption", description = "Selectable document type metadata for profile and organisation uploads")
 public record DocumentTypeOptionDTO(
         @Schema(description = "Unique identifier of the document type", example = "35b49d4c-aec0-4a88-873b-5fa91342198f")
         @JsonProperty("uuid")
@@ -30,6 +30,14 @@ public record DocumentTypeOptionDTO(
 
         @Schema(description = "Whether this document type is mandatory in onboarding flows")
         @JsonProperty("is_required")
-        Boolean isRequired
+        Boolean isRequired,
+
+        @Schema(description = "Which onboarding flow asks for this document", example = "ORGANISATION")
+        @JsonProperty("applies_to")
+        String appliesTo,
+
+        @Schema(description = "Whether this document type carries an expiry date. Organisation licences do not.")
+        @JsonProperty("requires_expiry")
+        Boolean requiresExpiry
 ) {
 }

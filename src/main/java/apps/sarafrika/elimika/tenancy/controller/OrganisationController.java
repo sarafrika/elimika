@@ -2,11 +2,17 @@ package apps.sarafrika.elimika.tenancy.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.shared.storage.service.CredentialsDocumentUploadRequest;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDashboardStatsDTO;
+import apps.sarafrika.elimika.tenancy.dto.OrganisationDocumentDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SetOrganisationUserDomainRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.services.OrganisationDocumentService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
@@ -20,11 +26,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +67,8 @@ class OrganisationController {
     private final OrganisationService organisationService;
     private final UserService userService;
     private final TrainingBranchService trainingBranchService;
+    private final OrganisationDocumentService organisationDocumentService;
+    private final ProfileDocumentUploadService profileDocumentUploadService;
 
     // ================================
     // CORE ORGANISATION MANAGEMENT
@@ -480,6 +493,87 @@ class OrganisationController {
             @PathVariable UUID userUuid) {
         trainingBranchService.removeUserFromBranch(branchUuid, userUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "User removed from branch successfully"));
+    }
+
+    // ================================
+    // VALIDATION DOCUMENTS
+    // ================================
+
+    @Operation(summary = "Upload an organisation validation document",
+            description = "Stores a registration certificate, licence or authorising letter against the "
+                    + "organisation and queues it for review. Document types come from "
+                    + "GET /api/v1/document-types?applies_to=ORGANISATION.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Document uploaded successfully")
+    @PreAuthorize(MANAGE_ORGANISATION)
+    @PostMapping(value = "/{uuid}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<OrganisationDocumentDTO>> uploadOrganisationDocument(
+            @Parameter(description = "UUID of the organisation the document belongs to", required = true)
+            @PathVariable UUID uuid,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("document_type_uuid") UUID documentTypeUuid,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "expiry_date", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate) {
+
+        ProfileDocumentUploadResult upload = profileDocumentUploadService.upload(
+                new CredentialsDocumentUploadRequest(
+                        ProfileDocumentOwner.ORGANISATION,
+                        uuid,
+                        file,
+                        documentTypeUuid,
+                        title,
+                        description,
+                        null,
+                        null,
+                        null,
+                        expiryDate
+                )
+        );
+
+        OrganisationDocumentDTO requestDto = new OrganisationDocumentDTO(
+                null,
+                upload.ownerUuid(),
+                upload.documentTypeUuid(),
+                upload.originalFilename(),
+                upload.storedFilename(),
+                upload.filePath(),
+                upload.fileSizeBytes(),
+                upload.mimeType(),
+                upload.resolvedTitle(),
+                upload.description(),
+                null,
+                null,
+                null,
+                upload.expiryDate(),
+                null
+        );
+
+        OrganisationDocumentDTO created = organisationDocumentService.createOrganisationDocument(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(created, "Document uploaded successfully"));
+    }
+
+    @Operation(summary = "List organisation validation documents")
+    @PreAuthorize(MANAGE_ORGANISATION)
+    @GetMapping("/{uuid}/documents")
+    public ResponseEntity<ApiResponse<List<OrganisationDocumentDTO>>> getOrganisationDocuments(
+            @Parameter(description = "UUID of the organisation", required = true)
+            @PathVariable UUID uuid) {
+        List<OrganisationDocumentDTO> documents = organisationDocumentService.getOrganisationDocuments(uuid);
+        return ResponseEntity.ok(ApiResponse.success(documents, "Organisation documents retrieved successfully"));
+    }
+
+    @Operation(summary = "Remove an organisation validation document")
+    @PreAuthorize(MANAGE_ORGANISATION)
+    @DeleteMapping("/{uuid}/documents/{documentUuid}")
+    public ResponseEntity<ApiResponse<Void>> deleteOrganisationDocument(
+            @Parameter(description = "UUID of the organisation", required = true)
+            @PathVariable UUID uuid,
+            @Parameter(description = "UUID of the document to remove", required = true)
+            @PathVariable UUID documentUuid) {
+        organisationDocumentService.deleteOrganisationDocument(uuid, documentUuid);
+        return ResponseEntity.ok(ApiResponse.success(null, "Organisation document removed successfully"));
     }
 
 }
