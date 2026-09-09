@@ -1,9 +1,11 @@
 package apps.sarafrika.elimika.tenancy.controller;
 
+import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.services.OrganisationDocumentService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import apps.sarafrika.elimika.tenancy.services.TrainingBranchService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
@@ -155,6 +157,16 @@ class OrganisationControllerTest {
         @Bean
         RequestAuditService requestAuditService() {
             return Mockito.mock(RequestAuditService.class);
+        }
+
+        @Bean
+        OrganisationDocumentService organisationDocumentService() {
+            return Mockito.mock(OrganisationDocumentService.class);
+        }
+
+        @Bean
+        ProfileDocumentUploadService profileDocumentUploadService() {
+            return Mockito.mock(ProfileDocumentUploadService.class);
         }
     }
 }
