@@ -1,3 +1,10 @@
+# [2.146.0](https://github.com/sarafrika/elimika/compare/v2.145.0...v2.146.0) (2026-09-09)
+
+
+### Features
+
+* **marketplace:** affiliate instructors on every hire path and hold their time from application ([80faa8f](https://github.com/sarafrika/elimika/commit/80faa8fc13c52cc4c60768582c90351fcd005f1a))
+
 # [2.145.0](https://github.com/sarafrika/elimika/compare/v2.144.0...v2.145.0) (2026-09-09)
 
 
