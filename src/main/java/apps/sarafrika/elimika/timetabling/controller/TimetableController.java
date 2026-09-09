@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
@@ -31,6 +33,7 @@ import java.util.UUID;
 public class TimetableController {
 
     private final TimetableService timetableService;
+    private final InstructorTimeHoldService instructorTimeHoldService;
 
     // ================================
     // SCHEDULING OPERATIONS
@@ -163,6 +166,29 @@ public class TimetableController {
         
         List<ScheduledInstanceDTO> result = timetableService.getScheduleForInstructor(instructorUuid, start, end);
         return ResponseEntity.ok(ApiResponse.success(result, "Instructor schedule retrieved successfully"));
+    }
+
+    @Operation(summary = "Get marketplace time holds for a specific instructor within a date range",
+            description = "Tentative and firm claims raised by the instructor's marketplace job applications. "
+                    + "Read separately from the schedule because a hold is not a session: it carries no enrolment, "
+                    + "attendance or pay, and only a FIRM hold counts as a scheduling clash.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor time holds retrieved successfully")
+    @GetMapping("/instructors/{instructorUuid}/time-holds")
+    // Narrower than the schedule endpoint on purpose: a hold names the organisations an instructor
+    // has applied to while the decision is pending, so the self-service instructor domain alone
+    // would let any competitor read another instructor's in-flight job search.
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()")
+    public ResponseEntity<ApiResponse<List<InstructorTimeHoldDTO>>> getInstructorTimeHolds(
+            @Parameter(description = "UUID of the instructor")
+            @PathVariable UUID instructorUuid,
+            @Parameter(description = "Start date of the range (YYYY-MM-DD)")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @Parameter(description = "End date of the range (YYYY-MM-DD)")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        log.debug("REST request to get time holds for instructor: {} from {} to {}", instructorUuid, start, end);
+
+        List<InstructorTimeHoldDTO> result = instructorTimeHoldService.findActiveHolds(instructorUuid, start, end);
+        return ResponseEntity.ok(ApiResponse.success(result, "Instructor time holds retrieved successfully"));
     }
 
     @Operation(summary = "Get schedule for a specific student within a date range")

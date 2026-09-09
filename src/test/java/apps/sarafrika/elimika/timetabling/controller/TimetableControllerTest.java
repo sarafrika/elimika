@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
@@ -31,11 +32,14 @@ class TimetableControllerTest {
     @Mock
     private TimetableService timetableService;
 
+    @Mock
+    private InstructorTimeHoldService instructorTimeHoldService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new TimetableController(timetableService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new TimetableController(timetableService, instructorTimeHoldService)).build();
     }
 
     @Test

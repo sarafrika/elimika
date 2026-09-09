@@ -11,6 +11,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,9 +27,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Expires open marketplace jobs whose recruitment window has passed and releases
- * the resource holds they were keeping, so venues and equipment become bookable
- * again without manual intervention.
+ * Expires open marketplace jobs whose recruitment window has passed and releases the holds
+ * they were keeping, so venues, equipment and applicants' diaries become bookable again
+ * without manual intervention.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,6 +39,7 @@ class ClassMarketplaceJobExpiryScheduler {
     private final ClassMarketplaceJobRepository jobRepository;
     private final ClassMarketplaceJobApplicationRepository applicationRepository;
     private final ResourceBookingService resourceBookingService;
+    private final InstructorTimeHoldService instructorTimeHoldService;
     private final UserLookupService userLookupService;
     private final InstructorLookupService instructorLookupService;
     private final ApplicationEventPublisher eventPublisher;
@@ -57,11 +59,13 @@ class ClassMarketplaceJobExpiryScheduler {
                     : "Job expired";
             job.setStatus(ClassMarketplaceJobStatus.EXPIRED);
             resourceBookingService.releaseHoldsForJob(job.getUuid(), reason);
+            instructorTimeHoldService.releaseHoldsForJob(job.getUuid(), reason);
             closeOutstandingApplications(job);
             notifyJobCreator(job);
         }
         jobRepository.saveAll(lapsedJobs);
-        log.info("Expired {} lapsed marketplace class jobs and released their resource holds", lapsedJobs.size());
+        log.info("Expired {} lapsed marketplace class jobs and released their resource and instructor holds",
+                lapsedJobs.size());
     }
 
     /**

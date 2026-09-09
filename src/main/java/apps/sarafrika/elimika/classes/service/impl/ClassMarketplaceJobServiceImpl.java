@@ -39,6 +39,9 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.recurrence.OccurrenceWindow;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldRequest;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -80,6 +83,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +109,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
     private static final String CACHE_PAY_VISIBLE = "marketplaceJob.payVisible";
+    /** Derived from the enum so a new recruitment stage is covered without editing this list. */
+    private static final List<ClassMarketplaceJobApplicationStatus> ACTIVE_APPLICATION_STATUSES =
+            Arrays.stream(ClassMarketplaceJobApplicationStatus.values())
+                    .filter(ClassMarketplaceJobApplicationStatus::isActive)
+                    .toList();
 
     private final ClassMarketplaceJobRepository jobRepository;
     private final ClassMarketplaceJobApplicationRepository applicationRepository;
@@ -121,6 +130,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final RequestScopedCache requestScopedCache;
     private final ClassDefinitionServiceInterface classDefinitionService;
     private final ResourceBookingService resourceBookingService;
+    private final InstructorTimeHoldService instructorTimeHoldService;
     private final ResourceLookupService resourceLookupService;
     private final AvailabilityService availabilityService;
     private final ObjectProvider<TimetableService> timetableServiceProvider;
@@ -144,7 +154,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         holdJobResources(saved, request.resources());
 
         if (request.preferredInstructorUuid() != null) {
-            selectInstructorForJob(saved, request.preferredInstructorUuid());
+            hireInstructorForJob(saved, request.preferredInstructorUuid());
             saved = jobRepository.save(saved);
             provisionClassForJob(saved);
         }
@@ -189,8 +199,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJob saved = jobRepository.save(job);
         replaceSessionTemplates(saved.getUuid(), request.sessionTemplates());
         resourceBookingService.releaseHoldsForJob(jobUuid, "Job updated; holds re-evaluated");
+        instructorTimeHoldService.releaseHoldsForJob(jobUuid, "Job updated; holds re-evaluated");
         replaceJobResources(saved.getUuid(), request.resources());
         holdJobResources(saved, request.resources());
+        rebuildInstructorHoldsForActiveApplications(saved);
 
         return toJobDTO(saved);
     }
@@ -222,6 +234,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setStatus(ClassMarketplaceJobStatus.CANCELLED);
         ClassMarketplaceJob saved = jobRepository.save(job);
         resourceBookingService.releaseHoldsForJob(jobUuid, "Job cancelled");
+        instructorTimeHoldService.releaseHoldsForJob(jobUuid, "Job cancelled");
         markOtherApplicationsAsNotSelected(jobUuid, null,
                 "This class job was cancelled by the organisation.");
         return toJobDTO(saved);
@@ -240,6 +253,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .orElseGet(() -> createApplication(jobUuid, instructorUuid, request));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        // Applying pencils the job's sessions into the instructor's diary. A reopened
+        // application replaces its old holds, so re-applying never doubles them up.
+        holdInstructorTimeForApplication(job, saved);
         return toApplicationDTO(saved, job);
     }
 
@@ -404,6 +420,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        instructorTimeHoldService.releaseHoldsForApplication(saved.getUuid(), "Application rejected");
         notifyApplicant(job, saved,
                 NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED, "was not successful");
         return toApplicationDTO(saved, job);
@@ -482,6 +499,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        instructorTimeHoldService.releaseHoldsForApplication(saved.getUuid(), "Instructor withdrew");
         notifyOrganisationOfWithdrawal(job, saved);
         return toApplicationDTO(saved, job);
     }
@@ -604,7 +622,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             }
         });
 
-        selectInstructorForJob(job, application.getInstructorUuid());
+        hireInstructorForJob(job, application.getInstructorUuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         application.setReviewNotes(resolveAssignedReviewNotes(application.getReviewNotes()));
@@ -615,9 +633,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setAssignedApplicationUuid(application.getUuid());
         ClassMarketplaceJob savedJob = jobRepository.save(job);
 
-        // Hiring is what makes an instructor part of the organisation. Without this they
-        // would teach the class but never appear in the organisation's instructor list.
-        affiliateAssignedInstructor(savedJob, application.getInstructorUuid());
+        // The hire is what makes the claim exclusive: the hired diary is reserved and every
+        // other applicant gets theirs back, mirroring markOtherApplicationsAsNotSelected.
+        firmInstructorTimeForApplication(savedJob, savedApplication);
+        instructorTimeHoldService.releaseHoldsForJobExcept(jobUuid, application.getUuid(),
+                "Another instructor was hired");
 
         markOtherApplicationsAsNotSelected(jobUuid, application.getUuid(),
                 "Another instructor was selected for this class job.");
@@ -627,6 +647,16 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 "/dashboard/instructor/classes");
 
         return new ClassMarketplaceJobAssignmentResponseDTO(toJobDTO(savedJob));
+    }
+
+    /**
+     * The single transition into the hired state, whether the organisation picked an applicant
+     * or named a preferred instructor when posting. Affiliation belongs to the transition, not
+     * to the endpoint, so no hire path can produce a class taught by a non-member.
+     */
+    private void hireInstructorForJob(ClassMarketplaceJob job, UUID instructorUuid) {
+        selectInstructorForJob(job, instructorUuid);
+        affiliateAssignedInstructor(job, instructorUuid);
     }
 
     /**
@@ -1064,9 +1094,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     /**
-     * Expands the job's session templates and reports every occurrence that clashes
-     * with the instructor's existing schedule (scheduled sessions and blocked time;
-     * cancelled and completed instances are ignored) or declared unavailability.
+     * Expands the job's session templates and reports every occurrence that clashes with the
+     * instructor's existing schedule (completed instances aside), a firm hold they carry for
+     * another class job, or declared unavailability.
      */
     private List<ClassSchedulingConflictDTO> findInstructorScheduleConflicts(ClassMarketplaceJob job, UUID instructorUuid) {
         List<OccurrenceWindow> occurrences = expandJobOccurrences(job.getUuid());
@@ -1082,6 +1112,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .filter(instance -> instance.status() != SchedulingStatus.COMPLETED)
                 .toList();
 
+        // Only firm holds come back, and never this job's own, so a pending application
+        // elsewhere never freezes a diary and a job never conflicts with itself.
+        List<InstructorTimeHoldDTO> blockingHolds = instructorTimeHoldService.findBlockingHolds(
+                instructorUuid, minDate.atStartOfDay(), maxDate.plusDays(1).atStartOfDay(), job.getUuid());
+
         List<ClassSchedulingConflictDTO> conflicts = new ArrayList<>();
         for (OccurrenceWindow occurrence : occurrences) {
             List<String> reasons = new ArrayList<>();
@@ -1089,6 +1124,11 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     instance.startTime().isBefore(occurrence.end()) && instance.endTime().isAfter(occurrence.start()));
             if (overlapsSchedule) {
                 reasons.add("Instructor already has a scheduled session or blocked time overlapping this window");
+            }
+            boolean overlapsHold = blockingHolds.stream().anyMatch(hold ->
+                    hold.startTime().isBefore(occurrence.end()) && hold.endTime().isAfter(occurrence.start()));
+            if (overlapsHold) {
+                reasons.add("Instructor is already committed to another class job in this window");
             }
             if (!availabilityService.isInstructorAvailable(instructorUuid, occurrence.start(), occurrence.end())) {
                 reasons.add("Instructor is marked unavailable for this window");
@@ -1106,14 +1146,106 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * up one-to-one with the scheduled instances created at assignment.
      */
     private List<OccurrenceWindow> expandJobOccurrences(UUID jobUuid) {
+        return expandSessionTemplates(loadSessionTemplates(jobUuid));
+    }
+
+    // Expanded exactly the way class creation expands it. Should the expander ever start reading a
+    // template's zone, this call has to follow, or holds and scheduled instances drift apart.
+    private List<OccurrenceWindow> expandSessionTemplates(List<ClassSessionTemplateDTO> templates) {
         List<OccurrenceWindow> occurrences = new ArrayList<>();
-        for (ClassSessionTemplateDTO template : loadSessionTemplates(jobUuid)) {
+        for (ClassSessionTemplateDTO template : templates) {
             occurrences.addAll(RecurrenceExpander.expand(
                     template.startTime(),
                     template.endTime(),
                     RecurrencePatterns.fromRecurrenceDTO(template.recurrence())));
         }
         return occurrences;
+    }
+
+    /**
+     * Pencils the job's session windows into the applicant's diary. The holds stay tentative
+     * until the organisation hires, so overlapping applications to different jobs all stand.
+     */
+    private void holdInstructorTimeForApplication(ClassMarketplaceJob job,
+                                                  ClassMarketplaceJobApplication application) {
+        List<ClassSessionTemplateDTO> templates = loadSessionTemplates(job.getUuid());
+        holdInstructorTime(job, application, expandSessionTemplates(templates), resolveHoldTimezone(templates));
+    }
+
+    private void holdInstructorTime(ClassMarketplaceJob job,
+                                    ClassMarketplaceJobApplication application,
+                                    List<OccurrenceWindow> occurrences,
+                                    String timezone) {
+        if (occurrences.isEmpty()) {
+            return;
+        }
+        instructorTimeHoldService.holdForApplication(buildHoldRequest(job, application, occurrences, timezone));
+    }
+
+    /**
+     * Reserves the hired instructor's diary, rebuilding the windows from the job when the
+     * application has nothing to promote. Every application older than the holds table is in that
+     * state, and a hire with no firm hold is one a second organisation can book straight over.
+     */
+    private void firmInstructorTimeForApplication(ClassMarketplaceJob job,
+                                                  ClassMarketplaceJobApplication application) {
+        List<ClassSessionTemplateDTO> templates = loadSessionTemplates(job.getUuid());
+        instructorTimeHoldService.firmOrCreateHoldsForApplication(buildHoldRequest(
+                job, application, expandSessionTemplates(templates), resolveHoldTimezone(templates)));
+    }
+
+    private InstructorTimeHoldRequest buildHoldRequest(ClassMarketplaceJob job,
+                                                       ClassMarketplaceJobApplication application,
+                                                       List<OccurrenceWindow> occurrences,
+                                                       String timezone) {
+        UUID instructorUuid = application.getInstructorUuid();
+        return new InstructorTimeHoldRequest(
+                instructorUuid,
+                instructorLookupService.getInstructorUserUuid(instructorUuid).orElse(null),
+                job.getOrganisationUuid(),
+                job.getUuid(),
+                application.getUuid(),
+                job.getTitle(),
+                timezone,
+                occurrences);
+    }
+
+    /**
+     * Rebuilds the tentative holds of every application still in the funnel after the
+     * organisation moved the job's dates.
+     */
+    private void rebuildInstructorHoldsForActiveApplications(ClassMarketplaceJob job) {
+        List<ClassMarketplaceJobApplication> activeApplications =
+                applicationRepository.findByJobUuidAndStatusIn(job.getUuid(), ACTIVE_APPLICATION_STATUSES);
+        if (activeApplications.isEmpty()) {
+            return;
+        }
+
+        List<ClassSessionTemplateDTO> templates = loadSessionTemplates(job.getUuid());
+        List<OccurrenceWindow> occurrences = expandSessionTemplates(templates);
+        String timezone = resolveHoldTimezone(templates);
+        // A tentative hold consults nobody else's diary, so re-holding cannot clash and has nothing
+        // to recover from. Catching here would only hide a bug behind a rollback-only transaction.
+        for (ClassMarketplaceJobApplication application : activeApplications) {
+            if (application.getInstructorUuid() == null) {
+                log.warn("Application {} on job {} names no instructor; skipping its time hold",
+                        application.getUuid(), job.getUuid());
+                continue;
+            }
+            holdInstructorTime(job, application, occurrences, timezone);
+        }
+    }
+
+    /**
+     * The timezone the job's windows were authored in; the first template wins because a job's
+     * sessions are posted as one schedule.
+     */
+    private String resolveHoldTimezone(List<ClassSessionTemplateDTO> templates) {
+        return templates.stream()
+                .map(ClassSessionTemplateDTO::timezone)
+                .filter(timezone -> timezone != null && !timezone.isBlank())
+                .findFirst()
+                .orElse(DEFAULT_SCHEDULE_TIMEZONE);
     }
 
     private void holdJobResources(ClassMarketplaceJob job, List<ClassMarketplaceJobResourceDTO> resources) {
@@ -1397,9 +1529,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     /**
-     * Converts the job's recruitment holds into confirmed bookings linked to the
-     * scheduled instances the class creation just produced. Holds whose window was
-     * not scheduled (skipped or rolled over occurrences) are released.
+     * Converts the job's recruitment holds - resources and the hired instructor's diary alike -
+     * into confirmed rows linked to the scheduled instances the class creation just produced.
+     * Holds whose window was not scheduled (skipped or rolled over occurrences) are released.
      */
     private void convertHoldsToConfirmedBookings(ClassMarketplaceJob job, UUID classDefinitionUuid) {
         List<InstanceWindow> instanceWindows = timetableService()
@@ -1408,6 +1540,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .map(instance -> new InstanceWindow(instance.uuid(), instance.startTime(), instance.endTime()))
                 .toList();
         resourceBookingService.confirmHoldsForJob(job.getUuid(), classDefinitionUuid, instanceWindows);
+        instructorTimeHoldService.confirmHoldsForJob(job.getUuid(), classDefinitionUuid, instanceWindows);
     }
 
     private void copyJobResourcesToClassDefinition(UUID jobUuid, UUID classDefinitionUuid) {

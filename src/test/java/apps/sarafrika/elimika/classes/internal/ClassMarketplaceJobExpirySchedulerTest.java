@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,8 @@ class ClassMarketplaceJobExpirySchedulerTest {
     @Mock
     private ResourceBookingService resourceBookingService;
     @Mock
+    private InstructorTimeHoldService instructorTimeHoldService;
+    @Mock
     private UserLookupService userLookupService;
     @Mock
     private InstructorLookupService instructorLookupService;
@@ -55,7 +58,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
     void setUp() {
         scheduler = new ClassMarketplaceJobExpiryScheduler(
                 jobRepository, applicationRepository, resourceBookingService,
-                userLookupService, instructorLookupService, eventPublisher);
+                instructorTimeHoldService, userLookupService, instructorLookupService, eventPublisher);
     }
 
     @Test
@@ -161,6 +164,23 @@ class ClassMarketplaceJobExpirySchedulerTest {
         assertThat(job.getAssignedInstructorUuid()).isNull();
         verify(resourceBookingService)
                 .releaseHoldsForJob(job.getUuid(), "Job expired before its class was created");
+    }
+
+    @Test
+    void expiredJobReleasesInstructorHolds() throws Exception {
+        ClassMarketplaceJob open = openJob("Weekend Bootcamp");
+        ClassMarketplaceJob awaitingClass = openJob("Contracted Bootcamp");
+        awaitingClass.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(open, awaitingClass));
+        when(userLookupService.findUserUuidByEmail("manager@org.test")).thenReturn(Optional.empty());
+
+        invokeExpire();
+
+        // A lapsed job must free the applicants' diaries, not only the venue and equipment.
+        verify(instructorTimeHoldService).releaseHoldsForJob(open.getUuid(), "Job expired");
+        verify(instructorTimeHoldService)
+                .releaseHoldsForJob(awaitingClass.getUuid(), "Job expired before its class was created");
     }
 
     private ClassMarketplaceJob openJob(String title) {

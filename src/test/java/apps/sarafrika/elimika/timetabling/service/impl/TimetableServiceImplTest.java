@@ -759,6 +759,26 @@ class TimetableServiceImplTest {
         verifyNoInteractions(organisationLookupService);
     }
 
+    @Test
+    void getScheduleForInstructorReturnsRealSessionsOnlyAndNoMarketplaceHolds() {
+        UUID instructorUuid = UUID.randomUUID();
+        ScheduledInstance session = buildScheduledInstance(instructorUuid, SchedulingStatus.SCHEDULED);
+
+        when(scheduledInstanceRepository.findByInstructorAndTimeRange(
+                eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(session));
+        when(classDefinitionLookupService.findOrganisationUuids(anyCollection())).thenReturn(Map.of());
+
+        List<ScheduledInstanceDTO> schedule = timetableService.getScheduleForInstructor(
+                instructorUuid, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31));
+
+        // Marketplace time holds are read from their own endpoint. Anything synthetic added here
+        // would leak into conflict detection, availability and student schedules all at once.
+        assertThat(schedule)
+                .extracting(ScheduledInstanceDTO::uuid)
+                .containsExactly(session.getUuid());
+    }
+
     private ScheduledInstance buildScheduledInstance(UUID instructorUuid, SchedulingStatus status) {
         ScheduledInstance instance = new ScheduledInstance();
         instance.setUuid(UUID.randomUUID());

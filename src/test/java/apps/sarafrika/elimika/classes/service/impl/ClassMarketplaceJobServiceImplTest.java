@@ -34,12 +34,16 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldRequest;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldStatus;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -58,8 +62,12 @@ import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEve
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,6 +90,9 @@ class ClassMarketplaceJobServiceImplTest {
 
     @Mock
     private apps.sarafrika.elimika.resourcing.spi.ResourceBookingService resourceBookingService;
+
+    @Mock
+    private apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService instructorTimeHoldService;
 
     @Mock
     private apps.sarafrika.elimika.resourcing.spi.ResourceLookupService resourceLookupService;
@@ -153,6 +164,7 @@ class ClassMarketplaceJobServiceImplTest {
                 requestScopedCache,
                 classDefinitionService,
                 resourceBookingService,
+                instructorTimeHoldService,
                 resourceLookupService,
                 availabilityService,
                 timetableServiceProvider,
@@ -565,6 +577,9 @@ class ClassMarketplaceJobServiceImplTest {
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
                 .thenReturn(true);
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+        // A direct hire now affiliates like every other hire path, so the instructor needs a user.
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(UUID.randomUUID()));
         when(jobRepository.save(any(ClassMarketplaceJob.class)))
                 .thenAnswer(invocation -> {
                     ClassMarketplaceJob job = invocation.getArgument(0);
@@ -2073,6 +2088,482 @@ class ClassMarketplaceJobServiceImplTest {
 
         verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
         verify(resourceBookingService, never()).confirmHoldsForJob(any(), any(), any());
+    }
+
+    // ===== hiring affiliates on every path =====
+
+    @Test
+    void createJobWithPreferredInstructorAffiliatesTheInstructor() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID instructorUserUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request =
+                withPreferredInstructor(sampleRequest(null, programUuid), instructorUuid);
+
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(instructorUserUuid));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    if (job.getUuid() == null) {
+                        job.setUuid(UUID.randomUUID());
+                    }
+                    return job;
+                });
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(
+                        createdClassDefinition(classDefinitionUuid, instructorUuid, sampleJob())));
+
+        var result = service.createJob(request);
+
+        assertThat(result.assignedInstructorUuid()).isEqualTo(instructorUuid);
+        // Direct hire is a hire: without this the organisation gets a class taught by a non-member.
+        verify(organisationAffiliationService)
+                .affiliateHiredInstructor(instructorUserUuid, request.organisationUuid(), null);
+    }
+
+    @Test
+    void assignInstructorLeavesAnExistingOrganisationRoleIntact() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID instructorUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication approved = sampleApplication(job.getUuid(), instructorUuid);
+        approved.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approved.getUuid()))
+                .thenReturn(Optional.of(approved));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(instructorUserUuid));
+        // Already an admin of this organisation, so tenancy reports that no new mapping was made.
+        when(organisationAffiliationService.affiliateHiredInstructor(
+                instructorUserUuid, job.getOrganisationUuid(), null)).thenReturn(false);
+
+        var response = service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approved.getUuid()));
+
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        // Exactly one call, to the idempotent method: nothing here may rewrite the role they hold.
+        verify(organisationAffiliationService, times(1))
+                .affiliateHiredInstructor(instructorUserUuid, job.getOrganisationUuid(), null);
+        verifyNoMoreInteractions(organisationAffiliationService);
+    }
+
+    @Test
+    void approveApplicationCreatesNoAffiliation() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID firstInstructor = UUID.randomUUID();
+        UUID secondInstructor = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication first = sampleApplication(job.getUuid(), firstInstructor);
+        ClassMarketplaceJobApplication second = sampleApplication(job.getUuid(), secondInstructor);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), first.getUuid()))
+                .thenReturn(Optional.of(first));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), second.getUuid()))
+                .thenReturn(Optional.of(second));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), firstInstructor)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), secondInstructor)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.approveApplication(job.getUuid(), first.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Strong fit", null));
+        service.approveApplication(job.getUuid(), second.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Also strong", null));
+
+        // Several applicants may be approved; approval is not a hire, so it affiliates nobody.
+        assertThat(first.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.APPROVED);
+        assertThat(second.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.APPROVED);
+        verifyNoInteractions(organisationAffiliationService);
+        verifyNoInteractions(instructorTimeHoldService);
+    }
+
+    // ===== instructor time holds =====
+
+    @Test
+    void applyToJobHoldsEveryOccurrenceWindow() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID instructorUserUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
+                .thenReturn(Optional.empty());
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJobApplication saved = invocation.getArgument(0);
+                    saved.setUuid(applicationUuid);
+                    return saved;
+                });
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(instructorUserUuid));
+
+        service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen"));
+
+        ArgumentCaptor<InstructorTimeHoldRequest> holdCaptor =
+                ArgumentCaptor.forClass(InstructorTimeHoldRequest.class);
+        verify(instructorTimeHoldService).holdForApplication(holdCaptor.capture());
+        InstructorTimeHoldRequest held = holdCaptor.getValue();
+        // weekly Saturday template with occurrence_count 6 expands to 6 windows
+        assertThat(held.windows()).hasSize(6);
+        assertThat(held.windows().getFirst().start()).isEqualTo(LocalDateTime.of(2026, 5, 2, 9, 0));
+        assertThat(held.windows().getFirst().end()).isEqualTo(LocalDateTime.of(2026, 5, 2, 12, 0));
+        assertThat(held.jobUuid()).isEqualTo(job.getUuid());
+        assertThat(held.applicationUuid()).isEqualTo(applicationUuid);
+        assertThat(held.instructorUuid()).isEqualTo(instructorUuid);
+        assertThat(held.instructorUserUuid()).isEqualTo(instructorUserUuid);
+        assertThat(held.organisationUuid()).isEqualTo(job.getOrganisationUuid());
+        assertThat(held.title()).isEqualTo(job.getTitle());
+        assertThat(held.timezone()).isEqualTo("Africa/Nairobi");
+    }
+
+    @Test
+    void applyToJobIsNotBlockedByAnotherApplicationsTentativeHold() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        // The instructor already holds this very window tentatively for another job. Only FIRM
+        // holds are ever returned as blocking, so the diary comes back clear.
+        when(instructorTimeHoldService.findBlockingHolds(
+                eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class), eq(job.getUuid())))
+                .thenReturn(List.of());
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid))
+                .thenReturn(Optional.empty());
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen"));
+
+        assertThat(result.status()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
+        verify(instructorTimeHoldService).holdForApplication(any(InstructorTimeHoldRequest.class));
+    }
+
+    @Test
+    void assignInstructorIsNotBlockedByItsOwnJobsHolds() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication approved = sampleApplication(job.getUuid(), instructorUuid);
+        approved.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approved.getUuid()))
+                .thenReturn(Optional.of(approved));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(UUID.randomUUID()));
+
+        var response = service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approved.getUuid()));
+
+        assertThat(response.job().status()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        // The job's own holds are excluded by uuid, so hiring never conflicts with itself.
+        ArgumentCaptor<UUID> excludedJob = ArgumentCaptor.forClass(UUID.class);
+        verify(instructorTimeHoldService, atLeastOnce()).findBlockingHolds(
+                eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class), excludedJob.capture());
+        assertThat(excludedJob.getAllValues()).containsOnly(job.getUuid());
+    }
+
+    @Test
+    void assignInstructorIsBlockedByAFirmHoldOnAnotherJob() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication approved = sampleApplication(job.getUuid(), instructorUuid);
+        approved.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approved.getUuid()))
+                .thenReturn(Optional.of(approved));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        // Hired elsewhere across the first Saturday occurrence (2026-05-02 09:00-12:00).
+        when(instructorTimeHoldService.findBlockingHolds(
+                eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class), eq(job.getUuid())))
+                .thenReturn(List.of(firmHold(
+                        LocalDateTime.of(2026, 5, 2, 10, 0),
+                        LocalDateTime.of(2026, 5, 2, 11, 0))));
+
+        assertThatThrownBy(() -> service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approved.getUuid())))
+                .isInstanceOfSatisfying(SchedulingConflictException.class, ex -> {
+                    assertThat(ex.getConflicts()).hasSize(1);
+                    assertThat(ex.getConflicts().getFirst().requestedStart())
+                            .isEqualTo(LocalDateTime.of(2026, 5, 2, 9, 0));
+                    assertThat(ex.getConflicts().getFirst().reasons())
+                            .contains("Instructor is already committed to another class job in this window");
+                });
+
+        verify(instructorTimeHoldService, never()).firmOrCreateHoldsForApplication(any());
+    }
+
+    @Test
+    void assignInstructorFirmsTheHiredHoldsAndReleasesTheRest() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication approved = sampleApplication(job.getUuid(), instructorUuid);
+        approved.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), approved.getUuid()))
+                .thenReturn(Optional.of(approved));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(UUID.randomUUID()));
+
+        service.assignInstructor(job.getUuid(),
+                new ClassMarketplaceJobAssignmentRequestDTO(approved.getUuid()));
+
+        ArgumentCaptor<InstructorTimeHoldRequest> hireCaptor =
+                ArgumentCaptor.forClass(InstructorTimeHoldRequest.class);
+        InOrder holds = inOrder(instructorTimeHoldService);
+        holds.verify(instructorTimeHoldService).firmOrCreateHoldsForApplication(hireCaptor.capture());
+        holds.verify(instructorTimeHoldService).releaseHoldsForJobExcept(
+                job.getUuid(), approved.getUuid(), "Another instructor was hired");
+        // The windows travel with the hire so an application that predates the holds table still
+        // ends up with a firm claim on the diary rather than nothing to promote.
+        InstructorTimeHoldRequest hired = hireCaptor.getValue();
+        assertThat(hired.applicationUuid()).isEqualTo(approved.getUuid());
+        assertThat(hired.jobUuid()).isEqualTo(job.getUuid());
+        assertThat(hired.windows()).hasSize(6);
+    }
+
+    @Test
+    void rejectApplicationReleasesItsHolds() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.rejectApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Not a fit this time", null));
+
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.REJECTED);
+        verify(instructorTimeHoldService)
+                .releaseHoldsForApplication(application.getUuid(), "Application rejected");
+    }
+
+    @Test
+    void withdrawApplicationReleasesItsHolds() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+
+        service.withdrawApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Schedule no longer works", null));
+
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
+        verify(instructorTimeHoldService)
+                .releaseHoldsForApplication(application.getUuid(), "Instructor withdrew");
+    }
+
+    @Test
+    void updateJobRebuildsHoldsForActiveApplications() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(request.organisationUuid());
+        job.setProgramUuid(programUuid);
+
+        ClassMarketplaceJobApplication live = sampleApplication(job.getUuid(), instructorUuid);
+        live.setStatus(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any()))
+                .thenReturn(List.of(live));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(UUID.randomUUID()));
+
+        service.updateJob(job.getUuid(), request);
+
+        // Stale windows go first, then every application still in the funnel is re-held.
+        InOrder holds = inOrder(instructorTimeHoldService);
+        holds.verify(instructorTimeHoldService)
+                .releaseHoldsForJob(job.getUuid(), "Job updated; holds re-evaluated");
+        ArgumentCaptor<InstructorTimeHoldRequest> holdCaptor =
+                ArgumentCaptor.forClass(InstructorTimeHoldRequest.class);
+        holds.verify(instructorTimeHoldService).holdForApplication(holdCaptor.capture());
+        assertThat(holdCaptor.getValue().applicationUuid()).isEqualTo(live.getUuid());
+        assertThat(holdCaptor.getValue().windows()).hasSize(6);
+    }
+
+    @Test
+    void createClassForJobConfirmsMatchingHoldsAndReleasesTheRest() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setAssignedInstructorUuid(instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(
+                        createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
+        ScheduledInstanceDTO instance = scheduledInstance(
+                LocalDateTime.of(2026, 5, 2, 9, 0),
+                LocalDateTime.of(2026, 5, 2, 12, 0),
+                SchedulingStatus.SCHEDULED);
+        when(timetableService.getScheduledInstancesForClassDefinition(classDefinitionUuid))
+                .thenReturn(List.of(instance));
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createClassForJob(job.getUuid());
+
+        // Same windows the resource holds are confirmed against; unscheduled ones are
+        // released inside the hold service, which InstructorTimeHoldServiceImplTest pins.
+        ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(instructorTimeHoldService)
+                .confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), windowsCaptor.capture());
+        assertThat(windowsCaptor.getValue()).hasSize(1);
+        assertThat(windowsCaptor.getValue().getFirst().scheduledInstanceUuid()).isEqualTo(instance.uuid());
+        assertThat(windowsCaptor.getValue().getFirst().startTime())
+                .isEqualTo(LocalDateTime.of(2026, 5, 2, 9, 0));
+        verify(resourceBookingService)
+                .confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), any());
+    }
+
+    @Test
+    void cancelJobReleasesInstructorHolds() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid())).thenReturn(List.of());
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any())).thenReturn(List.of());
+
+        service.cancelJob(job.getUuid());
+
+        verify(instructorTimeHoldService).releaseHoldsForJob(job.getUuid(), "Job cancelled");
+    }
+
+    private InstructorTimeHoldDTO firmHold(LocalDateTime start, LocalDateTime end) {
+        return new InstructorTimeHoldDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Another School",
+                "Grade 5 Piano - Term 2",
+                start,
+                end,
+                "UTC",
+                InstructorTimeHoldStatus.FIRM,
+                null,
+                null
+        );
     }
 
     private ClassMarketplaceJobRequestDTO withResources(ClassMarketplaceJobRequestDTO base,
