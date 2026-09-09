@@ -57,6 +57,7 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -318,7 +319,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             List<OccurrenceWindow> windows = RecurrenceExpander.expand(
                     template.startTime(),
                     template.endTime(),
-                    RecurrencePatterns.fromRecurrenceDTO(template.recurrence()));
+                    RecurrencePatterns.fromRecurrenceDTO(template.recurrence()),
+                    timezone);
 
             for (OccurrenceWindow window : windows) {
                 boolean scheduled = attemptScheduleWindow(classDefinition, window.start(), window.end(), timezone, conflicts, scheduledInstances);
@@ -360,14 +362,17 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                     List<ScheduledInstanceDTO> scheduledInstances) {
         ClassRecurrenceDTO safeRecurrence = recurrence != null ? recurrence :
                 new ClassRecurrenceDTO(ClassRecurrenceDTO.RecurrenceType.DAILY, 1, null, null, null, 1);
+        // Rolling over in UTC drifts the local wall clock, and with it the local date,
+        // across a DST transition in the authoring zone.
+        ZoneId zone = ZoneId.of(normalizeTimezone(timezone));
         LocalDateTime rollingStart = start;
         LocalDateTime rollingEnd = end;
         int attempts = 0;
 
         while (attempts < MAX_ROLLOVER_ITERATIONS) {
             attempts++;
-            rollingStart = advanceByRecurrence(rollingStart, safeRecurrence);
-            rollingEnd = advanceByRecurrence(rollingEnd, safeRecurrence);
+            rollingStart = advanceByRecurrence(rollingStart, safeRecurrence, zone);
+            rollingEnd = advanceByRecurrence(rollingEnd, safeRecurrence, zone);
 
             List<String> reasons = detectConflicts(classDefinition, rollingStart, rollingEnd, timezone);
             if (reasons.isEmpty()) {
@@ -379,14 +384,16 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return false;
     }
 
-    private LocalDateTime advanceByRecurrence(LocalDateTime current, ClassRecurrenceDTO recurrence) {
+    private LocalDateTime advanceByRecurrence(LocalDateTime utcValue, ClassRecurrenceDTO recurrence, ZoneId zone) {
         int interval = Optional.ofNullable(recurrence.intervalValue()).orElse(1);
-        return switch (recurrence.recurrenceType()) {
-            case DAILY -> current.plusDays(interval);
-            case WEEKLY -> current.plusWeeks(interval);
-            case MONTHLY -> current.plusMonths(interval);
-            default -> current.plusDays(interval);
+        LocalDateTime local = utcValue.atOffset(ZoneOffset.UTC).atZoneSameInstant(zone).toLocalDateTime();
+        LocalDateTime advanced = switch (recurrence.recurrenceType()) {
+            case DAILY -> local.plusDays(interval);
+            case WEEKLY -> local.plusWeeks(interval);
+            case MONTHLY -> local.plusMonths(interval);
+            default -> local.plusDays(interval);
         };
+        return advanced.atZone(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 
     private List<String> detectConflicts(ClassDefinitionDTO classDefinition,

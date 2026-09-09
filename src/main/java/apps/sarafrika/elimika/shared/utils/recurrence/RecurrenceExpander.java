@@ -2,9 +2,12 @@ package apps.sarafrika.elimika.shared.utils.recurrence;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -22,6 +25,9 @@ import java.util.Set;
  * cursor logic is a faithful port of the historic expansion in
  * {@code ClassDefinitionServiceImpl}, including the weekly week-anchor interval
  * math, monthly day-of-month clamping and the iteration safety cap.
+ * <p>
+ * Rules are authored in the requester's timezone, so the day, week and month
+ * cursors walk local dates in that zone and each occurrence converts back to UTC.
  */
 @Slf4j
 public final class RecurrenceExpander {
@@ -34,6 +40,17 @@ public final class RecurrenceExpander {
     public static List<OccurrenceWindow> expand(LocalDateTime templateStart,
                                                 LocalDateTime templateEnd,
                                                 RecurrencePattern pattern) {
+        return expand(templateStart, templateEnd, pattern, null);
+    }
+
+    /**
+     * @param timezone IANA zone the rule was authored in; blank or unusable means UTC,
+     *                 which reproduces the historic UTC-only expansion exactly
+     */
+    public static List<OccurrenceWindow> expand(LocalDateTime templateStart,
+                                                LocalDateTime templateEnd,
+                                                RecurrencePattern pattern,
+                                                String timezone) {
         if (templateStart == null || templateEnd == null) {
             throw new IllegalArgumentException("Session templates require both start_time and end_time");
         }
@@ -45,16 +62,21 @@ public final class RecurrenceExpander {
             return List.of(new OccurrenceWindow(templateStart, templateEnd));
         }
 
+        ZoneId zone = resolveZone(timezone);
+        LocalDateTime localStart = toZone(templateStart, zone);
+        LocalDateTime localEnd = toZone(templateEnd, zone);
+
         return switch (pattern.frequency()) {
-            case DAILY -> expandDaily(templateStart, templateEnd, pattern);
-            case WEEKLY -> expandWeekly(templateStart, templateEnd, pattern);
-            case MONTHLY -> expandMonthly(templateStart, templateEnd, pattern);
+            case DAILY -> expandDaily(localStart, localEnd, pattern, zone);
+            case WEEKLY -> expandWeekly(localStart, localEnd, pattern, zone);
+            case MONTHLY -> expandMonthly(localStart, localEnd, pattern, zone);
         };
     }
 
     private static List<OccurrenceWindow> expandDaily(LocalDateTime templateStart,
                                                       LocalDateTime templateEnd,
-                                                      RecurrencePattern pattern) {
+                                                      RecurrencePattern pattern,
+                                                      ZoneId zone) {
         int interval = resolveInterval(pattern);
         int targetOccurrences = resolveTargetOccurrences(pattern);
         LocalDate endDateLimit = pattern.endDate();
@@ -67,7 +89,7 @@ public final class RecurrenceExpander {
         while (shouldContinue(windows.size(), targetOccurrences, cursorStart.toLocalDate(), endDateLimit)
                 && iterations < MAX_EXPANSION_ITERATIONS) {
             iterations++;
-            windows.add(new OccurrenceWindow(cursorStart, cursorEnd));
+            windows.add(toUtcWindow(cursorStart, cursorEnd, zone));
             cursorStart = cursorStart.plusDays(interval);
             cursorEnd = cursorEnd.plusDays(interval);
         }
@@ -76,7 +98,8 @@ public final class RecurrenceExpander {
 
     private static List<OccurrenceWindow> expandWeekly(LocalDateTime templateStart,
                                                        LocalDateTime templateEnd,
-                                                       RecurrencePattern pattern) {
+                                                       RecurrencePattern pattern,
+                                                       ZoneId zone) {
         int interval = resolveInterval(pattern);
         int targetOccurrences = resolveTargetOccurrences(pattern);
         LocalDate endDateLimit = pattern.endDate();
@@ -98,9 +121,10 @@ public final class RecurrenceExpander {
             long weeksBetween = ChronoUnit.WEEKS.between(weekAnchor, currentWeekStart);
 
             if (weeksBetween % interval == 0 && allowedDays.contains(cursorDate.getDayOfWeek())) {
-                windows.add(new OccurrenceWindow(
+                windows.add(toUtcWindow(
                         cursorDate.atTime(templateStart.toLocalTime()),
-                        cursorDate.atTime(templateEnd.toLocalTime())));
+                        cursorDate.atTime(templateEnd.toLocalTime()),
+                        zone));
             }
             cursorDate = cursorDate.plusDays(1);
         }
@@ -109,7 +133,8 @@ public final class RecurrenceExpander {
 
     private static List<OccurrenceWindow> expandMonthly(LocalDateTime templateStart,
                                                         LocalDateTime templateEnd,
-                                                        RecurrencePattern pattern) {
+                                                        RecurrencePattern pattern,
+                                                        ZoneId zone) {
         int interval = resolveInterval(pattern);
         int targetOccurrences = resolveTargetOccurrences(pattern);
         LocalDate endDateLimit = pattern.endDate();
@@ -122,9 +147,10 @@ public final class RecurrenceExpander {
                 && iterations < MAX_EXPANSION_ITERATIONS) {
             iterations++;
             LocalDate targetDate = resolveMonthlyDate(cursorDate, pattern.dayOfMonth());
-            windows.add(new OccurrenceWindow(
+            windows.add(toUtcWindow(
                     LocalDateTime.of(targetDate, templateStart.toLocalTime()),
-                    LocalDateTime.of(targetDate, templateEnd.toLocalTime())));
+                    LocalDateTime.of(targetDate, templateEnd.toLocalTime()),
+                    zone));
             cursorDate = cursorDate.plusMonths(interval);
         }
         return windows;
@@ -175,5 +201,29 @@ public final class RecurrenceExpander {
 
     private static int resolveTargetOccurrences(RecurrencePattern pattern) {
         return pattern.occurrenceCount() != null ? pattern.occurrenceCount() : 0;
+    }
+
+    private static ZoneId resolveZone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return ZoneOffset.UTC;
+        }
+        try {
+            return ZoneId.of(timezone.trim());
+        } catch (DateTimeException ex) {
+            log.warn("Ignoring invalid recurrence timezone '{}'; expanding in UTC", timezone);
+            return ZoneOffset.UTC;
+        }
+    }
+
+    private static LocalDateTime toZone(LocalDateTime utcValue, ZoneId zone) {
+        return utcValue.atOffset(ZoneOffset.UTC).atZoneSameInstant(zone).toLocalDateTime();
+    }
+
+    private static OccurrenceWindow toUtcWindow(LocalDateTime localStart, LocalDateTime localEnd, ZoneId zone) {
+        return new OccurrenceWindow(toUtc(localStart, zone), toUtc(localEnd, zone));
+    }
+
+    private static LocalDateTime toUtc(LocalDateTime localValue, ZoneId zone) {
+        return localValue.atZone(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 }
