@@ -1,3 +1,12 @@
+## [2.146.1](https://github.com/sarafrika/elimika/compare/v2.146.0...v2.146.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **availability:** record the timezone an instructor's hours are written in ([bc9b788](https://github.com/sarafrika/elimika/commit/bc9b788cf5a091e76057a5b98b9f1495ec78ec9e))
+* **marketplace:** expand a job's recruitment holds in the session template's timezone ([297a1ed](https://github.com/sarafrika/elimika/commit/297a1ed77b904c0bcf24bf3451deac1dac55d66c))
+* **scheduling:** expand session recurrence in the template's own timezone ([c07a98e](https://github.com/sarafrika/elimika/commit/c07a98e7d000e44beb765f38db29fda9106eee28))
+
 # [2.146.0](https://github.com/sarafrika/elimika/compare/v2.145.0...v2.146.0) (2026-09-09)
 
 
