@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.availability.controller;
 
 import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
+import apps.sarafrika.elimika.shared.config.JacksonConfig;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
@@ -44,7 +45,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(value = AvailabilityController.class, properties = "app.keycloak.realm=test-realm")
 @AutoConfigureMockMvc(addFilters = false)
 @ExtendWith(SpringExtension.class)
-@Import(AvailabilityControllerTest.MockConfig.class)
+// The trailing Z is the whole problem, so the slice serializes through the real mapper rather than
+// the slice default, which drops it.
+@Import({AvailabilityControllerTest.MockConfig.class, JacksonConfig.class})
 class AvailabilityControllerTest {
 
     private static final UUID INSTRUCTOR_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -70,6 +73,10 @@ class AvailabilityControllerTest {
     }
 
     private AvailabilitySlotDTO sampleSlot(UUID uuid, UUID instructorUuid) {
+        return slot(uuid, instructorUuid, LocalTime.of(9, 0), LocalTime.of(12, 0), null);
+    }
+
+    private AvailabilitySlotDTO slot(UUID uuid, UUID instructorUuid, LocalTime start, LocalTime end, String timezone) {
         return new AvailabilitySlotDTO(
                 uuid,
                 instructorUuid,
@@ -77,8 +84,8 @@ class AvailabilityControllerTest {
                 1,
                 null,
                 null,
-                LocalTime.of(9, 0),
-                LocalTime.of(12, 0),
+                start,
+                end,
                 null,
                 Boolean.TRUE,
                 1,
@@ -88,7 +95,8 @@ class AvailabilityControllerTest {
                 null,
                 null,
                 null,
-                null
+                null,
+                timezone
         );
     }
 
@@ -155,6 +163,40 @@ class AvailabilityControllerTest {
                 .andExpect(jsonPath("$.data[0].source").doesNotExist())
                 .andExpect(jsonPath("$.data[0].organisation_uuid").doesNotExist())
                 .andExpect(jsonPath("$.data[0].organisation_name").doesNotExist());
+    }
+
+    @Test
+    void aNairobiWindowIsPublishedAsTheInstantItReallyIs() throws Exception {
+        // 09:00 where the instructor lives is 06:00Z, and the feed stamps everything it emits with Z.
+        givenOnlyTheSlot(slot(UUID.randomUUID(), INSTRUCTOR_UUID, LocalTime.of(9, 0), LocalTime.of(17, 0), "Africa/Nairobi"));
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/calendar", INSTRUCTOR_UUID)
+                        .param("start_date", "2026-03-02")
+                        .param("end_date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].start_time").value("2026-03-02T06:00:00Z"))
+                .andExpect(jsonPath("$.data[0].end_time").value("2026-03-02T14:00:00Z"));
+    }
+
+    @Test
+    void aSlotWithoutAZoneIsPublishedExactlyAsItWasBefore() throws Exception {
+        givenOnlyTheSlot(slot(UUID.randomUUID(), INSTRUCTOR_UUID, LocalTime.of(9, 0), LocalTime.of(17, 0), null));
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/calendar", INSTRUCTOR_UUID)
+                        .param("start_date", "2026-03-02")
+                        .param("end_date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].start_time").value("2026-03-02T09:00:00Z"))
+                .andExpect(jsonPath("$.data[0].end_time").value("2026-03-02T17:00:00Z"));
+    }
+
+    private void givenOnlyTheSlot(AvailabilitySlotDTO slot) {
+        when(domainSecurityService.isInstructorWithUuid(INSTRUCTOR_UUID)).thenReturn(true);
+        when(availabilityService.getAvailabilityForDate(eq(INSTRUCTOR_UUID), any(LocalDate.class)))
+                .thenReturn(List.of(slot));
+        when(instructorScheduleLookupService.getScheduleForInstructor(
+                eq(INSTRUCTOR_UUID), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
     }
 
     private void givenOneScheduledSession() {

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.availability.controller;
 import apps.sarafrika.elimika.availability.dto.AvailabilitySlotDTO;
 import apps.sarafrika.elimika.availability.dto.InstructorCalendarEntryDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
+import apps.sarafrika.elimika.availability.util.AvailabilityTimezones;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -132,6 +133,9 @@ public class AvailabilityController {
         description = """
             Checks whether an instructor is available for the entire specified time period.
 
+            The window is given in UTC, and each availability slot is compared against it in the
+            zone that slot was authored in.
+
             Returns true unless a blocked slot overlaps the requested window.
             """
     )
@@ -139,9 +143,9 @@ public class AvailabilityController {
     @GetMapping("/check")
     public ResponseEntity<ApiResponse<Boolean>> checkAvailability(
             @Parameter(description = "UUID of the instructor") @PathVariable UUID instructorUuid,
-            @Parameter(description = "Start date and time (ISO format: YYYY-MM-DDTHH:mm:ss)")
+            @Parameter(description = "UTC start date and time (ISO format: YYYY-MM-DDTHH:mm:ss)")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @Parameter(description = "End date and time (ISO format: YYYY-MM-DDTHH:mm:ss)")
+            @Parameter(description = "UTC end date and time (ISO format: YYYY-MM-DDTHH:mm:ss)")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         log.debug("REST request to check availability for instructor: {} from {} to {}",
                 instructorUuid, start, end);
@@ -230,17 +234,20 @@ public class AvailabilityController {
                 || domainSecurityService.isPlatformAdmin();
     }
 
+    // The slot's times are the instructor's own wall clock; every LocalDateTime leaving this API is
+    // serialized with a trailing Z, so the window has to become a real UTC instant before it goes.
     private InstructorCalendarEntryDTO mapAvailabilityEntry(LocalDate date, AvailabilitySlotDTO slot) {
-        LocalTime startTime = slot.startTime();
-        LocalTime endTime = slot.endTime();
+        ZoneId zone = AvailabilityTimezones.resolve(slot.timezone());
+        LocalDateTime startUtc = AvailabilityTimezones.toUtc(date.atTime(slot.startTime()), zone);
+        LocalDateTime endUtc = AvailabilityTimezones.toUtc(date.atTime(slot.endTime()), zone);
 
         return new InstructorCalendarEntryDTO(
                 slot.uuid(),
                 Boolean.TRUE.equals(slot.isAvailable())
                         ? InstructorCalendarEntryDTO.CalendarEntryType.AVAILABILITY
                         : InstructorCalendarEntryDTO.CalendarEntryType.BLOCKED,
-                date.atTime(startTime),
-                date.atTime(endTime),
+                startUtc,
+                endUtc,
                 slot.availabilityType(),
                 slot.isAvailable(),
                 null,

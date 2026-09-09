@@ -117,10 +117,13 @@ public interface AvailabilityService {
     /**
      * Checks if an instructor is available during a specific time period.
      * This method considers all availability patterns and blocked times.
+     * <p>
+     * The window is an instant and is given in UTC. A slot's own times are a wall clock in the zone
+     * it was authored in, so the window is moved into that zone before the two are compared.
      *
      * @param instructorUuid The UUID of the instructor
-     * @param start The start date/time to check
-     * @param end The end date/time to check
+     * @param start The start of the window, in UTC
+     * @param end The end of the window, in UTC
      * @return true if the instructor is available for the entire period, false otherwise
      * @throws IllegalArgumentException if any parameter is null or if start is after end
      */

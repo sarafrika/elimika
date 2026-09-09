@@ -140,6 +140,7 @@ class AvailabilitySlotOwnershipTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }

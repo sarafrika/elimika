@@ -33,7 +33,8 @@ public class AvailabilityFactory {
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),
                 entity.getLastModifiedBy(),
-                entity.getColorCode()
+                entity.getColorCode(),
+                entity.getTimezone()
         );
     }
 
@@ -50,6 +51,7 @@ public class AvailabilityFactory {
         entity.setSpecificDate(dto.specificDate());
         entity.setStartTime(dto.startTime());
         entity.setEndTime(dto.endTime());
+        entity.setTimezone(dto.timezone());
         entity.setCustomPattern(dto.customPattern());
         entity.setIsAvailable(dto.isAvailable());
         entity.setRecurrenceInterval(dto.recurrenceInterval());
@@ -83,6 +85,9 @@ public class AvailabilityFactory {
         }
         if (dto.endTime() != null) {
             entity.setEndTime(dto.endTime());
+        }
+        if (dto.timezone() != null) {
+            entity.setTimezone(dto.timezone());
         }
         if (dto.customPattern() != null) {
             entity.setCustomPattern(dto.customPattern());

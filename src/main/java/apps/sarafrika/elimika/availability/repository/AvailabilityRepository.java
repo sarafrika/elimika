@@ -52,12 +52,19 @@ public interface AvailabilityRepository extends JpaRepository<InstructorAvailabi
     List<InstructorAvailability> findEffectiveAvailabilityForDate(@Param("instructorUuid") UUID instructorUuid,
                                                                 @Param("date") LocalDate date);
 
+    // A UTC caller cannot narrow on time here: each slot's clock runs in its own zone, so which
+    // rows a window touches is only knowable per slot, after the row's zone is in hand.
+    @Query("SELECT ia FROM InstructorAvailability ia WHERE ia.instructorUuid = :instructorUuid " +
+           "AND (ia.effectiveStartDate IS NULL OR ia.effectiveStartDate <= :endDate) " +
+           "AND (ia.effectiveEndDate IS NULL OR ia.effectiveEndDate >= :startDate)")
+    List<InstructorAvailability> findEffectiveAvailabilityBetween(@Param("instructorUuid") UUID instructorUuid,
+                                                                  @Param("startDate") LocalDate startDate,
+                                                                  @Param("endDate") LocalDate endDate);
+
     /**
-     * Finds the availability slots that genuinely cover part of the window.
-     * <p>
-     * Slots are half-open like the sessions they gate, so a block starting at 12:00 does not cover a
-     * class ending at 12:00. Written inclusively, a blocked-out slot butting up against a class
-     * marked that class unavailable and the instructor lost the hour either side of every break.
+     * Half-open like the sessions it gates, so a block starting at 12:00 leaves a class ending at
+     * 12:00 alone; written inclusively the instructor lost the hour either side of every break.
+     * Matches raw wall clocks, so scheduling goes through {@link #findEffectiveAvailabilityBetween}.
      */
     @Query("SELECT ia FROM InstructorAvailability ia WHERE ia.instructorUuid = :instructorUuid " +
            "AND ia.startTime < :endTime AND ia.endTime > :startTime " +

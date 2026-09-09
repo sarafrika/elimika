@@ -37,6 +37,7 @@ import java.util.UUID;
             "specific_date": null,
             "start_time": "09:00:00",
             "end_time": "17:00:00",
+            "timezone": "Africa/Nairobi",
             "custom_pattern": null,
             "is_available": true,
             "recurrence_interval": 1,
@@ -233,7 +234,18 @@ public record AvailabilitySlotDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty("color_code")
-        String colorCode
+        String colorCode,
+
+        @Schema(
+                description = "**[OPTIONAL]** IANA timezone the start and end times are written in. "
+                        + "Defaults to UTC when omitted, which is how slots recorded before the zone "
+                        + "was captured are read.",
+                example = "Africa/Nairobi",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("timezone")
+        String timezone
 
 ) {
 

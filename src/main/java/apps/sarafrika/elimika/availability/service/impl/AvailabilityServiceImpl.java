@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.availability.factory.AvailabilityFactory;
 import apps.sarafrika.elimika.availability.model.InstructorAvailability;
 import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
+import apps.sarafrika.elimika.availability.util.AvailabilityTimezones;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -21,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,7 +49,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         }
 
         InstructorAvailability entity = AvailabilityFactory.toEntity(slot);
-        
+        entity.setTimezone(AvailabilityTimezones.normalize(entity.getTimezone()));
+
         // Set defaults
         if (entity.getIsAvailable() == null) {
             entity.setIsAvailable(true);
@@ -82,6 +84,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         InstructorAvailability entity = findOwnedSlot(instructorUuid, slotUuid);
 
         AvailabilityFactory.updateEntityFromDTO(entity, slot);
+        entity.setTimezone(AvailabilityTimezones.normalize(entity.getTimezone()));
         InstructorAvailability savedEntity = availabilityRepository.save(entity);
         
         log.debug("Updated availability slot: {}", slotUuid);
@@ -187,27 +190,16 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             throw new IllegalArgumentException("Start time must be before end time");
         }
 
-        LocalDate date = start.toLocalDate();
-        LocalTime startTime = start.toLocalTime();
-        LocalTime endTime = end.toLocalTime();
+        // A day either side of the UTC window, because a slot's own zone can put its date on either
+        // one; the window cannot be narrowed in SQL until each row's zone is in hand.
+        List<InstructorAvailability> candidates = availabilityRepository.findEffectiveAvailabilityBetween(
+            instructorUuid, start.toLocalDate().minusDays(1), end.toLocalDate().plusDays(1));
 
-        // Get overlapping slots for the time range
-        List<InstructorAvailability> overlappingSlots = 
-            availabilityRepository.findOverlappingAvailability(instructorUuid, startTime, endTime, date);
-
-        // Filter by patterns that match the date
-        List<InstructorAvailability> matchingSlots = overlappingSlots.stream()
-            .filter(slot -> matchesDate(slot, date))
-            .collect(Collectors.toList());
-
-        if (matchingSlots.isEmpty()) {
-            // No availability defined for the window: do not block scheduling
-            return true;
-        }
-
-        // Block only when an overlapping slot is explicitly marked unavailable
-        return matchingSlots.stream()
-            .noneMatch(slot -> Boolean.FALSE.equals(slot.getIsAvailable()));
+        // Only an explicit block ever refuses, so a window nothing covers stays open and the per-row
+        // zone arithmetic is spent on the rows that could say no rather than on the whole calendar.
+        return candidates.stream()
+            .filter(slot -> Boolean.FALSE.equals(slot.getIsAvailable()))
+            .noneMatch(slot -> coversWindow(slot, start, end));
     }
 
     @Override
@@ -246,6 +238,35 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         availabilityRepository.deleteAll(allSlots);
         
         log.debug("Cleared {} availability slots for instructor: {}", allSlots.size(), instructorUuid);
+    }
+
+    /**
+     * Decides whether a slot really touches a UTC window.
+     * <p>
+     * The slot's start and end are a wall clock in the slot's own zone, so the window is moved into
+     * that zone before the two are compared, and the comparison is run against every local date the
+     * window can fall on. The overlap stays half-open, as its JPQL sibling has it: a block starting
+     * at 12:00 does not cover a class ending at 12:00.
+     */
+    private boolean coversWindow(InstructorAvailability slot, LocalDateTime startUtc, LocalDateTime endUtc) {
+        if (slot.getStartTime() == null || slot.getEndTime() == null) {
+            return false;
+        }
+
+        ZoneId zone = AvailabilityTimezones.resolve(slot.getTimezone());
+        LocalDateTime localStart = AvailabilityTimezones.fromUtc(startUtc, zone);
+        LocalDateTime localEnd = AvailabilityTimezones.fromUtc(endUtc, zone);
+
+        return localStart.toLocalDate().datesUntil(localEnd.toLocalDate().plusDays(1))
+            .anyMatch(date -> isEffectiveOn(slot, date)
+                    && matchesDate(slot, date)
+                    && date.atTime(slot.getStartTime()).isBefore(localEnd)
+                    && date.atTime(slot.getEndTime()).isAfter(localStart));
+    }
+
+    private boolean isEffectiveOn(InstructorAvailability slot, LocalDate date) {
+        return (slot.getEffectiveStartDate() == null || !slot.getEffectiveStartDate().isAfter(date))
+                && (slot.getEffectiveEndDate() == null || !slot.getEffectiveEndDate().isBefore(date));
     }
 
     private boolean matchesDate(InstructorAvailability slot, LocalDate date) {

@@ -45,7 +45,13 @@ public class InstructorAvailability extends BaseEntity {
     
     @Column(name = "end_time")
     private LocalTime endTime;
-    
+
+    // start_time/end_time are a wall clock, not an instant; this is what makes them one. UTC is the
+    // default because that is how every reader read a slot before the zone was recorded.
+    @Column(name = "timezone")
+    @Filterable
+    private String timezone = "UTC";
+
     @Column(name = "custom_pattern")
     private String customPattern;
     
