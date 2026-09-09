@@ -1,3 +1,10 @@
+# [2.145.0](https://github.com/sarafrika/elimika/compare/v2.144.0...v2.145.0) (2026-09-09)
+
+
+### Features
+
+* **tenancy:** store organisation validation documents and scope their types ([ab13c77](https://github.com/sarafrika/elimika/commit/ab13c77844f04b5954ac6a2dee64aa4dbf2b7402))
+
 # [2.144.0](https://github.com/sarafrika/elimika/compare/v2.143.1...v2.144.0) (2026-09-08)
 
 
