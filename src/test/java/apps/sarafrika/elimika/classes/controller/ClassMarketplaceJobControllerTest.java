@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.classes.controller;
 
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
@@ -123,11 +122,10 @@ class ClassMarketplaceJobControllerTest {
     }
 
     @Test
-    void assignInstructorReturnsConflictWhenSchedulingFails() throws Exception {
+    void createClassForJobReturnsConflictWhenSchedulingFails() throws Exception {
         UUID jobUuid = UUID.randomUUID();
-        UUID applicationUuid = UUID.randomUUID();
 
-        when(classMarketplaceJobService.assignInstructor(any(UUID.class), any(ClassMarketplaceJobAssignmentRequestDTO.class)))
+        when(classMarketplaceJobService.createClassForJob(any(UUID.class)))
                 .thenThrow(new SchedulingConflictException(
                         "Conflicts detected",
                         List.of(new ClassSchedulingConflictDTO(
@@ -137,14 +135,29 @@ class ClassMarketplaceJobControllerTest {
                         ))
                 ));
 
-        mockMvc.perform(post("/api/v1/classes/jobs/{jobUuid}/assignments", jobUuid)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new ClassMarketplaceJobAssignmentRequestDTO(applicationUuid))))
+        mockMvc.perform(post("/api/v1/classes/jobs/{jobUuid}/class", jobUuid))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Scheduling conflicts detected"))
                 .andExpect(jsonPath("$.error[0].reasons[0]").value("Instructor has overlapping scheduled instances"));
+    }
+
+    @Test
+    void hireActionReachesTheHireMethodAndAssignIsGone() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/v1/classes/jobs/{jobUuid}/applications/{applicationUuid}", jobUuid, applicationUuid)
+                        .param("action", "hire"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Applicant hired successfully"));
+        verify(classMarketplaceJobService).hireApplication(eq(jobUuid), eq(applicationUuid), any());
+
+        // The assign endpoint is retired: no client may reach an assignment except by creating the class.
+        mockMvc.perform(post("/api/v1/classes/jobs/{jobUuid}/assignments", jobUuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"application_uuid\":\"" + applicationUuid + "\"}"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

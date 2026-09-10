@@ -110,8 +110,7 @@
         <p class="greeting">Hi [[${recipientName}]],</p>
         <p>
             Your application to train the [[${contextType}]] "<strong>[[${contextName}]]</strong>"
-            [[${statusLabel}]]. The organisation has assigned you to this class, and you are now part of
-            their teaching team.
+            [[${statusLabel}]]. You are now part of the organisation's teaching team.
         </p>
 
         <div class="card">
@@ -125,11 +124,11 @@
         </div>
 
         <p>
-            The class schedule and your teaching obligations are available from your dashboard. Please review
-            the session times and confirm they still work for you.
+            The organisation is now creating the class itself. We will email you again the moment it exists
+            and lands on your timetable - until then, your hire is tracked alongside your applications.
         </p>
 
-        <a th:href="${frontendUrl}" class="button">Open my classes</a>
+        <a th:href="${frontendUrl + '/dashboard/instructor/opportunities/my-applications'}" class="button">View my applications</a>
     </div>
 
     <div class="footer">

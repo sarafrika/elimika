@@ -3,8 +3,6 @@ package apps.sarafrika.elimika.classes.service;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
@@ -50,9 +48,14 @@ public interface ClassMarketplaceJobServiceInterface {
                                                                        ClassMarketplaceJobApplicationStatus status,
                                                                        Pageable pageable);
 
-    ClassMarketplaceJobApplicationDTO approveApplication(UUID jobUuid,
-                                                         UUID applicationUuid,
-                                                         ClassMarketplaceJobDecisionRequestDTO request);
+    /**
+     * Hires the applicant: the last decision the organisation makes. It attaches the instructor
+     * to the organisation as a member and leaves the job waiting only for its class, which is
+     * what performs the assignment.
+     */
+    ClassMarketplaceJobApplicationDTO hireApplication(UUID jobUuid,
+                                                      UUID applicationUuid,
+                                                      ClassMarketplaceJobDecisionRequestDTO request);
 
     ClassMarketplaceJobApplicationDTO rejectApplication(UUID jobUuid,
                                                         UUID applicationUuid,
@@ -75,8 +78,9 @@ public interface ClassMarketplaceJobServiceInterface {
                                                           UUID applicationUuid,
                                                           ClassMarketplaceJobDecisionRequestDTO request);
 
-    ClassMarketplaceJobAssignmentResponseDTO assignInstructor(UUID jobUuid,
-                                                              ClassMarketplaceJobAssignmentRequestDTO request);
-
+    /**
+     * Creates the job's class, which is also what assigns the hired instructor to it. Only a job
+     * that already holds a hire can reach this, so nobody is assigned without being hired first.
+     */
     ClassDefinitionDTO createClassForJob(UUID jobUuid);
 }

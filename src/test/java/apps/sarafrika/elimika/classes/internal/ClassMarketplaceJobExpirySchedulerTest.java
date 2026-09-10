@@ -28,6 +28,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -137,7 +138,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
     }
 
     @Test
-    void expiringAnAwaitingClassJobClearsTheHireItStillNames() throws Exception {
+    void expiringAnAwaitingClassJobKeepsTheHireItNames() throws Exception {
         ClassMarketplaceJob job = openJob("Contracted Bootcamp");
         job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
         UUID instructorUuid = UUID.randomUUID();
@@ -152,18 +153,48 @@ class ClassMarketplaceJobExpirySchedulerTest {
         when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
         when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), anyList()))
                 .thenReturn(new ArrayList<>(List.of(assigned)));
-        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.empty());
-        when(userLookupService.findUserUuidByEmail("manager@org.test")).thenReturn(Optional.empty());
 
         invokeExpire();
 
-        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.EXPIRED);
-        assertThat(assigned.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
-        // The job must not go on naming an instructor whose assignment it just closed.
-        assertThat(job.getAssignedApplicationUuid()).isNull();
-        assertThat(job.getAssignedInstructorUuid()).isNull();
-        verify(resourceBookingService)
-                .releaseHoldsForJob(job.getUuid(), "Job expired before its class was created");
+        // The window closing ends recruitment, and recruitment is over. The class still has to be
+        // created, and only AWAITING_CLASS can create one, so the sweep must leave the job alone.
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        assertThat(assigned.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.ASSIGNED);
+        assertThat(job.getAssignedApplicationUuid()).isEqualTo(applicationUuid);
+        assertThat(job.getAssignedInstructorUuid()).isEqualTo(instructorUuid);
+        verify(applicationRepository, never()).saveAll(anyList());
+        // The class needs those slots, so releasing them would hand the hire's time to somebody else.
+        verify(resourceBookingService, never()).releaseHoldsForJob(eq(job.getUuid()), anyString());
+        verify(instructorTimeHoldService, never()).releaseHoldsForJob(eq(job.getUuid()), anyString());
+    }
+
+    @Test
+    void expiringAJobHoldingAHireClosesOnlyTheRestOfTheFunnel() throws Exception {
+        ClassMarketplaceJob job = openJob("Weekend Bootcamp");
+        UUID hiredInstructorUuid = UUID.randomUUID();
+        UUID passedOverInstructorUuid = UUID.randomUUID();
+
+        ClassMarketplaceJobApplication hired =
+                application(job.getUuid(), hiredInstructorUuid, ClassMarketplaceJobApplicationStatus.HIRED);
+        hired.setReviewNotes("Hired for the September intake");
+        ClassMarketplaceJobApplication shortlisted =
+                application(job.getUuid(), passedOverInstructorUuid, ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), anyList()))
+                .thenReturn(new ArrayList<>(List.of(hired, shortlisted)));
+        when(instructorLookupService.getInstructorUserUuid(passedOverInstructorUuid)).thenReturn(Optional.empty());
+
+        invokeExpire();
+
+        // The overnight sweep is what destroyed the evidence of a real hire; it must not again.
+        assertThat(hired.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
+        assertThat(hired.getReviewNotes()).isEqualTo("Hired for the September intake");
+        assertThat(shortlisted.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
+        assertThat(job.getStatus()).isNotEqualTo(ClassMarketplaceJobStatus.EXPIRED);
+        verify(applicationRepository).saveAll(List.of(shortlisted));
+        // Only the passed-over applicant hears that the job lapsed; the hire is not told they lost it.
+        verify(instructorLookupService, never()).getInstructorUserUuid(hiredInstructorUuid);
     }
 
     @Test

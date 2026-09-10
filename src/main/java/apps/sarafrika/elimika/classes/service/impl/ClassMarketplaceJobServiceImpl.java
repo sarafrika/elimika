@@ -3,8 +3,6 @@ package apps.sarafrika.elimika.classes.service.impl;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
@@ -373,34 +371,50 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     @Override
-    public ClassMarketplaceJobApplicationDTO approveApplication(UUID jobUuid,
-                                                                UUID applicationUuid,
-                                                                ClassMarketplaceJobDecisionRequestDTO request) {
+    public ClassMarketplaceJobApplicationDTO hireApplication(UUID jobUuid,
+                                                             UUID applicationUuid,
+                                                             ClassMarketplaceJobDecisionRequestDTO request) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         ensureJobOpen(job);
         requireOrganisationManagerAccess(job.getOrganisationUuid());
 
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
-        ensureApplicationReviewable(application);
+        ensureTransitionAllowed(application, ClassMarketplaceJobApplicationStatus.HIRED);
+        ensureInstructorApprovedToDeliver(job, application.getInstructorUuid());
 
-        if (!isInstructorApprovedForJob(job, application.getInstructorUuid())) {
-            throw new IllegalStateException(String.format(
-                    "Instructor %s is not approved to deliver %s %s. Only instructors with approved %s delivery access can be approved for this job.",
-                    application.getInstructorUuid(),
-                    learningContextType(job),
-                    learningContextUuid(job),
-                    learningContextType(job)));
-        }
-
-        application.setStatus(ClassMarketplaceJobApplicationStatus.APPROVED);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
         application.setReviewNotes(request == null ? null : request.reviewNotes());
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
+        // The hire is what makes the instructor a member, so it affiliates here rather than at
+        // assignment - an organisation that hires and never assigns still gained an instructor.
+        affiliateHiredInstructor(job, application.getInstructorUuid());
+
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
-        notifyApplicant(job, saved,
-                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_APPROVED, "was approved");
-        return toApplicationDTO(saved, job);
+
+        // The hire is the last decision, so nothing about it stays implicit: the job records
+        // which application won and is left waiting only for its class to be created.
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setAssignedApplicationUuid(saved.getUuid());
+        ClassMarketplaceJob savedJob = jobRepository.save(job);
+
+        notifyApplicant(savedJob, saved,
+                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_HIRED,
+                "was successful - you have been hired");
+        return toApplicationDTO(saved, savedJob);
+    }
+
+    private void ensureInstructorApprovedToDeliver(ClassMarketplaceJob job, UUID instructorUuid) {
+        if (isInstructorApprovedForJob(job, instructorUuid)) {
+            return;
+        }
+        throw new IllegalStateException(String.format(
+                "Instructor %s is not approved to deliver %s %s. Only instructors with approved %s delivery access can be hired for this job.",
+                instructorUuid,
+                learningContextType(job),
+                learningContextUuid(job),
+                learningContextType(job)));
     }
 
     @Override
@@ -412,7 +426,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         requireOrganisationManagerAccess(job.getOrganisationUuid());
 
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
-        ensureApplicationReviewable(application);
+        ensureTransitionAllowed(application, ClassMarketplaceJobApplicationStatus.REJECTED);
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.REJECTED);
         application.setReviewNotes(request == null ? null : request.reviewNotes());
@@ -435,7 +449,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 && targetStage != ClassMarketplaceJobApplicationStatus.INTERVIEWING
                 && targetStage != ClassMarketplaceJobApplicationStatus.OFFERED) {
             throw new IllegalArgumentException("Stage " + targetStage
-                    + " is not a movable recruitment stage. Use approve, reject or assign for final decisions.");
+                    + " is not a movable recruitment stage. Use hire or reject for final decisions.");
         }
 
         ClassMarketplaceJob job = getJobEntity(jobUuid);
@@ -443,7 +457,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         requireOrganisationManagerAccess(job.getOrganisationUuid());
 
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
-        ensureApplicationReviewable(application);
+        ensureTransitionAllowed(application, targetStage);
         LocalDateTime interviewAt = resolveInterviewAt(targetStage, request, application);
 
         application.setStatus(targetStage);
@@ -500,12 +514,38 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
         instructorTimeHoldService.releaseHoldsForApplication(saved.getUuid(), "Instructor withdrew");
+        releaseWithdrawnHire(job, saved);
         notifyOrganisationOfWithdrawal(job, saved);
         return toApplicationDTO(saved, job);
     }
 
+    /** A hire that pulls out leaves the job holding nobody, so the posting goes back on the market
+     * rather than waiting forever on a class its withdrawn applicant will never teach. */
+    private void releaseWithdrawnHire(ClassMarketplaceJob job, ClassMarketplaceJobApplication application) {
+        if (!application.getUuid().equals(job.getAssignedApplicationUuid())) {
+            return;
+        }
+
+        job.setAssignedApplicationUuid(null);
+        job.setAssignedInstructorUuid(null);
+        // A job that lapsed or was cancelled keeps the status it closed at; only one still waiting
+        // on this hire's class has anywhere to go back to.
+        if (job.getStatus() == ClassMarketplaceJobStatus.AWAITING_CLASS) {
+            job.setStatus(ClassMarketplaceJobStatus.OPEN);
+        }
+        jobRepository.save(job);
+
+        log.info("Marketplace job {} lost its hire: instructor {} withdrew before its class was created",
+                job.getUuid(), application.getInstructorUuid());
+    }
+
     private void ensureApplicationWithdrawable(ClassMarketplaceJobApplication application) {
         ClassMarketplaceJobApplicationStatus status = application.getStatus();
+        // Withdrawal is an exit, so the enum opens it from every live stage; only the wording
+        // of the refusal is the applicant's business rather than the funnel's.
+        if (ClassMarketplaceJobApplicationStatus.WITHDRAWN.isReachableFrom(status)) {
+            return;
+        }
         if (status == ClassMarketplaceJobApplicationStatus.ASSIGNED) {
             throw new IllegalStateException(
                     "You have already been assigned to this class job. Contact the organisation to be released from it.");
@@ -594,16 +634,23 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .orElse("An instructor");
     }
 
-    @Override
-    public ClassMarketplaceJobAssignmentResponseDTO assignInstructor(UUID jobUuid,
-                                                                     ClassMarketplaceJobAssignmentRequestDTO request) {
-        ClassMarketplaceJob job = getJobEntity(jobUuid);
-        ensureJobOpen(job);
-        requireOrganisationManagerAccess(job.getOrganisationUuid());
+    /**
+     * Performs the assignment the class creation stands for: the hired applicant becomes the job's
+     * instructor, their diary claim turns firm, everyone else is closed out. Private on purpose -
+     * assigning is no longer a decision anybody takes, only a consequence of creating the class.
+     */
+    private void assignHiredInstructor(ClassMarketplaceJob job) {
+        UUID hiredApplicationUuid = job.getAssignedApplicationUuid();
+        if (hiredApplicationUuid == null) {
+            throw new IllegalStateException("This job holds no hire, so there is nobody to assign to its class.");
+        }
 
-        ClassMarketplaceJobApplication application = getApplication(jobUuid, request.applicationUuid());
-        if (application.getStatus() != ClassMarketplaceJobApplicationStatus.APPROVED) {
-            throw new IllegalStateException("Only approved applications can be assigned to create a class.");
+        UUID jobUuid = job.getUuid();
+        ClassMarketplaceJobApplication application = getApplication(jobUuid, hiredApplicationUuid);
+        if (application.getStatus() != ClassMarketplaceJobApplicationStatus.HIRED) {
+            throw new IllegalStateException(String.format(
+                    "The application this job hired is at the %s stage, so its class cannot be created.",
+                    application.getStatus().getValue()));
         }
 
         if (!isInstructorApprovedForJob(job, application.getInstructorUuid())) {
@@ -622,7 +669,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             }
         });
 
-        hireInstructorForJob(job, application.getInstructorUuid());
+        selectInstructorForJob(job, application.getInstructorUuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         application.setReviewNotes(resolveAssignedReviewNotes(application.getReviewNotes()));
@@ -630,7 +677,6 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
         ClassMarketplaceJobApplication savedApplication = applicationRepository.save(application);
 
-        job.setAssignedApplicationUuid(application.getUuid());
         ClassMarketplaceJob savedJob = jobRepository.save(job);
 
         // The hire is what makes the claim exclusive: the hired diary is reserved and every
@@ -643,20 +689,18 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 "Another instructor was selected for this class job.");
 
         notifyApplicant(savedJob, savedApplication,
-                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED, "was successful",
+                NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED,
+                "has produced your class - it is on your timetable",
                 "/dashboard/instructor/classes");
-
-        return new ClassMarketplaceJobAssignmentResponseDTO(toJobDTO(savedJob));
     }
 
     /**
-     * The single transition into the hired state, whether the organisation picked an applicant
-     * or named a preferred instructor when posting. Affiliation belongs to the transition, not
-     * to the endpoint, so no hire path can produce a class taught by a non-member.
+     * Hires the instructor a job was posted for by name: no application exists to walk through the
+     * funnel, so the post and the affiliation happen together and the class follows immediately.
      */
     private void hireInstructorForJob(ClassMarketplaceJob job, UUID instructorUuid) {
         selectInstructorForJob(job, instructorUuid);
-        affiliateAssignedInstructor(job, instructorUuid);
+        affiliateHiredInstructor(job, instructorUuid);
     }
 
     /**
@@ -664,7 +708,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * domain. An instructor who already belongs to the organisation keeps whatever role
      * they hold - a hire must never quietly overwrite an existing affiliation.
      */
-    private void affiliateAssignedInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
+    private void affiliateHiredInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
         if (instructorUuid == null || job.getOrganisationUuid() == null) {
             return;
         }
@@ -692,7 +736,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         if (job.getStatus() != ClassMarketplaceJobStatus.AWAITING_CLASS) {
             throw new IllegalStateException(
-                    "A class can only be created once an instructor has been assigned to this job.");
+                    "A class can only be created once an applicant has been hired for this job.");
+        }
+
+        // A job posted with a preferred instructor, or one assigned before assignment folded into
+        // this step, already names its instructor; only a fresh hire still needs assigning.
+        if (job.getAssignedInstructorUuid() == null) {
+            assignHiredInstructor(job);
         }
 
         return provisionClassForJob(job);
@@ -867,9 +917,34 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
     private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
         validateLearningContext(request);
+        validateRegistrationWindow(request);
         validateLocationRequirements(request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude());
         validateSessionTemplates(request.sessionTemplates());
         validateJobResources(request);
+    }
+
+    /**
+     * A recruitment window that shuts the day it opens is dead by that night: the advert expires
+     * before any instructor has had a working day to find it and answer it.
+     */
+    private void validateRegistrationWindow(ClassMarketplaceJobRequestDTO request) {
+        LocalDate start = request.registrationPeriodStartDate();
+        LocalDate end = request.registrationPeriodEndDate();
+        if (start == null || end == null) {
+            return;
+        }
+        if (end.isBefore(start)) {
+            throw new IllegalArgumentException(String.format(
+                    "Registration closes on %s, before it opens on %s. "
+                            + "registration_period_end_date must be after registration_period_start_date.",
+                    end, start));
+        }
+        if (end.isEqual(start)) {
+            throw new IllegalArgumentException(String.format(
+                    "Registration opens and closes on the same day (%s), leaving instructors no time to apply. "
+                            + "registration_period_end_date must be at least one day after registration_period_start_date.",
+                    start));
+        }
     }
 
     private void validateJobResources(ClassMarketplaceJobRequestDTO request) {
@@ -1309,16 +1384,29 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         }
     }
 
-    private void ensureApplicationReviewable(ClassMarketplaceJobApplication application) {
-        if (application.getStatus() == ClassMarketplaceJobApplicationStatus.ASSIGNED) {
-            throw new IllegalStateException("Assigned applications cannot be reviewed again.");
+    /**
+     * Holds the funnel to its order: a decision is taken only on a candidate who has been
+     * through every decision before it. The enum owns the order; this only reports the refusal,
+     * naming the stage the applicant is in and the one the caller reached for.
+     */
+    private void ensureTransitionAllowed(ClassMarketplaceJobApplication application,
+                                         ClassMarketplaceJobApplicationStatus target) {
+        ClassMarketplaceJobApplicationStatus current = application.getStatus();
+        if (target.isReachableFrom(current)) {
+            return;
         }
-        if (application.getStatus() == ClassMarketplaceJobApplicationStatus.NOT_SELECTED) {
-            throw new IllegalStateException("Applications already marked as not selected cannot be reviewed again.");
+        if (current == null || !current.isActive()) {
+            throw new IllegalStateException(String.format(
+                    "This application is closed at the %s stage and cannot be moved to %s.",
+                    current == null ? "unknown" : current.getValue(), target.getValue()));
         }
-        if (application.getStatus() == ClassMarketplaceJobApplicationStatus.WITHDRAWN) {
-            throw new IllegalStateException("This application was withdrawn by the instructor and cannot be reviewed.");
-        }
+        ClassMarketplaceJobApplicationStatus required = target.previousStage();
+        throw new IllegalStateException(String.format(
+                "This application is at the %s stage and cannot be moved to %s. %s follows %s only.",
+                current.getValue(),
+                target.getValue(),
+                target.getValue(),
+                required == null ? "no stage" : required.getValue()));
     }
 
     private void requireOrganisationManagerAccess(UUID organisationUuid) {
@@ -1392,8 +1480,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             return;
         }
 
+        // A hire that never reached its class is just as committed as an assignment, and the
+        // instructor was already told so.
         applicationRepository.findByJobUuidAndUuid(job.getUuid(), assignedApplicationUuid)
-                .filter(application -> application.getStatus() == ClassMarketplaceJobApplicationStatus.ASSIGNED)
+                .filter(application -> application.getStatus().isHire())
                 .ifPresent(application -> {
                     application.setStatus(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
                     application.setReviewNotes("This class job was cancelled before its class was created.");
@@ -1420,7 +1510,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                         ClassMarketplaceJobApplicationStatus.SHORTLISTED,
                         ClassMarketplaceJobApplicationStatus.INTERVIEWING,
                         ClassMarketplaceJobApplicationStatus.OFFERED,
-                        ClassMarketplaceJobApplicationStatus.APPROVED
+                        ClassMarketplaceJobApplicationStatus.HIRED
                 )
         );
 

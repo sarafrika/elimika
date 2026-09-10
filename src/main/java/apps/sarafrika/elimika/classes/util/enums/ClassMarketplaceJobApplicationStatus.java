@@ -14,7 +14,7 @@ public enum ClassMarketplaceJobApplicationStatus {
     SHORTLISTED("shortlisted"),
     INTERVIEWING("interviewing"),
     OFFERED("offered"),
-    APPROVED("approved"),
+    HIRED("hired"),
     REJECTED("rejected"),
     ASSIGNED("assigned"),
     NOT_SELECTED("not_selected"),
@@ -50,6 +50,51 @@ public enum ClassMarketplaceJobApplicationStatus {
 
     public boolean isFinal() {
         return this == REJECTED || this == ASSIGNED || this == NOT_SELECTED || this == WITHDRAWN;
+    }
+
+    /**
+     * Whether this state closes an application without carrying it any further forward.
+     * Refusing a candidate is never a shortcut through the funnel, so an exit is open from
+     * every live stage rather than from one particular predecessor.
+     */
+    public boolean isExit() {
+        return this == REJECTED || this == NOT_SELECTED || this == WITHDRAWN;
+    }
+
+    /**
+     * The one stage an application must already hold before it may enter this one:
+     * applied - shortlisted - interviewing - offered - hired, then assigned once the class
+     * is created. PENDING is where the funnel starts and the exits belong to no single stage.
+     */
+    public ClassMarketplaceJobApplicationStatus previousStage() {
+        return switch (this) {
+            case SHORTLISTED -> PENDING;
+            case INTERVIEWING -> SHORTLISTED;
+            case OFFERED -> INTERVIEWING;
+            case HIRED -> OFFERED;
+            case ASSIGNED -> HIRED;
+            case PENDING, REJECTED, NOT_SELECTED, WITHDRAWN -> null;
+        };
+    }
+
+    /**
+     * Whether an application sitting at {@code current} may be moved into this state. Every
+     * candidate is looked at at each stage, so the funnel is walked one step at a time and a
+     * closed application is not walked at all.
+     */
+    public boolean isReachableFrom(ClassMarketplaceJobApplicationStatus current) {
+        if (current == null || !current.isActive()) {
+            return false;
+        }
+        return isExit() || current == previousStage();
+    }
+
+    /**
+     * Whether the organisation has committed to this instructor. The commitment is what
+     * attaches them to the organisation, so it outlives the job's recruitment window.
+     */
+    public boolean isHire() {
+        return this == HIRED || this == ASSIGNED;
     }
 
     /**

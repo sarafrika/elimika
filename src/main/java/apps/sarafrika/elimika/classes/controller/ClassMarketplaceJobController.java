@@ -3,8 +3,6 @@ package apps.sarafrika.elimika.classes.controller;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentRequestDTO;
-import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobAssignmentResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
@@ -44,7 +42,7 @@ import java.util.UUID;
 @RequestMapping(ClassMarketplaceJobController.API_ROOT_PATH)
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Class Marketplace Jobs", description = "Marketplace class adverts posted by organisations before a final instructor is assigned")
+@Tag(name = "Class Marketplace Jobs", description = "Marketplace class adverts posted by organisations, and the recruitment funnel that ends in a hire")
 public class ClassMarketplaceJobController {
 
     public static final String API_ROOT_PATH = "/api/v1/classes/jobs";
@@ -240,7 +238,8 @@ public class ClassMarketplaceJobController {
                 "Marketplace class job applications retrieved successfully"));
     }
 
-    @Operation(summary = "Approve or reject a marketplace class job application")
+    @Operation(summary = "Move a marketplace class job application through the funnel",
+            description = "Stages run applied -> shortlisted -> interviewing -> offered -> hired and no stage may be skipped; hire is the last decision, after which the job's class can be created")
     @PostMapping("/{jobUuid}/applications/{applicationUuid}")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> reviewApplication(
             @PathVariable UUID jobUuid,
@@ -251,7 +250,7 @@ public class ClassMarketplaceJobController {
                 request != null ? request : new ClassMarketplaceJobDecisionRequestDTO(null, null);
 
         ClassMarketplaceJobApplicationDTO result = switch (action.toLowerCase()) {
-            case "approve" -> classMarketplaceJobService.approveApplication(jobUuid, applicationUuid, payload);
+            case "hire" -> classMarketplaceJobService.hireApplication(jobUuid, applicationUuid, payload);
             case "reject" -> classMarketplaceJobService.rejectApplication(jobUuid, applicationUuid, payload);
             case "shortlist" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
                     apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.SHORTLISTED, payload);
@@ -260,11 +259,11 @@ public class ClassMarketplaceJobController {
             case "offer" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
                     apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.OFFERED, payload);
             default -> throw new IllegalArgumentException("Unsupported action '" + action
-                    + "'. Allowed values: shortlist, interview, offer, approve, reject.");
+                    + "'. Allowed values: shortlist, interview, offer, hire, reject.");
         };
 
         String message = switch (action.toLowerCase()) {
-            case "approve" -> "Marketplace class job application approved successfully";
+            case "hire" -> "Applicant hired successfully";
             case "reject" -> "Marketplace class job application rejected successfully";
             case "shortlist" -> "Candidate shortlisted successfully";
             case "interview" -> "Candidate moved to interview successfully";
@@ -275,22 +274,8 @@ public class ClassMarketplaceJobController {
         return ResponseEntity.ok(ApiResponse.success(result, message));
     }
 
-    @Operation(summary = "Assign an approved instructor and create the actual class")
-    @PostMapping("/{jobUuid}/assignments")
-    public ResponseEntity<ApiResponse<ClassMarketplaceJobAssignmentResponseDTO>> assignInstructor(
-            @PathVariable UUID jobUuid,
-            @Valid @RequestBody ClassMarketplaceJobAssignmentRequestDTO request) {
-        try {
-            ClassMarketplaceJobAssignmentResponseDTO result = classMarketplaceJobService.assignInstructor(jobUuid, request);
-            return ResponseEntity.ok(ApiResponse.success(result, "Marketplace class job assigned successfully"));
-        } catch (SchedulingConflictException e) {
-            log.warn("Scheduling conflicts while assigning marketplace class job {}: {}", jobUuid, e.getMessage());
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
-        }
-    }
-
-    @Operation(summary = "Create the class for a job whose instructor has been assigned")
+    @Operation(summary = "Create the class for a job whose applicant has been hired",
+            description = "Creating the class is what assigns the hired instructor: it stamps their application assigned, converts their time holds and fills the job. There is no separate assign call.")
     @PostMapping("/{jobUuid}/class")
     public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassForJob(@PathVariable UUID jobUuid) {
         try {

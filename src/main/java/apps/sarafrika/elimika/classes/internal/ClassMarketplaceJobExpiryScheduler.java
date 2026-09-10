@@ -29,7 +29,7 @@ import java.util.UUID;
 /**
  * Expires open marketplace jobs whose recruitment window has passed and releases the holds
  * they were keeping, so venues, equipment and applicants' diaries become bookable again
- * without manual intervention.
+ * without manual intervention. A hire the job already made is left standing.
  */
 @Component
 @RequiredArgsConstructor
@@ -57,11 +57,17 @@ class ClassMarketplaceJobExpiryScheduler {
             String reason = job.getStatus() == ClassMarketplaceJobStatus.AWAITING_CLASS
                     ? "Job expired before its class was created"
                     : "Job expired";
+            boolean holdsHire = closeOutstandingApplications(job);
+            if (holdsHire) {
+                // The window closing ends recruitment, and recruitment is over: somebody was hired.
+                // What remains is the class, which only AWAITING_CLASS can create and which has no
+                // deadline, so the sweep leaves the job, its holds and its hire exactly as they are.
+                continue;
+            }
             job.setStatus(ClassMarketplaceJobStatus.EXPIRED);
             resourceBookingService.releaseHoldsForJob(job.getUuid(), reason);
             instructorTimeHoldService.releaseHoldsForJob(job.getUuid(), reason);
-            closeOutstandingApplications(job);
-            notifyJobCreator(job);
+            notifyJobCreator(job, false);
         }
         jobRepository.saveAll(lapsedJobs);
         log.info("Expired {} lapsed marketplace class jobs and released their resource and instructor holds",
@@ -69,32 +75,32 @@ class ClassMarketplaceJobExpiryScheduler {
     }
 
     /**
-     * Closes every application still moving through an expired job's funnel. Without this
-     * the applicants stay PENDING forever and are never told the job lapsed.
+     * Closes every application still moving through an expired job's funnel and reports whether
+     * the job holds a hire. Without this the applicants stay PENDING forever and are never told
+     * the job lapsed; hires are exempt because a lapsed window is not a decision to un-hire.
      */
-    private void closeOutstandingApplications(ClassMarketplaceJob job) {
-        List<ClassMarketplaceJobApplication> outstanding = applicationRepository.findByJobUuidAndStatusIn(
+    private boolean closeOutstandingApplications(ClassMarketplaceJob job) {
+        List<ClassMarketplaceJobApplication> live = applicationRepository.findByJobUuidAndStatusIn(
                 job.getUuid(),
                 List.of(
                         ClassMarketplaceJobApplicationStatus.PENDING,
                         ClassMarketplaceJobApplicationStatus.SHORTLISTED,
                         ClassMarketplaceJobApplicationStatus.INTERVIEWING,
                         ClassMarketplaceJobApplicationStatus.OFFERED,
-                        ClassMarketplaceJobApplicationStatus.APPROVED,
+                        ClassMarketplaceJobApplicationStatus.HIRED,
                         ClassMarketplaceJobApplicationStatus.ASSIGNED
                 )
         );
+
+        List<ClassMarketplaceJobApplication> outstanding = live.stream()
+                .filter(application -> !application.getStatus().isHire())
+                .toList();
+        boolean holdsHire = outstanding.size() != live.size();
         if (outstanding.isEmpty()) {
-            return;
+            return holdsHire;
         }
 
         for (ClassMarketplaceJobApplication application : outstanding) {
-            // An AWAITING_CLASS job that lapses still holds a hire. Closing the application without
-            // clearing the job's pointers would leave it naming an instructor it no longer has.
-            if (application.getStatus() == ClassMarketplaceJobApplicationStatus.ASSIGNED) {
-                job.setAssignedApplicationUuid(null);
-                job.setAssignedInstructorUuid(null);
-            }
             application.setStatus(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
             if (application.getReviewNotes() == null || application.getReviewNotes().isBlank()) {
                 application.setReviewNotes("This class job expired before an instructor was confirmed.");
@@ -106,6 +112,7 @@ class ClassMarketplaceJobExpiryScheduler {
         for (ClassMarketplaceJobApplication application : outstanding) {
             notifyApplicantOfExpiry(job, application);
         }
+        return holdsHire;
     }
 
     private void notifyApplicantOfExpiry(ClassMarketplaceJob job, ClassMarketplaceJobApplication application) {
@@ -163,7 +170,7 @@ class ClassMarketplaceJobExpiryScheduler {
         }
     }
 
-    private void notifyJobCreator(ClassMarketplaceJob job) {
+    private void notifyJobCreator(ClassMarketplaceJob job, boolean holdsHire) {
         try {
             UUID creatorUserUuid = job.getCreatedBy() == null
                     ? null
@@ -174,12 +181,15 @@ class ClassMarketplaceJobExpiryScheduler {
             }
 
             NotificationType type = NotificationType.CLASS_MARKETPLACE_JOB_EXPIRED;
+            String message = holdsHire
+                    ? String.format("Your class job '%s' expired before its class was created. The instructor you hired keeps their place with your organisation, but the job's venue and equipment reservations have been released.", job.getTitle())
+                    : String.format("Your class job '%s' expired without an instructor being hired. Its venue and equipment reservations have been released.", job.getTitle());
             eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
                     creatorUserUuid,
                     type.getValue(),
                     "INBOX",
                     type.getDisplayName(),
-                    String.format("Your class job '%s' expired without an instructor being assigned. Its venue and equipment reservations have been released.", job.getTitle()),
+                    message,
                     "/dashboard/organisation/opportunities",
                     Map.of(
                             "job_uuid", job.getUuid(),
