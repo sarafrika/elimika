@@ -1,3 +1,10 @@
+## [2.146.2](https://github.com/sarafrika/elimika/compare/v2.146.1...v2.146.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **marketplace:** make hiring the last decision and the moment an instructor joins the organisation ([adab7fb](https://github.com/sarafrika/elimika/commit/adab7fb97801c0b5941b0e90c7504a60b6d1df00))
+
 ## [2.146.1](https://github.com/sarafrika/elimika/compare/v2.146.0...v2.146.1) (2026-09-09)
 
 
