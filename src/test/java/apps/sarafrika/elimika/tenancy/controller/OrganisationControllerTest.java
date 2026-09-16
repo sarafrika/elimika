@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.controller;
 
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
@@ -130,6 +131,30 @@ class OrganisationControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.latitude").value("latitude must be between -90 and 90"))
                 .andExpect(jsonPath("$.error.length()").value(1));
+
+        Mockito.verify(trainingBranchService, Mockito.never()).updateTrainingBranch(any(), any());
+    }
+
+    @Test
+    void getTrainingBranchOfAnotherOrganisationReturns404() throws Exception {
+        Mockito.doThrow(new ResourceNotFoundException("Training branch not found for UUID: " + BRANCH_UUID))
+                .when(trainingBranchService).requireBranchInOrganisation(ORG_UUID, BRANCH_UUID);
+
+        mockMvc.perform(get("/api/v1/organisations/{uuid}/training-branches/{branchUuid}", ORG_UUID, BRANCH_UUID))
+                .andExpect(status().isNotFound());
+
+        Mockito.verify(trainingBranchService, Mockito.never()).getTrainingBranchByUuid(any());
+    }
+
+    @Test
+    void updateTrainingBranchOfAnotherOrganisationReturns404AndDoesNotUpdate() throws Exception {
+        Mockito.doThrow(new ResourceNotFoundException("Training branch not found for UUID: " + BRANCH_UUID))
+                .when(trainingBranchService).requireBranchInOrganisation(ORG_UUID, BRANCH_UUID);
+
+        mockMvc.perform(put("/api/v1/organisations/{uuid}/training-branches/{branchUuid}", ORG_UUID, BRANCH_UUID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson("-1.2218", "36.8970")))
+                .andExpect(status().isNotFound());
 
         Mockito.verify(trainingBranchService, Mockito.never()).updateTrainingBranch(any(), any());
     }

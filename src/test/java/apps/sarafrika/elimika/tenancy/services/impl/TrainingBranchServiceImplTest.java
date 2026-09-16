@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.dto.TrainingBranchDTO;
 import apps.sarafrika.elimika.tenancy.entity.TrainingBranch;
@@ -141,6 +142,33 @@ class TrainingBranchServiceImplTest {
                 request(ORGANISATION_UUID, "Kasarani, Nairobi", null, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Training branch with this name already exists in the organisation");
+    }
+
+    @Test
+    void requireBranchInOrganisationThrowsNotFoundForAnotherOrganisationsBranch() {
+        when(trainingBranchRepository.findByUuidAndOrganisationUuidAndDeletedFalse(BRANCH_UUID, OTHER_ORGANISATION_UUID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requireBranchInOrganisation(OTHER_ORGANISATION_UUID, BRANCH_UUID))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void requireBranchInOrganisationThrowsNotFoundForDeletedBranch() {
+        // The derived query filters deleted rows, so a soft-deleted branch simply does not resolve.
+        when(trainingBranchRepository.findByUuidAndOrganisationUuidAndDeletedFalse(BRANCH_UUID, ORGANISATION_UUID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requireBranchInOrganisation(ORGANISATION_UUID, BRANCH_UUID))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void requireBranchInOrganisationAcceptsTheOrganisationsOwnBranch() {
+        when(trainingBranchRepository.findByUuidAndOrganisationUuidAndDeletedFalse(BRANCH_UUID, ORGANISATION_UUID))
+                .thenReturn(Optional.of(storedBranch()));
+
+        service.requireBranchInOrganisation(ORGANISATION_UUID, BRANCH_UUID);
     }
 
     private TrainingBranch storedBranch() {

@@ -33,6 +33,8 @@ public interface TrainingBranchRepository extends JpaRepository<TrainingBranch, 
      */
     Optional<TrainingBranch> findByUuidAndDeletedFalse(UUID uuid);
 
+    Optional<TrainingBranch> findByUuidAndOrganisationUuidAndDeletedFalse(UUID uuid, UUID organisationUuid);
+
     /**
      * Finds all training branches excluding soft-deleted records with pagination.
      *

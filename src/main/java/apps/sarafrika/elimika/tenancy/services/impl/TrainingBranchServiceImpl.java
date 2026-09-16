@@ -87,6 +87,15 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
 
     @Override
     @Transactional(readOnly = true)
+    public void requireBranchInOrganisation(UUID organisationUuid, UUID branchUuid) {
+        if (organisationUuid == null || branchUuid == null
+                || trainingBranchRepository.findByUuidAndOrganisationUuidAndDeletedFalse(branchUuid, organisationUuid).isEmpty()) {
+            throw new ResourceNotFoundException("Training branch not found for UUID: " + branchUuid);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<TrainingBranchDTO> getAllTrainingBranches(Pageable pageable) {
         log.debug("Fetching all training branches");
         return trainingBranchRepository.findByDeletedFalse(pageable)

@@ -47,6 +47,11 @@ public interface TrainingBranchService {
     TrainingBranchDTO getTrainingBranchByUuid(UUID uuid);
 
     /**
+     * Throws {@link ResourceNotFoundException} unless the branch exists, is not deleted and belongs to the organisation.
+     */
+    void requireBranchInOrganisation(UUID organisationUuid, UUID branchUuid);
+
+    /**
      * Retrieves all training branches with pagination.
      *
      * @param pageable pagination information

@@ -362,6 +362,7 @@ class OrganisationController {
             @Parameter(description = "UUID of the training branch to retrieve. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         TrainingBranchDTO trainingBranch = trainingBranchService.getTrainingBranchByUuid(branchUuid);
         return ResponseEntity.ok(ApiResponse.success(trainingBranch, "Training branch retrieved successfully"));
     }
@@ -380,6 +381,7 @@ class OrganisationController {
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid,
             @Valid @RequestBody TrainingBranchDTO trainingBranchDTO) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         TrainingBranchDTO updated = trainingBranchService.updateTrainingBranch(branchUuid, trainingBranchDTO);
         return ResponseEntity.ok(ApiResponse.success(updated, "Training branch updated successfully"));
     }
@@ -396,6 +398,7 @@ class OrganisationController {
             @Parameter(description = "UUID of the training branch to delete. This will soft-delete the branch and remove all user assignments.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         trainingBranchService.deleteTrainingBranch(branchUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "Training branch deleted successfully"));
     }
@@ -416,6 +419,7 @@ class OrganisationController {
             @Parameter(description = "UUID of the training branch to get users for. Must be a branch within the specified organisation.",
                     example = "550e8400-e29b-41d4-a716-446655440002", required = true)
             @PathVariable UUID branchUuid) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         List<UserDTO> users = trainingBranchService.getBranchUsers(branchUuid);
         return ResponseEntity.ok(ApiResponse.success(users, "Branch users retrieved successfully"));
     }
@@ -440,6 +444,7 @@ class OrganisationController {
             @Parameter(description = "Domain name to filter users by. Valid values: 'student', 'instructor', 'admin', 'organisation_user'",
                     example = "student", required = true)
             @PathVariable String domainName) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         List<UserDTO> users = trainingBranchService.getBranchUsersByDomain(branchUuid, domainName);
         return ResponseEntity.ok(ApiResponse.success(users, "Branch users retrieved successfully"));
     }
@@ -468,6 +473,7 @@ class OrganisationController {
             @Parameter(description = "Role/domain name for the user in this branch. Valid values: 'student', 'instructor', 'admin', 'organisation_user'",
                     example = "student", required = true)
             @RequestParam("domain_name") String domainName) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         trainingBranchService.assignUserToBranch(branchUuid, userUuid, domainName);
         return ResponseEntity.ok(ApiResponse.success(null, "User assigned to branch successfully"));
     }
@@ -491,6 +497,7 @@ class OrganisationController {
             @Parameter(description = "UUID of the user to remove from the training branch. Must be currently assigned to the branch.",
                     example = "550e8400-e29b-41d4-a716-446655440003", required = true)
             @PathVariable UUID userUuid) {
+        trainingBranchService.requireBranchInOrganisation(uuid, branchUuid);
         trainingBranchService.removeUserFromBranch(branchUuid, userUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "User removed from branch successfully"));
     }
