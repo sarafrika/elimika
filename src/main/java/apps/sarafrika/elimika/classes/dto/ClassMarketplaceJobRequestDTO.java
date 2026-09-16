@@ -30,6 +30,7 @@ import java.util.UUID;
         example = """
                 {
                   "organisation_uuid": "org-1234-5678-90ab-cdef12345678",
+                  "branch_uuid": "branch-1234-5678-90ab-cdef12345678",
                   "course_uuid": "course-1234-5678-90ab-cdef12345678",
                   "title": "Weekend Data Analysis Bootcamp",
                   "description": "School-led advert for an approved course delivery slot.",
@@ -38,9 +39,6 @@ import java.util.UUID;
                   "default_start_time": "2026-05-02T09:00:00",
                   "default_end_time": "2026-05-02T12:00:00",
                   "location_type": "HYBRID",
-                  "location_name": "Nairobi Campus - Lab 2",
-                  "location_latitude": -1.292066,
-                  "location_longitude": 36.821945,
                   "meeting_link": "https://meet.google.com/abc-defg-hij",
                   "max_participants": 24,
                   "allow_waitlist": true,
@@ -158,16 +156,16 @@ public record ClassMarketplaceJobRequestDTO(
         @NotNull(message = "location_type is required")
         LocationType locationType,
 
-        @Schema(description = "Optional human-readable location name. Required for IN_PERSON and HYBRID.", nullable = true)
+        @Schema(description = "Ignored for IN_PERSON and HYBRID: the name is derived from the branch as 'Branch name · address'. Kept as sent for ONLINE.", nullable = true)
         @JsonProperty("location_name")
         @Size(max = 255, message = "Location name must not exceed 255 characters")
         String locationName,
 
-        @Schema(description = "Optional location latitude. Required for IN_PERSON and HYBRID.", nullable = true)
+        @Schema(description = "Ignored for IN_PERSON and HYBRID: copied from the branch's location pin when the job is saved. Kept as sent for ONLINE.", nullable = true)
         @JsonProperty("location_latitude")
         BigDecimal locationLatitude,
 
-        @Schema(description = "Optional location longitude. Required for IN_PERSON and HYBRID.", nullable = true)
+        @Schema(description = "Ignored for IN_PERSON and HYBRID: copied from the branch's location pin when the job is saved. Kept as sent for ONLINE.", nullable = true)
         @JsonProperty("location_longitude")
         BigDecimal locationLongitude,
 
@@ -249,7 +247,12 @@ public record ClassMarketplaceJobRequestDTO(
 
         @Schema(description = "**[OPTIONAL]** Deliver reminders via push notification.", nullable = true)
         @JsonProperty("remind_via_push")
-        Boolean remindViaPush
+        Boolean remindViaPush,
+
+        @Schema(description = "**[REQUIRED]** Training branch the class is delivered at. Its location pin becomes the job's location for IN_PERSON and HYBRID delivery.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @JsonProperty("branch_uuid")
+        @NotNull(message = "branch_uuid is required")
+        UUID branchUuid
 ) {
 
     @JsonIgnore

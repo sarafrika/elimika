@@ -13,6 +13,8 @@ import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
 import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
@@ -107,6 +109,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
     private static final String CACHE_PAY_VISIBLE = "marketplaceJob.payVisible";
+    private static final String CACHE_BRANCH_NAME_PREFIX = "marketplaceJob.branchName.";
     /** Derived from the enum so a new recruitment stage is covered without editing this list. */
     private static final List<ClassMarketplaceJobApplicationStatus> ACTIVE_APPLICATION_STATUSES =
             Arrays.stream(ClassMarketplaceJobApplicationStatus.values())
@@ -136,14 +139,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final MediaStorageService mediaStorageService;
     private final MediaValidationService mediaValidationService;
     private final StorageProperties storageProperties;
+    private final BranchLocationResolver branchLocationResolver;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
         requireOrganisationManagerAccess(request.organisationUuid());
-        validateJobDraft(request);
+        ResolvedLocation location = validateJobDraft(request);
 
         ClassMarketplaceJob job = new ClassMarketplaceJob();
-        applyJobDraft(job, request);
+        applyJobDraft(job, request, location);
         job.setStatus(ClassMarketplaceJobStatus.OPEN);
 
         ClassMarketplaceJob saved = jobRepository.save(job);
@@ -192,8 +196,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             throw new IllegalArgumentException("organisation_uuid cannot be changed after a marketplace job has been created");
         }
 
-        validateJobDraft(request);
-        applyJobDraft(job, request);
+        ResolvedLocation location = validateJobDraft(request);
+        applyJobDraft(job, request, location);
         ClassMarketplaceJob saved = jobRepository.save(job);
         replaceSessionTemplates(saved.getUuid(), request.sessionTemplates());
         resourceBookingService.releaseHoldsForJob(jobUuid, "Job updated; holds re-evaluated");
@@ -788,8 +792,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setAssignedInstructorUuid(instructorUuid);
     }
 
-    private void applyJobDraft(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
+    private void applyJobDraft(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request, ResolvedLocation location) {
         job.setOrganisationUuid(request.organisationUuid());
+        job.setBranchUuid(request.branchUuid());
         job.setCourseUuid(request.courseUuid());
         job.setProgramUuid(request.programUuid());
         job.setTitle(request.title());
@@ -805,9 +810,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setClassReminderMinutes(request.classReminderMinutes());
         job.setClassColor(request.classColor());
         job.setLocationType(request.locationType());
-        job.setLocationName(request.locationName());
-        job.setLocationLatitude(request.locationLatitude());
-        job.setLocationLongitude(request.locationLongitude());
+        job.setLocationName(location.locationName());
+        job.setLocationLatitude(location.latitude());
+        job.setLocationLongitude(location.longitude());
         job.setMeetingLink(request.meetingLink());
         job.setMaxParticipants(request.maxParticipants() != null ? request.maxParticipants() : DEFAULT_MAX_PARTICIPANTS);
         job.setAllowWaitlist(request.allowWaitlist() != null ? request.allowWaitlist() : Boolean.TRUE);
@@ -915,12 +920,18 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 basis);
     }
 
-    private void validateJobDraft(ClassMarketplaceJobRequestDTO request) {
+    private ResolvedLocation validateJobDraft(ClassMarketplaceJobRequestDTO request) {
         validateLearningContext(request);
         validateRegistrationWindow(request);
-        validateLocationRequirements(request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude());
+        if (request.branchUuid() == null) {
+            throw new IllegalArgumentException("branch_uuid is required");
+        }
+        ResolvedLocation location = branchLocationResolver.resolve(request.organisationUuid(), request.branchUuid(),
+                request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude(), true);
+        validateLocationRequirements(request.locationType(), location.locationName(), location.latitude(), location.longitude());
         validateSessionTemplates(request.sessionTemplates());
         validateJobResources(request);
+        return location;
     }
 
     /**
@@ -1832,8 +1843,19 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getRemindInstructor(),
                 job.getRemindViaEmail(),
                 job.getRemindViaSms(),
-                job.getRemindViaPush()
+                job.getRemindViaPush(),
+                job.getBranchUuid(),
+                resolveBranchName(job.getBranchUuid())
         );
+    }
+
+    /** Memoised per branch so a page of jobs looks each distinct branch up once. */
+    private String resolveBranchName(UUID branchUuid) {
+        if (branchUuid == null) {
+            return null;
+        }
+        return requestScopedCache.get(CACHE_BRANCH_NAME_PREFIX + branchUuid,
+                () -> branchLocationResolver.branchName(branchUuid).orElse(null));
     }
 
     private ClassMarketplaceJobApplicationDTO toApplicationDTO(ClassMarketplaceJobApplication application) {

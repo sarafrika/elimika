@@ -89,13 +89,31 @@ class ClassMarketplaceJobControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.uuid").value(response.uuid().toString()))
                 .andExpect(jsonPath("$.data.status").value("open"))
-                .andExpect(jsonPath("$.data.course_uuid").value(request.courseUuid().toString()));
+                .andExpect(jsonPath("$.data.course_uuid").value(request.courseUuid().toString()))
+                .andExpect(jsonPath("$.data.branch_uuid").value(request.branchUuid().toString()))
+                .andExpect(jsonPath("$.data.branch_name").value("Main Campus"));
 
         ArgumentCaptor<ClassMarketplaceJobRequestDTO> captor =
                 ArgumentCaptor.forClass(ClassMarketplaceJobRequestDTO.class);
         verify(classMarketplaceJobService).createJob(captor.capture());
         assertEquals(request.organisationUuid(), captor.getValue().organisationUuid());
         assertEquals(request.sessionTemplates().size(), captor.getValue().sessionTemplates().size());
+        assertEquals(request.branchUuid(), captor.getValue().branchUuid());
+    }
+
+    @Test
+    void createJobWithoutBranchReturns400() throws Exception {
+        ClassMarketplaceJobRequestDTO request = sampleRequest();
+        com.fasterxml.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(request);
+        body.remove("branch_uuid");
+
+        mockMvc.perform(post("/api/v1/classes/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.branch_uuid").value("branch_uuid is required"));
+
+        verify(classMarketplaceJobService, Mockito.never()).createJob(any());
     }
 
     @Test
@@ -276,7 +294,8 @@ class ClassMarketplaceJobControllerTest {
                 Boolean.TRUE,
                 Boolean.TRUE,
                 Boolean.FALSE,
-                Boolean.TRUE
+                Boolean.TRUE,
+                UUID.randomUUID()
         );
     }
 
@@ -330,7 +349,8 @@ class ClassMarketplaceJobControllerTest {
                 Boolean.TRUE,
                 Boolean.TRUE,
                 Boolean.FALSE,
-                Boolean.TRUE
+                Boolean.TRUE,
+                UUID.randomUUID()
         );
     }
 
@@ -383,7 +403,9 @@ class ClassMarketplaceJobControllerTest {
                 request.remindInstructor(),
                 request.remindViaEmail(),
                 request.remindViaSms(),
-                request.remindViaPush()
+                request.remindViaPush(),
+                request.branchUuid(),
+                "Main Campus"
         );
     }
 

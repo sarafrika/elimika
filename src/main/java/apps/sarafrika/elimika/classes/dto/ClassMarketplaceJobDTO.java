@@ -166,7 +166,15 @@ public record ClassMarketplaceJobDTO(
         Boolean remindViaSms,
 
         @JsonProperty(value = "remind_via_push", access = JsonProperty.Access.READ_ONLY)
-        Boolean remindViaPush
+        Boolean remindViaPush,
+
+        @Schema(description = "**[READ-ONLY]** Training branch the class is delivered at (null only on legacy jobs).", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "branch_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID branchUuid,
+
+        @Schema(description = "**[READ-ONLY]** Name of the job's training branch.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "branch_name", access = JsonProperty.Access.READ_ONLY)
+        String branchName
 ) {
 
     @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)

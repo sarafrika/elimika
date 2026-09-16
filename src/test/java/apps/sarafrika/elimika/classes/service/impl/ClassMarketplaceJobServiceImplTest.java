@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
@@ -32,6 +33,8 @@ import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
+import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldRequest;
@@ -142,6 +145,13 @@ class ClassMarketplaceJobServiceImplTest {
     @Mock
     private apps.sarafrika.elimika.shared.storage.config.StorageProperties storageProperties;
 
+    @Mock
+    private TrainingBranchLookupService trainingBranchLookupService;
+
+    private static final UUID BRANCH_UUID = UUID.fromString("b0000000-0000-0000-0000-000000000001");
+    private static final BigDecimal BRANCH_LATITUDE = new BigDecimal("-1.221800");
+    private static final BigDecimal BRANCH_LONGITUDE = new BigDecimal("36.897000");
+
     private final RequestScopedCache requestScopedCache = new RequestScopedCache();
 
     private ClassMarketplaceJobServiceImpl service;
@@ -171,8 +181,14 @@ class ClassMarketplaceJobServiceImplTest {
                 eventPublisher,
                 mediaStorageService,
                 mediaValidationService,
-                storageProperties
+                storageProperties,
+                new BranchLocationResolver(trainingBranchLookupService)
         );
+        org.mockito.Mockito.lenient()
+                .when(trainingBranchLookupService.findBranch(any(), any()))
+                .thenAnswer(invocation -> Optional.of(new BranchLocation(invocation.getArgument(1),
+                        invocation.getArgument(0), "Main Campus", "Kasarani, Nairobi",
+                        BRANCH_LATITUDE, BRANCH_LONGITUDE, true)));
         org.mockito.Mockito.lenient()
                 .when(courseTrainingApprovalSpi.resolveOrganisationRate(any(), any(), any(), any(), any()))
                 .thenReturn(Optional.of(new BigDecimal("240.00")));
@@ -1512,7 +1528,8 @@ class ClassMarketplaceJobServiceImplTest {
                 Boolean.FALSE,
                 Boolean.TRUE,
                 Boolean.FALSE,
-                Boolean.TRUE
+                Boolean.TRUE,
+                BRANCH_UUID
         );
     }
 
@@ -1538,7 +1555,7 @@ class ClassMarketplaceJobServiceImplTest {
                 )),
                 base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
                 base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(), base.remindInstructor(),
-                base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ClassMarketplaceJobRequestDTO withTargetGroupUuids(ClassMarketplaceJobRequestDTO base, List<UUID> groupUuids) {
@@ -1550,7 +1567,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), groupUuids, base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ClassMarketplaceJobRequestDTO withPricing(ClassMarketplaceJobRequestDTO base,
@@ -1566,7 +1583,7 @@ class ClassMarketplaceJobServiceImplTest {
                 null, base.sessionTemplates(),
                 base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
                 base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ClassMarketplaceJobRequestDTO withTrainingFee(ClassMarketplaceJobRequestDTO base, BigDecimal trainingFee) {
@@ -1579,7 +1596,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.maxParticipants(), base.allowWaitlist(), trainingFee, trainingFee, base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
                 base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ClassMarketplaceJobRequestDTO withCategory(ClassMarketplaceJobRequestDTO base, UUID categoryUuid) {
@@ -1592,7 +1609,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
                 categoryUuid, base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ClassMarketplaceJobRequestDTO withPreferredInstructor(ClassMarketplaceJobRequestDTO base, UUID instructorUuid) {
@@ -1604,7 +1621,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), base.resources(),
                 base.serviceType(), instructorUuid, base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ClassMarketplaceJob sampleJob() {
@@ -2878,7 +2895,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(),
                 base.sessionTemplates(), base.resources(), base.serviceType(), base.preferredInstructorUuid(),
                 base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private InstructorTimeHoldDTO firmHold(LocalDateTime start, LocalDateTime end) {
@@ -2909,7 +2926,7 @@ class ClassMarketplaceJobServiceImplTest {
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(), base.sessionTemplates(), resources,
                 base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush());
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     private ResourceSummary venueSummary(UUID resourceUuid, UUID organisationUuid, int seatCapacity, boolean active) {
@@ -3021,5 +3038,163 @@ class ClassMarketplaceJobServiceImplTest {
                 null,
                 null
         );
+    }
+
+    // ===== branch location =====
+
+    @Test
+    void createJobRequiresABranch() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
+                LocationType.HYBRID, "Nairobi Campus - Lab 2", new BigDecimal("-1.292066"), new BigDecimal("36.821945"), null);
+        allowProgramJob(request, programUuid);
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("branch_uuid is required");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @Test
+    void createJobCopiesTheBranchPinOverClientCoordinates() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+        allowProgramJob(request, programUuid);
+        stubJobSaves();
+
+        var result = service.createJob(request);
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        ClassMarketplaceJob saved = jobCaptor.getValue();
+        assertThat(saved.getBranchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(saved.getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
+        assertThat(saved.getLocationLatitude()).isEqualByComparingTo(BRANCH_LATITUDE);
+        assertThat(saved.getLocationLongitude()).isEqualByComparingTo(BRANCH_LONGITUDE);
+        assertThat(result.branchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(result.locationLatitude()).isNotEqualByComparingTo(request.locationLatitude());
+    }
+
+    @Test
+    void createJobRefusesABranchWithoutAPinForHybrid() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+        allowProgramJob(request, programUuid);
+        when(trainingBranchLookupService.findBranch(request.organisationUuid(), BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, request.organisationUuid(), "Main Campus", "Kasarani, Nairobi", null, null, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Training branch 'Main Campus' has no location pin; set it on the branch first");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @Test
+    void createJobRefusesABranchOfAnotherOrganisation() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+        allowProgramJob(request, programUuid);
+        when(trainingBranchLookupService.findBranch(request.organisationUuid(), BRANCH_UUID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Training branch %s does not belong to organisation %s", BRANCH_UUID, request.organisationUuid());
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @Test
+    void updateJobRecopiesTheBranchPin() {
+        UUID programUuid = UUID.randomUUID();
+        UUID newBranchUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
+                LocationType.IN_PERSON, "Client typed name", new BigDecimal("10.0"), new BigDecimal("10.0"), newBranchUuid);
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(request.organisationUuid());
+        job.setProgramUuid(programUuid);
+        job.setBranchUuid(BRANCH_UUID);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(request, programUuid);
+        when(trainingBranchLookupService.findBranch(request.organisationUuid(), newBranchUuid)).thenReturn(Optional.of(
+                new BranchLocation(newBranchUuid, request.organisationUuid(), "Westlands Annex", null,
+                        new BigDecimal("-1.26761234567"), new BigDecimal("36.81080000001"), true)));
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateJob(job.getUuid(), request);
+
+        assertThat(job.getBranchUuid()).isEqualTo(newBranchUuid);
+        assertThat(job.getLocationName()).isEqualTo("Westlands Annex");
+        assertThat(job.getLocationLatitude()).isEqualTo(new BigDecimal("-1.267612"));
+        assertThat(job.getLocationLongitude()).isEqualTo(new BigDecimal("36.810800"));
+    }
+
+    @Test
+    void onlineJobNeedsNoBranchPin() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
+                LocationType.ONLINE, null, null, null, BRANCH_UUID);
+        allowProgramJob(request, programUuid);
+        when(trainingBranchLookupService.findBranch(request.organisationUuid(), BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, request.organisationUuid(), "Main Campus", null, null, null, true)));
+        stubJobSaves();
+
+        service.createJob(request);
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getBranchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(jobCaptor.getValue().getLocationName()).isNull();
+        assertThat(jobCaptor.getValue().getLocationLatitude()).isNull();
+    }
+
+    @Test
+    void getJobLabelsTheBranchName() {
+        ClassMarketplaceJob job = sampleJob();
+        job.setBranchUuid(BRANCH_UUID);
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(trainingBranchLookupService.findBranchNames(List.of(BRANCH_UUID)))
+                .thenReturn(java.util.Map.of(BRANCH_UUID, "Main Campus"));
+
+        var result = service.getJob(job.getUuid());
+
+        assertThat(result.branchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(result.branchName()).isEqualTo("Main Campus");
+    }
+
+    private void allowProgramJob(ClassMarketplaceJobRequestDTO request, UUID programUuid) {
+        org.mockito.Mockito.lenient().when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        org.mockito.Mockito.lenient().when(domainSecurityService.managesOrganisation(request.organisationUuid())).thenReturn(true);
+        org.mockito.Mockito.lenient().when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        org.mockito.Mockito.lenient().when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        org.mockito.Mockito.lenient()
+                .when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
+                .thenReturn(true);
+    }
+
+    private void stubJobSaves() {
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> {
+                    ClassMarketplaceJob job = invocation.getArgument(0);
+                    job.setUuid(UUID.randomUUID());
+                    return job;
+                });
+    }
+
+    private ClassMarketplaceJobRequestDTO withLocation(ClassMarketplaceJobRequestDTO base,
+                                                       LocationType locationType,
+                                                       String locationName,
+                                                       BigDecimal latitude,
+                                                       BigDecimal longitude,
+                                                       UUID branchUuid) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), locationType,
+                locationName, latitude, longitude, base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(),
+                base.sessionTemplates(), base.resources(), base.serviceType(), base.preferredInstructorUuid(),
+                base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), branchUuid);
     }
 }
