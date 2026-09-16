@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
@@ -24,6 +25,8 @@ import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.MediaValidationService;
 import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
 import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
@@ -38,6 +41,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -46,10 +50,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -108,6 +116,9 @@ class ClassDefinitionServiceImplTest {
     @org.mockito.Mock
     private apps.sarafrika.elimika.resourcing.spi.ResourceLookupService resourceLookupService;
 
+    @Mock
+    private TrainingBranchLookupService trainingBranchLookupService;
+
     private ClassDefinitionServiceImpl service;
 
     @BeforeEach
@@ -141,7 +152,8 @@ class ClassDefinitionServiceImplTest {
                 instructorPayableLookupService,
                 mediaStorageService,
                 mediaValidationService,
-                storageProperties
+                storageProperties,
+                new BranchLocationResolver(trainingBranchLookupService)
         );
     }
 
@@ -318,13 +330,22 @@ class ClassDefinitionServiceImplTest {
     }
 
     private ClassDefinitionDTO sampleClassDefinition() {
+        return sampleClassDefinition(UUID.randomUUID(), null, LocationType.ONLINE, null, null, null);
+    }
+
+    private ClassDefinitionDTO sampleClassDefinition(UUID organisationUuid,
+                                                     UUID branchUuid,
+                                                     LocationType locationType,
+                                                     String locationName,
+                                                     BigDecimal latitude,
+                                                     BigDecimal longitude) {
         return new ClassDefinitionDTO(
                 null,
                 "Data Science Cohort",
                 "Applied analytics class",
                 UUID.randomUUID(),
-                UUID.randomUUID(),
-                null,
+                organisationUuid,
+                branchUuid,
                 null,
                 null,
                 null,
@@ -340,10 +361,10 @@ class ClassDefinitionServiceImplTest {
                 null,
                 30,
                 "#1F6FEB",
-                LocationType.ONLINE,
-                null,
-                null,
-                null,
+                locationType,
+                locationName,
+                latitude,
+                longitude,
                 "https://meet.google.com/abc-defg-hij",
                 25,
                 true,
@@ -482,5 +503,165 @@ class ClassDefinitionServiceImplTest {
                 null,
                 null
         );
+    }
+
+    // ── The class's branch decides where it is delivered ──────────────────────────────────────
+
+    private static final UUID BRANCH_UUID = UUID.fromString("b0000000-0000-0000-0000-000000000001");
+    private static final BigDecimal BRANCH_LATITUDE = new BigDecimal("-1.221800");
+    private static final BigDecimal BRANCH_LONGITUDE = new BigDecimal("36.897000");
+
+    @Test
+    void createCopiesBranchPinForInPersonClass() {
+        UUID organisationUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.IN_PERSON,
+                "Typed by the client", new BigDecimal("10.0"), new BigDecimal("10.0"));
+        when(trainingBranchLookupService.findBranch(organisationUuid, BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, organisationUuid, "Main Campus", "Kasarani, Nairobi",
+                        new BigDecimal("-1.2218004"), BRANCH_LONGITUDE, true)));
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request);
+
+        assertThat(saved.get().getBranchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(saved.get().getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
+        assertThat(saved.get().getLocationLatitude()).isEqualTo(BRANCH_LATITUDE);
+        assertThat(saved.get().getLocationLongitude()).isEqualTo(BRANCH_LONGITUDE);
+    }
+
+    @Test
+    void createRefusesBranchOfAnotherOrganisation() {
+        UUID organisationUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.IN_PERSON,
+                null, null, null);
+        when(trainingBranchLookupService.findBranch(organisationUuid, BRANCH_UUID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createClassDefinition(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Training branch %s does not belong to organisation %s", BRANCH_UUID, organisationUuid);
+        verify(classDefinitionRepository, never()).save(any());
+    }
+
+    @Test
+    void createRefusesBranchWithoutOrganisation() {
+        ClassDefinitionDTO request = sampleClassDefinition(null, BRANCH_UUID, LocationType.ONLINE, null, null, null);
+
+        assertThatThrownBy(() -> service.createClassDefinition(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("branch_uuid requires organisation_uuid");
+        verify(classDefinitionRepository, never()).save(any());
+    }
+
+    @Test
+    void createKeepsClientCoordinatesWithoutBranch() {
+        ClassDefinitionDTO request = sampleClassDefinition(UUID.randomUUID(), null, LocationType.IN_PERSON,
+                "Community Hall", new BigDecimal("-4.043477"), new BigDecimal("39.668206"));
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request);
+
+        assertThat(saved.get().getLocationName()).isEqualTo("Community Hall");
+        assertThat(saved.get().getLocationLatitude()).isEqualTo(new BigDecimal("-4.043477"));
+        assertThat(saved.get().getLocationLongitude()).isEqualTo(new BigDecimal("39.668206"));
+        verifyNoInteractions(trainingBranchLookupService);
+    }
+
+    @Test
+    void createFromJobKeepsTheJobsCopiedLocation() {
+        ClassDefinitionDTO request = sampleClassDefinition(UUID.randomUUID(), BRANCH_UUID, LocationType.HYBRID,
+                "Main Campus · Kasarani, Nairobi", BRANCH_LATITUDE, BRANCH_LONGITUDE)
+                .withResourceLinks(null, UUID.randomUUID());
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request);
+
+        assertThat(saved.get().getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
+        assertThat(saved.get().getLocationLatitude()).isEqualTo(BRANCH_LATITUDE);
+        verify(trainingBranchLookupService, never()).findBranch(any(), any());
+    }
+
+    @Test
+    void updateKeepsExistingCoordinatesWhenUnchangedBranchHasNoPin() {
+        ClassDefinition existing = inPersonClassAtBranch();
+        when(classDefinitionRepository.findByUuid(existing.getUuid())).thenReturn(Optional.of(existing));
+        when(trainingBranchLookupService.findBranch(existing.getOrganisationUuid(), BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, existing.getOrganisationUuid(), "Main Campus", null, null, null, false)));
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(existing.getUuid()))
+                .thenReturn(List.of());
+
+        service.updateClassDefinition(existing.getUuid(), updateRequest(null, "Renamed cohort"));
+
+        assertThat(existing.getTitle()).isEqualTo("Renamed cohort");
+        assertThat(existing.getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
+        assertThat(existing.getLocationLatitude()).isEqualTo(BRANCH_LATITUDE);
+        assertThat(existing.getLocationLongitude()).isEqualTo(BRANCH_LONGITUDE);
+    }
+
+    @Test
+    void updateRefusesMovingToABranchWithoutPin() {
+        UUID otherBranchUuid = UUID.randomUUID();
+        ClassDefinition existing = inPersonClassAtBranch();
+        when(classDefinitionRepository.findByUuid(existing.getUuid())).thenReturn(Optional.of(existing));
+        when(trainingBranchLookupService.findBranch(existing.getOrganisationUuid(), otherBranchUuid)).thenReturn(Optional.of(
+                new BranchLocation(otherBranchUuid, existing.getOrganisationUuid(), "Westlands Annex", null, null, null, true)));
+
+        assertThatThrownBy(() -> service.updateClassDefinition(existing.getUuid(), updateRequest(otherBranchUuid, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Training branch 'Westlands Annex' has no location pin; set it on the branch first");
+        verify(classDefinitionRepository, never()).save(any());
+    }
+
+    @Test
+    void createRefusesVenueFromAnotherBranch() {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.ONLINE,
+                null, null, null).withResourceLinks(venueUuid, null);
+        when(trainingBranchLookupService.findBranch(organisationUuid, BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, organisationUuid, "Main Campus", null, null, null, true)));
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                new apps.sarafrika.elimika.resourcing.spi.ResourceSummary(venueUuid, organisationUuid, UUID.randomUUID(),
+                        apps.sarafrika.elimika.resourcing.spi.ResourceType.VENUE, "Physics Lab", 40, null, true)));
+
+        assertThatThrownBy(() -> service.createClassDefinition(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Venue 'Physics Lab' is not at the class's branch");
+        verify(classDefinitionRepository, never()).save(any());
+    }
+
+    private ClassDefinition inPersonClassAtBranch() {
+        ClassDefinition entity = sampleClassDefinitionEntity();
+        entity.setUuid(UUID.randomUUID());
+        entity.setBranchUuid(BRANCH_UUID);
+        entity.setLocationType(LocationType.IN_PERSON);
+        entity.setLocationName("Main Campus · Kasarani, Nairobi");
+        entity.setLocationLatitude(BRANCH_LATITUDE);
+        entity.setLocationLongitude(BRANCH_LONGITUDE);
+        return entity;
+    }
+
+    private ClassDefinitionDTO updateRequest(UUID branchUuid, String title) {
+        return new ClassDefinitionDTO(null, title, null, null, null, branchUuid, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
+    }
+
+    private AtomicReference<ClassDefinition> stubSuccessfulCreate(ClassDefinitionDTO request) {
+        UUID classUuid = UUID.randomUUID();
+        AtomicReference<ClassDefinition> saved = new AtomicReference<>();
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> {
+            ClassDefinition entity = invocation.getArgument(0);
+            entity.setUuid(classUuid);
+            saved.set(entity);
+            return entity;
+        });
+        lenient().when(classSessionTemplateRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(availabilityService.isInstructorAvailable(any(), any(), any())).thenReturn(true);
+        lenient().when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
+        lenient().when(classScheduleServiceProvider.getIfAvailable()).thenReturn(null);
+        lenient().when(timetableService.hasInstructorConflict(any(UUID.class), any(ScheduleRequestDTO.class))).thenReturn(false);
+        lenient().when(timetableService.scheduleClass(any(ScheduleRequestDTO.class))).thenReturn(sampleScheduledInstance(classUuid));
+        return saved;
     }
 }

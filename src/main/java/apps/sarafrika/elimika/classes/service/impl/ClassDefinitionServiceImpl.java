@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
 import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
@@ -89,6 +91,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final MediaStorageService mediaStorageService;
     private final MediaValidationService mediaValidationService;
     private final StorageProperties storageProperties;
+    private final BranchLocationResolver branchLocationResolver;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
@@ -128,6 +131,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             entity.setRateBasis(RateBasis.PER_HOUR);
         }
 
+        // A class created from a marketplace job already carries the location the job copied from its branch.
+        if (entity.getMarketplaceJobUuid() == null) {
+            applyBranchLocation(entity, true);
+        }
         validateLocationRequirements(entity);
         validateLearningContext(entity);
         validateTrainingApprovals(entity);
@@ -284,13 +291,30 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     /**
-     * A class using a managed venue cannot admit more participants than the venue seats.
+     * Strict when the branch or delivery mode is new; an unchanged branch that lost its pin keeps the stored location.
+     */
+    private void applyBranchLocation(ClassDefinition entity, boolean strict) {
+        ResolvedLocation location = branchLocationResolver.resolve(entity.getOrganisationUuid(), entity.getBranchUuid(),
+                entity.getLocationType(), entity.getLocationName(), entity.getLocationLatitude(),
+                entity.getLocationLongitude(), strict);
+        entity.setLocationName(location.locationName());
+        entity.setLocationLatitude(location.latitude());
+        entity.setLocationLongitude(location.longitude());
+    }
+
+    /**
+     * A class using a managed venue cannot admit more participants than the venue seats, nor sit at another branch.
      */
     private void validateVenueCapacity(ClassDefinition entity) {
         if (entity.getVenueResourceUuid() == null) {
             return;
         }
         resourceLookupService.getResource(entity.getVenueResourceUuid()).ifPresent(summary -> {
+            if (entity.getBranchUuid() != null && summary.branchUuid() != null
+                    && !entity.getBranchUuid().equals(summary.branchUuid())) {
+                throw new IllegalArgumentException(String.format(
+                        "Venue '%s' is not at the class's branch", summary.name()));
+            }
             if (summary.seatCapacity() != null && entity.getMaxParticipants() != null
                     && entity.getMaxParticipants() > summary.seatCapacity()) {
                 throw new IllegalArgumentException(String.format(
@@ -820,8 +844,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         ClassDefinition existingEntity = classDefinitionRepository.findByUuid(definitionUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(CLASS_DEFINITION_NOT_FOUND_TEMPLATE, definitionUuid)));
 
+        UUID previousBranchUuid = existingEntity.getBranchUuid();
+        LocationType previousLocationType = existingEntity.getLocationType();
         ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
         applyLearningContextOverrides(existingEntity, classDefinitionDTO);
+        boolean placementChanged = !Objects.equals(previousBranchUuid, existingEntity.getBranchUuid())
+                || previousLocationType != existingEntity.getLocationType();
+        applyBranchLocation(existingEntity, placementChanged);
         validateLocationRequirements(existingEntity);
         validateLearningContext(existingEntity);
         validateTrainingApprovals(existingEntity);
