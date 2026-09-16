@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +83,8 @@ public class ClassMarketplaceJobController {
             @RequestParam(value = "organisation_uuid", required = false) UUID organisationUuid,
             @RequestParam(value = "course_uuid", required = false) UUID courseUuid,
             @RequestParam(value = "program_uuid", required = false) UUID programUuid,
+            @Parameter(description = "Only jobs delivered at this training branch")
+            @RequestParam(value = "branch_uuid", required = false) UUID branchUuid,
             @RequestParam(value = "status", required = false) String status,
             Pageable pageable) {
         Optional<ClassMarketplaceJobStatus> statusFilter = Optional.ofNullable(status)
@@ -92,6 +95,7 @@ public class ClassMarketplaceJobController {
                 organisationUuid,
                 courseUuid,
                 programUuid,
+                branchUuid,
                 statusFilter.orElse(null),
                 pageable
         );

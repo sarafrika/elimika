@@ -220,9 +220,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public Page<ClassMarketplaceJobDTO> listJobs(UUID organisationUuid,
                                                  UUID courseUuid,
                                                  UUID programUuid,
+                                                 UUID branchUuid,
                                                  ClassMarketplaceJobStatus status,
                                                  org.springframework.data.domain.Pageable pageable) {
-        return jobRepository.search(organisationUuid, courseUuid, programUuid, status, pageable)
+        return jobRepository.search(organisationUuid, courseUuid, programUuid, branchUuid, status, pageable)
                 .map(this::toJobDTO);
     }
 

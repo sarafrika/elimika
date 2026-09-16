@@ -1405,10 +1405,10 @@ class ClassMarketplaceJobServiceImplTest {
         job.setInstructorPay(new BigDecimal("18000.00"));
         PageRequest pageable = PageRequest.of(0, 20);
 
-        when(jobRepository.search(null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
 
-        var page = service.listJobs(null, null, null, null, pageable);
+        var page = service.listJobs(null, null, null, null, null, pageable);
 
         assertThat(page.getContent()).hasSize(1);
         assertThat(page.getContent().getFirst().salePrice()).isEqualTo(job.getSalePrice());
@@ -1422,10 +1422,10 @@ class ClassMarketplaceJobServiceImplTest {
         PageRequest pageable = PageRequest.of(0, 20);
 
         when(domainSecurityService.isVerifiedInstructor()).thenReturn(true);
-        when(jobRepository.search(null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
 
-        var page = service.listJobs(null, null, null, null, pageable);
+        var page = service.listJobs(null, null, null, null, null, pageable);
 
         assertThat(page.getContent().getFirst().instructorPay())
                 .isEqualByComparingTo(new BigDecimal("18000.00"));
@@ -1438,10 +1438,10 @@ class ClassMarketplaceJobServiceImplTest {
         PageRequest pageable = PageRequest.of(0, 20);
 
         when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
-        when(jobRepository.search(null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
 
-        var page = service.listJobs(null, null, null, null, pageable);
+        var page = service.listJobs(null, null, null, null, null, pageable);
 
         assertThat(page.getContent().getFirst().instructorPay())
                 .isEqualByComparingTo(new BigDecimal("18000.00"));
@@ -1457,12 +1457,14 @@ class ClassMarketplaceJobServiceImplTest {
                 courseUuid,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of(sampleJob()), PageRequest.of(0, 20), 1));
 
         var page = service.listJobs(
                 organisationUuid,
                 courseUuid,
+                null,
                 null,
                 null,
                 PageRequest.of(0, 20)
@@ -1474,8 +1476,22 @@ class ClassMarketplaceJobServiceImplTest {
                 courseUuid,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 20)
         );
+    }
+
+    @Test
+    void listJobsPassesBranchFilterToRepository() {
+        UUID organisationUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(jobRepository.search(organisationUuid, null, null, BRANCH_UUID, ClassMarketplaceJobStatus.OPEN, pageable))
+                .thenReturn(new PageImpl<>(List.of(sampleJob()), pageable, 1));
+
+        var page = service.listJobs(organisationUuid, null, null, BRANCH_UUID, ClassMarketplaceJobStatus.OPEN, pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        verify(jobRepository).search(organisationUuid, null, null, BRANCH_UUID, ClassMarketplaceJobStatus.OPEN, pageable);
     }
 
     private ClassMarketplaceJobRequestDTO sampleRequest(UUID courseUuid, UUID programUuid) {

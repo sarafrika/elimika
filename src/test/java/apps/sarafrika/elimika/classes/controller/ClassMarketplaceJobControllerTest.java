@@ -187,6 +187,7 @@ class ClassMarketplaceJobControllerTest {
                 eq(request.organisationUuid()),
                 eq(request.courseUuid()),
                 isNull(),
+                isNull(),
                 eq(ClassMarketplaceJobStatus.OPEN),
                 any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
@@ -206,6 +207,7 @@ class ClassMarketplaceJobControllerTest {
                 eq(request.organisationUuid()),
                 eq(request.courseUuid()),
                 isNull(),
+                isNull(),
                 eq(ClassMarketplaceJobStatus.OPEN),
                 any(org.springframework.data.domain.Pageable.class)
         );
@@ -220,6 +222,7 @@ class ClassMarketplaceJobControllerTest {
                 eq(request.organisationUuid()),
                 isNull(),
                 eq(request.programUuid()),
+                isNull(),
                 eq(ClassMarketplaceJobStatus.OPEN),
                 any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
@@ -239,7 +242,39 @@ class ClassMarketplaceJobControllerTest {
                 eq(request.organisationUuid()),
                 isNull(),
                 eq(request.programUuid()),
+                isNull(),
                 eq(ClassMarketplaceJobStatus.OPEN),
+                any(org.springframework.data.domain.Pageable.class)
+        );
+    }
+
+    @Test
+    void listJobsAcceptsBranchFilter() throws Exception {
+        ClassMarketplaceJobRequestDTO request = sampleRequest();
+        ClassMarketplaceJobDTO response = sampleResponse(request);
+
+        when(classMarketplaceJobService.listJobs(
+                eq(request.organisationUuid()),
+                isNull(),
+                isNull(),
+                eq(request.branchUuid()),
+                isNull(),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/v1/classes/jobs")
+                        .param("organisation_uuid", request.organisationUuid().toString())
+                        .param("branch_uuid", request.branchUuid().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].branch_uuid").value(request.branchUuid().toString()))
+                .andExpect(jsonPath("$.data.content[0].branch_name").value("Main Campus"));
+
+        verify(classMarketplaceJobService).listJobs(
+                eq(request.organisationUuid()),
+                isNull(),
+                isNull(),
+                eq(request.branchUuid()),
+                isNull(),
                 any(org.springframework.data.domain.Pageable.class)
         );
     }
