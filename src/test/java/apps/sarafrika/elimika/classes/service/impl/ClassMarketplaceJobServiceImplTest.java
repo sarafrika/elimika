@@ -1842,7 +1842,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
                 .thenReturn(true);
         when(resourceLookupService.getResource(poolUuid)).thenReturn(Optional.of(new ResourceSummary(
-                poolUuid, request.organisationUuid(), null, ResourceType.EQUIPMENT_POOL, "Laptops", null, 25, true)));
+                poolUuid, request.organisationUuid(), BRANCH_UUID, ResourceType.EQUIPMENT_POOL, "Laptops", null, 25, true)));
 
         assertThatThrownBy(() -> service.createJob(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -2930,7 +2930,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     private ResourceSummary venueSummary(UUID resourceUuid, UUID organisationUuid, int seatCapacity, boolean active) {
-        return new ResourceSummary(resourceUuid, organisationUuid, null, ResourceType.VENUE,
+        return new ResourceSummary(resourceUuid, organisationUuid, BRANCH_UUID, ResourceType.VENUE,
                 "Physics Lab", seatCapacity, null, active);
     }
 
@@ -3196,5 +3196,65 @@ class ClassMarketplaceJobServiceImplTest {
                 base.sessionTemplates(), base.resources(), base.serviceType(), base.preferredInstructorUuid(),
                 base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), branchUuid);
+    }
+
+    // ===== resources inside the job's branch =====
+
+    @Test
+    void createJobRejectsResourceOutsideTheJobsBranch() {
+        UUID programUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(venueUuid, null)));
+        allowProgramJob(request, programUuid);
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(new ResourceSummary(
+                venueUuid, request.organisationUuid(), UUID.randomUUID(), ResourceType.VENUE, "Physics Lab", 30, null, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Resource 'Physics Lab' is not at the job's branch");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+        verifyNoInteractions(resourceBookingService);
+    }
+
+    @Test
+    void createJobRejectsUnbranchedResource() {
+        UUID programUuid = UUID.randomUUID();
+        UUID poolUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(sampleRequest(null, programUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(poolUuid, 5)));
+        allowProgramJob(request, programUuid);
+        when(resourceLookupService.getResource(poolUuid)).thenReturn(Optional.of(new ResourceSummary(
+                poolUuid, request.organisationUuid(), null, ResourceType.EQUIPMENT_POOL, "Laptops", null, 25, true)));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Resource 'Laptops' is not assigned to a branch; assign it to the job's branch first");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @Test
+    void updateJobRejectsResourcesLeftBehindWhenTheBranchMoves() {
+        UUID programUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        UUID newBranchUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withResources(
+                withLocation(sampleRequest(null, programUuid), LocationType.HYBRID, null, null, null, newBranchUuid),
+                List.of(new ClassMarketplaceJobResourceDTO(venueUuid, null)));
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(request.organisationUuid());
+        job.setProgramUuid(programUuid);
+        job.setBranchUuid(BRANCH_UUID);
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(request, programUuid);
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                venueSummary(venueUuid, request.organisationUuid(), 30, true)));
+
+        assertThatThrownBy(() -> service.updateJob(job.getUuid(), request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Resource 'Physics Lab' is not at the job's branch");
+        assertThat(job.getBranchUuid()).isEqualTo(BRANCH_UUID);
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+        verify(resourceBookingService, never()).releaseHoldsForJob(any(), any());
     }
 }

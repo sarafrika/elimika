@@ -983,6 +983,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 throw new IllegalArgumentException(String.format(
                         "Resource '%s' does not belong to organisation %s", summary.name(), request.organisationUuid()));
             }
+            if (summary.branchUuid() == null) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource '%s' is not assigned to a branch; assign it to the job's branch first", summary.name()));
+            }
+            if (!summary.branchUuid().equals(request.branchUuid())) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource '%s' is not at the job's branch", summary.name()));
+            }
             if (!summary.active()) {
                 throw new IllegalArgumentException(String.format(
                         "Resource '%s' is deactivated and cannot be attached to a job", summary.name()));
