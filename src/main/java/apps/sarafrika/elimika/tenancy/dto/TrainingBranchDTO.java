@@ -1,13 +1,18 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
 import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -83,21 +88,30 @@ public record TrainingBranchDTO(
         String address,
 
         @Schema(
-                description = "**[OPTIONAL]** Latitude of the branch address, resolved when the address was searched.",
+                description = "**[OPTIONAL]** Latitude of the branch address, resolved when the address was searched. "
+                        + "Send it together with longitude. Omitting both keeps the stored pin unless the address is cleared.",
                 example = "-1.2921",
+                minimum = "-90",
+                maximum = "90",
                 nullable = true
         )
+        @DecimalMin(value = "-90.0", message = "latitude must be between -90 and 90")
+        @DecimalMax(value = "90.0", message = "latitude must be between -90 and 90")
         @JsonProperty("latitude")
-        java.math.BigDecimal latitude,
+        BigDecimal latitude,
 
         @Schema(
-                description = "**[OPTIONAL]** Longitude of the branch address, resolved when the address was searched.",
+                description = "**[OPTIONAL]** Longitude of the branch address, resolved when the address was searched. "
+                        + "Send it together with latitude.",
                 example = "36.8219",
+                minimum = "-180",
+                maximum = "180",
                 nullable = true
         )
+        @DecimalMin(value = "-180.0", message = "longitude must be between -180 and 180")
+        @DecimalMax(value = "180.0", message = "longitude must be between -180 and 180")
         @JsonProperty("longitude")
-        java.math.BigDecimal longitude,
-
+        BigDecimal longitude,
 
         @Schema(
                 description = "**[REQUIRED]** Name of the point of contact for this branch.",
@@ -162,4 +176,10 @@ public record TrainingBranchDTO(
         LocalDateTime updatedDate
 
 ) {
+
+    @JsonIgnore
+    @AssertTrue(message = "latitude and longitude must be provided together")
+    public boolean hasCompleteCoordinates() {
+        return (latitude == null) == (longitude == null);
+    }
 }

@@ -17,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -36,12 +37,18 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
     private final OrganisationRepository organisationRepository;
     private final GenericSpecificationBuilder<TrainingBranch> specificationBuilder;
 
+    private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
+    private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
+    private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
+    private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
+
     @Override
     @Transactional
     public TrainingBranchDTO createTrainingBranch(TrainingBranchDTO trainingBranchDTO) {
         log.debug("Creating new training branch: {}", trainingBranchDTO.branchName());
 
         try {
+            validateCoordinates(trainingBranchDTO.latitude(), trainingBranchDTO.longitude());
             TrainingBranch trainingBranch = TrainingBranchFactory.toEntity(trainingBranchDTO);
 
             // Check for duplicate branch name within the same organisation
@@ -58,6 +65,8 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
 
             log.info("Successfully created training branch with UUID: {}", trainingBranch.getUuid());
             return TrainingBranchFactory.toDTO(trainingBranch);
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to create training branch: {}", trainingBranchDTO.branchName(), e);
             throw new RuntimeException("Failed to create training branch.", e);
@@ -98,6 +107,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
         log.debug("Updating training branch with UUID: {}", uuid);
 
         try {
+            validateCoordinates(trainingBranchDTO.latitude(), trainingBranchDTO.longitude());
             TrainingBranch trainingBranch = findTrainingBranchOrThrow(uuid);
             updateTrainingBranchFields(trainingBranch, trainingBranchDTO);
 
@@ -105,7 +115,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
 
             log.info("Successfully updated training branch with UUID: {}", uuid);
             return TrainingBranchFactory.toDTO(trainingBranch);
-        } catch (ResourceNotFoundException e) {
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to update training branch with UUID: {}", uuid, e);
@@ -328,12 +338,32 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
                 .collect(Collectors.toList());
     }
 
+    private void validateCoordinates(BigDecimal latitude, BigDecimal longitude) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new IllegalArgumentException("latitude and longitude must be provided together");
+        }
+        if (latitude != null && (latitude.compareTo(MIN_LATITUDE) < 0 || latitude.compareTo(MAX_LATITUDE) > 0)) {
+            throw new IllegalArgumentException("latitude must be between -90 and 90");
+        }
+        if (longitude != null && (longitude.compareTo(MIN_LONGITUDE) < 0 || longitude.compareTo(MAX_LONGITUDE) > 0)) {
+            throw new IllegalArgumentException("longitude must be between -180 and 180");
+        }
+    }
+
     private void updateTrainingBranchFields(TrainingBranch trainingBranch, TrainingBranchDTO dto) {
-        trainingBranch.setOrganisationUuid(dto.organisationUuid());
+        if (dto.organisationUuid() != null && !dto.organisationUuid().equals(trainingBranch.getOrganisationUuid())) {
+            throw new IllegalArgumentException("organisation_uuid cannot be changed after a branch has been created");
+        }
         trainingBranch.setBranchName(dto.branchName());
         trainingBranch.setAddress(dto.address());
-        trainingBranch.setLatitude(dto.latitude());
-        trainingBranch.setLongitude(dto.longitude());
+        if (dto.latitude() != null && dto.longitude() != null) {
+            trainingBranch.setLatitude(dto.latitude());
+            trainingBranch.setLongitude(dto.longitude());
+        } else if (dto.address() == null || dto.address().isBlank()) {
+            // A cleared address leaves nothing for the old pin to describe.
+            trainingBranch.setLatitude(null);
+            trainingBranch.setLongitude(null);
+        }
         trainingBranch.setPocName(dto.pocName());
         trainingBranch.setPocEmail(dto.pocEmail());
         trainingBranch.setPocTelephone(dto.pocTelephone());

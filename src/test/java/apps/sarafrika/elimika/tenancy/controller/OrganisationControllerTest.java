@@ -46,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrganisationControllerTest {
 
     private static final UUID ORG_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID BRANCH_UUID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
     @Autowired
     private MockMvc mockMvc;
@@ -122,6 +123,18 @@ class OrganisationControllerTest {
     }
 
     @Test
+    void updateTrainingBranchRejectsOutOfRangeLatitudeWith400() throws Exception {
+        mockMvc.perform(put("/api/v1/organisations/{uuid}/training-branches/{branchUuid}", ORG_UUID, BRANCH_UUID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson("95.0", "36.8970")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.latitude").value("latitude must be between -90 and 90"))
+                .andExpect(jsonPath("$.error.length()").value(1));
+
+        Mockito.verify(trainingBranchService, Mockito.never()).updateTrainingBranch(any(), any());
+    }
+
+    @Test
     void requestVerificationSubmitsOrganisationForReview() throws Exception {
         when(organisationService.requestOrganisationVerification(ORG_UUID))
                 .thenReturn(Mockito.mock(OrganisationDTO.class));
@@ -131,6 +144,14 @@ class OrganisationControllerTest {
                 .andExpect(jsonPath("$.message").value("Organisation submitted for verification"));
 
         Mockito.verify(organisationService).requestOrganisationVerification(ORG_UUID);
+    }
+
+    private static String branchJson(String latitude, String longitude) {
+        return """
+                {"organisation_uuid":"%s","branch_name":"Main Campus","address":"Kasarani, Nairobi",
+                 "latitude":%s,"longitude":%s,"poc_name":"Jane Doe","poc_email":"jane@example.com",
+                 "poc_telephone":"+254712345678","active":true}
+                """.formatted(ORG_UUID, latitude, longitude);
     }
 
     static class MockConfig {
