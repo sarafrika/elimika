@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -26,7 +25,10 @@ public record OrganisationResourceDTO(
         @JsonProperty(value = "organisation_uuid", access = JsonProperty.Access.READ_ONLY)
         UUID organisationUuid,
 
-        @Schema(description = "Training branch the resource belongs to", nullable = true)
+        @Schema(description = "**[REQUIRED]** Active training branch of the organisation the resource belongs to. "
+                + "It cannot move to another branch while it has future holds or confirmed bookings.",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "branch_uuid is required")
         @JsonProperty("branch_uuid")
         UUID branchUuid,
 

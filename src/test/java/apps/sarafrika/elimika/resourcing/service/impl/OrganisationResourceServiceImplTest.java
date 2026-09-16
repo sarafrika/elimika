@@ -16,6 +16,8 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +47,8 @@ class OrganisationResourceServiceImplTest {
 
     private static final UUID ORG_UUID = UUID.randomUUID();
     private static final UUID USER_UUID = UUID.randomUUID();
+    private static final UUID BRANCH_UUID = UUID.randomUUID();
+    private static final UUID OTHER_BRANCH_UUID = UUID.randomUUID();
 
     @Mock
     private OrganisationResourceRepository resourceRepository;
@@ -54,13 +58,19 @@ class OrganisationResourceServiceImplTest {
     private ResourceBookingRepository bookingRepository;
     @Mock
     private DomainSecurityService domainSecurityService;
+    @Mock
+    private TrainingBranchLookupService trainingBranchLookupService;
 
     private OrganisationResourceServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new OrganisationResourceServiceImpl(
-                resourceRepository, ruleRepository, bookingRepository, domainSecurityService);
+                resourceRepository, ruleRepository, bookingRepository, domainSecurityService,
+                trainingBranchLookupService);
+        lenient().when(trainingBranchLookupService.findBranch(any(), any())).thenAnswer(invocation -> Optional.of(
+                new BranchLocation(invocation.getArgument(1), invocation.getArgument(0), "Main Campus",
+                        "Kasarani, Nairobi", null, null, true)));
         lenient().when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
         lenient().when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
                 .thenReturn(true);
@@ -199,6 +209,102 @@ class OrganisationResourceServiceImplTest {
 
         assertThat(entity.getIsActive()).isFalse();
         verify(resourceRepository).save(entity);
+    }
+
+    // ===== branch placement =====
+
+    @Test
+    void createRequiresBranch() {
+        when(resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(eq(ORG_UUID), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.createResource(ORG_UUID, venueDto("Physics Lab", 30, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("branch_uuid is required");
+        verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsBranchOfAnotherOrganisation() {
+        when(resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(eq(ORG_UUID), any())).thenReturn(false);
+        when(trainingBranchLookupService.findBranch(ORG_UUID, OTHER_BRANCH_UUID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createResource(ORG_UUID, venueDto("Physics Lab", 30, OTHER_BRANCH_UUID)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Training branch %s does not belong to organisation %s", OTHER_BRANCH_UUID, ORG_UUID);
+        verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsInactiveBranch() {
+        when(resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(eq(ORG_UUID), any())).thenReturn(false);
+        when(trainingBranchLookupService.findBranch(ORG_UUID, BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, ORG_UUID, "Old Annex", null, null, null, false)));
+
+        assertThatThrownBy(() -> service.createResource(ORG_UUID, venueDto("Physics Lab", 30)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Training branch 'Old Annex' is inactive");
+        verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createStoresTheBranch() {
+        when(resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(eq(ORG_UUID), any())).thenReturn(false);
+        when(resourceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.createResource(ORG_UUID, venueDto("Physics Lab", 30)).branchUuid()).isEqualTo(BRANCH_UUID);
+    }
+
+    @Test
+    void updateRequiresBranchForLegacyUnbranchedResource() {
+        OrganisationResource entity = venueEntity("Physics Lab", 30);
+        entity.setBranchUuid(null);
+        when(resourceRepository.findByUuid(entity.getUuid())).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.updateResource(ORG_UUID, entity.getUuid(), venueDto("Physics Lab", 40, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("branch_uuid is required");
+        verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    void updateKeepsResourceEditableAtItsNowInactiveBranch() {
+        OrganisationResource entity = venueEntity("Physics Lab", 30);
+        when(resourceRepository.findByUuid(entity.getUuid())).thenReturn(Optional.of(entity));
+        when(trainingBranchLookupService.findBranch(ORG_UUID, BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, ORG_UUID, "Old Annex", null, null, null, false)));
+        when(resourceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.updateResource(ORG_UUID, entity.getUuid(), venueDto("Physics Lab", 40)).seatCapacity())
+                .isEqualTo(40);
+    }
+
+    @Test
+    void updateRejectsBranchChangeWhileFutureBookingsExist() {
+        OrganisationResource entity = venueEntity("Physics Lab", 30);
+        when(resourceRepository.findByUuid(entity.getUuid())).thenReturn(Optional.of(entity));
+        when(bookingRepository.existsByResourceUuidAndStatusInAndEndTimeAfter(eq(entity.getUuid()), anyCollection(), any()))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> service.updateResource(ORG_UUID, entity.getUuid(),
+                venueDto("Physics Lab", 30, OTHER_BRANCH_UUID)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("before moving it to another branch");
+        assertThat(entity.getBranchUuid()).isEqualTo(BRANCH_UUID);
+        verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAllowsBranchChangeWithoutBookings() {
+        OrganisationResource entity = venueEntity("Physics Lab", 30);
+        when(resourceRepository.findByUuid(entity.getUuid())).thenReturn(Optional.of(entity));
+        when(bookingRepository.existsByResourceUuidAndStatusInAndEndTimeAfter(eq(entity.getUuid()), anyCollection(), any()))
+                .thenReturn(false);
+        when(resourceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrganisationResourceDTO result = service.updateResource(ORG_UUID, entity.getUuid(),
+                venueDto("Physics Lab", 30, OTHER_BRANCH_UUID));
+
+        assertThat(result.branchUuid()).isEqualTo(OTHER_BRANCH_UUID);
     }
 
     // ===== availability rules =====
@@ -384,8 +490,12 @@ class OrganisationResourceServiceImplTest {
     // ===== helpers =====
 
     private OrganisationResourceDTO venueDto(String name, int seatCapacity) {
+        return venueDto(name, seatCapacity, BRANCH_UUID);
+    }
+
+    private OrganisationResourceDTO venueDto(String name, int seatCapacity, UUID branchUuid) {
         return new OrganisationResourceDTO(
-                null, null, null, ResourceType.VENUE, name, null, seatCapacity, null,
+                null, null, branchUuid, ResourceType.VENUE, name, null, seatCapacity, null,
                 null, null, null, null);
     }
 
@@ -396,6 +506,7 @@ class OrganisationResourceServiceImplTest {
         entity.setResourceType(ResourceType.VENUE);
         entity.setName(name);
         entity.setSeatCapacity(seatCapacity);
+        entity.setBranchUuid(BRANCH_UUID);
         entity.setIsActive(true);
         return entity;
     }

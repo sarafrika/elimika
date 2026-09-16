@@ -21,6 +21,8 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +38,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -54,6 +57,7 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
     private final ResourceAvailabilityRuleRepository ruleRepository;
     private final ResourceBookingRepository bookingRepository;
     private final DomainSecurityService domainSecurityService;
+    private final TrainingBranchLookupService trainingBranchLookupService;
 
     // ===== Resources =====
 
@@ -65,6 +69,7 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
             throw new IllegalArgumentException(String.format(
                     "Organisation already has a resource named '%s'", dto.name()));
         }
+        requireBranch(organisationUuid, dto.branchUuid(), true);
 
         OrganisationResource entity = OrganisationResourceFactory.toEntity(dto);
         entity.setOrganisationUuid(organisationUuid);
@@ -118,6 +123,16 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
                 && resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(organisationUuid, dto.name())) {
             throw new IllegalArgumentException(String.format(
                     "Organisation already has a resource named '%s'", dto.name()));
+        }
+        boolean branchChanged = !Objects.equals(entity.getBranchUuid(), dto.branchUuid());
+        // Resources already at a since-deactivated branch stay editable; only new placements need an active branch.
+        requireBranch(organisationUuid, dto.branchUuid(), branchChanged);
+        if (branchChanged && entity.getBranchUuid() != null
+                && bookingRepository.existsByResourceUuidAndStatusInAndEndTimeAfter(
+                        resourceUuid, ACTIVE_STATUSES, LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new IllegalStateException(String.format(
+                    "Resource '%s' has future holds or confirmed bookings; release them before moving it to another branch.",
+                    entity.getName()));
         }
 
         OrganisationResourceFactory.updateEntityFromDTO(entity, dto);
@@ -296,6 +311,18 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
             if (seatCapacity != null) {
                 throw new IllegalArgumentException("Equipment pools must not define seat_capacity");
             }
+        }
+    }
+
+    private void requireBranch(UUID organisationUuid, UUID branchUuid, boolean requireActive) {
+        if (branchUuid == null) {
+            throw new IllegalArgumentException("branch_uuid is required");
+        }
+        BranchLocation branch = trainingBranchLookupService.findBranch(organisationUuid, branchUuid)
+                .orElseThrow(() -> new IllegalArgumentException(String.format(
+                        "Training branch %s does not belong to organisation %s", branchUuid, organisationUuid)));
+        if (requireActive && !branch.active()) {
+            throw new IllegalArgumentException(String.format("Training branch '%s' is inactive", branch.name()));
         }
     }
 
