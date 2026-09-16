@@ -174,7 +174,15 @@ public record ClassMarketplaceJobDTO(
 
         @Schema(description = "**[READ-ONLY]** Name of the job's training branch.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
         @JsonProperty(value = "branch_name", access = JsonProperty.Access.READ_ONLY)
-        String branchName
+        String branchName,
+
+        @Schema(description = "**[READ-ONLY]** Applications received for the job, not counting withdrawn ones.", accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty(value = "application_count", access = JsonProperty.Access.READ_ONLY)
+        Long applicationCount,
+
+        @Schema(description = "**[READ-ONLY]** Instructor hired for the job; null until someone is hired.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "hired_instructor_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID hiredInstructorUuid
 ) {
 
     @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)

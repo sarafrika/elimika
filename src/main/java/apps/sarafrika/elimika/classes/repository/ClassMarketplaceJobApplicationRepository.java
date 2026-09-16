@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.repository;
 
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
+import apps.sarafrika.elimika.classes.repository.projection.JobApplicationCount;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,21 @@ import java.util.UUID;
 public interface ClassMarketplaceJobApplicationRepository extends JpaRepository<ClassMarketplaceJobApplication, Long> {
 
     Optional<ClassMarketplaceJobApplication> findByUuid(UUID uuid);
+
+    List<ClassMarketplaceJobApplication> findByUuidIn(Collection<UUID> uuids);
+
+    /** Application counts for a page of jobs in one grouped query, leaving out one status. */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.classes.repository.projection.JobApplicationCount(
+                       application.jobUuid, COUNT(application))
+            FROM ClassMarketplaceJobApplication application
+            WHERE application.jobUuid IN :jobUuids
+              AND application.status <> :excludedStatus
+            GROUP BY application.jobUuid
+            """)
+    List<JobApplicationCount> countByJobUuidInExcludingStatus(
+            @Param("jobUuids") Collection<UUID> jobUuids,
+            @Param("excludedStatus") ClassMarketplaceJobApplicationStatus excludedStatus);
 
     Optional<ClassMarketplaceJobApplication> findByJobUuidAndUuid(UUID jobUuid, UUID uuid);
 

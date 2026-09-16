@@ -91,7 +91,9 @@ class ClassMarketplaceJobControllerTest {
                 .andExpect(jsonPath("$.data.status").value("open"))
                 .andExpect(jsonPath("$.data.course_uuid").value(request.courseUuid().toString()))
                 .andExpect(jsonPath("$.data.branch_uuid").value(request.branchUuid().toString()))
-                .andExpect(jsonPath("$.data.branch_name").value("Main Campus"));
+                .andExpect(jsonPath("$.data.branch_name").value("Main Campus"))
+                .andExpect(jsonPath("$.data.application_count").value(3))
+                .andExpect(jsonPath("$.data.hired_instructor_uuid").doesNotExist());
 
         ArgumentCaptor<ClassMarketplaceJobRequestDTO> captor =
                 ArgumentCaptor.forClass(ClassMarketplaceJobRequestDTO.class);
@@ -279,6 +281,21 @@ class ClassMarketplaceJobControllerTest {
         );
     }
 
+    @Test
+    void jobResourceRequestIgnoresReadOnlyResourceLabels() throws Exception {
+        UUID resourceUuid = UUID.randomUUID();
+
+        apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO resource = objectMapper.readValue(
+                "{\"resource_uuid\":\"" + resourceUuid + "\",\"quantity\":2,"
+                        + "\"resource_name\":\"Spoofed\",\"resource_type\":\"VENUE\"}",
+                apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO.class);
+
+        assertEquals(resourceUuid, resource.resourceUuid());
+        assertEquals(2, resource.quantity());
+        assertEquals(null, resource.resourceName());
+        assertEquals(null, resource.resourceType());
+    }
+
     private ClassMarketplaceJobRequestDTO sampleRequest() {
         return new ClassMarketplaceJobRequestDTO(
                 UUID.randomUUID(),
@@ -440,7 +457,9 @@ class ClassMarketplaceJobControllerTest {
                 request.remindViaSms(),
                 request.remindViaPush(),
                 request.branchUuid(),
-                "Main Campus"
+                "Main Campus",
+                3L,
+                null
         );
     }
 

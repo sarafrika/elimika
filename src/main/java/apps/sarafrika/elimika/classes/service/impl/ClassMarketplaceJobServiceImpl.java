@@ -84,9 +84,11 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -110,6 +112,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
     private static final String CACHE_PAY_VISIBLE = "marketplaceJob.payVisible";
     private static final String CACHE_BRANCH_NAME_PREFIX = "marketplaceJob.branchName.";
+    private static final String CACHE_RESOURCE_PREFIX = "marketplaceJob.resource.";
     /** Derived from the enum so a new recruitment stage is covered without editing this list. */
     private static final List<ClassMarketplaceJobApplicationStatus> ACTIVE_APPLICATION_STATUSES =
             Arrays.stream(ClassMarketplaceJobApplicationStatus.values())
@@ -223,8 +226,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                  UUID branchUuid,
                                                  ClassMarketplaceJobStatus status,
                                                  org.springframework.data.domain.Pageable pageable) {
-        return jobRepository.search(organisationUuid, courseUuid, programUuid, branchUuid, status, pageable)
-                .map(this::toJobDTO);
+        Page<ClassMarketplaceJob> jobs =
+                jobRepository.search(organisationUuid, courseUuid, programUuid, branchUuid, status, pageable);
+        JobReadContext context = loadJobReadContext(jobs.getContent());
+        return jobs.map(job -> toJobDTO(job, context));
     }
 
     @Override
@@ -1732,8 +1737,24 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private List<ClassMarketplaceJobResourceDTO> loadJobResources(UUID jobUuid) {
         return jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(jobUuid)
                 .stream()
-                .map(resource -> new ClassMarketplaceJobResourceDTO(resource.getResourceUuid(), resource.getQuantity()))
+                .map(resource -> {
+                    Optional<ResourceSummary> summary = lookupResource(resource.getResourceUuid());
+                    return new ClassMarketplaceJobResourceDTO(
+                            resource.getResourceUuid(),
+                            resource.getQuantity(),
+                            summary.map(ResourceSummary::name).orElse(null),
+                            summary.map(ResourceSummary::resourceType).orElse(null));
+                })
                 .toList();
+    }
+
+    /** Memoised per resource so a page of jobs sharing a venue resolves it once. */
+    private Optional<ResourceSummary> lookupResource(UUID resourceUuid) {
+        if (resourceUuid == null) {
+            return Optional.empty();
+        }
+        return requestScopedCache.get(CACHE_RESOURCE_PREFIX + resourceUuid,
+                () -> resourceLookupService.getResource(resourceUuid));
     }
 
     private ClassSessionTemplateDTO toSessionTemplateDTO(ClassMarketplaceJobSessionTemplate entity) {
@@ -1801,7 +1822,44 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 () -> domainSecurityService.isVerifiedInstructor() || domainSecurityService.isPlatformAdmin());
     }
 
+    /** Per-page read data loaded in bulk so a job list never queries once per row. */
+    private record JobReadContext(Map<UUID, Long> applicationCounts, Map<UUID, UUID> instructorsByApplication) {
+    }
+
+    private JobReadContext loadJobReadContext(List<ClassMarketplaceJob> jobs) {
+        List<UUID> jobUuids = jobs.stream()
+                .map(ClassMarketplaceJob::getUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<UUID, Long> applicationCounts = new HashMap<>();
+        if (!jobUuids.isEmpty()) {
+            applicationRepository.countByJobUuidInExcludingStatus(jobUuids, ClassMarketplaceJobApplicationStatus.WITHDRAWN)
+                    .forEach(count -> applicationCounts.put(count.jobUuid(), count.applicationCount()));
+        }
+
+        // A hire records its application on the job; the instructor itself is only stamped once the class exists.
+        List<UUID> hiredApplicationUuids = jobs.stream()
+                .filter(job -> job.getAssignedInstructorUuid() == null && job.getAssignedApplicationUuid() != null)
+                .map(ClassMarketplaceJob::getAssignedApplicationUuid)
+                .distinct()
+                .toList();
+        Map<UUID, UUID> instructorsByApplication = new HashMap<>();
+        if (!hiredApplicationUuids.isEmpty()) {
+            applicationRepository.findByUuidIn(hiredApplicationUuids)
+                    .forEach(application -> instructorsByApplication.put(application.getUuid(), application.getInstructorUuid()));
+        }
+        return new JobReadContext(applicationCounts, instructorsByApplication);
+    }
+
     private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job) {
+        return toJobDTO(job, loadJobReadContext(List.of(job)));
+    }
+
+    private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job, JobReadContext context) {
+        UUID hiredInstructorUuid = job.getAssignedInstructorUuid() != null
+                ? job.getAssignedInstructorUuid()
+                : context.instructorsByApplication().get(job.getAssignedApplicationUuid());
         return new ClassMarketplaceJobDTO(
                 job.getUuid(),
                 job.getOrganisationUuid(),
@@ -1852,7 +1910,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getRemindViaSms(),
                 job.getRemindViaPush(),
                 job.getBranchUuid(),
-                resolveBranchName(job.getBranchUuid())
+                resolveBranchName(job.getBranchUuid()),
+                context.applicationCounts().getOrDefault(job.getUuid(), 0L),
+                hiredInstructorUuid
         );
     }
 

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.dto;
 
+import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,6 +24,18 @@ public record ClassMarketplaceJobResourceDTO(
         @Schema(description = "Units to reserve per session (must be 1 for venues; defaults to 1).", example = "1", nullable = true)
         @JsonProperty("quantity")
         @Min(value = 1, message = "quantity must be at least 1")
-        Integer quantity
+        Integer quantity,
+
+        @Schema(description = "**[READ-ONLY]** Name of the reserved resource.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "resource_name", access = JsonProperty.Access.READ_ONLY)
+        String resourceName,
+
+        @Schema(description = "**[READ-ONLY]** Kind of the reserved resource.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true, allowableValues = {"VENUE", "EQUIPMENT_POOL"})
+        @JsonProperty(value = "resource_type", access = JsonProperty.Access.READ_ONLY)
+        ResourceType resourceType
 ) {
+
+    public ClassMarketplaceJobResourceDTO(UUID resourceUuid, Integer quantity) {
+        this(resourceUuid, quantity, null, null);
+    }
 }

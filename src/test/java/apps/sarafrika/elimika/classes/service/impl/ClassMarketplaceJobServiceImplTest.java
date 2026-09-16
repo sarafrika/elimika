@@ -3333,4 +3333,76 @@ class ClassMarketplaceJobServiceImplTest {
         verify(organisationAffiliationService)
                 .affiliateHiredInstructor(instructorUserUuid, job.getOrganisationUuid(), BRANCH_UUID);
     }
+
+    // ===== list read model =====
+
+    @Test
+    void listJobsReportsApplicationCountsWithOneQuery() {
+        ClassMarketplaceJob busy = sampleJob();
+        ClassMarketplaceJob quiet = sampleJob();
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(jobRepository.search(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(busy, quiet), pageable, 2));
+        when(applicationRepository.countByJobUuidInExcludingStatus(
+                List.of(busy.getUuid(), quiet.getUuid()), ClassMarketplaceJobApplicationStatus.WITHDRAWN))
+                .thenReturn(List.of(new apps.sarafrika.elimika.classes.repository.projection.JobApplicationCount(busy.getUuid(), 4)));
+
+        var page = service.listJobs(null, null, null, null, null, pageable);
+
+        assertThat(page.getContent()).extracting(dto -> dto.applicationCount()).containsExactly(4L, 0L);
+        verify(applicationRepository, times(1)).countByJobUuidInExcludingStatus(any(), any());
+    }
+
+    @Test
+    void getJobReportsHiredInstructor() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = awaitingClassJob();
+        ClassMarketplaceJobApplication hired = sampleApplication(job.getUuid(), instructorUuid);
+        hired.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
+        job.setAssignedApplicationUuid(hired.getUuid());
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByUuidIn(List.of(hired.getUuid()))).thenReturn(List.of(hired));
+
+        var result = service.getJob(job.getUuid());
+
+        assertThat(result.hiredInstructorUuid()).isEqualTo(instructorUuid);
+        assertThat(result.assignedInstructorUuid()).isNull();
+
+        UUID assignedInstructorUuid = UUID.randomUUID();
+        job.setAssignedInstructorUuid(assignedInstructorUuid);
+        assertThat(service.getJob(job.getUuid()).hiredInstructorUuid()).isEqualTo(assignedInstructorUuid);
+        verify(applicationRepository, times(1)).findByUuidIn(any());
+    }
+
+    @Test
+    void jobResourcesCarryNamesAndTypes() {
+        UUID venueUuid = UUID.randomUUID();
+        UUID poolUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(jobResource(job.getUuid(), venueUuid, 1), jobResource(job.getUuid(), poolUuid, 12)));
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(
+                venueSummary(venueUuid, job.getOrganisationUuid(), 30, true)));
+        when(resourceLookupService.getResource(poolUuid)).thenReturn(Optional.of(new ResourceSummary(
+                poolUuid, job.getOrganisationUuid(), BRANCH_UUID, ResourceType.EQUIPMENT_POOL, "Laptops", null, 25, true)));
+
+        var resources = service.getJob(job.getUuid()).resources();
+
+        assertThat(resources).extracting(ClassMarketplaceJobResourceDTO::resourceName)
+                .containsExactly("Physics Lab", "Laptops");
+        assertThat(resources).extracting(ClassMarketplaceJobResourceDTO::resourceType)
+                .containsExactly(ResourceType.VENUE, ResourceType.EQUIPMENT_POOL);
+        assertThat(resources).extracting(ClassMarketplaceJobResourceDTO::quantity).containsExactly(1, 12);
+    }
+
+    private apps.sarafrika.elimika.classes.model.ClassMarketplaceJobResource jobResource(UUID jobUuid,
+                                                                                        UUID resourceUuid,
+                                                                                        int quantity) {
+        var resource = new apps.sarafrika.elimika.classes.model.ClassMarketplaceJobResource();
+        resource.setJobUuid(jobUuid);
+        resource.setResourceUuid(resourceUuid);
+        resource.setQuantity(quantity);
+        return resource;
+    }
 }
