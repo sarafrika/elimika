@@ -722,10 +722,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                         "Instructor %s has no user account, so they cannot be affiliated with the organisation.",
                         instructorUuid)));
 
-        // Marketplace jobs are posted by the organisation rather than a specific branch,
-        // so the affiliation is organisation-wide.
         boolean created = organisationAffiliationService.affiliateHiredInstructor(
-                instructorUserUuid, job.getOrganisationUuid(), null);
+                instructorUserUuid, job.getOrganisationUuid(), job.getBranchUuid());
 
         if (created) {
             log.info("Instructor {} joined organisation {} after being hired for job {}",
@@ -1690,7 +1688,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getDescription(),
                 instructorUuid,
                 job.getOrganisationUuid(),
-                null,
+                job.getBranchUuid(),
                 job.getCourseUuid(),
                 job.getProgramUuid(),
                 job.getSalePrice(),

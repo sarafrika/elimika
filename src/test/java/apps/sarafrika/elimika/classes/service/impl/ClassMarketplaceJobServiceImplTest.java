@@ -2198,7 +2198,7 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(result.assignedInstructorUuid()).isEqualTo(instructorUuid);
         // Direct hire is a hire: without this the organisation gets a class taught by a non-member.
         verify(organisationAffiliationService)
-                .affiliateHiredInstructor(instructorUserUuid, request.organisationUuid(), null);
+                .affiliateHiredInstructor(instructorUserUuid, request.organisationUuid(), BRANCH_UUID);
     }
 
     @Test
@@ -3256,5 +3256,65 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(job.getBranchUuid()).isEqualTo(BRANCH_UUID);
         verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
         verify(resourceBookingService, never()).releaseHoldsForJob(any(), any());
+    }
+
+    // ===== branch carried onto the class and the hire =====
+
+    @Test
+    void creatingTheClassCarriesTheJobsBranch() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = awaitingClassJob();
+        job.setAssignedInstructorUuid(instructorUuid);
+        job.setBranchUuid(BRANCH_UUID);
+        job.setLocationName("Main Campus · Kasarani, Nairobi");
+        job.setLocationLatitude(BRANCH_LATITUDE);
+        job.setLocationLongitude(BRANCH_LONGITUDE);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(UUID.randomUUID(), job.getOrganisationUuid());
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
+
+        service.createClassForJob(job.getUuid());
+
+        ArgumentCaptor<ClassDefinitionDTO> classCaptor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
+        verify(classDefinitionService).createClassDefinition(classCaptor.capture());
+        ClassDefinitionDTO created = classCaptor.getValue();
+        assertThat(created.branchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(created.locationName()).isEqualTo(job.getLocationName());
+        assertThat(created.locationLatitude()).isEqualTo(job.getLocationLatitude());
+        assertThat(created.locationLongitude()).isEqualTo(job.getLocationLongitude());
+        assertThat(created.marketplaceJobUuid()).isEqualTo(job.getUuid());
+    }
+
+    @Test
+    void hiringAnApplicantAffiliatesThemAtTheJobsBranch() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID instructorUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setBranchUuid(BRANCH_UUID);
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.OFFERED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(UUID.randomUUID(), job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobRepository.save(any(ClassMarketplaceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid))
+                .thenReturn(Optional.of(instructorUserUuid));
+
+        service.hireApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Strong fit", null));
+
+        verify(organisationAffiliationService)
+                .affiliateHiredInstructor(instructorUserUuid, job.getOrganisationUuid(), BRANCH_UUID);
     }
 }
