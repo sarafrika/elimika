@@ -392,6 +392,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
         ensureTransitionAllowed(application, ClassMarketplaceJobApplicationStatus.HIRED);
         ensureInstructorApprovedToDeliver(job, application.getInstructorUuid());
+        // The diary can fill up after applying (another hire, a booked session, a blocked day),
+        // so the clash is re-checked here, before anything about the hire is written.
+        refuseClashingHire(job, application.getInstructorUuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
         application.setReviewNotes(request == null ? null : request.reviewNotes());
@@ -710,8 +713,21 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * funnel, so the post and the affiliation happen together and the class follows immediately.
      */
     private void hireInstructorForJob(ClassMarketplaceJob job, UUID instructorUuid) {
-        selectInstructorForJob(job, instructorUuid);
+        refuseClashingHire(job, instructorUuid);
+        recordSelectedInstructor(job, instructorUuid);
         affiliateHiredInstructor(job, instructorUuid);
+    }
+
+    /** Refuses a hire whose sessions clash with the instructor's diary; nothing is written first. */
+    private void refuseClashingHire(ClassMarketplaceJob job, UUID instructorUuid) {
+        List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
+        if (scheduleConflicts.isEmpty()) {
+            return;
+        }
+        throw new SchedulingConflictException(String.format(
+                "Instructor %s cannot be hired: their schedule clashes with %d of this job's planned sessions.",
+                instructorUuid, scheduleConflicts.size()),
+                scheduleConflicts);
     }
 
     /**
@@ -792,7 +808,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     "Instructor %s has schedule conflicts with this job's planned sessions.", instructorUuid),
                     scheduleConflicts);
         }
+        recordSelectedInstructor(job, instructorUuid);
+    }
 
+    private void recordSelectedInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
         job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
         job.setAssignedInstructorUuid(instructorUuid);
     }

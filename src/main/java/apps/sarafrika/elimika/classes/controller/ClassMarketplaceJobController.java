@@ -51,7 +51,7 @@ public class ClassMarketplaceJobController {
     private final ClassMarketplaceJobServiceInterface classMarketplaceJobService;
 
     @Operation(summary = "Create a marketplace class job",
-            description = "Attached resources are validated against their calendars and reserved with HOLD bookings for every session occurrence; conflicts return 409 with a per-occurrence report")
+            description = "Attached resources are validated against their calendars and reserved with HOLD bookings for every session occurrence; conflicts return 409 with a per-occurrence report. A preferred instructor whose schedule clashes with the sessions is not hired: 409 with the clashing windows, and nothing is posted")
     @PostMapping
     public ResponseEntity<ApiResponse<ClassMarketplaceJobDTO>> createJob(
             @Valid @RequestBody ClassMarketplaceJobRequestDTO request) {
@@ -63,6 +63,10 @@ public class ClassMarketplaceJobController {
             log.warn("Resource conflicts while creating marketplace class job: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
+        } catch (SchedulingConflictException e) {
+            log.warn("Preferred instructor clashes with the new marketplace class job: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Schedule conflicts detected", e.getConflicts()));
         }
     }
 
@@ -243,7 +247,7 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "Move a marketplace class job application through the funnel",
-            description = "Stages run applied -> shortlisted -> interviewing -> offered -> hired and no stage may be skipped; hire is the last decision, after which the job's class can be created")
+            description = "Stages run applied -> shortlisted -> interviewing -> offered -> hired and no stage may be skipped; hire is the last decision, after which the job's class can be created. A hire whose sessions clash with the instructor's schedule is refused with 409 and the clashing windows, and the application, job and time holds are left as they were")
     @PostMapping("/{jobUuid}/applications/{applicationUuid}")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> reviewApplication(
             @PathVariable UUID jobUuid,
@@ -253,18 +257,26 @@ public class ClassMarketplaceJobController {
         ClassMarketplaceJobDecisionRequestDTO payload =
                 request != null ? request : new ClassMarketplaceJobDecisionRequestDTO(null, null);
 
-        ClassMarketplaceJobApplicationDTO result = switch (action.toLowerCase()) {
-            case "hire" -> classMarketplaceJobService.hireApplication(jobUuid, applicationUuid, payload);
-            case "reject" -> classMarketplaceJobService.rejectApplication(jobUuid, applicationUuid, payload);
-            case "shortlist" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
-                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.SHORTLISTED, payload);
-            case "interview" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
-                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.INTERVIEWING, payload);
-            case "offer" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
-                    apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.OFFERED, payload);
-            default -> throw new IllegalArgumentException("Unsupported action '" + action
-                    + "'. Allowed values: shortlist, interview, offer, hire, reject.");
-        };
+        ClassMarketplaceJobApplicationDTO result;
+        try {
+            result = switch (action.toLowerCase()) {
+                case "hire" -> classMarketplaceJobService.hireApplication(jobUuid, applicationUuid, payload);
+                case "reject" -> classMarketplaceJobService.rejectApplication(jobUuid, applicationUuid, payload);
+                case "shortlist" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
+                        apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.SHORTLISTED, payload);
+                case "interview" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
+                        apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.INTERVIEWING, payload);
+                case "offer" -> classMarketplaceJobService.moveApplicationToStage(jobUuid, applicationUuid,
+                        apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus.OFFERED, payload);
+                default -> throw new IllegalArgumentException("Unsupported action '" + action
+                        + "'. Allowed values: shortlist, interview, offer, hire, reject.");
+            };
+        } catch (SchedulingConflictException e) {
+            log.warn("Schedule conflicts while hiring application {} on marketplace class job {}: {}",
+                    applicationUuid, jobUuid, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Schedule conflicts detected", e.getConflicts()));
+        }
 
         String message = switch (action.toLowerCase()) {
             case "hire" -> "Applicant hired successfully";

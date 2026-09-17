@@ -181,6 +181,54 @@ class ClassMarketplaceJobControllerTest {
     }
 
     @Test
+    void hireRefusedForAScheduleClashReturns409WithTheClashingWindows() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+
+        when(classMarketplaceJobService.hireApplication(eq(jobUuid), eq(applicationUuid), any()))
+                .thenThrow(new SchedulingConflictException("Clashes", List.of(
+                        new ClassSchedulingConflictDTO(
+                                LocalDateTime.of(2026, 5, 2, 9, 0),
+                                LocalDateTime.of(2026, 5, 2, 12, 0),
+                                List.of("Instructor is already committed to another class job in this window")),
+                        new ClassSchedulingConflictDTO(
+                                LocalDateTime.of(2026, 5, 9, 9, 0),
+                                LocalDateTime.of(2026, 5, 9, 12, 0),
+                                List.of("Instructor is marked unavailable for this window")))));
+
+        mockMvc.perform(post("/api/v1/classes/jobs/{jobUuid}/applications/{applicationUuid}", jobUuid, applicationUuid)
+                        .param("action", "hire"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Schedule conflicts detected"))
+                .andExpect(jsonPath("$.error.length()").value(2))
+                .andExpect(jsonPath("$.error[0].requested_start").value("2026-05-02T09:00:00"))
+                .andExpect(jsonPath("$.error[0].requested_end").value("2026-05-02T12:00:00"))
+                .andExpect(jsonPath("$.error[0].reasons[0]")
+                        .value("Instructor is already committed to another class job in this window"))
+                .andExpect(jsonPath("$.error[1].requested_start").value("2026-05-09T09:00:00"));
+    }
+
+    @Test
+    void createJobWhosePreferredInstructorClashesReturns409WithTheClashingWindows() throws Exception {
+        ClassMarketplaceJobRequestDTO request = sampleRequest();
+
+        when(classMarketplaceJobService.createJob(any(ClassMarketplaceJobRequestDTO.class)))
+                .thenThrow(new SchedulingConflictException("Clashes", List.of(
+                        new ClassSchedulingConflictDTO(
+                                LocalDateTime.of(2026, 5, 16, 9, 0),
+                                LocalDateTime.of(2026, 5, 16, 12, 0),
+                                List.of("Instructor already has a scheduled session or blocked time overlapping this window")))));
+
+        mockMvc.perform(post("/api/v1/classes/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Schedule conflicts detected"))
+                .andExpect(jsonPath("$.error[0].requested_start").value("2026-05-16T09:00:00"));
+    }
+
+    @Test
     void listJobsAcceptsLowercaseStatusFilter() throws Exception {
         ClassMarketplaceJobRequestDTO request = sampleRequest();
         ClassMarketplaceJobDTO response = sampleResponse(request);
