@@ -1,3 +1,10 @@
+## [2.150.1](https://github.com/sarafrika/elimika/compare/v2.150.0...v2.150.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **course:** deliver training application decisions to the organisation that applied ([9199e43](https://github.com/sarafrika/elimika/commit/9199e43c2f6c65f546d4ff386039d2447818a9e7))
+
 # [2.150.0](https://github.com/sarafrika/elimika/compare/v2.149.0...v2.150.0) (2026-09-17)
 
 
