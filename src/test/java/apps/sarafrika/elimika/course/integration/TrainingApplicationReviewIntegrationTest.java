@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Reviewing training applications over HTTP against the real schema: rate updates, floor flags and history. */
+/** Reviewing training applications over HTTP against the real schema: rate updates, floor flags, history and offers. */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -62,6 +62,7 @@ class TrainingApplicationReviewIntegrationTest {
     private static final String CREATOR = "keycloak-creator";
     private static final String INSTRUCTOR = "keycloak-instructor";
     private static final String OUTSIDER = "keycloak-outsider";
+    private static final String MANAGER = "keycloak-manager";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JdbcTemplate jdbc;
@@ -74,8 +75,10 @@ class TrainingApplicationReviewIntegrationTest {
 
     @BeforeEach
     void seed() {
-        jdbc.execute("TRUNCATE training_application_events, course_training_rate_updates, course_training_applications, courses, course_creators, "
-                + "instructors, user_domain_mapping, users RESTART IDENTITY CASCADE");
+        jdbc.execute("TRUNCATE training_application_events, training_application_venues, "
+                + "training_application_requirement_answers, course_training_rate_updates, course_training_applications, "
+                + "course_training_requirements, organisation_resources, training_branches, courses, course_creators, "
+                + "instructors, user_organisation_domain_mapping, user_domain_mapping, organisation, users RESTART IDENTITY CASCADE");
 
         UUID creatorUser = user(CREATOR, "creator@test.local", "Cyrus", "Waweru");
         UUID instructorUser = user(INSTRUCTOR, "instructor@test.local", "Amina", "Otieno");
@@ -249,6 +252,78 @@ class TrainingApplicationReviewIntegrationTest {
     }
 
     @Test
+    @DisplayName("an organisation offers its venues and answers the requirements, and both round-trip")
+    void venuesAndRequirementAnswersRoundTrip() throws Exception {
+        UUID managerUser = user(MANAGER, "manager@test.local", "Njeri", "Kamau");
+        UUID organisationUuid = organisation("Westlands Institute");
+        grantOrganisationDomain(managerUser, organisationUuid, "organisation_user");
+        UUID branchUuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO training_branches (uuid, organisation_uuid, branch_name, created_by) VALUES (?, ?, 'Westlands', 'test')",
+                branchUuid, organisationUuid);
+        UUID venueUuid = resource(organisationUuid, branchUuid, "VENUE", "Lab 1");
+        UUID poolUuid = resource(organisationUuid, branchUuid, "EQUIPMENT_POOL", "Laptops");
+        UUID foreignVenueUuid = resource(organisation("Elsewhere College"), null, "VENUE", "Hall");
+        UUID requirementUuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO course_training_requirements (uuid, course_uuid, requirement_type, name, created_by) "
+                + "VALUES (?, ?, 'equipment', 'Welding booth', 'test')", requirementUuid, courseUuid);
+        String url = "/api/v1/courses/" + courseUuid + "/training-applications";
+
+        mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                        .content(organisationApplication(organisationUuid, foreignVenueUuid, requirementUuid, "\"hire\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("does not belong to the applicant organisation")));
+        mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                        .content(organisationApplication(organisationUuid, poolUuid, requirementUuid, "\"hire\"")))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                        .content(organisationApplication(organisationUuid, venueUuid, requirementUuid, "null")))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                        .content(organisationApplication(organisationUuid, venueUuid, UUID.randomUUID(), "\"hire\"")))
+                .andExpect(status().isBadRequest());
+
+        String created = mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                        .content(organisationApplication(organisationUuid, venueUuid, requirementUuid, "\"hire\"")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.offered_venues.length()").value(1))
+                .andExpect(jsonPath("$.data.offered_venues[0].resource_uuid").value(venueUuid.toString()))
+                .andExpect(jsonPath("$.data.offered_venues[0].name").value("Lab 1"))
+                .andExpect(jsonPath("$.data.offered_venues[0].seat_capacity").value(24))
+                .andExpect(jsonPath("$.data.offered_venues[0].location_name").value("Block B"))
+                .andExpect(jsonPath("$.data.offered_venues[0].branch_uuid").value(branchUuid.toString()))
+                .andExpect(jsonPath("$.data.offered_venues[0].branch_name").value("Westlands"))
+                .andExpect(jsonPath("$.data.requirement_answers[0].requirement_uuid").value(requirementUuid.toString()))
+                .andExpect(jsonPath("$.data.requirement_answers[0].requirement_name").value("Welding booth"))
+                .andExpect(jsonPath("$.data.requirement_answers[0].has_it").value(false))
+                .andExpect(jsonPath("$.data.requirement_answers[0].acquisition").value("hire"))
+                .andReturn().getResponse().getContentAsString();
+        String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asText();
+
+        mockMvc.perform(get(applicationUrl).with(jwt(CREATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.offered_venues[0].name").value("Lab 1"))
+                .andExpect(jsonPath("$.data.requirement_answers[0].acquisition").value("hire"));
+
+        String keepOffers = """
+                {"rate_card": {"group_online_hourly_rate": 2600, "group_online_session_rate": 2600, "group_online_daily_rate": 2600}}
+                """;
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(applicationUrl)
+                        .with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON).content(keepOffers))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.offered_venues.length()").value(1))
+                .andExpect(jsonPath("$.data.requirement_answers.length()").value(1));
+        String clearOffers = """
+                {"rate_card": {"group_online_hourly_rate": 2600, "group_online_session_rate": 2600, "group_online_daily_rate": 2600},
+                 "offered_venue_uuids": [], "requirement_answers": []}
+                """;
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(applicationUrl)
+                        .with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON).content(clearOffers))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.offered_venues.length()").value(0))
+                .andExpect(jsonPath("$.data.requirement_answers.length()").value(0));
+    }
+
+    @Test
     @DisplayName("a proposal below the course minimum is refused")
     void belowTheFloorIsRefused() throws Exception {
         mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON).content(proposal("1500")))
@@ -274,6 +349,37 @@ class TrainingApplicationReviewIntegrationTest {
     private RequestPostProcessor jwt(String subject) {
         return org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
                 .jwt().jwt(builder -> builder.subject(subject).claim("sub", subject));
+    }
+
+    private String organisationApplication(UUID organisationUuid, UUID venueUuid, UUID requirementUuid, String acquisition) {
+        return """
+                {"applicant_type": "organisation", "applicant_uuid": "%s",
+                 "rate_card": {"group_online_hourly_rate": 2500, "group_online_session_rate": 2500, "group_online_daily_rate": 2500},
+                 "offered_venue_uuids": ["%s"],
+                 "requirement_answers": [{"requirement_uuid": "%s", "has_it": false, "acquisition": %s}]}
+                """.formatted(organisationUuid, venueUuid, requirementUuid, acquisition);
+    }
+
+    private UUID organisation(String name) {
+        UUID uuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO organisation (uuid, name, location, country, created_by) VALUES (?, ?, 'Nairobi', 'Kenya', 'test')",
+                uuid, name);
+        return uuid;
+    }
+
+    private UUID resource(UUID organisationUuid, UUID branchUuid, String type, String name) {
+        UUID uuid = UUID.randomUUID();
+        boolean venue = "VENUE".equals(type);
+        jdbc.update("INSERT INTO organisation_resources (uuid, organisation_uuid, branch_uuid, resource_type, name, seat_capacity, "
+                        + "total_quantity, location_name, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'Block B', 'test')",
+                uuid, organisationUuid, branchUuid, type, name, venue ? 24 : null, venue ? null : 10);
+        return uuid;
+    }
+
+    private void grantOrganisationDomain(UUID userUuid, UUID organisationUuid, String domainName) {
+        jdbc.update("INSERT INTO user_organisation_domain_mapping (uuid, user_uuid, organisation_uuid, domain_uuid, created_by) "
+                        + "VALUES (?, ?, ?, (SELECT uuid FROM user_domain WHERE domain_name = ?), 'test')",
+                UUID.randomUUID(), userUuid, organisationUuid, domainName);
     }
 
     private int openEvents() {

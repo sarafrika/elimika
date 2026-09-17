@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -176,6 +177,22 @@ public record ProgramTrainingApplicationDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "first_opened_at", access = JsonProperty.Access.READ_ONLY)
-        LocalDateTime firstOpenedAt
+        LocalDateTime firstOpenedAt,
+
+        @Schema(
+                description = "**[READ-ONLY]** Venues the applicant organisation offers, resolved from its resources. Empty for instructors; null for non-parties.",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "offered_venues", access = JsonProperty.Access.READ_ONLY)
+        List<TrainingApplicationVenueDTO> offeredVenues,
+
+        @Schema(
+                description = "**[READ-ONLY]** The applicant's answers to the training requirements. Null for non-parties.",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "requirement_answers", access = JsonProperty.Access.READ_ONLY)
+        List<TrainingRequirementAnswerDTO> requirementAnswers
 ) {
 }

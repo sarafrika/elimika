@@ -1,17 +1,18 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
-import apps.sarafrika.elimika.course.dto.TrainingApplicationEventDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationUpdateRequest;
+import apps.sarafrika.elimika.course.dto.TrainingApplicationEventDTO;
 import apps.sarafrika.elimika.course.factory.ProgramTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
@@ -127,6 +128,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final TrainingApplicationAccess access;
     private final TrainingFeeFloors feeFloors;
     private final TrainingApplicationHistory history;
+    private final TrainingApplicationOffers offers;
     private final TrainingApplicationExtrasResolver extrasResolver;
     private final ProgramTrainingRateUpdateService rateUpdateService;
 
@@ -150,6 +152,9 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         BigDecimal minimumTrainingFee = feeFloors.forCourses(courseUuids);
         rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
 
+        List<UUID> venues = offers.validateVenues(request.applicantType(), request.applicantUuid(), request.offeredVenueUuids());
+        offers.validateAnswers(courseUuids, request.requirementAnswers(), "a course in this program");
+
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
         String rateCurrency = resolvedCurrency.getCode();
 
@@ -160,6 +165,10 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         try {
             ProgramTrainingApplication saved = applicationRepository.save(application);
+            // A submission is the whole application, so a resubmission without venues or answers clears the old ones.
+            offers.replaceVenues(TrainingApplicationType.PROGRAM, saved.getUuid(), venues == null ? List.of() : venues);
+            offers.replaceAnswers(TrainingApplicationType.PROGRAM, saved.getUuid(),
+                    request.requirementAnswers() == null ? List.of() : request.requirementAnswers());
             history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.SUBMITTED,
                     request.applicationNotes());
             publishProgramTrainingApplicationSubmitted(program, saved);
@@ -201,10 +210,16 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
         String rateCurrency = resolvedCurrency.getCode();
 
+        List<UUID> venues = offers.validateVenues(
+                application.getApplicantType(), application.getApplicantUuid(), request.offeredVenueUuids());
+        offers.validateAnswers(courseUuids, request.requirementAnswers(), "a course in this program");
+
         application.setApplicationNotes(request.applicationNotes());
         TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        offers.replaceVenues(TrainingApplicationType.PROGRAM, saved.getUuid(), venues);
+        offers.replaceAnswers(TrainingApplicationType.PROGRAM, saved.getUuid(), request.requirementAnswers());
         history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.EDITED,
                 request.applicationNotes());
         return toDTO(saved);
@@ -222,6 +237,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         }
 
         history.record(TrainingApplicationType.PROGRAM, application.getUuid(), TrainingApplicationEventType.WITHDRAWN, null);
+        offers.deleteFor(TrainingApplicationType.PROGRAM, application.getUuid());
         applicationRepository.delete(application);
     }
 
@@ -596,6 +612,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
         );
     }
@@ -661,7 +679,6 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         TrainingRateCardFactory.apply(application, rateCard, rateCurrency);
         return application;
     }
-
 
     /** A platform admin, the program's creator, or the applicant reads it in full. */
     private boolean canReadApplication(ProgramTrainingApplication application) {

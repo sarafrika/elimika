@@ -7,6 +7,12 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
+import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationRequirementAnswerRepository;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationVenueRepository;
+import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRateUpdateRepository;
@@ -103,6 +109,23 @@ class CourseTrainingApplicationServiceImplTest {
     private TrainingApplicationEventRepository eventRepository;
 
     @Mock
+    private TrainingApplicationVenueRepository venueRepository;
+
+    @Mock
+    private TrainingApplicationRequirementAnswerRepository answerRepository;
+
+    @Mock
+    private CourseTrainingRequirementRepository requirementRepository;
+
+    @Mock
+    private ResourceLookupService resourceLookupService;
+
+    @Mock
+    private TrainingBranchLookupService branchLookupService;
+
+    private TrainingApplicationOffers offers;
+
+    @Mock
     private CourseTrainingRateUpdateService rateUpdateService;
 
     private CourseTrainingRateCardValidator rateCardValidator;
@@ -115,6 +138,8 @@ class CourseTrainingApplicationServiceImplTest {
         // Built for real: outside a request there is no acting-domain header, so every footing is permitted.
         CourseFootingCap footingCap = new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache())));
         TrainingApplicationHistory history = new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService);
+        offers = new TrainingApplicationOffers(venueRepository, answerRepository, requirementRepository,
+                resourceLookupService, branchLookupService);
         service = new CourseTrainingApplicationServiceImpl(
                 courseRepository,
                 applicationRepository,
@@ -128,10 +153,11 @@ class CourseTrainingApplicationServiceImplTest {
                 userLookupService,
                 applicationEventPublisher,
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
-                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history),
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers),
                 rateUpdateService,
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
-                history
+                history,
+                offers
         );
     }
 
@@ -149,7 +175,7 @@ class CourseTrainingApplicationServiceImplTest {
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
                 rateCard("KES", "2000.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
@@ -173,7 +199,7 @@ class CourseTrainingApplicationServiceImplTest {
                 CourseTrainingApplicantType.ORGANISATION,
                 organisationUuid,
                 rateCard("KES", "3200.00", "2500.00", "3600.00", "4100.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
@@ -214,7 +240,7 @@ class CourseTrainingApplicationServiceImplTest {
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
                 rateCard("usd", "2800.1254"),
-                "Ready to deliver evening cohorts"
+                "Ready to deliver evening cohorts", null, null
         );
 
         service.submitApplication(courseUuid, request);
@@ -241,7 +267,7 @@ class CourseTrainingApplicationServiceImplTest {
                 CourseTrainingApplicantType.INSTRUCTOR,
                 applicantUuid,
                 rateCard("KES", "2500.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
@@ -260,7 +286,7 @@ class CourseTrainingApplicationServiceImplTest {
                 CourseTrainingApplicantType.ORGANISATION,
                 organisationUuid,
                 rateCard("KES", "2500.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
@@ -297,7 +323,7 @@ class CourseTrainingApplicationServiceImplTest {
                 CourseTrainingApplicantType.ORGANISATION,
                 organisationUuid,
                 rateCard("KES", "2500.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
@@ -332,7 +358,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
                 rateCard("KES", "2500.00"),
-                "Updated notes"
+                "Updated notes", null, null
         );
 
         service.updateApplication(courseUuid, applicationUuid, request);
@@ -362,7 +388,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
                 rateCard("KES", "2500.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.updateApplication(courseUuid, applicationUuid, request))
@@ -387,7 +413,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
                 rateCard("KES", "2500.00"),
-                null
+                null, null, null
         );
 
         assertThatThrownBy(() -> service.updateApplication(courseUuid, applicationUuid, request))
@@ -585,7 +611,7 @@ class CourseTrainingApplicationServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         service.submitApplication(courseUuid, new CourseTrainingApplicationRequest(
-                CourseTrainingApplicantType.INSTRUCTOR, applicantUuid, rateCard("KES", "2500.00"), "Trying again"));
+                CourseTrainingApplicantType.INSTRUCTOR, applicantUuid, rateCard("KES", "2500.00"), "Trying again", null, null));
 
         TrainingApplicationEvent event = recordedEvents().getFirst();
         assertThat(event.getEventType()).isEqualTo(TrainingApplicationEventType.SUBMITTED);
@@ -610,7 +636,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         application.setStatus(CourseTrainingApplicationStatus.PENDING);
         service.updateApplication(courseUuid, application.getUuid(),
-                new CourseTrainingApplicationUpdateRequest(rateCard("KES", "3000.00"), "New notes"));
+                new CourseTrainingApplicationUpdateRequest(rateCard("KES", "3000.00"), "New notes", null, null));
         service.approveApplication(courseUuid, application.getUuid(), notes);
         service.revokeApplication(courseUuid, application.getUuid(), notes);
         application.setStatus(CourseTrainingApplicationStatus.PENDING);

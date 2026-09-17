@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.model.CourseTrainingRequirement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,4 +17,8 @@ public interface CourseTrainingRequirementRepository extends JpaRepository<Cours
     boolean existsByUuid(UUID uuid);
 
     List<CourseTrainingRequirement> findByCourseUuid(UUID courseUuid);
+
+    List<CourseTrainingRequirement> findByCourseUuidIn(Collection<UUID> courseUuids);
+
+    List<CourseTrainingRequirement> findByUuidIn(Collection<UUID> uuids);
 }

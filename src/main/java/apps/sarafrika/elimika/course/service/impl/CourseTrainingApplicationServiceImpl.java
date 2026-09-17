@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -92,6 +93,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final CourseTrainingRateUpdateService rateUpdateService;
     private final TrainingFeeFloors feeFloors;
     private final TrainingApplicationHistory history;
+    private final TrainingApplicationOffers offers;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -111,6 +113,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         }
         rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
 
+        List<UUID> venues = offers.validateVenues(request.applicantType(), request.applicantUuid(), request.offeredVenueUuids());
+        offers.validateAnswers(List.of(courseUuid), request.requirementAnswers(), "this course");
+
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
         String rateCurrency = resolvedCurrency.getCode();
 
@@ -121,6 +126,10 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         try {
             CourseTrainingApplication saved = applicationRepository.save(application);
+            // A submission is the whole application, so a resubmission without venues or answers clears the old ones.
+            offers.replaceVenues(TrainingApplicationType.COURSE, saved.getUuid(), venues == null ? List.of() : venues);
+            offers.replaceAnswers(TrainingApplicationType.COURSE, saved.getUuid(),
+                    request.requirementAnswers() == null ? List.of() : request.requirementAnswers());
             history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.SUBMITTED,
                     request.applicationNotes());
             publishCourseTrainingApplicationSubmitted(course, saved);
@@ -160,10 +169,16 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
         String rateCurrency = resolvedCurrency.getCode();
 
+        List<UUID> venues = offers.validateVenues(
+                application.getApplicantType(), application.getApplicantUuid(), request.offeredVenueUuids());
+        offers.validateAnswers(List.of(courseUuid), request.requirementAnswers(), "this course");
+
         application.setApplicationNotes(request.applicationNotes());
         TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        offers.replaceVenues(TrainingApplicationType.COURSE, saved.getUuid(), venues);
+        offers.replaceAnswers(TrainingApplicationType.COURSE, saved.getUuid(), request.requirementAnswers());
         history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.EDITED,
                 request.applicationNotes());
         return toDTO(saved);
@@ -181,6 +196,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         }
 
         history.record(TrainingApplicationType.COURSE, application.getUuid(), TrainingApplicationEventType.WITHDRAWN, null);
+        offers.deleteFor(TrainingApplicationType.COURSE, application.getUuid());
         applicationRepository.delete(application);
     }
 
@@ -541,6 +557,8 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
         );
     }
@@ -613,7 +631,6 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         TrainingRateCardFactory.apply(application, rateCard, rateCurrency);
         return application;
     }
-
 
     /** A platform admin (on the admin footing), the course's creator, or the applicant reads it in full. */
     private boolean canReadApplication(CourseTrainingApplication application) {

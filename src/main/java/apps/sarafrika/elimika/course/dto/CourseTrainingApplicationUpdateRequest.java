@@ -7,6 +7,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+import java.util.UUID;
+
 /**
  * Request payload used by an applicant to update their own PENDING course training application.
  */
@@ -45,6 +48,21 @@ public record CourseTrainingApplicationUpdateRequest(
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty("application_notes")
         @Size(max = 2000, message = "Application notes must not exceed 2000 characters")
-        String applicationNotes
+        String applicationNotes,
+
+        @Schema(
+                description = "Venue resource UUIDs the organisation offers for training: each must be an active VENUE of the applicant organisation. Organisation applicants only. Omit to keep what is stored; send [] to clear.",
+                nullable = true
+        )
+        @JsonProperty("offered_venue_uuids")
+        List<UUID> offeredVenueUuids,
+
+        @Schema(
+                description = "Answers to the course's training requirements (for programs, those of its courses). acquisition is required when has_it is false. Omit to keep what is stored; send [] to clear.",
+                nullable = true
+        )
+        @JsonProperty("requirement_answers")
+        @Valid
+        List<TrainingRequirementAnswerRequest> requirementAnswers
 ) {
 }

@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceBookingSourceType;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingStatus;
 import apps.sarafrika.elimika.resourcing.spi.ResourceConflictDetail;
 import apps.sarafrika.elimika.resourcing.spi.ResourceConflictType;
+import apps.sarafrika.elimika.resourcing.spi.ResourceListing;
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
@@ -310,6 +311,17 @@ public class ResourceBookingServiceImpl implements ResourceBookingService, Resou
         return resourceRepository.findByUuid(resourceUuid)
                 .map(resource -> resource.getOrganisationUuid().equals(organisationUuid))
                 .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ResourceListing> findResources(Collection<UUID> resourceUuids) {
+        if (resourceUuids == null || resourceUuids.isEmpty()) {
+            return List.of();
+        }
+        return resourceRepository.findByUuidIn(resourceUuids).stream()
+                .map(OrganisationResourceFactory::toListing)
+                .toList();
     }
 
     // ===== Conflict engine =====

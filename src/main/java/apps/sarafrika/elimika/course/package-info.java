@@ -64,6 +64,7 @@
             "shared",
             "coursecreator :: coursecreator-spi",
             "instructor :: instructor-spi",
+            "resourcing :: resourcing-spi",
             "tenancy :: tenancy-spi",
             "notifications::events-api"
     }

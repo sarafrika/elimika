@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.resourcing.factory;
 
 import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceDTO;
 import apps.sarafrika.elimika.resourcing.model.OrganisationResource;
+import apps.sarafrika.elimika.resourcing.spi.ResourceListing;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -58,6 +59,19 @@ public class OrganisationResourceFactory {
         if (dto.isActive() != null) {
             entity.setIsActive(dto.isActive());
         }
+    }
+
+    public static ResourceListing toListing(OrganisationResource entity) {
+        return new ResourceListing(
+                entity.getUuid(),
+                entity.getOrganisationUuid(),
+                entity.getBranchUuid(),
+                entity.getResourceType(),
+                entity.getName(),
+                entity.getSeatCapacity(),
+                entity.getLocationName(),
+                Boolean.TRUE.equals(entity.getIsActive())
+        );
     }
 
     public static ResourceSummary toSummary(OrganisationResource entity) {

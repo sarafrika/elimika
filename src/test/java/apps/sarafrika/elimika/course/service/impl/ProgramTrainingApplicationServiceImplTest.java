@@ -5,6 +5,12 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
+import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationRequirementAnswerRepository;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationVenueRepository;
+import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.model.Course;
@@ -73,6 +79,11 @@ class ProgramTrainingApplicationServiceImplTest {
     @Mock private ProgramTrainingRateUpdateRepository programRateUpdates;
     @Mock private ProgramTrainingRateUpdateService rateUpdateService;
     @Mock private TrainingApplicationEventRepository eventRepository;
+    @Mock private TrainingApplicationVenueRepository venueRepository;
+    @Mock private TrainingApplicationRequirementAnswerRepository answerRepository;
+    @Mock private CourseTrainingRequirementRepository requirementRepository;
+    @Mock private ResourceLookupService resourceLookupService;
+    @Mock private TrainingBranchLookupService branchLookupService;
 
     private ProgramTrainingApplicationServiceImpl service;
     private ProgramTrainingApplication application;
@@ -82,6 +93,8 @@ class ProgramTrainingApplicationServiceImplTest {
     void setUp() {
         CourseFootingCap footingCap = new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache())));
         TrainingApplicationHistory history = new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService);
+        TrainingApplicationOffers offers = new TrainingApplicationOffers(venueRepository, answerRepository, requirementRepository,
+                resourceLookupService, branchLookupService);
         service = new ProgramTrainingApplicationServiceImpl(
                 programRepository, applicationRepository, courseApplicationRepository, specificationBuilder,
                 currencyService, domainSecurityService, new CourseTrainingRateCardValidator(),
@@ -89,7 +102,8 @@ class ProgramTrainingApplicationServiceImplTest {
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 history,
-                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history),
+                offers,
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers),
                 rateUpdateService);
 
         UUID first = UUID.randomUUID();

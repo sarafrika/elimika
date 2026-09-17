@@ -7,6 +7,8 @@ import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ProgramTrainingApplicationFactory {
 
@@ -34,7 +36,9 @@ public final class ProgramTrainingApplicationFactory {
                 entity.getLastModifiedBy(),
                 extras == null ? null : extras.pendingRateUpdateUuid(),
                 extras == null ? null : extras.rateFloorFlags(),
-                extras == null ? null : extras.firstOpenedAt()
+                extras == null ? null : extras.firstOpenedAt(),
+                extras == null ? List.of() : extras.offeredVenues(),
+                extras == null ? List.of() : extras.requirementAnswers()
         );
     }
 }

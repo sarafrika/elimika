@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.course.internal.training;
 
+import apps.sarafrika.elimika.course.dto.TrainingApplicationVenueDTO;
+import apps.sarafrika.elimika.course.dto.TrainingRequirementAnswerDTO;
 import apps.sarafrika.elimika.course.model.TrainingRateUpdate;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRateUpdateRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingRateUpdateRepository;
@@ -23,6 +25,7 @@ public class TrainingApplicationExtrasResolver {
     private final CourseTrainingRateUpdateRepository courseRateUpdates;
     private final ProgramTrainingRateUpdateRepository programRateUpdates;
     private final TrainingApplicationHistory history;
+    private final TrainingApplicationOffers offers;
 
     public TrainingApplicationExtras resolve(TrainingApplicationType type, UUID applicationUuid) {
         if (applicationUuid == null) {
@@ -43,10 +46,12 @@ public class TrainingApplicationExtrasResolver {
         pending.forEach(update -> pendingUpdates.putIfAbsent(update.getApplicationUuid(), update.getUuid()));
 
         Map<UUID, LocalDateTime> firstOpened = history.firstOpenedAt(type, uuids);
+        Map<UUID, List<TrainingApplicationVenueDTO>> venues = offers.venues(type, uuids);
+        Map<UUID, List<TrainingRequirementAnswerDTO>> answers = offers.answers(type, uuids);
 
         Map<UUID, TrainingApplicationExtras> extras = new HashMap<>();
-        uuids.forEach(uuid -> extras.put(uuid,
-                new TrainingApplicationExtras(pendingUpdates.get(uuid), null, firstOpened.get(uuid))));
+        uuids.forEach(uuid -> extras.put(uuid, new TrainingApplicationExtras(pendingUpdates.get(uuid), null,
+                firstOpened.get(uuid), venues.getOrDefault(uuid, List.of()), answers.getOrDefault(uuid, List.of()))));
         return extras;
     }
 }
