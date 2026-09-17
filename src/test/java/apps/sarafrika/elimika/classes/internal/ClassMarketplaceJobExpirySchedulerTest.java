@@ -62,7 +62,8 @@ class ClassMarketplaceJobExpirySchedulerTest {
     void setUp() {
         scheduler = new ClassMarketplaceJobExpiryScheduler(
                 jobRepository, applicationRepository, resourceBookingService,
-                instructorTimeHoldService, userLookupService, instructorLookupService, eventPublisher);
+                instructorTimeHoldService, userLookupService, instructorLookupService, eventPublisher,
+                new AuditUserResolver(userLookupService));
     }
 
     @Test
@@ -83,6 +84,24 @@ class ClassMarketplaceJobExpirySchedulerTest {
         verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job expired");
         verify(jobRepository).saveAll(List.of(job));
         verify(eventPublisher).publishEvent(any(NotificationRequestedEvent.class));
+    }
+
+    @Test
+    void theExpiryNoticeReachesTheCreatorStampedByKeycloakId() throws Exception {
+        ClassMarketplaceJob job = openJob("Weekend Bootcamp");
+        job.setCreatedBy("5f1c0a8e-keycloak-subject");
+        UUID creatorUuid = UUID.randomUUID();
+
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
+        when(userLookupService.findUserUuidByKeycloakId("5f1c0a8e-keycloak-subject")).thenReturn(Optional.of(creatorUuid));
+
+        invokeExpire();
+
+        ArgumentCaptor<NotificationRequestedEvent> notice = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(notice.capture());
+        assertThat(notice.getValue().recipientId()).isEqualTo(creatorUuid);
+        assertThat(notice.getValue().notificationType()).isEqualTo("CLASS_MARKETPLACE_JOB_EXPIRED");
+        verify(userLookupService, never()).findUserUuidByEmail(anyString());
     }
 
     @Test

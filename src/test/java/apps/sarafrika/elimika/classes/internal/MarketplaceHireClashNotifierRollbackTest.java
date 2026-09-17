@@ -106,8 +106,10 @@ class MarketplaceHireClashNotifierRollbackTest {
             InstructorLookupService instructorLookupService = Mockito.mock(InstructorLookupService.class);
             Mockito.when(instructorLookupService.getInstructorUserUuid(any()))
                     .thenReturn(Optional.of(UUID.randomUUID()));
-            return new MarketplaceHireClashNotifier(Mockito.mock(UserLookupService.class), instructorLookupService,
-                    Mockito.mock(OrganisationLookupService.class), eventPublisher);
+            UserLookupService userLookupService = Mockito.mock(UserLookupService.class);
+            return new MarketplaceHireClashNotifier(userLookupService, instructorLookupService,
+                    Mockito.mock(OrganisationLookupService.class), eventPublisher,
+                    new AuditUserResolver(userLookupService));
         }
 
         @Bean

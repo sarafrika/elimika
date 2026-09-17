@@ -39,6 +39,7 @@ public class MarketplaceHireClashNotifier {
     private final InstructorLookupService instructorLookupService;
     private final OrganisationLookupService organisationLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditUserResolver auditUserResolver;
 
     // Own transaction: the refused hire rolls back, and a notification request only dispatches once the
     // transaction that published it commits. A null application means a direct hire.
@@ -125,9 +126,7 @@ public class MarketplaceHireClashNotifier {
     // The job's creator is who hears about its applicants elsewhere; the manager who pressed hire hears too.
     private Set<UUID> organisationRecipients(ClassMarketplaceJob job, UUID hiringUserUuid) {
         Set<UUID> recipients = new LinkedHashSet<>();
-        if (job.getCreatedBy() != null) {
-            userLookupService.findUserUuidByEmail(job.getCreatedBy()).ifPresent(recipients::add);
-        }
+        auditUserResolver.userOf(job.getCreatedBy()).ifPresent(recipients::add);
         if (hiringUserUuid != null) {
             recipients.add(hiringUserUuid);
         }

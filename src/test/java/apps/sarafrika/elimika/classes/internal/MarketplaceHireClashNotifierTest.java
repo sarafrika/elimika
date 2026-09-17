@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -56,7 +57,8 @@ class MarketplaceHireClashNotifierTest {
     @BeforeEach
     void setUp() {
         notifier = new MarketplaceHireClashNotifier(
-                userLookupService, instructorLookupService, organisationLookupService, eventPublisher);
+                userLookupService, instructorLookupService, organisationLookupService, eventPublisher,
+                new AuditUserResolver(userLookupService));
         job = new ClassMarketplaceJob();
         job.setUuid(UUID.randomUUID());
         job.setOrganisationUuid(UUID.randomUUID());
@@ -94,6 +96,7 @@ class MarketplaceHireClashNotifierTest {
 
     @Test
     void aCreatorWhoAlsoPressedHireIsAlertedOnce() {
+        // An older job stamped with an email still resolves through the fallback.
         when(userLookupService.findUserUuidByEmail("manager@school.test")).thenReturn(Optional.of(hiringUserUuid));
 
         notifier.notifyHireBlocked(job, UUID.randomUUID(), instructorUuid, hiringUserUuid,
@@ -102,6 +105,20 @@ class MarketplaceHireClashNotifierTest {
         // One organisation in-app alert; the instructor has no account here, so nothing reaches them.
         verify(eventPublisher, times(1)).publishEvent(any(Object.class));
         assertThat(publishedInApp(ORGANISATION_TYPE).recipientId()).isEqualTo(hiringUserUuid);
+    }
+
+    @Test
+    void theJobCreatorIsFoundByTheKeycloakIdTheJobWasStampedWith() {
+        UUID creatorUserUuid = UUID.randomUUID();
+        job.setCreatedBy("5f1c0a8e-keycloak-subject");
+        when(userLookupService.findUserUuidByKeycloakId("5f1c0a8e-keycloak-subject"))
+                .thenReturn(Optional.of(creatorUserUuid));
+
+        notifier.notifyHireBlocked(job, UUID.randomUUID(), instructorUuid, hiringUserUuid,
+                List.of(clash(LocalDateTime.of(2026, 6, 6, 14, 0), "Instructor is marked unavailable for this window")));
+
+        assertThat(publishedInAppRecipients(ORGANISATION_TYPE)).containsExactly(creatorUserUuid, hiringUserUuid);
+        verify(userLookupService, never()).findUserUuidByEmail(any());
     }
 
     @Test
@@ -138,6 +155,17 @@ class MarketplaceHireClashNotifierTest {
                 .filter(event -> type.equals(event.notificationType()) && event.deliveryChannels().contains("in_app"))
                 .reduce((first, second) -> first)
                 .orElseThrow(() -> new AssertionError("No in-app " + type + " alert was published"));
+    }
+
+    private List<UUID> publishedInAppRecipients(String type) {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, org.mockito.Mockito.atLeastOnce()).publishEvent(captor.capture());
+        return captor.getAllValues().stream()
+                .filter(NotificationRequestedEvent.class::isInstance)
+                .map(NotificationRequestedEvent.class::cast)
+                .filter(event -> type.equals(event.notificationType()) && event.deliveryChannels().contains("in_app"))
+                .map(NotificationRequestedEvent::recipientId)
+                .toList();
     }
 
     private ClassSchedulingConflictDTO clash(LocalDateTime start, String reason) {

@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.internal.AuditUserResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.MarketplaceHireClashNotifier;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
@@ -196,7 +197,9 @@ class ClassMarketplaceJobServiceImplTest {
                 storageProperties,
                 new BranchLocationResolver(trainingBranchLookupService),
                 new MarketplaceHireClashNotifier(
-                        userLookupService, instructorLookupService, organisationLookupService, eventPublisher)
+                        userLookupService, instructorLookupService, organisationLookupService, eventPublisher,
+                        new AuditUserResolver(userLookupService)),
+                new AuditUserResolver(userLookupService)
         );
         org.mockito.Mockito.lenient()
                 .when(trainingBranchLookupService.findBranch(any(), any()))
@@ -1177,6 +1180,44 @@ class ClassMarketplaceJobServiceImplTest {
         verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
         assertThat(captor.getAllValues())
                 .anyMatch(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN".equals(e.notificationType()));
+    }
+
+    @Test
+    void aWithdrawalNoticeReachesTheCreatorStampedByKeycloakId() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID creatorUserUuid = UUID.randomUUID();
+
+        ClassMarketplaceJob job = sampleJob();
+        job.setCreatedBy("5f1c0a8e-keycloak-subject");
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("instructor@example.com"));
+        when(userLookupService.findUserUuidByKeycloakId("5f1c0a8e-keycloak-subject"))
+                .thenReturn(Optional.of(creatorUserUuid));
+        when(userLookupService.getUserEmail(creatorUserUuid)).thenReturn(Optional.of("manager@org.test"));
+        when(userLookupService.getUserFullName(creatorUserUuid)).thenReturn(Optional.of("Org Manager"));
+
+        service.withdrawApplication(job.getUuid(), application.getUuid(), null);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .filteredOn(e -> "CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN".equals(e.notificationType()))
+                .extracting(NotificationRequestedEvent::recipientId)
+                .containsOnly(creatorUserUuid)
+                .hasSize(2);
+        verify(userLookupService, never()).findUserUuidByEmail(anyString());
     }
 
     @Test

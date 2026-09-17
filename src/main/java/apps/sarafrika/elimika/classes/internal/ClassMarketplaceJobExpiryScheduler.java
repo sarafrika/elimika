@@ -41,6 +41,7 @@ class ClassMarketplaceJobExpiryScheduler {
     private final UserLookupService userLookupService;
     private final InstructorLookupService instructorLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditUserResolver auditUserResolver;
 
     static final String STARTED_REASON = "Job expired when its first session started";
 
@@ -179,9 +180,7 @@ class ClassMarketplaceJobExpiryScheduler {
 
     private void notifyJobCreator(ClassMarketplaceJob job, boolean holdsHire) {
         try {
-            UUID creatorUserUuid = job.getCreatedBy() == null
-                    ? null
-                    : userLookupService.findUserUuidByEmail(job.getCreatedBy()).orElse(null);
+            UUID creatorUserUuid = auditUserResolver.userOf(job.getCreatedBy()).orElse(null);
             if (creatorUserUuid == null) {
                 log.debug("No resolvable creator for expired marketplace job {}; skipping notification", job.getUuid());
                 return;

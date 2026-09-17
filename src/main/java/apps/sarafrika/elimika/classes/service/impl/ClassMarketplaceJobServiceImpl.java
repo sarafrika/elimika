@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.internal.AuditUserResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
 import apps.sarafrika.elimika.classes.internal.MarketplaceHireClashNotifier;
@@ -147,6 +148,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final StorageProperties storageProperties;
     private final BranchLocationResolver branchLocationResolver;
     private final MarketplaceHireClashNotifier hireClashNotifier;
+    private final AuditUserResolver auditUserResolver;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
@@ -602,9 +604,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private void notifyOrganisationOfWithdrawal(ClassMarketplaceJob job,
                                                 ClassMarketplaceJobApplication application) {
         try {
-            UUID creatorUserUuid = job.getCreatedBy() == null
-                    ? null
-                    : userLookupService.findUserUuidByEmail(job.getCreatedBy()).orElse(null);
+            UUID creatorUserUuid = auditUserResolver.userOf(job.getCreatedBy()).orElse(null);
             if (creatorUserUuid == null) {
                 log.debug("No resolvable creator for marketplace job {}; skipping withdrawal notification",
                         job.getUuid());
