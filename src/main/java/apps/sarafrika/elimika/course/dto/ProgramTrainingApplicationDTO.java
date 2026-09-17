@@ -151,6 +151,14 @@ public record ProgramTrainingApplicationDTO(
         )
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(
+                description = "**[READ-ONLY]** The rate update awaiting review on this application, or null when there is none (always null for non-parties).",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "pending_rate_update_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID pendingRateUpdateUuid
 ) {
 }

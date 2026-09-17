@@ -40,6 +40,8 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
 
     Optional<CourseTrainingApplication> findByUuid(UUID uuid);
 
+    List<CourseTrainingApplication> findByUuidIn(Collection<UUID> uuids);
+
     Optional<CourseTrainingApplication> findByCourseUuidAndApplicantTypeAndApplicantUuid(UUID courseUuid,
                                                                                         CourseTrainingApplicantType applicantType,
                                                                                         UUID applicantUuid);

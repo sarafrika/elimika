@@ -1,14 +1,11 @@
 package apps.sarafrika.elimika.course.model;
 
-import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
-import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.converter.TrainingRateUpdateStatusConverter;
+import apps.sarafrika.elimika.course.util.enums.TrainingRateUpdateStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
-import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
+import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,29 +14,15 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Represents an instructor or organisation application to deliver a training program.
- */
+/** An approved applicant's proposed replacement rate card (the full card, not a diff), held until the owner decides. */
 @Getter
 @Setter
-@Entity
-@Table(name = "program_training_applications")
 @NoArgsConstructor
-@AllArgsConstructor
-public class ProgramTrainingApplication extends BaseEntity implements TrainingApplicationRecord {
+@MappedSuperclass
+public abstract class TrainingRateUpdate extends BaseEntity implements TrainingRateCardHolder {
 
-    @Column(name = "program_uuid")
-    @Filterable
-    private UUID programUuid;
-
-    @Column(name = "applicant_type")
-    @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicantTypeConverter.class)
-    @Filterable
-    private CourseTrainingApplicantType applicantType;
-
-    @Column(name = "applicant_uuid")
-    @Filterable
-    private UUID applicantUuid;
+    @Column(name = "application_uuid")
+    private UUID applicationUuid;
 
     @Column(name = "rate_currency")
     private String rateCurrency;
@@ -80,13 +63,12 @@ public class ProgramTrainingApplication extends BaseEntity implements TrainingAp
     @Column(name = "group_inperson_daily_rate")
     private BigDecimal groupInpersonDailyRate;
 
-    @Column(name = "status")
-    @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)
-    @Filterable
-    private CourseTrainingApplicationStatus status;
+    @Column(name = "note")
+    private String note;
 
-    @Column(name = "application_notes")
-    private String applicationNotes;
+    @Column(name = "status")
+    @Convert(converter = TrainingRateUpdateStatusConverter.class)
+    private TrainingRateUpdateStatus status;
 
     @Column(name = "review_notes")
     private String reviewNotes;
@@ -95,6 +77,5 @@ public class ProgramTrainingApplication extends BaseEntity implements TrainingAp
     private String reviewedBy;
 
     @Column(name = "reviewed_at")
-    @Filterable
     private LocalDateTime reviewedAt;
 }

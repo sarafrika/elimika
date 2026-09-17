@@ -55,6 +55,8 @@ class TrainingProgramControllerTest {
     @Mock
     private ProgramTrainingApplicationService programTrainingApplicationService;
     @Mock
+    private apps.sarafrika.elimika.course.service.ProgramTrainingRateUpdateService programTrainingRateUpdateService;
+    @Mock
     private ProgramReviewService programReviewService;
 
     private MockMvc mockMvc;
@@ -69,6 +71,7 @@ class TrainingProgramControllerTest {
                 programRequirementService,
                 certificateService,
                 programTrainingApplicationService,
+                programTrainingRateUpdateService,
                 programReviewService
         );
 

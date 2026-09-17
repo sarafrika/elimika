@@ -68,4 +68,40 @@ class EmailTemplateServiceTest {
         // Assert
         assertThat(content).isEqualTo("HTML Content");
     }
+
+    @Test
+    void generateSubject_ForTrainingRateUpdateDecision() {
+        NotificationEvent event = mock(NotificationEvent.class);
+        when(event.getNotificationType()).thenReturn(NotificationType.TRAINING_RATE_UPDATE_REJECTED);
+        when(event.getTemplateVariables()).thenReturn(Map.of("contextName", "Welding", "decisionLabel", "not accepted"));
+
+        assertThat(emailTemplateService.generateSubject(event)).isEqualTo("Your rate update for Welding was not accepted");
+    }
+
+    @Test
+    void trainingRateUpdateDecisionTemplateRendersBothOutcomes() {
+        org.thymeleaf.templateresolver.ClassLoaderTemplateResolver resolver =
+                new org.thymeleaf.templateresolver.ClassLoaderTemplateResolver();
+        resolver.setPrefix("templates/");
+        resolver.setTemplateMode(org.thymeleaf.templatemode.TemplateMode.HTML);
+        TemplateEngine realEngine = new org.thymeleaf.spring6.SpringTemplateEngine();
+        realEngine.setTemplateResolver(resolver);
+        EmailTemplateService realService = new EmailTemplateService(realEngine);
+
+        for (boolean approved : new boolean[]{true, false}) {
+            NotificationEvent event = mock(NotificationEvent.class);
+            when(event.getNotificationType()).thenReturn(approved
+                    ? NotificationType.TRAINING_RATE_UPDATE_APPROVED : NotificationType.TRAINING_RATE_UPDATE_REJECTED);
+            when(event.getRecipientName()).thenReturn("Amina");
+            when(event.getTemplateVariables()).thenReturn(new HashMap<>(Map.of(
+                    "recipientName", "Amina", "contextType", "course", "contextName", "Welding",
+                    "approved", approved, "decisionLabel", approved ? "approved" : "not accepted",
+                    "reviewNotes", "See you next term", "actionPath", "/dashboard/instructor/rate-card")));
+
+            String html = realService.generateEmailContent(event);
+
+            assertThat(html).contains("Welding").contains("See you next term").contains("/dashboard/instructor/rate-card");
+            assertThat(html).contains(approved ? "were approved" : "was not accepted");
+        }
+    }
 }

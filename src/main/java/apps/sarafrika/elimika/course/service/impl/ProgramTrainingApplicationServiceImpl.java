@@ -7,18 +7,20 @@ import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.factory.ProgramTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
-import apps.sarafrika.elimika.course.model.Course;
-import apps.sarafrika.elimika.course.model.ProgramCourse;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
-import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
-import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.service.ProgramTrainingApplicationService;
+import apps.sarafrika.elimika.course.service.ProgramTrainingRateUpdateService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationType;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -110,8 +112,6 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
     private final TrainingProgramRepository trainingProgramRepository;
     private final ProgramTrainingApplicationRepository applicationRepository;
-    private final ProgramCourseRepository programCourseRepository;
-    private final CourseRepository courseRepository;
     private final CourseTrainingApplicationRepository courseTrainingApplicationRepository;
     private final GenericSpecificationBuilder<ProgramTrainingApplication> specificationBuilder;
     private final CurrencyService currencyService;
@@ -121,6 +121,10 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TrainingApplicationAccess access;
+    private final TrainingFeeFloors feeFloors;
+    private final TrainingApplicationExtrasResolver extrasResolver;
+    private final ProgramTrainingRateUpdateService rateUpdateService;
 
     @Override
     public ProgramTrainingApplicationDTO submitApplication(UUID programUuid, ProgramTrainingApplicationRequest request) {
@@ -131,7 +135,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
 
-        List<UUID> courseUuids = resolveProgramCourseUuids(program.getUuid());
+        List<UUID> courseUuids = feeFloors.programCourseUuids(program.getUuid());
         if (courseUuids.isEmpty()) {
             throw new IllegalStateException("Training program has no courses. Add courses before submitting applications.");
         }
@@ -139,7 +143,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         ensureNoPendingApplication(programUuid, request.applicantType(), request.applicantUuid());
 
         CourseTrainingRateCardDTO rateCardRequest = request.rateCard();
-        BigDecimal minimumTrainingFee = resolveProgramMinimumTrainingFee(courseUuids);
+        BigDecimal minimumTrainingFee = feeFloors.forCourses(courseUuids);
         rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
 
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
@@ -153,7 +157,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         try {
             ProgramTrainingApplication saved = applicationRepository.save(application);
             publishProgramTrainingApplicationSubmitted(program, saved);
-            return ProgramTrainingApplicationFactory.toDTO(saved);
+            return toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
             String exceptionMessage = ex.getMessage();
             if (exceptionMessage != null && exceptionMessage.contains("uq_program_training_application")) {
@@ -176,7 +180,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             throw new IllegalStateException("Only pending applications can be updated.");
         }
 
-        List<UUID> courseUuids = resolveProgramCourseUuids(programUuid);
+        List<UUID> courseUuids = feeFloors.programCourseUuids(programUuid);
         if (courseUuids.isEmpty()) {
             throw new IllegalStateException("Training program has no courses. Add courses before updating applications.");
         }
@@ -185,7 +189,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         if (rateCardRequest == null) {
             throw new IllegalArgumentException("Rate card is required");
         }
-        BigDecimal minimumTrainingFee = resolveProgramMinimumTrainingFee(courseUuids);
+        BigDecimal minimumTrainingFee = feeFloors.forCourses(courseUuids);
         rateCardValidator.validateAgainstMinimum(rateCardRequest, minimumTrainingFee);
 
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
@@ -195,7 +199,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
-        return ProgramTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -232,7 +236,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
         publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.APPROVED, decisionRequest.reviewNotes());
-        return ProgramTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -255,8 +259,9 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training application was rejected.");
         publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REJECTED, decisionRequest.reviewNotes());
-        return ProgramTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -276,8 +281,9 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training approval was revoked.");
         publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REVOKED, decisionRequest.reviewNotes());
-        return ProgramTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -290,7 +296,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             throw new ResourceNotFoundException(
                     String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, programUuid));
         }
-        return ProgramTrainingApplicationFactory.toDTO(application);
+        return toDTO(application);
     }
 
     @Override
@@ -352,8 +358,11 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 ? applicationRepository.findAll(specification, pageable)
                 : applicationRepository.findAll(pageable);
 
+        Map<UUID, TrainingApplicationExtras> extras = extrasResolver.resolve(TrainingApplicationType.PROGRAM,
+                page.map(ProgramTrainingApplication::getUuid).toList());
         return page.map(application -> scope == null || scope.isParty(application)
-                ? ProgramTrainingApplicationFactory.toDTO(application)
+                ? ProgramTrainingApplicationFactory.toDTO(application,
+                        extras.getOrDefault(application.getUuid(), TrainingApplicationExtras.NONE))
                 : toNonPartyDTO(application));
     }
 
@@ -539,6 +548,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 application.getCreatedDate(),
                 null,
                 application.getLastModifiedDate(),
+                null,
                 null
         );
     }
@@ -606,48 +616,11 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     }
 
 
-    /**
-     * Whether the caller may read this application in full: a platform admin, the creator of the
-     * program it targets, or the applicant.
-     */
+    /** A platform admin, the program's creator, or the applicant reads it in full. */
     private boolean canReadApplication(ProgramTrainingApplication application) {
         return domainSecurityService.isPlatformAdmin()
-                || isProgramOwnedByCurrentUser(application.getProgramUuid())
-                || isApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
-    }
-
-    private boolean isProgramOwnedByCurrentUser(UUID programUuid) {
-        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
-        if (callerUuid == null) {
-            return false;
-        }
-        Set<UUID> creatorIdentities = programCreatorIdentities(callerUuid);
-        if (creatorIdentities.isEmpty()) {
-            return false;
-        }
-        return trainingProgramRepository.findByUuid(programUuid)
-                .map(program -> program.getCourseCreatorUuid() != null
-                        && creatorIdentities.contains(program.getCourseCreatorUuid()))
-                .orElse(false);
-    }
-
-    /**
-     * Whether the caller is the applicant: their own instructor profile, or an organisation they
-     * hold a staff role in. Bare membership of the organisation is not enough - the same mapping
-     * table records its students and their guardians, and applying to deliver a program on the
-     * organisation's terms is not theirs to do.
-     */
-    private boolean isApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
-        if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
-            return domainSecurityService.isInstructorWithUuid(applicantUuid);
-        }
-
-        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
-            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
-            return currentUserUuid != null && isOrganisationStaff(currentUserUuid, applicantUuid);
-        }
-
-        return false;
+                || access.ownsProgram(application.getProgramUuid())
+                || access.isApplicant(application.getApplicantType(), application.getApplicantUuid());
     }
 
     /**
@@ -660,7 +633,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     }
 
     private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
-        if (isApplicantOwnedByCurrentUser(applicantType, applicantUuid)) {
+        if (access.isApplicant(applicantType, applicantUuid)) {
             return;
         }
         if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
@@ -677,7 +650,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
      * stranger's organisation's name.
      */
     private void ensureSubmitApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
-        if (isApplicantOwnedByCurrentUser(applicantType, applicantUuid)) {
+        if (access.isApplicant(applicantType, applicantUuid)) {
             return;
         }
         if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
@@ -718,31 +691,10 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         }
     }
 
-    private List<UUID> resolveProgramCourseUuids(UUID programUuid) {
-        return programCourseRepository.findByProgramUuidOrderBySequenceOrderAsc(programUuid)
-                .stream()
-                .map(ProgramCourse::getCourseUuid)
-                .filter(uuid -> uuid != null)
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    private BigDecimal resolveProgramMinimumTrainingFee(List<UUID> courseUuids) {
-        if (courseUuids == null || courseUuids.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        List<Course> courses = courseRepository.findByUuidIn(courseUuids);
-        return courses.stream()
-                .map(course -> course.getMinimumTrainingFee() != null ? course.getMinimumTrainingFee() : BigDecimal.ZERO)
-                .max(BigDecimal::compareTo)
-                .orElse(BigDecimal.ZERO);
-    }
-
     private void ensureApplicantApprovedForProgramCourses(UUID programUuid,
                                                           CourseTrainingApplicantType applicantType,
                                                           UUID applicantUuid) {
-        List<UUID> courseUuids = resolveProgramCourseUuids(programUuid);
+        List<UUID> courseUuids = feeFloors.programCourseUuids(programUuid);
         if (courseUuids.isEmpty()) {
             throw new IllegalStateException("Training program has no courses. Add courses before approving applications.");
         }
@@ -764,6 +716,11 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                     "Applicant must be approved to deliver all courses in the program before approval. Missing approvals for courses: %s",
                     missingList));
         }
+    }
+
+    private ProgramTrainingApplicationDTO toDTO(ProgramTrainingApplication application) {
+        return ProgramTrainingApplicationFactory.toDTO(application,
+                extrasResolver.resolve(TrainingApplicationType.PROGRAM, application.getUuid()));
     }
 
     private String resolveCurrentReviewer() {

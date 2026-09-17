@@ -4,6 +4,10 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.service.CourseTrainingRateUpdateService;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -74,6 +78,15 @@ class CourseTrainingApplicationServiceImplTest {
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Mock
+    private CourseSecuritySpi courseSecurity;
+
+    @Mock
+    private TrainingApplicationExtrasResolver extrasResolver;
+
+    @Mock
+    private CourseTrainingRateUpdateService rateUpdateService;
+
     private CourseTrainingRateCardValidator rateCardValidator;
 
     private CourseTrainingApplicationServiceImpl service;
@@ -81,21 +94,23 @@ class CourseTrainingApplicationServiceImplTest {
     @BeforeEach
     void setUp() {
         rateCardValidator = new CourseTrainingRateCardValidator();
+        // Built for real: outside a request there is no acting-domain header, so every footing is permitted.
+        CourseFootingCap footingCap = new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache())));
         service = new CourseTrainingApplicationServiceImpl(
                 courseRepository,
                 applicationRepository,
                 specificationBuilder,
                 currencyService,
                 domainSecurityService,
-                // Built for real: outside a request there is no acting-domain header, so the cap
-                // resolves to "unspecified" and permits every footing — which is the behaviour a
-                // caller that sends no header keeps getting, and what these cases exercise.
-                new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache()))),
+                footingCap,
                 rateCardValidator,
                 courseCreatorLookupService,
                 instructorLookupService,
                 userLookupService,
-                applicationEventPublisher
+                applicationEventPublisher,
+                new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
+                extrasResolver,
+                rateUpdateService
         );
     }
 
@@ -126,13 +141,11 @@ class CourseTrainingApplicationServiceImplTest {
     void submitApplicationRejectsOrganisationRateBelowMinimum() {
         UUID courseUuid = UUID.randomUUID();
         UUID organisationUuid = UUID.randomUUID();
-        UUID currentUserUuid = UUID.randomUUID();
 
         Course course = new Course();
         course.setMinimumTrainingFee(new BigDecimal("3000.00"));
 
-        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(true);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(true);
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
 
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
@@ -219,10 +232,8 @@ class CourseTrainingApplicationServiceImplTest {
     void submitApplicationRejectsOrganisationImpersonation() {
         UUID courseUuid = UUID.randomUUID();
         UUID organisationUuid = UUID.randomUUID();
-        UUID currentUserUuid = UUID.randomUUID();
 
-        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(false);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(false);
 
         CourseTrainingApplicationRequest request = new CourseTrainingApplicationRequest(
                 CourseTrainingApplicantType.ORGANISATION,
@@ -233,7 +244,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Organisations may only submit training applications for organisations they belong to");
+                .hasMessageContaining("Organisations may only submit training applications for organisations they manage");
 
         verify(courseRepository, org.mockito.Mockito.never()).findByUuid(courseUuid);
     }
@@ -242,13 +253,11 @@ class CourseTrainingApplicationServiceImplTest {
     void submitApplicationRejectsApprovedOrganisationApplication() {
         UUID courseUuid = UUID.randomUUID();
         UUID organisationUuid = UUID.randomUUID();
-        UUID currentUserUuid = UUID.randomUUID();
 
         Course course = new Course();
         course.setMinimumTrainingFee(new BigDecimal("2000.00"));
 
-        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(true);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(true);
         when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
         when(applicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                 courseUuid,
@@ -412,7 +421,6 @@ class CourseTrainingApplicationServiceImplTest {
         UUID courseUuid = UUID.randomUUID();
         UUID applicationUuid = UUID.randomUUID();
         UUID organisationUuid = UUID.randomUUID();
-        UUID currentUserUuid = UUID.randomUUID();
 
         CourseTrainingApplication existing = new CourseTrainingApplication();
         existing.setCourseUuid(courseUuid);
@@ -421,8 +429,7 @@ class CourseTrainingApplicationServiceImplTest {
         existing.setStatus(CourseTrainingApplicationStatus.PENDING);
 
         when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
-        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(true);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(true);
 
         service.withdrawApplication(courseUuid, applicationUuid);
 
@@ -434,7 +441,6 @@ class CourseTrainingApplicationServiceImplTest {
         UUID courseUuid = UUID.randomUUID();
         UUID applicationUuid = UUID.randomUUID();
         UUID organisationUuid = UUID.randomUUID();
-        UUID currentUserUuid = UUID.randomUUID();
 
         CourseTrainingApplication existing = new CourseTrainingApplication();
         existing.setCourseUuid(courseUuid);
@@ -443,13 +449,36 @@ class CourseTrainingApplicationServiceImplTest {
         existing.setStatus(CourseTrainingApplicationStatus.PENDING);
 
         when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(existing));
-        when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
-        when(userLookupService.userBelongsToOrganization(currentUserUuid, organisationUuid)).thenReturn(false);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(false);
 
         assertThatThrownBy(() -> service.withdrawApplication(courseUuid, applicationUuid))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+
+    @Test
+    @DisplayName("revoking an approval closes any rate update still awaiting review")
+    void revokeClosesPendingRateUpdate() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+
+        CourseTrainingApplication approved = new CourseTrainingApplication();
+        approved.setUuid(applicationUuid);
+        approved.setCourseUuid(courseUuid);
+        approved.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        approved.setApplicantUuid(UUID.randomUUID());
+        approved.setStatus(CourseTrainingApplicationStatus.APPROVED);
+
+        when(applicationRepository.findByUuid(applicationUuid)).thenReturn(Optional.of(approved));
+        when(applicationRepository.save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.revokeApplication(courseUuid, applicationUuid,
+                new apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest("No longer eligible"));
+
+        verify(rateUpdateService).closePendingRateUpdate(
+                org.mockito.ArgumentMatchers.eq(applicationUuid), org.mockito.ArgumentMatchers.contains("revoked"));
+    }
 
     // ── A rate card answers in the unit the job was contracted in ─────────────────────────────
 

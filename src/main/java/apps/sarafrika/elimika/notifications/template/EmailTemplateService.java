@@ -66,6 +66,10 @@ public class EmailTemplateService {
             case "training-application-status" ->
                 String.format("Update on your training application: %s",
                         event.getTemplateVariables().getOrDefault("contextName", "training"));
+            case "training-rate-update-decision" ->
+                String.format("Your rate update for %s was %s",
+                        event.getTemplateVariables().getOrDefault("contextName", "your training"),
+                        event.getTemplateVariables().getOrDefault("decisionLabel", "reviewed"));
             case "class-marketplace-job-application-update" ->
                 String.format("Your application moved forward: %s",
                         event.getTemplateVariables().getOrDefault("contextName", "a class"));

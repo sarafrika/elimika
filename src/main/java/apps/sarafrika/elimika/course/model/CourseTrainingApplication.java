@@ -26,7 +26,7 @@ import java.util.UUID;
 @Table(name = "course_training_applications")
 @NoArgsConstructor
 @AllArgsConstructor
-public class CourseTrainingApplication extends BaseEntity implements TrainingRateCardHolder {
+public class CourseTrainingApplication extends BaseEntity implements TrainingApplicationRecord {
 
     @Column(name = "course_uuid")
     @Filterable

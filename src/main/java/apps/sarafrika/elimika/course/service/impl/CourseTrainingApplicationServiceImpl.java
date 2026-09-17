@@ -9,13 +9,18 @@ import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.service.CourseTrainingApplicationService;
+import apps.sarafrika.elimika.course.service.CourseTrainingRateUpdateService;
 import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationType;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -78,6 +83,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TrainingApplicationAccess access;
+    private final TrainingApplicationExtrasResolver extrasResolver;
+    private final CourseTrainingRateUpdateService rateUpdateService;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -108,7 +116,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         try {
             CourseTrainingApplication saved = applicationRepository.save(application);
             publishCourseTrainingApplicationSubmitted(course, saved);
-            return CourseTrainingApplicationFactory.toDTO(saved);
+            return toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
             String exceptionMessage = ex.getMessage();
             if (exceptionMessage != null && exceptionMessage.contains("uq_course_training_application")) {
@@ -148,7 +156,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         CourseTrainingApplication saved = applicationRepository.save(application);
-        return CourseTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -183,7 +191,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         CourseTrainingApplication saved = applicationRepository.save(application);
         publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.APPROVED, decisionRequest.reviewNotes());
-        return CourseTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -206,8 +214,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training application was rejected.");
         publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REJECTED, decisionRequest.reviewNotes());
-        return CourseTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -227,8 +236,9 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training approval was revoked.");
         publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REVOKED, decisionRequest.reviewNotes());
-        return CourseTrainingApplicationFactory.toDTO(saved);
+        return toDTO(saved);
     }
 
     @Override
@@ -241,7 +251,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             throw new ResourceNotFoundException(
                     String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, courseUuid));
         }
-        return CourseTrainingApplicationFactory.toDTO(application);
+        return toDTO(application);
     }
 
     @Override
@@ -310,8 +320,11 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 ? applicationRepository.findAll(specification, effectivePageable)
                 : applicationRepository.findAll(effectivePageable);
 
+        Map<UUID, TrainingApplicationExtras> extras = extrasResolver.resolve(TrainingApplicationType.COURSE,
+                page.map(CourseTrainingApplication::getUuid).toList());
         return page.map(application -> scope == null || scope.isParty(application)
-                ? CourseTrainingApplicationFactory.toDTO(application)
+                ? CourseTrainingApplicationFactory.toDTO(application,
+                        extras.getOrDefault(application.getUuid(), TrainingApplicationExtras.NONE))
                 : toNonPartyDTO(application));
     }
 
@@ -469,6 +482,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 application.getCreatedDate(),
                 null,
                 application.getLastModifiedDate(),
+                null,
                 null
         );
     }
@@ -543,86 +557,39 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     }
 
 
-    /**
-     * Whether the caller may read this application in full: a platform admin, the creator of the
-     * course it targets, or the applicant.
-     * <p>
-     * Each of the three is paired with the footing it belongs to, so the dashboard the caller is on
-     * decides which of them may still speak. Reading in full means the rate card, so this is the
-     * single-application form of the same rule the search applies to a page of them.
-     */
+    /** A platform admin (on the admin footing), the course's creator, or the applicant reads it in full. */
     private boolean canReadApplication(CourseTrainingApplication application) {
         return (courseFootingCap.permits(CourseContentAccess.ADMIN) && domainSecurityService.isPlatformAdmin())
-                || (courseFootingCap.permits(CourseContentAccess.CREATOR)
-                        && isCourseOwnedByCurrentUser(application.getCourseUuid()))
-                || isApplicantOwnedByCurrentUser(application.getApplicantType(), application.getApplicantUuid());
-    }
-
-    private boolean isCourseOwnedByCurrentUser(UUID courseUuid) {
-        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
-        if (callerUuid == null) {
-            return false;
-        }
-        UUID callerCourseCreatorUuid = courseCreatorLookupService.findCourseCreatorUuidByUserUuid(callerUuid).orElse(null);
-        if (callerCourseCreatorUuid == null) {
-            return false;
-        }
-        return courseRepository.findByUuid(courseUuid)
-                .map(course -> callerCourseCreatorUuid.equals(course.getCourseCreatorUuid()))
-                .orElse(false);
-    }
-
-    /**
-     * Each applicant kind is gated on its own footing, so an instructor reading from their
-     * organisation's dashboard, or a school's staff reading from an instructor dashboard, is
-     * narrowed to the identity that page is about rather than to whichever of the two is stronger.
-     */
-    private boolean isApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
-        if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
-            return courseFootingCap.permits(CourseContentAccess.INSTRUCTOR)
-                    && domainSecurityService.isInstructorWithUuid(applicantUuid);
-        }
-
-        if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
-            if (!courseFootingCap.permits(CourseContentAccess.ORGANISATION)) {
-                return false;
-            }
-            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
-            return currentUserUuid != null
-                    && userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid);
-        }
-
-        return false;
+                || access.ownsCourse(application.getCourseUuid())
+                || access.isApplicant(application.getApplicantType(), application.getApplicantUuid());
     }
 
     private void ensureApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
-        if (isApplicantOwnedByCurrentUser(applicantType, applicantUuid)) {
+        if (access.isApplicant(applicantType, applicantUuid)) {
             return;
         }
         if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
-            throw new AccessDeniedException("You may only manage training applications for your organisation.");
+            throw new AccessDeniedException("You may only manage training applications for an organisation you manage.");
         }
         throw new AccessDeniedException("You may only manage your own training applications.");
     }
 
     private void ensureSubmitApplicantOwnedByCurrentUser(CourseTrainingApplicantType applicantType, UUID applicantUuid) {
+        if (access.isApplicant(applicantType, applicantUuid)) {
+            return;
+        }
         if (CourseTrainingApplicantType.INSTRUCTOR.equals(applicantType)) {
-            if (!domainSecurityService.isInstructorWithUuid(applicantUuid)) {
-                throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
-            }
-            return;
+            throw new AccessDeniedException("Instructors may only submit training applications for themselves.");
         }
-
         if (CourseTrainingApplicantType.ORGANISATION.equals(applicantType)) {
-            UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
-            if (currentUserUuid == null
-                    || !userLookupService.userBelongsToOrganization(currentUserUuid, applicantUuid)) {
-                throw new AccessDeniedException("Organisations may only submit training applications for organisations they belong to.");
-            }
-            return;
+            throw new AccessDeniedException("Organisations may only submit training applications for organisations they manage.");
         }
-
         throw new AccessDeniedException("You may only submit your own training applications.");
+    }
+
+    private CourseTrainingApplicationDTO toDTO(CourseTrainingApplication application) {
+        return CourseTrainingApplicationFactory.toDTO(application,
+                extrasResolver.resolve(TrainingApplicationType.COURSE, application.getUuid()));
     }
 
     private CourseTrainingApplication findApplication(UUID courseUuid, UUID applicationUuid) {

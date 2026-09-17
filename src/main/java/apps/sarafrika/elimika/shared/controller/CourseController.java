@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingRateUpdateStatus;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
@@ -87,6 +88,7 @@ public class CourseController {
     private final CourseRequirementService courseRequirementService;
     private final CourseTrainingRequirementService courseTrainingRequirementService;
     private final CourseTrainingApplicationService courseTrainingApplicationService;
+    private final CourseTrainingRateUpdateService courseTrainingRateUpdateService;
     private final CourseTrainerDirectoryService courseTrainerDirectoryService;
     private final CourseEnrollmentService courseEnrollmentService;
     private final CourseCategoryService courseCategoryService;
@@ -1587,6 +1589,105 @@ public class CourseController {
             @PathVariable UUID courseUuid,
             @PathVariable UUID applicationUuid) {
         courseTrainingApplicationService.withdrawApplication(courseUuid, applicationUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== TRAINING RATE UPDATES =====
+
+    @Operation(
+            summary = "Propose a rate update",
+            description = """
+                    Lets an approved applicant (the instructor, or a manager of the applicant organisation) propose a
+                    replacement rate card. The body carries the full card as it should read after approval, validated
+                    like a new application's card. The application must be APPROVED and have no other pending update.
+                    The course creator approves or rejects it; the current rates stay in force until then.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Rate update submitted for review"),
+                    @ApiResponse(responseCode = "400", description = "Rate card invalid"),
+                    @ApiResponse(responseCode = "403", description = "Caller is not the applicant"),
+                    @ApiResponse(responseCode = "404", description = "Application not found for this course"),
+                    @ApiResponse(responseCode = "409", description = "Application not approved, or an update is already pending")
+            }
+    )
+    @PostMapping("/{courseUuid}/training-applications/{applicationUuid}/rate-updates")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingRateUpdateDTO>> submitTrainingRateUpdate(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid,
+            @Valid @RequestBody TrainingRateUpdateRequest request) {
+        TrainingRateUpdateDTO update = courseTrainingRateUpdateService.submitRateUpdate(courseUuid, applicationUuid, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(update, "Rate update submitted for review"));
+    }
+
+    @Operation(
+            summary = "List rate updates on a training application",
+            description = "Every rate update on the application, newest first. Readable by the applicant and the course creator; anyone else receives 404."
+    )
+    @GetMapping("/{courseUuid}/training-applications/{applicationUuid}/rate-updates")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<TrainingRateUpdateDTO>>> listTrainingRateUpdates(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid) {
+        List<TrainingRateUpdateDTO> updates = courseTrainingRateUpdateService.getRateUpdates(courseUuid, applicationUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(updates, "Rate updates retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "List rate updates to review on a course",
+            description = "The course creator's queue of rate updates across the course's applications. Filter with `status=pending|approved|rejected|withdrawn`."
+    )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
+    @GetMapping("/{courseUuid}/training-rate-updates")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingRateUpdateDTO>>> listCourseTrainingRateUpdates(
+            @PathVariable UUID courseUuid,
+            @RequestParam(value = "status", required = false) String status,
+            @PageableDefault(sort = "createdDate", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        Optional<TrainingRateUpdateStatus> statusFilter = Optional.ofNullable(status)
+                .filter(value -> !value.isBlank())
+                .map(TrainingRateUpdateStatus::fromValue);
+        Page<TrainingRateUpdateDTO> updates =
+                courseTrainingRateUpdateService.getRateUpdatesForReview(courseUuid, statusFilter, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(updates, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                        "Rate updates retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Decide on a rate update",
+            description = """
+                    The course creator approves or rejects a pending rate update with `action=approve|reject`. Approval
+                    re-validates the proposed card and copies it onto the application in the same transaction; the
+                    application stays APPROVED throughout. Rejection leaves the current rates unchanged.
+                    """
+    )
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid)")
+    @PostMapping("/{courseUuid}/training-applications/{applicationUuid}/rate-updates/{updateUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingRateUpdateDTO>> decideOnTrainingRateUpdate(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid,
+            @PathVariable UUID updateUuid,
+            @RequestParam("action") String action,
+            @Valid @RequestBody(required = false) TrainingRateUpdateDecisionRequest decisionRequest) {
+        TrainingRateUpdateDTO update = switch (action.toLowerCase()) {
+            case "approve" -> courseTrainingRateUpdateService.approveRateUpdate(courseUuid, applicationUuid, updateUuid, decisionRequest);
+            case "reject" -> courseTrainingRateUpdateService.rejectRateUpdate(courseUuid, applicationUuid, updateUuid, decisionRequest);
+            default -> throw new IllegalArgumentException("Unsupported action '" + action + "'. Allowed values: approve, reject.");
+        };
+        String message = "approve".equalsIgnoreCase(action) ? "Rate update approved" : "Rate update rejected";
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(update, message));
+    }
+
+    @Operation(
+            summary = "Withdraw a rate update",
+            description = "The applicant withdraws their own pending rate update. Only pending updates can be withdrawn."
+    )
+    @DeleteMapping("/{courseUuid}/training-applications/{applicationUuid}/rate-updates/{updateUuid}")
+    public ResponseEntity<Void> withdrawTrainingRateUpdate(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid,
+            @PathVariable UUID updateUuid) {
+        courseTrainingRateUpdateService.withdrawRateUpdate(courseUuid, applicationUuid, updateUuid);
         return ResponseEntity.noContent().build();
     }
 

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.course.dto.*;
 import apps.sarafrika.elimika.course.service.*;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingRateUpdateStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.Explode;
@@ -15,6 +16,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,6 +47,7 @@ public class TrainingProgramController {
     private final ProgramRequirementService programRequirementService;
     private final CertificateService certificateService;
     private final ProgramTrainingApplicationService programTrainingApplicationService;
+    private final ProgramTrainingRateUpdateService programTrainingRateUpdateService;
     private final ProgramReviewService programReviewService;
 
     // ===== PROGRAM BASIC OPERATIONS =====
@@ -841,6 +845,105 @@ public class TrainingProgramController {
             @PathVariable UUID programUuid,
             @PathVariable UUID applicationUuid) {
         programTrainingApplicationService.withdrawApplication(programUuid, applicationUuid);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== TRAINING RATE UPDATES =====
+
+    @Operation(
+            summary = "Propose a rate update",
+            description = """
+                    Lets an approved applicant (the instructor, or a manager of the applicant organisation) propose a
+                    replacement rate card. The body carries the full card as it should read after approval, validated
+                    like a new application's card. The application must be APPROVED and have no other pending update.
+                    The program creator approves or rejects it; the current rates stay in force until then.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Rate update submitted for review"),
+                    @ApiResponse(responseCode = "400", description = "Rate card invalid"),
+                    @ApiResponse(responseCode = "403", description = "Caller is not the applicant"),
+                    @ApiResponse(responseCode = "404", description = "Application not found for this program"),
+                    @ApiResponse(responseCode = "409", description = "Application not approved, or an update is already pending")
+            }
+    )
+    @PostMapping("/{programUuid}/training-applications/{applicationUuid}/rate-updates")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingRateUpdateDTO>> submitProgramTrainingRateUpdate(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid,
+            @Valid @RequestBody TrainingRateUpdateRequest request) {
+        TrainingRateUpdateDTO update = programTrainingRateUpdateService.submitRateUpdate(programUuid, applicationUuid, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(update, "Rate update submitted for review"));
+    }
+
+    @Operation(
+            summary = "List rate updates on a training application",
+            description = "Every rate update on the application, newest first. Readable by the applicant and the program creator; anyone else receives 404."
+    )
+    @GetMapping("/{programUuid}/training-applications/{applicationUuid}/rate-updates")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<TrainingRateUpdateDTO>>> listProgramTrainingApplicationRateUpdates(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid) {
+        List<TrainingRateUpdateDTO> updates = programTrainingRateUpdateService.getRateUpdates(programUuid, applicationUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(updates, "Rate updates retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "List rate updates to review on a program",
+            description = "The program creator's queue of rate updates across the program's applications. Filter with `status=pending|approved|rejected|withdrawn`."
+    )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid)")
+    @GetMapping("/{programUuid}/training-rate-updates")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingRateUpdateDTO>>> listProgramTrainingRateUpdates(
+            @PathVariable UUID programUuid,
+            @RequestParam(value = "status", required = false) String status,
+            @PageableDefault(sort = "createdDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        Optional<TrainingRateUpdateStatus> statusFilter = Optional.ofNullable(status)
+                .filter(value -> !value.isBlank())
+                .map(TrainingRateUpdateStatus::fromValue);
+        Page<TrainingRateUpdateDTO> updates =
+                programTrainingRateUpdateService.getRateUpdatesForReview(programUuid, statusFilter, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(updates, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                        "Rate updates retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Decide on a rate update",
+            description = """
+                    The program creator approves or rejects a pending rate update with `action=approve|reject`. Approval
+                    re-validates the proposed card and copies it onto the application in the same transaction; the
+                    application stays APPROVED throughout. Rejection leaves the current rates unchanged.
+                    """
+    )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid)")
+    @PostMapping("/{programUuid}/training-applications/{applicationUuid}/rate-updates/{updateUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingRateUpdateDTO>> decideOnProgramTrainingRateUpdate(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid,
+            @PathVariable UUID updateUuid,
+            @RequestParam("action") String action,
+            @Valid @RequestBody(required = false) TrainingRateUpdateDecisionRequest decisionRequest) {
+        TrainingRateUpdateDTO update = switch (action.toLowerCase()) {
+            case "approve" -> programTrainingRateUpdateService.approveRateUpdate(programUuid, applicationUuid, updateUuid, decisionRequest);
+            case "reject" -> programTrainingRateUpdateService.rejectRateUpdate(programUuid, applicationUuid, updateUuid, decisionRequest);
+            default -> throw new IllegalArgumentException("Unsupported action '" + action + "'. Allowed values: approve, reject.");
+        };
+        String message = "approve".equalsIgnoreCase(action) ? "Rate update approved" : "Rate update rejected";
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(update, message));
+    }
+
+    @Operation(
+            summary = "Withdraw a rate update",
+            description = "The applicant withdraws their own pending rate update. Only pending updates can be withdrawn."
+    )
+    @DeleteMapping("/{programUuid}/training-applications/{applicationUuid}/rate-updates/{updateUuid}")
+    public ResponseEntity<Void> withdrawProgramTrainingRateUpdate(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid,
+            @PathVariable UUID updateUuid) {
+        programTrainingRateUpdateService.withdrawRateUpdate(programUuid, applicationUuid, updateUuid);
         return ResponseEntity.noContent().build();
     }
 }
