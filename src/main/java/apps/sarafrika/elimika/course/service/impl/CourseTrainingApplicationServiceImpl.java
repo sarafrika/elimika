@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
+import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
@@ -144,7 +145,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         String rateCurrency = resolvedCurrency.getCode();
 
         application.setApplicationNotes(request.applicationNotes());
-        applyRateCard(application, rateCardRequest, rateCurrency);
+        TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         CourseTrainingApplication saved = applicationRepository.save(application);
         return CourseTrainingApplicationFactory.toDTO(saved);
@@ -523,7 +524,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         existing.setReviewNotes(null);
         existing.setReviewedBy(null);
         existing.setReviewedAt(null);
-        applyRateCard(existing, rateCard, rateCurrency);
+        TrainingRateCardFactory.apply(existing, rateCard, rateCurrency);
         return existing;
     }
 
@@ -537,30 +538,10 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setApplicantUuid(request.applicantUuid());
         application.setStatus(CourseTrainingApplicationStatus.PENDING);
         application.setApplicationNotes(request.applicationNotes());
-        applyRateCard(application, rateCard, rateCurrency);
+        TrainingRateCardFactory.apply(application, rateCard, rateCurrency);
         return application;
     }
 
-    private void applyRateCard(CourseTrainingApplication target,
-                               CourseTrainingRateCardDTO rateCard,
-                               String rateCurrency) {
-        if (rateCard == null) {
-            throw new IllegalArgumentException("Rate card is required");
-        }
-        target.setRateCurrency(rateCurrency);
-        target.setPrivateOnlineHourlyRate(rateCard.privateOnlineHourlyRate());
-        target.setPrivateInpersonHourlyRate(rateCard.privateInpersonHourlyRate());
-        target.setGroupOnlineHourlyRate(rateCard.groupOnlineHourlyRate());
-        target.setGroupInpersonHourlyRate(rateCard.groupInpersonHourlyRate());
-        target.setPrivateOnlineSessionRate(rateCard.privateOnlineSessionRate());
-        target.setPrivateInpersonSessionRate(rateCard.privateInpersonSessionRate());
-        target.setGroupOnlineSessionRate(rateCard.groupOnlineSessionRate());
-        target.setGroupInpersonSessionRate(rateCard.groupInpersonSessionRate());
-        target.setPrivateOnlineDailyRate(rateCard.privateOnlineDailyRate());
-        target.setPrivateInpersonDailyRate(rateCard.privateInpersonDailyRate());
-        target.setGroupOnlineDailyRate(rateCard.groupOnlineDailyRate());
-        target.setGroupInpersonDailyRate(rateCard.groupInpersonDailyRate());
-    }
 
     /**
      * Whether the caller may read this application in full: a platform admin, the creator of the

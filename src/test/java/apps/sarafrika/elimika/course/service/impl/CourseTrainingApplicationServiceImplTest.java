@@ -456,7 +456,11 @@ class CourseTrainingApplicationServiceImplTest {
     @Test
     @DisplayName("a card priced only per hour cannot answer a per-day job")
     void anUnpricedBasisReturnsNothingRatherThanAnHourlyFigure() {
-        CourseTrainingRateCardDTO card = rateCard("KES", "2000", "2000", "2000", "2000");
+        CourseTrainingRateCardDTO card = new CourseTrainingRateCardDTO(
+                "KES",
+                new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"),
+                null, null, null, null,
+                null, null, null, null);
 
         assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.IN_PERSON,
                 apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR))
@@ -506,8 +510,14 @@ class CourseTrainingApplicationServiceImplTest {
                 new BigDecimal(privateInperson),
                 new BigDecimal(groupOnline),
                 new BigDecimal(groupInperson),
-                null, null, null, null,
-                null, null, null, null
+                new BigDecimal(privateOnline),
+                new BigDecimal(privateInperson),
+                new BigDecimal(groupOnline),
+                new BigDecimal(groupInperson),
+                new BigDecimal(privateOnline),
+                new BigDecimal(privateInperson),
+                new BigDecimal(groupOnline),
+                new BigDecimal(groupInperson)
         );
     }
 

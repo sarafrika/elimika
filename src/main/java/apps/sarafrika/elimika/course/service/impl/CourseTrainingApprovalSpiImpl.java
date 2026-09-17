@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
-import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
-import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
+import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
+import apps.sarafrika.elimika.course.model.TrainingRateCardHolder;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
@@ -150,7 +150,7 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
                         applicantUuid,
                         CourseTrainingApplicationStatus.APPROVED
                 )
-                .map(application -> extractRate(application, sessionFormat, locationType, basis));
+                .flatMap(application -> extractRate(application, sessionFormat, locationType, basis));
     }
 
     private Optional<BigDecimal> resolveProgramRate(UUID programUuid,
@@ -170,57 +170,15 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
                         applicantUuid,
                         CourseTrainingApplicationStatus.APPROVED
                 )
-                .map(application -> extractProgramRate(application, sessionFormat, locationType, basis));
+                .flatMap(application -> extractRate(application, sessionFormat, locationType, basis));
     }
 
-    private BigDecimal extractRate(CourseTrainingApplication application,
-                                   SessionFormat sessionFormat,
-                                   LocationType locationType,
-                                   RateBasis basis) {
-        boolean online = isOnline(locationType);
-        return switch (basis == null ? RateBasis.PER_HOUR : basis) {
-            case PER_HOUR -> switch (sessionFormat) {
-                case INDIVIDUAL -> online ? application.getPrivateOnlineHourlyRate() : application.getPrivateInpersonHourlyRate();
-                case GROUP -> online ? application.getGroupOnlineHourlyRate() : application.getGroupInpersonHourlyRate();
-            };
-            case PER_SESSION -> switch (sessionFormat) {
-                case INDIVIDUAL -> online ? application.getPrivateOnlineSessionRate() : application.getPrivateInpersonSessionRate();
-                case GROUP -> online ? application.getGroupOnlineSessionRate() : application.getGroupInpersonSessionRate();
-            };
-            case PER_DAY -> switch (sessionFormat) {
-                case INDIVIDUAL -> online ? application.getPrivateOnlineDailyRate() : application.getPrivateInpersonDailyRate();
-                case GROUP -> online ? application.getGroupOnlineDailyRate() : application.getGroupInpersonDailyRate();
-            };
-        };
-    }
-
-    /**
-     * Online pricing is the default when a location is not stated, matching the rate card DTO.
-     */
-    private boolean isOnline(LocationType locationType) {
-        LocationType effective = locationType != null ? locationType : LocationType.ONLINE;
-        boolean inPerson = LocationType.IN_PERSON.equals(effective) || LocationType.HYBRID.equals(effective);
-        return !inPerson;
-    }
-
-    private BigDecimal extractProgramRate(ProgramTrainingApplication application,
-                                          SessionFormat sessionFormat,
-                                          LocationType locationType,
-                                          RateBasis basis) {
-        boolean online = isOnline(locationType);
-        return switch (basis == null ? RateBasis.PER_HOUR : basis) {
-            case PER_HOUR -> switch (sessionFormat) {
-                case INDIVIDUAL -> online ? application.getPrivateOnlineHourlyRate() : application.getPrivateInpersonHourlyRate();
-                case GROUP -> online ? application.getGroupOnlineHourlyRate() : application.getGroupInpersonHourlyRate();
-            };
-            case PER_SESSION -> switch (sessionFormat) {
-                case INDIVIDUAL -> online ? application.getPrivateOnlineSessionRate() : application.getPrivateInpersonSessionRate();
-                case GROUP -> online ? application.getGroupOnlineSessionRate() : application.getGroupInpersonSessionRate();
-            };
-            case PER_DAY -> switch (sessionFormat) {
-                case INDIVIDUAL -> online ? application.getPrivateOnlineDailyRate() : application.getPrivateInpersonDailyRate();
-                case GROUP -> online ? application.getGroupOnlineDailyRate() : application.getGroupInpersonDailyRate();
-            };
-        };
+    /** A null or non-positive cell is not offered, so it resolves to nothing rather than to a price. */
+    private static Optional<BigDecimal> extractRate(TrainingRateCardHolder application,
+                                                    SessionFormat sessionFormat,
+                                                    LocationType locationType,
+                                                    RateBasis basis) {
+        return Optional.ofNullable(TrainingRateCardFactory.toDTO(application).resolveRate(sessionFormat, locationType, basis))
+                .filter(rate -> rate.signum() > 0);
     }
 }

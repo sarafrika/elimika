@@ -14,21 +14,7 @@ public final class ProgramTrainingApplicationFactory {
             return null;
         }
 
-        CourseTrainingRateCardDTO rateCard = new CourseTrainingRateCardDTO(
-                entity.getRateCurrency(),
-                entity.getPrivateOnlineHourlyRate(),
-                entity.getPrivateInpersonHourlyRate(),
-                entity.getGroupOnlineHourlyRate(),
-                entity.getGroupInpersonHourlyRate(),
-                entity.getPrivateOnlineSessionRate(),
-                entity.getPrivateInpersonSessionRate(),
-                entity.getGroupOnlineSessionRate(),
-                entity.getGroupInpersonSessionRate(),
-                entity.getPrivateOnlineDailyRate(),
-                entity.getPrivateInpersonDailyRate(),
-                entity.getGroupOnlineDailyRate(),
-                entity.getGroupInpersonDailyRate()
-        );
+        CourseTrainingRateCardDTO rateCard = TrainingRateCardFactory.toDTO(entity);
 
         return new ProgramTrainingApplicationDTO(
                 entity.getUuid(),

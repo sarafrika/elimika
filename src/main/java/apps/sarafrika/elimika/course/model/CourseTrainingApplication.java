@@ -26,34 +26,34 @@ import java.util.UUID;
 @Table(name = "course_training_applications")
 @NoArgsConstructor
 @AllArgsConstructor
-public class CourseTrainingApplication extends BaseEntity {
+public class CourseTrainingApplication extends BaseEntity implements TrainingRateCardHolder {
 
-    @Column(name = "course_uuid", nullable = false)
+    @Column(name = "course_uuid")
     @Filterable
     private UUID courseUuid;
 
-    @Column(name = "applicant_type", nullable = false)
+    @Column(name = "applicant_type")
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicantTypeConverter.class)
     @Filterable
     private CourseTrainingApplicantType applicantType;
 
-    @Column(name = "applicant_uuid", nullable = false)
+    @Column(name = "applicant_uuid")
     @Filterable
     private UUID applicantUuid;
 
-    @Column(name = "rate_currency", nullable = false, length = 3)
+    @Column(name = "rate_currency")
     private String rateCurrency;
 
-    @Column(name = "private_online_hourly_rate", nullable = false)
+    @Column(name = "private_online_hourly_rate")
     private BigDecimal privateOnlineHourlyRate;
 
-    @Column(name = "private_inperson_hourly_rate", nullable = false)
+    @Column(name = "private_inperson_hourly_rate")
     private BigDecimal privateInpersonHourlyRate;
 
-    @Column(name = "group_online_hourly_rate", nullable = false)
+    @Column(name = "group_online_hourly_rate")
     private BigDecimal groupOnlineHourlyRate;
 
-    @Column(name = "group_inperson_hourly_rate", nullable = false)
+    @Column(name = "group_inperson_hourly_rate")
     private BigDecimal groupInpersonHourlyRate;
 
     @Column(name = "private_online_session_rate")
@@ -80,7 +80,7 @@ public class CourseTrainingApplication extends BaseEntity {
     @Column(name = "group_inperson_daily_rate")
     private BigDecimal groupInpersonDailyRate;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status")
     @Convert(converter = apps.sarafrika.elimika.course.util.converter.CourseTrainingApplicationStatusConverter.class)
     @Filterable
     private CourseTrainingApplicationStatus status;

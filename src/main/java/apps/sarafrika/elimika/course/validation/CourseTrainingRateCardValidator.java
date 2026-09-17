@@ -1,98 +1,55 @@
 package apps.sarafrika.elimika.course.validation;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
+import apps.sarafrika.elimika.course.util.enums.TrainingRateCell;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 /**
- * Validates rate cards submitted with training applications to ensure every price point
- * respects the course minimum training fee (per learner per hour).
+ * A method is offered when any of its three bases is priced; an offered method prices all three at or above the minimum fee.
  */
 @Component
 public class CourseTrainingRateCardValidator {
-
-    private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     public void validateAgainstMinimum(CourseTrainingRateCardDTO rateCard, BigDecimal minimumTrainingFee) {
         if (rateCard == null) {
             throw new IllegalArgumentException("Rate card is required");
         }
+        BigDecimal floor = minimumTrainingFee != null ? minimumTrainingFee : BigDecimal.ZERO;
 
-        BigDecimal floor = minimumTrainingFee != null ? minimumTrainingFee : ZERO;
-
-        // The course minimum is stated per learner per hour, so only the hourly rates are comparable
-        // to it directly. Holding a per-session or per-day price to an hourly floor would be the same
-        // unit confusion that let a class earn less than it cost.
-        Map<String, BigDecimal> hourlyRates = new LinkedHashMap<>();
-        hourlyRates.put("private_online_hourly_rate", rateCard.privateOnlineHourlyRate());
-        hourlyRates.put("private_inperson_hourly_rate", rateCard.privateInpersonHourlyRate());
-        hourlyRates.put("group_online_hourly_rate", rateCard.groupOnlineHourlyRate());
-        hourlyRates.put("group_inperson_hourly_rate", rateCard.groupInpersonHourlyRate());
-        hourlyRates.forEach((label, value) -> validateMandatoryHourlyEntry(label, value, floor));
-
-        // A session or a day is never shorter than an hour of teaching, so the hourly floor is the
-        // weakest defensible bound for them: below it the rate cannot cover even a single hour.
-        Map<String, BigDecimal> longerUnitRates = new LinkedHashMap<>();
-        longerUnitRates.put("private_online_session_rate", rateCard.privateOnlineSessionRate());
-        longerUnitRates.put("private_inperson_session_rate", rateCard.privateInpersonSessionRate());
-        longerUnitRates.put("group_online_session_rate", rateCard.groupOnlineSessionRate());
-        longerUnitRates.put("group_inperson_session_rate", rateCard.groupInpersonSessionRate());
-        longerUnitRates.put("private_online_daily_rate", rateCard.privateOnlineDailyRate());
-        longerUnitRates.put("private_inperson_daily_rate", rateCard.privateInpersonDailyRate());
-        longerUnitRates.put("group_online_daily_rate", rateCard.groupOnlineDailyRate());
-        longerUnitRates.put("group_inperson_daily_rate", rateCard.groupInpersonDailyRate());
-        longerUnitRates.forEach((label, value) -> validateOptionalEntry(label, value, floor));
+        boolean offersAMethod = false;
+        for (List<TrainingRateCell> method : TrainingRateCell.METHODS) {
+            if (method.stream().allMatch(cell -> cell.read(rateCard) == null)) {
+                continue;
+            }
+            offersAMethod = true;
+            for (TrainingRateCell cell : method) {
+                validateOfferedCell(cell, cell.read(rateCard), floor);
+            }
+        }
+        if (!offersAMethod) {
+            throw new IllegalArgumentException(
+                    "At least one training method must be offered, with its hourly, session and daily rates");
+        }
     }
 
-    private void validateEntry(String label, BigDecimal value, BigDecimal floor) {
+    private void validateOfferedCell(TrainingRateCell cell, BigDecimal value, BigDecimal floor) {
         if (value == null) {
-            throw new IllegalArgumentException(label + " is required");
+            throw new IllegalArgumentException(String.format(
+                    "%s is required because %s training is offered; price all three bases or leave all three empty",
+                    cell.fieldName(), cell.methodLabel()));
         }
-        if (value.compareTo(ZERO) < 0) {
-            throw new IllegalArgumentException(label + " cannot be negative");
+        if (value.signum() <= 0) {
+            throw new IllegalArgumentException(String.format(
+                    "%s must be greater than zero; leave every %s rate empty when that method is not offered",
+                    cell.fieldName(), cell.methodLabel()));
         }
         if (value.compareTo(floor) < 0) {
-            throw new IllegalArgumentException(
-                    label + " cannot be less than the course minimum training fee per learner per hour");
+            throw new IllegalArgumentException(String.format(
+                    "%s cannot be less than the minimum training fee of %s",
+                    cell.fieldName(), floor.stripTrailingZeros().toPlainString()));
         }
-    }
-
-    /**
-     * The four hourly fields are non-nullable on the rate card, so an applicant who does not offer
-     * a given modality (e.g. an organisation applying with only "group virtual" selected) has no way
-     * to send {@code null} for the other three — the form submits {@code 0} in their place. Treat that
-     * placeholder as "not offered" rather than "priced at zero": otherwise every applicant who doesn't
-     * quote all four delivery modalities is rejected against the minimum fee no matter what they enter,
-     * which made the organisation "apply to train" wizard impossible to complete for its normal case of
-     * offering a subset of methods.
-     */
-    private void validateMandatoryHourlyEntry(String label, BigDecimal value, BigDecimal floor) {
-        if (value == null) {
-            throw new IllegalArgumentException(label + " is required");
-        }
-        if (value.compareTo(ZERO) < 0) {
-            throw new IllegalArgumentException(label + " cannot be negative");
-        }
-        if (value.compareTo(ZERO) == 0) {
-            return;
-        }
-        if (value.compareTo(floor) < 0) {
-            throw new IllegalArgumentException(
-                    label + " cannot be less than the course minimum training fee per learner per hour");
-        }
-    }
-
-    /**
-     * A basis the instructor has not priced yet is left alone; a card predating per-session and
-     * per-day pricing stays valid for the hourly work it was approved for.
-     */
-    private void validateOptionalEntry(String label, BigDecimal value, BigDecimal floor) {
-        if (value == null) {
-            return;
-        }
-        validateEntry(label, value, floor);
     }
 }
