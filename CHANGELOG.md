@@ -1,3 +1,16 @@
+# [2.148.0](https://github.com/sarafrika/elimika/compare/v2.147.0...v2.148.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **marketplace:** expire open jobs once their first session has started ([883ea87](https://github.com/sarafrika/elimika/commit/883ea87e18463e2f2a75f466764ef5a3e998ed0a))
+
+
+### Features
+
+* **marketplace:** report each job resource's booking status ([138dd60](https://github.com/sarafrika/elimika/commit/138dd609ab74cc4d6dd5ed6e84591e8583a4cb31))
+* **timetabling:** count an instructor's firm job holds as busy time ([a61bfc8](https://github.com/sarafrika/elimika/commit/a61bfc852bd2f4611fcd3df74e92f08864787a62))
+
 # [2.147.0](https://github.com/sarafrika/elimika/compare/v2.146.2...v2.147.0) (2026-09-17)
 
 
