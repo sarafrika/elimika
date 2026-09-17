@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
+import apps.sarafrika.elimika.classes.internal.MarketplaceHireClashNotifier;
 import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
@@ -144,6 +145,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final MediaValidationService mediaValidationService;
     private final StorageProperties storageProperties;
     private final BranchLocationResolver branchLocationResolver;
+    private final MarketplaceHireClashNotifier hireClashNotifier;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
@@ -394,7 +396,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ensureInstructorApprovedToDeliver(job, application.getInstructorUuid());
         // The diary can fill up after applying (another hire, a booked session, a blocked day),
         // so the clash is re-checked here, before anything about the hire is written.
-        refuseClashingHire(job, application.getInstructorUuid());
+        refuseClashingHire(job, application.getUuid(), application.getInstructorUuid());
 
         application.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
         application.setReviewNotes(request == null ? null : request.reviewNotes());
@@ -713,21 +715,36 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * funnel, so the post and the affiliation happen together and the class follows immediately.
      */
     private void hireInstructorForJob(ClassMarketplaceJob job, UUID instructorUuid) {
-        refuseClashingHire(job, instructorUuid);
+        refuseClashingHire(job, null, instructorUuid);
         recordSelectedInstructor(job, instructorUuid);
         affiliateHiredInstructor(job, instructorUuid);
     }
 
     /** Refuses a hire whose sessions clash with the instructor's diary; nothing is written first. */
-    private void refuseClashingHire(ClassMarketplaceJob job, UUID instructorUuid) {
+    private void refuseClashingHire(ClassMarketplaceJob job, UUID applicationUuid, UUID instructorUuid) {
         List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
         if (scheduleConflicts.isEmpty()) {
             return;
         }
+        alertBlockedHire(job, applicationUuid, instructorUuid, scheduleConflicts);
         throw new SchedulingConflictException(String.format(
                 "Instructor %s cannot be hired: their schedule clashes with %d of this job's planned sessions.",
                 instructorUuid, scheduleConflicts.size()),
                 scheduleConflicts);
+    }
+
+    private void alertBlockedHire(ClassMarketplaceJob job,
+                                  UUID applicationUuid,
+                                  UUID instructorUuid,
+                                  List<ClassSchedulingConflictDTO> scheduleConflicts) {
+        try {
+            hireClashNotifier.notifyHireBlocked(job, applicationUuid, instructorUuid,
+                    domainSecurityService.getCurrentUserUuid(), scheduleConflicts);
+        } catch (RuntimeException e) {
+            // An alert that fails to send must not turn the refusal into a server error.
+            log.warn("Failed to alert the parties to the blocked hire on marketplace job {}: {}",
+                    job.getUuid(), e.getMessage());
+        }
     }
 
     /**

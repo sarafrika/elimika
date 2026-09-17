@@ -76,6 +76,13 @@ public class EmailTemplateService {
                 String.format("%s withdrew from %s",
                         event.getTemplateVariables().getOrDefault("instructorName", "An instructor"),
                         event.getTemplateVariables().getOrDefault("contextName", "your class job"));
+            case "class-marketplace-job-hire-blocked-organisation" ->
+                String.format("Could not hire %s for %s: schedule clash",
+                        event.getTemplateVariables().getOrDefault("instructorName", "the instructor"),
+                        event.getTemplateVariables().getOrDefault("contextName", "your class job"));
+            case "class-marketplace-job-hire-blocked-instructor" ->
+                String.format("Your schedule blocked your hire for %s",
+                        event.getTemplateVariables().getOrDefault("contextName", "a class"));
             case "organisation-invitation" ->
                 String.format("%s has invited you to join them on %s",
                         event.getTemplateVariables().getOrDefault("organisationName", "An organisation"),

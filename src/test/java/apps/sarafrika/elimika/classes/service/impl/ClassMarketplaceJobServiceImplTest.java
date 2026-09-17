@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
+import apps.sarafrika.elimika.classes.internal.MarketplaceHireClashNotifier;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
@@ -35,6 +36,7 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingStatus;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
+import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
@@ -149,6 +151,9 @@ class ClassMarketplaceJobServiceImplTest {
     @Mock
     private TrainingBranchLookupService trainingBranchLookupService;
 
+    @Mock
+    private OrganisationLookupService organisationLookupService;
+
     private static final UUID BRANCH_UUID = UUID.fromString("b0000000-0000-0000-0000-000000000001");
     private static final BigDecimal BRANCH_LATITUDE = new BigDecimal("-1.221800");
     private static final BigDecimal BRANCH_LONGITUDE = new BigDecimal("36.897000");
@@ -183,7 +188,9 @@ class ClassMarketplaceJobServiceImplTest {
                 mediaStorageService,
                 mediaValidationService,
                 storageProperties,
-                new BranchLocationResolver(trainingBranchLookupService)
+                new BranchLocationResolver(trainingBranchLookupService),
+                new MarketplaceHireClashNotifier(
+                        userLookupService, instructorLookupService, organisationLookupService, eventPublisher)
         );
         org.mockito.Mockito.lenient()
                 .when(trainingBranchLookupService.findBranch(any(), any()))
@@ -2216,7 +2223,88 @@ class ClassMarketplaceJobServiceImplTest {
         verify(instructorTimeHoldService).findBlockingHolds(
                 eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class), eq(job.getUuid()));
         verifyNoMoreInteractions(instructorTimeHoldService);
-        verifyNoInteractions(eventPublisher);
+        ArgumentCaptor<NotificationRequestedEvent> events = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(events.capture());
+        assertThat(events.getAllValues()).extracting(NotificationRequestedEvent::notificationType)
+                .containsOnly("CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION");
+    }
+
+    @Test
+    void aRefusedHireAlertsTheOrganisationAndTheInstructorWithTheClashes() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID creatorUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID instructorUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setCreatedBy("creator@school.test");
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.OFFERED);
+
+        stubOfferedApplicantWithClashes(currentUserUuid, job, application);
+        when(userLookupService.findUserUuidByEmail("creator@school.test")).thenReturn(Optional.of(creatorUserUuid));
+        when(userLookupService.getUserEmail(creatorUserUuid)).thenReturn(Optional.of("creator@school.test"));
+        when(userLookupService.getUserFullName(creatorUserUuid)).thenReturn(Optional.of("Carol Creator"));
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(instructorUserUuid));
+        when(userLookupService.getUserFullName(instructorUserUuid)).thenReturn(Optional.of("Jane Instructor"));
+        when(userLookupService.getUserEmail(instructorUserUuid)).thenReturn(Optional.of("jane@example.com"));
+        when(organisationLookupService.findOrganisationName(job.getOrganisationUuid()))
+                .thenReturn(Optional.of("Nairobi School"));
+
+        assertThatThrownBy(() -> service.hireApplication(job.getUuid(), application.getUuid(),
+                new ClassMarketplaceJobDecisionRequestDTO("Strong fit", null)))
+                .isInstanceOf(SchedulingConflictException.class);
+
+        ArgumentCaptor<NotificationRequestedEvent> captor = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, times(5)).publishEvent(captor.capture());
+        List<NotificationRequestedEvent> events = captor.getAllValues();
+        String organisationType = "CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION";
+        String instructorType = "CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_INSTRUCTOR";
+
+        // The job's creator and the manager who pressed hire both hear in-app; email goes where an address resolves.
+        List<NotificationRequestedEvent> organisationInApp = events.stream()
+                .filter(e -> organisationType.equals(e.notificationType()) && e.deliveryChannels().contains("in_app"))
+                .toList();
+        assertThat(organisationInApp).extracting(NotificationRequestedEvent::recipientId)
+                .containsExactly(creatorUserUuid, currentUserUuid);
+        NotificationRequestedEvent organisationAlert = organisationInApp.getFirst();
+        assertThat(organisationAlert.actionUrl()).isEqualTo("/dashboard/organisation/opportunities/" + job.getUuid());
+        assertThat(organisationAlert.body())
+                .startsWith("Jane Instructor could not be hired for Weekend Data Analysis Bootcamp because their "
+                        + "schedule clashes with 2 of its sessions, the first on May 2, 2026 09:00 UTC.")
+                .contains("Instructor is already committed to another class job in this window")
+                .contains("Instructor is marked unavailable for this window")
+                .endsWith("Choose another applicant or adjust the job's schedule.");
+        assertThat(organisationAlert.templateVariables())
+                .containsEntry("job_uuid", job.getUuid())
+                .containsEntry("application_uuid", application.getUuid())
+                .containsEntry("clash_count", 2)
+                .containsEntry("first_clash_start", "2026-05-02T09:00")
+                .containsEntry("instructor_name", "Jane Instructor");
+        assertThat(events).filteredOn(e -> organisationType.equals(e.notificationType())
+                        && e.deliveryChannels().contains("email"))
+                .singleElement()
+                .satisfies(email -> {
+                    assertThat(email.recipientEmail()).isEqualTo("creator@school.test");
+                    assertThat(email.templateVariables())
+                            .containsEntry("recipientName", "Carol Creator")
+                            .containsEntry("clashCount", 2)
+                            .containsEntry("firstClashAt", "May 2, 2026 09:00 UTC")
+                            .containsEntry("jobPosted", true);
+                });
+
+        NotificationRequestedEvent instructorAlert = events.stream()
+                .filter(e -> instructorType.equals(e.notificationType()) && e.deliveryChannels().contains("in_app"))
+                .findFirst().orElseThrow();
+        assertThat(instructorAlert.recipientId()).isEqualTo(instructorUserUuid);
+        assertThat(instructorAlert.actionUrl()).isEqualTo("/dashboard/instructor/opportunities/my-applications");
+        assertThat(instructorAlert.body())
+                .startsWith("Nairobi School tried to hire you for Weekend Data Analysis Bootcamp, but your schedule "
+                        + "clashes with 2 of its sessions, the first on May 2, 2026 09:00 UTC.")
+                .endsWith("Free up those times (reschedule or release the other commitment) so Nairobi School can hire you.");
+        assertThat(events).filteredOn(e -> instructorType.equals(e.notificationType())
+                        && e.deliveryChannels().contains("email"))
+                .singleElement()
+                .satisfies(email -> assertThat(email.recipientEmail()).isEqualTo("jane@example.com"));
     }
 
     @Test
@@ -2255,6 +2343,10 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(job.getAssignedApplicationUuid()).isEqualTo(application.getUuid());
         verify(instructorTimeHoldService).findBlockingHolds(
                 eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class), eq(job.getUuid()));
+        ArgumentCaptor<NotificationRequestedEvent> events = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(events.capture());
+        assertThat(events.getAllValues()).extracting(NotificationRequestedEvent::notificationType)
+                .containsOnly("CLASS_MARKETPLACE_JOB_APPLICATION_HIRED");
     }
 
     @Test
@@ -2262,10 +2354,12 @@ class ClassMarketplaceJobServiceImplTest {
         UUID currentUserUuid = UUID.randomUUID();
         UUID programUuid = UUID.randomUUID();
         UUID instructorUuid = UUID.randomUUID();
+        UUID instructorUserUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request =
                 withPreferredInstructor(sampleRequest(null, programUuid), instructorUuid);
 
         allowOrganisationAccess(currentUserUuid, request.organisationUuid());
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(instructorUserUuid));
         when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
         when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
         when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
@@ -2295,6 +2389,25 @@ class ClassMarketplaceJobServiceImplTest {
 
         verifyNoInteractions(organisationAffiliationService);
         verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
+
+        // The posting is refused with the hire, so the organisation is pointed at its jobs, not at this one.
+        ArgumentCaptor<NotificationRequestedEvent> captor = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher, times(2)).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .filteredOn(e -> "CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION".equals(e.notificationType()))
+                .singleElement()
+                .satisfies(alert -> {
+                    assertThat(alert.recipientId()).isEqualTo(currentUserUuid);
+                    assertThat(alert.actionUrl()).isEqualTo("/dashboard/organisation/opportunities");
+                    assertThat(alert.templateVariables()).containsEntry("job_uuid", "").containsEntry("application_uuid", "");
+                    assertThat(alert.body()).contains("clashes with 1 of its sessions, the first on May 16, 2026 09:00 UTC")
+                            .endsWith("The job was not posted. Post it without naming them to take applications, "
+                                    + "or adjust its schedule.");
+                });
+        assertThat(captor.getAllValues())
+                .filteredOn(e -> "CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_INSTRUCTOR".equals(e.notificationType()))
+                .singleElement()
+                .satisfies(alert -> assertThat(alert.recipientId()).isEqualTo(instructorUserUuid));
     }
 
     private void stubOfferedApplicantWithClashes(UUID currentUserUuid,

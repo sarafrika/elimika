@@ -55,6 +55,8 @@ public enum NotificationType {
     CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED("CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED", "class-marketplace-job-application-update", "Your Class Is Ready", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED("CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED", "training-application-status", "Class Job Cancelled", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN("CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN", "class-marketplace-job-application-withdrawn", "Application Withdrawn", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION("CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION", "class-marketplace-job-hire-blocked-organisation", "Hire Blocked by a Schedule Clash", NotificationCategory.COURSE_MANAGEMENT),
+    CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_INSTRUCTOR("CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_INSTRUCTOR", "class-marketplace-job-hire-blocked-instructor", "Hire Blocked by Your Schedule", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_ENROLLMENT_CONFIRMED("CLASS_ENROLLMENT_CONFIRMED", "class-enrollment-confirmed", "Class Enrollment", NotificationCategory.LEARNING_PROGRESS),
     COURSE_ENROLLMENT_MILESTONE("COURSE_ENROLLMENT_MILESTONE", "course-enrollment-milestone", "Enrollment Milestone", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_ENROLLMENT_NOTICE("COURSE_ENROLLMENT_NOTICE", "course-enrollment-notice", "Enrollment Notice", NotificationCategory.COURSE_MANAGEMENT),
@@ -213,6 +215,7 @@ public enum NotificationType {
                  CLASS_MARKETPLACE_JOB_APPLICATION_HIRED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED,
+                 CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_INSTRUCTOR,
                  CLASS_REVIEW_SUBMITTED,
                  INSTRUCTOR_REVIEW_SUBMITTED,
                  INSTRUCTOR_VERIFICATION_APPROVED,
@@ -233,6 +236,7 @@ public enum NotificationType {
 
             case CLASS_MARKETPLACE_JOB_EXPIRED,
                  CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN,
+                 CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION,
                  ORGANISATION_INVITATION_ACCEPTED,
                  ORGANISATION_VERIFICATION_APPROVED,
                  ORGANISATION_VERIFICATION_REVOKED -> "organisation_user";
