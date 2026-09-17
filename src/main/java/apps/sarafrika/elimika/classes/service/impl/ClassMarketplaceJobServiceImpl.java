@@ -415,6 +415,12 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setAssignedApplicationUuid(saved.getUuid());
         ClassMarketplaceJob savedJob = jobRepository.save(job);
 
+        // A hire commits the instructor's time now, so their calendar shows it as blocked
+        // before the class exists; nobody else can be hired for this job.
+        firmInstructorTimeForApplication(savedJob, saved);
+        instructorTimeHoldService.releaseHoldsForJobExcept(jobUuid, saved.getUuid(),
+                "Another instructor was hired");
+
         notifyApplicant(savedJob, saved,
                 NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_HIRED,
                 "was successful - you have been hired");

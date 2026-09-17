@@ -66,6 +66,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
@@ -2343,6 +2344,11 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(job.getAssignedApplicationUuid()).isEqualTo(application.getUuid());
         verify(instructorTimeHoldService).findBlockingHolds(
                 eq(instructorUuid), any(LocalDateTime.class), any(LocalDateTime.class), eq(job.getUuid()));
+        ArgumentCaptor<InstructorTimeHoldRequest> firmed = ArgumentCaptor.forClass(InstructorTimeHoldRequest.class);
+        verify(instructorTimeHoldService).firmOrCreateHoldsForApplication(firmed.capture());
+        assertThat(firmed.getValue().applicationUuid()).isEqualTo(application.getUuid());
+        verify(instructorTimeHoldService).releaseHoldsForJobExcept(
+                eq(job.getUuid()), eq(application.getUuid()), anyString());
         ArgumentCaptor<NotificationRequestedEvent> events = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
         verify(eventPublisher, atLeastOnce()).publishEvent(events.capture());
         assertThat(events.getAllValues()).extracting(NotificationRequestedEvent::notificationType)
