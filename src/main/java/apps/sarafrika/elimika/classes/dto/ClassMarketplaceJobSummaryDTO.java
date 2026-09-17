@@ -91,6 +91,21 @@ public record ClassMarketplaceJobSummaryDTO(
         @Schema(description = "**[READ-ONLY]** The class created for the job, once there is one.", nullable = true,
                 accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty(value = "class_definition_uuid", access = JsonProperty.Access.READ_ONLY)
-        UUID classDefinitionUuid
+        UUID classDefinitionUuid,
+
+        @Schema(description = "**[READ-ONLY]** The branch's contact person; only for the job's hired instructor, the organisation's managers and platform admins.",
+                nullable = true, accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty(value = "contact_name", access = JsonProperty.Access.READ_ONLY)
+        String contactName,
+
+        @Schema(description = "**[READ-ONLY]** The contact person's phone; same visibility as contact_name.", nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty(value = "contact_phone", access = JsonProperty.Access.READ_ONLY)
+        String contactPhone,
+
+        @Schema(description = "**[READ-ONLY]** The contact person's email; same visibility as contact_name.", nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty(value = "contact_email", access = JsonProperty.Access.READ_ONLY)
+        String contactEmail
 ) {
 }

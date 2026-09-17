@@ -645,6 +645,9 @@ class ClassMarketplaceJobControllerTest {
                 request.branchUuid(),
                 "Main Campus",
                 3L,
+                null,
+                null,
+                null,
                 null
         );
     }

@@ -69,6 +69,7 @@ import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import org.springframework.web.multipart.MultipartFile;
+import apps.sarafrika.elimika.tenancy.spi.BranchContact;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
@@ -465,8 +466,18 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .computeIfAbsent(template.getJobUuid(), ignored -> new ArrayList<>())
                 .add(toSessionTemplateDTO(template)));
 
+        Map<UUID, UUID> instructorsByApplication = new HashMap<>();
+        applications.forEach(application -> instructorsByApplication.put(application.getUuid(), application.getInstructorUuid()));
+        Map<UUID, BranchContact> contacts = branchLocationResolver.branchContacts(jobs.stream()
+                .filter(job -> canSeeContact(job, hiredInstructorOf(job, instructorsByApplication)))
+                .map(ClassMarketplaceJob::getBranchUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList());
+
         Map<UUID, ClassMarketplaceJobSummaryDTO> summaries = new HashMap<>();
         for (ClassMarketplaceJob job : jobs) {
+            Optional<BranchContact> contact = visibleContact(job, hiredInstructorOf(job, instructorsByApplication), contacts);
             List<OccurrenceWindow> sessions = expandSessionTemplates(templatesByJob.getOrDefault(job.getUuid(), List.of()));
             summaries.put(job.getUuid(), new ClassMarketplaceJobSummaryDTO(
                     job.getTitle(),
@@ -485,7 +496,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     canSeeInstructorPay(job) ? job.getInstructorPay() : null,
                     sessions.stream().map(OccurrenceWindow::start).min(LocalDateTime::compareTo).orElse(null),
                     sessions.size(),
-                    job.getAssignedClassDefinitionUuid()));
+                    job.getAssignedClassDefinitionUuid(),
+                    contact.map(BranchContact::name).orElse(null),
+                    contact.map(BranchContact::phone).orElse(null),
+                    contact.map(BranchContact::email).orElse(null)));
         }
         return summaries;
     }
@@ -2061,7 +2075,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     /** Per-page read data loaded in bulk so a job list never queries once per row. */
     private record JobReadContext(Map<UUID, Long> applicationCounts,
                                   Map<UUID, UUID> instructorsByApplication,
-                                  Map<UUID, Map<UUID, ResourceBookingStatus>> resourceBookingStatuses) {
+                                  Map<UUID, Map<UUID, ResourceBookingStatus>> resourceBookingStatuses,
+                                  Map<UUID, BranchContact> branchContacts) {
     }
 
     private JobReadContext loadJobReadContext(List<ClassMarketplaceJob> jobs) {
@@ -2090,7 +2105,36 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         Map<UUID, Map<UUID, ResourceBookingStatus>> resourceBookingStatuses = jobUuids.isEmpty()
                 ? Map.of()
                 : resourceBookingService.summariseJobBookings(jobUuids);
-        return new JobReadContext(applicationCounts, instructorsByApplication, resourceBookingStatuses);
+        Map<UUID, BranchContact> branchContacts = branchLocationResolver.branchContacts(jobs.stream()
+                .filter(job -> canSeeContact(job, hiredInstructorOf(job, instructorsByApplication)))
+                .map(ClassMarketplaceJob::getBranchUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList());
+        return new JobReadContext(applicationCounts, instructorsByApplication, resourceBookingStatuses, branchContacts);
+    }
+
+    /** The job's hire: the stamped instructor once the class exists, else the instructor of the hired application. */
+    private static UUID hiredInstructorOf(ClassMarketplaceJob job, Map<UUID, UUID> instructorsByApplication) {
+        if (job.getAssignedInstructorUuid() != null) {
+            return job.getAssignedInstructorUuid();
+        }
+        return job.getAssignedApplicationUuid() == null ? null : instructorsByApplication.get(job.getAssignedApplicationUuid());
+    }
+
+    /** The branch contact is for the people running the class: its hired instructor, the organisation and admins. */
+    private boolean canSeeContact(ClassMarketplaceJob job, UUID hiredInstructorUuid) {
+        return domainSecurityService.isInstructorWithUuid(hiredInstructorUuid)
+                || domainSecurityService.isPlatformAdmin()
+                || domainSecurityService.managesOrganisation(job.getOrganisationUuid());
+    }
+
+    private Optional<BranchContact> visibleContact(ClassMarketplaceJob job, UUID hiredInstructorUuid,
+                                                   Map<UUID, BranchContact> contacts) {
+        if (job.getBranchUuid() == null || !canSeeContact(job, hiredInstructorUuid)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(contacts.get(job.getBranchUuid()));
     }
 
     private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job) {
@@ -2098,9 +2142,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job, JobReadContext context) {
-        UUID hiredInstructorUuid = job.getAssignedInstructorUuid() != null
-                ? job.getAssignedInstructorUuid()
-                : context.instructorsByApplication().get(job.getAssignedApplicationUuid());
+        UUID hiredInstructorUuid = hiredInstructorOf(job, context.instructorsByApplication());
+        Optional<BranchContact> contact = visibleContact(job, hiredInstructorUuid, context.branchContacts());
         return new ClassMarketplaceJobDTO(
                 job.getUuid(),
                 job.getOrganisationUuid(),
@@ -2154,7 +2197,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getBranchUuid(),
                 resolveBranchName(job.getBranchUuid()),
                 context.applicationCounts().getOrDefault(job.getUuid(), 0L),
-                hiredInstructorUuid
+                hiredInstructorUuid,
+                contact.map(BranchContact::name).orElse(null),
+                contact.map(BranchContact::phone).orElse(null),
+                contact.map(BranchContact::email).orElse(null)
         );
     }
 

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.classes.service.impl;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
@@ -4562,6 +4563,120 @@ class ClassMarketplaceJobServiceImplTest {
         job.setAssignedInstructorUuid(assignedInstructorUuid);
         assertThat(service.getJob(job.getUuid()).hiredInstructorUuid()).isEqualTo(assignedInstructorUuid);
         verify(applicationRepository, times(1)).findByUuidIn(any());
+    }
+
+    // ===== the branch contact is for the people running the class =====
+
+    private static final apps.sarafrika.elimika.tenancy.spi.BranchContact BRANCH_CONTACT =
+            new apps.sarafrika.elimika.tenancy.spi.BranchContact(BRANCH_UUID, "Peter Kamau", "+254700000001", "peter@branch.test");
+
+    @Test
+    void theHiredInstructorSeesTheBranchContactOnTheJob() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = hiredJobAtTheBranch(instructorUuid);
+        when(domainSecurityService.isInstructorWithUuid(instructorUuid)).thenReturn(true);
+        when(trainingBranchLookupService.findBranchContacts(List.of(BRANCH_UUID)))
+                .thenReturn(java.util.Map.of(BRANCH_UUID, BRANCH_CONTACT));
+
+        var result = service.getJob(job.getUuid());
+
+        assertThat(result.contactName()).isEqualTo("Peter Kamau");
+        assertThat(result.contactPhone()).isEqualTo("+254700000001");
+        assertThat(result.contactEmail()).isEqualTo("peter@branch.test");
+    }
+
+    @Test
+    void anyoneElseReadsTheJobWithoutTheContactAndItIsNeverLoaded() {
+        ClassMarketplaceJob job = hiredJobAtTheBranch(UUID.randomUUID());
+
+        var result = service.getJob(job.getUuid());
+
+        assertThat(result.contactName()).isNull();
+        assertThat(result.contactPhone()).isNull();
+        assertThat(result.contactEmail()).isNull();
+        verify(trainingBranchLookupService, never()).findBranchContacts(any());
+    }
+
+    @Test
+    void theOrganisationsManagersAndPlatformAdminsSeeTheContactOnAnOpenJob() {
+        ClassMarketplaceJob job = sampleJob();
+        job.setBranchUuid(BRANCH_UUID);
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(trainingBranchLookupService.findBranchContacts(List.of(BRANCH_UUID)))
+                .thenReturn(java.util.Map.of(BRANCH_UUID, BRANCH_CONTACT));
+
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
+        assertThat(service.getJob(job.getUuid()).contactName()).isEqualTo("Peter Kamau");
+
+        org.mockito.Mockito.reset(domainSecurityService);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        assertThat(service.getJob(job.getUuid()).contactEmail()).isEqualTo("peter@branch.test");
+    }
+
+    @Test
+    void aPageOfJobsLoadsContactsOnceAndOnlyForTheJobsTheCallerManages() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        ClassMarketplaceJob managed = sampleJob();
+        managed.setBranchUuid(BRANCH_UUID);
+        ClassMarketplaceJob alsoManaged = sampleJob();
+        alsoManaged.setOrganisationUuid(managed.getOrganisationUuid());
+        alsoManaged.setBranchUuid(BRANCH_UUID);
+        ClassMarketplaceJob rival = sampleJob();
+        rival.setBranchUuid(UUID.randomUUID());
+        when(jobRepository.search(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(managed, alsoManaged, rival), pageable, 3));
+        when(domainSecurityService.managesOrganisation(managed.getOrganisationUuid())).thenReturn(true);
+        when(trainingBranchLookupService.findBranchContacts(List.of(BRANCH_UUID)))
+                .thenReturn(java.util.Map.of(BRANCH_UUID, BRANCH_CONTACT));
+
+        var page = service.listJobs(null, null, null, null, null, pageable).getContent();
+
+        assertThat(page).extracting(ClassMarketplaceJobDTO::contactName)
+                .containsExactly("Peter Kamau", "Peter Kamau", null);
+        verify(trainingBranchLookupService, times(1)).findBranchContacts(any());
+    }
+
+    @Test
+    void anInstructorsHiredApplicationRowCarriesTheContactAndTheirOtherRowsDoNot() {
+        UUID instructorUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        ClassMarketplaceJob hiredJob = sampleJob();
+        hiredJob.setBranchUuid(BRANCH_UUID);
+        hiredJob.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        ClassMarketplaceJobApplication hire = sampleApplication(hiredJob.getUuid(), instructorUuid);
+        hire.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
+        hiredJob.setAssignedApplicationUuid(hire.getUuid());
+        ClassMarketplaceJob otherJob = sampleJob();
+        otherJob.setBranchUuid(UUID.randomUUID());
+        ClassMarketplaceJobApplication pending = sampleApplication(otherJob.getUuid(), instructorUuid);
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(domainSecurityService.isInstructorWithUuid(instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable))
+                .thenReturn(new PageImpl<>(List.of(hire, pending), pageable, 2));
+        when(jobRepository.findByUuidIn(List.of(hiredJob.getUuid(), otherJob.getUuid())))
+                .thenReturn(List.of(hiredJob, otherJob));
+        when(trainingBranchLookupService.findBranchContacts(List.of(BRANCH_UUID)))
+                .thenReturn(java.util.Map.of(BRANCH_UUID, BRANCH_CONTACT));
+
+        var rows = service.listMyApplications(null, pageable).getContent();
+
+        assertThat(rows.getFirst().job().contactName()).isEqualTo("Peter Kamau");
+        assertThat(rows.getFirst().job().contactPhone()).isEqualTo("+254700000001");
+        assertThat(rows.get(1).job().contactName()).isNull();
+    }
+
+    private ClassMarketplaceJob hiredJobAtTheBranch(UUID instructorUuid) {
+        ClassMarketplaceJob job = awaitingClassJob();
+        job.setBranchUuid(BRANCH_UUID);
+        ClassMarketplaceJobApplication hired = sampleApplication(job.getUuid(), instructorUuid);
+        hired.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
+        job.setAssignedApplicationUuid(hired.getUuid());
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByUuidIn(List.of(hired.getUuid()))).thenReturn(List.of(hired));
+        return job;
     }
 
     @Test

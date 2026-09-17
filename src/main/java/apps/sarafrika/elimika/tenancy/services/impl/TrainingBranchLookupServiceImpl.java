@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.tenancy.entity.TrainingBranch;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
+import apps.sarafrika.elimika.tenancy.spi.BranchContact;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,32 @@ public class TrainingBranchLookupServiceImpl implements TrainingBranchLookupServ
             }
         }
         return names;
+    }
+
+    @Override
+    public Map<UUID, BranchContact> findBranchContacts(Collection<UUID> branchUuids) {
+        if (branchUuids == null || branchUuids.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> requested = branchUuids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, BranchContact> contacts = new LinkedHashMap<>();
+        for (TrainingBranch branch : trainingBranchRepository.findByUuidIn(requested)) {
+            BranchContact contact = new BranchContact(branch.getUuid(), blankToNull(branch.getPocName()),
+                    blankToNull(branch.getPocTelephone()), blankToNull(branch.getPocEmail()));
+            if (branch.getUuid() != null && (contact.name() != null || contact.phone() != null || contact.email() != null)) {
+                contacts.putIfAbsent(branch.getUuid(), contact);
+            }
+        }
+        return contacts;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static BranchLocation toLocation(TrainingBranch branch) {

@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.internal;
 
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.tenancy.spi.BranchContact;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import lombok.RequiredArgsConstructor;
@@ -79,6 +80,11 @@ public class BranchLocationResolver {
     /** Branch names for a page of jobs in one lookup. */
     public Map<UUID, String> branchNames(Collection<UUID> branchUuids) {
         return trainingBranchLookupService.findBranchNames(branchUuids);
+    }
+
+    /** Points of contact for a page of branches in one lookup; only for callers entitled to see them. */
+    public Map<UUID, BranchContact> branchContacts(Collection<UUID> branchUuids) {
+        return branchUuids.isEmpty() ? Map.of() : trainingBranchLookupService.findBranchContacts(branchUuids);
     }
 
     public static String label(BranchLocation branch) {

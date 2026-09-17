@@ -182,7 +182,19 @@ public record ClassMarketplaceJobDTO(
 
         @Schema(description = "**[READ-ONLY]** Instructor hired for the job; null until someone is hired.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
         @JsonProperty(value = "hired_instructor_uuid", access = JsonProperty.Access.READ_ONLY)
-        UUID hiredInstructorUuid
+        UUID hiredInstructorUuid,
+
+        @Schema(description = "**[READ-ONLY]** The branch's contact person; only for the hired instructor, the organisation's managers and platform admins.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "contact_name", access = JsonProperty.Access.READ_ONLY)
+        String contactName,
+
+        @Schema(description = "**[READ-ONLY]** The contact person's phone; same visibility as contact_name.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "contact_phone", access = JsonProperty.Access.READ_ONLY)
+        String contactPhone,
+
+        @Schema(description = "**[READ-ONLY]** The contact person's email; same visibility as contact_name.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "contact_email", access = JsonProperty.Access.READ_ONLY)
+        String contactEmail
 ) {
 
     @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)

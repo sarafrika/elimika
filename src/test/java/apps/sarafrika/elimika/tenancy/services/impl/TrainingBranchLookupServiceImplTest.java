@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.tenancy.entity.TrainingBranch;
 import apps.sarafrika.elimika.tenancy.repository.TrainingBranchRepository;
+import apps.sarafrika.elimika.tenancy.spi.BranchContact;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,24 @@ class TrainingBranchLookupServiceImplTest {
         ArgumentCaptor<Collection<UUID>> requested = ArgumentCaptor.forClass(Collection.class);
         verify(trainingBranchRepository).findByUuidIn(requested.capture());
         assertThat(requested.getValue()).containsExactly(BRANCH_UUID, DELETED_BRANCH_UUID);
+    }
+
+    @Test
+    void findBranchContactsTrimsBlanksAndSkipsBranchesThatNameNoContact() {
+        TrainingBranch staffed = branch(BRANCH_UUID, "Main Campus", false);
+        staffed.setPocName("  Peter Kamau ");
+        staffed.setPocTelephone("+254700000001");
+        staffed.setPocEmail(" ");
+        TrainingBranch unstaffed = branch(DELETED_BRANCH_UUID, "Old Annex", true);
+        unstaffed.setPocName("");
+        when(trainingBranchRepository.findByUuidIn(any())).thenReturn(List.of(staffed, unstaffed));
+
+        Map<UUID, BranchContact> contacts = service.findBranchContacts(Arrays.asList(BRANCH_UUID, null, DELETED_BRANCH_UUID));
+
+        assertThat(contacts).containsExactly(
+                Map.entry(BRANCH_UUID, new BranchContact(BRANCH_UUID, "Peter Kamau", "+254700000001", null)));
+        assertThat(service.findBranchContacts(Arrays.asList((UUID) null))).isEmpty();
+        verify(trainingBranchRepository, org.mockito.Mockito.times(1)).findByUuidIn(any());
     }
 
     private TrainingBranch branch(UUID uuid, String name, boolean deleted) {

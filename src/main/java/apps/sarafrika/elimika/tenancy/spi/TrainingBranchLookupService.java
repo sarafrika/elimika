@@ -19,4 +19,7 @@ public interface TrainingBranchLookupService {
      * Maps branch uuids to names, skipping nulls; deleted branches keep their label for historical records.
      */
     Map<UUID, String> findBranchNames(Collection<UUID> branchUuids);
+
+    /** Maps branch uuids to their point of contact, skipping branches that name none; callers gate who sees it. */
+    Map<UUID, BranchContact> findBranchContacts(Collection<UUID> branchUuids);
 }
