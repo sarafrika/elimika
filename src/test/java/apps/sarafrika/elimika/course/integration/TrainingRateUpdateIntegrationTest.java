@@ -180,6 +180,33 @@ class TrainingRateUpdateIntegrationTest {
     }
 
     @Test
+    @DisplayName("the course creator sees floor flags on a legacy card below the minimum; the applicant does not")
+    void floorFlagsForTheOwnerOnly() throws Exception {
+        jdbc.update("UPDATE courses SET minimum_training_fee = 3000 WHERE uuid = ?", courseUuid);
+
+        mockMvc.perform(get(applicationUrl()).with(jwt(CREATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rate_card.group_online_hourly_rate").value(2500.0))
+                .andExpect(jsonPath("$.data.rate_floor_flags.minimum_training_fee").value(3000.0))
+                .andExpect(jsonPath("$.data.rate_floor_flags.group_online_hourly_rate").value(true))
+                .andExpect(jsonPath("$.data.rate_floor_flags.group_online_session_rate").value(false))
+                .andExpect(jsonPath("$.data.rate_floor_flags.private_online_hourly_rate").value(false));
+        mockMvc.perform(get("/api/v1/courses/" + courseUuid + "/training-applications").with(jwt(CREATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].rate_floor_flags.group_online_hourly_rate").value(true));
+
+        mockMvc.perform(get(applicationUrl()).with(jwt(INSTRUCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rate_card.group_online_hourly_rate").value(2500.0))
+                .andExpect(jsonPath("$.data.rate_floor_flags").doesNotExist());
+        String directory = mockMvc.perform(get("/api/v1/courses/" + courseUuid + "/training-applications").with(jwt(OUTSIDER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(directory).doesNotContain("hourly_rate").contains("\"rate_floor_flags\":null");
+    }
+
+    @Test
     @DisplayName("a proposal below the course minimum is refused")
     void belowTheFloorIsRefused() throws Exception {
         mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON).content(proposal("1500")))

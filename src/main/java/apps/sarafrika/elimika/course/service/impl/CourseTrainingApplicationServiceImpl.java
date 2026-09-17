@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
@@ -86,6 +87,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final TrainingApplicationAccess access;
     private final TrainingApplicationExtrasResolver extrasResolver;
     private final CourseTrainingRateUpdateService rateUpdateService;
+    private final TrainingFeeFloors feeFloors;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -322,10 +324,34 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         Map<UUID, TrainingApplicationExtras> extras = extrasResolver.resolve(TrainingApplicationType.COURSE,
                 page.map(CourseTrainingApplication::getUuid).toList());
-        return page.map(application -> scope == null || scope.isParty(application)
-                ? CourseTrainingApplicationFactory.toDTO(application,
-                        extras.getOrDefault(application.getUuid(), TrainingApplicationExtras.NONE))
-                : toNonPartyDTO(application));
+        Set<UUID> ownedCourseUuids = scope != null ? scope.ownedCourseUuids() : callerOwnedCourseUuids();
+        Map<UUID, BigDecimal> floors = feeFloors.perCourse(page.stream()
+                .map(CourseTrainingApplication::getCourseUuid)
+                .filter(ownedCourseUuids::contains)
+                .collect(Collectors.toSet()));
+        return page.map(application -> {
+            if (scope != null && !scope.isParty(application)) {
+                return toNonPartyDTO(application);
+            }
+            TrainingApplicationExtras applicationExtras =
+                    extras.getOrDefault(application.getUuid(), TrainingApplicationExtras.NONE);
+            if (ownedCourseUuids.contains(application.getCourseUuid())) {
+                applicationExtras = applicationExtras.withRateFloorFlags(TrainingRateCardFactory.floorFlags(
+                        application, floors.get(application.getCourseUuid())));
+            }
+            return CourseTrainingApplicationFactory.toDTO(application, applicationExtras);
+        });
+    }
+
+    /** The courses the caller created, when searching from a dashboard that may act as their creator. */
+    private Set<UUID> callerOwnedCourseUuids() {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        if (callerUuid == null || !courseFootingCap.permits(CourseContentAccess.CREATOR)) {
+            return Set.of();
+        }
+        return courseCreatorLookupService.findCourseCreatorUuidByUserUuid(callerUuid)
+                .map(creatorUuid -> Set.copyOf(courseRepository.findUuidsByCourseCreatorUuid(creatorUuid)))
+                .orElse(Set.of());
     }
 
     /**
@@ -483,6 +509,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 null,
                 application.getLastModifiedDate(),
                 null,
+                null,
                 null
         );
     }
@@ -588,8 +615,12 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     }
 
     private CourseTrainingApplicationDTO toDTO(CourseTrainingApplication application) {
-        return CourseTrainingApplicationFactory.toDTO(application,
-                extrasResolver.resolve(TrainingApplicationType.COURSE, application.getUuid()));
+        TrainingApplicationExtras extras = extrasResolver.resolve(TrainingApplicationType.COURSE, application.getUuid());
+        if (access.ownsCourse(application.getCourseUuid())) {
+            extras = extras.withRateFloorFlags(TrainingRateCardFactory.floorFlags(
+                    application, feeFloors.forCourse(application.getCourseUuid())));
+        }
+        return CourseTrainingApplicationFactory.toDTO(application, extras);
     }
 
     private CourseTrainingApplication findApplication(UUID courseUuid, UUID applicationUuid) {

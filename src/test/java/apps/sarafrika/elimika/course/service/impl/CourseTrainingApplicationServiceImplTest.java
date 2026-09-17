@@ -6,6 +6,10 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.repository.CourseTrainingRateUpdateRepository;
+import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
+import apps.sarafrika.elimika.course.repository.ProgramTrainingRateUpdateRepository;
 import apps.sarafrika.elimika.course.service.CourseTrainingRateUpdateService;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.model.Course;
@@ -82,7 +86,13 @@ class CourseTrainingApplicationServiceImplTest {
     private CourseSecuritySpi courseSecurity;
 
     @Mock
-    private TrainingApplicationExtrasResolver extrasResolver;
+    private CourseTrainingRateUpdateRepository courseRateUpdates;
+
+    @Mock
+    private ProgramTrainingRateUpdateRepository programRateUpdates;
+
+    @Mock
+    private ProgramCourseRepository programCourseRepository;
 
     @Mock
     private CourseTrainingRateUpdateService rateUpdateService;
@@ -109,8 +119,9 @@ class CourseTrainingApplicationServiceImplTest {
                 userLookupService,
                 applicationEventPublisher,
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
-                extrasResolver,
-                rateUpdateService
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates),
+                rateUpdateService,
+                new TrainingFeeFloors(courseRepository, programCourseRepository)
         );
     }
 
@@ -478,6 +489,85 @@ class CourseTrainingApplicationServiceImplTest {
 
         verify(rateUpdateService).closePendingRateUpdate(
                 org.mockito.ArgumentMatchers.eq(applicationUuid), org.mockito.ArgumentMatchers.contains("revoked"));
+    }
+
+    @Test
+    @DisplayName("the course creator reads the full card with a flag on each cell priced below the minimum")
+    void ownerReadsFloorFlags() {
+        CourseTrainingApplication legacy = legacyApplication();
+        when(courseSecurity.isCourseOwner(legacy.getCourseUuid())).thenReturn(true);
+
+        apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO dto =
+                service.getApplication(legacy.getCourseUuid(), legacy.getUuid());
+
+        assertThat(dto.rateCard().groupOnlineHourlyRate()).isEqualByComparingTo("2500");
+        assertThat(dto.rateFloorFlags()).isNotNull();
+        assertThat(dto.rateFloorFlags().minimumTrainingFee()).isEqualByComparingTo("3000");
+        assertThat(dto.rateFloorFlags().groupOnlineHourlyRate()).isTrue();
+        assertThat(dto.rateFloorFlags().groupOnlineSessionRate()).isFalse();
+        assertThat(dto.rateFloorFlags().groupOnlineDailyRate()).as("an unset cell is never flagged").isFalse();
+        assertThat(dto.rateFloorFlags().privateOnlineHourlyRate()).isFalse();
+    }
+
+    @Test
+    @DisplayName("the applicant reads their own card without floor flags")
+    void applicantReadsNoFloorFlags() {
+        CourseTrainingApplication legacy = legacyApplication();
+        when(domainSecurityService.isInstructorWithUuid(legacy.getApplicantUuid())).thenReturn(true);
+
+        apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO dto =
+                service.getApplication(legacy.getCourseUuid(), legacy.getUuid());
+
+        assertThat(dto.rateCard()).isNotNull();
+        assertThat(dto.rateFloorFlags()).isNull();
+    }
+
+    @Test
+    @DisplayName("searching, the owner gets floor flags and a non-party gets the redacted row")
+    void searchFlagsForOwnerOnly() {
+        CourseTrainingApplication legacy = legacyApplication();
+        UUID callerUuid = UUID.randomUUID();
+        UUID creatorUuid = UUID.randomUUID();
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(callerUuid);
+        when(applicationRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<CourseTrainingApplication>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(legacy)));
+        org.springframework.data.domain.Pageable page = org.springframework.data.domain.PageRequest.of(0, 20);
+
+        apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO stranger =
+                service.search(java.util.Map.of(), page).getContent().getFirst();
+        assertThat(stranger.rateCard()).isNull();
+        assertThat(stranger.rateFloorFlags()).isNull();
+        assertThat(stranger.pendingRateUpdateUuid()).isNull();
+
+        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(callerUuid)).thenReturn(Optional.of(creatorUuid));
+        when(courseRepository.findUuidsByCourseCreatorUuid(creatorUuid)).thenReturn(java.util.List.of(legacy.getCourseUuid()));
+        apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDTO owner =
+                service.search(java.util.Map.of(), page).getContent().getFirst();
+        assertThat(owner.rateCard()).isNotNull();
+        assertThat(owner.rateFloorFlags().groupOnlineHourlyRate()).isTrue();
+    }
+
+    private CourseTrainingApplication legacyApplication() {
+        UUID courseUuid = UUID.randomUUID();
+        Course course = new Course();
+        course.setUuid(courseUuid);
+        course.setMinimumTrainingFee(new BigDecimal("3000"));
+        lenient().when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
+        lenient().when(courseRepository.findByUuidIn(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.List.of(course));
+
+        CourseTrainingApplication application = new CourseTrainingApplication();
+        application.setUuid(UUID.randomUUID());
+        application.setCourseUuid(courseUuid);
+        application.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        application.setApplicantUuid(UUID.randomUUID());
+        application.setStatus(CourseTrainingApplicationStatus.APPROVED);
+        application.setRateCurrency("KES");
+        application.setGroupOnlineHourlyRate(new BigDecimal("2500"));
+        application.setGroupOnlineSessionRate(new BigDecimal("3500"));
+        lenient().when(applicationRepository.findByUuid(application.getUuid())).thenReturn(Optional.of(application));
+        return application;
     }
 
     // ── A rate card answers in the unit the job was contracted in ─────────────────────────────

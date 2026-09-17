@@ -159,6 +159,14 @@ public record CourseTrainingApplicationDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "pending_rate_update_uuid", access = JsonProperty.Access.READ_ONLY)
-        UUID pendingRateUpdateUuid
+        UUID pendingRateUpdateUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** For the course or program owner only: per rate card cell, true when the rate is set and below the minimum training fee. Null for everyone else.",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "rate_floor_flags", access = JsonProperty.Access.READ_ONLY)
+        TrainingRateFloorFlagsDTO rateFloorFlags
 ) {
 }

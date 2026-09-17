@@ -360,10 +360,25 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         Map<UUID, TrainingApplicationExtras> extras = extrasResolver.resolve(TrainingApplicationType.PROGRAM,
                 page.map(ProgramTrainingApplication::getUuid).toList());
-        return page.map(application -> scope == null || scope.isParty(application)
-                ? ProgramTrainingApplicationFactory.toDTO(application,
-                        extras.getOrDefault(application.getUuid(), TrainingApplicationExtras.NONE))
-                : toNonPartyDTO(application));
+        Set<UUID> ownedProgramUuids = scope != null ? scope.ownedProgramUuids() : callerOwnedProgramUuids();
+        Map<UUID, BigDecimal> floors = new HashMap<>();
+        return page.map(application -> {
+            if (scope != null && !scope.isParty(application)) {
+                return toNonPartyDTO(application);
+            }
+            TrainingApplicationExtras applicationExtras =
+                    extras.getOrDefault(application.getUuid(), TrainingApplicationExtras.NONE);
+            if (ownedProgramUuids.contains(application.getProgramUuid())) {
+                BigDecimal floor = floors.computeIfAbsent(application.getProgramUuid(), feeFloors::forProgram);
+                applicationExtras = applicationExtras.withRateFloorFlags(TrainingRateCardFactory.floorFlags(application, floor));
+            }
+            return ProgramTrainingApplicationFactory.toDTO(application, applicationExtras);
+        });
+    }
+
+    private Set<UUID> callerOwnedProgramUuids() {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        return callerUuid == null ? Set.of() : programUuidsCreatedBy(programCreatorIdentities(callerUuid));
     }
 
     /**
@@ -549,6 +564,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 null,
                 application.getLastModifiedDate(),
                 null,
+                null,
                 null
         );
     }
@@ -719,8 +735,12 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     }
 
     private ProgramTrainingApplicationDTO toDTO(ProgramTrainingApplication application) {
-        return ProgramTrainingApplicationFactory.toDTO(application,
-                extrasResolver.resolve(TrainingApplicationType.PROGRAM, application.getUuid()));
+        TrainingApplicationExtras extras = extrasResolver.resolve(TrainingApplicationType.PROGRAM, application.getUuid());
+        if (access.ownsProgram(application.getProgramUuid())) {
+            extras = extras.withRateFloorFlags(TrainingRateCardFactory.floorFlags(
+                    application, feeFloors.forProgram(application.getProgramUuid())));
+        }
+        return ProgramTrainingApplicationFactory.toDTO(application, extras);
     }
 
     private String resolveCurrentReviewer() {

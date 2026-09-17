@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -40,6 +42,17 @@ public class TrainingFeeFloors {
                 .filter(Objects::nonNull)
                 .max(BigDecimal::compareTo)
                 .orElse(BigDecimal.ZERO);
+    }
+
+    /** Each course's own minimum fee, zero when unset; courses that do not exist are absent. */
+    public Map<UUID, BigDecimal> perCourse(Collection<UUID> courseUuids) {
+        if (courseUuids == null || courseUuids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, BigDecimal> floors = new HashMap<>();
+        courseRepository.findByUuidIn(List.copyOf(courseUuids)).forEach(course -> floors.put(course.getUuid(),
+                course.getMinimumTrainingFee() == null ? BigDecimal.ZERO : course.getMinimumTrainingFee()));
+        return floors;
     }
 
     public List<UUID> programCourseUuids(UUID programUuid) {

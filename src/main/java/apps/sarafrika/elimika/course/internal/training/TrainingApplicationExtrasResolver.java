@@ -23,6 +23,9 @@ public class TrainingApplicationExtrasResolver {
     private final ProgramTrainingRateUpdateRepository programRateUpdates;
 
     public TrainingApplicationExtras resolve(TrainingApplicationType type, UUID applicationUuid) {
+        if (applicationUuid == null) {
+            return TrainingApplicationExtras.NONE;
+        }
         return resolve(type, List.of(applicationUuid)).getOrDefault(applicationUuid, TrainingApplicationExtras.NONE);
     }
 
@@ -38,7 +41,7 @@ public class TrainingApplicationExtrasResolver {
         pending.forEach(update -> pendingUpdates.putIfAbsent(update.getApplicationUuid(), update.getUuid()));
 
         Map<UUID, TrainingApplicationExtras> extras = new HashMap<>();
-        uuids.forEach(uuid -> extras.put(uuid, new TrainingApplicationExtras(pendingUpdates.get(uuid))));
+        uuids.forEach(uuid -> extras.put(uuid, new TrainingApplicationExtras(pendingUpdates.get(uuid), null)));
         return extras;
     }
 }
