@@ -45,9 +45,13 @@ public record ClassMarketplaceJobApplicationDTO(
         @JsonProperty(value = "training_approved", access = JsonProperty.Access.READ_ONLY)
         Boolean trainingApproved,
 
-        @Schema(description = "The applicant's approved training rate matching the job's session format and delivery modality", nullable = true)
+        @Schema(description = "The applicant's approved rate for the job's session format, delivery and rate basis; absent when they have none", nullable = true)
         @JsonProperty(value = "approved_rate", access = JsonProperty.Access.READ_ONLY)
         BigDecimal approvedRate,
+
+        @Schema(description = "Whether the job's instructor pay covers the applicant's approved rate; false when they have no rate. Absent outside a job context", nullable = true)
+        @JsonProperty(value = "rate_covers_pay", access = JsonProperty.Access.READ_ONLY)
+        Boolean rateCoversPay,
 
         @JsonProperty(value = "reviewed_by", access = JsonProperty.Access.READ_ONLY)
         String reviewedBy,

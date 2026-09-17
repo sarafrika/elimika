@@ -279,6 +279,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         boolean instructorVerified = isInstructorAdminVerified(instructorUuid);
         boolean trainingApproved = isInstructorApprovedForJob(job, instructorUuid);
+        InstructorRateCheck rateCheck = checkInstructorRate(job, instructorUuid);
         ClassMarketplaceJobApplicationStatus applicationStatus = applicationRepository
                 .findByJobUuidAndInstructorUuid(jobUuid, instructorUuid)
                 .map(ClassMarketplaceJobApplication::getStatus)
@@ -289,7 +290,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         boolean scheduleClear = scheduleConflicts.isEmpty();
         // An application that is still live blocks a fresh one; a closed one does not.
         boolean blockedByExistingApplication = applicationStatus != null && !applicationStatus.allowsReapplication();
-        boolean eligible = instructorVerified && trainingApproved && scheduleClear && !blockedByExistingApplication;
+        boolean eligible = instructorVerified && trainingApproved && rateCheck.payCoversRate()
+                && scheduleClear && !blockedByExistingApplication;
 
         String reason = null;
         if (!instructorVerified) {
@@ -298,6 +300,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             reason = String.format(
                     "You are not approved to deliver this %s. Submit a training application and wait for approval before applying.",
                     learningContextType(job));
+        } else if (!rateCheck.payCoversRate()) {
+            reason = instructorRateRefusal(job, rateCheck);
         } else if (blockedByExistingApplication) {
             reason = applicationStatus == ClassMarketplaceJobApplicationStatus.ASSIGNED
                     ? "You have already been assigned to this class job."
@@ -308,8 +312,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     scheduleConflicts.size());
         }
 
-        return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved, alreadyApplied,
-                applicationStatus, canReapply, scheduleClear, scheduleClear ? null : scheduleConflicts, reason);
+        return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved,
+                rateCheck.payCoversRate(), rateCheck.approvedRate(), alreadyApplied, applicationStatus, canReapply,
+                scheduleClear, scheduleClear ? null : scheduleConflicts, reason);
     }
 
     @Override
@@ -395,6 +400,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
         ensureTransitionAllowed(application, ClassMarketplaceJobApplicationStatus.HIRED);
         ensureInstructorApprovedToDeliver(job, application.getInstructorUuid());
+        refuseUncoveredInstructorRate(job, application.getInstructorUuid());
         // The diary can fill up after applying (another hire, a booked session, a blocked day),
         // so the clash is re-checked here, before anything about the hire is written.
         refuseClashingHire(job, application.getUuid(), application.getInstructorUuid());
@@ -649,12 +655,16 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private String resolveInstructorDisplayName(UUID instructorUuid) {
+        return resolveInstructorName(instructorUuid, "An instructor");
+    }
+
+    private String resolveInstructorName(UUID instructorUuid, String fallback) {
         if (instructorUuid == null) {
-            return "An instructor";
+            return fallback;
         }
         return instructorLookupService.getInstructorUserUuid(instructorUuid)
                 .flatMap(userLookupService::getUserFullName)
-                .orElse("An instructor");
+                .orElse(fallback);
     }
 
     /**
@@ -684,13 +694,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     learningContextUuid(job)));
         }
 
-        resolveInstructorRateForJob(job, application.getInstructorUuid()).ifPresent(approvedRate -> {
-            if (job.getInstructorPay() != null && job.getInstructorPay().compareTo(approvedRate) < 0) {
-                throw new IllegalArgumentException(String.format(
-                        "This posting's instructor pay is below the instructor's approved rate for %s %s sessions.",
-                        job.getSessionFormat(), job.getLocationType()));
-            }
-        });
+        refuseUncoveredInstructorRate(job, application.getInstructorUuid());
 
         selectInstructorForJob(job, application.getInstructorUuid());
 
@@ -722,6 +726,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * funnel, so the post and the affiliation happen together and the class follows immediately.
      */
     private void hireInstructorForJob(ClassMarketplaceJob job, UUID instructorUuid) {
+        refuseUncoveredInstructorRate(job, instructorUuid);
         refuseClashingHire(job, null, instructorUuid);
         recordSelectedInstructor(job, instructorUuid);
         affiliateHiredInstructor(job, instructorUuid);
@@ -1239,6 +1244,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     learningContextType(job),
                     learningContextUuid(job),
                     learningContextType(job)));
+        }
+        InstructorRateCheck rateCheck = checkInstructorRate(job, instructorUuid);
+        if (!rateCheck.payCoversRate()) {
+            throw new IllegalStateException(instructorRateRefusal(job, rateCheck));
         }
         List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
         if (!scheduleConflicts.isEmpty()) {
@@ -1999,10 +2008,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         Boolean instructorAdminVerified = null;
         Boolean trainingApproved = null;
         BigDecimal approvedRate = null;
+        Boolean rateCoversPay = null;
         if (job != null) {
             instructorAdminVerified = isInstructorAdminVerified(application.getInstructorUuid());
             trainingApproved = isInstructorApprovedForJob(job, application.getInstructorUuid());
-            approvedRate = resolveInstructorRateForJob(job, application.getInstructorUuid()).orElse(null);
+            InstructorRateCheck rateCheck = checkInstructorRate(job, application.getInstructorUuid());
+            approvedRate = rateCheck.approvedRate();
+            rateCoversPay = rateCheck.payCoversRate();
         }
         return new ClassMarketplaceJobApplicationDTO(
                 application.getUuid(),
@@ -2015,6 +2027,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 instructorAdminVerified,
                 trainingApproved,
                 approvedRate,
+                rateCoversPay,
                 application.getReviewedBy(),
                 application.getReviewedAt(),
                 application.getCreatedDate(),
@@ -2033,6 +2046,48 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                         job.getProgramUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(),
                         job.getRateBasis());
         return pricedRate(rate);
+    }
+
+    /** The instructor's approved rate for the job's cell, or null when they have none. */
+    private record InstructorRateCheck(BigDecimal approvedRate, BigDecimal pay) {
+
+        boolean payCoversRate() {
+            return approvedRate != null && pay != null && pay.compareTo(approvedRate) >= 0;
+        }
+    }
+
+    private InstructorRateCheck checkInstructorRate(ClassMarketplaceJob job, UUID instructorUuid) {
+        return new InstructorRateCheck(resolveInstructorRateForJob(job, instructorUuid).orElse(null),
+                job.getInstructorPay());
+    }
+
+    private String instructorRateRefusal(ClassMarketplaceJob job, InstructorRateCheck rateCheck) {
+        String basis = RateWording.basis(job.getRateBasis());
+        if (rateCheck.approvedRate() == null) {
+            return String.format(
+                    "You don't have an approved %s rate for %s %s classes of this %s. Add it to your rate card.",
+                    basis, RateWording.format(job.getSessionFormat()), RateWording.location(job.getLocationType()),
+                    learningContextType(job));
+        }
+        return String.format("Your approved rate of %s %s is above this job's pay of %s.",
+                RateWording.money(rateCheck.approvedRate()), basis, RateWording.money(rateCheck.pay()));
+    }
+
+    /** Refuses to hire or assign an instructor whose approved rate the job's pay does not cover. */
+    private void refuseUncoveredInstructorRate(ClassMarketplaceJob job, UUID instructorUuid) {
+        InstructorRateCheck rateCheck = checkInstructorRate(job, instructorUuid);
+        if (rateCheck.payCoversRate()) {
+            return;
+        }
+        String instructorName = resolveInstructorName(instructorUuid, "This instructor");
+        String basis = RateWording.basis(job.getRateBasis());
+        if (rateCheck.approvedRate() == null) {
+            throw new IllegalStateException(String.format("%s has no approved %s rate for this %s yet.",
+                    instructorName, basis, learningContextType(job)));
+        }
+        throw new IllegalStateException(String.format("%s's approved rate of %s %s is above this job's pay of %s.",
+                instructorName, RateWording.money(rateCheck.approvedRate()), basis,
+                RateWording.money(rateCheck.pay())));
     }
 
     private String resolveAssignedReviewNotes(String existingReviewNotes) {

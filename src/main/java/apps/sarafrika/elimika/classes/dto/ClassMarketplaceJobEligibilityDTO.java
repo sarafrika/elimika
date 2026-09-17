@@ -24,6 +24,14 @@ public record ClassMarketplaceJobEligibilityDTO(
         @JsonProperty(value = "training_approved", access = JsonProperty.Access.READ_ONLY)
         boolean trainingApproved,
 
+        @Schema(description = "Whether the instructor has an approved rate for this job's session format, delivery and rate basis that the job's pay covers")
+        @JsonProperty(value = "rate_ok", access = JsonProperty.Access.READ_ONLY)
+        boolean rateOk,
+
+        @Schema(description = "The instructor's approved rate for this job's session format, delivery and rate basis; absent when they have none", nullable = true)
+        @JsonProperty(value = "approved_rate", access = JsonProperty.Access.READ_ONLY)
+        java.math.BigDecimal approvedRate,
+
         @Schema(description = "Whether the instructor already has an application for this job, in any state")
         @JsonProperty(value = "already_applied", access = JsonProperty.Access.READ_ONLY)
         boolean alreadyApplied,

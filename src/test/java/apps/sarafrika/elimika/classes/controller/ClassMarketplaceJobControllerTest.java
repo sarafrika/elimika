@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.controller;
 
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
@@ -239,6 +240,39 @@ class ClassMarketplaceJobControllerTest {
                 .andExpect(jsonPath("$.error[0].reasons[0]")
                         .value("Instructor is already committed to another class job in this window"))
                 .andExpect(jsonPath("$.error[1].requested_start").value("2026-05-09T09:00:00"));
+    }
+
+    @Test
+    void hireRefusedForTheInstructorsRateReturns409WithTheReason() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        when(classMarketplaceJobService.hireApplication(eq(jobUuid), eq(applicationUuid), any()))
+                .thenThrow(new IllegalStateException(
+                        "Jane Mwangi's approved rate of KES 300.00 per day is above this job's pay of KES 240.00."));
+
+        mockMvc.perform(post("/api/v1/classes/jobs/{jobUuid}/applications/{applicationUuid}", jobUuid, applicationUuid)
+                        .param("action", "hire"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message")
+                        .value("Jane Mwangi's approved rate of KES 300.00 per day is above this job's pay of KES 240.00."));
+    }
+
+    @Test
+    void eligibilityCarriesTheInstructorsRateForTheJob() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        when(classMarketplaceJobService.getMyJobEligibility(jobUuid))
+                .thenReturn(new ClassMarketplaceJobEligibilityDTO(false, true, true, false, new BigDecimal("300.00"),
+                        false, null, false, true, null,
+                        "Your approved rate of KES 300.00 per day is above this job's pay of KES 240.00."));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/eligibility", jobUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.eligible").value(false))
+                .andExpect(jsonPath("$.data.rate_ok").value(false))
+                .andExpect(jsonPath("$.data.approved_rate").value(300.00))
+                .andExpect(jsonPath("$.data.reason")
+                        .value("Your approved rate of KES 300.00 per day is above this job's pay of KES 240.00."));
     }
 
     @Test

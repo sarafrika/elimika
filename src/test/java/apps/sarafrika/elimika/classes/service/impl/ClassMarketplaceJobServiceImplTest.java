@@ -162,6 +162,7 @@ class ClassMarketplaceJobServiceImplTest {
     private static final UUID BRANCH_UUID = UUID.fromString("b0000000-0000-0000-0000-000000000001");
     private static final BigDecimal BRANCH_LATITUDE = new BigDecimal("-1.221800");
     private static final BigDecimal BRANCH_LONGITUDE = new BigDecimal("36.897000");
+    private static final BigDecimal DEFAULT_INSTRUCTOR_RATE = new BigDecimal("200.00");
 
     private final RequestScopedCache requestScopedCache = new RequestScopedCache();
 
@@ -208,6 +209,12 @@ class ClassMarketplaceJobServiceImplTest {
         org.mockito.Mockito.lenient()
                 .when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(any(), any(), any(), any(), any()))
                 .thenReturn(Optional.of(new BigDecimal("240.00")));
+        org.mockito.Mockito.lenient()
+                .when(courseTrainingApprovalSpi.resolveInstructorRate(any(), any(), any(), any(), any()))
+                .thenReturn(Optional.of(DEFAULT_INSTRUCTOR_RATE));
+        org.mockito.Mockito.lenient()
+                .when(courseTrainingApprovalSpi.resolveInstructorProgramRate(any(), any(), any(), any(), any()))
+                .thenReturn(Optional.of(DEFAULT_INSTRUCTOR_RATE));
         org.mockito.Mockito.lenient().when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
         org.mockito.Mockito.lenient()
                 .when(availabilityService.isInstructorAvailable(
@@ -935,7 +942,9 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(forwarded.organisationUuid()).isEqualTo(job.getOrganisationUuid());
         assertThat(forwarded.courseUuid()).isEqualTo(job.getCourseUuid());
         assertThat(forwarded.programUuid()).isNull();
-        assertThat(forwarded.salePrice()).isNull();
+        assertThat(forwarded.salePrice()).isEqualByComparingTo(job.getSalePrice());
+        assertThat(forwarded.instructorPay()).isEqualByComparingTo(job.getInstructorPay());
+        assertThat(forwarded.rateBasis()).isEqualTo(RateBasis.PER_HOUR);
         assertThat(forwarded.sessionTemplates()).hasSize(1);
     }
 
@@ -1861,6 +1870,9 @@ class ClassMarketplaceJobServiceImplTest {
         job.setMeetingLink("https://meet.google.com/abc-defg-hij");
         job.setMaxParticipants(24);
         job.setAllowWaitlist(true);
+        job.setSalePrice(new BigDecimal("240.00"));
+        job.setInstructorPay(new BigDecimal("240.00"));
+        job.setRateBasis(RateBasis.PER_HOUR);
         return job;
     }
 
@@ -2601,6 +2613,328 @@ class ClassMarketplaceJobServiceImplTest {
                 .filteredOn(e -> "CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_INSTRUCTOR".equals(e.notificationType()))
                 .singleElement()
                 .satisfies(alert -> assertThat(alert.recipientId()).isEqualTo(instructorUserUuid));
+    }
+
+    // ===== the instructor's approved rate gates applying, hiring and assigning =====
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void getMyJobEligibilityRefusesAnInstructorWithNoRateForTheJobsBasis(RateBasis basis, String phrase) {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setRateBasis(basis);
+        stubEligibleInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, basis))
+                .thenReturn(Optional.empty());
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.rateOk()).isFalse();
+        assertThat(eligibility.approvedRate()).isNull();
+        assertThat(eligibility.reason()).isEqualTo("You don't have an approved " + phrase
+                + " rate for group in-person classes of this course. Add it to your rate card.");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void getMyJobEligibilityRefusesAnInstructorWhoseRateIsAboveThePay(RateBasis basis, String phrase) {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setRateBasis(basis);
+        job.setInstructorPay(new BigDecimal("1500.00"));
+        stubEligibleInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, basis))
+                .thenReturn(Optional.of(new BigDecimal("1500.01")));
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isFalse();
+        assertThat(eligibility.rateOk()).isFalse();
+        assertThat(eligibility.approvedRate()).isEqualByComparingTo("1500.01");
+        assertThat(eligibility.reason()).isEqualTo("Your approved rate of KES 1,500.01 " + phrase
+                + " is above this job's pay of KES 1,500.00.");
+    }
+
+    @Test
+    void getMyJobEligibilityTreatsAZeroRateAsMissing() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleProgramJob();
+        stubEligibleInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                job.getProgramUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
+                .thenReturn(Optional.of(BigDecimal.ZERO));
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.rateOk()).isFalse();
+        assertThat(eligibility.approvedRate()).isNull();
+        assertThat(eligibility.reason()).isEqualTo("You don't have an approved per hour rate for group in-person "
+                + "classes of this training program. Add it to your rate card.");
+    }
+
+    @Test
+    void getMyJobEligibilityReportsTheCoveredRate() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        stubEligibleInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
+                .thenReturn(Optional.of(new BigDecimal("240.00")));
+
+        var eligibility = service.getMyJobEligibility(job.getUuid());
+
+        assertThat(eligibility.eligible()).isTrue();
+        assertThat(eligibility.rateOk()).isTrue();
+        assertThat(eligibility.approvedRate()).isEqualByComparingTo("240.00");
+        assertThat(eligibility.reason()).isNull();
+    }
+
+    @Test
+    void applyToJobRefusesAnInstructorWithNoRateForTheJobsBasis() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setRateBasis(RateBasis.PER_SESSION);
+        stubVerifiedApprovedInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("You don't have an approved per session rate for group in-person classes of this course. "
+                        + "Add it to your rate card.");
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+        verifyNoInteractions(instructorTimeHoldService);
+    }
+
+    @Test
+    void applyToJobRefusesAnInstructorWhoseRateIsAboveThePay() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setRateBasis(RateBasis.PER_DAY);
+        stubVerifiedApprovedInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_DAY))
+                .thenReturn(Optional.of(new BigDecimal("300.00")));
+
+        assertThatThrownBy(() -> service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Your approved rate of KES 300.00 per day is above this job's pay of KES 240.00.");
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+    }
+
+    @Test
+    void applyToJobAcceptsAnInstructorWhoseRateEqualsThePay() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        stubVerifiedApprovedInstructor(job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
+                .thenReturn(Optional.of(new BigDecimal("240.00")));
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+        when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var application = service.applyToJob(job.getUuid(), new ClassMarketplaceJobApplicationRequestDTO("Keen"));
+
+        assertThat(application.status()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
+        assertThat(application.approvedRate()).isEqualByComparingTo("240.00");
+        assertThat(application.rateCoversPay()).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void hiringAnApplicantWithNoRateForTheJobsBasisIsRefusedBeforeAnythingIsWritten(RateBasis basis, String phrase) {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setRateBasis(basis);
+        ClassMarketplaceJobApplication application = offeredApplicationFor(currentUserUuid, job, instructorUuid);
+        stubInstructorName(instructorUuid, "Jane Mwangi");
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, basis))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.hireApplication(job.getUuid(), application.getUuid(), null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Jane Mwangi has no approved " + phrase + " rate for this course yet.");
+        assertRefusedHireChangedNothing(job, application);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void hiringAnApplicantWhoseRateIsAboveThePayIsRefusedBeforeAnythingIsWritten(RateBasis basis, String phrase) {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setRateBasis(basis);
+        ClassMarketplaceJobApplication application = offeredApplicationFor(currentUserUuid, job, instructorUuid);
+        stubInstructorName(instructorUuid, "Jane Mwangi");
+        when(courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                job.getProgramUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, basis))
+                .thenReturn(Optional.of(new BigDecimal("2400.00")));
+
+        assertThatThrownBy(() -> service.hireApplication(job.getUuid(), application.getUuid(), null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Jane Mwangi's approved rate of KES 2,400.00 " + phrase
+                        + " is above this job's pay of KES 240.00.");
+        assertRefusedHireChangedNothing(job, application);
+    }
+
+    @Test
+    void creatingTheClassRefusesAHireWhoseRateIsNowMissing() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = awaitingClassJob();
+        job.setRateBasis(RateBasis.PER_SESSION);
+        ClassMarketplaceJobApplication hired = hiredApplicationFor(currentUserUuid, job, instructorUuid);
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("This instructor has no approved per session rate for this course yet.");
+        assertThat(hired.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+        verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
+    }
+
+    @Test
+    void creatingTheClassRefusesAHireWhoseRateIsNowAboveThePay() {
+        UUID currentUserUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = awaitingClassJob();
+        ClassMarketplaceJobApplication hired = hiredApplicationFor(currentUserUuid, job, instructorUuid);
+        stubInstructorName(instructorUuid, "Jane Mwangi");
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
+                .thenReturn(Optional.of(new BigDecimal("260.00")));
+
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Jane Mwangi's approved rate of KES 260.00 per hour is above this job's pay of KES 240.00.");
+        assertThat(hired.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
+        verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
+    }
+
+    @Test
+    void postingAJobForAPreferredInstructorWhoseRateIsAboveThePayIsRefused() {
+        UUID programUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPreferredInstructor(withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("180.00"),
+                RateBasis.PER_SESSION), instructorUuid);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, RateBasis.PER_SESSION, "300.00");
+        stubJobSaves();
+        stubInstructorName(instructorUuid, "Jane Mwangi");
+        when(courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                programUuid, instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
+                .thenReturn(Optional.of(new BigDecimal("200.00")));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Jane Mwangi's approved rate of KES 200.00 per session is above this job's pay of KES 180.00.");
+        verifyNoInteractions(organisationAffiliationService);
+        verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
+    }
+
+    @Test
+    void listJobApplicationsReportsWhetherThePayCoversEachApplicantsRate() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication covered = sampleApplication(job.getUuid(), UUID.randomUUID());
+        ClassMarketplaceJobApplication tooDear = sampleApplication(job.getUuid(), UUID.randomUUID());
+        ClassMarketplaceJobApplication unpriced = sampleApplication(job.getUuid(), UUID.randomUUID());
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidOrderByCreatedDateDesc(job.getUuid(), pageable))
+                .thenReturn(new PageImpl<>(List.of(covered, tooDear, unpriced), pageable, 3));
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), tooDear.getInstructorUuid(), SessionFormat.GROUP, LocationType.HYBRID,
+                RateBasis.PER_HOUR)).thenReturn(Optional.of(new BigDecimal("240.01")));
+        when(courseTrainingApprovalSpi.resolveInstructorRate(
+                job.getCourseUuid(), unpriced.getInstructorUuid(), SessionFormat.GROUP, LocationType.HYBRID,
+                RateBasis.PER_HOUR)).thenReturn(Optional.empty());
+
+        var rows = service.listJobApplications(job.getUuid(), null, pageable).getContent();
+
+        assertThat(rows.get(0).approvedRate()).isEqualByComparingTo(DEFAULT_INSTRUCTOR_RATE);
+        assertThat(rows.get(0).rateCoversPay()).isTrue();
+        assertThat(rows.get(1).approvedRate()).isEqualByComparingTo("240.01");
+        assertThat(rows.get(1).rateCoversPay()).isFalse();
+        assertThat(rows.get(2).approvedRate()).isNull();
+        assertThat(rows.get(2).rateCoversPay()).isFalse();
+    }
+
+    private void stubVerifiedApprovedInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        if (job.getCourseUuid() != null) {
+            when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        } else {
+            when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), instructorUuid))
+                    .thenReturn(true);
+        }
+    }
+
+    private void stubEligibleInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
+        stubVerifiedApprovedInstructor(job, instructorUuid);
+        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+    }
+
+    private ClassMarketplaceJobApplication offeredApplicationFor(UUID currentUserUuid,
+                                                                 ClassMarketplaceJob job,
+                                                                 UUID instructorUuid) {
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        application.setStatus(ClassMarketplaceJobApplicationStatus.OFFERED);
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        if (job.getCourseUuid() != null) {
+            when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        } else {
+            when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(job.getProgramUuid(), instructorUuid))
+                    .thenReturn(true);
+        }
+        return application;
+    }
+
+    private ClassMarketplaceJobApplication hiredApplicationFor(UUID currentUserUuid,
+                                                               ClassMarketplaceJob job,
+                                                               UUID instructorUuid) {
+        ClassMarketplaceJobApplication hired = sampleApplication(job.getUuid(), instructorUuid);
+        hired.setStatus(ClassMarketplaceJobApplicationStatus.HIRED);
+        job.setAssignedApplicationUuid(hired.getUuid());
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), hired.getUuid())).thenReturn(Optional.of(hired));
+        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
+        return hired;
+    }
+
+    private void stubInstructorName(UUID instructorUuid, String fullName) {
+        UUID userUuid = UUID.randomUUID();
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(userUuid));
+        when(userLookupService.getUserFullName(userUuid)).thenReturn(Optional.of(fullName));
+    }
+
+    private void assertRefusedHireChangedNothing(ClassMarketplaceJob job, ClassMarketplaceJobApplication application) {
+        assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.OFFERED);
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.OPEN);
+        verify(applicationRepository, never()).save(any(ClassMarketplaceJobApplication.class));
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+        verifyNoInteractions(organisationAffiliationService, instructorTimeHoldService, eventPublisher, timetableService);
     }
 
     private void stubOfferedApplicantWithClashes(UUID currentUserUuid,

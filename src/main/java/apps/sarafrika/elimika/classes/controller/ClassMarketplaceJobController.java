@@ -51,7 +51,7 @@ public class ClassMarketplaceJobController {
     private final ClassMarketplaceJobServiceInterface classMarketplaceJobService;
 
     @Operation(summary = "Create a marketplace class job",
-            description = "Attached resources are validated against their calendars and reserved with HOLD bookings for every session occurrence; conflicts return 409 with a per-occurrence report. A preferred instructor whose schedule clashes with the sessions is not hired: 409 with the clashing windows, and nothing is posted")
+            description = "Attached resources are validated against their calendars and reserved with HOLD bookings for every session occurrence; conflicts return 409 with a per-occurrence report. A preferred instructor whose schedule clashes with the sessions is not hired: 409 with the clashing windows, and nothing is posted. A preferred instructor with no approved rate for the job's format, delivery and rate_basis, or a rate above instructor_pay, is refused with 409")
     @PostMapping
     public ResponseEntity<ApiResponse<ClassMarketplaceJobDTO>> createJob(
             @Valid @RequestBody ClassMarketplaceJobRequestDTO request) {
@@ -146,7 +146,7 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "Apply to a marketplace class job",
-            description = "Applications are hard-blocked (409 with conflict details) when the instructor's existing schedule overlaps any of the job's planned session occurrences")
+            description = "Applications are hard-blocked (409 with conflict details) when the instructor's existing schedule overlaps any of the job's planned session occurrences, and refused with 409 when the instructor has no approved rate for the job's format, delivery and rate basis or that rate is above the job's pay")
     @PostMapping("/{jobUuid}/applications")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> applyToJob(
             @PathVariable UUID jobUuid,
@@ -177,7 +177,8 @@ public class ClassMarketplaceJobController {
                 "Marketplace class job application withdrawn successfully"));
     }
 
-    @Operation(summary = "Check current instructor's eligibility for a marketplace class job")
+    @Operation(summary = "Check current instructor's eligibility for a marketplace class job",
+            description = "eligible requires rate_ok: an approved rate for the job's format, delivery and rate basis that the job's pay covers")
     @GetMapping("/{jobUuid}/eligibility")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobEligibilityDTO>> getJobEligibility(@PathVariable UUID jobUuid) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -247,7 +248,7 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "Move a marketplace class job application through the funnel",
-            description = "Stages run applied -> shortlisted -> interviewing -> offered -> hired and no stage may be skipped; hire is the last decision, after which the job's class can be created. A hire whose sessions clash with the instructor's schedule is refused with 409 and the clashing windows, and the application, job and time holds are left as they were")
+            description = "Stages run applied -> shortlisted -> interviewing -> offered -> hired and no stage may be skipped; hire is the last decision, after which the job's class can be created. A hire whose sessions clash with the instructor's schedule is refused with 409 and the clashing windows, and the application, job and time holds are left as they were. A hire whose instructor has no approved rate for the job's rate basis, or a rate above the job's pay, is refused with 409 before anything is written")
     @PostMapping("/{jobUuid}/applications/{applicationUuid}")
     public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> reviewApplication(
             @PathVariable UUID jobUuid,
@@ -291,7 +292,7 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "Create the class for a job whose applicant has been hired",
-            description = "Creating the class is what assigns the hired instructor: it stamps their application assigned, converts their time holds and fills the job. There is no separate assign call.")
+            description = "Creating the class is what assigns the hired instructor: it stamps their application assigned, converts their time holds and fills the job. There is no separate assign call. Refused with 409 when the hired instructor no longer has an approved rate for the job's rate basis that its pay covers.")
     @PostMapping("/{jobUuid}/class")
     public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassForJob(@PathVariable UUID jobUuid) {
         try {
