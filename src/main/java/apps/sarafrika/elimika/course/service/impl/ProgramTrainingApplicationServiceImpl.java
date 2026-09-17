@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.internal.training.TrainingSubmitters;
 import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
@@ -131,6 +132,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final TrainingApplicationOffers offers;
     private final TrainingApplicationExtrasResolver extrasResolver;
     private final ProgramTrainingRateUpdateService rateUpdateService;
+    private final TrainingSubmitters submitters;
 
     @Override
     public ProgramTrainingApplicationDTO submitApplication(UUID programUuid, ProgramTrainingApplicationRequest request) {
@@ -837,15 +839,6 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     /** Where an approved organisation lands from the notification. */
     private static final String ORGANISATION_APPLICATIONS_URL = "/dashboard/organisation/my-applications";
 
-    /** The user who submitted an organisation's application, resolved from the audit trail. */
-    private UUID resolveApplicationSubmitter(ProgramTrainingApplication application) {
-        String submittedBy = application.getCreatedBy();
-        if (submittedBy == null || submittedBy.isBlank()) {
-            return null;
-        }
-        return userLookupService.findUserUuidByEmail(submittedBy).orElse(null);
-    }
-
     private void publishProgramTrainingApplicationDecision(ProgramTrainingApplication application,
                                                            CourseTrainingApplicationStatus status,
                                                            String reviewNotes) {
@@ -859,7 +852,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         // Same reasoning as the course flow: an organisation is notified through the user who
         // applied for it, since the organisation itself has no account to deliver to.
         UUID recipientUserUuid = organisationApplicant
-                ? resolveApplicationSubmitter(application)
+                ? submitters.userOf(application.getCreatedBy()).orElse(null)
                 : instructorLookupService.getInstructorUserUuid(application.getApplicantUuid()).orElse(null);
         if (recipientUserUuid == null) {
             return;

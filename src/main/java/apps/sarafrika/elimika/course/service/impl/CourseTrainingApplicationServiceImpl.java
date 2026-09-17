@@ -16,6 +16,7 @@ import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.internal.training.TrainingSubmitters;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
@@ -94,6 +95,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final TrainingFeeFloors feeFloors;
     private final TrainingApplicationHistory history;
     private final TrainingApplicationOffers offers;
+    private final TrainingSubmitters submitters;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -759,18 +761,6 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     /** Where an approved organisation lands from the notification. */
     private static final String ORGANISATION_APPLICATIONS_URL = "/dashboard/organisation/my-applications";
 
-    /**
-     * The user who submitted an organisation's application, resolved from the audit trail.
-     * Returns null when the submitter can no longer be matched to a user account.
-     */
-    private UUID resolveApplicationSubmitter(CourseTrainingApplication application) {
-        String submittedBy = application.getCreatedBy();
-        if (submittedBy == null || submittedBy.isBlank()) {
-            return null;
-        }
-        return userLookupService.findUserUuidByEmail(submittedBy).orElse(null);
-    }
-
     private void publishCourseTrainingApplicationDecision(CourseTrainingApplication application,
                                                           CourseTrainingApplicationStatus status,
                                                           String reviewNotes) {
@@ -785,7 +775,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         // submitted the application on its behalf. Without this branch organisations were never
         // told they had been approved - they had to notice the state change in the catalogue.
         UUID recipientUserUuid = organisationApplicant
-                ? resolveApplicationSubmitter(application)
+                ? submitters.userOf(application.getCreatedBy()).orElse(null)
                 : instructorLookupService.getInstructorUserUuid(application.getApplicantUuid()).orElse(null);
         if (recipientUserUuid == null) {
             return;

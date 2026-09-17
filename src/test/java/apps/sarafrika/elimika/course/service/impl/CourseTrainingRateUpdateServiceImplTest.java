@@ -11,6 +11,7 @@ import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistor
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.internal.training.TrainingRateUpdateNotifier;
+import apps.sarafrika.elimika.course.internal.training.TrainingSubmitters;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.model.CourseTrainingRateUpdate;
@@ -109,7 +110,8 @@ class CourseTrainingRateUpdateServiceImplTest {
                 access,
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 new TrainingApplicantNames(instructorLookupService, organisationLookupService),
-                new TrainingRateUpdateNotifier(instructorLookupService, userLookupService, eventPublisher),
+                new TrainingRateUpdateNotifier(instructorLookupService, userLookupService,
+                        new TrainingSubmitters(userLookupService), eventPublisher),
                 new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService));
 
         Course course = new Course();

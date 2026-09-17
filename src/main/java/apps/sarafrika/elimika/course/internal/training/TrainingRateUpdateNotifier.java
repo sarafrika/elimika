@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /** Tells the owner a rate update awaits review, and the applicant how it was decided. */
@@ -34,6 +33,7 @@ public class TrainingRateUpdateNotifier {
 
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
+    private final TrainingSubmitters submitters;
     private final ApplicationEventPublisher eventPublisher;
 
     /** The course or program an application targets, as the notifications name it. */
@@ -68,7 +68,8 @@ public class TrainingRateUpdateNotifier {
         boolean organisation = CourseTrainingApplicantType.ORGANISATION.equals(application.getApplicantType());
         try {
             UUID recipient = organisation
-                    ? submitterOf(update).or(() -> submitterOf(application.getCreatedBy())).orElse(null)
+                    ? submitters.userOf(update.getCreatedBy())
+                            .or(() -> submitters.userOf(application.getCreatedBy())).orElse(null)
                     : instructorLookupService.getInstructorUserUuid(application.getApplicantUuid()).orElse(null);
             if (recipient == null) {
                 return;
@@ -112,19 +113,6 @@ public class TrainingRateUpdateNotifier {
                 "decisionLabel", approved ? "approved" : "not accepted",
                 "reviewNotes", update.getReviewNotes() == null ? "" : update.getReviewNotes(),
                 "actionPath", actionUrl)));
-    }
-
-    private Optional<UUID> submitterOf(TrainingRateUpdate update) {
-        return submitterOf(update.getCreatedBy());
-    }
-
-    /** The audit column holds the JWT subject (Keycloak id); older rows may hold an email. */
-    private Optional<UUID> submitterOf(String auditUser) {
-        if (auditUser == null || auditUser.isBlank()) {
-            return Optional.empty();
-        }
-        return userLookupService.findUserUuidByKeycloakId(auditUser)
-                .or(() -> userLookupService.findUserUuidByEmail(auditUser));
     }
 
     private static Map<String, Object> metadata(Subject subject, TrainingApplicationRecord application,

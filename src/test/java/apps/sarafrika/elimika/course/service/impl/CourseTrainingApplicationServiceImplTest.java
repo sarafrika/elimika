@@ -14,6 +14,10 @@ import apps.sarafrika.elimika.course.repository.TrainingApplicationVenueReposito
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.internal.training.TrainingSubmitters;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRateUpdateRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
@@ -56,7 +60,9 @@ import org.springframework.security.access.AccessDeniedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.junit.jupiter.api.DisplayName;
@@ -157,7 +163,8 @@ class CourseTrainingApplicationServiceImplTest {
                 rateUpdateService,
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 history,
-                offers
+                offers,
+                new TrainingSubmitters(userLookupService)
         );
     }
 
@@ -691,6 +698,46 @@ class CourseTrainingApplicationServiceImplTest {
         ArgumentCaptor<TrainingApplicationEvent> events = ArgumentCaptor.forClass(TrainingApplicationEvent.class);
         verify(eventRepository, org.mockito.Mockito.atLeastOnce()).save(events.capture());
         return events.getAllValues();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = CourseTrainingApplicationStatus.class, names = {"APPROVED", "REJECTED", "REVOKED"})
+    @DisplayName("an organisation's decision reaches the manager who applied, found by their Keycloak id")
+    void organisationDecisionReachesTheSubmitter(CourseTrainingApplicationStatus decision) {
+        CourseTrainingApplication application = legacyApplication();
+        application.setApplicantType(CourseTrainingApplicantType.ORGANISATION);
+        application.setCreatedBy("keycloak-manager");
+        application.setStatus(decision == CourseTrainingApplicationStatus.REVOKED
+                ? CourseTrainingApplicationStatus.APPROVED
+                : CourseTrainingApplicationStatus.PENDING);
+        UUID managerUserUuid = UUID.randomUUID();
+        when(userLookupService.findUserUuidByKeycloakId("keycloak-manager")).thenReturn(Optional.of(managerUserUuid));
+        when(applicationRepository.save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest notes =
+                new apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest("Reviewed");
+
+        switch (decision) {
+            case APPROVED -> service.approveApplication(application.getCourseUuid(), application.getUuid(), notes);
+            case REJECTED -> service.rejectApplication(application.getCourseUuid(), application.getUuid(), notes);
+            default -> service.revokeApplication(application.getCourseUuid(), application.getUuid(), notes);
+        }
+
+        NotificationRequestedEvent inApp = decisionNotification("COURSE_TRAINING_APPLICATION_" + decision.name());
+        assertThat(inApp.recipientId()).isEqualTo(managerUserUuid);
+        assertThat(inApp.recipientDomain()).isEqualTo("organisation_user");
+        verify(userLookupService, never()).findUserUuidByEmail(org.mockito.ArgumentMatchers.any());
+    }
+
+    private NotificationRequestedEvent decisionNotification(String type) {
+        ArgumentCaptor<Object> events = ArgumentCaptor.forClass(Object.class);
+        verify(applicationEventPublisher, atLeastOnce()).publishEvent(events.capture());
+        return events.getAllValues().stream()
+                .filter(NotificationRequestedEvent.class::isInstance)
+                .map(NotificationRequestedEvent.class::cast)
+                .filter(event -> type.equals(event.notificationType()) && event.deliveryChannels().contains("in_app"))
+                .findFirst()
+                .orElseThrow();
     }
 
     private CourseTrainingApplication legacyApplication() {

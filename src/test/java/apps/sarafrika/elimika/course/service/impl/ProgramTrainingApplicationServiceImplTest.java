@@ -12,6 +12,9 @@ import apps.sarafrika.elimika.course.repository.TrainingApplicationVenueReposito
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.internal.training.TrainingSubmitters;
+import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDecisionRequest;
+import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
@@ -42,6 +45,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -55,7 +61,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -104,7 +114,8 @@ class ProgramTrainingApplicationServiceImplTest {
                 history,
                 offers,
                 new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers),
-                rateUpdateService);
+                rateUpdateService,
+                new TrainingSubmitters(userLookupService));
 
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
@@ -154,6 +165,43 @@ class ProgramTrainingApplicationServiceImplTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> service.getApplicationHistory(programUuid, application.getUuid()))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = CourseTrainingApplicationStatus.class, names = {"APPROVED", "REJECTED", "REVOKED"})
+    @DisplayName("an organisation's decision reaches the manager who applied, found by their Keycloak id")
+    void organisationDecisionReachesTheSubmitter(CourseTrainingApplicationStatus decision) {
+        application.setApplicantType(CourseTrainingApplicantType.ORGANISATION);
+        application.setCreatedBy("keycloak-manager");
+        application.setStatus(decision == CourseTrainingApplicationStatus.REVOKED
+                ? CourseTrainingApplicationStatus.APPROVED
+                : CourseTrainingApplicationStatus.PENDING);
+        UUID managerUserUuid = UUID.randomUUID();
+        when(userLookupService.findUserUuidByKeycloakId("keycloak-manager")).thenReturn(Optional.of(managerUserUuid));
+        when(courseApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                any(), any(), any(), any())).thenReturn(true);
+        when(applicationRepository.save(any(ProgramTrainingApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ProgramTrainingApplicationDecisionRequest notes = new ProgramTrainingApplicationDecisionRequest("Reviewed");
+
+        switch (decision) {
+            case APPROVED -> service.approveApplication(programUuid, application.getUuid(), notes);
+            case REJECTED -> service.rejectApplication(programUuid, application.getUuid(), notes);
+            default -> service.revokeApplication(programUuid, application.getUuid(), notes);
+        }
+
+        ArgumentCaptor<Object> events = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(events.capture());
+        NotificationRequestedEvent inApp = events.getAllValues().stream()
+                .filter(NotificationRequestedEvent.class::isInstance)
+                .map(NotificationRequestedEvent.class::cast)
+                .filter(event -> ("PROGRAM_TRAINING_APPLICATION_" + decision.name()).equals(event.notificationType())
+                        && event.deliveryChannels().contains("in_app"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(inApp.recipientId()).isEqualTo(managerUserUuid);
+        assertThat(inApp.recipientDomain()).isEqualTo("organisation_user");
+        verify(userLookupService, never()).findUserUuidByEmail(any());
     }
 
     private static ProgramCourse programCourse(UUID courseUuid) {
