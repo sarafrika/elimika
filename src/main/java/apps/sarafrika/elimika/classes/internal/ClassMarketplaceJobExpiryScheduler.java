@@ -19,7 +19,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -27,9 +26,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Expires open marketplace jobs whose recruitment window has passed and releases the holds
- * they were keeping, so venues, equipment and applicants' diaries become bookable again
- * without manual intervention. A hire the job already made is left standing.
+ * Expires marketplace jobs whose recruitment window passed, or open jobs whose first session started,
+ * and releases their holds so venues, equipment and diaries are bookable again. Hires are left standing.
  */
 @Component
 @RequiredArgsConstructor
@@ -44,19 +42,20 @@ class ClassMarketplaceJobExpiryScheduler {
     private final InstructorLookupService instructorLookupService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Scheduled(cron = "0 30 0 * * *")
+    static final String STARTED_REASON = "Job expired when its first session started";
+
+    // Hourly, because an open job now also lapses the moment its first session starts.
+    @Scheduled(cron = "0 5 * * * *")
     @Transactional
     void expireLapsedJobs() {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        List<ClassMarketplaceJob> lapsedJobs = jobRepository.findExpiredOpenJobs(today);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        List<ClassMarketplaceJob> lapsedJobs = jobRepository.findExpiredOpenJobs(now.toLocalDate(), now);
         if (lapsedJobs.isEmpty()) {
             return;
         }
 
         for (ClassMarketplaceJob job : lapsedJobs) {
-            String reason = job.getStatus() == ClassMarketplaceJobStatus.AWAITING_CLASS
-                    ? "Job expired before its class was created"
-                    : "Job expired";
+            String reason = expiryReason(job, now);
             boolean holdsHire = closeOutstandingApplications(job);
             if (holdsHire) {
                 // The window closing ends recruitment, and recruitment is over: somebody was hired.
@@ -72,6 +71,14 @@ class ClassMarketplaceJobExpiryScheduler {
         jobRepository.saveAll(lapsedJobs);
         log.info("Expired {} lapsed marketplace class jobs and released their resource and instructor holds",
                 lapsedJobs.size());
+    }
+
+    private String expiryReason(ClassMarketplaceJob job, LocalDateTime now) {
+        if (job.getStatus() == ClassMarketplaceJobStatus.AWAITING_CLASS) {
+            return "Job expired before its class was created";
+        }
+        boolean started = job.getDefaultStartTime() != null && !job.getDefaultStartTime().isAfter(now);
+        return started ? STARTED_REASON : "Job expired";
     }
 
     /**

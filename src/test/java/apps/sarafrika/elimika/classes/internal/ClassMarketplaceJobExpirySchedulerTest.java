@@ -14,12 +14,15 @@ import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.lang.reflect.Method;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -71,7 +74,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
         job.setCreatedBy("manager@org.test");
         UUID creatorUuid = UUID.randomUUID();
 
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
         when(userLookupService.findUserUuidByEmail("manager@org.test")).thenReturn(Optional.of(creatorUuid));
 
         invokeExpire();
@@ -89,7 +92,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
         job.setStatus(ClassMarketplaceJobStatus.OPEN);
         job.setCreatedBy("unknown@org.test");
 
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
         when(userLookupService.findUserUuidByEmail("unknown@org.test")).thenReturn(Optional.empty());
 
         invokeExpire();
@@ -101,7 +104,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
 
     @Test
     void noLapsedJobsIsNoOp() throws Exception {
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of());
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of());
 
         invokeExpire();
 
@@ -117,7 +120,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
         ClassMarketplaceJobApplication pending =
                 application(job.getUuid(), instructorUuid, ClassMarketplaceJobApplicationStatus.SHORTLISTED);
 
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
         when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), anyList()))
                 .thenReturn(new ArrayList<>(List.of(pending)));
         when(instructorLookupService.getInstructorUserUuid(instructorUuid))
@@ -150,7 +153,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
                 application(job.getUuid(), instructorUuid, ClassMarketplaceJobApplicationStatus.ASSIGNED);
         assigned.setUuid(applicationUuid);
 
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
         when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), anyList()))
                 .thenReturn(new ArrayList<>(List.of(assigned)));
 
@@ -180,7 +183,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
         ClassMarketplaceJobApplication shortlisted =
                 application(job.getUuid(), passedOverInstructorUuid, ClassMarketplaceJobApplicationStatus.SHORTLISTED);
 
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(job));
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
         when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), anyList()))
                 .thenReturn(new ArrayList<>(List.of(hired, shortlisted)));
         when(instructorLookupService.getInstructorUserUuid(passedOverInstructorUuid)).thenReturn(Optional.empty());
@@ -203,7 +206,7 @@ class ClassMarketplaceJobExpirySchedulerTest {
         ClassMarketplaceJob awaitingClass = openJob("Contracted Bootcamp");
         awaitingClass.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
 
-        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class))).thenReturn(List.of(open, awaitingClass));
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(open, awaitingClass));
         when(userLookupService.findUserUuidByEmail("manager@org.test")).thenReturn(Optional.empty());
 
         invokeExpire();
@@ -212,6 +215,64 @@ class ClassMarketplaceJobExpirySchedulerTest {
         verify(instructorTimeHoldService).releaseHoldsForJob(open.getUuid(), "Job expired");
         verify(instructorTimeHoldService)
                 .releaseHoldsForJob(awaitingClass.getUuid(), "Job expired before its class was created");
+    }
+
+    @Test
+    void openJobWhoseFirstSessionStartedIsExpiredAndItsHoldsReleased() throws Exception {
+        ClassMarketplaceJob job = openJob("Evening Python");
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        job.setDefaultStartTime(now.minusHours(2));
+        job.setRegistrationPeriodEndDate(now.toLocalDate().plusDays(10));
+        UUID creatorUuid = UUID.randomUUID();
+
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
+        when(userLookupService.findUserUuidByEmail("manager@org.test")).thenReturn(Optional.of(creatorUuid));
+
+        invokeExpire();
+
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.EXPIRED);
+        verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job expired when its first session started");
+        verify(instructorTimeHoldService).releaseHoldsForJob(job.getUuid(), "Job expired when its first session started");
+        verify(eventPublisher).publishEvent(any(NotificationRequestedEvent.class));
+    }
+
+    @Test
+    void awaitingClassJobPastItsStartWithAHireKeepsItsHolds() throws Exception {
+        ClassMarketplaceJob job = openJob("Hired Bootcamp");
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setDefaultStartTime(LocalDateTime.now(ZoneOffset.UTC).minusDays(1));
+        UUID instructorUuid = UUID.randomUUID();
+        job.setAssignedInstructorUuid(instructorUuid);
+        ClassMarketplaceJobApplication hired =
+                application(job.getUuid(), instructorUuid, ClassMarketplaceJobApplicationStatus.HIRED);
+
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of(job));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), anyList()))
+                .thenReturn(new ArrayList<>(List.of(hired)));
+
+        invokeExpire();
+
+        // The hired instructor accepted this time, so their firm hold must keep blocking it.
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        assertThat(hired.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
+        verify(resourceBookingService, never()).releaseHoldsForJob(any(), anyString());
+        verify(instructorTimeHoldService, never()).releaseHoldsForJob(any(), anyString());
+        verify(eventPublisher, never()).publishEvent(any(NotificationRequestedEvent.class));
+    }
+
+    @Test
+    void sweepAsksForJobsLapsedAsOfTheCurrentUtcInstant() throws Exception {
+        LocalDateTime before = LocalDateTime.now(ZoneOffset.UTC);
+        when(jobRepository.findExpiredOpenJobs(any(LocalDate.class), any(LocalDateTime.class))).thenReturn(List.of());
+
+        invokeExpire();
+
+        LocalDateTime after = LocalDateTime.now(ZoneOffset.UTC);
+        ArgumentCaptor<LocalDate> date = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<LocalDateTime> now = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(jobRepository).findExpiredOpenJobs(date.capture(), now.capture());
+        assertThat(now.getValue()).isBetween(before, after);
+        assertThat(date.getValue()).isEqualTo(now.getValue().toLocalDate());
     }
 
     private ClassMarketplaceJob openJob(String title) {
