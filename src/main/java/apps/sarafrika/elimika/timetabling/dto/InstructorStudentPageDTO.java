@@ -22,13 +22,19 @@ public record InstructorStudentPageDTO(
 
         @Schema(description = "Every class of the organisation's the instructor has students in, whatever the filters")
         @JsonProperty(value = "class_options", access = JsonProperty.Access.READ_ONLY)
-        List<InstructorClassOptionDTO> classOptions
+        List<InstructorClassOptionDTO> classOptions,
+
+        @Schema(description = "Distinct students across every class in class_options, whatever the filters; "
+                + "metadata.totalElements counts student-per-class rows instead")
+        @JsonProperty(value = "student_count", access = JsonProperty.Access.READ_ONLY)
+        long studentCount
 ) {
 
     public static InstructorStudentPageDTO from(Page<InstructorStudentDTO> page,
                                                 List<InstructorClassOptionDTO> classOptions,
+                                                long studentCount,
                                                 String baseUrl) {
         return new InstructorStudentPageDTO(page.getContent(), PageMetadata.from(page),
-                PageLinks.from(page, baseUrl), classOptions);
+                PageLinks.from(page, baseUrl), classOptions, studentCount);
     }
 }

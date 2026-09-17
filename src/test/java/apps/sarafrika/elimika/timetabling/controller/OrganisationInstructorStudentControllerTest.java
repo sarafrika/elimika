@@ -88,7 +88,7 @@ class OrganisationInstructorStudentControllerTest {
                                 "Grade 5 Piano", "Beginner Piano", SessionFormat.GROUP, LocationType.IN_PERSON,
                                 "Mon & Wed · 9:00–11:00", null, null, LocalDateTime.of(2031, 4, 1, 8, 0), 83.3,
                                 EnrollmentStatus.ENROLLED)), PageRequest.of(1, 5), 6),
-                        List.of(new InstructorClassOptionDTO(classUuid, "Grade 5 Piano"))));
+                        List.of(new InstructorClassOptionDTO(classUuid, "Grade 5 Piano")), 4));
 
         mockMvc.perform(get(PATH, ORGANISATION, INSTRUCTOR).with(jwt())
                         .param("search", "ami")
@@ -108,6 +108,7 @@ class OrganisationInstructorStudentControllerTest {
                 .andExpect(jsonPath("$.data.content[0].attendance_rate").value(83.3))
                 .andExpect(jsonPath("$.data.content[0].enrollment_status").value("ENROLLED"))
                 .andExpect(jsonPath("$.data.metadata.totalElements").value(6))
+                .andExpect(jsonPath("$.data.student_count").value(4))
                 .andExpect(jsonPath("$.data.class_options[0].class_definition_uuid").value(classUuid.toString()))
                 .andExpect(jsonPath("$.data.class_options[0].class_title").value("Grade 5 Piano"));
     }

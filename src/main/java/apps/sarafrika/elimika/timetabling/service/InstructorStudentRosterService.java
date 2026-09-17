@@ -17,6 +17,8 @@ public interface InstructorStudentRosterService {
                                                    int page,
                                                    int size);
 
-    record InstructorStudentRoster(Page<InstructorStudentDTO> students, List<InstructorClassOptionDTO> classOptions) {
+    record InstructorStudentRoster(Page<InstructorStudentDTO> students,
+                                   List<InstructorClassOptionDTO> classOptions,
+                                   long studentCount) {
     }
 }

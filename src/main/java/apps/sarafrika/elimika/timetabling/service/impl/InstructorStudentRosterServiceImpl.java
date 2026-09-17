@@ -57,7 +57,8 @@ public class InstructorStudentRosterServiceImpl implements InstructorStudentRost
                 .findInstructorClassOptionsForOrganisation(organisationUuid, instructorUuid).stream()
                 .map(row -> new InstructorClassOptionDTO(toUuid(row[0]), (String) row[1]))
                 .toList();
-        return new InstructorStudentRoster(students, classOptions);
+        long studentCount = enrollmentRepository.countInstructorStudentsForOrganisation(organisationUuid, instructorUuid);
+        return new InstructorStudentRoster(students, classOptions, studentCount);
     }
 
     private void requireOrganisationManager(UUID organisationUuid) {

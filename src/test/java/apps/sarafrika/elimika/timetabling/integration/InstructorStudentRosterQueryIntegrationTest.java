@@ -162,6 +162,7 @@ class InstructorStudentRosterQueryIntegrationTest {
         InstructorStudentRoster roster = service.listInstructorStudents(ORGANISATION, INSTRUCTOR, null, null, 0, 20);
 
         assertThat(roster.students().getTotalElements()).isEqualTo(4);
+        assertThat(roster.studentCount()).as("Brian is in two classes but counts once").isEqualTo(3);
         assertThat(roster.students().getContent())
                 .extracting(InstructorStudentDTO::studentName, InstructorStudentDTO::classTitle)
                 .containsExactly(
@@ -225,6 +226,7 @@ class InstructorStudentRosterQueryIntegrationTest {
                 .extracting(InstructorStudentDTO::studentUuid, InstructorStudentDTO::classDefinitionUuid)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(brian, theoryClass));
         assertThat(roster.classOptions()).hasSize(2);
+        assertThat(roster.studentCount()).as("filters narrow the rows, not the student count").isEqualTo(3);
     }
 
     @Test
@@ -250,8 +252,8 @@ class InstructorStudentRosterQueryIntegrationTest {
         service.listInstructorStudents(ORGANISATION, INSTRUCTOR, null, null, 0, 2);
 
         assertThat(statistics.getPrepareStatementCount())
-                .as("the page, its count and the class options")
-                .isEqualTo(3);
+                .as("the page, its count, the class options and the distinct student count")
+                .isEqualTo(4);
     }
 
     private UUID course(String name) {

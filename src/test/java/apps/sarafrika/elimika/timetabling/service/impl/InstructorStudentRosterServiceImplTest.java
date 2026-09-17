@@ -116,8 +116,11 @@ class InstructorStudentRosterServiceImplTest {
         when(enrollmentRepository.findInstructorClassOptionsForOrganisation(ORGANISATION, INSTRUCTOR))
                 .thenReturn(List.<Object[]>of(new Object[]{classUuid, "Grade 5 Piano", "grade 5 piano"}));
         when(trainingBranchLookupService.findBranchNames(List.of(branch))).thenReturn(Map.of(branch, "Main Campus"));
+        when(enrollmentRepository.countInstructorStudentsForOrganisation(ORGANISATION, INSTRUCTOR)).thenReturn(2L);
 
         var roster = service.listInstructorStudents(ORGANISATION, INSTRUCTOR, null, null, 0, 20);
+
+        assertThat(roster.studentCount()).isEqualTo(2);
 
         InstructorStudentDTO first = roster.students().getContent().getFirst();
         assertThat(first.studentUuid()).isEqualTo(amina);

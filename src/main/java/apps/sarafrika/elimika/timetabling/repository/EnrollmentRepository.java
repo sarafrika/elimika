@@ -449,4 +449,18 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
             nativeQuery = true)
     List<Object[]> findInstructorClassOptionsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                              @Param("instructorUuid") UUID instructorUuid);
+
+    /** Distinct students across the organisation's classes the instructor is instructor of record for. */
+    @Query(value = """
+            SELECT COUNT(DISTINCT ce.student_uuid)
+            FROM class_enrollments ce
+            JOIN scheduled_instances si ON si.uuid = ce.scheduled_instance_uuid
+            JOIN class_definitions cd ON cd.uuid = si.class_definition_uuid
+            JOIN students s ON s.uuid = ce.student_uuid
+            WHERE cd.organisation_uuid = :organisationUuid
+              AND cd.default_instructor_uuid = :instructorUuid
+            """,
+            nativeQuery = true)
+    long countInstructorStudentsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                @Param("instructorUuid") UUID instructorUuid);
 }

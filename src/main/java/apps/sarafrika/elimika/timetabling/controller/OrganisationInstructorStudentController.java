@@ -33,7 +33,8 @@ public class OrganisationInstructorStudentController {
             summary = "List the students an instructor teaches in the organisation's classes",
             description = "One row per student per class, for classes the organisation owns and the instructor is "
                     + "instructor of record for. Only managers of the organisation (and platform admins) may ask; "
-                    + "class_options lists every such class with students, whatever the filters.")
+                    + "class_options lists every such class with students and student_count the distinct students across them, "
+                    + "whatever the filters.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Students retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
     @GetMapping
@@ -53,7 +54,7 @@ public class OrganisationInstructorStudentController {
                 organisationUuid, instructorUuid, search, classDefinitionUuid, page, size);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(
-                InstructorStudentPageDTO.from(roster.students(), roster.classOptions(), baseUrl),
+                InstructorStudentPageDTO.from(roster.students(), roster.classOptions(), roster.studentCount(), baseUrl),
                 "Instructor students retrieved successfully"));
     }
 }
