@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.classes.controller;
 
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationEventDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
@@ -8,6 +10,8 @@ import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationEventType;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
@@ -211,6 +215,44 @@ class ClassMarketplaceJobControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"application_uuid\":\"" + applicationUuid + "\"}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void applicationActivityIsListedNewestFirstWithItsInterviewTime() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        LocalDateTime interviewAt = LocalDateTime.of(2026, 10, 1, 7, 0);
+        when(classMarketplaceJobService.listApplicationEvents(jobUuid, applicationUuid)).thenReturn(List.of(
+                new ClassMarketplaceJobApplicationEventDTO(UUID.randomUUID(), applicationUuid, jobUuid,
+                        ClassMarketplaceJobApplicationEventType.INTERVIEWING, UUID.randomUUID(), "Grace Manager",
+                        "A 30-minute video call", interviewAt, LocalDateTime.of(2026, 9, 18, 8, 0)),
+                new ClassMarketplaceJobApplicationEventDTO(UUID.randomUUID(), applicationUuid, jobUuid,
+                        ClassMarketplaceJobApplicationEventType.APPLIED, UUID.randomUUID(), "Amina Otieno",
+                        "I can cover all six sessions", null, LocalDateTime.of(2026, 9, 15, 8, 0))));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/applications/{applicationUuid}/events", jobUuid, applicationUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].event_type").value("interviewing"))
+                .andExpect(jsonPath("$.data[0].interview_at").value("2026-10-01T07:00:00"))
+                .andExpect(jsonPath("$.data[0].actor_name").value("Grace Manager"))
+                .andExpect(jsonPath("$.data[1].event_type").value("applied"))
+                .andExpect(jsonPath("$.data[1].note").value("I can cover all six sessions"));
+    }
+
+    @Test
+    void oneApplicationIsReadByItsJobAndUuid() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        UUID applicationUuid = UUID.randomUUID();
+        when(classMarketplaceJobService.getJobApplication(jobUuid, applicationUuid)).thenReturn(
+                new ClassMarketplaceJobApplicationDTO(applicationUuid, jobUuid, UUID.randomUUID(),
+                        ClassMarketplaceJobApplicationStatus.SHORTLISTED, "Keen", null, null, null, null, null, null,
+                        null, null, null, null, null, null));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/applications/{applicationUuid}", jobUuid, applicationUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(applicationUuid.toString()))
+                .andExpect(jsonPath("$.data.status").value("shortlisted"));
     }
 
     @Test

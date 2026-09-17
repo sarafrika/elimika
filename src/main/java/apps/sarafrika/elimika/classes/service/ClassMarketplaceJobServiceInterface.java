@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.service;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationEventDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
@@ -49,6 +50,12 @@ public interface ClassMarketplaceJobServiceInterface {
 
     Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
                                                                Pageable pageable);
+
+    /** One application, readable by its applicant, the posting organisation's managers and platform admins. */
+    ClassMarketplaceJobApplicationDTO getJobApplication(UUID jobUuid, UUID applicationUuid);
+
+    /** The application's history, newest first, under the same access as reading the application. */
+    List<ClassMarketplaceJobApplicationEventDTO> listApplicationEvents(UUID jobUuid, UUID applicationUuid);
 
     Page<ClassMarketplaceJobApplicationDTO> listInstructorApplications(UUID instructorUuid,
                                                                        ClassMarketplaceJobApplicationStatus status,

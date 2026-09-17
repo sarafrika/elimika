@@ -10,16 +10,20 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.internal.AuditUserResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
+import apps.sarafrika.elimika.classes.internal.MarketplaceApplicationHistory;
 import apps.sarafrika.elimika.classes.internal.MarketplaceHireClashNotifier;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
+import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplicationEvent;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobSessionTemplate;
+import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobApplicationEventRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobApplicationRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobSessionTemplateRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationEventType;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
@@ -163,6 +167,9 @@ class ClassMarketplaceJobServiceImplTest {
     @Mock
     private OrganisationLookupService organisationLookupService;
 
+    @Mock
+    private ClassMarketplaceJobApplicationEventRepository eventRepository;
+
     private static final UUID BRANCH_UUID = UUID.fromString("b0000000-0000-0000-0000-000000000001");
     private static final BigDecimal BRANCH_LATITUDE = new BigDecimal("-1.221800");
     private static final BigDecimal BRANCH_LONGITUDE = new BigDecimal("36.897000");
@@ -202,7 +209,8 @@ class ClassMarketplaceJobServiceImplTest {
                 new MarketplaceHireClashNotifier(
                         userLookupService, instructorLookupService, organisationLookupService, eventPublisher,
                         new AuditUserResolver(userLookupService)),
-                new AuditUserResolver(userLookupService)
+                new AuditUserResolver(userLookupService),
+                new MarketplaceApplicationHistory(eventRepository, domainSecurityService, userLookupService)
         );
         org.mockito.Mockito.lenient()
                 .when(trainingBranchLookupService.findBranch(any(), any()))
@@ -965,6 +973,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
                 .thenReturn(Optional.of(application));
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
@@ -982,6 +991,12 @@ class ClassMarketplaceJobServiceImplTest {
                 new ClassMarketplaceJobDecisionRequestDTO("Not a fit this time", null));
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.REJECTED);
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.REJECTED);
+            assertThat(event.getNote()).isEqualTo("Not a fit this time");
+            assertThat(event.getActorUuid()).isEqualTo(currentUserUuid);
+            assertThat(event.getActorName()).isEqualTo("Acting User");
+        });
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
@@ -1006,6 +1021,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
                 .thenReturn(Optional.of(application));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
@@ -1021,6 +1037,12 @@ class ClassMarketplaceJobServiceImplTest {
         service.hireApplication(job.getUuid(), application.getUuid(),
                 new ClassMarketplaceJobDecisionRequestDTO("Looks great", null));
 
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.HIRED);
+            assertThat(event.getApplicationUuid()).isEqualTo(application.getUuid());
+            assertThat(event.getJobUuid()).isEqualTo(job.getUuid());
+            assertThat(event.getNote()).isEqualTo("Looks great");
+        });
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
         verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
@@ -1039,6 +1061,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
                 .thenReturn(Optional.of(application));
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
@@ -1052,6 +1075,11 @@ class ClassMarketplaceJobServiceImplTest {
                 ClassMarketplaceJobApplicationStatus.SHORTLISTED, null);
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.SHORTLISTED);
+            assertThat(event.getNote()).isNull();
+            assertThat(event.getInterviewAt()).isNull();
+        });
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
@@ -1073,6 +1101,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
                 .thenReturn(Optional.of(application));
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
@@ -1093,6 +1122,12 @@ class ClassMarketplaceJobServiceImplTest {
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.INTERVIEWING);
         assertThat(application.getInterviewAt()).isEqualTo(interviewAt);
+        assertThat(recordedEvents()).as("the refused first attempt records nothing").singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.INTERVIEWING);
+            assertThat(event.getInterviewAt()).isEqualTo(interviewAt);
+            assertThat(event.getNote()).isEqualTo("Please prepare a demo lesson.");
+            assertThat(event.getActorUuid()).isEqualTo(currentUserUuid);
+        });
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
@@ -1118,6 +1153,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), hiredApplication.getUuid()))
                 .thenReturn(Optional.of(hiredApplication));
         when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
@@ -1140,6 +1176,10 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(hiredApplication.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         assertThat(job.getAssignedInstructorUuid()).isEqualTo(instructorUuid);
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.ASSIGNED);
+            assertThat(event.getApplicationUuid()).isEqualTo(hiredApplication.getUuid());
+        });
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
@@ -1163,6 +1203,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
                 .thenReturn(Optional.of(application));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
@@ -1177,6 +1218,11 @@ class ClassMarketplaceJobServiceImplTest {
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.WITHDRAWN);
         assertThat(application.getReviewNotes()).isEqualTo("Schedule no longer works");
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.WITHDRAWN);
+            assertThat(event.getNote()).isEqualTo("Schedule no longer works");
+            assertThat(event.getActorUuid()).isEqualTo(currentUserUuid);
+        });
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
@@ -1200,6 +1246,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
                 .thenReturn(Optional.of(application));
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(currentUserUuid);
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Acting User"));
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(applicationRepository.save(any(ClassMarketplaceJobApplication.class)))
@@ -1285,6 +1332,7 @@ class ClassMarketplaceJobServiceImplTest {
                 new ClassMarketplaceJobApplicationRequestDTO("Let me in")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("active application");
+        verifyNoInteractions(eventRepository);
     }
 
     @Test
@@ -1311,6 +1359,10 @@ class ClassMarketplaceJobServiceImplTest {
 
         assertThat(existing.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.PENDING);
         assertThat(existing.getReviewNotes()).isNull();
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.REAPPLIED);
+            assertThat(event.getNote()).isEqualTo("Back again");
+        });
     }
 
     @Test
@@ -2159,6 +2211,10 @@ class ClassMarketplaceJobServiceImplTest {
 
         assertThat(result.status()).isEqualTo(ClassMarketplaceJobStatus.CANCELLED);
         assertThat(assigned.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.NOT_SELECTED);
+            assertThat(event.getNote()).isEqualTo("This class job was cancelled before its class was created.");
+        });
         assertThat(job.getAssignedInstructorUuid()).isNull();
         assertThat(job.getAssignedApplicationUuid()).isNull();
         verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job cancelled");
@@ -2722,6 +2778,113 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(eligibility.rateOk()).isTrue();
         assertThat(eligibility.approvedRate()).isEqualByComparingTo("240.00");
         assertThat(eligibility.reason()).isNull();
+    }
+
+    // ===== application history =====
+
+    @Test
+    void cancellingAJobRecordsEveryApplicantStillInTheFunnelAsNotSelectedInOneBatch() {
+        UUID currentUserUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication pending = sampleApplication(job.getUuid(), UUID.randomUUID());
+        ClassMarketplaceJobApplication interviewing = sampleApplication(job.getUuid(), UUID.randomUUID());
+        interviewing.setStatus(ClassMarketplaceJobApplicationStatus.INTERVIEWING);
+        interviewing.setReviewNotes("Bring a demo");
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.findByJobUuidAndStatusIn(eq(job.getUuid()), any()))
+                .thenReturn(List.of(pending, interviewing));
+        when(userLookupService.getUserEmail(currentUserUuid)).thenReturn(Optional.of("org-user@example.com"));
+        when(userLookupService.getUserFullName(currentUserUuid)).thenReturn(Optional.of("Grace Manager"));
+
+        service.cancelJob(job.getUuid());
+
+        verify(eventRepository, never()).save(any(ClassMarketplaceJobApplicationEvent.class));
+        assertThat(recordedEvents())
+                .extracting(ClassMarketplaceJobApplicationEvent::getApplicationUuid)
+                .containsExactly(pending.getUuid(), interviewing.getUuid());
+        assertThat(recordedEvents()).allSatisfy(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.NOT_SELECTED);
+            assertThat(event.getNote()).as("what closed it, not the note it carried")
+                    .isEqualTo("This class job was cancelled by the organisation.");
+            assertThat(event.getActorUuid()).isEqualTo(currentUserUuid);
+            assertThat(event.getActorName()).isEqualTo("Grace Manager");
+        });
+    }
+
+    @Test
+    void theApplicantReadsTheirOwnApplicationAndItsHistory() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+        ClassMarketplaceJobApplicationEvent applied = new ClassMarketplaceJobApplicationEvent();
+        applied.setApplicationUuid(application.getUuid());
+        applied.setJobUuid(job.getUuid());
+        applied.setEventType(ClassMarketplaceJobApplicationEventType.APPLIED);
+        applied.setNote("Ready to deliver");
+
+        stubApplicationRead(job, application);
+        when(domainSecurityService.isInstructorWithUuid(instructorUuid)).thenReturn(true);
+        when(eventRepository.findByApplicationUuidOrderByCreatedDateDescIdDesc(application.getUuid()))
+                .thenReturn(List.of(applied));
+
+        assertThat(service.getJobApplication(job.getUuid(), application.getUuid()).uuid()).isEqualTo(application.getUuid());
+        assertThat(service.listApplicationEvents(job.getUuid(), application.getUuid()))
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.eventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.APPLIED);
+                    assertThat(event.note()).isEqualTo("Ready to deliver");
+                    assertThat(event.jobUuid()).isEqualTo(job.getUuid());
+                });
+    }
+
+    @Test
+    void anotherInstructorCannotReadSomeoneElsesApplicationOrHistory() {
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), UUID.randomUUID());
+        stubApplicationRead(job, application);
+
+        assertThatThrownBy(() -> service.getJobApplication(job.getUuid(), application.getUuid()))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        assertThatThrownBy(() -> service.listApplicationEvents(job.getUuid(), application.getUuid()))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    void theOrganisationsManagersAndPlatformAdminsReadTheHistory() {
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), UUID.randomUUID());
+        stubApplicationRead(job, application);
+        when(eventRepository.findByApplicationUuidOrderByCreatedDateDescIdDesc(application.getUuid())).thenReturn(List.of());
+
+        when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
+        assertThat(service.listApplicationEvents(job.getUuid(), application.getUuid())).isEmpty();
+
+        org.mockito.Mockito.reset(domainSecurityService);
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        assertThat(service.listApplicationEvents(job.getUuid(), application.getUuid())).isEmpty();
+    }
+
+    @Test
+    void anApplicationIsOnlyReadThroughItsOwnJob() {
+        ClassMarketplaceJob job = sampleJob();
+        UUID applicationUuid = UUID.randomUUID();
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), applicationUuid)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.listApplicationEvents(job.getUuid(), applicationUuid))
+                .isInstanceOf(apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException.class);
+    }
+
+    private void stubApplicationRead(ClassMarketplaceJob job, ClassMarketplaceJobApplication application) {
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(applicationRepository.findByJobUuidAndUuid(job.getUuid(), application.getUuid()))
+                .thenReturn(Optional.of(application));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
     }
 
     // ===== eligibility for many jobs in one call =====
@@ -3295,6 +3458,12 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(held.organisationUuid()).isEqualTo(job.getOrganisationUuid());
         assertThat(held.title()).isEqualTo(job.getTitle());
         assertThat(held.timezone()).isEqualTo("Africa/Nairobi");
+        assertThat(recordedEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.APPLIED);
+            assertThat(event.getApplicationUuid()).isEqualTo(applicationUuid);
+            assertThat(event.getNote()).isEqualTo("Keen");
+            assertThat(event.getActorUuid()).isEqualTo(currentUserUuid);
+        });
     }
 
     @Test
@@ -3896,6 +4065,19 @@ class ClassMarketplaceJobServiceImplTest {
                 null,
                 null
         );
+    }
+
+    /** Every history event the service wrote, single saves and batches alike. */
+    private List<ClassMarketplaceJobApplicationEvent> recordedEvents() {
+        ArgumentCaptor<ClassMarketplaceJobApplicationEvent> singles =
+                ArgumentCaptor.forClass(ClassMarketplaceJobApplicationEvent.class);
+        verify(eventRepository, org.mockito.Mockito.atLeast(0)).save(singles.capture());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ClassMarketplaceJobApplicationEvent>> batches = ArgumentCaptor.forClass(List.class);
+        verify(eventRepository, org.mockito.Mockito.atLeast(0)).saveAll(batches.capture());
+        List<ClassMarketplaceJobApplicationEvent> events = new java.util.ArrayList<>(singles.getAllValues());
+        batches.getAllValues().forEach(events::addAll);
+        return events;
     }
 
     private void allowOrganisationAccess(UUID currentUserUuid, UUID organisationUuid) {

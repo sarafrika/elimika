@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.service.impl;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationEventDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
@@ -16,6 +17,7 @@ import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.internal.AuditUserResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
+import apps.sarafrika.elimika.classes.internal.MarketplaceApplicationHistory;
 import apps.sarafrika.elimika.classes.internal.MarketplaceHireClashNotifier;
 import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
@@ -31,6 +33,7 @@ import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
 import apps.sarafrika.elimika.classes.util.RateWording;
 import apps.sarafrika.elimika.classes.util.RecurrencePatterns;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationEventType;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
@@ -152,6 +155,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final BranchLocationResolver branchLocationResolver;
     private final MarketplaceHireClashNotifier hireClashNotifier;
     private final AuditUserResolver auditUserResolver;
+    private final MarketplaceApplicationHistory applicationHistory;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
@@ -265,11 +269,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         UUID instructorUuid = resolveCurrentInstructorUuid();
         ensureInstructorEligibleToApply(job, instructorUuid);
 
-        ClassMarketplaceJobApplication application = applicationRepository.findByJobUuidAndInstructorUuid(jobUuid, instructorUuid)
-                .map(existing -> reopenApplication(existing, request))
+        Optional<ClassMarketplaceJobApplication> existing =
+                applicationRepository.findByJobUuidAndInstructorUuid(jobUuid, instructorUuid);
+        ClassMarketplaceJobApplication application = existing
+                .map(closed -> reopenApplication(closed, request))
                 .orElseGet(() -> createApplication(jobUuid, instructorUuid, request));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        applicationHistory.record(saved, existing.isPresent()
+                        ? ClassMarketplaceJobApplicationEventType.REAPPLIED
+                        : ClassMarketplaceJobApplicationEventType.APPLIED,
+                saved.getApplicationNote(), null);
         // Applying pencils the job's sessions into the instructor's diary. A reopened
         // application replaces its old holds, so re-applying never doubles them up.
         holdInstructorTimeForApplication(job, saved);
@@ -425,6 +435,36 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .map(this::toApplicationDTO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ClassMarketplaceJobApplicationDTO getJobApplication(UUID jobUuid, UUID applicationUuid) {
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
+        requireApplicationReadAccess(job, application);
+        return toApplicationDTO(application, job);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassMarketplaceJobApplicationEventDTO> listApplicationEvents(UUID jobUuid, UUID applicationUuid) {
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
+        requireApplicationReadAccess(job, application);
+        return applicationHistory.history(application.getUuid());
+    }
+
+    /** One application is the business of its applicant, the posting organisation's managers and platform admins. */
+    private void requireApplicationReadAccess(ClassMarketplaceJob job, ClassMarketplaceJobApplication application) {
+        requireCurrentUserUuid();
+        if (domainSecurityService.isInstructorWithUuid(application.getInstructorUuid())
+                || domainSecurityService.isPlatformAdmin()
+                || domainSecurityService.managesOrganisation(job.getOrganisationUuid())) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "You can only read your own applications, or applications to your organisation's jobs.");
+    }
+
     private Page<ClassMarketplaceJobApplication> findInstructorApplications(UUID instructorUuid,
                                                                             ClassMarketplaceJobApplicationStatus status,
                                                                             Pageable pageable) {
@@ -470,6 +510,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         affiliateHiredInstructor(job, application.getInstructorUuid());
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        applicationHistory.record(saved, ClassMarketplaceJobApplicationEventType.HIRED, saved.getReviewNotes(), null);
 
         // The hire is the last decision, so nothing about it stays implicit: the job records
         // which application won and is left waiting only for its class to be created.
@@ -518,6 +559,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        applicationHistory.record(saved, ClassMarketplaceJobApplicationEventType.REJECTED, saved.getReviewNotes(), null);
         instructorTimeHoldService.releaseHoldsForApplication(saved.getUuid(), "Application rejected");
         notifyApplicant(job, saved,
                 NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_REJECTED, "was not successful");
@@ -551,6 +593,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        applicationHistory.record(saved, ClassMarketplaceJobApplicationEventType.forReviewStage(targetStage),
+                saved.getReviewNotes(),
+                targetStage == ClassMarketplaceJobApplicationStatus.INTERVIEWING ? saved.getInterviewAt() : null);
         notifyApplicant(job, saved, stageNotificationType(targetStage), stageStatusLabel(targetStage));
         return toApplicationDTO(saved, job);
     }
@@ -597,6 +642,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+        applicationHistory.record(saved, ClassMarketplaceJobApplicationEventType.WITHDRAWN,
+                request == null ? null : request.reviewNotes(), null);
         instructorTimeHoldService.releaseHoldsForApplication(saved.getUuid(), "Instructor withdrew");
         releaseWithdrawnHire(job, saved);
         notifyOrganisationOfWithdrawal(job, saved);
@@ -756,6 +803,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         application.setReviewedBy(resolveReviewer());
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
         ClassMarketplaceJobApplication savedApplication = applicationRepository.save(application);
+        applicationHistory.record(savedApplication, ClassMarketplaceJobApplicationEventType.ASSIGNED, null, null);
 
         ClassMarketplaceJob savedJob = jobRepository.save(job);
 
@@ -1632,6 +1680,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     application.setReviewedBy(resolveReviewer());
                     application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
                     ClassMarketplaceJobApplication saved = applicationRepository.save(application);
+                    applicationHistory.record(saved, ClassMarketplaceJobApplicationEventType.NOT_SELECTED,
+                            saved.getReviewNotes(), null);
                     // They had already been told they were hired - they must be told it is off.
                     notifyApplicant(job, saved,
                             NotificationType.CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED,
@@ -1672,6 +1722,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         if (!toUpdate.isEmpty()) {
             applicationRepository.saveAll(toUpdate);
+            applicationHistory.recordAll(toUpdate, ClassMarketplaceJobApplicationEventType.NOT_SELECTED, closureReason);
             ClassMarketplaceJob job = jobRepository.findByUuid(jobUuid).orElse(null);
             for (ClassMarketplaceJobApplication application : toUpdate) {
                 notifyApplicant(job, application,

@@ -2,12 +2,16 @@ package apps.sarafrika.elimika.classes.internal;
 
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
+import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplicationEvent;
+import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobApplicationEventRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobApplicationRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationEventType;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
@@ -36,6 +40,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +60,10 @@ class ClassMarketplaceJobExpirySchedulerTest {
     private InstructorLookupService instructorLookupService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private ClassMarketplaceJobApplicationEventRepository eventRepository;
+    @Mock
+    private DomainSecurityService domainSecurityService;
 
     private ClassMarketplaceJobExpiryScheduler scheduler;
 
@@ -63,7 +72,8 @@ class ClassMarketplaceJobExpirySchedulerTest {
         scheduler = new ClassMarketplaceJobExpiryScheduler(
                 jobRepository, applicationRepository, resourceBookingService,
                 instructorTimeHoldService, userLookupService, instructorLookupService, eventPublisher,
-                new AuditUserResolver(userLookupService));
+                new AuditUserResolver(userLookupService),
+                new MarketplaceApplicationHistory(eventRepository, domainSecurityService, userLookupService));
     }
 
     @Test
@@ -157,6 +167,18 @@ class ClassMarketplaceJobExpirySchedulerTest {
         verify(applicationRepository).saveAll(anyList());
         // One in-app and one email for the applicant; the creator was unresolvable.
         verify(eventPublisher, times(2)).publishEvent(any(NotificationRequestedEvent.class));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ClassMarketplaceJobApplicationEvent>> events = ArgumentCaptor.forClass(List.class);
+        verify(eventRepository).saveAll(events.capture());
+        assertThat(events.getValue()).singleElement().satisfies(event -> {
+            assertThat(event.getApplicationUuid()).isEqualTo(pending.getUuid());
+            assertThat(event.getJobUuid()).isEqualTo(job.getUuid());
+            assertThat(event.getEventType()).isEqualTo(ClassMarketplaceJobApplicationEventType.NOT_SELECTED);
+            assertThat(event.getNote()).isEqualTo("This class job expired before an instructor was confirmed.");
+            assertThat(event.getActorUuid()).as("nobody took this step").isNull();
+        });
+        verifyNoInteractions(domainSecurityService);
     }
 
     @Test

@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.controller;
 
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationEventDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
@@ -258,6 +259,28 @@ public class ClassMarketplaceJobController {
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
                 "Marketplace class job applications retrieved successfully"));
+    }
+
+    @Operation(summary = "Get one marketplace class job application",
+            description = "Readable by the applicant instructor, managers of the organisation that posted the job, and platform admins; anyone else is refused with 403")
+    @GetMapping("/{jobUuid}/applications/{applicationUuid}")
+    public ResponseEntity<ApiResponse<ClassMarketplaceJobApplicationDTO>> getJobApplication(
+            @PathVariable UUID jobUuid,
+            @PathVariable UUID applicationUuid) {
+        return ResponseEntity.ok(ApiResponse.success(
+                classMarketplaceJobService.getJobApplication(jobUuid, applicationUuid),
+                "Marketplace class job application retrieved successfully"));
+    }
+
+    @Operation(summary = "List a marketplace class job application's activity",
+            description = "Every step the application has taken, newest first: applied, reapplied, shortlisted, interviewing (an interview invitation, with interview_at), offered, hired, assigned (the class was created), rejected, not_selected and withdrawn, each with its actor and note. Same access as reading the application")
+    @GetMapping("/{jobUuid}/applications/{applicationUuid}/events")
+    public ResponseEntity<ApiResponse<List<ClassMarketplaceJobApplicationEventDTO>>> listJobApplicationEvents(
+            @PathVariable UUID jobUuid,
+            @PathVariable UUID applicationUuid) {
+        return ResponseEntity.ok(ApiResponse.success(
+                classMarketplaceJobService.listApplicationEvents(jobUuid, applicationUuid),
+                "Marketplace class job application activity retrieved successfully"));
     }
 
     @Operation(summary = "Move a marketplace class job application through the funnel",

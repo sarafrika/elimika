@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobApplication;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobApplicationRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
+import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationEventType;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -42,8 +43,10 @@ class ClassMarketplaceJobExpiryScheduler {
     private final InstructorLookupService instructorLookupService;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditUserResolver auditUserResolver;
+    private final MarketplaceApplicationHistory applicationHistory;
 
     static final String STARTED_REASON = "Job expired when its first session started";
+    private static final String EXPIRED_NOTE = "This class job expired before an instructor was confirmed.";
 
     // Hourly, because an open job now also lapses the moment its first session starts.
     @Scheduled(cron = "0 5 * * * *")
@@ -111,11 +114,13 @@ class ClassMarketplaceJobExpiryScheduler {
         for (ClassMarketplaceJobApplication application : outstanding) {
             application.setStatus(ClassMarketplaceJobApplicationStatus.NOT_SELECTED);
             if (application.getReviewNotes() == null || application.getReviewNotes().isBlank()) {
-                application.setReviewNotes("This class job expired before an instructor was confirmed.");
+                application.setReviewNotes(EXPIRED_NOTE);
             }
             application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
         }
         applicationRepository.saveAll(outstanding);
+        applicationHistory.recordAllBySystem(outstanding, ClassMarketplaceJobApplicationEventType.NOT_SELECTED,
+                EXPIRED_NOTE);
 
         for (ClassMarketplaceJobApplication application : outstanding) {
             notifyApplicantOfExpiry(job, application);
