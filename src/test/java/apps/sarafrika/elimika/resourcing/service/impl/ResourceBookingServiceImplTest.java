@@ -642,6 +642,48 @@ class ResourceBookingServiceImplTest {
         return resource;
     }
 
+    // ===== summariseJobBookings =====
+
+    @Test
+    void summariseJobBookingsRanksHoldOverConfirmedOverReleased() {
+        UUID otherJob = UUID.randomUUID();
+        UUID heldVenue = UUID.randomUUID();
+        UUID confirmedVenue = UUID.randomUUID();
+        UUID releasedPool = UUID.randomUUID();
+        UUID cancelledPool = UUID.randomUUID();
+        when(bookingRepository.findJobResourceStatuses(List.of(JOB_UUID, otherJob))).thenReturn(List.of(
+                row(JOB_UUID, heldVenue, ResourceBookingStatus.CONFIRMED),
+                row(JOB_UUID, heldVenue, ResourceBookingStatus.HOLD),
+                row(JOB_UUID, heldVenue, ResourceBookingStatus.RELEASED),
+                row(JOB_UUID, confirmedVenue, ResourceBookingStatus.RELEASED),
+                row(JOB_UUID, confirmedVenue, ResourceBookingStatus.CONFIRMED),
+                row(JOB_UUID, releasedPool, ResourceBookingStatus.CANCELLED),
+                row(JOB_UUID, releasedPool, ResourceBookingStatus.RELEASED),
+                row(otherJob, cancelledPool, ResourceBookingStatus.CANCELLED)));
+
+        var summary = service.summariseJobBookings(List.of(JOB_UUID, otherJob, JOB_UUID));
+
+        assertThat(summary.get(JOB_UUID)).containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                heldVenue, ResourceBookingStatus.HOLD,
+                confirmedVenue, ResourceBookingStatus.CONFIRMED,
+                releasedPool, ResourceBookingStatus.RELEASED));
+        // A cancelled session's booking is let go just like a released hold, so it reads the same.
+        assertThat(summary.get(otherJob)).containsExactlyEntriesOf(java.util.Map.of(cancelledPool, ResourceBookingStatus.RELEASED));
+    }
+
+    @Test
+    void summariseJobBookingsSkipsTheQueryWhenThereAreNoJobs() {
+        assertThat(service.summariseJobBookings(List.of())).isEmpty();
+        assertThat(service.summariseJobBookings(null)).isEmpty();
+        verify(bookingRepository, never()).findJobResourceStatuses(anyCollection());
+    }
+
+    private apps.sarafrika.elimika.resourcing.repository.projection.JobResourceBookingStatus row(
+            UUID jobUuid, UUID resourceUuid, ResourceBookingStatus status) {
+        return new apps.sarafrika.elimika.resourcing.repository.projection.JobResourceBookingStatus(
+                jobUuid, resourceUuid, status);
+    }
+
     private ResourceBooking booking(OrganisationResource resource, ResourceBookingStatus status,
                                     LocalDateTime start, LocalDateTime end, int quantity) {
         ResourceBooking booking = new ResourceBooking();

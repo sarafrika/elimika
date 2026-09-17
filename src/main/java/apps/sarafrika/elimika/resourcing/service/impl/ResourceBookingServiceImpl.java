@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.resourcing.model.ResourceBooking;
 import apps.sarafrika.elimika.resourcing.repository.OrganisationResourceRepository;
 import apps.sarafrika.elimika.resourcing.repository.ResourceAvailabilityRuleRepository;
 import apps.sarafrika.elimika.resourcing.repository.ResourceBookingRepository;
+import apps.sarafrika.elimika.resourcing.repository.projection.JobResourceBookingStatus;
 import apps.sarafrika.elimika.resourcing.spi.AvailabilityRuleType;
 import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException;
@@ -32,9 +33,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -149,6 +153,40 @@ public class ResourceBookingServiceImpl implements ResourceBookingService, Resou
         bookingRepository.saveAll(holds);
         log.info("Confirmed {} of {} resource holds for marketplace job {} onto class {}",
                 confirmed, holds.size(), jobUuid, classDefinitionUuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, Map<UUID, ResourceBookingStatus>> summariseJobBookings(Collection<UUID> jobUuids) {
+        List<UUID> requested = jobUuids == null
+                ? List.of()
+                : jobUuids.stream().filter(Objects::nonNull).distinct().toList();
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, Map<UUID, ResourceBookingStatus>> summary = new HashMap<>();
+        for (JobResourceBookingStatus row : bookingRepository.findJobResourceStatuses(requested)) {
+            ResourceBookingStatus effective = row.status() == ResourceBookingStatus.CANCELLED
+                    ? ResourceBookingStatus.RELEASED
+                    : row.status();
+            if (row.jobUuid() == null || row.resourceUuid() == null || effective == null) {
+                continue;
+            }
+            summary.computeIfAbsent(row.jobUuid(), job -> new HashMap<>())
+                    .merge(row.resourceUuid(), effective,
+                            (current, candidate) -> precedence(candidate) > precedence(current) ? candidate : current);
+        }
+        return summary;
+    }
+
+    // A live hold outranks a confirmed booking, which outranks anything already let go.
+    private static int precedence(ResourceBookingStatus status) {
+        return switch (status) {
+            case HOLD -> 3;
+            case CONFIRMED -> 2;
+            case RELEASED, CANCELLED -> 1;
+        };
     }
 
     @Override

@@ -1,7 +1,9 @@
 package apps.sarafrika.elimika.resourcing.spi;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -83,4 +85,10 @@ public interface ResourceBookingService {
      * Cancels every active booking linked to the scheduled instance. Idempotent.
      */
     void releaseBookingsForInstance(UUID scheduledInstanceUuid, String reason);
+
+    /**
+     * Effective booking state per job, then per resource, in one query: HOLD beats CONFIRMED beats RELEASED,
+     * and CANCELLED reads as RELEASED. Jobs or resources with no bookings are absent from the map.
+     */
+    Map<UUID, Map<UUID, ResourceBookingStatus>> summariseJobBookings(Collection<UUID> jobUuids);
 }

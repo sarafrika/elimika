@@ -32,6 +32,7 @@ import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationS
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingStatus;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
@@ -1734,7 +1735,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .toList();
     }
 
-    private List<ClassMarketplaceJobResourceDTO> loadJobResources(UUID jobUuid) {
+    private List<ClassMarketplaceJobResourceDTO> loadJobResources(UUID jobUuid,
+                                                                  Map<UUID, ResourceBookingStatus> bookingStatuses) {
         return jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(jobUuid)
                 .stream()
                 .map(resource -> {
@@ -1743,7 +1745,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                             resource.getResourceUuid(),
                             resource.getQuantity(),
                             summary.map(ResourceSummary::name).orElse(null),
-                            summary.map(ResourceSummary::resourceType).orElse(null));
+                            summary.map(ResourceSummary::resourceType).orElse(null),
+                            bookingStatuses.get(resource.getResourceUuid()));
                 })
                 .toList();
     }
@@ -1823,7 +1826,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     /** Per-page read data loaded in bulk so a job list never queries once per row. */
-    private record JobReadContext(Map<UUID, Long> applicationCounts, Map<UUID, UUID> instructorsByApplication) {
+    private record JobReadContext(Map<UUID, Long> applicationCounts,
+                                  Map<UUID, UUID> instructorsByApplication,
+                                  Map<UUID, Map<UUID, ResourceBookingStatus>> resourceBookingStatuses) {
     }
 
     private JobReadContext loadJobReadContext(List<ClassMarketplaceJob> jobs) {
@@ -1849,7 +1854,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             applicationRepository.findByUuidIn(hiredApplicationUuids)
                     .forEach(application -> instructorsByApplication.put(application.getUuid(), application.getInstructorUuid()));
         }
-        return new JobReadContext(applicationCounts, instructorsByApplication);
+        Map<UUID, Map<UUID, ResourceBookingStatus>> resourceBookingStatuses = jobUuids.isEmpty()
+                ? Map.of()
+                : resourceBookingService.summariseJobBookings(jobUuids);
+        return new JobReadContext(applicationCounts, instructorsByApplication, resourceBookingStatuses);
     }
 
     private ClassMarketplaceJobDTO toJobDTO(ClassMarketplaceJob job) {
@@ -1894,7 +1902,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 job.getAssignedClassDefinitionUuid(),
                 job.getFilledAt(),
                 loadSessionTemplates(job.getUuid()),
-                loadJobResources(job.getUuid()),
+                loadJobResources(job.getUuid(),
+                        context.resourceBookingStatuses().getOrDefault(job.getUuid(), Map.of())),
                 job.getCreatedDate(),
                 job.getLastModifiedDate(),
                 job.getCreatedBy(),

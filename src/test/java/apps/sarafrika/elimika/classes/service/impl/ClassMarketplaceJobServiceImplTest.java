@@ -32,6 +32,7 @@ import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingStatus;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
@@ -3394,6 +3395,54 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(resources).extracting(ClassMarketplaceJobResourceDTO::resourceType)
                 .containsExactly(ResourceType.VENUE, ResourceType.EQUIPMENT_POOL);
         assertThat(resources).extracting(ClassMarketplaceJobResourceDTO::quantity).containsExactly(1, 12);
+    }
+
+    @Test
+    void listJobsReportsEachResourcesBookingStatusWithOneLookupForThePage() {
+        ClassMarketplaceJob recruiting = sampleJob();
+        ClassMarketplaceJob filled = sampleJob();
+        UUID venueUuid = UUID.randomUUID();
+        UUID poolUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(jobRepository.search(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(recruiting, filled), pageable, 2));
+        when(jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(recruiting.getUuid()))
+                .thenReturn(List.of(jobResource(recruiting.getUuid(), venueUuid, 1),
+                        jobResource(recruiting.getUuid(), poolUuid, 5)));
+        when(jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(filled.getUuid()))
+                .thenReturn(List.of(jobResource(filled.getUuid(), venueUuid, 1)));
+        when(resourceBookingService.summariseJobBookings(List.of(recruiting.getUuid(), filled.getUuid())))
+                .thenReturn(java.util.Map.of(
+                        recruiting.getUuid(), java.util.Map.of(venueUuid, ResourceBookingStatus.HOLD),
+                        filled.getUuid(), java.util.Map.of(venueUuid, ResourceBookingStatus.CONFIRMED)));
+
+        var page = service.listJobs(null, null, null, null, null, pageable);
+
+        assertThat(page.getContent().get(0).resources())
+                .extracting(ClassMarketplaceJobResourceDTO::bookingStatus)
+                .containsExactly(ResourceBookingStatus.HOLD, null);
+        assertThat(page.getContent().get(1).resources())
+                .extracting(ClassMarketplaceJobResourceDTO::bookingStatus)
+                .containsExactly(ResourceBookingStatus.CONFIRMED);
+        verify(resourceBookingService, times(1)).summariseJobBookings(any());
+    }
+
+    @Test
+    void getJobReportsEachResourcesBookingStatus() {
+        UUID venueUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleJob();
+        job.setStatus(ClassMarketplaceJobStatus.EXPIRED);
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(jobResource(job.getUuid(), venueUuid, 1)));
+        when(resourceBookingService.summariseJobBookings(List.of(job.getUuid())))
+                .thenReturn(java.util.Map.of(job.getUuid(), java.util.Map.of(venueUuid, ResourceBookingStatus.RELEASED)));
+
+        var resources = service.getJob(job.getUuid()).resources();
+
+        assertThat(resources).extracting(ClassMarketplaceJobResourceDTO::bookingStatus)
+                .containsExactly(ResourceBookingStatus.RELEASED);
+        verify(resourceBookingService, times(1)).summariseJobBookings(any());
     }
 
     private apps.sarafrika.elimika.classes.model.ClassMarketplaceJobResource jobResource(UUID jobUuid,

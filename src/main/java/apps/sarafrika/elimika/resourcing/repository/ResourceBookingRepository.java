@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.resourcing.repository;
 
 import apps.sarafrika.elimika.resourcing.model.ResourceBooking;
+import apps.sarafrika.elimika.resourcing.repository.projection.JobResourceBookingStatus;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -32,6 +33,16 @@ public interface ResourceBookingRepository extends JpaRepository<ResourceBooking
                                              @Param("endTime") LocalDateTime endTime);
 
     List<ResourceBooking> findByJobUuidAndStatus(UUID jobUuid, ResourceBookingStatus status);
+
+    /** Every distinct (job, resource, status) the given jobs have booked, grouped in the database. */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.resourcing.repository.projection.JobResourceBookingStatus(
+                       b.jobUuid, b.resourceUuid, b.status)
+            FROM ResourceBooking b
+            WHERE b.jobUuid IN :jobUuids
+            GROUP BY b.jobUuid, b.resourceUuid, b.status
+            """)
+    List<JobResourceBookingStatus> findJobResourceStatuses(@Param("jobUuids") Collection<UUID> jobUuids);
 
     List<ResourceBooking> findByScheduledInstanceUuidAndStatusIn(UUID scheduledInstanceUuid,
                                                                  Collection<ResourceBookingStatus> statuses);
