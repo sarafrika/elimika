@@ -39,6 +39,7 @@ import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
@@ -103,11 +104,14 @@ public class TimetableServiceImpl implements TimetableService {
     private final ResourceBookingService resourceBookingService;
     private final DomainSecurityService domainSecurityService;
     private final TimetableSecurityService timetableSecurityService;
+    private final InstructorTimeHoldService instructorTimeHoldService;
 
     /** How a registration date is written back to a learner, rather than how the column stores it. */
     private static final java.time.format.DateTimeFormatter REGISTRATION_WINDOW_DATE_FORMAT =
             java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.ENGLISH);
 
+    static final String FIRM_HOLD_CONFLICT =
+            "Instructor has accepted a class job that holds this time and cannot be booked for it";
     private static final String SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE = "Scheduled instance with UUID %s not found";
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Enrollment with UUID %s not found";
     private static final Set<EnrollmentStatus> START_ELIGIBLE_ENROLLMENT_STATUSES = Set.of(
@@ -1391,6 +1395,15 @@ public class TimetableServiceImpl implements TimetableService {
                 .toList();
         if (!overlapping.isEmpty()) {
             conflicts.add("Instructor has existing scheduled instances that overlap this time");
+        }
+
+        // A hire's FIRM hold blocks everyone but the class created from that same job.
+        UUID ownJobUuid = request.classDefinitionUuid() == null
+                ? null
+                : classDefinitionLookupService.findMarketplaceJobUuid(request.classDefinitionUuid()).orElse(null);
+        if (!instructorTimeHoldService.findBlockingHolds(
+                instructorUuid, request.startTime(), request.endTime(), ownJobUuid).isEmpty()) {
+            conflicts.add(FIRM_HOLD_CONFLICT);
         }
 
         return conflicts;

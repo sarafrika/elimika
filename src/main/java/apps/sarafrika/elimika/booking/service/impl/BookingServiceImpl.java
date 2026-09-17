@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -49,6 +50,7 @@ public class BookingServiceImpl implements BookingService {
     private final ClassDefinitionService classDefinitionService;
     private final TimetableService timetableService;
     private final CourseInfoService courseInfoService;
+    private final InstructorTimeHoldService instructorTimeHoldService;
 
     @Override
     public BookingResponseDTO createBooking(CreateBookingRequestDTO request) {
@@ -56,6 +58,12 @@ public class BookingServiceImpl implements BookingService {
 
         if (!availabilityService.isInstructorAvailable(request.instructorUuid(), request.startTime(), request.endTime())) {
             throw new IllegalStateException("Instructor is not available for the requested time range.");
+        }
+        // Only a hire's FIRM hold refuses; jobs the instructor merely applied to leave the time bookable.
+        if (!instructorTimeHoldService.findBlockingHolds(
+                request.instructorUuid(), request.startTime(), request.endTime(), null).isEmpty()) {
+            throw new IllegalStateException(
+                    "Instructor has accepted a class job that holds the requested time range.");
         }
 
         enforceCourseApproval(request.courseUuid());

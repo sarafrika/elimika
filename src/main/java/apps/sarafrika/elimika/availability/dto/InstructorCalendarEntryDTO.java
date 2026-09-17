@@ -19,7 +19,9 @@ public record InstructorCalendarEntryDTO(
         @JsonProperty("uuid")
         UUID uuid,
 
-        @Schema(description = "Entry type: AVAILABILITY, BLOCKED, or SCHEDULED_INSTANCE", example = "SCHEDULED_INSTANCE")
+        @Schema(description = "Entry type: AVAILABILITY, BLOCKED, SCHEDULED_INSTANCE, JOB_HOLD (a class job the instructor "
+                + "was hired for holds this time; busy) or JOB_APPLICATION (a job the instructor applied to; not busy, "
+                + "shown to the instructor only)", example = "SCHEDULED_INSTANCE")
         @JsonProperty("entry_type")
         CalendarEntryType entryType,
 
@@ -66,7 +68,12 @@ public record InstructorCalendarEntryDTO(
 
         @Schema(description = "Display name of the owning organisation", example = "Sarafrika Technical College")
         @JsonProperty("organisation_name")
-        String organisationName
+        String organisationName,
+
+        @Schema(description = "Marketplace job behind a JOB_HOLD or JOB_APPLICATION entry; omitted for other callers",
+                nullable = true)
+        @JsonProperty("job_uuid")
+        UUID jobUuid
 ) {
 
     /**
@@ -93,12 +100,15 @@ public record InstructorCalendarEntryDTO(
                 null,
                 null,
                 null,
+                null,
                 null);
     }
 
     public enum CalendarEntryType {
         AVAILABILITY,
         BLOCKED,
-        SCHEDULED_INSTANCE
+        SCHEDULED_INSTANCE,
+        JOB_HOLD,
+        JOB_APPLICATION
     }
 }

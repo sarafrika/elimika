@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleLookupService;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorTimeHoldEntry;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorTimeHoldLookupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,6 +61,7 @@ public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
     private final InstructorScheduleLookupService instructorScheduleLookupService;
+    private final InstructorTimeHoldLookupService instructorTimeHoldLookupService;
     private final DomainSecurityService domainSecurityService;
 
     // ================================
@@ -87,8 +90,10 @@ public class AvailabilityController {
     @Operation(
         summary = "Get merged instructor calendar",
         description = """
-            Returns a merged feed of availability slots, blocked time, and scheduled instances for
-            the instructor within a date range.
+            Returns a merged feed of availability slots, blocked time, scheduled instances and
+            marketplace job holds for the instructor within a date range. A JOB_HOLD entry is time a
+            class job the instructor was hired for holds (busy). The instructor alone also sees a
+            JOB_APPLICATION entry for each job they applied to; it never blocks booking.
 
             Anyone signed in may read it, because choosing when to book an instructor means seeing
             which windows are free. Callers other than the instructor themselves get each entry
@@ -121,7 +126,13 @@ public class AvailabilityController {
                 instructorUuid, startDate, endDate);
         scheduledInstances.forEach(instance -> entries.add(mapScheduledInstanceEntry(instance)));
 
-        List<InstructorCalendarEntryDTO> visible = ownsCalendar(instructorUuid)
+        boolean owner = ownsCalendar(instructorUuid);
+        // Applications stay private: others must not learn which jobs an instructor is pursuing.
+        instructorTimeHoldLookupService.findActiveHolds(instructorUuid, startDate, endDate).stream()
+                .filter(hold -> owner || hold.firm())
+                .forEach(hold -> entries.add(mapTimeHoldEntry(hold)));
+
+        List<InstructorCalendarEntryDTO> visible = owner
                 ? entries
                 : entries.stream().map(InstructorCalendarEntryDTO::redacted).toList();
 
@@ -136,7 +147,8 @@ public class AvailabilityController {
             The window is given in UTC, and each availability slot is compared against it in the
             zone that slot was authored in.
 
-            Returns true unless a blocked slot overlaps the requested window.
+            Returns true unless a blocked slot, or a class job the instructor was hired for (a FIRM
+            hold), overlaps the requested window. Jobs the instructor merely applied to never count.
             """
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Availability check completed")
@@ -150,7 +162,8 @@ public class AvailabilityController {
         log.debug("REST request to check availability for instructor: {} from {} to {}",
                 instructorUuid, start, end);
 
-        boolean isAvailable = availabilityService.isInstructorAvailable(instructorUuid, start, end);
+        boolean isAvailable = availabilityService.isInstructorAvailable(instructorUuid, start, end)
+                && !instructorTimeHoldLookupService.hasFirmHold(instructorUuid, start, end);
         return ResponseEntity.ok(ApiResponse.success(isAvailable,
                 isAvailable ? "Instructor is available" : "Instructor is not available"));
     }
@@ -256,6 +269,7 @@ public class AvailabilityController {
                 null,
                 slot.customPattern(),
                 null,
+                null,
                 null
         );
     }
@@ -274,7 +288,30 @@ public class AvailabilityController {
                 instance.locationType(),
                 instance.cancellationReason(),
                 instance.organisationUuid(),
-                instance.organisationName()
+                instance.organisationName(),
+                null
+        );
+    }
+
+    private InstructorCalendarEntryDTO mapTimeHoldEntry(InstructorTimeHoldEntry hold) {
+        String jobTitle = hold.title() == null || hold.title().isBlank() ? "class job" : hold.title();
+        return new InstructorCalendarEntryDTO(
+                hold.uuid(),
+                hold.firm()
+                        ? InstructorCalendarEntryDTO.CalendarEntryType.JOB_HOLD
+                        : InstructorCalendarEntryDTO.CalendarEntryType.JOB_APPLICATION,
+                hold.startTime(),
+                hold.endTime(),
+                null,
+                !hold.firm(),
+                null,
+                (hold.firm() ? "On hold: " : "Applied: ") + jobTitle,
+                null,
+                null,
+                hold.firm() ? "MARKETPLACE_JOB_HOLD" : "MARKETPLACE_JOB_APPLICATION",
+                hold.organisationUuid(),
+                hold.organisationName(),
+                hold.jobUuid()
         );
     }
 }

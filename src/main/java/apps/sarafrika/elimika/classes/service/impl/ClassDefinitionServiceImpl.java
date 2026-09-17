@@ -444,7 +444,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 timezone
         );
         if (timetableService().hasInstructorConflict(instructorUuid, requestDTO)) {
-            reasons.add("Instructor has overlapping scheduled instances");
+            reasons.add("Instructor has overlapping scheduled instances or a class job they accepted holds this time");
         }
         if (classDefinition.venueResourceUuid() != null) {
             resourceBookingService.findConflicts(

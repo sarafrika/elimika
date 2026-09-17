@@ -48,6 +48,7 @@ import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
 import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentGateServiceImpl;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -185,7 +186,8 @@ class ClassRegistrationWindowIntegrationTest {
                 mock(InstructorLookupService.class),
                 mock(ResourceBookingService.class),
                 timetableSecurity,
-                mock(TimetableSecurityService.class));
+                mock(TimetableSecurityService.class),
+                mock(InstructorTimeHoldService.class));
 
         enrolmentGate = new ClassEnrolmentGateServiceImpl(timetableService, studentLookupService);
 

@@ -45,6 +45,11 @@ public interface ClassDefinitionLookupService {
     Optional<UUID> findBranchUuid(UUID classDefinitionUuid);
 
     /**
+     * The marketplace job a class was created from, so the job's own instructor holds never clash with it.
+     */
+    Optional<UUID> findMarketplaceJobUuid(UUID classDefinitionUuid);
+
+    /**
      * Resolves the owning organisation of several class definitions in one query.
      * <p>
      * An instructor's schedule can span many sessions of a handful of classes, so resolving the

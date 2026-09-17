@@ -17,6 +17,9 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
+import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldStatus;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
@@ -59,6 +62,9 @@ class BookingServiceImplTest {
 
     @Mock
     private CourseInfoService courseInfoService;
+
+    @Mock
+    private InstructorTimeHoldService instructorTimeHoldService;
 
     @InjectMocks
     private BookingServiceImpl bookingService;
@@ -103,6 +109,30 @@ class BookingServiceImplTest {
         assertThat(response.paymentSessionId()).isEqualTo("sess_123");
 
         verify(availabilityService).isInstructorAvailable(instructorUuid, start, end);
+    }
+
+    @Test
+    void createBooking_isRefusedWhenAHiredJobHoldsTheWindow() {
+        UUID instructorUuid = UUID.randomUUID();
+        LocalDateTime start = LocalDateTime.of(2024, 10, 15, 9, 0);
+        LocalDateTime end = LocalDateTime.of(2024, 10, 15, 10, 0);
+        CreateBookingRequestDTO request = new CreateBookingRequestDTO(
+                UUID.randomUUID(), UUID.randomUUID(), instructorUuid, start, end,
+                new BigDecimal("50.00"), "USD", "Test booking");
+        InstructorTimeHoldDTO firmHold = new InstructorTimeHoldDTO(
+                UUID.randomUUID(), instructorUuid, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
+                "Grade 5 Piano", start.minusMinutes(30), end.plusMinutes(30), "UTC",
+                InstructorTimeHoldStatus.FIRM, null, null);
+
+        when(availabilityService.isInstructorAvailable(instructorUuid, start, end)).thenReturn(true);
+        when(instructorTimeHoldService.findBlockingHolds(instructorUuid, start, end, null))
+                .thenReturn(List.of(firmHold));
+
+        assertThatThrownBy(() -> bookingService.createBooking(request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Instructor has accepted a class job that holds the requested time range.");
+        verify(bookingRepository, never()).save(any(Booking.class));
+        verifyNoInteractions(paymentGatewayClient);
     }
 
     @Test

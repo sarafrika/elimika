@@ -118,6 +118,9 @@ class TimetableServiceImplTest {
     @Mock
     private apps.sarafrika.elimika.timetabling.security.TimetableSecurityService timetableSecurityService;
 
+    @Mock
+    private apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService instructorTimeHoldService;
+
     private TimetableServiceImpl timetableService;
 
     @BeforeEach
@@ -141,7 +144,8 @@ class TimetableServiceImplTest {
                 instructorLookupService,
                 resourceBookingService,
                 domainSecurityService,
-                timetableSecurityService
+                timetableSecurityService,
+                instructorTimeHoldService
         );
     }
 

@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleEntry;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleLookupService;
 import apps.sarafrika.elimika.shared.spi.timetabling.InstructorScheduleStatus;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorTimeHoldEntry;
+import apps.sarafrika.elimika.shared.spi.timetabling.InstructorTimeHoldLookupService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,9 +69,15 @@ class AvailabilityControllerTest {
     @Autowired
     private DomainSecurityService domainSecurityService;
 
+    @Autowired
+    private InstructorTimeHoldLookupService instructorTimeHoldLookupService;
+
+    private static final UUID HIRED_JOB_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID APPLIED_JOB_UUID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
     @BeforeEach
     void setUp() {
-        reset(availabilityService, instructorScheduleLookupService, domainSecurityService);
+        reset(availabilityService, instructorScheduleLookupService, domainSecurityService, instructorTimeHoldLookupService);
     }
 
     private AvailabilitySlotDTO sampleSlot(UUID uuid, UUID instructorUuid) {
@@ -199,6 +207,94 @@ class AvailabilityControllerTest {
                 .thenReturn(List.of());
     }
 
+    @Test
+    void theInstructorSeesTheJobTheyWereHiredForAndTheJobsTheyAppliedTo() throws Exception {
+        givenAHireAndAnApplication();
+        when(domainSecurityService.isInstructorWithUuid(INSTRUCTOR_UUID)).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/calendar", INSTRUCTOR_UUID)
+                        .param("start_date", "2026-03-02")
+                        .param("end_date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].entry_type").value("JOB_HOLD"))
+                .andExpect(jsonPath("$.data[0].title").value("On hold: Grade 5 Piano"))
+                .andExpect(jsonPath("$.data[0].is_available").value(false))
+                .andExpect(jsonPath("$.data[0].job_uuid").value(HIRED_JOB_UUID.toString()))
+                .andExpect(jsonPath("$.data[0].organisation_name").value("Sarafrika Technical College"))
+                .andExpect(jsonPath("$.data[0].start_time").value("2026-03-02T14:00:00Z"))
+                .andExpect(jsonPath("$.data[1].entry_type").value("JOB_APPLICATION"))
+                .andExpect(jsonPath("$.data[1].title").value("Applied: Evening Python"))
+                .andExpect(jsonPath("$.data[1].is_available").value(true))
+                .andExpect(jsonPath("$.data[1].job_uuid").value(APPLIED_JOB_UUID.toString()));
+    }
+
+    @Test
+    void everybodyElseSeesTheHeldTimeAsBusyButNeverTheApplications() throws Exception {
+        givenAHireAndAnApplication();
+        when(domainSecurityService.isInstructorWithUuid(INSTRUCTOR_UUID)).thenReturn(false);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/calendar", INSTRUCTOR_UUID)
+                        .param("start_date", "2026-03-02")
+                        .param("end_date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].entry_type").value("JOB_HOLD"))
+                .andExpect(jsonPath("$.data[0].is_available").value(false))
+                .andExpect(jsonPath("$.data[0].start_time").value("2026-03-02T14:00:00Z"))
+                .andExpect(jsonPath("$.data[0].title").doesNotExist())
+                .andExpect(jsonPath("$.data[0].job_uuid").doesNotExist())
+                .andExpect(jsonPath("$.data[0].source").doesNotExist())
+                .andExpect(jsonPath("$.data[0].organisation_uuid").doesNotExist())
+                .andExpect(jsonPath("$.data[0].organisation_name").doesNotExist());
+    }
+
+    @Test
+    void checkReportsTheInstructorUnavailableWhenAHireHoldsTheWindow() throws Exception {
+        LocalDateTime start = LocalDateTime.of(2026, 3, 2, 14, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 3, 2, 15, 0);
+        when(availabilityService.isInstructorAvailable(INSTRUCTOR_UUID, start, end)).thenReturn(true);
+        when(instructorTimeHoldLookupService.hasFirmHold(INSTRUCTOR_UUID, start, end)).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/check", INSTRUCTOR_UUID)
+                        .param("start", "2026-03-02T14:00:00")
+                        .param("end", "2026-03-02T15:00:00"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(false));
+    }
+
+    @Test
+    void checkReportsTheInstructorAvailableWhenNothingFirmHoldsTheWindow() throws Exception {
+        LocalDateTime start = LocalDateTime.of(2026, 3, 2, 14, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 3, 2, 15, 0);
+        when(availabilityService.isInstructorAvailable(INSTRUCTOR_UUID, start, end)).thenReturn(true);
+        when(instructorTimeHoldLookupService.hasFirmHold(INSTRUCTOR_UUID, start, end)).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/instructors/{instructorUuid}/availability/check", INSTRUCTOR_UUID)
+                        .param("start", "2026-03-02T14:00:00")
+                        .param("end", "2026-03-02T15:00:00"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(true));
+    }
+
+    private void givenAHireAndAnApplication() {
+        when(availabilityService.getAvailabilityForDate(eq(INSTRUCTOR_UUID), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(instructorScheduleLookupService.getScheduleForInstructor(
+                eq(INSTRUCTOR_UUID), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(instructorTimeHoldLookupService.findActiveHolds(
+                eq(INSTRUCTOR_UUID), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(
+                        new InstructorTimeHoldEntry(UUID.randomUUID(), HIRED_JOB_UUID, "Grade 5 Piano",
+                                UUID.randomUUID(), "Sarafrika Technical College",
+                                LocalDateTime.of(2026, 3, 2, 14, 0), LocalDateTime.of(2026, 3, 2, 15, 0), true),
+                        new InstructorTimeHoldEntry(UUID.randomUUID(), APPLIED_JOB_UUID, "Evening Python",
+                                UUID.randomUUID(), "Rival Academy",
+                                LocalDateTime.of(2026, 3, 2, 14, 30), LocalDateTime.of(2026, 3, 2, 16, 0), false)));
+    }
+
     private void givenOneScheduledSession() {
         when(availabilityService.getAvailabilityForDate(eq(INSTRUCTOR_UUID), any(LocalDate.class)))
                 .thenReturn(List.of());
@@ -226,6 +322,11 @@ class AvailabilityControllerTest {
         @Bean
         InstructorScheduleLookupService instructorScheduleLookupService() {
             return Mockito.mock(InstructorScheduleLookupService.class);
+        }
+
+        @Bean
+        InstructorTimeHoldLookupService instructorTimeHoldLookupService() {
+            return Mockito.mock(InstructorTimeHoldLookupService.class);
         }
 
         @Bean
