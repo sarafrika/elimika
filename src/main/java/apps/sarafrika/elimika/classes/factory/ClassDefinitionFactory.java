@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Objects;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ClassDefinitionFactory {
@@ -79,7 +80,8 @@ public class ClassDefinitionFactory {
         entity.setCategoryUuid(dto.categoryUuid());
         entity.setSalePrice(dto.salePrice());
         entity.setInstructorPay(dto.instructorPay());
-        entity.setRateBasis(dto.rateBasis() == null ? RateBasis.PER_HOUR : dto.rateBasis());
+        // Hibernate writes every column, so the documented per-hour default for an omitted basis is set here.
+        entity.setRateBasis(Objects.requireNonNullElse(dto.rateBasis(), RateBasis.PER_HOUR));
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
         entity.setDefaultStartTime(dto.defaultStartTime());

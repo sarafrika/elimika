@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.dto;
 
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -10,7 +11,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
-import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
+import java.util.Objects;
 
 /**
  * Instructor pricing across session format, delivery modality and basis; a null cell is not offered, zero is never a price.
@@ -102,12 +103,9 @@ public record CourseTrainingRateCardDTO(
         BigDecimal groupInpersonDailyRate
 ) {
 
-    public BigDecimal resolveRate(SessionFormat format, LocationType locationType) {
-        return resolveRate(format, locationType, RateBasis.PER_HOUR);
-    }
-
     /** The rate in the unit the job was contracted in; null when not offered, which means "cannot be matched". */
     public BigDecimal resolveRate(SessionFormat format, LocationType locationType, RateBasis basis) {
+        Objects.requireNonNull(basis, "A rate basis is required to read a rate card");
         boolean online = LocationType.ONLINE.equals(locationType);
         boolean inPerson = LocationType.IN_PERSON.equals(locationType) || LocationType.HYBRID.equals(locationType);
 
@@ -116,7 +114,7 @@ public record CourseTrainingRateCardDTO(
             online = true;
         }
 
-        return switch (basis == null ? RateBasis.PER_HOUR : basis) {
+        return switch (basis) {
             case PER_HOUR -> switch (format) {
                 case INDIVIDUAL -> online ? privateOnlineHourlyRate : privateInpersonHourlyRate;
                 case GROUP -> online ? groupOnlineHourlyRate : groupInpersonHourlyRate;

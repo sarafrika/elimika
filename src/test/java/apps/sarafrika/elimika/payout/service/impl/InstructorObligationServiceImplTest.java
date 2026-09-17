@@ -12,10 +12,13 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -81,7 +84,7 @@ class InstructorObligationServiceImplTest {
     }
 
 
-    private void trainingFeeIs(String fee, apps.sarafrika.elimika.shared.utils.enums.RateBasis basis) {
+    private void trainingFeeIs(String fee, RateBasis basis) {
         BigDecimal instructorPay = new BigDecimal(fee);
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new ClassDefinitionSnapshot(
@@ -94,7 +97,7 @@ class InstructorObligationServiceImplTest {
     @Test
     @DisplayName("a per-session class pays the rate once however long the session ran")
     void perSessionIgnoresDuration() {
-        trainingFeeIs("2000.00", apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_SESSION);
+        trainingFeeIs("2000.00", RateBasis.PER_SESSION);
 
         service.accrueForCompletedSession(
                 classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 120);
@@ -104,10 +107,34 @@ class InstructorObligationServiceImplTest {
         assertThat(captor.getValue().getRateAmount()).isEqualByComparingTo("2000.00");
     }
 
+    @ParameterizedTest(name = "{0} pays {1} for a two-hour session")
+    @CsvSource({"PER_HOUR, 4000.00", "PER_SESSION, 2000.00", "PER_DAY, 2000.00"})
+    @DisplayName("the accrued amount follows the class's own basis")
+    void accrualFollowsTheClassBasis(RateBasis basis, String expected) {
+        trainingFeeIs("2000.00", basis);
+
+        service.accrueForCompletedSession(
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 120);
+
+        ArgumentCaptor<InstructorObligation> captor = ArgumentCaptor.forClass(InstructorObligation.class);
+        verify(obligationRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getRateAmount()).isEqualByComparingTo(expected);
+    }
+
+    @Test
+    @DisplayName("a class that cannot be found accrues nothing rather than an hourly guess")
+    void anUnknownClassAccruesNothing() {
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid)).thenReturn(Optional.empty());
+
+        assertThat(service.accrueForCompletedSession(
+                classDefinitionUuid, UUID.randomUUID(), instructorUuid, LocalDateTime.now(), 60)).isEmpty();
+        verify(obligationRepository, never()).saveAndFlush(any());
+    }
+
     @Test
     @DisplayName("a second session on the same day does not earn a second day of pay")
     void perDayPaysOncePerCalendarDay() {
-        trainingFeeIs("5000.00", apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY);
+        trainingFeeIs("5000.00", RateBasis.PER_DAY);
         LocalDateTime morning = LocalDateTime.of(2026, 8, 12, 9, 0);
         LocalDateTime afternoon = LocalDateTime.of(2026, 8, 12, 14, 0);
 
@@ -130,7 +157,7 @@ class InstructorObligationServiceImplTest {
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(new ClassDefinitionSnapshot(
                         classDefinitionUuid, UUID.randomUUID(), null, "Piano Grade 3", "desc",
-                        instructorPay.add(new BigDecimal("500.00")), instructorPay, apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR,
+                        instructorPay.add(new BigDecimal("500.00")), instructorPay, RateBasis.PER_HOUR,
                         ClassVisibility.PRIVATE, LocationType.ONLINE,
                         20, Boolean.TRUE, 30, null, null)));
     }

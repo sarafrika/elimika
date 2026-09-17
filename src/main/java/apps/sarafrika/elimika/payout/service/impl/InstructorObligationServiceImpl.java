@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot;
 import apps.sarafrika.elimika.shared.spi.payout.InstructorPayableLookupService;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,7 +33,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 
 /**
  * Records and settles what organisations owe their instructors.
@@ -94,17 +94,15 @@ public class InstructorObligationServiceImpl
             return Optional.empty();
         }
 
-        BigDecimal hourlyRate = classDefinitionLookupService.findByUuid(classDefinitionUuid)
-                .map(ClassDefinitionSnapshot::instructorPay)
+        ClassDefinitionSnapshot classDefinition = classDefinitionLookupService.findByUuid(classDefinitionUuid)
                 .orElse(null);
-        if (hourlyRate == null || hourlyRate.signum() <= 0) {
+        BigDecimal pay = classDefinition == null ? null : classDefinition.instructorPay();
+        if (pay == null || pay.signum() <= 0) {
             log.debug("Class {} has no positive instructor pay; no obligation accrues", classDefinitionUuid);
             return Optional.empty();
         }
 
-        RateBasis basis = classDefinitionLookupService.findByUuid(classDefinitionUuid)
-                .map(ClassDefinitionSnapshot::rateBasis)
-                .orElse(RateBasis.PER_HOUR);
+        RateBasis basis = classDefinition.rateBasis();
 
         java.time.LocalDate sessionDate = (completedAt == null ? nowUtc() : completedAt).toLocalDate();
 
@@ -122,7 +120,7 @@ public class InstructorObligationServiceImpl
             }
         }
 
-        BigDecimal rate = applyRateBasis(hourlyRate, basis, durationMinutes, sessionUuid);
+        BigDecimal rate = applyRateBasis(pay, basis, durationMinutes, sessionUuid);
 
         UUID instructorUserUuid = instructorLookupService.getInstructorUserUuid(instructorUuid).orElse(null);
         if (instructorUserUuid == null) {
@@ -320,23 +318,16 @@ public class InstructorObligationServiceImpl
         return LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    /**
-     * Instructor pay is a rate per hour — the same basis the course creator's rate card and the
-     * learner's price use — so a session earns the rate scaled by how long it ran.
-     * <p>
-     * A missing duration falls back to the flat rate rather than to zero: an event published before
-     * duration was carried, or an instance with no usable window, must never silently wipe out what
-     * someone is owed.
-     */
+    /** Pay is quoted in the class's own basis: per session and per day pay once, per hour scales with the session. */
     private BigDecimal applyRateBasis(BigDecimal rate, RateBasis basis, Integer durationMinutes, UUID sessionUuid) {
-        RateBasis resolved = basis == null ? RateBasis.PER_HOUR : basis;
+        return switch (basis) {
+            case PER_SESSION, PER_DAY -> rate;
+            case PER_HOUR -> scaleByDuration(rate, durationMinutes, sessionUuid);
+        };
+    }
 
-        // Per session and per day both pay the rate once; per day is additionally guarded above so
-        // a second session on the same calendar date does not accrue a second day.
-        if (resolved != RateBasis.PER_HOUR) {
-            return rate;
-        }
-
+    /** A missing duration keeps the flat rate rather than zero, so an unmeasured session never wipes out what is owed. */
+    private BigDecimal scaleByDuration(BigDecimal rate, Integer durationMinutes, UUID sessionUuid) {
         if (durationMinutes == null || durationMinutes <= 0) {
             log.warn("Session {} has no usable duration; accruing the flat hourly rate", sessionUuid);
             return rate;

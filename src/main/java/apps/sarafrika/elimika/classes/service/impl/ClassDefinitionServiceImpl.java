@@ -63,7 +63,6 @@ import java.time.ZoneOffset;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 
 @Service
@@ -126,9 +125,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         }
         if (entity.getIsActive() == null) {
             entity.setIsActive(true);
-        }
-        if (entity.getRateBasis() == null) {
-            entity.setRateBasis(RateBasis.PER_HOUR);
         }
 
         // A class created from a marketplace job already carries the location the job copied from its branch.

@@ -275,14 +275,18 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             return baseAmount;
         }
 
+        RateBasis basis = classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::rateBasis)
+                .orElse(null);
+        if (basis == null) {
+            // Without the class there is no contracted unit to multiply by, so the variant price stands alone.
+            return baseAmount;
+        }
+
         ClassScheduleSummary summary = classScheduleService.getScheduleSummary(classDefinitionUuid);
         if (summary == null) {
             return baseAmount;
         }
-
-        RateBasis basis = classDefinitionLookupService.findByUuid(classDefinitionUuid)
-                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::rateBasis)
-                .orElse(RateBasis.PER_HOUR);
 
         BigDecimal units = billableUnits(basis, summary);
         if (units.signum() <= 0) {
@@ -296,7 +300,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
      * so the margin between the two prices stays a like-for-like subtraction.
      */
     private BigDecimal billableUnits(RateBasis basis, ClassScheduleSummary summary) {
-        return switch (basis == null ? RateBasis.PER_HOUR : basis) {
+        return switch (basis) {
             case PER_SESSION -> BigDecimal.valueOf(summary.scheduledInstances());
             case PER_DAY -> BigDecimal.valueOf(summary.scheduledDays());
             case PER_HOUR -> BigDecimal.valueOf(summary.scheduledMinutes())

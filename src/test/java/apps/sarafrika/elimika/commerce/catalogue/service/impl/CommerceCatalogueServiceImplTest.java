@@ -179,6 +179,30 @@ class CommerceCatalogueServiceImplTest {
     }
 
     @Test
+    @DisplayName("a class that cannot be found bills the variant price, not an hourly total")
+    void anUnknownClassIsNotBilledByTheHour() {
+        UUID classUuid = UUID.randomUUID();
+        CommerceCatalogueItem item = new CommerceCatalogueItem();
+        item.setUuid(UUID.randomUUID());
+        item.setClassDefinitionUuid(classUuid);
+        item.setProductCode("product-001");
+        item.setVariantCode("variant-001");
+        item.setCurrencyCode("KES");
+        CommerceProductVariant variant = new CommerceProductVariant();
+        variant.setCode("variant-001");
+        variant.setUnitAmount(new java.math.BigDecimal("3000.0000"));
+
+        when(accessService.buildContext()).thenReturn(new VisibilityContext(true, true));
+        when(accessService.canView(any(CommerceCatalogueItem.class), any(VisibilityContext.class))).thenReturn(true);
+        when(variantRepository.findByCode("variant-001")).thenReturn(Optional.of(variant));
+        when(catalogItemRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(item));
+        when(catalogueClassDefinitionLookupService.findByUuid(classUuid)).thenReturn(Optional.empty());
+
+        assertThat(service.getByCourseOrClassOrProgram(null, classUuid, null).getFirst().unitAmount())
+                .isEqualByComparingTo("3000");
+    }
+
+    @Test
     void createItemShouldRejectWhenNoAssociationProvided() {
         UpsertCommerceCatalogueItemRequest request = new UpsertCommerceCatalogueItemRequest(
                 null,

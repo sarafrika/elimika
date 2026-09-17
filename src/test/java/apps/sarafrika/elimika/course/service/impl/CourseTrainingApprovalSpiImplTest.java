@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,12 +53,27 @@ class CourseTrainingApprovalSpiImplTest {
                 courseUuid, CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED))
                 .thenReturn(Optional.of(application));
 
-        assertThat(spi.resolveInstructorRate(courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.IN_PERSON))
-                .isEmpty();
+        assertThat(spi.resolveInstructorRate(courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.IN_PERSON,
+                RateBasis.PER_HOUR)).isEmpty();
         assertThat(spi.resolveInstructorRate(courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.ONLINE,
                 RateBasis.PER_SESSION)).isEmpty();
-        assertThat(spi.resolveInstructorRate(courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.ONLINE))
-                .contains(new BigDecimal("2500"));
+        assertThat(spi.resolveInstructorRate(courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.ONLINE,
+                RateBasis.PER_HOUR)).contains(new BigDecimal("2500"));
+    }
+
+    @Test
+    @DisplayName("a lookup without a basis is refused rather than read as hourly")
+    void aMissingBasisIsNotReadAsHourly() {
+        CourseTrainingApplication application = new CourseTrainingApplication();
+        application.setGroupOnlineHourlyRate(new BigDecimal("2500"));
+        when(courseApplications.findByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                courseUuid, CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED))
+                .thenReturn(Optional.of(application));
+
+        assertThatThrownBy(() -> spi.resolveInstructorRate(
+                courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.ONLINE, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("rate basis");
     }
 
     @Test

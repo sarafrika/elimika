@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public enum RateBasis {
 
-    /** Billed on total scheduled time. The historical behaviour and the default. */
+    /** Billed on total scheduled time. */
     PER_HOUR("per_hour"),
 
     /** Billed once per scheduled session, whatever its length. */
@@ -46,9 +46,6 @@ public enum RateBasis {
 
     @JsonCreator
     public static RateBasis fromValue(String value) {
-        if (value == null) {
-            return PER_HOUR;
-        }
         RateBasis basis = VALUE_MAP.get(value);
         if (basis == null) {
             throw new IllegalArgumentException("Unknown RateBasis: " + value);

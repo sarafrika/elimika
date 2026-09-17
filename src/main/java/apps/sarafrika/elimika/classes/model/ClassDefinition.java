@@ -112,11 +112,9 @@ public class ClassDefinition extends BaseEntity {
     @Column(name = "instructor_pay")
     private BigDecimal instructorPay;
 
-    // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
-    // null here would be sent explicitly and defeat that default — initialise it on the Java side.
     @Enumerated(EnumType.STRING)
     @Column(name = "rate_basis", nullable = false)
-    private RateBasis rateBasis = RateBasis.PER_HOUR;
+    private RateBasis rateBasis;
 
     @Convert(converter = ClassVisibilityConverter.class)
     @Column(name = "class_visibility")

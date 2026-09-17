@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.spi;
 
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -48,83 +49,31 @@ public interface CourseTrainingApprovalSpi {
      */
     boolean isOrganisationApprovedForProgram(UUID programUuid, UUID organisationUuid);
 
-    /**
-     * Resolves the approved instructor rate for the provided session format and delivery modality pair.
-     *
-     * @param courseUuid     Course identifier
-     * @param instructorUuid Instructor identifier
-     * @param visibility     Desired class visibility
-     * @param sessionFormat  Target session format
-     * @return Optional containing the matching rate if the instructor is approved and has a rate card entry
-     */
-    Optional<BigDecimal> resolveInstructorRate(UUID courseUuid,
-                                               UUID instructorUuid,
-                                               SessionFormat sessionFormat,
-                                               LocationType locationType);
-
+    /** The instructor's approved course rate for this cell in the stored basis; empty when not approved or not offered. */
     Optional<BigDecimal> resolveInstructorRate(UUID courseUuid,
                                                UUID instructorUuid,
                                                SessionFormat sessionFormat,
                                                LocationType locationType,
-            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
+                                               RateBasis basis);
 
-    /**
-     * Resolves the approved organisation rate for the provided session format and delivery modality pair.
-     *
-     * @param courseUuid       Course identifier
-     * @param organisationUuid Organisation identifier
-     * @param visibility       Desired class visibility
-     * @param sessionFormat    Target session format
-     * @return Optional containing the matching rate if the organisation is approved and has a rate card entry
-     */
-    Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
-                                                 UUID organisationUuid,
-                                                 SessionFormat sessionFormat,
-                                                 LocationType locationType);
-
+    /** The organisation's approved course rate for this cell in the stored basis; empty when not approved or not offered. */
     Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
                                                  UUID organisationUuid,
                                                  SessionFormat sessionFormat,
                                                  LocationType locationType,
-            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
+                                                 RateBasis basis);
 
-    /**
-     * Resolves the approved instructor rate for a training program.
-     *
-     * @param programUuid    Training program identifier
-     * @param instructorUuid Instructor identifier
-     * @param sessionFormat  Target session format
-     * @param locationType   Delivery modality
-     * @return Optional containing the matching rate if the instructor is approved on the program
-     */
-    Optional<BigDecimal> resolveInstructorProgramRate(UUID programUuid,
-                                                      UUID instructorUuid,
-                                                      SessionFormat sessionFormat,
-                                                      LocationType locationType);
-
+    /** The instructor's approved program rate for this cell in the stored basis; empty when not approved or not offered. */
     Optional<BigDecimal> resolveInstructorProgramRate(UUID programUuid,
                                                       UUID instructorUuid,
                                                       SessionFormat sessionFormat,
                                                       LocationType locationType,
-            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
+                                                      RateBasis basis);
 
-    /**
-     * Resolves the approved organisation rate for a training program.
-     *
-     * @param programUuid       Training program identifier
-     * @param organisationUuid  Organisation identifier
-     * @param sessionFormat     Target session format
-     * @param locationType      Delivery modality
-     * @return Optional containing the matching rate if the organisation is approved on the program
-     */
-    Optional<BigDecimal> resolveOrganisationProgramRate(UUID programUuid,
-                                                        UUID organisationUuid,
-                                                        SessionFormat sessionFormat,
-                                                        LocationType locationType);
-
+    /** The organisation's approved program rate for this cell in the stored basis; empty when not approved or not offered. */
     Optional<BigDecimal> resolveOrganisationProgramRate(UUID programUuid,
                                                         UUID organisationUuid,
                                                         SessionFormat sessionFormat,
                                                         LocationType locationType,
-            apps.sarafrika.elimika.shared.utils.enums.RateBasis basis);
+                                                        RateBasis basis);
 }

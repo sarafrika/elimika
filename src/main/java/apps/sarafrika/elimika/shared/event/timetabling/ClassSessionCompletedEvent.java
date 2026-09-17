@@ -13,7 +13,7 @@ import java.util.UUID;
  * It carries only what timetabling actually knows — which session, of which class, delivered by
  * which instructor, when, and how long it ran. Deliberately no money: the rate an organisation owes
  * is resolved by the module that records the obligation, not by the module that runs the calendar.
- * The duration is here because instructor rates are per hour, and the calendar is the only thing
+ * The duration is here because a per-hour class pays by it, and the calendar is the only thing
  * that knows how long the session actually was.
  *
  * @param scheduledInstanceUuid the session that completed

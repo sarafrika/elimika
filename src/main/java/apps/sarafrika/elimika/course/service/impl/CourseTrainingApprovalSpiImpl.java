@@ -9,13 +9,13 @@ import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
-import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 
 @Service
 @RequiredArgsConstructor
@@ -42,38 +42,6 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
     @Override
     public boolean isOrganisationApprovedForProgram(UUID programUuid, UUID organisationUuid) {
         return isProgramApplicantApproved(programUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION);
-    }
-
-    @Override
-    public Optional<BigDecimal> resolveInstructorRate(UUID courseUuid,
-                                                      UUID instructorUuid,
-                                                      SessionFormat sessionFormat,
-                                                      LocationType locationType) {
-        return resolveRate(courseUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, sessionFormat, locationType, RateBasis.PER_HOUR);
-    }
-
-    @Override
-    public Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
-                                                        UUID organisationUuid,
-                                                        SessionFormat sessionFormat,
-                                                        LocationType locationType) {
-        return resolveRate(courseUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, RateBasis.PER_HOUR);
-    }
-
-    @Override
-    public Optional<BigDecimal> resolveInstructorProgramRate(UUID programUuid,
-                                                             UUID instructorUuid,
-                                                             SessionFormat sessionFormat,
-                                                             LocationType locationType) {
-        return resolveProgramRate(programUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, sessionFormat, locationType, RateBasis.PER_HOUR);
-    }
-
-    @Override
-    public Optional<BigDecimal> resolveOrganisationProgramRate(UUID programUuid,
-                                                               UUID organisationUuid,
-                                                               SessionFormat sessionFormat,
-                                                               LocationType locationType) {
-        return resolveProgramRate(programUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, RateBasis.PER_HOUR);
     }
 
     private boolean isApplicantApproved(UUID courseUuid,
@@ -103,7 +71,6 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
                 CourseTrainingApplicationStatus.APPROVED
         );
     }
-
 
     @Override
     public Optional<BigDecimal> resolveInstructorRate(UUID courseUuid, UUID instructorUuid,
