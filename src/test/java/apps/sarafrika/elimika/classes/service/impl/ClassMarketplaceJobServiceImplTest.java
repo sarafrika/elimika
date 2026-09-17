@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobApplicationRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
@@ -24,6 +25,7 @@ import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
+import apps.sarafrika.elimika.course.spi.InstructorTrainingApprovals;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
@@ -64,6 +66,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -1473,8 +1476,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
-        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(false);
-        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+        stubNoApprovals(instructorUuid);
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid()))).thenReturn(List.of());
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -1496,8 +1499,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
-        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
-        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+        stubApprovals(job, instructorUuid, DEFAULT_INSTRUCTOR_RATE);
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid()))).thenReturn(List.of());
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -1523,8 +1526,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
-        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
-        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(existing));
+        stubApprovals(job, instructorUuid, DEFAULT_INSTRUCTOR_RATE);
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid()))).thenReturn(List.of(existing));
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -1548,8 +1551,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
-        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
-        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.of(existing));
+        stubApprovals(job, instructorUuid, DEFAULT_INSTRUCTOR_RATE);
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid()))).thenReturn(List.of(existing));
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -2303,8 +2306,8 @@ class ClassMarketplaceJobServiceImplTest {
         when(domainSecurityService.isInstructor()).thenReturn(true);
         when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
         when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
-        when(courseTrainingApprovalSpi.isInstructorApproved(job.getCourseUuid(), instructorUuid)).thenReturn(true);
-        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+        stubApprovals(job, instructorUuid, DEFAULT_INSTRUCTOR_RATE);
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid()))).thenReturn(List.of());
         when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
                 .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
         when(timetableService.getScheduleForInstructor(eq(instructorUuid), any(LocalDate.class), any(LocalDate.class)))
@@ -2664,10 +2667,7 @@ class ClassMarketplaceJobServiceImplTest {
         UUID instructorUuid = UUID.randomUUID();
         ClassMarketplaceJob job = sampleJob();
         job.setRateBasis(basis);
-        stubEligibleInstructor(job, instructorUuid);
-        when(courseTrainingApprovalSpi.resolveInstructorRate(
-                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, basis))
-                .thenReturn(Optional.empty());
+        stubEligibleInstructor(job, instructorUuid, null);
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -2685,10 +2685,7 @@ class ClassMarketplaceJobServiceImplTest {
         ClassMarketplaceJob job = sampleJob();
         job.setRateBasis(basis);
         job.setInstructorPay(new BigDecimal("1500.00"));
-        stubEligibleInstructor(job, instructorUuid);
-        when(courseTrainingApprovalSpi.resolveInstructorRate(
-                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, basis))
-                .thenReturn(Optional.of(new BigDecimal("1500.01")));
+        stubEligibleInstructor(job, instructorUuid, new BigDecimal("1500.01"));
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -2703,10 +2700,7 @@ class ClassMarketplaceJobServiceImplTest {
     void getMyJobEligibilityTreatsAZeroRateAsMissing() {
         UUID instructorUuid = UUID.randomUUID();
         ClassMarketplaceJob job = sampleProgramJob();
-        stubEligibleInstructor(job, instructorUuid);
-        when(courseTrainingApprovalSpi.resolveInstructorProgramRate(
-                job.getProgramUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
-                .thenReturn(Optional.of(BigDecimal.ZERO));
+        stubEligibleInstructor(job, instructorUuid, BigDecimal.ZERO);
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -2720,10 +2714,7 @@ class ClassMarketplaceJobServiceImplTest {
     void getMyJobEligibilityReportsTheCoveredRate() {
         UUID instructorUuid = UUID.randomUUID();
         ClassMarketplaceJob job = sampleJob();
-        stubEligibleInstructor(job, instructorUuid);
-        when(courseTrainingApprovalSpi.resolveInstructorRate(
-                job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
-                .thenReturn(Optional.of(new BigDecimal("240.00")));
+        stubEligibleInstructor(job, instructorUuid, new BigDecimal("240.00"));
 
         var eligibility = service.getMyJobEligibility(job.getUuid());
 
@@ -2731,6 +2722,89 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(eligibility.rateOk()).isTrue();
         assertThat(eligibility.approvedRate()).isEqualByComparingTo("240.00");
         assertThat(eligibility.reason()).isNull();
+    }
+
+    // ===== eligibility for many jobs in one call =====
+
+    @Test
+    void batchEligibilityMatchesTheSingleReadForEveryJobAndLoadsTheInstructorOnce() {
+        UUID instructorUuid = UUID.randomUUID();
+        ClassMarketplaceJob eligible = sampleJob();
+        ClassMarketplaceJob applied = sampleProgramJob();
+        ClassMarketplaceJob unapproved = sampleJob();
+        ClassMarketplaceJobApplication liveApplication = sampleApplication(applied.getUuid(), instructorUuid);
+        liveApplication.setStatus(ClassMarketplaceJobApplicationStatus.SHORTLISTED);
+        UUID unknownJobUuid = UUID.randomUUID();
+        InstructorTrainingApprovals.ApprovedRateCard card = (format, location, basis) -> Optional.of(DEFAULT_INSTRUCTOR_RATE);
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        when(courseTrainingApprovalSpi.findInstructorApprovals(instructorUuid)).thenReturn(new InstructorTrainingApprovals(
+                Map.of(eligible.getCourseUuid(), card), Map.of(applied.getProgramUuid(), card)));
+        List<UUID> requested = List.of(unapproved.getUuid(), unknownJobUuid, eligible.getUuid(), applied.getUuid());
+        when(jobRepository.findByUuidIn(requested)).thenReturn(List.of(eligible, applied, unapproved));
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid,
+                List.of(unapproved.getUuid(), eligible.getUuid(), applied.getUuid())))
+                .thenReturn(List.of(liveApplication));
+
+        var batch = service.getMyJobsEligibility(requested);
+
+        verify(courseTrainingApprovalSpi, times(1)).findInstructorApprovals(instructorUuid);
+        verify(instructorLookupService, times(1)).isInstructorAdminVerified(instructorUuid);
+        verify(courseTrainingApprovalSpi, never()).isInstructorApproved(any(), any());
+        verify(courseTrainingApprovalSpi, never()).resolveInstructorRate(any(), any(), any(), any(), any());
+        assertThat(batch).extracting(ClassMarketplaceJobEligibilityDTO::jobUuid)
+                .containsExactly(unapproved.getUuid(), eligible.getUuid(), applied.getUuid());
+        assertThat(batch).extracting(ClassMarketplaceJobEligibilityDTO::eligible).containsExactly(false, true, false);
+
+        for (ClassMarketplaceJob job : List.of(unapproved, eligible, applied)) {
+            when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+            when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid())))
+                    .thenReturn(job == applied ? List.of(liveApplication) : List.of());
+        }
+        assertThat(List.of(
+                service.getMyJobEligibility(unapproved.getUuid()),
+                service.getMyJobEligibility(eligible.getUuid()),
+                service.getMyJobEligibility(applied.getUuid())))
+                .containsExactlyElementsOf(batch);
+    }
+
+    @Test
+    void batchEligibilityRefusesMoreThanFiftyJobs() {
+        List<UUID> tooMany = java.util.stream.Stream.generate(UUID::randomUUID).limit(51).toList();
+
+        assertThatThrownBy(() -> service.getMyJobsEligibility(tooMany))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("At most 50 job_uuids can be checked in one call; 51 were sent.");
+
+        verifyNoInteractions(jobRepository, applicationRepository, courseTrainingApprovalSpi);
+    }
+
+    @Test
+    void batchEligibilityAcceptsFiftyJobsCountingRepeatsOnce() {
+        UUID instructorUuid = UUID.randomUUID();
+        List<UUID> fifty = java.util.stream.Stream.generate(UUID::randomUUID).limit(50).toList();
+        List<UUID> withRepeats = new java.util.ArrayList<>(fifty);
+        withRepeats.addAll(fifty.subList(0, 10));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(jobRepository.findByUuidIn(fifty)).thenReturn(List.of());
+
+        assertThat(service.getMyJobsEligibility(withRepeats)).isEmpty();
+    }
+
+    @Test
+    void batchEligibilityRefusesACallerWhoIsNotAnInstructor() {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.getMyJobsEligibility(List.of(UUID.randomUUID())))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+        verifyNoInteractions(jobRepository, applicationRepository, courseTrainingApprovalSpi);
     }
 
     @Test
@@ -2928,9 +3002,35 @@ class ClassMarketplaceJobServiceImplTest {
         }
     }
 
-    private void stubEligibleInstructor(ClassMarketplaceJob job, UUID instructorUuid) {
-        stubVerifiedApprovedInstructor(job, instructorUuid);
-        when(applicationRepository.findByJobUuidAndInstructorUuid(job.getUuid(), instructorUuid)).thenReturn(Optional.empty());
+    private void stubEligibleInstructor(ClassMarketplaceJob job, UUID instructorUuid, BigDecimal approvedRate) {
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(instructorLookupService.isInstructorAdminVerified(instructorUuid)).thenReturn(Optional.of(true));
+        stubApprovals(job, instructorUuid, approvedRate);
+        when(applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid, List.of(job.getUuid())))
+                .thenReturn(List.of());
+    }
+
+    /** Approves the instructor for the job's course or program, pricing only the job's own cell. */
+    private void stubApprovals(ClassMarketplaceJob job, UUID instructorUuid, BigDecimal approvedRate) {
+        when(courseTrainingApprovalSpi.findInstructorApprovals(instructorUuid)).thenReturn(approvalsFor(job, approvedRate));
+    }
+
+    private void stubNoApprovals(UUID instructorUuid) {
+        when(courseTrainingApprovalSpi.findInstructorApprovals(instructorUuid))
+                .thenReturn(new InstructorTrainingApprovals(Map.of(), Map.of()));
+    }
+
+    private static InstructorTrainingApprovals approvalsFor(ClassMarketplaceJob job, BigDecimal approvedRate) {
+        InstructorTrainingApprovals.ApprovedRateCard card = (format, location, basis) ->
+                format == job.getSessionFormat() && location == job.getLocationType() && basis == job.getRateBasis()
+                        ? Optional.ofNullable(approvedRate)
+                        : Optional.empty();
+        return job.getCourseUuid() != null
+                ? new InstructorTrainingApprovals(Map.of(job.getCourseUuid(), card), Map.of())
+                : new InstructorTrainingApprovals(Map.of(), Map.of(job.getProgramUuid(), card));
     }
 
     private ClassMarketplaceJobApplication offeredApplicationFor(UUID currentUserUuid,

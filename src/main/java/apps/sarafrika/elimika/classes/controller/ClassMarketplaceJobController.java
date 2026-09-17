@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -175,6 +176,18 @@ public class ClassMarketplaceJobController {
         return ResponseEntity.ok(ApiResponse.success(
                 classMarketplaceJobService.withdrawApplication(jobUuid, applicationUuid, request),
                 "Marketplace class job application withdrawn successfully"));
+    }
+
+    @Operation(summary = "Check the current instructor's eligibility for several marketplace class jobs",
+            description = "One entry per known job, in request order, each shaped like the single eligibility read. Unknown job uuids are skipped. At most 50 job_uuids per call; more return 400. Callers without an instructor profile are refused")
+    @GetMapping("/eligibility")
+    public ResponseEntity<ApiResponse<List<ClassMarketplaceJobEligibilityDTO>>> getJobsEligibility(
+            @Parameter(description = "Comma-separated job uuids, at most 50")
+            @RequestParam("job_uuids") List<UUID> jobUuids) {
+        return ResponseEntity.ok(ApiResponse.success(
+                classMarketplaceJobService.getMyJobsEligibility(jobUuids),
+                "Marketplace class job eligibility retrieved successfully"
+        ));
     }
 
     @Operation(summary = "Check current instructor's eligibility for a marketplace class job",

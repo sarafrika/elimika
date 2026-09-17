@@ -262,17 +262,47 @@ class ClassMarketplaceJobControllerTest {
     void eligibilityCarriesTheInstructorsRateForTheJob() throws Exception {
         UUID jobUuid = UUID.randomUUID();
         when(classMarketplaceJobService.getMyJobEligibility(jobUuid))
-                .thenReturn(new ClassMarketplaceJobEligibilityDTO(false, true, true, false, new BigDecimal("300.00"),
+                .thenReturn(new ClassMarketplaceJobEligibilityDTO(jobUuid, false, true, true, false, new BigDecimal("300.00"),
                         false, null, false, true, null,
                         "Your approved rate of KES 300.00 per day is above this job's pay of KES 240.00."));
 
         mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/eligibility", jobUuid))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.job_uuid").value(jobUuid.toString()))
                 .andExpect(jsonPath("$.data.eligible").value(false))
                 .andExpect(jsonPath("$.data.rate_ok").value(false))
                 .andExpect(jsonPath("$.data.approved_rate").value(300.00))
                 .andExpect(jsonPath("$.data.reason")
                         .value("Your approved rate of KES 300.00 per day is above this job's pay of KES 240.00."));
+    }
+
+    @Test
+    void batchEligibilityBindsTheCommaSeparatedJobsAndIsNotMistakenForAJobUuid() throws Exception {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        when(classMarketplaceJobService.getMyJobsEligibility(List.of(first, second))).thenReturn(List.of(
+                new ClassMarketplaceJobEligibilityDTO(first, true, true, true, true, new BigDecimal("200.00"),
+                        false, null, false, true, null, null),
+                new ClassMarketplaceJobEligibilityDTO(second, false, true, false, false, null,
+                        false, null, false, true, null, "You are not approved to deliver this course.")));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/eligibility").param("job_uuids", first + "," + second))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].job_uuid").value(first.toString()))
+                .andExpect(jsonPath("$.data[0].eligible").value(true))
+                .andExpect(jsonPath("$.data[1].job_uuid").value(second.toString()))
+                .andExpect(jsonPath("$.data[1].training_approved").value(false));
+        verify(classMarketplaceJobService, Mockito.never()).getJob(any());
+    }
+
+    @Test
+    void batchEligibilityAboveTheCapReturns400() throws Exception {
+        when(classMarketplaceJobService.getMyJobsEligibility(any()))
+                .thenThrow(new IllegalArgumentException("At most 50 job_uuids can be checked in one call; 51 were sent."));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/eligibility").param("job_uuids", UUID.randomUUID().toString()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

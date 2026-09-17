@@ -13,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 public interface ClassMarketplaceJobServiceInterface {
@@ -37,6 +39,9 @@ public interface ClassMarketplaceJobServiceInterface {
     ClassMarketplaceJobApplicationDTO applyToJob(UUID jobUuid, ClassMarketplaceJobApplicationRequestDTO request);
 
     ClassMarketplaceJobEligibilityDTO getMyJobEligibility(UUID jobUuid);
+
+    /** The current instructor's eligibility for up to 50 jobs, in request order; unknown jobs are skipped. */
+    List<ClassMarketplaceJobEligibilityDTO> getMyJobsEligibility(Collection<UUID> jobUuids);
 
     Page<ClassMarketplaceJobApplicationDTO> listJobApplications(UUID jobUuid,
                                                                 ClassMarketplaceJobApplicationStatus status,

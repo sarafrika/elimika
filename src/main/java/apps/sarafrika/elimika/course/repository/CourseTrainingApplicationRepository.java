@@ -102,6 +102,10 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
     List<CourseTrainingApplication> findByApplicantUuidAndStatus(UUID applicantUuid,
                                                                  CourseTrainingApplicationStatus status);
 
+    List<CourseTrainingApplication> findByApplicantTypeAndApplicantUuidAndStatus(CourseTrainingApplicantType applicantType,
+                                                                                 UUID applicantUuid,
+                                                                                 CourseTrainingApplicationStatus status);
+
     /**
      * Whether the applicant has applied to any course the given creator owns, at any status.
      * <p>

@@ -83,4 +83,7 @@ public interface CourseTrainingApprovalSpi {
                                                         SessionFormat sessionFormat,
                                                         LocationType locationType,
                                                         RateBasis basis);
+
+    /** Every approval the instructor holds, loaded once so many jobs can be checked without a query each. */
+    InstructorTrainingApprovals findInstructorApprovals(UUID instructorUuid);
 }

@@ -51,6 +51,7 @@ import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
+import apps.sarafrika.elimika.course.spi.InstructorTrainingApprovals;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -88,6 +89,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -114,6 +116,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final String DEFAULT_SCHEDULE_TIMEZONE = "UTC";
     private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
+    private static final int MAX_ELIGIBILITY_BATCH = 50;
     private static final String CACHE_PAY_VISIBLE = "marketplaceJob.payVisible";
     private static final String CACHE_BRANCH_NAME_PREFIX = "marketplaceJob.branchName.";
     private static final String CACHE_RESOURCE_PREFIX = "marketplaceJob.resource.";
@@ -278,14 +281,64 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public ClassMarketplaceJobEligibilityDTO getMyJobEligibility(UUID jobUuid) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         UUID instructorUuid = resolveCurrentInstructorUuid();
+        return assessEligibility(List.of(job), instructorUuid).getFirst();
+    }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassMarketplaceJobEligibilityDTO> getMyJobsEligibility(Collection<UUID> jobUuids) {
+        List<UUID> requested = jobUuids == null ? List.of() : jobUuids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (requested.size() > MAX_ELIGIBILITY_BATCH) {
+            throw new IllegalArgumentException(String.format(
+                    "At most %d job_uuids can be checked in one call; %d were sent.",
+                    MAX_ELIGIBILITY_BATCH, requested.size()));
+        }
+        UUID instructorUuid = resolveCurrentInstructorUuid();
+        if (requested.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, ClassMarketplaceJob> jobsByUuid = new HashMap<>();
+        jobRepository.findByUuidIn(requested).forEach(job -> jobsByUuid.put(job.getUuid(), job));
+        List<ClassMarketplaceJob> jobs = requested.stream()
+                .map(jobsByUuid::get)
+                .filter(Objects::nonNull)
+                .toList();
+        return assessEligibility(jobs, instructorUuid);
+    }
+
+    // The one eligibility path: the instructor's facts load once for all the jobs; only the clash check runs per job.
+    private List<ClassMarketplaceJobEligibilityDTO> assessEligibility(List<ClassMarketplaceJob> jobs, UUID instructorUuid) {
+        if (jobs.isEmpty()) {
+            return List.of();
+        }
         boolean instructorVerified = isInstructorAdminVerified(instructorUuid);
-        boolean trainingApproved = isInstructorApprovedForJob(job, instructorUuid);
-        InstructorRateCheck rateCheck = checkInstructorRate(job, instructorUuid);
-        ClassMarketplaceJobApplicationStatus applicationStatus = applicationRepository
-                .findByJobUuidAndInstructorUuid(jobUuid, instructorUuid)
-                .map(ClassMarketplaceJobApplication::getStatus)
-                .orElse(null);
+        InstructorTrainingApprovals approvals = courseTrainingApprovalSpi.findInstructorApprovals(instructorUuid);
+        Map<UUID, ClassMarketplaceJobApplicationStatus> applicationStatuses = new HashMap<>();
+        applicationRepository.findByInstructorUuidAndJobUuidIn(instructorUuid,
+                        jobs.stream().map(ClassMarketplaceJob::getUuid).toList())
+                .forEach(application -> applicationStatuses.put(application.getJobUuid(), application.getStatus()));
+        return jobs.stream()
+                .map(job -> assessEligibility(job, instructorUuid, instructorVerified, approvals,
+                        applicationStatuses.get(job.getUuid())))
+                .toList();
+    }
+
+    private ClassMarketplaceJobEligibilityDTO assessEligibility(ClassMarketplaceJob job,
+                                                               UUID instructorUuid,
+                                                               boolean instructorVerified,
+                                                               InstructorTrainingApprovals approvals,
+                                                               ClassMarketplaceJobApplicationStatus applicationStatus) {
+        boolean trainingApproved = job.getCourseUuid() != null
+                ? approvals.approvedForCourse(job.getCourseUuid())
+                : approvals.approvedForProgram(job.getProgramUuid());
+        Optional<BigDecimal> approvedRate = job.getCourseUuid() != null
+                ? approvals.courseRate(job.getCourseUuid(), job.getSessionFormat(), job.getLocationType(), job.getRateBasis())
+                : approvals.programRate(job.getProgramUuid(), job.getSessionFormat(), job.getLocationType(), job.getRateBasis());
+        InstructorRateCheck rateCheck = new InstructorRateCheck(pricedRate(approvedRate).orElse(null), job.getInstructorPay());
         boolean alreadyApplied = applicationStatus != null;
         boolean canReapply = applicationStatus != null && applicationStatus.allowsReapplication();
         List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
@@ -314,7 +367,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     scheduleConflicts.size());
         }
 
-        return new ClassMarketplaceJobEligibilityDTO(eligible, instructorVerified, trainingApproved,
+        return new ClassMarketplaceJobEligibilityDTO(job.getUuid(), eligible, instructorVerified, trainingApproved,
                 rateCheck.payCoversRate(), rateCheck.approvedRate(), alreadyApplied, applicationStatus, canReapply,
                 scheduleClear, scheduleClear ? null : scheduleConflicts, reason);
     }

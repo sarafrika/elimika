@@ -37,6 +37,10 @@ public interface ProgramTrainingApplicationRepository extends JpaRepository<Prog
 
     List<ProgramTrainingApplication> findByUuidIn(Collection<UUID> uuids);
 
+    List<ProgramTrainingApplication> findByApplicantTypeAndApplicantUuidAndStatus(CourseTrainingApplicantType applicantType,
+                                                                                  UUID applicantUuid,
+                                                                                  CourseTrainingApplicationStatus status);
+
     Optional<ProgramTrainingApplication> findByProgramUuidAndApplicantTypeAndApplicantUuid(UUID programUuid,
                                                                                           CourseTrainingApplicantType applicantType,
                                                                                           UUID applicantUuid);

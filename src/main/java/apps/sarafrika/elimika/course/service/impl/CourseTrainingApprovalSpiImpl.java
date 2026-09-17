@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.spi.ApprovedTrainingRate;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
+import apps.sarafrika.elimika.course.spi.InstructorTrainingApprovals;
+import apps.sarafrika.elimika.course.spi.InstructorTrainingApprovals.ApprovedRateCard;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.enums.LocationType;
@@ -15,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -110,6 +114,30 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
                                                                SessionFormat sessionFormat, LocationType locationType,
                                                                RateBasis basis) {
         return resolveProgramRate(programUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, basis)
+                .map(ApprovedTrainingRate::rate);
+    }
+
+    @Override
+    public InstructorTrainingApprovals findInstructorApprovals(UUID instructorUuid) {
+        if (instructorUuid == null) {
+            return new InstructorTrainingApprovals(Map.of(), Map.of());
+        }
+        Map<UUID, ApprovedRateCard> courses = new HashMap<>();
+        applicationRepository.findByApplicantTypeAndApplicantUuidAndStatus(
+                        CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED)
+                .forEach(application -> courses.putIfAbsent(application.getCourseUuid(), rateCard(application)));
+        Map<UUID, ApprovedRateCard> programs = new HashMap<>();
+        programTrainingApplicationRepository.findByApplicantTypeAndApplicantUuidAndStatus(
+                        CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED)
+                .forEach(application -> programs.putIfAbsent(application.getProgramUuid(), rateCard(application)));
+        courses.remove(null);
+        programs.remove(null);
+        return new InstructorTrainingApprovals(courses, programs);
+    }
+
+    /** Priced exactly as the single-cell lookups price it, so a batch answer never disagrees with them. */
+    private static ApprovedRateCard rateCard(TrainingRateCardHolder application) {
+        return (sessionFormat, locationType, basis) -> extractRate(application, sessionFormat, locationType, basis)
                 .map(ApprovedTrainingRate::rate);
     }
 

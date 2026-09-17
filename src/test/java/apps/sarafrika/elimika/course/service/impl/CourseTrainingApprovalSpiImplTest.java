@@ -121,4 +121,37 @@ class CourseTrainingApprovalSpiImplTest {
         assertThat(spi.resolveOrganisationRate(courseUuid, instructorUuid, SessionFormat.INDIVIDUAL, null,
                 RateBasis.PER_SESSION)).contains(new BigDecimal("1000"));
     }
+
+    @Test
+    @DisplayName("an instructor's approvals load once and price cells exactly as the single lookups do")
+    void approvalsLoadOnceAndPriceLikeTheSingleLookups() {
+        CourseTrainingApplication course = new CourseTrainingApplication();
+        course.setCourseUuid(courseUuid);
+        course.setGroupOnlineSessionRate(new BigDecimal("3000"));
+        course.setGroupInpersonSessionRate(BigDecimal.ZERO);
+        ProgramTrainingApplication program = new ProgramTrainingApplication();
+        program.setProgramUuid(programUuid);
+        program.setPrivateInpersonDailyRate(new BigDecimal("9000"));
+        when(courseApplications.findByApplicantTypeAndApplicantUuidAndStatus(
+                CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED))
+                .thenReturn(java.util.List.of(course));
+        when(programApplications.findByApplicantTypeAndApplicantUuidAndStatus(
+                CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED))
+                .thenReturn(java.util.List.of(program));
+
+        var approvals = spi.findInstructorApprovals(instructorUuid);
+
+        assertThat(approvals.approvedForCourse(courseUuid)).isTrue();
+        assertThat(approvals.approvedForCourse(UUID.randomUUID())).isFalse();
+        assertThat(approvals.approvedForProgram(programUuid)).isTrue();
+        assertThat(approvals.courseRate(courseUuid, SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_SESSION))
+                .contains(new BigDecimal("3000"));
+        assertThat(approvals.courseRate(courseUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
+                .as("a legacy zero is not a price").isEmpty();
+        assertThat(approvals.courseRate(courseUuid, null, LocationType.ONLINE, RateBasis.PER_SESSION)).isEmpty();
+        assertThat(approvals.programRate(programUuid, SessionFormat.INDIVIDUAL, LocationType.IN_PERSON, RateBasis.PER_DAY))
+                .contains(new BigDecimal("9000"));
+        assertThat(approvals.programRate(UUID.randomUUID(), SessionFormat.INDIVIDUAL, LocationType.IN_PERSON,
+                RateBasis.PER_DAY)).isEmpty();
+    }
 }

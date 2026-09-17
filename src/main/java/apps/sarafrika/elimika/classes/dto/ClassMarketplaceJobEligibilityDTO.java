@@ -12,6 +12,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ClassMarketplaceJobEligibilityDTO(
 
+        @Schema(description = "The job this answer is for")
+        @JsonProperty(value = "job_uuid", access = JsonProperty.Access.READ_ONLY)
+        java.util.UUID jobUuid,
+
         @Schema(description = "Whether the current instructor can apply for this job")
         @JsonProperty(value = "eligible", access = JsonProperty.Access.READ_ONLY)
         boolean eligible,
