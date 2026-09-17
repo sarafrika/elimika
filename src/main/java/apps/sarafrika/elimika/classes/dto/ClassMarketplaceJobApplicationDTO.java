@@ -69,6 +69,10 @@ public record ClassMarketplaceJobApplicationDTO(
         String createdBy,
 
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(description = "Summary of the job applied to; present on an instructor's application lists and the single application read", nullable = true)
+        @JsonProperty(value = "job", access = JsonProperty.Access.READ_ONLY)
+        ClassMarketplaceJobSummaryDTO job
 ) {
 }

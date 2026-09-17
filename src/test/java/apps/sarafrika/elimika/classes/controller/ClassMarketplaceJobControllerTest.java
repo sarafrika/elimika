@@ -247,7 +247,7 @@ class ClassMarketplaceJobControllerTest {
         when(classMarketplaceJobService.getJobApplication(jobUuid, applicationUuid)).thenReturn(
                 new ClassMarketplaceJobApplicationDTO(applicationUuid, jobUuid, UUID.randomUUID(),
                         ClassMarketplaceJobApplicationStatus.SHORTLISTED, "Keen", null, null, null, null, null, null,
-                        null, null, null, null, null, null));
+                        null, null, null, null, null, null, null));
 
         mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/applications/{applicationUuid}", jobUuid, applicationUuid))
                 .andExpect(status().isOk())

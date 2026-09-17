@@ -210,7 +210,8 @@ class ClassMarketplaceJobServiceImplTest {
                         userLookupService, instructorLookupService, organisationLookupService, eventPublisher,
                         new AuditUserResolver(userLookupService)),
                 new AuditUserResolver(userLookupService),
-                new MarketplaceApplicationHistory(eventRepository, domainSecurityService, userLookupService)
+                new MarketplaceApplicationHistory(eventRepository, domainSecurityService, userLookupService),
+                organisationLookupService
         );
         org.mockito.Mockito.lenient()
                 .when(trainingBranchLookupService.findBranch(any(), any()))
@@ -1742,6 +1743,88 @@ class ClassMarketplaceJobServiceImplTest {
 
         assertThat(page.getContent().getFirst().instructorPay())
                 .isEqualByComparingTo(new BigDecimal("18000.00"));
+    }
+
+    @Test
+    void myApplicationsCarryEachJobsSummaryWithOneLookupPerKindForThePage() {
+        UUID instructorUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        ClassMarketplaceJob inPerson = sampleJob();
+        inPerson.setBranchUuid(BRANCH_UUID);
+        inPerson.setLocationType(LocationType.IN_PERSON);
+        inPerson.setRateBasis(RateBasis.PER_SESSION);
+        inPerson.setInstructorPay(new BigDecimal("4500.00"));
+        ClassMarketplaceJob online = sampleProgramJob();
+        online.setLocationType(LocationType.ONLINE);
+        online.setStatus(ClassMarketplaceJobStatus.FILLED);
+        online.setAssignedClassDefinitionUuid(UUID.randomUUID());
+        ClassMarketplaceJobApplication first = sampleApplication(inPerson.getUuid(), instructorUuid);
+        ClassMarketplaceJobApplication second = sampleApplication(online.getUuid(), instructorUuid);
+        ClassMarketplaceJobApplication sameJobAgain = sampleApplication(inPerson.getUuid(), instructorUuid);
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isInstructor()).thenReturn(true);
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(instructorUuid);
+        when(domainSecurityService.isVerifiedInstructor()).thenReturn(true);
+        when(applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable))
+                .thenReturn(new PageImpl<>(List.of(first, second, sameJobAgain), pageable, 3));
+        when(jobRepository.findByUuidIn(List.of(inPerson.getUuid(), online.getUuid()))).thenReturn(List.of(inPerson, online));
+        when(courseInfoService.getCourseNames(List.of(inPerson.getCourseUuid())))
+                .thenReturn(java.util.Map.of(inPerson.getCourseUuid(), "Python for Data Analysis"));
+        when(courseInfoService.getTrainingProgramTitles(List.of(online.getProgramUuid())))
+                .thenReturn(java.util.Map.of(online.getProgramUuid(), "Data Science Pathway"));
+        when(organisationLookupService.findOrganisationNames(List.of(inPerson.getOrganisationUuid(), online.getOrganisationUuid())))
+                .thenReturn(java.util.Map.of(inPerson.getOrganisationUuid(), "Mwangaza Learning Centre"));
+        when(trainingBranchLookupService.findBranchNames(List.of(BRANCH_UUID)))
+                .thenReturn(java.util.Map.of(BRANCH_UUID, "Main Campus"));
+        when(sessionTemplateRepository.findByJobUuidInOrderByCreatedDateAsc(List.of(inPerson.getUuid(), online.getUuid())))
+                .thenReturn(List.of(sampleSessionTemplate(inPerson.getUuid())));
+
+        var rows = service.listMyApplications(null, pageable).getContent();
+
+        assertThat(rows).extracting(row -> row.job().title()).doesNotContainNull();
+        var inPersonSummary = rows.getFirst().job();
+        assertThat(inPersonSummary.courseName()).isEqualTo("Python for Data Analysis");
+        assertThat(inPersonSummary.organisationName()).isEqualTo("Mwangaza Learning Centre");
+        assertThat(inPersonSummary.branchName()).isEqualTo("Main Campus");
+        assertThat(inPersonSummary.locationType()).isEqualTo(LocationType.IN_PERSON);
+        assertThat(inPersonSummary.rateBasis()).isEqualTo(RateBasis.PER_SESSION);
+        assertThat(inPersonSummary.instructorPay()).isEqualByComparingTo("4500.00");
+        assertThat(inPersonSummary.sessionCount()).isEqualTo(6);
+        assertThat(inPersonSummary.firstSessionStart()).isEqualTo(LocalDateTime.of(2026, 5, 2, 9, 0));
+        assertThat(inPersonSummary.status()).isEqualTo(ClassMarketplaceJobStatus.OPEN);
+        assertThat(rows.get(2).job()).isSameAs(inPersonSummary);
+        var onlineSummary = rows.get(1).job();
+        assertThat(onlineSummary.programName()).isEqualTo("Data Science Pathway");
+        assertThat(onlineSummary.courseName()).isNull();
+        assertThat(onlineSummary.sessionCount()).isZero();
+        assertThat(onlineSummary.firstSessionStart()).isNull();
+        assertThat(onlineSummary.classDefinitionUuid()).isEqualTo(online.getAssignedClassDefinitionUuid());
+
+        verify(jobRepository, never()).findByUuid(any());
+        verify(sessionTemplateRepository, never()).findByJobUuidOrderByCreatedDateAsc(any());
+        verify(courseInfoService, never()).getCourseName(any());
+        verify(trainingBranchLookupService, never()).findBranch(any(), any());
+    }
+
+    @Test
+    void anApplicationsJobSummaryHidesThePayFromACallerWhoMayNotSeeIt() {
+        UUID instructorUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        ClassMarketplaceJob job = sampleJob();
+        ClassMarketplaceJobApplication application = sampleApplication(job.getUuid(), instructorUuid);
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(domainSecurityService.isInstructorWithUuid(instructorUuid)).thenReturn(true);
+        when(applicationRepository.findByInstructorUuidOrderByCreatedDateDesc(instructorUuid, pageable))
+                .thenReturn(new PageImpl<>(List.of(application), pageable, 1));
+        when(jobRepository.findByUuidIn(List.of(job.getUuid()))).thenReturn(List.of(job));
+
+        var summary = service.listInstructorApplications(instructorUuid, null, pageable).getContent().getFirst().job();
+
+        assertThat(summary.title()).isEqualTo(job.getTitle());
+        assertThat(summary.instructorPay()).as("an unverified instructor is not shown the pay").isNull();
     }
 
     @Test

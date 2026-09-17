@@ -10,8 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -91,6 +94,19 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     }
 
     @Override
+    public Map<UUID, String> getCourseNames(Collection<UUID> courseUuids) {
+        List<UUID> requested = distinct(courseUuids);
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> names = new HashMap<>();
+        courseRepository.findByUuidIn(requested).stream()
+                .filter(course -> course.getName() != null)
+                .forEach(course -> names.put(course.getUuid(), course.getName()));
+        return names;
+    }
+
+    @Override
     public Optional<UUID> getCourseCreatorUserUuid(UUID courseUuid) {
         return courseRepository.findByUuid(courseUuid)
                 .map(Course::getCourseCreatorUuid)
@@ -141,6 +157,23 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     public Optional<String> getTrainingProgramTitle(UUID programUuid) {
         return trainingProgramRepository.findByUuid(programUuid)
                 .map(TrainingProgram::getTitle);
+    }
+
+    @Override
+    public Map<UUID, String> getTrainingProgramTitles(Collection<UUID> programUuids) {
+        List<UUID> requested = distinct(programUuids);
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> titles = new HashMap<>();
+        trainingProgramRepository.findByUuidIn(requested).stream()
+                .filter(program -> program.getTitle() != null)
+                .forEach(program -> titles.put(program.getUuid(), program.getTitle()));
+        return titles;
+    }
+
+    private static List<UUID> distinct(Collection<UUID> uuids) {
+        return uuids == null ? List.of() : uuids.stream().filter(Objects::nonNull).distinct().toList();
     }
 
     @Override

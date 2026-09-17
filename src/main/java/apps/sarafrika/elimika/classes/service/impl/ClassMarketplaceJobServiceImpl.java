@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobSummaryDTO;
 import apps.sarafrika.elimika.classes.dto.ClassRecurrenceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
@@ -69,6 +70,7 @@ import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
 import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import org.springframework.web.multipart.MultipartFile;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService;
+import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
@@ -156,6 +158,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private final MarketplaceHireClashNotifier hireClashNotifier;
     private final AuditUserResolver auditUserResolver;
     private final MarketplaceApplicationHistory applicationHistory;
+    private final OrganisationLookupService organisationLookupService;
 
     @Override
     public ClassMarketplaceJobDTO createJob(ClassMarketplaceJobRequestDTO request) {
@@ -402,7 +405,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
                                                                       org.springframework.data.domain.Pageable pageable) {
         UUID instructorUuid = resolveCurrentInstructorUuid();
-        return findInstructorApplications(instructorUuid, status, pageable).map(this::toApplicationDTO);
+        return withJobSummaries(findInstructorApplications(instructorUuid, status, pageable));
     }
 
     /**
@@ -420,7 +423,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                                               org.springframework.data.domain.Pageable pageable) {
         UUID currentUserUuid = requireCurrentUserUuid();
         if (domainSecurityService.isInstructorWithUuid(instructorUuid) || domainSecurityService.isPlatformAdmin()) {
-            return findInstructorApplications(instructorUuid, status, pageable).map(this::toApplicationDTO);
+            return withJobSummaries(findInstructorApplications(instructorUuid, status, pageable));
         }
 
         // Resolving what the caller manages first means a signed-in stranger — the common case on a
@@ -430,9 +433,70 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         if (managedOrganisations.isEmpty()) {
             return Page.empty(pageable);
         }
-        return applicationRepository
-                .findByInstructorUuidAndJobOrganisations(instructorUuid, status, managedOrganisations, pageable)
-                .map(this::toApplicationDTO);
+        return withJobSummaries(applicationRepository
+                .findByInstructorUuidAndJobOrganisations(instructorUuid, status, managedOrganisations, pageable));
+    }
+
+    private Page<ClassMarketplaceJobApplicationDTO> withJobSummaries(Page<ClassMarketplaceJobApplication> applications) {
+        Map<UUID, ClassMarketplaceJobSummaryDTO> summaries = loadJobSummaries(applications.getContent());
+        return applications.map(application ->
+                toApplicationDTO(application, null, summaries.get(application.getJobUuid())));
+    }
+
+    /** Summarises the jobs behind a page of applications; each lookup runs once for the page, never per row. */
+    private Map<UUID, ClassMarketplaceJobSummaryDTO> loadJobSummaries(Collection<ClassMarketplaceJobApplication> applications) {
+        List<UUID> jobUuids = applications.stream()
+                .map(ClassMarketplaceJobApplication::getJobUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (jobUuids.isEmpty()) {
+            return Map.of();
+        }
+        List<ClassMarketplaceJob> jobs = jobRepository.findByUuidIn(jobUuids);
+        Map<UUID, String> courseNames = courseInfoService.getCourseNames(distinctOf(jobs, ClassMarketplaceJob::getCourseUuid));
+        Map<UUID, String> programNames =
+                courseInfoService.getTrainingProgramTitles(distinctOf(jobs, ClassMarketplaceJob::getProgramUuid));
+        Map<UUID, String> organisationNames =
+                organisationLookupService.findOrganisationNames(distinctOf(jobs, ClassMarketplaceJob::getOrganisationUuid));
+        Map<UUID, String> branchNames = branchLocationResolver.branchNames(distinctOf(jobs, ClassMarketplaceJob::getBranchUuid));
+        Map<UUID, List<ClassSessionTemplateDTO>> templatesByJob = new HashMap<>();
+        sessionTemplateRepository.findByJobUuidInOrderByCreatedDateAsc(jobUuids).forEach(template -> templatesByJob
+                .computeIfAbsent(template.getJobUuid(), ignored -> new ArrayList<>())
+                .add(toSessionTemplateDTO(template)));
+
+        Map<UUID, ClassMarketplaceJobSummaryDTO> summaries = new HashMap<>();
+        for (ClassMarketplaceJob job : jobs) {
+            List<OccurrenceWindow> sessions = expandSessionTemplates(templatesByJob.getOrDefault(job.getUuid(), List.of()));
+            summaries.put(job.getUuid(), new ClassMarketplaceJobSummaryDTO(
+                    job.getTitle(),
+                    job.getStatus(),
+                    job.getCourseUuid(),
+                    valueOf(courseNames, job.getCourseUuid()),
+                    job.getProgramUuid(),
+                    valueOf(programNames, job.getProgramUuid()),
+                    job.getOrganisationUuid(),
+                    valueOf(organisationNames, job.getOrganisationUuid()),
+                    job.getBranchUuid(),
+                    valueOf(branchNames, job.getBranchUuid()),
+                    job.getLocationType(),
+                    job.getSessionFormat(),
+                    job.getRateBasis(),
+                    canSeeInstructorPay(job) ? job.getInstructorPay() : null,
+                    sessions.stream().map(OccurrenceWindow::start).min(LocalDateTime::compareTo).orElse(null),
+                    sessions.size(),
+                    job.getAssignedClassDefinitionUuid()));
+        }
+        return summaries;
+    }
+
+    // Lookup maps may be immutable, and an immutable map refuses even to be asked about a null key.
+    private static <T> T valueOf(Map<UUID, T> values, UUID key) {
+        return key == null ? null : values.get(key);
+    }
+
+    private static List<UUID> distinctOf(List<ClassMarketplaceJob> jobs, java.util.function.Function<ClassMarketplaceJob, UUID> field) {
+        return jobs.stream().map(field).filter(Objects::nonNull).distinct().toList();
     }
 
     @Override
@@ -441,7 +505,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         ClassMarketplaceJobApplication application = getApplication(jobUuid, applicationUuid);
         requireApplicationReadAccess(job, application);
-        return toApplicationDTO(application, job);
+        return toApplicationDTO(application, job, loadJobSummaries(List.of(application)).get(jobUuid));
     }
 
     @Override
@@ -2103,12 +2167,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 () -> branchLocationResolver.branchName(branchUuid).orElse(null));
     }
 
-    private ClassMarketplaceJobApplicationDTO toApplicationDTO(ClassMarketplaceJobApplication application) {
-        return toApplicationDTO(application, null);
+    private ClassMarketplaceJobApplicationDTO toApplicationDTO(ClassMarketplaceJobApplication application,
+                                                               ClassMarketplaceJob job) {
+        return toApplicationDTO(application, job, null);
     }
 
     private ClassMarketplaceJobApplicationDTO toApplicationDTO(ClassMarketplaceJobApplication application,
-                                                               ClassMarketplaceJob job) {
+                                                               ClassMarketplaceJob job,
+                                                               ClassMarketplaceJobSummaryDTO jobSummary) {
         Boolean instructorAdminVerified = null;
         Boolean trainingApproved = null;
         BigDecimal approvedRate = null;
@@ -2137,7 +2203,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 application.getCreatedDate(),
                 application.getLastModifiedDate(),
                 application.getCreatedBy(),
-                application.getLastModifiedBy()
+                application.getLastModifiedBy(),
+                jobSummary
         );
     }
 

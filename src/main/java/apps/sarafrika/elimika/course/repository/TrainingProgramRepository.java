@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,8 @@ import java.util.UUID;
 @Repository
 public interface TrainingProgramRepository extends JpaRepository<TrainingProgram, Long>, JpaSpecificationExecutor<TrainingProgram> {
     Optional<TrainingProgram> findByUuid(UUID uuid);
+
+    List<TrainingProgram> findByUuidIn(Collection<UUID> uuids);
 
     void deleteByUuid(UUID uuid);
 

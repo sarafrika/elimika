@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -72,6 +74,11 @@ public class BranchLocationResolver {
             return Optional.empty();
         }
         return Optional.ofNullable(trainingBranchLookupService.findBranchNames(List.of(branchUuid)).get(branchUuid));
+    }
+
+    /** Branch names for a page of jobs in one lookup. */
+    public Map<UUID, String> branchNames(Collection<UUID> branchUuids) {
+        return trainingBranchLookupService.findBranchNames(branchUuids);
     }
 
     public static String label(BranchLocation branch) {

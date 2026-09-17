@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.spi;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +53,9 @@ public interface CourseInfoService {
      * @return Optional containing the course name, or empty if course not found
      */
     Optional<String> getCourseName(UUID courseUuid);
+
+    /** Course names for several courses in one query, omitting any that do not resolve. */
+    Map<UUID, String> getCourseNames(Collection<UUID> courseUuids);
 
     /**
      * Gets the base user UUID for the course creator who owns a course.
@@ -108,6 +112,9 @@ public interface CourseInfoService {
      * @return Optional containing the training program title, or empty if not found
      */
     Optional<String> getTrainingProgramTitle(UUID programUuid);
+
+    /** Training program titles for several programs in one query, omitting any that do not resolve. */
+    Map<UUID, String> getTrainingProgramTitles(Collection<UUID> programUuids);
 
     /**
      * Gets the base user UUID for the course creator who owns a training program.
