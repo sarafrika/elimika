@@ -1,6 +1,9 @@
 package apps.sarafrika.elimika.booking.dto;
 
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
+import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -42,13 +45,29 @@ public record BookingResponseDTO(
         @JsonProperty("status")
         BookingStatus status,
 
-        @Schema(description = "Price amount agreed for the booking")
+        @Schema(description = "Price charged for the booking, computed by the server from the approved rate")
         @JsonProperty("price_amount")
         BigDecimal priceAmount,
 
         @Schema(description = "ISO currency code for the booking price")
         @JsonProperty("currency")
         String currency,
+
+        @Schema(description = "Unit the approved rate was charged in", allowableValues = {"per_hour", "per_session", "per_day"})
+        @JsonProperty("rate_basis")
+        RateBasis rateBasis,
+
+        @Schema(description = "Private (INDIVIDUAL) or GROUP training the booking was priced for", allowableValues = {"INDIVIDUAL", "GROUP"})
+        @JsonProperty("training_format")
+        SessionFormat trainingFormat,
+
+        @Schema(description = "Delivery the booking was priced for", allowableValues = {"ONLINE", "IN_PERSON", "HYBRID"})
+        @JsonProperty("delivery_mode")
+        LocationType deliveryMode,
+
+        @Schema(description = "The approved rate, in its basis, the price was computed from")
+        @JsonProperty("unit_rate")
+        BigDecimal unitRate,
 
         @Schema(description = "Payment session identifier from the payment engine")
         @JsonProperty("payment_session_id")

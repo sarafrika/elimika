@@ -1,20 +1,21 @@
 package apps.sarafrika.elimika.booking.dto;
 
+import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Schema(
         name = "CreateBookingRequest",
-        description = "Request payload for creating a booking for an instructor and course"
+        description = "Request payload for creating a booking for an instructor and course. The server prices it "
+                + "from the instructor's approved rate card for the chosen format, delivery and basis."
 )
 @ValidTimeRange(startField = "startTime", endField = "endTime", message = "End time must be after start time")
 public record CreateBookingRequestDTO(
@@ -44,15 +45,28 @@ public record CreateBookingRequestDTO(
         @JsonProperty("end_time")
         LocalDateTime endTime,
 
-        @Schema(description = "Agreed price for the session", example = "50.00", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        @DecimalMin(value = "0.0", inclusive = false, message = "Price amount must be positive")
-        @JsonProperty("price_amount")
-        BigDecimal priceAmount,
+        @Schema(description = "Private (INDIVIDUAL) or GROUP training; picks the rate card row the booking is priced from",
+                allowableValues = {"INDIVIDUAL", "GROUP"}, requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "Training format is required")
+        @JsonProperty("training_format")
+        SessionFormat trainingFormat,
 
-        @Schema(description = "ISO currency code (e.g., USD, KES)", example = "USD", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be a 3-letter ISO code")
-        @JsonProperty("currency")
-        String currency,
+        @Schema(description = "How the session is delivered; HYBRID is priced from the in-person rates",
+                allowableValues = {"ONLINE", "IN_PERSON", "HYBRID"}, requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "Delivery mode is required")
+        @JsonProperty("delivery_mode")
+        LocationType deliveryMode,
+
+        @Schema(description = "Unit the instructor's approved rate is charged in",
+                allowableValues = {"per_hour", "per_session", "per_day"}, requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "Rate basis is required")
+        @JsonProperty("rate_basis")
+        RateBasis rateBasis,
+
+        @Schema(description = "IANA timezone deciding the class day a per-day rate is charged on. Defaults to UTC.",
+                example = "Africa/Nairobi", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        @JsonProperty("timezone")
+        String timezone,
 
         @Schema(description = "Optional purpose or note for this booking", maxLength = 500)
         @Size(max = 500, message = "Purpose must not exceed 500 characters")

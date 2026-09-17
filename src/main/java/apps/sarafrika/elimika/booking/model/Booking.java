@@ -1,8 +1,14 @@
 package apps.sarafrika.elimika.booking.model;
 
+import apps.sarafrika.elimika.booking.util.converter.BookingDeliveryModeConverter;
+import apps.sarafrika.elimika.booking.util.converter.BookingRateBasisConverter;
 import apps.sarafrika.elimika.booking.util.converter.BookingStatusConverter;
+import apps.sarafrika.elimika.booking.util.converter.BookingTrainingFormatConverter;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
+import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -51,6 +57,21 @@ public class Booking extends BaseEntity {
 
     @Column(name = "currency")
     private String currency;
+
+    @Column(name = "rate_basis")
+    @Convert(converter = BookingRateBasisConverter.class)
+    private RateBasis rateBasis;
+
+    @Column(name = "training_format")
+    @Convert(converter = BookingTrainingFormatConverter.class)
+    private SessionFormat trainingFormat;
+
+    @Column(name = "delivery_mode")
+    @Convert(converter = BookingDeliveryModeConverter.class)
+    private LocationType deliveryMode;
+
+    @Column(name = "unit_rate")
+    private BigDecimal unitRate;
 
     @Column(name = "payment_session_id")
     private String paymentSessionId;

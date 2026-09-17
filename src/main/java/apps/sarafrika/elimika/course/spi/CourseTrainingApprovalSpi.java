@@ -56,6 +56,13 @@ public interface CourseTrainingApprovalSpi {
                                                LocationType locationType,
                                                RateBasis basis);
 
+    /** As {@link #resolveInstructorRate}, with the card's currency for callers that charge the rate. */
+    Optional<ApprovedTrainingRate> resolveInstructorRateWithCurrency(UUID courseUuid,
+                                                                     UUID instructorUuid,
+                                                                     SessionFormat sessionFormat,
+                                                                     LocationType locationType,
+                                                                     RateBasis basis);
+
     /** The organisation's approved course rate for this cell in the stored basis; empty when not approved or not offered. */
     Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid,
                                                  UUID organisationUuid,

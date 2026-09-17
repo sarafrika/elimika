@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.spi.ApprovedTrainingRate;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.shared.enums.LocationType;
@@ -87,6 +88,22 @@ class CourseTrainingApprovalSpiImplTest {
 
         assertThat(spi.resolveOrganisationProgramRate(programUuid, instructorUuid, SessionFormat.INDIVIDUAL,
                 LocationType.HYBRID, RateBasis.PER_DAY)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a charged lookup carries the card's currency alongside the rate")
+    void theChargedLookupCarriesTheCardCurrency() {
+        CourseTrainingApplication application = new CourseTrainingApplication();
+        application.setRateCurrency("KES");
+        application.setGroupInpersonDailyRate(new BigDecimal("9000"));
+        when(courseApplications.findByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                courseUuid, CourseTrainingApplicantType.INSTRUCTOR, instructorUuid, CourseTrainingApplicationStatus.APPROVED))
+                .thenReturn(Optional.of(application));
+
+        assertThat(spi.resolveInstructorRateWithCurrency(courseUuid, instructorUuid, SessionFormat.GROUP,
+                LocationType.HYBRID, RateBasis.PER_DAY)).contains(new ApprovedTrainingRate(new BigDecimal("9000"), "KES"));
+        assertThat(spi.resolveInstructorRateWithCurrency(courseUuid, instructorUuid, SessionFormat.GROUP,
+                LocationType.ONLINE, RateBasis.PER_DAY)).isEmpty();
     }
 
     @Test

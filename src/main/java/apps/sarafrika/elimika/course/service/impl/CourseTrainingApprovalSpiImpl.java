@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.model.TrainingRateCardHolder;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.spi.ApprovedTrainingRate;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
@@ -76,6 +77,15 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
     public Optional<BigDecimal> resolveInstructorRate(UUID courseUuid, UUID instructorUuid,
                                                       SessionFormat sessionFormat, LocationType locationType,
                                                       RateBasis basis) {
+        return resolveInstructorRateWithCurrency(courseUuid, instructorUuid, sessionFormat, locationType, basis)
+                .map(ApprovedTrainingRate::rate);
+    }
+
+    @Override
+    public Optional<ApprovedTrainingRate> resolveInstructorRateWithCurrency(UUID courseUuid, UUID instructorUuid,
+                                                                            SessionFormat sessionFormat,
+                                                                            LocationType locationType,
+                                                                            RateBasis basis) {
         return resolveRate(courseUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, sessionFormat, locationType, basis);
     }
 
@@ -83,29 +93,32 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
     public Optional<BigDecimal> resolveOrganisationRate(UUID courseUuid, UUID organisationUuid,
                                                         SessionFormat sessionFormat, LocationType locationType,
                                                         RateBasis basis) {
-        return resolveRate(courseUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, basis);
+        return resolveRate(courseUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, basis)
+                .map(ApprovedTrainingRate::rate);
     }
 
     @Override
     public Optional<BigDecimal> resolveInstructorProgramRate(UUID programUuid, UUID instructorUuid,
                                                              SessionFormat sessionFormat, LocationType locationType,
                                                              RateBasis basis) {
-        return resolveProgramRate(programUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, sessionFormat, locationType, basis);
+        return resolveProgramRate(programUuid, instructorUuid, CourseTrainingApplicantType.INSTRUCTOR, sessionFormat, locationType, basis)
+                .map(ApprovedTrainingRate::rate);
     }
 
     @Override
     public Optional<BigDecimal> resolveOrganisationProgramRate(UUID programUuid, UUID organisationUuid,
                                                                SessionFormat sessionFormat, LocationType locationType,
                                                                RateBasis basis) {
-        return resolveProgramRate(programUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, basis);
+        return resolveProgramRate(programUuid, organisationUuid, CourseTrainingApplicantType.ORGANISATION, sessionFormat, locationType, basis)
+                .map(ApprovedTrainingRate::rate);
     }
 
-    private Optional<BigDecimal> resolveRate(UUID courseUuid,
-                                             UUID applicantUuid,
-                                             CourseTrainingApplicantType applicantType,
-                                             SessionFormat sessionFormat,
-                                             LocationType locationType,
-                                             RateBasis basis) {
+    private Optional<ApprovedTrainingRate> resolveRate(UUID courseUuid,
+                                                       UUID applicantUuid,
+                                                       CourseTrainingApplicantType applicantType,
+                                                       SessionFormat sessionFormat,
+                                                       LocationType locationType,
+                                                       RateBasis basis) {
         if (courseUuid == null || applicantUuid == null || sessionFormat == null) {
             return Optional.empty();
         }
@@ -120,12 +133,12 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
                 .flatMap(application -> extractRate(application, sessionFormat, locationType, basis));
     }
 
-    private Optional<BigDecimal> resolveProgramRate(UUID programUuid,
-                                                    UUID applicantUuid,
-                                                    CourseTrainingApplicantType applicantType,
-                                                    SessionFormat sessionFormat,
-                                                    LocationType locationType,
-                                                    RateBasis basis) {
+    private Optional<ApprovedTrainingRate> resolveProgramRate(UUID programUuid,
+                                                              UUID applicantUuid,
+                                                              CourseTrainingApplicantType applicantType,
+                                                              SessionFormat sessionFormat,
+                                                              LocationType locationType,
+                                                              RateBasis basis) {
         if (programUuid == null || applicantUuid == null || sessionFormat == null) {
             return Optional.empty();
         }
@@ -141,11 +154,12 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
     }
 
     /** A null or non-positive cell is not offered, so it resolves to nothing rather than to a price. */
-    private static Optional<BigDecimal> extractRate(TrainingRateCardHolder application,
-                                                    SessionFormat sessionFormat,
-                                                    LocationType locationType,
-                                                    RateBasis basis) {
+    private static Optional<ApprovedTrainingRate> extractRate(TrainingRateCardHolder application,
+                                                              SessionFormat sessionFormat,
+                                                              LocationType locationType,
+                                                              RateBasis basis) {
         return Optional.ofNullable(TrainingRateCardFactory.toDTO(application).resolveRate(sessionFormat, locationType, basis))
-                .filter(rate -> rate.signum() > 0);
+                .filter(rate -> rate.signum() > 0)
+                .map(rate -> new ApprovedTrainingRate(rate, application.getRateCurrency()));
     }
 }

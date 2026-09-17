@@ -14,8 +14,11 @@ import apps.sarafrika.elimika.booking.spi.BookingService;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.spi.ClassDefinitionService;
+import apps.sarafrika.elimika.course.spi.ApprovedTrainingRate;
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
+import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
+import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
@@ -31,9 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -43,6 +53,10 @@ import java.util.UUID;
 public class BookingServiceImpl implements BookingService {
 
     private static final int DEFAULT_HOLD_MINUTES = 30;
+    private static final BigDecimal SECONDS_PER_HOUR = BigDecimal.valueOf(3600);
+    private static final Set<BookingStatus> ACTIVE_STATUSES = EnumSet.of(
+            BookingStatus.PAYMENT_REQUIRED, BookingStatus.CONFIRMED,
+            BookingStatus.ACCEPTED, BookingStatus.ACCEPTED_CONFIRMED);
 
     private final BookingRepository bookingRepository;
     private final AvailabilityService availabilityService;
@@ -51,10 +65,12 @@ public class BookingServiceImpl implements BookingService {
     private final TimetableService timetableService;
     private final CourseInfoService courseInfoService;
     private final InstructorTimeHoldService instructorTimeHoldService;
+    private final CourseTrainingApprovalSpi courseTrainingApprovalSpi;
 
     @Override
     public BookingResponseDTO createBooking(CreateBookingRequestDTO request) {
         validateCreateRequest(request);
+        ZoneId classZone = resolveClassZone(request.timezone());
 
         if (!availabilityService.isInstructorAvailable(request.instructorUuid(), request.startTime(), request.endTime())) {
             throw new IllegalStateException("Instructor is not available for the requested time range.");
@@ -67,6 +83,8 @@ public class BookingServiceImpl implements BookingService {
         }
 
         enforceCourseApproval(request.courseUuid());
+        ApprovedTrainingRate approvedRate = resolveApprovedRate(request);
+        BigDecimal price = priceBooking(request, approvedRate.rate(), classZone);
 
         Booking booking = new Booking();
         booking.setStudentUuid(request.studentUuid());
@@ -74,12 +92,22 @@ public class BookingServiceImpl implements BookingService {
         booking.setInstructorUuid(request.instructorUuid());
         booking.setStartTime(request.startTime());
         booking.setEndTime(request.endTime());
-        booking.setStatus(BookingStatus.PAYMENT_REQUIRED);
-        booking.setHoldExpiresAt(resolveHoldExpiry(request.startTime()));
-        booking.setPriceAmount(resolvePrice(request.priceAmount()));
-        booking.setCurrency(request.currency());
+        booking.setTrainingFormat(request.trainingFormat());
+        booking.setDeliveryMode(request.deliveryMode());
+        booking.setRateBasis(request.rateBasis());
+        booking.setUnitRate(approvedRate.rate());
+        booking.setPriceAmount(price);
+        booking.setCurrency(approvedRate.currency());
         booking.setPurpose(request.purpose());
 
+        // A follow-on session of an already charged day owes nothing, so it starts where a paid booking lands.
+        if (price.signum() == 0) {
+            booking.setStatus(BookingStatus.CONFIRMED);
+            return mapToResponse(bookingRepository.save(booking));
+        }
+
+        booking.setStatus(BookingStatus.PAYMENT_REQUIRED);
+        booking.setHoldExpiresAt(resolveHoldExpiry(request.startTime()));
         Booking saved = bookingRepository.save(booking);
 
         PaymentSession session = paymentGatewayClient.initiatePayment(saved);
@@ -295,6 +323,65 @@ public class BookingServiceImpl implements BookingService {
         if (!request.startTime().isBefore(request.endTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
         }
+        if (request.trainingFormat() == null || request.deliveryMode() == null || request.rateBasis() == null) {
+            throw new IllegalArgumentException("Training format, delivery mode and rate basis are required");
+        }
+    }
+
+    private static ZoneId resolveClassZone(String timezone) {
+        String value = timezone == null || timezone.isBlank() ? "UTC" : timezone.trim();
+        try {
+            return ZoneId.of(value);
+        } catch (DateTimeException ex) {
+            throw new IllegalArgumentException("Invalid IANA timezone: " + value, ex);
+        }
+    }
+
+    private ApprovedTrainingRate resolveApprovedRate(CreateBookingRequestDTO request) {
+        return courseTrainingApprovalSpi.resolveInstructorRateWithCurrency(
+                        request.courseUuid(),
+                        request.instructorUuid(),
+                        request.trainingFormat(),
+                        request.deliveryMode(),
+                        request.rateBasis())
+                .orElseThrow(() -> new IllegalStateException(String.format(
+                        "This instructor has no approved %s rate for %s %s training on this course.",
+                        request.rateBasis().getValue().replace('_', ' '),
+                        SessionFormat.GROUP.equals(request.trainingFormat()) ? "group" : "private",
+                        switch (request.deliveryMode()) {
+                            case ONLINE -> "online";
+                            case IN_PERSON -> "in-person";
+                            case HYBRID -> "hybrid (in-person rate)";
+                        })));
+    }
+
+    /** Per hour charges the session's length, per session once, per day once for each local class day. */
+    private BigDecimal priceBooking(CreateBookingRequestDTO request, BigDecimal rate, ZoneId classZone) {
+        return switch (request.rateBasis()) {
+            case PER_HOUR -> rate
+                    .multiply(BigDecimal.valueOf(Duration.between(request.startTime(), request.endTime()).toSeconds()))
+                    .divide(SECONDS_PER_HOUR, 2, RoundingMode.HALF_UP);
+            case PER_SESSION -> rate.setScale(2, RoundingMode.HALF_UP);
+            case PER_DAY -> isClassDayAlreadyCharged(request, classZone)
+                    ? BigDecimal.ZERO.setScale(2)
+                    : rate.setScale(2, RoundingMode.HALF_UP);
+        };
+    }
+
+    private boolean isClassDayAlreadyCharged(CreateBookingRequestDTO request, ZoneId classZone) {
+        LocalDate classDay = request.startTime().atOffset(ZoneOffset.UTC).atZoneSameInstant(classZone).toLocalDate();
+        return bookingRepository.existsChargedBookingStartingBetween(
+                request.studentUuid(),
+                request.instructorUuid(),
+                request.courseUuid(),
+                request.rateBasis(),
+                ACTIVE_STATUSES,
+                toUtc(classDay, classZone),
+                toUtc(classDay.plusDays(1), classZone));
+    }
+
+    private static LocalDateTime toUtc(LocalDate day, ZoneId zone) {
+        return day.atStartOfDay(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 
     private LocalDateTime resolveHoldExpiry(LocalDateTime startTime) {
@@ -303,13 +390,6 @@ public class BookingServiceImpl implements BookingService {
             return defaultExpiry;
         }
         return startTime.isBefore(defaultExpiry) ? startTime : defaultExpiry;
-    }
-
-    private BigDecimal resolvePrice(BigDecimal amount) {
-        if (amount == null) {
-            return null;
-        }
-        return amount.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BookingResponseDTO mapToResponse(Booking booking) {
@@ -323,6 +403,10 @@ public class BookingServiceImpl implements BookingService {
                 booking.getStatus(),
                 booking.getPriceAmount(),
                 booking.getCurrency(),
+                booking.getRateBasis(),
+                booking.getTrainingFormat(),
+                booking.getDeliveryMode(),
+                booking.getUnitRate(),
                 booking.getPaymentSessionId(),
                 booking.getPaymentReference(),
                 booking.getPaymentEngine(),
