@@ -1,3 +1,15 @@
+# [2.151.0](https://github.com/sarafrika/elimika/compare/v2.150.2...v2.151.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **booking:** price bookings from the instructor's approved rate card ([64a12c5](https://github.com/sarafrika/elimika/commit/64a12c5b3f505e49e25a72d25a3ad832b7885f9e))
+
+
+### Features
+
+* **timetabling:** report distinct students on the instructor roster ([222cee6](https://github.com/sarafrika/elimika/commit/222cee673def647d7795d68c872a6ddc8433c2ab))
+
 ## [2.150.2](https://github.com/sarafrika/elimika/compare/v2.150.1...v2.150.2) (2026-09-17)
 
 
