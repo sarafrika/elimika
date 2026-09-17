@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.MediaValidationService;
 import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
 import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
@@ -35,6 +36,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
@@ -645,6 +648,76 @@ class ClassDefinitionServiceImplTest {
         return new ClassDefinitionDTO(null, title, null, null, null, branchUuid, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null);
+    }
+
+    // ── A price left off is filled from the organisation's rate in the class's own basis ──────
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createFillsTheSalePriceFromTheOrganisationsRateInTheClassBasis(RateBasis basis) {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = pricedLaterCourseClass(organisationUuid, courseUuid, basis);
+        allowManagerOfApprovedCourse(request, courseUuid);
+        when(courseTrainingApprovalSpi.resolveOrganisationRate(
+                courseUuid, organisationUuid, SessionFormat.GROUP, LocationType.ONLINE, basis))
+                .thenReturn(Optional.of(new BigDecimal("1800.00")));
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request);
+
+        assertThat(saved.get().getRateBasis()).isEqualTo(basis);
+        assertThat(saved.get().getSalePrice()).isEqualByComparingTo("1800.00");
+    }
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createFillsAProgramClassSalePriceFromTheOrganisationsRateInTheClassBasis(RateBasis basis) {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID programUuid = UUID.randomUUID();
+        ClassDefinitionDTO base = pricedLaterCourseClass(organisationUuid, null, basis);
+        ClassDefinitionDTO request = new ClassDefinitionDTO(null, base.title(), base.description(),
+                base.defaultInstructorUuid(), organisationUuid, null, null, programUuid, null, null, basis,
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                null, null, null, null, base.classReminderMinutes(), base.classColor(), base.locationType(), null,
+                null, null, base.meetingLink(), base.maxParticipants(), base.allowWaitlist(), true,
+                base.sessionTemplates(), null, null, null, null);
+        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
+        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
+        when(courseTrainingApprovalSpi.isInstructorApprovedForProgram(programUuid, request.defaultInstructorUuid()))
+                .thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, organisationUuid)).thenReturn(true);
+        when(classReadDomainSecurityService.belongsToOrganisationWithDomain(
+                organisationUuid, apps.sarafrika.elimika.shared.utils.enums.UserDomain.organisation_user)).thenReturn(true);
+        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                programUuid, organisationUuid, SessionFormat.GROUP, LocationType.ONLINE, basis))
+                .thenReturn(Optional.of(new BigDecimal("950.00")));
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request);
+
+        assertThat(saved.get().getSalePrice()).isEqualByComparingTo("950.00");
+    }
+
+    private ClassDefinitionDTO pricedLaterCourseClass(UUID organisationUuid, UUID courseUuid, RateBasis basis) {
+        ClassDefinitionDTO base = sampleClassDefinition(organisationUuid, null, LocationType.ONLINE, null, null, null);
+        return new ClassDefinitionDTO(null, base.title(), base.description(), base.defaultInstructorUuid(),
+                organisationUuid, null, courseUuid, null, null, null, basis, base.classVisibility(),
+                base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(), null, null, null, null,
+                base.classReminderMinutes(), base.classColor(), base.locationType(), null, null, null,
+                base.meetingLink(), base.maxParticipants(), base.allowWaitlist(), true, base.sessionTemplates(),
+                null, null, null, null);
+    }
+
+    private void allowManagerOfApprovedCourse(ClassDefinitionDTO request, UUID courseUuid) {
+        when(courseInfoService.courseExists(courseUuid)).thenReturn(true);
+        when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(true);
+        when(courseInfoService.getMinimumTrainingFee(courseUuid)).thenReturn(Optional.of(BigDecimal.ZERO));
+        when(courseTrainingApprovalSpi.isInstructorApproved(courseUuid, request.defaultInstructorUuid())).thenReturn(true);
+        when(courseTrainingApprovalSpi.isOrganisationApproved(courseUuid, request.organisationUuid())).thenReturn(true);
+        when(classReadDomainSecurityService.belongsToOrganisationWithDomain(
+                request.organisationUuid(), apps.sarafrika.elimika.shared.utils.enums.UserDomain.organisation_user))
+                .thenReturn(true);
     }
 
     private AtomicReference<ClassDefinition> stubSuccessfulCreate(ClassDefinitionDTO request) {
