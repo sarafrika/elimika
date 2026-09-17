@@ -32,7 +32,8 @@ public final class CourseTrainingApplicationFactory {
                 entity.getLastModifiedDate(),
                 entity.getLastModifiedBy(),
                 extras == null ? null : extras.pendingRateUpdateUuid(),
-                extras == null ? null : extras.rateFloorFlags()
+                extras == null ? null : extras.rateFloorFlags(),
+                extras == null ? null : extras.firstOpenedAt()
         );
     }
 }

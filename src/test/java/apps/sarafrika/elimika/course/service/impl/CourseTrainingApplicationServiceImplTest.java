@@ -6,7 +6,9 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRateUpdateRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingRateUpdateRepository;
@@ -14,6 +16,9 @@ import apps.sarafrika.elimika.course.service.CourseTrainingRateUpdateService;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
+import apps.sarafrika.elimika.course.model.TrainingApplicationEvent;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationEventType;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationType;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
@@ -95,6 +100,9 @@ class CourseTrainingApplicationServiceImplTest {
     private ProgramCourseRepository programCourseRepository;
 
     @Mock
+    private TrainingApplicationEventRepository eventRepository;
+
+    @Mock
     private CourseTrainingRateUpdateService rateUpdateService;
 
     private CourseTrainingRateCardValidator rateCardValidator;
@@ -106,6 +114,7 @@ class CourseTrainingApplicationServiceImplTest {
         rateCardValidator = new CourseTrainingRateCardValidator();
         // Built for real: outside a request there is no acting-domain header, so every footing is permitted.
         CourseFootingCap footingCap = new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache())));
+        TrainingApplicationHistory history = new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService);
         service = new CourseTrainingApplicationServiceImpl(
                 courseRepository,
                 applicationRepository,
@@ -119,9 +128,10 @@ class CourseTrainingApplicationServiceImplTest {
                 userLookupService,
                 applicationEventPublisher,
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
-                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates),
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history),
                 rateUpdateService,
-                new TrainingFeeFloors(courseRepository, programCourseRepository)
+                new TrainingFeeFloors(courseRepository, programCourseRepository),
+                history
         );
     }
 
@@ -547,6 +557,114 @@ class CourseTrainingApplicationServiceImplTest {
                 service.search(java.util.Map.of(), page).getContent().getFirst();
         assertThat(owner.rateCard()).isNotNull();
         assertThat(owner.rateFloorFlags().groupOnlineHourlyRate()).isTrue();
+    }
+
+    @Test
+    @DisplayName("resubmitting a rejected application records a fresh submitted event with its actor")
+    void resubmissionIsRecorded() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID applicantUuid = UUID.randomUUID();
+        UUID actorUuid = UUID.randomUUID();
+        Course course = new Course();
+        course.setMinimumTrainingFee(new BigDecimal("2000"));
+        CourseTrainingApplication rejected = new CourseTrainingApplication();
+        rejected.setUuid(UUID.randomUUID());
+        rejected.setCourseUuid(courseUuid);
+        rejected.setApplicantType(CourseTrainingApplicantType.INSTRUCTOR);
+        rejected.setApplicantUuid(applicantUuid);
+        rejected.setStatus(CourseTrainingApplicationStatus.REJECTED);
+
+        when(domainSecurityService.isInstructorWithUuid(applicantUuid)).thenReturn(true);
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(actorUuid);
+        when(userLookupService.getUserFullName(actorUuid)).thenReturn(Optional.of("Amina Otieno"));
+        when(courseRepository.findByUuid(courseUuid)).thenReturn(Optional.of(course));
+        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
+        when(applicationRepository.findByCourseUuidAndApplicantTypeAndApplicantUuid(
+                courseUuid, CourseTrainingApplicantType.INSTRUCTOR, applicantUuid)).thenReturn(Optional.of(rejected));
+        when(applicationRepository.save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.submitApplication(courseUuid, new CourseTrainingApplicationRequest(
+                CourseTrainingApplicantType.INSTRUCTOR, applicantUuid, rateCard("KES", "2500.00"), "Trying again"));
+
+        TrainingApplicationEvent event = recordedEvents().getFirst();
+        assertThat(event.getEventType()).isEqualTo(TrainingApplicationEventType.SUBMITTED);
+        assertThat(event.getApplicationType()).isEqualTo(TrainingApplicationType.COURSE);
+        assertThat(event.getApplicationUuid()).isEqualTo(rejected.getUuid());
+        assertThat(event.getActorUuid()).isEqualTo(actorUuid);
+        assertThat(event.getActorName()).isEqualTo("Amina Otieno");
+        assertThat(event.getNote()).isEqualTo("Trying again");
+    }
+
+    @Test
+    @DisplayName("edits, decisions and withdrawals are each recorded")
+    void everyTransitionIsRecorded() {
+        CourseTrainingApplication application = legacyApplication();
+        UUID courseUuid = application.getCourseUuid();
+        when(domainSecurityService.isInstructorWithUuid(application.getApplicantUuid())).thenReturn(true);
+        when(currencyService.resolveCurrencyOrDefault("KES")).thenReturn(defaultKes());
+        when(applicationRepository.save(org.mockito.ArgumentMatchers.any(CourseTrainingApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest notes =
+                new apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionRequest("Reviewed");
+
+        application.setStatus(CourseTrainingApplicationStatus.PENDING);
+        service.updateApplication(courseUuid, application.getUuid(),
+                new CourseTrainingApplicationUpdateRequest(rateCard("KES", "3000.00"), "New notes"));
+        service.approveApplication(courseUuid, application.getUuid(), notes);
+        service.revokeApplication(courseUuid, application.getUuid(), notes);
+        application.setStatus(CourseTrainingApplicationStatus.PENDING);
+        service.rejectApplication(courseUuid, application.getUuid(), notes);
+        application.setStatus(CourseTrainingApplicationStatus.PENDING);
+        service.withdrawApplication(courseUuid, application.getUuid());
+
+        assertThat(recordedEvents()).extracting(TrainingApplicationEvent::getEventType).containsExactly(
+                TrainingApplicationEventType.EDITED,
+                TrainingApplicationEventType.APPROVED,
+                TrainingApplicationEventType.REVOKED,
+                TrainingApplicationEventType.REJECTED,
+                TrainingApplicationEventType.WITHDRAWN);
+        assertThat(recordedEvents().get(1).getNote()).isEqualTo("Reviewed");
+    }
+
+    @Test
+    @DisplayName("the creator's read records the first open; the applicant's read does not")
+    void onlyTheCreatorsReadIsRecorded() {
+        CourseTrainingApplication application = legacyApplication();
+        when(domainSecurityService.isInstructorWithUuid(application.getApplicantUuid())).thenReturn(true);
+
+        service.getApplication(application.getCourseUuid(), application.getUuid());
+        verify(eventRepository, org.mockito.Mockito.never()).insertFirstOpenIfAbsent(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+
+        when(courseSecurity.isCourseOwner(application.getCourseUuid())).thenReturn(true);
+        service.getApplication(application.getCourseUuid(), application.getUuid());
+        verify(eventRepository).insertFirstOpenIfAbsent(
+                org.mockito.ArgumentMatchers.eq("COURSE"), org.mockito.ArgumentMatchers.eq(application.getUuid()),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("history is readable by the applicant and the creator, and hidden from everyone else")
+    void historyIsLimitedToParties() {
+        CourseTrainingApplication application = legacyApplication();
+        assertThatThrownBy(() -> service.getApplicationHistory(application.getCourseUuid(), application.getUuid()))
+                .isInstanceOf(apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException.class);
+
+        when(domainSecurityService.isInstructorWithUuid(application.getApplicantUuid())).thenReturn(true);
+        assertThat(service.getApplicationHistory(application.getCourseUuid(), application.getUuid())).isEmpty();
+        lenient().when(domainSecurityService.isInstructorWithUuid(application.getApplicantUuid())).thenReturn(false);
+
+        when(courseSecurity.isCourseOwner(application.getCourseUuid())).thenReturn(true);
+        assertThat(service.getApplicationHistory(application.getCourseUuid(), application.getUuid())).isEmpty();
+    }
+
+    private java.util.List<TrainingApplicationEvent> recordedEvents() {
+        ArgumentCaptor<TrainingApplicationEvent> events = ArgumentCaptor.forClass(TrainingApplicationEvent.class);
+        verify(eventRepository, org.mockito.Mockito.atLeastOnce()).save(events.capture());
+        return events.getAllValues();
     }
 
     private CourseTrainingApplication legacyApplication() {

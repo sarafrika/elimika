@@ -766,7 +766,8 @@ public class TrainingProgramController {
             summary = "Get program training application",
             description = """
                     Retrieves a specific training application for a program. Readable by the program creator, the
-                    applicant and platform admins; anyone else receives 404.
+                    applicant and platform admins; anyone else receives 404. The program creator's first read is
+                    recorded and surfaces as `first_opened_at`.
                     """
     )
     @GetMapping("/{programUuid}/training-applications/{applicationUuid}")
@@ -776,6 +777,23 @@ public class TrainingProgramController {
         ProgramTrainingApplicationDTO application = programTrainingApplicationService.getApplication(programUuid, applicationUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(application, "Training application retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get program training application history",
+            description = """
+                    The application's history, newest first, including every rate update step. Readable by the
+                    applicant and the program creator; anyone else receives 404.
+                    """
+    )
+    @GetMapping("/{programUuid}/training-applications/{applicationUuid}/history")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<TrainingApplicationEventDTO>>> getProgramTrainingApplicationHistory(
+            @PathVariable UUID programUuid,
+            @PathVariable UUID applicationUuid) {
+        List<TrainingApplicationEventDTO> history =
+                programTrainingApplicationService.getApplicationHistory(programUuid, applicationUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(history, "Training application history retrieved successfully"));
     }
 
     @Operation(

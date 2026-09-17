@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationDecisionReques
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingApplicationUpdateRequest;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
+import apps.sarafrika.elimika.course.dto.TrainingApplicationEventDTO;
 import apps.sarafrika.elimika.course.factory.CourseTrainingApplicationFactory;
 import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.model.Course;
@@ -12,6 +13,7 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -21,6 +23,7 @@ import apps.sarafrika.elimika.course.service.CourseTrainingRateUpdateService;
 import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationEventType;
 import apps.sarafrika.elimika.course.util.enums.TrainingApplicationType;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
@@ -88,6 +91,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     private final TrainingApplicationExtrasResolver extrasResolver;
     private final CourseTrainingRateUpdateService rateUpdateService;
     private final TrainingFeeFloors feeFloors;
+    private final TrainingApplicationHistory history;
 
     @Override
     public CourseTrainingApplicationDTO submitApplication(UUID courseUuid, CourseTrainingApplicationRequest request) {
@@ -117,6 +121,8 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         try {
             CourseTrainingApplication saved = applicationRepository.save(application);
+            history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.SUBMITTED,
+                    request.applicationNotes());
             publishCourseTrainingApplicationSubmitted(course, saved);
             return toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
@@ -158,6 +164,8 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.EDITED,
+                request.applicationNotes());
         return toDTO(saved);
     }
 
@@ -172,6 +180,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             throw new IllegalStateException("Only pending applications can be withdrawn.");
         }
 
+        history.record(TrainingApplicationType.COURSE, application.getUuid(), TrainingApplicationEventType.WITHDRAWN, null);
         applicationRepository.delete(application);
     }
 
@@ -192,6 +201,8 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         CourseTrainingApplication saved = applicationRepository.save(application);
+        history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.APPROVED,
+                decisionRequest.reviewNotes());
         publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.APPROVED, decisionRequest.reviewNotes());
         return toDTO(saved);
     }
@@ -217,6 +228,8 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         CourseTrainingApplication saved = applicationRepository.save(application);
         rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training application was rejected.");
+        history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.REJECTED,
+                decisionRequest.reviewNotes());
         publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REJECTED, decisionRequest.reviewNotes());
         return toDTO(saved);
     }
@@ -239,12 +252,13 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
 
         CourseTrainingApplication saved = applicationRepository.save(application);
         rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training approval was revoked.");
+        history.record(TrainingApplicationType.COURSE, saved.getUuid(), TrainingApplicationEventType.REVOKED,
+                decisionRequest.reviewNotes());
         publishCourseTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REVOKED, decisionRequest.reviewNotes());
         return toDTO(saved);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public CourseTrainingApplicationDTO getApplication(UUID courseUuid, UUID applicationUuid) {
         log.debug("Fetching training application {} for course {}", applicationUuid, courseUuid);
         CourseTrainingApplication application = findApplication(courseUuid, applicationUuid);
@@ -253,7 +267,23 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
             throw new ResourceNotFoundException(
                     String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, courseUuid));
         }
-        return toDTO(application);
+        boolean owner = access.ownsCourse(application.getCourseUuid());
+        if (owner) {
+            history.recordOpenedByCreator(TrainingApplicationType.COURSE, application.getUuid());
+        }
+        return toDTO(application, owner);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TrainingApplicationEventDTO> getApplicationHistory(UUID courseUuid, UUID applicationUuid) {
+        CourseTrainingApplication application = findApplication(courseUuid, applicationUuid);
+        if (!access.ownsCourse(application.getCourseUuid())
+                && !access.isApplicant(application.getApplicantType(), application.getApplicantUuid())) {
+            throw new ResourceNotFoundException(
+                    String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, courseUuid));
+        }
+        return history.history(TrainingApplicationType.COURSE, application.getUuid());
     }
 
     @Override
@@ -510,6 +540,7 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
                 application.getLastModifiedDate(),
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -615,8 +646,12 @@ public class CourseTrainingApplicationServiceImpl implements CourseTrainingAppli
     }
 
     private CourseTrainingApplicationDTO toDTO(CourseTrainingApplication application) {
+        return toDTO(application, access.ownsCourse(application.getCourseUuid()));
+    }
+
+    private CourseTrainingApplicationDTO toDTO(CourseTrainingApplication application, boolean owner) {
         TrainingApplicationExtras extras = extrasResolver.resolve(TrainingApplicationType.COURSE, application.getUuid());
-        if (access.ownsCourse(application.getCourseUuid())) {
+        if (owner) {
             extras = extras.withRateFloorFlags(TrainingRateCardFactory.floorFlags(
                     application, feeFloors.forCourse(application.getCourseUuid())));
         }

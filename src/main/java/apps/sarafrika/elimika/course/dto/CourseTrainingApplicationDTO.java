@@ -167,6 +167,15 @@ public record CourseTrainingApplicationDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "rate_floor_flags", access = JsonProperty.Access.READ_ONLY)
-        TrainingRateFloorFlagsDTO rateFloorFlags
+        TrainingRateFloorFlagsDTO rateFloorFlags,
+
+        @Schema(
+                description = "**[READ-ONLY]** When the course or program creator first opened this application (UTC), or null if not yet. Null for non-parties.",
+                format = "date-time",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "first_opened_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime firstOpenedAt
 ) {
 }

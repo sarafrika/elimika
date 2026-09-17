@@ -4,10 +4,12 @@ import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationUpdateRequest;
+import apps.sarafrika.elimika.course.dto.TrainingApplicationEventDTO;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +37,9 @@ public interface ProgramTrainingApplicationService {
                                                     ProgramTrainingApplicationDecisionRequest decisionRequest);
 
     ProgramTrainingApplicationDTO getApplication(UUID programUuid, UUID applicationUuid);
+
+    /** The application's history, newest first; readable by the applicant and the owner only. */
+    List<TrainingApplicationEventDTO> getApplicationHistory(UUID programUuid, UUID applicationUuid);
 
     Page<ProgramTrainingApplicationDTO> getApplications(UUID programUuid,
                                                         Optional<CourseTrainingApplicationStatus> status,

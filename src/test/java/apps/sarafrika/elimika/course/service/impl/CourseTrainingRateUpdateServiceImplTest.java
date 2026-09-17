@@ -7,11 +7,15 @@ import apps.sarafrika.elimika.course.dto.TrainingRateUpdateRequest;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicantNames;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.internal.training.TrainingRateUpdateNotifier;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.model.CourseTrainingRateUpdate;
+import apps.sarafrika.elimika.course.model.TrainingApplicationEvent;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationEventType;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRateUpdateRepository;
@@ -79,6 +83,7 @@ class CourseTrainingRateUpdateServiceImplTest {
     @Mock private DomainSecurityService domainSecurityService;
     @Mock private CourseSecuritySpi courseSecurity;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private TrainingApplicationEventRepository eventRepository;
 
     private CourseTrainingRateUpdateServiceImpl service;
 
@@ -104,7 +109,8 @@ class CourseTrainingRateUpdateServiceImplTest {
                 access,
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 new TrainingApplicantNames(instructorLookupService, organisationLookupService),
-                new TrainingRateUpdateNotifier(instructorLookupService, userLookupService, eventPublisher));
+                new TrainingRateUpdateNotifier(instructorLookupService, userLookupService, eventPublisher),
+                new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService));
 
         Course course = new Course();
         course.setUuid(courseUuid);
@@ -415,6 +421,37 @@ class CourseTrainingRateUpdateServiceImplTest {
 
         assertThat(update.getStatus()).isEqualTo(TrainingRateUpdateStatus.REJECTED);
         assertThat(update.getReviewNotes()).contains("revoked");
+    }
+
+    @Test
+    @DisplayName("every rate update step is written to the application's history")
+    void rateUpdateStepsAreRecorded() {
+        actAsInstructor();
+        service.submitRateUpdate(courseUuid, application.getUuid(), new TrainingRateUpdateRequest(groupOnlineCard("3000"), "Costs rose"));
+        CourseTrainingRateUpdate withdrawn = pendingUpdate(groupOnlineCard("3000"));
+        service.withdrawRateUpdate(courseUuid, application.getUuid(), withdrawn.getUuid());
+
+        actAsOwner();
+        service.approveRateUpdate(courseUuid, application.getUuid(), pendingUpdate(groupOnlineCard("3000")).getUuid(),
+                new TrainingRateUpdateDecisionRequest("Fair"));
+        service.rejectRateUpdate(courseUuid, application.getUuid(), pendingUpdate(groupOnlineCard("3000")).getUuid(), null);
+        CourseTrainingRateUpdate closed = pendingUpdate(groupOnlineCard("3000"));
+        when(rateUpdateRepository.findFirstByApplicationUuidAndStatus(application.getUuid(), TrainingRateUpdateStatus.PENDING))
+                .thenReturn(Optional.of(closed));
+        service.closePendingRateUpdate(application.getUuid(), "Closed because the training approval was revoked.");
+
+        ArgumentCaptor<TrainingApplicationEvent> events = ArgumentCaptor.forClass(TrainingApplicationEvent.class);
+        verify(eventRepository, atLeastOnce()).save(events.capture());
+        assertThat(events.getAllValues()).extracting(TrainingApplicationEvent::getEventType).containsExactly(
+                TrainingApplicationEventType.RATES_UPDATE_SUBMITTED,
+                TrainingApplicationEventType.RATES_UPDATE_WITHDRAWN,
+                TrainingApplicationEventType.RATES_UPDATE_APPROVED,
+                TrainingApplicationEventType.RATES_UPDATE_REJECTED,
+                TrainingApplicationEventType.RATES_UPDATE_REJECTED);
+        assertThat(events.getAllValues()).extracting(TrainingApplicationEvent::getApplicationUuid).containsOnly(application.getUuid());
+        assertThat(events.getAllValues().get(0).getNote()).isEqualTo("Costs rose");
+        assertThat(events.getAllValues().get(2).getNote()).isEqualTo("Fair");
+        assertThat(events.getAllValues().get(4).getNote()).contains("revoked");
     }
 
     // ===== fixtures =====

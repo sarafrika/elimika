@@ -4,7 +4,9 @@ import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
@@ -70,6 +72,7 @@ class ProgramTrainingApplicationServiceImplTest {
     @Mock private CourseTrainingRateUpdateRepository courseRateUpdates;
     @Mock private ProgramTrainingRateUpdateRepository programRateUpdates;
     @Mock private ProgramTrainingRateUpdateService rateUpdateService;
+    @Mock private TrainingApplicationEventRepository eventRepository;
 
     private ProgramTrainingApplicationServiceImpl service;
     private ProgramTrainingApplication application;
@@ -78,13 +81,15 @@ class ProgramTrainingApplicationServiceImplTest {
     @BeforeEach
     void setUp() {
         CourseFootingCap footingCap = new CourseFootingCap(new ActingDomainCap(new ActingDomainResolver(new RequestScopedCache())));
+        TrainingApplicationHistory history = new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService);
         service = new ProgramTrainingApplicationServiceImpl(
                 programRepository, applicationRepository, courseApplicationRepository, specificationBuilder,
                 currencyService, domainSecurityService, new CourseTrainingRateCardValidator(),
                 courseCreatorLookupService, instructorLookupService, userLookupService, eventPublisher,
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
-                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates),
+                history,
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history),
                 rateUpdateService);
 
         UUID first = UUID.randomUUID();
@@ -114,6 +119,10 @@ class ProgramTrainingApplicationServiceImplTest {
         assertThat(dto.rateFloorFlags().minimumTrainingFee()).isEqualByComparingTo("3000");
         assertThat(dto.rateFloorFlags().privateInpersonHourlyRate()).isTrue();
         assertThat(dto.rateFloorFlags().privateInpersonSessionRate()).isFalse();
+        org.mockito.Mockito.verify(eventRepository).insertFirstOpenIfAbsent(
+                org.mockito.ArgumentMatchers.eq("PROGRAM"), org.mockito.ArgumentMatchers.eq(application.getUuid()),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -121,9 +130,15 @@ class ProgramTrainingApplicationServiceImplTest {
     void othersSeeNoFlags() {
         when(domainSecurityService.isInstructorWithUuid(application.getApplicantUuid())).thenReturn(true);
         assertThat(service.getApplication(programUuid, application.getUuid()).rateFloorFlags()).isNull();
+        assertThat(service.getApplicationHistory(programUuid, application.getUuid())).isEmpty();
+        org.mockito.Mockito.verify(eventRepository, org.mockito.Mockito.never()).insertFirstOpenIfAbsent(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
 
         when(domainSecurityService.isInstructorWithUuid(application.getApplicantUuid())).thenReturn(false);
         assertThatThrownBy(() -> service.getApplication(programUuid, application.getUuid()))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.getApplicationHistory(programUuid, application.getUuid()))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

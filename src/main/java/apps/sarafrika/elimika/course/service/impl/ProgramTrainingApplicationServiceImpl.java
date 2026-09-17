@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseTrainingRateCardDTO;
+import apps.sarafrika.elimika.course.dto.TrainingApplicationEventDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationDecisionRequest;
 import apps.sarafrika.elimika.course.dto.ProgramTrainingApplicationRequest;
@@ -10,6 +11,7 @@ import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.model.ProgramTrainingApplication;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
@@ -20,6 +22,7 @@ import apps.sarafrika.elimika.course.service.ProgramTrainingApplicationService;
 import apps.sarafrika.elimika.course.service.ProgramTrainingRateUpdateService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicantType;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationEventType;
 import apps.sarafrika.elimika.course.util.enums.TrainingApplicationType;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
@@ -123,6 +126,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final ApplicationEventPublisher eventPublisher;
     private final TrainingApplicationAccess access;
     private final TrainingFeeFloors feeFloors;
+    private final TrainingApplicationHistory history;
     private final TrainingApplicationExtrasResolver extrasResolver;
     private final ProgramTrainingRateUpdateService rateUpdateService;
 
@@ -156,6 +160,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         try {
             ProgramTrainingApplication saved = applicationRepository.save(application);
+            history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.SUBMITTED,
+                    request.applicationNotes());
             publishProgramTrainingApplicationSubmitted(program, saved);
             return toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
@@ -199,6 +205,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         TrainingRateCardFactory.apply(application, rateCardRequest, rateCurrency);
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.EDITED,
+                request.applicationNotes());
         return toDTO(saved);
     }
 
@@ -213,6 +221,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             throw new IllegalStateException("Only pending applications can be withdrawn.");
         }
 
+        history.record(TrainingApplicationType.PROGRAM, application.getUuid(), TrainingApplicationEventType.WITHDRAWN, null);
         applicationRepository.delete(application);
     }
 
@@ -235,6 +244,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         application.setReviewedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
+        history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.APPROVED,
+                decisionRequest.reviewNotes());
         publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.APPROVED, decisionRequest.reviewNotes());
         return toDTO(saved);
     }
@@ -260,6 +271,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
         rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training application was rejected.");
+        history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.REJECTED,
+                decisionRequest.reviewNotes());
         publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REJECTED, decisionRequest.reviewNotes());
         return toDTO(saved);
     }
@@ -282,12 +295,13 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         ProgramTrainingApplication saved = applicationRepository.save(application);
         rateUpdateService.closePendingRateUpdate(saved.getUuid(), "Closed because the training approval was revoked.");
+        history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.REVOKED,
+                decisionRequest.reviewNotes());
         publishProgramTrainingApplicationDecision(saved, CourseTrainingApplicationStatus.REVOKED, decisionRequest.reviewNotes());
         return toDTO(saved);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ProgramTrainingApplicationDTO getApplication(UUID programUuid, UUID applicationUuid) {
         log.debug("Fetching training application {} for program {}", applicationUuid, programUuid);
         ProgramTrainingApplication application = findApplication(programUuid, applicationUuid);
@@ -296,7 +310,23 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             throw new ResourceNotFoundException(
                     String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, programUuid));
         }
-        return toDTO(application);
+        boolean owner = access.ownsProgram(application.getProgramUuid());
+        if (owner) {
+            history.recordOpenedByCreator(TrainingApplicationType.PROGRAM, application.getUuid());
+        }
+        return toDTO(application, owner);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TrainingApplicationEventDTO> getApplicationHistory(UUID programUuid, UUID applicationUuid) {
+        ProgramTrainingApplication application = findApplication(programUuid, applicationUuid);
+        if (!access.ownsProgram(application.getProgramUuid())
+                && !access.isApplicant(application.getApplicantType(), application.getApplicantUuid())) {
+            throw new ResourceNotFoundException(
+                    String.format(APPLICATION_NOT_FOUND_TEMPLATE, applicationUuid, programUuid));
+        }
+        return history.history(TrainingApplicationType.PROGRAM, application.getUuid());
     }
 
     @Override
@@ -565,6 +595,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
                 application.getLastModifiedDate(),
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -735,8 +766,12 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     }
 
     private ProgramTrainingApplicationDTO toDTO(ProgramTrainingApplication application) {
+        return toDTO(application, access.ownsProgram(application.getProgramUuid()));
+    }
+
+    private ProgramTrainingApplicationDTO toDTO(ProgramTrainingApplication application, boolean owner) {
         TrainingApplicationExtras extras = extrasResolver.resolve(TrainingApplicationType.PROGRAM, application.getUuid());
-        if (access.ownsProgram(application.getProgramUuid())) {
+        if (owner) {
             extras = extras.withRateFloorFlags(TrainingRateCardFactory.floorFlags(
                     application, feeFloors.forProgram(application.getProgramUuid())));
         }

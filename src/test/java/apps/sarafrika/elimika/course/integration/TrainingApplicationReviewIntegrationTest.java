@@ -33,13 +33,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** The rate update workflow over HTTP against the real schema, from proposal to approval. */
+/** Reviewing training applications over HTTP against the real schema: rate updates, floor flags and history. */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
-@DisplayName("Training rate updates (end-to-end)")
-class TrainingRateUpdateIntegrationTest {
+@DisplayName("Training application review (end-to-end)")
+class TrainingApplicationReviewIntegrationTest {
 
     @Container
     @ServiceConnection
@@ -74,12 +74,12 @@ class TrainingRateUpdateIntegrationTest {
 
     @BeforeEach
     void seed() {
-        jdbc.execute("TRUNCATE course_training_rate_updates, course_training_applications, courses, course_creators, "
+        jdbc.execute("TRUNCATE training_application_events, course_training_rate_updates, course_training_applications, courses, course_creators, "
                 + "instructors, user_domain_mapping, users RESTART IDENTITY CASCADE");
 
-        UUID creatorUser = user(CREATOR, "creator@test.local");
-        UUID instructorUser = user(INSTRUCTOR, "instructor@test.local");
-        user(OUTSIDER, "outsider@test.local");
+        UUID creatorUser = user(CREATOR, "creator@test.local", "Cyrus", "Waweru");
+        UUID instructorUser = user(INSTRUCTOR, "instructor@test.local", "Amina", "Otieno");
+        user(OUTSIDER, "outsider@test.local", "Passing", "Stranger");
         grantGlobalDomain(creatorUser, "course_creator");
         grantGlobalDomain(instructorUser, "instructor");
 
@@ -207,6 +207,48 @@ class TrainingRateUpdateIntegrationTest {
     }
 
     @Test
+    @DisplayName("the creator's first open is recorded once, and the history lists every step newest first")
+    void firstOpenAndHistory() throws Exception {
+        mockMvc.perform(get(applicationUrl()).with(jwt(INSTRUCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.first_opened_at").doesNotExist());
+        assertThat(openEvents()).as("the applicant's own read is not an open by the creator").isZero();
+
+        mockMvc.perform(get(applicationUrl()).with(jwt(CREATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.first_opened_at").isNotEmpty());
+        String firstOpenedAt = objectMapper.readTree(mockMvc.perform(get(applicationUrl()).with(jwt(CREATOR)))
+                .andReturn().getResponse().getContentAsString()).at("/data/first_opened_at").asText();
+        assertThat(openEvents()).isEqualTo(1);
+        mockMvc.perform(get(applicationUrl()).with(jwt(INSTRUCTOR)))
+                .andExpect(jsonPath("$.data.first_opened_at").value(firstOpenedAt));
+
+        String updateUuid = objectMapper.readTree(mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR))
+                        .contentType(MediaType.APPLICATION_JSON).content(proposal("3000")))
+                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asText();
+        mockMvc.perform(post(updatesUrl() + "/" + updateUuid + "?action=approve").with(jwt(CREATOR))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"review_notes\":\"Fair\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(applicationUrl() + "/history").with(jwt(INSTRUCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[0].event_type").value("rates_update_approved"))
+                .andExpect(jsonPath("$.data[0].note").value("Fair"))
+                .andExpect(jsonPath("$.data[0].actor_name").value("Cyrus Waweru"))
+                .andExpect(jsonPath("$.data[0].application_type").value("course"))
+                .andExpect(jsonPath("$.data[1].event_type").value("rates_update_submitted"))
+                .andExpect(jsonPath("$.data[1].note").value("Costs rose"))
+                .andExpect(jsonPath("$.data[2].event_type").value("opened_by_creator"))
+                .andExpect(jsonPath("$.data[2].actor_uuid").isNotEmpty())
+                .andExpect(jsonPath("$.data[2].created_date").isNotEmpty());
+        mockMvc.perform(get(applicationUrl() + "/history").with(jwt(CREATOR)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(applicationUrl() + "/history").with(jwt(OUTSIDER)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("a proposal below the course minimum is refused")
     void belowTheFloorIsRefused() throws Exception {
         mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON).content(proposal("1500")))
@@ -234,11 +276,16 @@ class TrainingRateUpdateIntegrationTest {
                 .jwt().jwt(builder -> builder.subject(subject).claim("sub", subject));
     }
 
-    private UUID user(String keycloakId, String email) {
+    private int openEvents() {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM training_application_events WHERE application_uuid = ? "
+                + "AND event_type = 'OPENED_BY_CREATOR'", Integer.class, applicationUuid);
+    }
+
+    private UUID user(String keycloakId, String email, String firstName, String lastName) {
         UUID uuid = UUID.randomUUID();
         jdbc.update("INSERT INTO users (uuid, user_no, first_name, last_name, email, keycloak_id, created_by) "
-                        + "VALUES (?, ?, 'Test', 'User', ?, ?, 'test')",
-                uuid, String.format("%09d", Math.abs(uuid.hashCode()) % 1000000000), email, keycloakId);
+                        + "VALUES (?, ?, ?, ?, ?, ?, 'test')",
+                uuid, String.format("%09d", Math.abs(uuid.hashCode()) % 1000000000), firstName, lastName, email, keycloakId);
         return uuid;
     }
 

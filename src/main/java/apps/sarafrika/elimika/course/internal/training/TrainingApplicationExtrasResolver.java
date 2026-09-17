@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.util.enums.TrainingRateUpdateStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ public class TrainingApplicationExtrasResolver {
 
     private final CourseTrainingRateUpdateRepository courseRateUpdates;
     private final ProgramTrainingRateUpdateRepository programRateUpdates;
+    private final TrainingApplicationHistory history;
 
     public TrainingApplicationExtras resolve(TrainingApplicationType type, UUID applicationUuid) {
         if (applicationUuid == null) {
@@ -40,8 +42,11 @@ public class TrainingApplicationExtrasResolver {
                 : courseRateUpdates.findByApplicationUuidInAndStatus(uuids, TrainingRateUpdateStatus.PENDING);
         pending.forEach(update -> pendingUpdates.putIfAbsent(update.getApplicationUuid(), update.getUuid()));
 
+        Map<UUID, LocalDateTime> firstOpened = history.firstOpenedAt(type, uuids);
+
         Map<UUID, TrainingApplicationExtras> extras = new HashMap<>();
-        uuids.forEach(uuid -> extras.put(uuid, new TrainingApplicationExtras(pendingUpdates.get(uuid), null)));
+        uuids.forEach(uuid -> extras.put(uuid,
+                new TrainingApplicationExtras(pendingUpdates.get(uuid), null, firstOpened.get(uuid))));
         return extras;
     }
 }

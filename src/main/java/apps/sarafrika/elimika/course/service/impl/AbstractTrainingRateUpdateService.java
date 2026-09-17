@@ -8,12 +8,14 @@ import apps.sarafrika.elimika.course.factory.TrainingRateCardFactory;
 import apps.sarafrika.elimika.course.factory.TrainingRateUpdateFactory;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicantNames;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingRateUpdateNotifier;
 import apps.sarafrika.elimika.course.model.TrainingApplicationRecord;
 import apps.sarafrika.elimika.course.model.TrainingRateUpdate;
 import apps.sarafrika.elimika.course.repository.TrainingRateUpdateRepository;
 import apps.sarafrika.elimika.course.service.TrainingRateUpdateService;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
+import apps.sarafrika.elimika.course.util.enums.TrainingApplicationEventType;
 import apps.sarafrika.elimika.course.util.enums.TrainingApplicationType;
 import apps.sarafrika.elimika.course.util.enums.TrainingRateUpdateStatus;
 import apps.sarafrika.elimika.course.validation.CourseTrainingRateCardValidator;
@@ -53,19 +55,22 @@ public abstract class AbstractTrainingRateUpdateService<A extends TrainingApplic
     private final TrainingApplicationAccess access;
     private final TrainingApplicantNames applicantNames;
     private final TrainingRateUpdateNotifier notifier;
+    private final TrainingApplicationHistory history;
 
     protected AbstractTrainingRateUpdateService(TrainingRateUpdateRepository<U> updateRepository,
                                                 CourseTrainingRateCardValidator rateCardValidator,
                                                 CurrencyService currencyService,
                                                 TrainingApplicationAccess access,
                                                 TrainingApplicantNames applicantNames,
-                                                TrainingRateUpdateNotifier notifier) {
+                                                TrainingRateUpdateNotifier notifier,
+                                                TrainingApplicationHistory history) {
         this.updateRepository = updateRepository;
         this.rateCardValidator = rateCardValidator;
         this.currencyService = currencyService;
         this.access = access;
         this.applicantNames = applicantNames;
         this.notifier = notifier;
+        this.history = history;
     }
 
     protected abstract TrainingApplicationType applicationType();
@@ -112,6 +117,7 @@ public abstract class AbstractTrainingRateUpdateService<A extends TrainingApplic
         update.setNote(request.note());
         update.setStatus(TrainingRateUpdateStatus.PENDING);
         U saved = savePending(update);
+        history.record(applicationType(), application.getUuid(), TrainingApplicationEventType.RATES_UPDATE_SUBMITTED, request.note());
 
         String applicantName = applicantNames.resolve(application);
         notifier.submitted(subject(parentUuid), application, saved, applicantName);
@@ -183,6 +189,7 @@ public abstract class AbstractTrainingRateUpdateService<A extends TrainingApplic
         U update = findPendingUpdate(application, updateUuid, "withdrawn");
         update.setStatus(TrainingRateUpdateStatus.WITHDRAWN);
         updateRepository.save(update);
+        history.record(applicationType(), application.getUuid(), TrainingApplicationEventType.RATES_UPDATE_WITHDRAWN, null);
     }
 
     @Override
@@ -191,6 +198,7 @@ public abstract class AbstractTrainingRateUpdateService<A extends TrainingApplic
                 .ifPresent(update -> {
                     close(update, TrainingRateUpdateStatus.REJECTED, reason);
                     updateRepository.save(update);
+                    history.record(applicationType(), applicationUuid, TrainingApplicationEventType.RATES_UPDATE_REJECTED, reason);
                 });
     }
 
@@ -198,6 +206,9 @@ public abstract class AbstractTrainingRateUpdateService<A extends TrainingApplic
                                          TrainingRateUpdateDecisionRequest request) {
         close(update, outcome, request == null ? null : request.reviewNotes());
         U saved = updateRepository.save(update);
+        history.record(applicationType(), application.getUuid(), outcome == TrainingRateUpdateStatus.APPROVED
+                ? TrainingApplicationEventType.RATES_UPDATE_APPROVED
+                : TrainingApplicationEventType.RATES_UPDATE_REJECTED, saved.getReviewNotes());
         notifier.decided(subject(parentUuid), application, saved);
         return TrainingRateUpdateFactory.toDTO(saved, application, applicationType(), parentUuid,
                 applicantNames.resolve(application));

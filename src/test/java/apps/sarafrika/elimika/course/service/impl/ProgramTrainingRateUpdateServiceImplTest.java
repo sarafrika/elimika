@@ -6,7 +6,9 @@ import apps.sarafrika.elimika.course.dto.TrainingRateUpdateRequest;
 import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicantNames;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
+import apps.sarafrika.elimika.course.repository.TrainingApplicationEventRepository;
 import apps.sarafrika.elimika.course.internal.training.TrainingRateUpdateNotifier;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
@@ -77,6 +79,7 @@ class ProgramTrainingRateUpdateServiceImplTest {
     @Mock private DomainSecurityService domainSecurityService;
     @Mock private CourseSecuritySpi courseSecurity;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private TrainingApplicationEventRepository eventRepository;
 
     private ProgramTrainingRateUpdateServiceImpl service;
 
@@ -100,7 +103,8 @@ class ProgramTrainingRateUpdateServiceImplTest {
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 new TrainingApplicantNames(instructorLookupService, organisationLookupService),
-                new TrainingRateUpdateNotifier(instructorLookupService, userLookupService, eventPublisher));
+                new TrainingRateUpdateNotifier(instructorLookupService, userLookupService, eventPublisher),
+                new TrainingApplicationHistory(eventRepository, domainSecurityService, userLookupService));
 
         TrainingProgram program = new TrainingProgram();
         program.setUuid(programUuid);

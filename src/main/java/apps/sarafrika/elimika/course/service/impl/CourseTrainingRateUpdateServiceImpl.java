@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicantNames;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.internal.training.TrainingRateUpdateNotifier;
 import apps.sarafrika.elimika.course.model.Course;
@@ -47,8 +48,9 @@ public class CourseTrainingRateUpdateServiceImpl
                                                TrainingApplicationAccess access,
                                                TrainingFeeFloors feeFloors,
                                                TrainingApplicantNames applicantNames,
-                                               TrainingRateUpdateNotifier notifier) {
-        super(rateUpdateRepository, rateCardValidator, currencyService, access, applicantNames, notifier);
+                                               TrainingRateUpdateNotifier notifier,
+                                               TrainingApplicationHistory history) {
+        super(rateUpdateRepository, rateCardValidator, currencyService, access, applicantNames, notifier, history);
         this.courseRepository = courseRepository;
         this.applicationRepository = applicationRepository;
         this.rateUpdateRepository = rateUpdateRepository;

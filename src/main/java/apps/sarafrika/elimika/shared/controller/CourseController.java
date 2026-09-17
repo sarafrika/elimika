@@ -1511,7 +1511,8 @@ public class CourseController {
             summary = "Get training application",
             description = """
                     Retrieves a specific training application for a course. Readable by the course creator, the
-                    applicant and platform admins; anyone else receives 404.
+                    applicant and platform admins; anyone else receives 404. The course creator's first read is
+                    recorded and surfaces as `first_opened_at`.
                     """
     )
     @GetMapping("/{courseUuid}/training-applications/{applicationUuid}")
@@ -1521,6 +1522,24 @@ public class CourseController {
         CourseTrainingApplicationDTO application = courseTrainingApplicationService.getApplication(courseUuid, applicationUuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(application, "Training application retrieved successfully"));
+    }
+
+    @Operation(
+            summary = "Get training application history",
+            description = """
+                    The application's history, newest first: submitted, edited, opened_by_creator, approved, rejected,
+                    revoked, withdrawn and every rate update step, each with its actor and notes. Readable by the
+                    applicant and the course creator; anyone else receives 404.
+                    """
+    )
+    @GetMapping("/{courseUuid}/training-applications/{applicationUuid}/history")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<TrainingApplicationEventDTO>>> getTrainingApplicationHistory(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID applicationUuid) {
+        List<TrainingApplicationEventDTO> history =
+                courseTrainingApplicationService.getApplicationHistory(courseUuid, applicationUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(history, "Training application history retrieved successfully"));
     }
 
     @Operation(
