@@ -42,6 +42,9 @@ import java.util.UUID;
                   "meeting_link": "https://meet.google.com/abc-defg-hij",
                   "max_participants": 24,
                   "allow_waitlist": true,
+                  "sale_price": 240.00,
+                  "instructor_pay": 180.00,
+                  "rate_basis": "per_hour",
                   "session_templates": [
                     {
                       "start_time": "2026-05-02T09:00:00",
@@ -183,18 +186,21 @@ public record ClassMarketplaceJobRequestDTO(
         @JsonProperty("allow_waitlist")
         Boolean allowWaitlist,
 
-        @Schema(description = "**[OPTIONAL]** Price per learner per hour, charged once the class exists. Defaults to the organisation's approved rate when omitted. Must be at least the course minimum training fee.", nullable = true, example = "240.00")
+        @Schema(description = "**[REQUIRED]** Price per learner in the rate_basis unit, charged once the class exists. Must be at least the organisation's approved rate for the job's format, delivery and basis, and at least the course minimum training fee.", requiredMode = Schema.RequiredMode.REQUIRED, example = "240.00")
         @JsonProperty("sale_price")
+        @NotNull(message = "sale_price is required")
         @PositiveOrZero(message = "Sale price cannot be negative")
         BigDecimal salePrice,
 
-        @Schema(description = "**[OPTIONAL]** Per-session pay offered to the eventual instructor. An applicant is assignable only when this is at least their approved rate. Defaults to the sale price when omitted, leaving no margin.", nullable = true, example = "180.00")
+        @Schema(description = "**[REQUIRED]** Pay offered to the eventual instructor in the rate_basis unit. Must be greater than zero and no more than sale_price. An instructor can apply and be hired only when their approved rate for the job's basis is at most this.", requiredMode = Schema.RequiredMode.REQUIRED, example = "180.00")
         @JsonProperty("instructor_pay")
-        @PositiveOrZero(message = "Instructor pay cannot be negative")
+        @NotNull(message = "instructor_pay is required")
+        @Positive(message = "Instructor pay must be greater than zero")
         BigDecimal instructorPay,
 
-        @Schema(description = "**[OPTIONAL]** Unit both prices are quoted in, fixed by the contract this job represents. Defaults to per hour, which is what every existing price means.", nullable = true, example = "per_hour")
+        @Schema(description = "**[REQUIRED]** Unit both prices are quoted in, fixed by the contract this job represents.", requiredMode = Schema.RequiredMode.REQUIRED, example = "per_hour")
         @JsonProperty("rate_basis")
+        @NotNull(message = "rate_basis is required")
         apps.sarafrika.elimika.shared.utils.enums.RateBasis rateBasis,
 
         @Schema(description = "**[REQUIRED]** Session templates that will be used when the class is assigned and created.", requiredMode = Schema.RequiredMode.REQUIRED)

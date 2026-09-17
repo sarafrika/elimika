@@ -28,6 +28,7 @@ import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobResourceRepo
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobSessionTemplateRepository;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
+import apps.sarafrika.elimika.classes.util.RateWording;
 import apps.sarafrika.elimika.classes.util.RecurrencePatterns;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobApplicationStatus;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
@@ -912,26 +913,37 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setCategoryUuid(categoryUuid);
     }
 
-    /**
-     * A posting declares two numbers: what a learner will be charged, and what the eventual
-     * instructor will earn. The organisation does not know who it will hire when it posts, which is
-     * why the pay is declared up front rather than derived from an applicant. The difference between
-     * them is the organisation's margin.
-     */
+    // Price and pay share one basis: the price may not undercut the organisation's approved rate
+    // for it, and the pay may not exceed the price. The difference is the organisation's margin.
     private void applyJobPricing(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
-        BigDecimal approvedRate = resolveOrganisationRateForRequest(request)
+        RateBasis basis = request.rateBasis();
+        if (basis == null) {
+            throw new IllegalArgumentException("rate_basis is required");
+        }
+        BigDecimal approvedRate = resolveOrganisationRateForRequest(request, basis)
                 .orElseThrow(() -> new IllegalArgumentException(String.format(
-                        "No approved training rate for organisation %s on this %s for %s %s sessions charged %s. "
-                                + "The course creator must approve a rate card before a class can be posted.",
-                        request.organisationUuid(),
-                        request.courseUuid() != null ? "course" : "training program",
-                        request.sessionFormat(),
-                        request.locationType(),
-                        (request.rateBasis() == null ? RateBasis.PER_HOUR : request.rateBasis()).getValue())));
+                        "Your rate card has no approved %s rate for %s %s classes of this %s. Add it to your rate card first.",
+                        RateWording.basis(basis),
+                        RateWording.format(request.sessionFormat()),
+                        RateWording.location(request.locationType()),
+                        request.courseUuid() != null ? "course" : "training program")));
 
-        BigDecimal salePrice = request.salePrice() != null ? request.salePrice() : approvedRate;
-        BigDecimal instructorPay = request.instructorPay() != null ? request.instructorPay() : salePrice;
+        BigDecimal salePrice = request.salePrice();
+        if (salePrice == null) {
+            throw new IllegalArgumentException("sale_price is required");
+        }
+        if (salePrice.compareTo(approvedRate) < 0) {
+            throw new IllegalArgumentException(String.format("Sale price is below your approved rate of %s %s.",
+                    RateWording.money(approvedRate), RateWording.basis(basis)));
+        }
 
+        BigDecimal instructorPay = request.instructorPay();
+        if (instructorPay == null) {
+            throw new IllegalArgumentException("instructor_pay is required");
+        }
+        if (instructorPay.signum() <= 0) {
+            throw new IllegalArgumentException("Instructor pay must be greater than zero.");
+        }
         if (instructorPay.compareTo(salePrice) > 0) {
             throw new IllegalArgumentException("Instructor pay cannot exceed the sale price.");
         }
@@ -943,9 +955,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
         job.setSalePrice(salePrice);
         job.setInstructorPay(instructorPay);
-        job.setRateBasis(request.rateBasis() != null
-                ? request.rateBasis()
-                : apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR);
+        job.setRateBasis(basis);
     }
 
     private BigDecimal resolveMinimumTrainingFeeForRequest(ClassMarketplaceJobRequestDTO request) {
@@ -955,16 +965,20 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         return courseInfoService.getProgramMinimumTrainingFee(request.programUuid()).orElse(null);
     }
 
-    private Optional<BigDecimal> resolveOrganisationRateForRequest(ClassMarketplaceJobRequestDTO request) {
-        RateBasis basis = request.rateBasis() == null ? RateBasis.PER_HOUR : request.rateBasis();
-        if (request.courseUuid() != null) {
-            return courseTrainingApprovalSpi.resolveOrganisationRate(
-                    request.courseUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType(),
-                    basis);
-        }
-        return courseTrainingApprovalSpi.resolveOrganisationProgramRate(
-                request.programUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType(),
-                basis);
+    private Optional<BigDecimal> resolveOrganisationRateForRequest(ClassMarketplaceJobRequestDTO request, RateBasis basis) {
+        Optional<BigDecimal> rate = request.courseUuid() != null
+                ? courseTrainingApprovalSpi.resolveOrganisationRate(
+                        request.courseUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType(),
+                        basis)
+                : courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                        request.programUuid(), request.organisationUuid(), request.sessionFormat(), request.locationType(),
+                        basis);
+        return pricedRate(rate);
+    }
+
+    /** An unpriced rate card cell can still read as zero, which is "not offered", never "free". */
+    private static Optional<BigDecimal> pricedRate(Optional<BigDecimal> rate) {
+        return rate.filter(value -> value.signum() > 0);
     }
 
     private ResolvedLocation validateJobDraft(ClassMarketplaceJobRequestDTO request) {
@@ -2011,13 +2025,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private Optional<BigDecimal> resolveInstructorRateForJob(ClassMarketplaceJob job, UUID instructorUuid) {
-        RateBasis basis = job.getRateBasis() == null ? RateBasis.PER_HOUR : job.getRateBasis();
-        if (job.getCourseUuid() != null) {
-            return courseTrainingApprovalSpi.resolveInstructorRate(
-                    job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(), basis);
-        }
-        return courseTrainingApprovalSpi.resolveInstructorProgramRate(
-                job.getProgramUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(), basis);
+        Optional<BigDecimal> rate = job.getCourseUuid() != null
+                ? courseTrainingApprovalSpi.resolveInstructorRate(
+                        job.getCourseUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(),
+                        job.getRateBasis())
+                : courseTrainingApprovalSpi.resolveInstructorProgramRate(
+                        job.getProgramUuid(), instructorUuid, job.getSessionFormat(), job.getLocationType(),
+                        job.getRateBasis());
+        return pricedRate(rate);
     }
 
     private String resolveAssignedReviewNotes(String existingReviewNotes) {

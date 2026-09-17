@@ -30,6 +30,7 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.resourcing.spi.InstanceWindow;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingRequest;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
@@ -47,6 +48,9 @@ import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -514,42 +518,11 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
-    void createJobTakesTheTrainingFeeFromTheApprovedRateNotTheRequest() {
-        UUID currentUserUuid = UUID.randomUUID();
-        UUID programUuid = UUID.randomUUID();
-        ClassMarketplaceJobRequestDTO request = withTrainingFee(sampleRequest(null, programUuid), null);
-
-        allowOrganisationAccess(currentUserUuid, request.organisationUuid());
-        when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
-        when(courseInfoService.isTrainingProgramApproved(programUuid)).thenReturn(true);
-        when(courseTrainingApprovalSpi.isOrganisationApprovedForProgram(programUuid, request.organisationUuid()))
-                .thenReturn(true);
-        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
-                eq(programUuid), eq(request.organisationUuid()), any(), any(), any()))
-                .thenReturn(Optional.of(new BigDecimal("512.00")));
-        when(jobRepository.save(any(ClassMarketplaceJob.class)))
-                .thenAnswer(invocation -> {
-                    ClassMarketplaceJob job = invocation.getArgument(0);
-                    job.setUuid(UUID.randomUUID());
-                    return job;
-                });
-        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(any(UUID.class))).thenReturn(List.of());
-
-        var result = service.createJob(request);
-
-        assertThat(result.salePrice()).isEqualByComparingTo(new BigDecimal("512.00"));
-
-        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
-        verify(jobRepository).save(jobCaptor.capture());
-        assertThat(jobCaptor.getValue().getSalePrice()).isEqualByComparingTo(new BigDecimal("512.00"));
-    }
-
-    @Test
     void createJobRejectsInstructorPayAboveTheSalePrice() {
         UUID currentUserUuid = UUID.randomUUID();
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
-                sampleRequest(null, programUuid), new BigDecimal("500.00"), new BigDecimal("900.00"));
+                sampleRequest(null, programUuid), new BigDecimal("600.00"), new BigDecimal("900.00"), RateBasis.PER_HOUR);
 
         allowOrganisationAccess(currentUserUuid, request.organisationUuid());
         when(courseInfoService.trainingProgramExists(programUuid)).thenReturn(true);
@@ -583,9 +556,235 @@ class ClassMarketplaceJobServiceImplTest {
 
         assertThatThrownBy(() -> service.createJob(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No approved training rate");
+                .hasMessage("Your rate card has no approved per hour rate for group in-person classes of this "
+                        + "training program. Add it to your rate card first.");
 
         verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    // ===== pricing against the organisation's approved rate for the job's basis =====
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createJobPricesAtOrAboveTheOrganisationsRateForTheJobsBasis(RateBasis basis) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("180.00"), basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "300.00");
+        stubJobSaves();
+
+        var result = service.createJob(request);
+
+        assertThat(result.salePrice()).isEqualByComparingTo("300.00");
+        assertThat(result.instructorPay()).isEqualByComparingTo("180.00");
+        assertThat(result.rateBasis()).isEqualTo(basis);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void createJobRefusesWhenTheRateCardHasNoRateForTheJobsBasis(RateBasis basis, String phrase) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("180.00"), basis);
+        allowProgramJob(request, programUuid);
+        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                programUuid, request.organisationUuid(), SessionFormat.GROUP, LocationType.HYBRID, basis))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Your rate card has no approved " + phrase + " rate for group in-person classes of this "
+                        + "training program. Add it to your rate card first.");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void createJobTreatsAZeroRateAsNotOffered(RateBasis basis, String phrase) {
+        UUID courseUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO base = withLocation(sampleRequest(courseUuid, null),
+                LocationType.ONLINE, null, null, null, BRANCH_UUID);
+        ClassMarketplaceJobRequestDTO request = withSessionFormat(
+                withPricing(base, new BigDecimal("300.00"), new BigDecimal("180.00"), basis), SessionFormat.INDIVIDUAL);
+        allowCourseJob(request, courseUuid);
+        when(courseTrainingApprovalSpi.resolveOrganisationRate(
+                courseUuid, request.organisationUuid(), SessionFormat.INDIVIDUAL, LocationType.ONLINE, basis))
+                .thenReturn(Optional.of(BigDecimal.ZERO));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Your rate card has no approved " + phrase + " rate for private online classes of this "
+                        + "course. Add it to your rate card first.");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void createJobRefusesASalePriceBelowTheOrganisationsApprovedRate(RateBasis basis, String phrase) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("1199.99"), new BigDecimal("900.00"), basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "1200.00");
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Sale price is below your approved rate of KES 1,200.00 " + phrase + ".");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createJobRequiresASalePrice(RateBasis basis) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), null, new BigDecimal("180.00"), basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "300.00");
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("sale_price is required");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createJobRequiresInstructorPay(RateBasis basis) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), null, basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "300.00");
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("instructor_pay is required");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createJobRefusesZeroInstructorPay(RateBasis basis) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), BigDecimal.ZERO, basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "300.00");
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Instructor pay must be greater than zero.");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createJobRefusesInstructorPayAboveTheSalePriceOnEveryBasis(RateBasis basis) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("300.01"), basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "300.00");
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Instructor pay cannot exceed the sale price.");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RateBasis.class)
+    void createJobStillHoldsTheSalePriceToTheCourseMinimum(RateBasis basis) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("180.00"), basis);
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "300.00");
+        when(courseInfoService.getProgramMinimumTrainingFee(programUuid)).thenReturn(Optional.of(new BigDecimal("350.00")));
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Sale price cannot be less than the course minimum training fee.");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    @Test
+    void createJobRequiresARateBasis() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("180.00"), null);
+        allowProgramJob(request, programUuid);
+
+        assertThatThrownBy(() -> service.createJob(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("rate_basis is required");
+        verifyNoInteractions(jobRepository);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    void updateJobRefusesASalePriceBelowTheOrganisationsApprovedRate(RateBasis basis, String phrase) {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setProgramUuid(programUuid);
+        ClassMarketplaceJobRequestDTO request = withOrganisation(withPricing(
+                sampleRequest(null, programUuid), new BigDecimal("450.00"), new BigDecimal("300.00"), basis),
+                job.getOrganisationUuid());
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(request, programUuid);
+        stubOrganisationProgramRate(request, programUuid, basis, "500.00");
+
+        assertThatThrownBy(() -> service.updateJob(job.getUuid(), request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Sale price is below your approved rate of KES 500.00 " + phrase + ".");
+        verify(jobRepository, never()).save(any(ClassMarketplaceJob.class));
+    }
+
+    private void stubOrganisationProgramRate(ClassMarketplaceJobRequestDTO request,
+                                             UUID programUuid,
+                                             RateBasis basis,
+                                             String rate) {
+        when(courseTrainingApprovalSpi.resolveOrganisationProgramRate(
+                programUuid, request.organisationUuid(), request.sessionFormat(), request.locationType(), basis))
+                .thenReturn(Optional.of(new BigDecimal(rate)));
+    }
+
+    private void allowCourseJob(ClassMarketplaceJobRequestDTO request, UUID courseUuid) {
+        org.mockito.Mockito.lenient().when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        org.mockito.Mockito.lenient().when(domainSecurityService.managesOrganisation(request.organisationUuid())).thenReturn(true);
+        org.mockito.Mockito.lenient().when(courseInfoService.courseExists(courseUuid)).thenReturn(true);
+        org.mockito.Mockito.lenient().when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(true);
+        org.mockito.Mockito.lenient()
+                .when(courseTrainingApprovalSpi.isOrganisationApproved(courseUuid, request.organisationUuid()))
+                .thenReturn(true);
+    }
+
+    private ClassMarketplaceJobRequestDTO withSessionFormat(ClassMarketplaceJobRequestDTO base, SessionFormat format) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), format, base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(),
+                base.sessionTemplates(), base.resources(), base.serviceType(), base.preferredInstructorUuid(),
+                base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
+    }
+
+    private ClassMarketplaceJobRequestDTO withOrganisation(ClassMarketplaceJobRequestDTO base, UUID organisationUuid) {
+        return new ClassMarketplaceJobRequestDTO(
+                organisationUuid, base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(),
+                base.sessionTemplates(), base.resources(), base.serviceType(), base.preferredInstructorUuid(),
+                base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 
     @Test
@@ -1529,7 +1728,7 @@ class ClassMarketplaceJobServiceImplTest {
                 true,
                 new BigDecimal("240.00"),
                 new BigDecimal("240.00"),
-                null,
+                RateBasis.PER_HOUR,
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -1597,7 +1796,8 @@ class ClassMarketplaceJobServiceImplTest {
 
     private ClassMarketplaceJobRequestDTO withPricing(ClassMarketplaceJobRequestDTO base,
                                                       BigDecimal salePrice,
-                                                      BigDecimal instructorPay) {
+                                                      BigDecimal instructorPay,
+                                                      RateBasis rateBasis) {
         return new ClassMarketplaceJobRequestDTO(
                 base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
                 base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
@@ -1605,22 +1805,9 @@ class ClassMarketplaceJobServiceImplTest {
                 base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
                 base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
                 base.maxParticipants(), base.allowWaitlist(), salePrice, instructorPay,
-                null, base.sessionTemplates(),
+                rateBasis, base.sessionTemplates(),
                 base.resources(), base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(),
                 base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
-                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
-    }
-
-    private ClassMarketplaceJobRequestDTO withTrainingFee(ClassMarketplaceJobRequestDTO base, BigDecimal trainingFee) {
-        return new ClassMarketplaceJobRequestDTO(
-                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
-                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
-                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
-                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
-                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
-                base.maxParticipants(), base.allowWaitlist(), trainingFee, trainingFee, base.rateBasis(), base.sessionTemplates(), base.resources(),
-                base.serviceType(), base.preferredInstructorUuid(), base.targetGroups(), base.targetGroupUuids(),
-                base.categoryUuid(), base.remindStudents(),
                 base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid());
     }
 

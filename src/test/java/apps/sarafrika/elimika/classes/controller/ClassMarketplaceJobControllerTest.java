@@ -14,11 +14,14 @@ import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,6 +117,35 @@ class ClassMarketplaceJobControllerTest {
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.branch_uuid").value("branch_uuid is required"));
+
+        verify(classMarketplaceJobService, Mockito.never()).createJob(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"rate_basis", "sale_price", "instructor_pay"})
+    void createJobWithoutPricingTermsReturns400(String field) throws Exception {
+        com.fasterxml.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(sampleRequest());
+        body.remove(field);
+
+        mockMvc.perform(post("/api/v1/classes/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error." + field).value(field + " is required"));
+
+        verify(classMarketplaceJobService, Mockito.never()).createJob(any());
+    }
+
+    @Test
+    void createJobWithZeroInstructorPayReturns400() throws Exception {
+        com.fasterxml.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(sampleRequest());
+        body.put("instructor_pay", 0);
+
+        mockMvc.perform(post("/api/v1/classes/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.instructor_pay").value("Instructor pay must be greater than zero"));
 
         verify(classMarketplaceJobService, Mockito.never()).createJob(any());
     }
@@ -370,7 +402,7 @@ class ClassMarketplaceJobControllerTest {
                 true,
                 new BigDecimal("240.00"),
                 new BigDecimal("240.00"),
-                null,
+                RateBasis.PER_HOUR,
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
@@ -425,7 +457,7 @@ class ClassMarketplaceJobControllerTest {
                 true,
                 new BigDecimal("240.00"),
                 new BigDecimal("240.00"),
-                null,
+                RateBasis.PER_HOUR,
                 List.of(new ClassSessionTemplateDTO(
                         LocalDateTime.of(2026, 5, 2, 9, 0),
                         LocalDateTime.of(2026, 5, 2, 12, 0),
