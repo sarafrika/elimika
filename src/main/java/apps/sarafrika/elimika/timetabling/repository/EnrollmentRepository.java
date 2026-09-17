@@ -374,4 +374,79 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<Object[]> findStudentPerformanceForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                          @Param("studentUuid") UUID studentUuid);
+    // One row per student per organisation class the instructor is instructor of record for. The
+    // class's session templates come packed as type|days|start|end, joined by ';'.
+    @Query(value = """
+            WITH roster AS (
+                SELECT ce.student_uuid AS student_uuid,
+                       s.full_name AS student_name,
+                       si.class_definition_uuid AS class_definition_uuid,
+                       MIN(ce.created_date) AS enrolled_at,
+                       COUNT(*) FILTER (WHERE ce.status = 'ATTENDED') AS attended,
+                       COUNT(*) FILTER (WHERE ce.status IN ('ATTENDED', 'ABSENT')) AS recorded,
+                       CASE
+                           WHEN COUNT(*) FILTER (WHERE ce.status IN ('ENROLLED', 'ATTENDED', 'ABSENT')) > 0 THEN 'ENROLLED'
+                           WHEN COUNT(*) FILTER (WHERE ce.status = 'RESERVED') > 0 THEN 'RESERVED'
+                           WHEN COUNT(*) FILTER (WHERE ce.status = 'WAITLISTED') > 0 THEN 'WAITLISTED'
+                           ELSE 'CANCELLED'
+                       END AS enrollment_status
+                FROM class_enrollments ce
+                JOIN scheduled_instances si ON si.uuid = ce.scheduled_instance_uuid
+                JOIN class_definitions cd ON cd.uuid = si.class_definition_uuid
+                JOIN students s ON s.uuid = ce.student_uuid
+                WHERE cd.organisation_uuid = :organisationUuid
+                  AND cd.default_instructor_uuid = :instructorUuid
+                  AND (CAST(:classDefinitionUuid AS uuid) IS NULL OR cd.uuid = CAST(:classDefinitionUuid AS uuid))
+                  AND s.full_name ILIKE :namePattern
+                GROUP BY ce.student_uuid, s.full_name, si.class_definition_uuid
+            )
+            SELECT r.student_uuid, r.student_name, cd.uuid, cd.title, COALESCE(c.name, tp.title),
+                   cd.session_format, cd.location_type, cd.branch_uuid, r.enrolled_at, r.attended, r.recorded,
+                   r.enrollment_status,
+                   (SELECT string_agg(concat_ws('|', COALESCE(t.recurrence_type, ''), COALESCE(t.days_of_week, ''),
+                                                to_char(t.start_time, 'YYYY-MM-DD HH24:MI'),
+                                                to_char(t.end_time, 'HH24:MI')),
+                                      ';' ORDER BY t.template_order, t.created_date)
+                    FROM class_session_templates t
+                    WHERE t.class_definition_uuid = cd.uuid)
+            FROM roster r
+            JOIN class_definitions cd ON cd.uuid = r.class_definition_uuid
+            LEFT JOIN courses c ON c.uuid = cd.course_uuid
+            LEFT JOIN training_programs tp ON tp.uuid = cd.program_uuid
+            ORDER BY lower(r.student_name), r.student_uuid, lower(cd.title), cd.uuid
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM (
+                SELECT 1
+                FROM class_enrollments ce
+                JOIN scheduled_instances si ON si.uuid = ce.scheduled_instance_uuid
+                JOIN class_definitions cd ON cd.uuid = si.class_definition_uuid
+                JOIN students s ON s.uuid = ce.student_uuid
+                WHERE cd.organisation_uuid = :organisationUuid
+                  AND cd.default_instructor_uuid = :instructorUuid
+                  AND (CAST(:classDefinitionUuid AS uuid) IS NULL OR cd.uuid = CAST(:classDefinitionUuid AS uuid))
+                  AND s.full_name ILIKE :namePattern
+                GROUP BY ce.student_uuid, si.class_definition_uuid
+            ) roster
+            """,
+            nativeQuery = true)
+    Page<Object[]> findInstructorStudentsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                         @Param("instructorUuid") UUID instructorUuid,
+                                                         @Param("classDefinitionUuid") UUID classDefinitionUuid,
+                                                         @Param("namePattern") String namePattern,
+                                                         Pageable pageable);
+
+    /** The organisation's classes the instructor has students in, as {@code [class_definition_uuid, title]} rows. */
+    @Query(value = """
+            SELECT DISTINCT cd.uuid, cd.title, lower(cd.title)
+            FROM class_enrollments ce
+            JOIN scheduled_instances si ON si.uuid = ce.scheduled_instance_uuid
+            JOIN class_definitions cd ON cd.uuid = si.class_definition_uuid
+            WHERE cd.organisation_uuid = :organisationUuid
+              AND cd.default_instructor_uuid = :instructorUuid
+            ORDER BY lower(cd.title), cd.uuid
+            """,
+            nativeQuery = true)
+    List<Object[]> findInstructorClassOptionsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                             @Param("instructorUuid") UUID instructorUuid);
 }
