@@ -1,3 +1,23 @@
+# [2.147.0](https://github.com/sarafrika/elimika/compare/v2.146.2...v2.147.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **marketplace:** carry the job's branch onto its class and the hired instructor's affiliation ([efa6708](https://github.com/sarafrika/elimika/commit/efa670825fe13b684468ff44eb77599a7c748ce9))
+* **tenancy:** keep branch coordinates on partial updates and validate their range ([94f8499](https://github.com/sarafrika/elimika/commit/94f8499db45a95b5edc970fd340ccd8b6d5edbfc))
+* **tenancy:** refuse branch routes for a branch outside the path organisation ([df695b5](https://github.com/sarafrika/elimika/commit/df695b5fa040f2acc3c10b256bbda21855986879))
+
+
+### Features
+
+* **classes:** validate class branches and copy their location pin ([59027ec](https://github.com/sarafrika/elimika/commit/59027ec6364cdcc68303af5953d1f23ad9336c4f))
+* **marketplace:** expose applicant count, hired instructor and resource names on jobs ([c095875](https://github.com/sarafrika/elimika/commit/c09587550822d9d83f38f7202e7e7bc6eb6b7b30))
+* **marketplace:** filter organisation jobs by branch ([c19b47a](https://github.com/sarafrika/elimika/commit/c19b47a7b3ebe7ffa5b998ae9fba941f284a0300))
+* **marketplace:** keep job resources inside the job's branch ([f8cb2f2](https://github.com/sarafrika/elimika/commit/f8cb2f2e4431901d4a055c0612ccde65b37fa595))
+* **marketplace:** require a branch on class jobs and copy its location pin at save ([67fe8f4](https://github.com/sarafrika/elimika/commit/67fe8f46d9b90b32d585d543ee97486a4503ed13))
+* **resourcing:** require every organisation resource to belong to one of its branches ([becb550](https://github.com/sarafrika/elimika/commit/becb550b05437c378897d226b0a59bbb0d089599))
+* **tenancy:** expose training branch location lookups through the tenancy spi ([ba56e6b](https://github.com/sarafrika/elimika/commit/ba56e6b719472257269a1e477fbbebdc601ec165))
+
 ## [2.146.2](https://github.com/sarafrika/elimika/compare/v2.146.1...v2.146.2) (2026-09-10)
 
 
