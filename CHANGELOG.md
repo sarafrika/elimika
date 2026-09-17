@@ -1,3 +1,13 @@
+# [2.152.0](https://github.com/sarafrika/elimika/compare/v2.151.0...v2.152.0) (2026-09-17)
+
+
+### Features
+
+* **marketplace:** check an instructor's eligibility for many jobs in one call ([66f5a60](https://github.com/sarafrika/elimika/commit/66f5a60a4e3e7d6315f16c16c127747147f9a677))
+* **marketplace:** record each job application's activity and let its parties read it ([f984abe](https://github.com/sarafrika/elimika/commit/f984abe344f78d02cf6436b80ee321f776f96044))
+* **marketplace:** show the branch contact to a job's hired instructor, its organisation and admins ([a99f5ce](https://github.com/sarafrika/elimika/commit/a99f5ce498a1f827e93070a2069cadd5de6d3a67))
+* **marketplace:** summarise each application's job on instructor application reads ([d5fb35c](https://github.com/sarafrika/elimika/commit/d5fb35c37539f8fb2f6a0b20dfc757907a5b9578))
+
 # [2.151.0](https://github.com/sarafrika/elimika/compare/v2.150.2...v2.151.0) (2026-09-17)
 
 
