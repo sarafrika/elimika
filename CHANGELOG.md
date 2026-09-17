@@ -1,3 +1,10 @@
+## [2.150.2](https://github.com/sarafrika/elimika/compare/v2.150.1...v2.150.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **marketplace:** deliver job notifications to the organisation user who posted the job ([c3d812c](https://github.com/sarafrika/elimika/commit/c3d812c2276fd907ee620ff5e5ea46ac17198bae))
+
 ## [2.150.1](https://github.com/sarafrika/elimika/compare/v2.150.0...v2.150.1) (2026-09-17)
 
 
