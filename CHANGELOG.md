@@ -1,3 +1,22 @@
+# [2.150.0](https://github.com/sarafrika/elimika/compare/v2.149.0...v2.150.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **classes:** resolve the organisation's approved rate on the class billing basis ([b505c70](https://github.com/sarafrika/elimika/commit/b505c7024299f74cc9b5da79d4ad8bb37fa49455))
+* **course:** store an unpriced training method as not offered instead of zero ([aeca2be](https://github.com/sarafrika/elimika/commit/aeca2be717fc88ce8411f2e0fc01a9797aa93d9e))
+* **marketplace:** gate applying and hiring on the instructor's approved rate for the job's basis ([8bf2f93](https://github.com/sarafrika/elimika/commit/8bf2f934dbde18bf6ac1c5bc514f49c24f8bbf03))
+* **marketplace:** require an approved rate for the job's basis and keep the price above it ([e11adfd](https://github.com/sarafrika/elimika/commit/e11adfd586d77120777e33d8690f9af198370aa8))
+
+
+### Features
+
+* **classes:** list the students an instructor teaches in an organisation's classes ([3cba1b1](https://github.com/sarafrika/elimika/commit/3cba1b172bafc7db3a56140201d3d4a2e7f828c6))
+* **course:** give course creators the full rate card and floor flags on review ([aa85edf](https://github.com/sarafrika/elimika/commit/aa85edf9937737a9d2d1283566204b51bdde4cbf))
+* **course:** let approved trainers update their own rates for the course creator to approve ([9477506](https://github.com/sarafrika/elimika/commit/94775065bf73948ab5bd5310220f4f82611c2668))
+* **course:** record training application history and when the course creator first opens it ([29d4073](https://github.com/sarafrika/elimika/commit/29d40732b35dfb39220cbfb599e21e2ec4b84843))
+* **course:** store offered venues and requirement answers on training applications ([7cb2bb3](https://github.com/sarafrika/elimika/commit/7cb2bb39d5182d9781ae2d8b71c6f64ed79c52a7))
+
 # [2.149.0](https://github.com/sarafrika/elimika/compare/v2.148.0...v2.149.0) (2026-09-17)
 
 
