@@ -1,3 +1,16 @@
+# [2.149.0](https://github.com/sarafrika/elimika/compare/v2.148.0...v2.149.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **marketplace:** hold a hired instructor's time as soon as they are hired ([b216f07](https://github.com/sarafrika/elimika/commit/b216f07b22201a5bd9fa01e9c76eef4674023e3b))
+* **marketplace:** refuse a hire that clashes with the instructor's schedule ([630c7f9](https://github.com/sarafrika/elimika/commit/630c7f981804bd12daef069091d74bbc9e53a1f2))
+
+
+### Features
+
+* **notifications:** alert the organisation and instructor when a hire is blocked by a clash ([803a86d](https://github.com/sarafrika/elimika/commit/803a86de1023a20ea9688a66001e78f7de460b08))
+
 # [2.148.0](https://github.com/sarafrika/elimika/compare/v2.147.0...v2.148.0) (2026-09-17)
 
 
