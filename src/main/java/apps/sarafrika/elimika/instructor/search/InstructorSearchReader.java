@@ -14,11 +14,9 @@ import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -31,8 +29,8 @@ import org.springframework.util.StringUtils;
 /**
  * Serves instructor list reads that carry a {@code q} from the {@code instructors} index, returning
  * the matching entities in rank order so the caller maps them exactly as it maps database rows.
+ * There is no database fallback for free text.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class InstructorSearchReader {
@@ -42,43 +40,39 @@ public class InstructorSearchReader {
     private final InstructorRepository instructorRepository;
     private final InstructorVisibility instructorVisibility;
 
-    /** Whether a read with this {@code q} should be routed to search. */
-    public boolean handles(String q) {
-        return StringUtils.hasText(q) && searchAvailability.isReadEnabled(InstructorSearchSource.INDEX);
-    }
-
     /**
      * Searches the index and hydrates the hits with one batch query.
      *
      * @param searchParams the remaining request parameters, in the {@code searchParams} vocabulary;
      *                     {@code q} must already be removed
-     * @return the page, or empty when the engine cannot answer and the caller should use the database
-     * @throws IllegalArgumentException for a filter or sort the index does not allow (a 400)
+     * @return the page of matching instructors in rank order
+     * @throws IllegalArgumentException   for a filter or sort the index does not allow (a 400)
+     * @throws SearchUnavailableException when search or the index's reads are off, or the engine fails (a 503)
      */
-    public Optional<Page<Instructor>> search(String q, Map<String, String> searchParams, Pageable pageable,
-                                             InstructorVisibility.Caller caller) {
+    public Page<Instructor> search(String q, Map<String, String> searchParams, Pageable pageable,
+                                   InstructorVisibility.Caller caller) {
+        if (!StringUtils.hasText(q)) {
+            throw new IllegalArgumentException("q must not be blank");
+        }
         SearchFilter filter = SearchParamsTranslator.toFilter(searchParams, InstructorSearchSource.DEFINITION);
         Sort sort = pageable.isPaged() ? pageable.getSort() : Sort.unsorted();
         List<SearchSort> sorts = SearchParamsTranslator.toSort(sortExpression(sort), InstructorSearchSource.DEFINITION);
         int page = pageable.isPaged() ? pageable.getPageNumber() : 0;
         int size = pageable.isPaged() ? Math.clamp(pageable.getPageSize(), 1, SearchRequest.MAX_SIZE) : 20;
 
-        SearchPage result;
-        try {
-            result = searchGateway.search(new SearchRequest(InstructorSearchSource.INDEX, q.trim(), filter,
-                    instructorVisibility.searchScope(caller, searchParams), sorts, page, size, List.of(), null));
-        } catch (SearchUnavailableException ex) {
-            log.warn("Instructor search unavailable, falling back to the database: {}", ex.getMessage());
-            return Optional.empty();
+        if (!searchAvailability.isReadEnabled(InstructorSearchSource.INDEX)) {
+            throw new SearchUnavailableException("Search is not enabled for " + InstructorSearchSource.INDEX);
         }
+        SearchPage result = searchGateway.search(new SearchRequest(InstructorSearchSource.INDEX, q.trim(), filter,
+                instructorVisibility.searchScope(caller, searchParams), sorts, page, size, List.of(), null));
 
         List<UUID> uuids = SearchResults.hitUuids(result);
         List<Instructor> rows = uuids.isEmpty() ? List.of() : hydrate(uuids, caller, searchParams);
         // A hit whose row was deleted, or that the database no longer lets the caller see (verification
         // withdrawn since it was indexed), is dropped rather than shown, and the total restated.
         List<Instructor> ordered = SearchResults.inHitOrder(uuids, rows, Instructor::getUuid);
-        return Optional.of(new PageImpl<>(ordered, PageRequest.of(page, size, sort),
-                SearchResults.total(result.totalHits(), result.hits().size(), ordered.size())));
+        return new PageImpl<>(ordered, PageRequest.of(page, size, sort),
+                SearchResults.total(result.totalHits(), result.hits().size(), ordered.size()));
     }
 
     private List<Instructor> hydrate(List<UUID> uuids, InstructorVisibility.Caller caller, Map<String, String> params) {

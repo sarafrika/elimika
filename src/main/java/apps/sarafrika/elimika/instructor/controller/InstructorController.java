@@ -132,11 +132,12 @@ public class InstructorController {
             description = """
                     Fetches a paginated list of instructors.
                    \s
-                    **Free-text search (`q`):** optional. When the instructor search index is enabled, `q` is
-                    matched typo-tolerantly against name, headline, skills, experience, location and bio, and
-                    results come back in relevance order (or by `sort` over `full_name`, `rating_avg`,
-                    `review_count`, `created_at`). When search is disabled or unavailable, `q` falls back to
-                    a case-insensitive match on the full name.
+                    **Free-text search (`q`):** optional, and served only by the instructors search index:
+                    `q` is matched typo-tolerantly against name, headline, skills, experience, location and
+                    bio, and results come back in relevance order (or by `sort` over `full_name`,
+                    `rating_avg`, `review_count`, `created_at`). There is no database fallback: when search
+                    or the index's reads are off, or the engine is down, a request with `q` answers 503
+                    ("Search is unavailable").
                    \s
                     **Visibility:** the same with or without `q`. Platform admins see every instructor;
                     everyone else sees admin-verified instructors plus their own profile.
@@ -204,11 +205,9 @@ public class InstructorController {
                     - `field_lte=value` - Less than or equal
                     - `createdDate_gte=2024-01-01T00:00:00` - Created after Jan 1, 2024
                    \s
-                    **String Operations:**
-                    - `field_like=value` - Contains (case-insensitive)
-                    - `field_startswith=value` - Starts with (case-insensitive) \s
-                    - `field_endswith=value` - Ends with (case-insensitive)
-                    - `lastName_like=smith` - Last name contains "smith"
+                    **Text search:**
+                    - The `_like`, `_startswith` and `_endswith` operators were removed and answer 400;
+                      free text goes through the `q` parameter where an endpoint offers it.
                    \s
                     **List Operations:**
                     - `field_in=val1,val2,val3` - Field is in list
@@ -234,15 +233,15 @@ public class InstructorController {
                     - Date (YYYY-MM-DD), Timestamp, LocalDateTime (ISO format)
                    \s
                     **Free-text search (`q`):**
-                    - `q=python` - Optional. When the instructor search index is enabled, `q` is matched
+                    - `q=python` - Optional. Served only by the instructor search index: `q` is matched
                       typo-tolerantly against name, headline, skills, experience, location and bio, in
                       relevance order. Alongside `q` the other keys filter the index and are limited to
                       `admin_verified`, `active`, `skills`, `skill_levels`, `location_name`, `uuid` and
                       `created_at` (operators `eq, noteq, in, notin, gt, gte, lt, lte, between`); `sort` is
                       limited to `full_name`, `rating_avg`, `review_count`, `created_at`. Anything else is a
                       400.
-                    - When search is disabled or unavailable, `q` falls back to `fullName_like` and the
-                      other keys keep their database meaning.
+                    - When search is disabled or unavailable, a request with `q` answers 503 ("Search is
+                      unavailable"); there is no database fallback. Without `q` the keys filter the database.
                    \s
                     **Visibility** (the same with or without `q`): platform admins see every instructor.
                     Everyone else sees admin-verified instructors plus their own profile, except in an exact
@@ -252,9 +251,7 @@ public class InstructorController {
                    \s
                     **Examples:**
                     - `/search?q=pyhton&skill_levels=EXPERT`
-                    - `/search?firstName_like=john&isActive=true&createdDate_gte=2024-01-01T00:00:00`
                     - `/search?experience_gt=5&status_in=ACTIVE,VERIFIED`
-                    - `/search?email_endswith=@company.com&department_noteq=IT`
                    \s""",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Search results returned successfully",
@@ -812,9 +809,7 @@ public class InstructorController {
                     - `status=PENDING` - Documents with pending status
                     - `status_in=APPROVED,VERIFIED` - Approved or verified documents
                     - `expiryDate_lte=2025-12-31` - Documents expiring by end of 2025
-                    - `mimeType_like=pdf` - PDF documents
                     - `fileSizeBytes_gt=1048576` - Files larger than 1MB
-                    - `title_startswith=Certificate` - Titles starting with "Certificate"
                     - `createdDate_between=2024-01-01T00:00:00,2024-12-31T23:59:59` - Created in 2024
                     
                     **Special Document Queries:**
@@ -851,8 +846,6 @@ public class InstructorController {
                     
                     **Common Education Search Examples:**
                     - `instructorUuid=uuid` - All education for specific instructor
-                    - `qualification_like=degree` - Qualifications containing "degree"
-                    - `schoolName_startswith=University` - Schools starting with "University"
                     - `startYear_gte=2015` - Started in 2015 or later
                     - `yearCompleted_gte=2020` - Completed in 2020 or later
                     - `yearCompleted_between=2015,2020` - Completed between 2015-2020
@@ -893,12 +886,9 @@ public class InstructorController {
                     **Common Experience Search Examples:**
                     - `instructorUuid=uuid` - All experience for specific instructor
                     - `isCurrentPosition=true` - Current positions only
-                    - `position_like=manager` - Positions containing "manager"
-                    - `organizationName_endswith=Ltd` - Organizations ending with "Ltd"
                     - `yearsOfExperience_gte=5` - 5+ years experience
                     - `startDate_gte=2020-01-01` - Started in 2020 or later
                     - `endDate=null` - Ongoing positions (no end date)
-                    - `responsibilities_like=team` - Responsibilities mentioning "team"
                     
                     **Experience Analysis Queries:**
                     - `isCurrentPosition=false&endDate_gte=2023-01-01` - Recent past positions
@@ -937,10 +927,8 @@ public class InstructorController {
                     **Common Membership Search Examples:**
                     - `instructorUuid=uuid` - All memberships for specific instructor
                     - `isActive=true` - Active memberships only
-                    - `organizationName_like=professional` - Organizations with "professional" in name
                     - `startDate_gte=2023-01-01` - Memberships started in 2023 or later
                     - `endDate=null` - Ongoing memberships (no end date)
-                    - `membershipNumber_startswith=PRO` - Numbers starting with "PRO"
                     
                     **Membership Analysis Queries:**
                     - `isActive=true&endDate=null` - Currently active ongoing memberships
@@ -981,14 +969,11 @@ public class InstructorController {
                     
                     **Common Skills Search Examples:**
                     - `instructorUuid=uuid` - All skills for specific instructor
-                    - `skillName_like=java` - Skills containing "java"
                     - `proficiencyLevel=EXPERT` - Expert level skills only
                     - `proficiencyLevel_in=ADVANCED,EXPERT` - Advanced or expert skills
-                    - `skillName_startswith=Data` - Skills starting with "Data"
                     - `proficiencyLevel_noteq=BEGINNER` - Non-beginner skills
                     
                     **Skills Analysis Queries:**
-                    - `skillName_like=programming&proficiencyLevel_in=ADVANCED,EXPERT` - Advanced programming skills
                     - `createdDate_gte=2024-01-01&proficiencyLevel=EXPERT` - Recently added expert skills
                     
                     **Proficiency Levels:** BEGINNER, INTERMEDIATE, ADVANCED, EXPERT

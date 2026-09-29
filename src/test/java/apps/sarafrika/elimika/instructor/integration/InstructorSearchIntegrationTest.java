@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.instructor.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import apps.sarafrika.elimika.instructor.search.InstructorSearchSource;
@@ -95,6 +96,7 @@ class InstructorSearchIntegrationTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private SearchIndexRebuilder rebuilder;
     @Autowired private SearchGateway gateway;
+    @Autowired private apps.sarafrika.elimika.search.config.SearchProperties searchProperties;
 
     /** Never invoked: the jwt() post-processor sets the SecurityContext directly. */
     @MockBean private JwtDecoder jwtDecoder;
@@ -168,6 +170,24 @@ class InstructorSearchIntegrationTest {
                 throw new IllegalStateException(ex);
             }
         });
+    }
+
+    @Test
+    @DisplayName("q is served only by the index: 503 with reads off, 400 for a removed text operator")
+    void noDatabaseFallback() throws Exception {
+        searchProperties.getReadEnabled().put(InstructorSearchSource.INDEX, false);
+        try {
+            mockMvc.perform(get("/api/v1/instructors/search?q=kubernetes").with(jwt(ADMIN_SUBJECT)))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.message").value("Search is unavailable"));
+            // Without q the relational filters still answer from the database.
+            assertThat(uuids(list("/api/v1/instructors/search?admin_verified=true", ADMIN_SUBJECT)))
+                    .containsExactly(verifiedInstructorUuid.toString());
+        } finally {
+            searchProperties.getReadEnabled().put(InstructorSearchSource.INDEX, true);
+        }
+        mockMvc.perform(get("/api/v1/instructors/search?fullName_like=amina").with(jwt(ADMIN_SUBJECT)))
+                .andExpect(status().isBadRequest());
     }
 
     // ===== Helpers =====

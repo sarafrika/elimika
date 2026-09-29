@@ -19,5 +19,4 @@ public interface InstructorEducationRepository extends JpaRepository<InstructorE
 
     List<InstructorEducation> findByInstructorUuid(UUID instructorUuid);
 
-    List<InstructorEducation> findByQualificationContainingIgnoreCase(String qualification);
 }

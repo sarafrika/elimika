@@ -48,7 +48,6 @@ public class InstructorServiceImpl implements InstructorService {
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
     private static final String QUERY_PARAM = "q";
-    private static final String FULL_NAME_LIKE_PARAM = "fullName_like";
 
     @Override
     public InstructorDTO createInstructor(InstructorDTO instructorDTO) {
@@ -119,16 +118,9 @@ public class InstructorServiceImpl implements InstructorService {
         String q = params.remove(QUERY_PARAM);
         // One visibility rule for both paths; see InstructorVisibility.
         InstructorVisibility.Caller caller = instructorVisibility.currentCaller();
+        // Free text is served only by the instructors index: 503 when search cannot answer.
         if (StringUtils.hasText(q)) {
-            if (instructorSearchReader.handles(q)) {
-                Page<Instructor> hits = instructorSearchReader
-                        .search(q, params, pageable, caller)
-                        .orElse(null);
-                if (hits != null) {
-                    return hits.map(this::toDirectoryDTO);
-                }
-            }
-            params.putIfAbsent(FULL_NAME_LIKE_PARAM, q.trim());
+            return instructorSearchReader.search(q, params, pageable, caller).map(this::toDirectoryDTO);
         }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, params);

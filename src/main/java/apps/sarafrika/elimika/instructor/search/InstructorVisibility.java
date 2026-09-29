@@ -41,8 +41,7 @@ public class InstructorVisibility {
     private static final Set<String> IDENTITY_FIELDS = Set.of("uuid", "useruuid");
     private static final Set<String> IDENTITY_OPERATIONS = Set.of("eq", "in");
     private static final Set<String> OPERATIONS = Set.of(
-            "eq", "noteq", "in", "notin", "gt", "gte", "lt", "lte", "between", "like", "startswith",
-            "endswith", "contains");
+            "eq", "noteq", "in", "notin", "gt", "gte", "lt", "lte", "between");
 
     private final DomainSecurityService domainSecurityService;
 
