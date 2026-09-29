@@ -106,6 +106,15 @@ public class StudentServiceImpl implements StudentService {
         return emailContact.map(StudentFactory::toDTO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StudentDTO> search(Map<String, String> searchParams, Pageable pageable, Specification<Student> scope) {
+        specificationBuilder.validateSortProperties(Student.class, pageable);
+        Specification<Student> filters = specificationBuilder.buildSpecification(Student.class, searchParams);
+        Specification<Student> spec = filters == null ? scope : scope == null ? filters : filters.and(scope);
+        return studentRepository.findAll(spec, pageable).map(StudentFactory::toDTO);
+    }
+
     private void enforceAgeGate(StudentDTO studentDTO) {
         AgeGateDecision decision = ruleEvaluationService.evaluateAgeGate(
                 userLookupService.getUserDateOfBirth(studentDTO.userUuid()).orElse(null),

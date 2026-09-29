@@ -27,6 +27,8 @@ import java.util.UUID;
 /**
  * The student directory.
  * <p>
+ * Listing and search return only learners the caller is related to (scoped in the query, see
+ * {@code StudentDirectorySecurityService#directoryScope()}); a single record by uuid is not scoped.
  * Reads sit at the authenticated baseline and are <em>projected</em> rather than refused: a caller
  * with no relationship to a learner still gets uuid, user, full name and bio — what a roster row, an
  * enrolment table, a review card or a public profile page draws — and never the guardian names,
@@ -89,7 +91,7 @@ public class StudentController {
      * @param pageable Pagination details.
      * @return A paginated list of student DTOs.
      */
-    @Operation(summary = "Get all students", description = "Fetches a paginated list of students. Guardian contacts, demographic tag and audit fields appear only on the records the caller is related to.")
+    @Operation(summary = "Get all students", description = "Fetches a paginated list of students. Guardian contacts, demographic tag and audit fields appear only on the records the caller is related to. Results are scoped to learners the caller is related to: a platform admin sees everyone; organisation staff see students of the organisations they staff; instructors see students enrolled on classes they teach; guardians see their wards; a student sees themselves; anyone else receives an empty page.")
     @GetMapping
     @PreAuthorize(AUTHENTICATED)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<StudentDTO>>> getAllStudents(Pageable pageable) {
@@ -136,7 +138,7 @@ public class StudentController {
      * @param pageable     Pagination details.
      * @return A paginated list of matching student DTOs.
      */
-    @Operation(summary = "Search students", description = "Search for students based on criteria. Guardian contacts, demographic tag and audit fields appear only on the records the caller is related to.", responses = {@ApiResponse(responseCode = "200", description = "Search results returned successfully", content = @Content(schema = @Schema(implementation = Page.class)))})
+    @Operation(summary = "Search students", description = "Search for students based on criteria. Guardian contacts, demographic tag and audit fields appear only on the records the caller is related to. Results are scoped to learners the caller is related to: a platform admin sees everyone; organisation staff see students of the organisations they staff; instructors see students enrolled on classes they teach; guardians see their wards; a student sees themselves; anyone else receives an empty page.", responses = {@ApiResponse(responseCode = "200", description = "Search results returned successfully", content = @Content(schema = @Schema(implementation = Page.class)))})
     @GetMapping("/search")
     @PreAuthorize(AUTHENTICATED)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<StudentDTO>>> searchStudents(

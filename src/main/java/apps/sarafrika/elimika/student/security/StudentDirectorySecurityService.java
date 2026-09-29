@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.student.security;
 
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
 import apps.sarafrika.elimika.student.model.Student;
@@ -54,12 +55,38 @@ public class StudentDirectorySecurityService {
 
     private static final String CACHE_REACH = "security.studentDirectory.reach";
     private static final String CACHE_OWNER_PREFIX = "security.studentDirectory.owner.";
+    private static final String CACHE_SCOPE = "security.studentDirectory.scope";
 
     private final DomainSecurityService domainSecurityService;
     private final UserLookupService userLookupService;
     private final StudentRepository studentRepository;
     private final StudentGuardianLinkRepository guardianLinkRepository;
     private final RequestScopedCache requestScopedCache;
+    private final EnrollmentLookupService enrollmentLookupService;
+
+    /**
+     * Which student records a directory listing or search may return to the caller — applied as a
+     * query predicate so that page totals only ever count what the caller may see.
+     * <p>
+     * Wider than the full-record relationship behind {@link #project(StudentDTO)}: an instructor's
+     * learners appear in their listings, but only as display identity, because teaching a learner
+     * does not entitle anybody to a minor's guardian contacts.
+     *
+     * @param unrestricted a platform admin: every record, no predicate
+     * @param studentUuids student profiles the caller may list — their own, their wards, their
+     *                     learners
+     * @param userUuids    users whose student profiles the caller may list — members of the
+     *                     organisations the caller staffs
+     */
+    public record DirectoryScope(boolean unrestricted, Set<UUID> studentUuids, Set<UUID> userUuids) {
+
+        static final DirectoryScope NOTHING = new DirectoryScope(false, Set.of(), Set.of());
+
+        /** True when the caller may list nothing at all, so no query needs to run. */
+        public boolean isEmpty() {
+            return !unrestricted && studentUuids.isEmpty() && userUuids.isEmpty();
+        }
+    }
 
     /**
      * The relationships the caller holds over the student directory on this request.
@@ -105,6 +132,47 @@ public class StudentDirectorySecurityService {
             log.error("Error projecting student {} for the current caller", student.uuid(), e);
             return student.toDirectoryProjection();
         }
+    }
+
+    /**
+     * The records the caller may list or search, resolved once per request: everything for a
+     * platform admin; otherwise the caller's own profile, the wards they hold an active guardian
+     * link to, the members of organisations they staff, and the learners enrolled on classes they
+     * teach. Anyone with none of these relationships gets {@link DirectoryScope#isEmpty() nothing}.
+     * Fails closed.
+     */
+    public DirectoryScope directoryScope() {
+        return requestScopedCache.get(CACHE_SCOPE, () -> {
+            try {
+                DirectoryReach reach = reach();
+                if (reach.platformAdmin()) {
+                    return new DirectoryScope(true, Set.of(), Set.of());
+                }
+                Set<UUID> students = new LinkedHashSet<>(reach.guardedStudents());
+                if (reach.ownStudentUuid() != null) {
+                    students.add(reach.ownStudentUuid());
+                }
+                students.addAll(taughtStudents());
+                return new DirectoryScope(false, Set.copyOf(students), Set.copyOf(reach.managedMemberUsers()));
+            } catch (Exception e) {
+                log.error("Error resolving the current caller's student directory scope", e);
+                return DirectoryScope.NOTHING;
+            }
+        });
+    }
+
+    /**
+     * The learners enrolled on classes the caller teaches; empty unless the caller holds an
+     * instructor profile.
+     */
+    private Set<UUID> taughtStudents() {
+        if (!domainSecurityService.isInstructor()) {
+            return Set.of();
+        }
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+        return instructorUuid == null
+                ? Set.of()
+                : enrollmentLookupService.findStudentUuidsTaughtByInstructor(instructorUuid);
     }
 
     /**
