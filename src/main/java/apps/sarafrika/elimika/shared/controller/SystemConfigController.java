@@ -20,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -38,6 +39,18 @@ public class SystemConfigController {
 
     public static final String API_ROOT_PATH = "/api/v1/config";
 
+    /**
+     * Configuration is shared platform reference data: every write is reserved for platform admins.
+     */
+    private static final String PLATFORM_ADMIN = "@domainSecurityService.isPlatformAdmin()";
+
+    /**
+     * Course creators add categories inline while authoring courses and programs, so category
+     * creation (only) is also open to them. Editing and deleting categories stays admin-only.
+     */
+    private static final String CATEGORY_CREATE =
+            "@domainSecurityService.isPlatformAdmin() or @domainSecurityService.isCourseCreator()";
+
     private final CategoryService categoryService;
     private final ContentTypeService contentTypeService;
     private final DifficultyLevelService difficultyLevelService;
@@ -49,6 +62,7 @@ public class SystemConfigController {
             summary = "Create category",
             description = "Creates a new category for organizing courses and programs."
     )
+    @PreAuthorize(CATEGORY_CREATE)
     @PostMapping("/categories")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CategoryDTO>> createCategory(
             @Valid @RequestBody CategoryDTO categoryDTO) {
@@ -111,6 +125,7 @@ public class SystemConfigController {
             summary = "Update category",
             description = "Updates an existing category."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PutMapping("/categories/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CategoryDTO>> updateCategory(
             @PathVariable UUID uuid,
@@ -124,6 +139,7 @@ public class SystemConfigController {
             summary = "Delete category",
             description = "Removes a category if it has no subcategories or associated courses."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @DeleteMapping("/categories/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> deleteCategory(@PathVariable UUID uuid) {
         categoryService.deleteCategory(uuid);
@@ -137,6 +153,7 @@ public class SystemConfigController {
             summary = "Create content type",
             description = "Creates a new content type for lesson content classification."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PostMapping("/content-types")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ContentTypeDTO>> createContentType(
             @Valid @RequestBody ContentTypeDTO contentTypeDTO) {
@@ -188,6 +205,7 @@ public class SystemConfigController {
             summary = "Update content type",
             description = "Updates an existing content type."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PutMapping("/content-types/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ContentTypeDTO>> updateContentType(
             @PathVariable UUID uuid,
@@ -201,6 +219,7 @@ public class SystemConfigController {
             summary = "Delete content type",
             description = "Removes a content type if no lesson content is using it."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @DeleteMapping("/content-types/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> deleteContentType(@PathVariable UUID uuid) {
         if (!contentTypeService.canDeleteContentType(uuid)) {
@@ -219,6 +238,7 @@ public class SystemConfigController {
             summary = "Create difficulty level",
             description = "Creates a new difficulty level for course classification."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PostMapping("/difficulty-levels")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<DifficultyLevelDTO>> createDifficultyLevel(
             @Valid @RequestBody DifficultyLevelDTO difficultyLevelDTO) {
@@ -243,6 +263,7 @@ public class SystemConfigController {
             summary = "Reorder difficulty levels",
             description = "Updates the order of difficulty levels."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PostMapping("/difficulty-levels/reorder")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> reorderDifficultyLevels(
             @RequestBody List<UUID> levelUuids) {
@@ -255,6 +276,7 @@ public class SystemConfigController {
             summary = "Update difficulty level",
             description = "Updates an existing difficulty level."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PutMapping("/difficulty-levels/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<DifficultyLevelDTO>> updateDifficultyLevel(
             @PathVariable UUID uuid,
@@ -268,6 +290,7 @@ public class SystemConfigController {
             summary = "Delete difficulty level",
             description = "Removes a difficulty level if no courses are using it."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @DeleteMapping("/difficulty-levels/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<String>> deleteDifficultyLevel(@PathVariable UUID uuid) {
         if (!difficultyLevelService.canDeleteLevel(uuid)) {
@@ -286,6 +309,7 @@ public class SystemConfigController {
             summary = "Create grading level",
             description = "Creates a new grading level for assessment scoring."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PostMapping("/grading-levels")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<GradingLevelDTO>> createGradingLevel(
             @Valid @RequestBody GradingLevelDTO gradingLevelDTO) {
@@ -313,6 +337,7 @@ public class SystemConfigController {
             summary = "Update grading level",
             description = "Updates an existing grading level."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @PutMapping("/grading-levels/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<GradingLevelDTO>> updateGradingLevel(
             @PathVariable UUID uuid,
@@ -326,6 +351,7 @@ public class SystemConfigController {
             summary = "Delete grading level",
             description = "Removes a grading level."
     )
+    @PreAuthorize(PLATFORM_ADMIN)
     @DeleteMapping("/grading-levels/{uuid}")
     public ResponseEntity<Void> deleteGradingLevel(@PathVariable UUID uuid) {
         gradingLevelService.deleteGradingLevel(uuid);
