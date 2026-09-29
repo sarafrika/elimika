@@ -4,6 +4,9 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssessmentRubricDTO;
 import apps.sarafrika.elimika.course.factory.AssessmentRubricFactory;
+import apps.sarafrika.elimika.course.internal.search.CatalogueSearchRouter;
+import apps.sarafrika.elimika.course.internal.search.CatalogueSearchScopes;
+import apps.sarafrika.elimika.course.internal.search.RubricSearchSource;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
@@ -18,7 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -29,6 +35,13 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     private final AssessmentRubricRepository assessmentRubricRepository;
     private final GenericSpecificationBuilder<AssessmentRubric> specificationBuilder;
     private final DomainSecurityService domainSecurityService;
+    private final CatalogueSearchRouter catalogueSearchRouter;
+
+    /** How rubric list params map onto the {@code rubrics} index. */
+    private static final CatalogueSearchRouter.Route RUBRIC_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
+            RubricSearchSource.DEFINITION,
+            Map.of("createddate", "created_at", "createdat", "created_at"),
+            Set.of("status"));
 
     private static final String ASSESSMENT_RUBRIC_NOT_FOUND_TEMPLATE = "Assessment rubric with ID %s not found";
 
@@ -102,19 +115,32 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     public Page<AssessmentRubricDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(AssessmentRubric.class, pageable);
         Specification<AssessmentRubric> spec = specificationBuilder.buildSpecification(
-                AssessmentRubric.class, searchParams);
+                AssessmentRubric.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
         return assessmentRubricRepository.findAll(spec, pageable).map(AssessmentRubricFactory::toDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<AssessmentRubricDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
-        if (domainSecurityService.isPlatformAdmin()) {
+        boolean platformAdmin = domainSecurityService.isPlatformAdmin();
+        String q = CatalogueSearchRouter.queryText(searchParams);
+        if (q != null) {
+            UUID courseCreatorUuid = platformAdmin ? null : domainSecurityService.getCurrentCourseCreatorUuid();
+            Optional<Page<AssessmentRubricDTO>> found = catalogueSearchRouter.search(RUBRIC_SEARCH_ROUTE, q,
+                    searchParams, pageable,
+                    () -> CatalogueSearchScopes.rubrics(platformAdmin, courseCreatorUuid),
+                    uuids -> hydrate(uuids, platformAdmin ? null : visibleTo(courseCreatorUuid)),
+                    AssessmentRubricDTO::uuid);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
+        if (platformAdmin) {
             return search(searchParams, pageable);
         }
         specificationBuilder.validateSortProperties(AssessmentRubric.class, pageable);
         Specification<AssessmentRubric> spec = specificationBuilder.buildSpecification(
-                AssessmentRubric.class, searchParams);
+                AssessmentRubric.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
         Specification<AssessmentRubric> visible = visibleToCaller();
         spec = spec == null ? visible : spec.and(visible);
         return assessmentRubricRepository.findAll(spec, pageable).map(AssessmentRubricFactory::toDTO);
@@ -124,10 +150,28 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
      * Public rubrics, plus the ones the caller authored as a course creator.
      */
     private Specification<AssessmentRubric> visibleToCaller() {
-        UUID courseCreatorUuid = domainSecurityService.getCurrentCourseCreatorUuid();
+        return visibleTo(domainSecurityService.getCurrentCourseCreatorUuid());
+    }
+
+    private static Specification<AssessmentRubric> visibleTo(UUID courseCreatorUuid) {
         return (root, query, cb) -> courseCreatorUuid == null
                 ? cb.isTrue(root.get("isPublic"))
                 : cb.or(cb.isTrue(root.get("isPublic")), cb.equal(root.get("courseCreatorUuid"), courseCreatorUuid));
+    }
+
+    private static Specification<AssessmentRubric> publicAndActive() {
+        return (root, query, cb) -> cb.and(cb.isTrue(root.get("isPublic")), cb.isTrue(root.get("isActive")));
+    }
+
+    /**
+     * Loads the search hits in one batch query that re-applies the caller's SQL visibility, so a hit
+     * from a document that has not caught up with the database yet is never shown.
+     */
+    private List<AssessmentRubricDTO> hydrate(List<UUID> uuids, Specification<AssessmentRubric> visible) {
+        Specification<AssessmentRubric> byUuid = (root, query, cb) -> root.get("uuid").in(uuids);
+        return assessmentRubricRepository.findAll(visible == null ? byUuid : byUuid.and(visible)).stream()
+                .map(AssessmentRubricFactory::toDTO)
+                .toList();
     }
 
     private void updateAssessmentRubricFields(AssessmentRubric existingAssessmentRubric, AssessmentRubricDTO dto) {
@@ -177,6 +221,18 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
 
     @Override
     public Page<AssessmentRubricDTO> searchPublicRubrics(String searchTerm, String rubricType, Pageable pageable) {
+        // A type filter is a case-insensitive substring match the index cannot express, so only a
+        // plain text search goes to search; everything else keeps the database queries below.
+        if (searchTerm != null && rubricType == null) {
+            Optional<Page<AssessmentRubricDTO>> found = catalogueSearchRouter.search(RUBRIC_SEARCH_ROUTE,
+                    searchTerm, Map.of(), pageable,
+                    CatalogueSearchScopes::publicRubrics,
+                    uuids -> hydrate(uuids, publicAndActive()),
+                    AssessmentRubricDTO::uuid);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
         if (searchTerm != null && rubricType != null) {
             // Search with both term and type
             return assessmentRubricRepository.findPublicRubricsBySearchTermAndType(

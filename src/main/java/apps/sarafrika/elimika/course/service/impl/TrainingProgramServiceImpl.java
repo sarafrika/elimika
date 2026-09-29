@@ -6,6 +6,9 @@ import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.TrainingProgramDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.factory.TrainingProgramFactory;
+import apps.sarafrika.elimika.course.internal.search.CatalogueSearchRouter;
+import apps.sarafrika.elimika.course.internal.search.CatalogueSearchScopes;
+import apps.sarafrika.elimika.course.internal.search.ProgramSearchSource;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
@@ -53,6 +56,13 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final ContentModerationHistoryService contentModerationHistoryService;
     private final DomainSecurityService domainSecurityService;
     private final CourseSecuritySpi courseSecurityService;
+    private final CatalogueSearchRouter catalogueSearchRouter;
+
+    /** How program list params map onto the {@code programs} index. */
+    private static final CatalogueSearchRouter.Route PROGRAM_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
+            ProgramSearchSource.DEFINITION,
+            Map.of("createddate", "created_at", "createdat", "created_at"),
+            Set.of("status"));
 
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with ID %s not found";
 
@@ -145,16 +155,29 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     public Page<TrainingProgramDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
         Specification<TrainingProgram> spec = specificationBuilder.buildSpecification(
-                TrainingProgram.class, searchParams);
+                TrainingProgram.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
         return trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TrainingProgramDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        String q = CatalogueSearchRouter.queryText(searchParams);
+        if (q != null) {
+            boolean platformAdmin = domainSecurityService.isPlatformAdmin();
+            Set<UUID> ownIdentities = platformAdmin ? Set.of() : ownIdentities();
+            Optional<Page<TrainingProgramDTO>> found = catalogueSearchRouter.search(PROGRAM_SEARCH_ROUTE, q,
+                    searchParams, pageable,
+                    () -> CatalogueSearchScopes.programs(platformAdmin, ownIdentities),
+                    uuids -> hydrateVisible(uuids, platformAdmin ? null : visibleTo(ownIdentities)),
+                    TrainingProgramDTO::uuid);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
         specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
         Specification<TrainingProgram> spec = specificationBuilder.buildSpecification(
-                TrainingProgram.class, searchParams);
+                TrainingProgram.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
         Specification<TrainingProgram> visible = visibleToCaller();
         if (visible != null) {
             spec = spec == null ? visible : spec.and(visible);
@@ -186,6 +209,22 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (domainSecurityService.isPlatformAdmin()) {
             return null;
         }
+        return visibleTo(ownIdentities());
+    }
+
+    /**
+     * Loads the search hits in one batch query that re-applies the caller's SQL visibility, so a hit
+     * from a document that has not caught up with the database yet is never shown.
+     */
+    private List<TrainingProgramDTO> hydrateVisible(List<UUID> uuids, Specification<TrainingProgram> visible) {
+        Specification<TrainingProgram> byUuid = (root, query, cb) -> root.get("uuid").in(uuids);
+        return trainingProgramRepository.findAll(visible == null ? byUuid : byUuid.and(visible)).stream()
+                .map(TrainingProgramFactory::toDTO)
+                .toList();
+    }
+
+    /** The caller's authoring identities: course creator and legacy instructor. */
+    private Set<UUID> ownIdentities() {
         Set<UUID> ownIdentities = new HashSet<>();
         UUID courseCreatorUuid = domainSecurityService.getCurrentCourseCreatorUuid();
         if (courseCreatorUuid != null) {
@@ -195,6 +234,10 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (instructorUuid != null) {
             ownIdentities.add(instructorUuid);
         }
+        return ownIdentities;
+    }
+
+    private static Specification<TrainingProgram> visibleTo(Set<UUID> ownIdentities) {
         return (root, query, cb) -> {
             var live = cb.and(
                     cb.isTrue(root.get("adminApproved")),

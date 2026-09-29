@@ -113,7 +113,11 @@ public class AssessmentRubricController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Search for assessment rubrics", description = "Searches for assessment rubrics based on a set of filter criteria. Non-admin callers see public rubrics plus their own.")
+    @Operation(summary = "Search for assessment rubrics", description = "Searches for assessment rubrics based on a set of filter criteria. Non-admin callers see public rubrics plus their own.\n\n"
+            + "**Free-text search (`q`):** when `q` is present and search is enabled for the rubrics index, it is matched "
+            + "typo-tolerantly against title, rubric type and description and ranked by relevance (unless `sort` names a "
+            + "sortable field: title, created_date, usage_count); the other parameters narrow the result and visibility "
+            + "rules still apply. Otherwise `q` falls back to a case-insensitive `title_like` match.")
     @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> searchAssessmentRubrics(@RequestParam java.util.Map<String, String> searchParams, Pageable pageable) {
         Page<AssessmentRubricDTO> rubrics = assessmentRubricService.searchForCaller(searchParams, pageable);

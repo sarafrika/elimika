@@ -51,7 +51,11 @@ public class RubricDiscoveryController {
 
     @Operation(
             summary = "Search public rubrics",
-            description = "Searches public rubrics by title, description, and optionally by rubric type."
+            description = "Searches public, active rubrics by title, description, and optionally by rubric type.\n\n"
+                    + "When search is enabled for the rubrics index and no `type` is given, `q` is matched "
+                    + "typo-tolerantly against title, rubric type and description and results are ranked by "
+                    + "relevance; otherwise `q` is a case-insensitive substring match on title or description, "
+                    + "newest first."
     )
     @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> searchPublicRubrics(

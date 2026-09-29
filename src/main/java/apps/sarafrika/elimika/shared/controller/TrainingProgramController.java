@@ -39,6 +39,13 @@ import java.util.UUID;
 @Tag(name = "Training Program Management", description = "Complete program lifecycle management including courses, enrollments, and certifications")
 public class TrainingProgramController {
 
+    private static final String PROGRAM_QUERY_DOC = """
+                **Free-text search (`q`):** when `q` is present and search is enabled for this index, the
+                query is matched typo-tolerantly and ranked by relevance (unless `sort` names a sortable
+                field: title, created_date); the other parameters narrow the result and visibility rules still apply. Otherwise
+                `q` falls back to a case-insensitive `title_like` match.
+                """;
+
     public static final String API_ROOT_PATH = "/api/v1/programs";
 
     private final TrainingProgramService trainingProgramService;
@@ -92,12 +99,15 @@ public class TrainingProgramController {
     @Operation(
             summary = "Get all programs",
             description = "Retrieves paginated list of training programs. Non-admin callers see live programs "
-                    + "(published, admin-approved, active) plus the programs they author."
+                    + "(published, admin-approved, active) plus the programs they author.\n" + PROGRAM_QUERY_DOC
     )
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getAllTrainingPrograms(
+            @Parameter(description = "Optional free-text query over title, member course names, category, creator and description")
+            @RequestParam(value = "q", required = false) String q,
             Pageable pageable) {
-        Page<TrainingProgramDTO> programs = trainingProgramService.searchForCaller(Map.of(), pageable);
+        Page<TrainingProgramDTO> programs = trainingProgramService.searchForCaller(
+                q == null || q.isBlank() ? Map.of() : Map.of("q", q), pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(programs, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -225,7 +235,7 @@ public class TrainingProgramController {
                     Price is not a search filter; use `GET /programs/free` for free programs.
 
                     For complete operator documentation, see the instructor search endpoint.
-                    """
+                    """ + PROGRAM_QUERY_DOC
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> searchTrainingPrograms(

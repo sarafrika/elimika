@@ -57,6 +57,18 @@ public class CourseController {
 
     public static final String API_ROOT_PATH = "/api/v1/courses";
 
+    private static final String COURSE_QUERY_DOC = """
+                **Free-text search (`q`):** when `q` is present and search is enabled for this index, the
+                query is matched typo-tolerantly and ranked by relevance (unless `sort` names a sortable
+                field: name, created_date, price,
+                rating_avg, enrolment_count); the other parameters narrow the result and visibility rules still apply. Otherwise
+                `q` falls back to a case-insensitive `name_like` match.
+                """;
+
+    private static Map<String, String> queryOnly(String q) {
+        return q == null || q.isBlank() ? Map.of() : Map.of("q", q);
+    }
+
     /**
      * A course's outline, readable by teaching staff or by a learner enrolled in it.
      * <p>
@@ -194,12 +206,16 @@ public class CourseController {
 
     @Operation(
             summary = "Get all courses",
-            description = "Retrieves paginated list of all courses with category information and filtering support."
+            description = """
+                Retrieves paginated list of all courses with category information and filtering support.
+                """ + COURSE_QUERY_DOC
     )
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getAllCourses(
+            @Parameter(description = "Optional free-text query over name, categories, creator, difficulty, description and objectives")
+            @RequestParam(value = "q", required = false) String q,
             Pageable pageable) {
-        Page<CourseDTO> courses = courseService.searchVisible(Map.of(), pageable);
+        Page<CourseDTO> courses = courseService.searchVisible(queryOnly(q), pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(courses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -401,7 +417,7 @@ public class CourseController {
                 - `name_like=java&categoryNames_like=programming&active=true` - Active Java courses in programming categories
                 
                 For complete operator documentation, see the general course search endpoint.
-                """
+                """ + COURSE_QUERY_DOC
     )
     @GetMapping("/search")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> searchCourses(
@@ -1768,12 +1784,17 @@ public class CourseController {
 
     @Operation(
             summary = "Get published courses",
-            description = "Retrieves all published courses available for enrollment."
+            description = """
+                Retrieves all published courses available for enrollment.
+                """ + COURSE_QUERY_DOC
     )
     @GetMapping("/published")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getPublishedCourses(
+            @Parameter(description = "Optional free-text query over name, categories, creator, difficulty, description and objectives")
+            @RequestParam(value = "q", required = false) String q,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("status", "PUBLISHED", "admin_approved", "true");
+        Map<String, String> searchParams = new java.util.HashMap<>(Map.of("status", "PUBLISHED", "admin_approved", "true"));
+        searchParams.putAll(queryOnly(q));
         Page<CourseDTO> publishedCourses = courseService.searchVisible(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(publishedCourses, ServletUriComponentsBuilder

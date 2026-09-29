@@ -4,6 +4,9 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
+import apps.sarafrika.elimika.course.internal.search.CatalogueSearchRouter;
+import apps.sarafrika.elimika.course.internal.search.CatalogueSearchScopes;
+import apps.sarafrika.elimika.course.internal.search.CourseSearchSource;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.model.Lesson;
@@ -51,8 +54,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -77,8 +82,15 @@ public class CourseServiceImpl implements CourseService {
     private final CoursePendingEditService coursePendingEditService;
     private final DomainSecurityService domainSecurityService;
     private final CourseSecuritySpi courseSecurityService;
+    private final CatalogueSearchRouter catalogueSearchRouter;
 
     private static final String COURSE_NOT_FOUND_TEMPLATE = "Course with ID %s not found";
+
+    /** How course list params map onto the {@code courses} index. */
+    private static final CatalogueSearchRouter.Route COURSE_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
+            CourseSearchSource.DEFINITION,
+            Map.of("createddate", "created_at", "createdat", "created_at"),
+            Set.of("status"));
 
     @Override
     public CourseDTO createCourse(CourseDTO courseDTO) {
@@ -331,7 +343,8 @@ public class CourseServiceImpl implements CourseService {
     public Page<CourseDTO> search(Map<String, String> searchParams, Pageable pageable) {
         log.debug("Searching courses with params: {}", searchParams);
         courseSpecificationBuilder.validateSortProperties(pageable);
-        Specification<Course> spec = courseSpecificationBuilder.buildCourseSpecification(searchParams);
+        Specification<Course> spec = courseSpecificationBuilder.buildCourseSpecification(
+                CatalogueSearchRouter.forDatabase(searchParams, "name_like"));
 
         Page<Course> coursePage = courseRepository.findAll(spec, pageable);
 
@@ -342,11 +355,64 @@ public class CourseServiceImpl implements CourseService {
     @Transactional(readOnly = true)
     public Page<CourseDTO> searchVisible(Map<String, String> searchParams, Pageable pageable) {
         log.debug("Searching visible courses with params: {}", searchParams);
+        String q = CatalogueSearchRouter.queryText(searchParams);
+        if (q != null) {
+            Supplier<CourseCaller> caller = memoize(this::currentCourseCaller);
+            Optional<Page<CourseDTO>> found = catalogueSearchRouter.search(COURSE_SEARCH_ROUTE, q, searchParams, pageable,
+                    () -> CatalogueSearchScopes.courses(caller.get().platformAdmin(), caller.get().courseCreatorUuid(),
+                            caller.get().relatedCourseUuids()),
+                    uuids -> hydrateVisible(uuids, caller.get()),
+                    CourseDTO::uuid);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
+        Map<String, String> params = CatalogueSearchRouter.forDatabase(searchParams, "name_like");
         courseSpecificationBuilder.validateSortProperties(pageable);
         Specification<Course> spec = combine(
-                courseSpecificationBuilder.buildCourseSpecification(searchParams), callerVisibility());
+                courseSpecificationBuilder.buildCourseSpecification(params), callerVisibility());
 
         return toDtoPage(courseRepository.findAll(spec, pageable));
+    }
+
+    /**
+     * Loads the search hits in one batch query that re-applies the caller's SQL visibility, so a hit
+     * from a document that has not caught up with the database yet is never shown.
+     */
+    private List<CourseDTO> hydrateVisible(List<UUID> uuids, CourseCaller caller) {
+        Specification<Course> spec = combine(courseSpecificationBuilder.hasUuidIn(uuids), caller.platformAdmin()
+                ? null
+                : courseSpecificationBuilder.visibleTo(caller.courseCreatorUuid(), caller.relatedCourseUuids()));
+        return toDtoPage(new org.springframework.data.domain.PageImpl<>(courseRepository.findAll(spec))).getContent();
+    }
+
+    /** The facts the course visibility rule needs about the caller, looked up once per request. */
+    private record CourseCaller(boolean platformAdmin, UUID courseCreatorUuid, Set<UUID> relatedCourseUuids) {
+    }
+
+    private CourseCaller currentCourseCaller() {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return new CourseCaller(true, null, Set.of());
+        }
+        return new CourseCaller(false, domainSecurityService.getCurrentCourseCreatorUuid(), relatedCourseUuids());
+    }
+
+    private Set<UUID> relatedCourseUuids() {
+        Set<UUID> relatedCourseUuids = new HashSet<>(courseSecurityService.enrolledCourseUuids());
+        relatedCourseUuids.addAll(courseSecurityService.manageableCourseUuids());
+        return relatedCourseUuids;
+    }
+
+    private static <T> Supplier<T> memoize(Supplier<T> supplier) {
+        Object[] value = new Object[1];
+        return () -> {
+            if (value[0] == null) {
+                value[0] = supplier.get();
+            }
+            @SuppressWarnings("unchecked")
+            T result = (T) value[0];
+            return result;
+        };
     }
 
     @Override
@@ -367,10 +433,8 @@ public class CourseServiceImpl implements CourseService {
         if (domainSecurityService.isPlatformAdmin()) {
             return null;
         }
-        Set<UUID> relatedCourseUuids = new HashSet<>(courseSecurityService.enrolledCourseUuids());
-        relatedCourseUuids.addAll(courseSecurityService.manageableCourseUuids());
         return courseSpecificationBuilder.visibleTo(
-                domainSecurityService.getCurrentCourseCreatorUuid(), relatedCourseUuids);
+                domainSecurityService.getCurrentCourseCreatorUuid(), relatedCourseUuids());
     }
 
     private static Specification<Course> combine(Specification<Course> first, Specification<Course> second) {
