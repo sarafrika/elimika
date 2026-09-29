@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.tenancy.search;
 
-import apps.sarafrika.elimika.shared.search.SearchHit;
+import apps.sarafrika.elimika.shared.search.SearchResults;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchPage;
 import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
@@ -10,10 +10,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -71,18 +69,13 @@ final class SearchPaging {
      * caller may not see would disclose them just as plainly as returning them.
      */
     static <T> Page<T> toPage(SearchPage result, Collection<T> rows, Function<T, UUID> uuidOf, Pageable pageable) {
-        Map<UUID, T> byUuid = rows.stream().collect(Collectors.toMap(uuidOf, Function.identity(), (a, b) -> a));
-        List<T> ordered = result.hits().stream()
-                .map(SearchHit::uuid)
-                .map(byUuid::get)
-                .filter(Objects::nonNull)
-                .toList();
-        long total = ordered.size() == result.hits().size() ? result.totalHits() : ordered.size();
+        List<T> ordered = SearchResults.inHitOrder(SearchResults.hitUuids(result), rows, uuidOf);
+        long total = SearchResults.total(result.totalHits(), result.hits().size(), ordered.size());
         Sort sort = pageable == null || pageable.isUnpaged() ? Sort.unsorted() : pageable.getSort();
         return new PageImpl<>(ordered, PageRequest.of(result.page(), result.size(), sort), total);
     }
 
     static List<UUID> hitUuids(SearchPage result) {
-        return result.hits().stream().map(SearchHit::uuid).toList();
+        return SearchResults.hitUuids(result);
     }
 }

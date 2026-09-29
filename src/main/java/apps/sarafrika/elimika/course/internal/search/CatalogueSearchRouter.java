@@ -3,7 +3,7 @@ package apps.sarafrika.elimika.course.internal.search;
 import apps.sarafrika.elimika.shared.search.SearchAvailability;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchGateway;
-import apps.sarafrika.elimika.shared.search.SearchHit;
+import apps.sarafrika.elimika.shared.search.SearchResults;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchPage;
 import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
@@ -19,9 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -132,24 +130,15 @@ public class CatalogueSearchRouter {
 
     private static <T> Page<T> toPage(SearchPage result, Pageable pageable,
                                       Function<List<UUID>, List<T>> hydrate, Function<T, UUID> uuidOf) {
-        List<UUID> uuids = result.hits().stream().map(SearchHit::uuid).toList();
+        List<UUID> uuids = SearchResults.hitUuids(result);
         if (uuids.isEmpty()) {
             return new PageImpl<>(List.of(), pageable, result.totalHits());
         }
-        Map<UUID, T> byUuid = new LinkedHashMap<>();
-        for (T dto : hydrate.apply(uuids)) {
-            byUuid.put(uuidOf.apply(dto), dto);
-        }
         // Hit order is the ranking; a hit the database no longer returns (stale, or no longer
-        // visible to the caller) is dropped rather than shown.
-        List<T> ordered = new ArrayList<>(uuids.size());
-        for (UUID uuid : uuids) {
-            T dto = byUuid.get(uuid);
-            if (dto != null) {
-                ordered.add(dto);
-            }
-        }
-        return new PageImpl<>(ordered, pageable, result.totalHits());
+        // visible to the caller) is dropped rather than shown, and the total restated.
+        List<T> ordered = SearchResults.inHitOrder(uuids, hydrate.apply(uuids), uuidOf);
+        return new PageImpl<>(ordered, pageable,
+                SearchResults.total(result.totalHits(), result.hits().size(), ordered.size()));
     }
 
     /**

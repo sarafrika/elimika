@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.classes.search.ClassesSearch;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
+import apps.sarafrika.elimika.shared.search.SearchResults;
 import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import org.springframework.data.domain.PageImpl;
@@ -1215,7 +1216,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     .map(this::toDTOWithSessionTemplates)
                     .map(this::buildResponse)
                     .toList();
-            return new PageImpl<>(content, PageRequest.of(page, size), hits.totalHits());
+            return new PageImpl<>(content, PageRequest.of(page, size),
+                    SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));
         });
     }
 

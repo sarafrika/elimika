@@ -51,6 +51,7 @@ import apps.sarafrika.elimika.classes.search.MarketplaceJobSearchScopes;
 import apps.sarafrika.elimika.classes.search.MarketplaceJobSearchSource;
 import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
+import apps.sarafrika.elimika.shared.search.SearchResults;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.recurrence.OccurrenceWindow;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
@@ -354,7 +355,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                     .filter(Objects::nonNull)
                     .filter(job -> matchesJobFilters(job, organisationUuid, courseUuid, programUuid, branchUuid, status))
                     .toList();
-            return new PageImpl<>(content, PageRequest.of(pageable.getPageNumber(), size), hits.totalHits());
+            return new PageImpl<>(content, PageRequest.of(pageable.getPageNumber(), size),
+                    SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));
         });
     }
 
