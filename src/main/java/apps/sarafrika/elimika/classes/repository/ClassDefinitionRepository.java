@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.repository;
 
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +21,9 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
     Optional<ClassDefinition> findByUuid(UUID uuid);
 
     List<ClassDefinition> findByUuidIn(Collection<UUID> uuids);
+
+    /** Keyset page for search index rebuilds: rows after {@code id}, in id order. */
+    List<ClassDefinition> findByIdGreaterThanOrderByIdAsc(Long id, Pageable pageable);
 
     boolean existsByUuid(UUID uuid);
 
