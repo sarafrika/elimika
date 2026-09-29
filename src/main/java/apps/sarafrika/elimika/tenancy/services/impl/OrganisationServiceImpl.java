@@ -5,7 +5,6 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
@@ -183,15 +182,13 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Override
     @Transactional(readOnly = true)
     public Page<OrganisationDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        // Strip q before the specification builder, which would reject it as an unknown field.
+        // q is served only by the organisations index (503 when search cannot answer); it is stripped
+        // before the relational specification builder, which would reject it as an unknown field.
         Map<String, String> filters = new HashMap<>(searchParams == null ? Map.of() : searchParams);
         String rawQuery = filters.remove(SEARCH_QUERY_PARAM);
         String text = StringUtils.hasText(rawQuery) ? rawQuery.trim() : null;
         if (text != null) {
-            Optional<Page<Organisation>> hits = organisationSearchService.search(text, filters, pageable);
-            if (hits.isPresent()) {
-                return hits.get().map(OrganisationFactory::toDTO);
-            }
+            return organisationSearchService.search(text, filters, pageable).map(OrganisationFactory::toDTO);
         }
         specificationBuilder.validateSortProperties(Organisation.class, pageable);
         Specification<Organisation> spec = specificationBuilder.buildSpecification(Organisation.class, filters);
@@ -199,15 +196,6 @@ public class OrganisationServiceImpl implements OrganisationService {
         Specification<Organisation> notDeletedSpec = (root, query, criteriaBuilder) ->
                 criteriaBuilder.isFalse(root.get("deleted"));
         Specification<Organisation> combinedSpec = spec == null ? notDeletedSpec : spec.and(notDeletedSpec);
-        if (text != null) {
-            combinedSpec = combinedSpec.and(nameLike(text));
-            if (!organisationSearchService.callerIsPlatformAdmin()) {
-                // The same boundary the index applies to q, so results do not depend on the engine.
-                combinedSpec = combinedSpec.and((root, query, criteriaBuilder) -> criteriaBuilder.and(
-                        criteriaBuilder.isTrue(root.get("active")),
-                        criteriaBuilder.isTrue(root.get("adminVerified"))));
-            }
-        }
 
         Page<Organisation> organisations = organisationRepository.findAll(combinedSpec, pageable);
         return organisations.map(OrganisationFactory::toDTO);
@@ -667,21 +655,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         if (!StringUtils.hasText(query)) {
             return getUnverifiedOrganisations(pageable);
         }
-        String text = query.trim();
-        Optional<Page<Organisation>> hits = organisationSearchService.searchPending(text, pageable);
-        if (hits.isPresent()) {
-            return hits.get().map(OrganisationFactory::toDTO);
-        }
-        specificationBuilder.validateSortProperties(Organisation.class, pageable);
-        return organisationRepository.findPendingByNameLike(LikePatterns.containsLower(text), pageable)
-                .map(OrganisationFactory::toDTO);
-    }
-
-    /** Case-insensitive partial name match; LIKE wildcards in the input match literally. */
-    private static Specification<Organisation> nameLike(String text) {
-        String pattern = LikePatterns.containsLower(text);
-        return (root, query, criteriaBuilder) -> criteriaBuilder.like(
-                criteriaBuilder.lower(root.get("name")), pattern, LikePatterns.ESCAPE_CHAR);
+        return organisationSearchService.searchPending(query.trim(), pageable).map(OrganisationFactory::toDTO);
     }
 
     @Override

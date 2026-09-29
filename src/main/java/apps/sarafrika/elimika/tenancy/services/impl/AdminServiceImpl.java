@@ -50,7 +50,6 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -594,16 +593,12 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> getAdminEligibleUsers(String searchTerm, Pageable pageable) {
+        // A term is served only by the people index (503 when search cannot answer); without one,
+        // the paged SQL listing of every eligible user.
         if (searchTerm != null && !searchTerm.isBlank()) {
-            Optional<Page<User>> hits = peopleSearchService.searchAdminEligible(searchTerm.trim(), pageable);
-            if (hits.isPresent()) {
-                return hits.get().map(userService::toUserDTO);
-            }
+            return peopleSearchService.searchAdminEligible(searchTerm.trim(), pageable).map(userService::toUserDTO);
         }
-        String pattern = searchTerm == null || searchTerm.isBlank()
-                ? null
-                : LikePatterns.containsLower(searchTerm.trim());
-        return userRepository.findAdminEligibleUsers(pattern, withStableSort(pageable))
+        return userRepository.findAdminEligibleUsers(withStableSort(pageable))
                 .map(userService::toUserDTO);
     }
 

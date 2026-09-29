@@ -13,7 +13,6 @@ import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
- * Routes an organisation query ({@code q}) to the {@code organisations} index and hydrates the hits
- * in hit order. Answers {@link Optional#empty()} when the caller should use the database instead.
+ * Serves an organisation query ({@code q}) from the {@code organisations} index and hydrates the hits
+ * in hit order. There is no database fallback: with search off, the index's reads not enabled, or the
+ * engine failing, every method throws {@link SearchUnavailableException} (503).
  */
 @Slf4j
 @Service
@@ -40,11 +40,8 @@ public class OrganisationSearchService {
 
     /** Organisations the caller may see: every one for a platform admin, active and verified otherwise. */
     @Transactional(readOnly = true)
-    public Optional<Page<Organisation>> search(String query, Map<String, String> searchParams, Pageable pageable) {
-        if (!routable(query)) {
-            return Optional.empty();
-        }
-        boolean platformAdmin = callerIsPlatformAdmin();
+    public Page<Organisation> search(String query, Map<String, String> searchParams, Pageable pageable) {
+        boolean platformAdmin = domainSecurityService.isPlatformAdmin();
         SearchFilter filter = SearchParamsTranslator.toFilter(searchParams, OrganisationSearchSource.DEFINITION);
         return search(query, filter, OrganisationSearchScopes.forCaller(platformAdmin), pageable,
                 organisation -> OrganisationSearchScopes.visible(organisation, platformAdmin));
@@ -52,42 +49,29 @@ public class OrganisationSearchService {
 
     /** Organisations awaiting admin verification, for platform admins. */
     @Transactional(readOnly = true)
-    public Optional<Page<Organisation>> searchPending(String query, Pageable pageable) {
-        if (!routable(query)) {
-            return Optional.empty();
-        }
-        SearchScope scope = OrganisationSearchScopes.pendingQueue(callerIsPlatformAdmin());
+    public Page<Organisation> searchPending(String query, Pageable pageable) {
+        SearchScope scope = OrganisationSearchScopes.pendingQueue(domainSecurityService.isPlatformAdmin());
         return search(query, SearchFilter.eq("admin_verified", false), scope, pageable,
                 organisation -> !organisation.isDeleted() && !Boolean.TRUE.equals(organisation.getAdminVerified()));
     }
 
-    /** Whether the caller sees every organisation, for the database fallback of {@link #search}. */
-    public boolean callerIsPlatformAdmin() {
-        return domainSecurityService.isPlatformAdmin();
-    }
-
-    private boolean routable(String query) {
-        return StringUtils.hasText(query) && searchAvailability.isReadEnabled(OrganisationSearchSource.INDEX);
-    }
-
-    private Optional<Page<Organisation>> search(String query, SearchFilter filter, SearchScope scope, Pageable pageable,
-                                                Predicate<Organisation> recheck) {
+    private Page<Organisation> search(String query, SearchFilter filter, SearchScope scope, Pageable pageable,
+                                      Predicate<Organisation> recheck) {
+        if (!StringUtils.hasText(query)) {
+            throw new IllegalArgumentException("q must not be blank");
+        }
+        if (!searchAvailability.isReadEnabled(OrganisationSearchSource.INDEX)) {
+            throw new SearchUnavailableException("Search is not enabled for " + OrganisationSearchSource.INDEX);
+        }
         String text = query.trim();
         SearchRequest request = new SearchRequest(OrganisationSearchSource.INDEX, text, filter, scope,
                 SearchPaging.sorts(pageable, OrganisationSearchSource.DEFINITION),
                 SearchPaging.page(pageable), SearchPaging.size(pageable), List.of(), null);
         log.debug("Organisation search: scope={} query_length={}", scope.label(), text.length());
-        SearchPage result;
-        try {
-            result = searchGateway.search(request);
-        } catch (SearchUnavailableException ex) {
-            log.warn("Organisation search unavailable (scope={}), falling back to the database: {}",
-                    scope.label(), ex.getMessage());
-            return Optional.empty();
-        }
+        SearchPage result = searchGateway.search(request);
         List<UUID> uuids = SearchPaging.hitUuids(result);
         List<Organisation> rows = uuids.isEmpty() ? List.of()
                 : organisationRepository.findByUuidIn(uuids).stream().filter(recheck).toList();
-        return Optional.of(SearchPaging.toPage(result, rows, Organisation::getUuid, pageable));
+        return SearchPaging.toPage(result, rows, Organisation::getUuid, pageable);
     }
 }

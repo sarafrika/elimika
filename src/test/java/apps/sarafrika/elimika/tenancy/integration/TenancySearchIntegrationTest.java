@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.integration;
 
+import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -111,6 +112,7 @@ class TenancySearchIntegrationTest {
     @Autowired private SearchIndexRequests indexRequests;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private apps.sarafrika.elimika.search.config.SearchProperties searchProperties;
 
     private final Random random = new Random();
 
@@ -147,6 +149,63 @@ class TenancySearchIntegrationTest {
                 .containsEntry("full_name", "Bartholomew " + surname)
                 .containsEntry("email", surname.toLowerCase() + ".person@example.test")
                 .doesNotContainKeys("phone_number", "dob", "gender", "keycloak_id", "profile_image_url");
+    }
+
+    @Test
+    @DisplayName("user_domain sent with q filters on the people index's domains")
+    void userDomainIsAliasedToDomains() {
+        String surname = word();
+        UUID organisation = insertOrganisation("Domains " + word());
+        UUID student = insertUser("Evangeline", null, surname, word() + "@example.test");
+        UUID instructor = insertUser("Evangeline", null, surname, word() + "@example.test");
+        insertMembership(student, organisation, "student");
+        insertMembership(instructor, organisation, "instructor");
+        index(PEOPLE, student, instructor);
+        asPlatformAdmin();
+
+        assertThat(uuids(userService.search(Map.of("q", typo(surname), "user_domain", "student"),
+                PageRequest.of(0, 20)))).containsExactly(student);
+        assertThat(uuids(userService.search(Map.of("q", typo(surname), "user_domain", "INSTRUCTOR"),
+                PageRequest.of(0, 20)))).containsExactly(instructor);
+        assertThat(uuids(userService.search(Map.of("q", typo(surname)), PageRequest.of(0, 20))))
+                .containsExactlyInAnyOrder(student, instructor);
+        assertThatThrownBy(() -> userService.search(Map.of("q", surname, "full_name_like", surname),
+                PageRequest.of(0, 20))).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("With people or organisation reads off, q is unavailable; without q the SQL listings still answer")
+    void qIsUnavailableWhenReadsAreOff() {
+        String surname = word();
+        UUID organisation = insertOrganisation("Offline " + word());
+        UUID member = insertUser("Florentina", null, surname, word() + "@example.test");
+        insertMembership(member, organisation, "student");
+        asPlatformAdmin();
+
+        searchProperties.getReadEnabled().put(PEOPLE, false);
+        searchProperties.getReadEnabled().put(ORGANISATIONS, false);
+        try {
+            assertThatThrownBy(() -> userService.search(Map.of("q", surname), PageRequest.of(0, 20)))
+                    .isInstanceOf(SearchUnavailableException.class);
+            assertThatThrownBy(() -> adminService.getAdminEligibleUsers(surname, PageRequest.of(0, 20)))
+                    .isInstanceOf(SearchUnavailableException.class);
+            assertThatThrownBy(() -> userService.getUsersByOrganisation(organisation, surname, PageRequest.of(0, 20)))
+                    .isInstanceOf(SearchUnavailableException.class);
+            assertThatThrownBy(() -> organisationService.search(Map.of("q", "offline"), PageRequest.of(0, 20)))
+                    .isInstanceOf(SearchUnavailableException.class);
+            assertThatThrownBy(() -> organisationService.getUnverifiedOrganisations("offline", PageRequest.of(0, 20)))
+                    .isInstanceOf(SearchUnavailableException.class);
+
+            assertThat(uuids(userService.getUsersByOrganisation(organisation, null, PageRequest.of(0, 20))))
+                    .containsExactly(member);
+            assertThat(uuids(userService.search(Map.of("organisation_uuid", organisation.toString()),
+                    PageRequest.of(0, 20)))).containsExactly(member);
+            assertThat(adminService.getAdminEligibleUsers(null, PageRequest.of(0, 1000)).getContent())
+                    .extracting(UserDTO::uuid).contains(member);
+        } finally {
+            searchProperties.getReadEnabled().put(PEOPLE, true);
+            searchProperties.getReadEnabled().put(ORGANISATIONS, true);
+        }
     }
 
     @Test

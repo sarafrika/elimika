@@ -144,10 +144,7 @@ public class UserServiceImpl implements UserService {
         Organisation organisation = findOrganisationOrThrow(organisationId);
         String text = StringUtils.hasText(query) ? query.trim() : null;
         if (text != null) {
-            Optional<Page<User>> hits = peopleSearchService.searchOrganisationRoster(organisationId, text, pageable);
-            if (hits.isPresent()) {
-                return hits.get().map(this::toUserDTO);
-            }
+            return peopleSearchService.searchOrganisationRoster(organisationId, text, pageable).map(this::toUserDTO);
         }
         userSpecificationBuilder.validateSortProperties(pageable);
 
@@ -159,16 +156,7 @@ public class UserServiceImpl implements UserService {
                 .map(UserOrganisationDomainMapping::getUserUuid)
                 .collect(Collectors.toSet());
 
-        if (text == null) {
-            return userRepository.findByUuidIn(userUuids, pageable).map(this::toUserDTO);
-        }
-        if (userUuids.isEmpty()) {
-            return Page.empty(pageable);
-        }
-        Specification<User> members = (root, criteriaQuery, criteriaBuilder) -> root.get("uuid").in(userUuids);
-        Specification<User> matching = members.and(userSpecificationBuilder.nameOrEmailLike(
-                text, peopleSearchService.rosterMatchesEmail()));
-        return userRepository.findAll(matching, pageable).map(this::toUserDTO);
+        return userRepository.findByUuidIn(userUuids, pageable).map(this::toUserDTO);
     }
 
     @Override
@@ -392,24 +380,17 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        // q is free text (names, email addresses): route it, never log it, and strip it before the
-        // specification builders, which would reject it as an unknown field.
+        // q is free text (names, email addresses): served only by the people index (503 when search
+        // cannot answer), never logged, and stripped before the relational specification builders.
         Map<String, String> filters = new HashMap<>(searchParams == null ? Map.of() : searchParams);
         String rawQuery = filters.remove(SEARCH_QUERY_PARAM);
         String query = StringUtils.hasText(rawQuery) ? rawQuery.trim() : null;
         if (query != null) {
-            Optional<Page<User>> hits = peopleSearchService.searchAll(query, filters, pageable);
-            if (hits.isPresent()) {
-                return hits.get().map(this::toUserDTO);
-            }
+            return peopleSearchService.searchAll(query, filters, pageable).map(this::toUserDTO);
         }
         log.debug("Searching users with params: {}", filters);
         userSpecificationBuilder.validateSortProperties(pageable);
         Specification<User> spec = userSpecificationBuilder.buildUserSpecification(filters);
-        if (query != null) {
-            Specification<User> matching = userSpecificationBuilder.nameOrEmailLike(query, true);
-            spec = spec == null ? matching : spec.and(matching);
-        }
         Page<User> users = userRepository.findAll(spec, pageable);
         return users.map(this::toUserDTO);
     }

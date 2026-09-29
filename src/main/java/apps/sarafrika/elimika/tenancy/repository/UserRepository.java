@@ -58,10 +58,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     /**
      * Users who hold neither the global {@code admin} domain nor an active, non-deleted
      * {@code organisation_user} organisation mapping - i.e. those {@code AdminService#isAdmin}
-     * reports as non-admins - optionally narrowed to a lower-cased, LIKE-escaped pattern matched
-     * against first name, last name or email.
-     *
-     * @param pattern a {@code %term%} pattern built with {@code LikePatterns}, or {@code null} for no search
+     * reports as non-admins. A search term goes to the {@code people} index instead (see
+     * {@code PeopleSearchService#searchAdminEligible}); this query is the unfiltered, paged listing.
      */
     @Query("""
             SELECT u FROM User u
@@ -77,12 +75,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                   AND uodm.active = true
                   AND uodm.deleted = false
                   AND od.domainName = 'organisation_user')
-              AND (:pattern IS NULL
-                   OR lower(u.firstName) LIKE :pattern ESCAPE '\\'
-                   OR lower(u.lastName) LIKE :pattern ESCAPE '\\'
-                   OR lower(u.email) LIKE :pattern ESCAPE '\\')
             """)
-    Page<User> findAdminEligibleUsers(@Param("pattern") String pattern, Pageable pageable);
+    Page<User> findAdminEligibleUsers(Pageable pageable);
 
     /**
      * The users among {@code uuids} who are currently active, non-deleted members of the

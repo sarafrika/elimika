@@ -1,7 +1,6 @@
 package apps.sarafrika.elimika.tenancy.util;
 
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
@@ -20,6 +19,9 @@ import java.util.*;
  * Custom specification builder for User entity searches.
  * Extends the generic specification builder with domain-specific predicates
  * that handle computed fields and relationship-based searches.
+ * <p>
+ * Relational filters only. Free text over names and email addresses is served by the {@code people}
+ * search index through {@code q}; the former {@code full_name} / {@code full_name_like} keys are gone.
  *
  * @author Wilfred Njuguna
  * @since 2025-10-16
@@ -40,8 +42,6 @@ public class UserSpecificationBuilder {
     private static final String PARAM_DOMAIN_IN_ORGANISATION = "domain_in_organisation";
     private static final String PARAM_BRANCH_UUID = "branch_uuid";
     private static final String PARAM_ACTIVE_IN_ORGANISATION = "active_in_organisation";
-    private static final String PARAM_FULL_NAME = "full_name";
-    private static final String PARAM_FULL_NAME_LIKE = "full_name_like";
 
     /**
      * Rejects an ordering on a column that is not exposed for filtering, so that a page of users
@@ -73,8 +73,6 @@ public class UserSpecificationBuilder {
         String domainInOrganisation = modifiableParams.remove(PARAM_DOMAIN_IN_ORGANISATION);
         String branchUuid = modifiableParams.remove(PARAM_BRANCH_UUID);
         String activeInOrg = modifiableParams.remove(PARAM_ACTIVE_IN_ORGANISATION);
-        String fullName = modifiableParams.remove(PARAM_FULL_NAME);
-        String fullNameLike = modifiableParams.remove(PARAM_FULL_NAME_LIKE);
 
         // Build base specification from generic builder
         Specification<User> spec = genericBuilder.buildSpecification(User.class, modifiableParams);
@@ -96,14 +94,6 @@ public class UserSpecificationBuilder {
 
         if (branchUuid != null && !branchUuid.isEmpty()) {
             spec = addSpecification(spec, belongsToBranch(UUID.fromString(branchUuid)));
-        }
-
-        if (fullName != null && !fullName.isEmpty()) {
-            spec = addSpecification(spec, hasFullNameEqual(fullName));
-        }
-
-        if (fullNameLike != null && !fullNameLike.isEmpty()) {
-            spec = addSpecification(spec, hasFullNameLike(fullNameLike));
         }
 
         return spec;
@@ -258,101 +248,5 @@ public class UserSpecificationBuilder {
 
             return criteriaBuilder.greaterThan(subquery, 0L);
         };
-    }
-
-    /**
-     * Creates a specification to search by exact full name match.
-     * Matches either "first middle last" (just "first last" when there is no middle name)
-     * or "first last", case-insensitively and ignoring repeated whitespace in the input.
-     *
-     * @param fullName The full name to search for
-     * @return Specification for full name exact match
-     */
-    public Specification<User> hasFullNameEqual(String fullName) {
-        return (root, query, criteriaBuilder) -> {
-            log.debug("Building hasFullNameEqual predicate for: {}", fullName);
-
-            String normalised = normaliseFullName(fullName);
-            return criteriaBuilder.or(
-                    criteriaBuilder.equal(criteriaBuilder.lower(createFullNameExpression(root, criteriaBuilder)), normalised),
-                    criteriaBuilder.equal(criteriaBuilder.lower(createFirstLastNameExpression(root, criteriaBuilder)), normalised)
-            );
-        };
-    }
-
-    /**
-     * Creates a specification to search by full name with partial matching (LIKE).
-     * Matches against either "first middle last" (just "first last" when there is no middle
-     * name) or "first last", case-insensitively; LIKE wildcards in the input match literally.
-     *
-     * @param fullName The partial name to search for
-     * @return Specification for full name LIKE match
-     */
-    public Specification<User> hasFullNameLike(String fullName) {
-        return (root, query, criteriaBuilder) -> {
-            log.debug("Building hasFullNameLike predicate for: {}", fullName);
-            return fullNameLikePredicate(root, criteriaBuilder, fullName);
-        };
-    }
-
-    /**
-     * The database form of a free-text {@code q}: {@code full_name_like}, OR'd with a
-     * case-insensitive partial email match when {@code includeEmail} is set. LIKE wildcards in the
-     * input match literally. The term is never logged - it is typically a person's name or address.
-     *
-     * @param term         the query text
-     * @param includeEmail whether the email column may match too
-     */
-    public Specification<User> nameOrEmailLike(String term, boolean includeEmail) {
-        return (root, query, criteriaBuilder) -> {
-            Predicate name = fullNameLikePredicate(root, criteriaBuilder, term);
-            if (!includeEmail) {
-                return name;
-            }
-            Predicate email = criteriaBuilder.like(criteriaBuilder.lower(root.get("email")),
-                    LikePatterns.containsLower(term.trim()), LikePatterns.ESCAPE_CHAR);
-            return criteriaBuilder.or(name, email);
-        };
-    }
-
-    private Predicate fullNameLikePredicate(Root<User> root, CriteriaBuilder criteriaBuilder, String fullName) {
-        String pattern = LikePatterns.containsLower(normaliseFullName(fullName));
-        return criteriaBuilder.or(
-                criteriaBuilder.like(criteriaBuilder.lower(createFullNameExpression(root, criteriaBuilder)),
-                        pattern, LikePatterns.ESCAPE_CHAR),
-                criteriaBuilder.like(criteriaBuilder.lower(createFirstLastNameExpression(root, criteriaBuilder)),
-                        pattern, LikePatterns.ESCAPE_CHAR)
-        );
-    }
-
-    private static String normaliseFullName(String fullName) {
-        return fullName.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
-    }
-
-    /**
-     * "firstName middleName lastName", or "firstName lastName" when the middle name is null or
-     * blank, so users without a middle name never produce a double space.
-     */
-    private Expression<String> createFullNameExpression(Root<User> root, CriteriaBuilder criteriaBuilder) {
-        Expression<String> firstName = criteriaBuilder.coalesce(root.get("firstName"), "");
-        Expression<String> middleName = criteriaBuilder.coalesce(criteriaBuilder.trim(root.<String>get("middleName")), "");
-        Expression<String> lastName = criteriaBuilder.coalesce(root.get("lastName"), "");
-
-        Expression<String> firstMiddleLast = criteriaBuilder.concat(
-                criteriaBuilder.concat(criteriaBuilder.concat(firstName, " "), criteriaBuilder.concat(middleName, " ")),
-                lastName);
-
-        return criteriaBuilder.<String>selectCase()
-                .when(criteriaBuilder.equal(middleName, ""), createFirstLastNameExpression(root, criteriaBuilder))
-                .otherwise(firstMiddleLast);
-    }
-
-    /**
-     * "firstName lastName", ignoring any middle name.
-     */
-    private Expression<String> createFirstLastNameExpression(Root<User> root, CriteriaBuilder criteriaBuilder) {
-        Expression<String> firstName = criteriaBuilder.coalesce(root.get("firstName"), "");
-        Expression<String> lastName = criteriaBuilder.coalesce(root.get("lastName"), "");
-        return criteriaBuilder.concat(criteriaBuilder.concat(firstName, " "), lastName);
     }
 }

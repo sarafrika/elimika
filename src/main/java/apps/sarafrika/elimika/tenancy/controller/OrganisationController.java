@@ -162,7 +162,7 @@ class OrganisationController {
     @Operation(summary = "Search organisations",
             description = "Fetches a paginated list of organisations based on optional filters. " +
                     "Supports pagination and sorting. Available filters include:\n" +
-                    "- `name` - Filter by organisation name (partial match)\n" +
+                    "- `name` - Filter by organisation name (exact match; use `q` for text search)\n" +
                     "- `active` - Filter by active status (true/false)\n" +
                     "- `admin_verified` - Filter by verification status (true/false)\n" +
                     "- `country` - Filter by country\n" +
@@ -172,8 +172,8 @@ class OrganisationController {
                     "- `/search?admin_verified=false` - Get unverified organisations\n" +
                     "- `/search?active=true&admin_verified=true` - Get active verified organisations\n\n" +
                     "`q` - optional free-text search over name, slug, location and description (typo-tolerant, " +
-                    "relevance-ordered) when the organisations search index is enabled, otherwise a " +
-                    "case-insensitive partial match on the name. With `q`, callers other than platform " +
+                    "relevance-ordered), served only by the organisations search index: with search or the " +
+                    "index's reads off, or the engine down, `q` answers 503 (\"Search is unavailable\"). With `q`, callers other than platform " +
                     "administrators only find active, verified organisations, and the other parameters filter " +
                     "on `active`, `admin_verified`, `country`, `uuid` and `created_at`; `sort` accepts `name` " +
                     "and `created_at`. Without `q` the endpoint behaves exactly as before.")
@@ -202,9 +202,10 @@ class OrganisationController {
     @Operation(summary = "Get users by organisation ID",
             description = "Pages the organisation's active members. `q` optionally narrows them by name: " +
                     "organisation managers match on full, first and last name only (never email); platform " +
-                    "administrators may also match email, username and user number. When the people search " +
-                    "index is enabled the match is typo-tolerant and relevance-ordered, and `sort` accepts " +
-                    "`full_name` and `created_at`. Without `q` the endpoint behaves exactly as before.")
+                    "administrators may also match email, username and user number. `q` is served only by the " +
+                    "people search index: typo-tolerant and relevance-ordered, and `sort` accepts `full_name` " +
+                    "and `created_at`; with search or the index's reads off, or the engine down, it answers 503 " +
+                    "(\"Search is unavailable\"). Without `q` the members are paged from the database.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Users retrieved successfully")
     @GetMapping("/{uuid}/users")
     @PreAuthorize(MANAGE_ORGANISATION)

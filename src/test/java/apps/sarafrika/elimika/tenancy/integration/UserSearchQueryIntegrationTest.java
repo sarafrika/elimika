@@ -1,7 +1,6 @@
 package apps.sarafrika.elimika.tenancy.integration;
 
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
@@ -27,10 +26,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Runs the user search predicates against a real PostgreSQL instance, where the generated SQL
- * (CASE/CONCAT/COALESCE expressions, LIKE escaping) actually executes.
+ * actually executes. Only relational filters remain; free text goes to the people index.
  */
 // The container dies with this class; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -59,47 +59,43 @@ class UserSearchQueryIntegrationTest {
     private JdbcTemplate jdbc;
 
     @Test
-    @DisplayName("full_name matches users without a middle name and ignores a middle name when omitted")
-    void fullNameMatchesWithAndWithoutMiddleName() {
-        UUID noMiddle = insertUser("John", null, "Doe", uniqueEmail());
-        UUID blankMiddle = insertUser("John", "  ", "Doe", uniqueEmail());
-        UUID withMiddle = insertUser("John", "Kamau", "Doe", uniqueEmail());
-        UUID other = insertUser("Jane", null, "Doe", uniqueEmail());
+    @DisplayName("SQL text search is gone: full_name and the _like operators are rejected")
+    void textKeysAreRejected() {
+        insertUser("John", null, "Doe", uniqueEmail());
 
-        assertThat(search(Map.of("full_name", "John Doe")))
-                .containsExactlyInAnyOrder(noMiddle, blankMiddle, withMiddle)
-                .doesNotContain(other);
-        assertThat(search(Map.of("full_name", "john  kamau doe"))).containsExactly(withMiddle);
-        assertThat(search(Map.of("full_name_like", "john doe")))
-                .containsExactlyInAnyOrder(noMiddle, blankMiddle, withMiddle);
-        assertThat(search(Map.of("full_name_like", "hn kamau d"))).containsExactly(withMiddle);
+        assertThatThrownBy(() -> search(Map.of("full_name_like", "john doe")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Text operators were removed; use the q parameter for text search");
+        assertThatThrownBy(() -> search(Map.of("email_startswith", "john")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Text operators were removed");
+        assertThatThrownBy(() -> search(Map.of("full_name", "John Doe")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported search field");
     }
 
     @Test
-    @DisplayName("full_name_like treats LIKE wildcards in the input literally")
-    void fullNameLikeEscapesWildcards() {
-        UUID percent = insertUser("Fifty%", null, "Off", uniqueEmail());
-        insertUser("Fiftyx", null, "Off", uniqueEmail());
+    @DisplayName("relational filters still work: user_domain and organisation membership")
+    void relationalFiltersStillWork() {
+        String tag = "rel" + UUID.randomUUID().toString().substring(0, 6);
+        UUID organisationUuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO organisation (uuid, name, created_by) VALUES (?, ?, 'test')",
+                organisationUuid, "Org " + tag);
+        UUID member = insertUser("Member", null, tag, uniqueEmail());
+        insertOrganisationMapping(member, organisationUuid, true);
+        UUID former = insertUser("Former", null, tag, uniqueEmail());
+        insertOrganisationMapping(former, organisationUuid, false);
+        UUID outsider = insertUser("Outsider", null, tag, uniqueEmail());
 
-        assertThat(search(Map.of("full_name_like", "fifty%"))).containsExactly(percent);
-        assertThat(search(Map.of("full_name_like", "f_fty"))).isEmpty();
-    }
-
-    @Test
-    @DisplayName("the q fallback matches full name, and email only when allowed")
-    void nameOrEmailFallback() {
-        String tag = "q" + UUID.randomUUID().toString().substring(0, 8);
-        UUID byName = insertUser("Quentin", null, tag, uniqueEmail());
-        UUID byEmail = insertUser("Other", null, "Person", tag + "@Example.test");
-
-        assertThat(userRepository.findAll(userSpecificationBuilder.nameOrEmailLike(tag.toUpperCase(), true))
-                .stream().map(User::getUuid).toList())
-                .containsExactlyInAnyOrder(byName, byEmail);
-        assertThat(userRepository.findAll(userSpecificationBuilder.nameOrEmailLike("quentin " + tag, false))
-                .stream().map(User::getUuid).toList())
-                .containsExactly(byName);
-        assertThat(userRepository.findAll(userSpecificationBuilder.nameOrEmailLike(tag + "@example", false)))
-                .isEmpty();
+        assertThat(search(Map.of("organisation_uuid", organisationUuid.toString())))
+                .containsExactlyInAnyOrder(member, former);
+        assertThat(search(Map.of("organisation_uuid", organisationUuid.toString(), "active_in_organisation", "true")))
+                .containsExactly(member);
+        assertThat(search(Map.of("user_domain", "organisation_user")))
+                .contains(member)
+                .doesNotContain(former, outsider);
+        assertThat(search(Map.of("organisation_uuid", organisationUuid.toString(), "email_noteq", "nobody@example.test")))
+                .containsExactlyInAnyOrder(member, former);
     }
 
     @Test
@@ -120,7 +116,7 @@ class UserSearchQueryIntegrationTest {
     }
 
     @Test
-    @DisplayName("admin-eligible users exclude global and organisation admins, search and page in the database")
+    @DisplayName("admin-eligible users exclude global and organisation admins and page in the database")
     void adminEligibleUsersExcludeAdmins() {
         String tag = "elig" + UUID.randomUUID().toString().substring(0, 6);
         UUID organisationUuid = UUID.randomUUID();
@@ -137,21 +133,19 @@ class UserSearchQueryIntegrationTest {
         UUID formerOrgAdmin = insertUser("Former", null, tag, uniqueEmail());
         insertOrganisationMapping(formerOrgAdmin, organisationUuid, false);
 
-        String pattern = LikePatterns.containsLower(tag.toUpperCase());
-        assertThat(userRepository.findAdminEligibleUsers(pattern, PageRequest.of(0, 20, Sort.by("id")))
-                .map(User::getUuid).getContent())
-                .containsExactly(eligible, emailOnly, formerOrgAdmin);
-
-        var secondPage = userRepository.findAdminEligibleUsers(pattern, PageRequest.of(1, 2, Sort.by("id")));
-        assertThat(secondPage.getTotalElements()).isEqualTo(3);
-        assertThat(secondPage.map(User::getUuid).getContent()).containsExactly(formerOrgAdmin);
-        assertThat(userRepository.findAdminEligibleUsers(pattern, PageRequest.of(5, 2)).getContent()).isEmpty();
-
-        assertThat(userRepository.findAdminEligibleUsers(null, PageRequest.of(0, 1000)).map(User::getUuid).getContent())
+        // The SQL listing takes no search term any more (a term goes to the people index); it
+        // lists every eligible user, paged.
+        List<UUID> all = userRepository.findAdminEligibleUsers(PageRequest.of(0, 1000, Sort.by("id")))
+                .map(User::getUuid).getContent();
+        assertThat(all)
                 .contains(eligible, emailOnly, formerOrgAdmin)
                 .doesNotContain(globalAdmin, orgAdmin);
-        assertThat(userRepository.findAdminEligibleUsers(LikePatterns.containsLower("%"), PageRequest.of(0, 20))
-                .getContent()).isEmpty();
+        assertThat(all.indexOf(eligible)).isLessThan(all.indexOf(emailOnly));
+        assertThat(all.indexOf(emailOnly)).isLessThan(all.indexOf(formerOrgAdmin));
+
+        var secondPage = userRepository.findAdminEligibleUsers(PageRequest.of(1, 2, Sort.by("id")));
+        assertThat(secondPage.getTotalElements()).isEqualTo(all.size());
+        assertThat(secondPage.map(User::getUuid).getContent()).isEqualTo(all.subList(2, Math.min(4, all.size())));
     }
 
     private void insertOrganisationMapping(UUID userUuid, UUID organisationUuid, boolean active) {

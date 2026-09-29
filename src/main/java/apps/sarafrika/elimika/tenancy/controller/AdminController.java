@@ -248,8 +248,9 @@ public class AdminController {
             summary = "Get users eligible for admin promotion",
             description = "Retrieves a paginated list of users who can be promoted to administrator roles. " +
                     "Excludes users who already have administrative privileges. Supports search by name or email: " +
-                    "`search` is routed to the people search index (typo-tolerant, relevance-ordered) when it is " +
-                    "enabled, and otherwise matched case-insensitively against first name, last name and email."
+                    "`search` is served only by the people search index (typo-tolerant, relevance-ordered); with " +
+                    "search or the index's reads off, or the engine down, it answers 503 (\"Search is unavailable\"). " +
+                    "Without `search` the full eligible list is paged from the database."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Eligible users retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
@@ -389,8 +390,8 @@ public class AdminController {
             summary = "Get pending organisation approvals",
             description = "Retrieves a paginated list of organisations that are awaiting admin verification. " +
                     "Results include organisations where the admin_verified flag is false or not yet set. " +
-                    "`q` optionally narrows the queue: over name, slug, location and description through the " +
-                    "organisations search index when it is enabled, otherwise a partial name match."
+                    "`q` optionally narrows the queue: over name, slug, location and description, served only by " +
+                    "the organisations search index (503 \"Search is unavailable\" when search cannot answer)."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending organisations retrieved successfully")
     @GetMapping("/organisations/pending")
