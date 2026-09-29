@@ -47,6 +47,9 @@ public interface CourseInfoService {
      */
     boolean isCourseApproved(UUID courseUuid);
 
+    /** The admin-approved courses among {@code courseUuids}, in one query. */
+    Set<UUID> findApprovedCourseUuids(Collection<UUID> courseUuids);
+
     /**
      * Gets the course name.
      *
@@ -105,6 +108,9 @@ public interface CourseInfoService {
      * @return true when the training program exists and is admin-approved
      */
     boolean isTrainingProgramApproved(UUID programUuid);
+
+    /** The admin-approved training programs among {@code programUuids}, in one query. */
+    Set<UUID> findApprovedTrainingProgramUuids(Collection<UUID> programUuids);
 
     /**
      * Gets the training program title.

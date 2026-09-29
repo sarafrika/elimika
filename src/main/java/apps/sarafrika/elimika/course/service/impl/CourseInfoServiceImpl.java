@@ -92,6 +92,18 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     }
 
     @Override
+    public Set<UUID> findApprovedCourseUuids(Collection<UUID> courseUuids) {
+        List<UUID> requested = distinct(courseUuids);
+        if (requested.isEmpty()) {
+            return Set.of();
+        }
+        return courseRepository.findByUuidIn(requested).stream()
+                .filter(course -> Boolean.TRUE.equals(course.getAdminApproved()))
+                .map(Course::getUuid)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override
     public Optional<String> getCourseName(UUID courseUuid) {
         return courseRepository.findByUuid(courseUuid)
                 .map(Course::getName);
@@ -155,6 +167,18 @@ public class CourseInfoServiceImpl implements CourseInfoService {
         return trainingProgramRepository.findByUuid(programUuid)
                 .map(program -> Boolean.TRUE.equals(program.getAdminApproved()))
                 .orElse(false);
+    }
+
+    @Override
+    public Set<UUID> findApprovedTrainingProgramUuids(Collection<UUID> programUuids) {
+        List<UUID> requested = distinct(programUuids);
+        if (requested.isEmpty()) {
+            return Set.of();
+        }
+        return trainingProgramRepository.findByUuidIn(requested).stream()
+                .filter(program -> Boolean.TRUE.equals(program.getAdminApproved()))
+                .map(TrainingProgram::getUuid)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
