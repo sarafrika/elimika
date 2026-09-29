@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.shared.spi.enrollment;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -107,4 +108,13 @@ public interface EnrollmentLookupService {
      * @return the number of filled seats
      */
     long countFilledSeatsForClassDefinitions(Collection<UUID> classDefinitionUuids);
+
+    /**
+     * The learners an instructor teaches: every student holding an enrolment, in any status, on a
+     * session the instructor delivers or on a class they are the default instructor of.
+     *
+     * @param instructorUuid the instructor profile; null yields an empty set
+     * @return the distinct student profile identifiers, never null
+     */
+    Set<UUID> findStudentUuidsTaughtByInstructor(UUID instructorUuid);
 }

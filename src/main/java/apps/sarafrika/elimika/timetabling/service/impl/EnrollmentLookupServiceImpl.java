@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -101,6 +103,14 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
             }
         }
         return filled;
+    }
+
+    @Override
+    public Set<UUID> findStudentUuidsTaughtByInstructor(UUID instructorUuid) {
+        if (instructorUuid == null) {
+            return Set.of();
+        }
+        return new LinkedHashSet<>(enrollmentRepository.findDistinctStudentUuidsTaughtByInstructor(instructorUuid));
     }
 
     private static Collection<UUID> sanitise(Collection<UUID> classDefinitionUuids) {

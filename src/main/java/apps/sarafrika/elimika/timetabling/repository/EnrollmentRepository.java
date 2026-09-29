@@ -151,6 +151,21 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     List<Enrollment> findByStudentAndInstructor(@Param("studentUuid") UUID studentUuid,
                                               @Param("instructorUuid") UUID instructorUuid);
 
+    /**
+     * Every learner holding an enrolment on a session this instructor teaches — either as the
+     * session's own instructor or as the default instructor of the class the session belongs to.
+     * Any enrolment status counts: a learner who completed or withdrew still has a teaching history
+     * with the instructor.
+     */
+    @Query(value = "SELECT DISTINCT ce.student_uuid " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "LEFT JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+                   "WHERE si.instructor_uuid = :instructorUuid " +
+                   "OR cd.default_instructor_uuid = :instructorUuid",
+           nativeQuery = true)
+    List<UUID> findDistinctStudentUuidsTaughtByInstructor(@Param("instructorUuid") UUID instructorUuid);
+
     @Query(value = "SELECT ce.* " +
                    "FROM class_enrollments ce " +
                    "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
