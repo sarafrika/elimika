@@ -5,13 +5,18 @@ import apps.sarafrika.elimika.shared.search.GlobalSearchProvider;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchHit;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
+import apps.sarafrika.elimika.shared.search.SearchResults;
 import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -72,10 +77,13 @@ final class TenancyGlobalSearchProviders {
 
         private final DomainSecurityService domainSecurityService;
         private final UserLookupService userLookupService;
+        private final UserRepository userRepository;
 
-        People(DomainSecurityService domainSecurityService, UserLookupService userLookupService) {
+        People(DomainSecurityService domainSecurityService, UserLookupService userLookupService,
+               UserRepository userRepository) {
             this.domainSecurityService = domainSecurityService;
             this.userLookupService = userLookupService;
+            this.userRepository = userRepository;
         }
 
         @Override
@@ -117,6 +125,29 @@ final class TenancyGlobalSearchProviders {
                     // Names only: the engine highlights every attribute holding a query word, and a
                     // manager must not learn that their text matched an email address.
                     GlobalSearchHit.highlight(hit, "full_name"));
+        }
+
+        /**
+         * The engine narrows, SQL authorizes: a manager's hits are re-checked with the roster's
+         * membership predicate, over all their managed organisations in one query, so a membership
+         * revoked after the document was written (or while indexing is failing) never surfaces. A
+         * platform admin may see everyone, so their hits pass through.
+         */
+        @Override
+        public List<GlobalSearchHit> recheck(List<GlobalSearchHit> hits) {
+            if (hits.isEmpty() || domainSecurityService.isPlatformAdmin()) {
+                return hits;
+            }
+            List<UUID> managed = managedOrganisations();
+            if (managed.isEmpty()) {
+                return List.of();
+            }
+            List<UUID> uuids = hits.stream().map(GlobalSearchHit::uuid).toList();
+            Set<UUID> members = userRepository.findMembersOfAnyOrganisationByUuidIn(uuids, managed).stream()
+                    .map(User::getUuid)
+                    .collect(Collectors.toSet());
+            return SearchResults.inHitOrder(uuids, hits.stream().filter(hit -> members.contains(hit.uuid())).toList(),
+                    GlobalSearchHit::uuid);
         }
 
         private List<UUID> managedOrganisations() {

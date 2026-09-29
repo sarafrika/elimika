@@ -103,6 +103,24 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                                                @Param("organisationUuid") UUID organisationUuid);
 
     /**
+     * {@link #findOrganisationMembersByUuidIn} over several organisations at once: the users among
+     * {@code uuids} who are currently active, non-deleted members of any of them. Re-checks global
+     * search hits for a manager of several organisations in one query.
+     */
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.uuid IN :uuids
+              AND EXISTS (
+                SELECT 1 FROM UserOrganisationDomainMapping uodm
+                WHERE uodm.userUuid = u.uuid
+                  AND uodm.organisationUuid IN :organisationUuids
+                  AND uodm.active = true
+                  AND uodm.deleted = false)
+            """)
+    List<User> findMembersOfAnyOrganisationByUuidIn(@Param("uuids") Collection<UUID> uuids,
+                                                    @Param("organisationUuids") Collection<UUID> organisationUuids);
+
+    /**
      * The users among {@code uuids} that {@link #findAdminEligibleUsers} would return, re-applied to
      * search hits so a user promoted after the index was written is never offered again.
      */

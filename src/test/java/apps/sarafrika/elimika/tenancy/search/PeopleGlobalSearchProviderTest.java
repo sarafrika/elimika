@@ -19,7 +19,8 @@ class PeopleGlobalSearchProviderTest {
     private final DomainSecurityService domainSecurityService = mock(DomainSecurityService.class);
     private final UserLookupService userLookupService = mock(UserLookupService.class);
     private final TenancyGlobalSearchProviders.People provider =
-            new TenancyGlobalSearchProviders.People(domainSecurityService, userLookupService);
+            new TenancyGlobalSearchProviders.People(domainSecurityService, userLookupService,
+                    mock(apps.sarafrika.elimika.tenancy.repository.UserRepository.class));
 
     @Test
     @DisplayName("Anonymous callers and plain members never see people")

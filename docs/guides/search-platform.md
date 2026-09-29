@@ -151,7 +151,10 @@ provider falls back to its public boundary or hides the type.
   so a merged (federated) ranking would interleave types arbitrarily; the UI renders a sectioned
   dropdown anyway, and grouping gives an exact `totals` entry per type for "see all (12)".
 - **One round trip.** All allowed types go to Meilisearch in a single non-federated `/multi-search`.
-- **No hydration.** `GlobalSearchHit` is built from stored document fields by the owning module's
+- **People are re-checked in SQL.** A provider may override `recheck(hits)`; `people` does, running the
+  roster membership predicate over the page in one query, so a revoked membership never surfaces even
+  while the index lags. Dropped hits restate that type's total.
+- **No hydration otherwise.** `GlobalSearchHit` is built from stored document fields by the owning module's
   provider, so a change reaches global search within seconds (the async indexing delay), and a stale
   denormalised name stays until the nightly rebuild (see the staleness column below).
 - **503** when `search.enabled=false`, when none of the requested types is read-enabled, or when the

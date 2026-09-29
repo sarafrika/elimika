@@ -11,6 +11,7 @@ import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchPage;
 import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
+import apps.sarafrika.elimika.shared.search.SearchResults;
 import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
@@ -124,8 +125,9 @@ public class GlobalSearchService {
         for (int i = 0; i < searched.size(); i++) {
             GlobalSearchProvider provider = searched.get(i);
             SearchPage page = pages.get(i);
-            page.hits().stream().filter(hit -> hit.uuid() != null).map(provider::toHit).forEach(hits::add);
-            totals.put(provider.type(), page.totalHits());
+            List<GlobalSearchHit> shown = authorised(provider, page);
+            hits.addAll(shown);
+            totals.put(provider.type(), SearchResults.total(page.totalHits(), page.hits().size(), shown.size()));
         }
         return new GlobalSearchResponse(hits, Collections.unmodifiableMap(totals));
     }
@@ -167,13 +169,23 @@ public class GlobalSearchService {
         log.debug("Search of {} (query length {})", provider.type(), text == null ? 0 : text.length());
         SearchPage result = run(List.of(provider.type()), () -> gateway.search(request));
 
-        List<GlobalSearchHit> content = result.hits().stream()
+        List<GlobalSearchHit> content = authorised(provider, result);
+        PageMetadata metadata = PageMetadata.from(new PageImpl<>(content, PageRequest.of(pageNumber, pageSize),
+                SearchResults.total(result.totalHits(), result.hits().size(), content.size())));
+        return new TypeSearchResponse(content, metadata, result.facetDistribution());
+    }
+
+    /**
+     * The page's hits as results, after the provider's database re-check: the engine narrows, SQL
+     * authorizes. When the re-check drops hits the caller restates the total through
+     * {@link SearchResults#total}.
+     */
+    private static List<GlobalSearchHit> authorised(GlobalSearchProvider provider, SearchPage page) {
+        List<GlobalSearchHit> hits = page.hits().stream()
                 .filter(hit -> hit.uuid() != null)
                 .map(provider::toHit)
                 .toList();
-        PageMetadata metadata = PageMetadata.from(
-                new PageImpl<>(content, PageRequest.of(pageNumber, pageSize), result.totalHits()));
-        return new TypeSearchResponse(content, metadata, result.facetDistribution());
+        return hits.isEmpty() ? hits : List.copyOf(provider.recheck(hits));
     }
 
     private <T> T run(List<String> types, java.util.function.Supplier<T> call) {

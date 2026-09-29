@@ -47,4 +47,14 @@ public interface GlobalSearchProvider {
 
     /** The lightweight result for one hit, from stored document fields only - no database query. */
     GlobalSearchHit toHit(SearchHit hit);
+
+    /**
+     * Re-checks a page of this type's hits against the database and returns only those the caller may
+     * still see, in the same order - "the engine narrows, SQL authorizes" for types where a lagging
+     * index must never widen access (people). Called once per request with the whole page, so an
+     * implementation runs one batch query. The default trusts the scope and returns its input.
+     */
+    default List<GlobalSearchHit> recheck(List<GlobalSearchHit> hits) {
+        return hits;
+    }
 }

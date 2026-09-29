@@ -224,6 +224,40 @@ class GlobalSearchIntegrationTest {
     }
 
     @Test
+    @DisplayName("A manager's people hits are re-checked in SQL: a revoked membership disappears before the index catches up")
+    void revokedMembershipDropsOutOfManagerSearch() throws Exception {
+        UUID organisation = UUID.randomUUID();
+        jdbc.update("INSERT INTO organisation (uuid, name, created_by) VALUES (?, 'Quillonar Org', 'test')", organisation);
+        UUID manager = user();
+        UUID member = user();
+        membership(manager, organisation, "organisation_user");
+        UUID memberMapping = membership(member, organisation, "student");
+        // Written straight to the index: no trigger will ever update this document, which is exactly
+        // the "index lags or indexing is failing" case.
+        gateway.upsert("people", List.of(new PeopleSearchDocument(member, "Quillonar", null, "Wanjiru",
+                "Quillonar Wanjiru", "quillonar@example.test", "qwanjiru", "U-2", List.of("student"),
+                List.of(organisation), List.of(), true, false, false, Instant.now().getEpochSecond())));
+
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(manager);
+        when(domainSecurityService.managesOrganisation(organisation)).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/search").param("q", "quillonar").param("types", "people"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hits[*].uuid", containsInAnyOrder(member.toString())))
+                .andExpect(jsonPath("$.data.totals.people").value(1));
+
+        jdbc.update("UPDATE user_organisation_domain_mapping SET active = false WHERE uuid = ?", memberMapping);
+
+        mockMvc.perform(get("/api/v1/search").param("q", "quillonar").param("types", "people"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hits[*].uuid", not(hasItem(member.toString()))))
+                .andExpect(jsonPath("$.data.totals.people").value(0));
+        mockMvc.perform(get("/api/v1/search/people").param("q", "quillonar"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.metadata.totalElements").value(0));
+    }
+
+    @Test
     @DisplayName("Per-type search filters, facets and pages over the type's allow-lists")
     void perTypeSearch() throws Exception {
         mockMvc.perform(get("/api/v1/search/organisations").param("q", WORD).param("country", "KE")
@@ -258,6 +292,15 @@ class GlobalSearchIntegrationTest {
                         + "VALUES (?, ?, 'Test', 'User', ?, ?, 'test')",
                 uuid, String.format("%09d", Math.abs(uuid.hashCode()) % 1000000000), uuid + "@test.local",
                 uuid.toString());
+        return uuid;
+    }
+
+    private UUID membership(UUID userUuid, UUID organisationUuid, String domainName) {
+        UUID uuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO user_organisation_domain_mapping "
+                        + "(uuid, user_uuid, organisation_uuid, domain_uuid, active, created_by) "
+                        + "VALUES (?, ?, ?, (SELECT uuid FROM user_domain WHERE domain_name = ?), true, 'test')",
+                uuid, userUuid, organisationUuid, domainName);
         return uuid;
     }
 
