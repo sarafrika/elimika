@@ -181,7 +181,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         // Add deleted=false filter to search
         Specification<Organisation> notDeletedSpec = (root, query, criteriaBuilder) ->
                 criteriaBuilder.isFalse(root.get("deleted"));
-        Specification<Organisation> combinedSpec = spec.and(notDeletedSpec);
+        Specification<Organisation> combinedSpec = spec == null ? notDeletedSpec : spec.and(notDeletedSpec);
 
         Page<Organisation> organisations = organisationRepository.findAll(combinedSpec, pageable);
         return organisations.map(OrganisationFactory::toDTO);

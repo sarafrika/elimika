@@ -170,7 +170,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
         // Add deleted=false filter to search
         Specification<TrainingBranch> notDeletedSpec = (root, query, criteriaBuilder) ->
                 criteriaBuilder.isFalse(root.get("deleted"));
-        Specification<TrainingBranch> combinedSpec = spec.and(notDeletedSpec);
+        Specification<TrainingBranch> combinedSpec = spec == null ? notDeletedSpec : spec.and(notDeletedSpec);
 
         Page<TrainingBranch> trainingBranches = trainingBranchRepository.findAll(combinedSpec, pageable);
         return trainingBranches.map(TrainingBranchFactory::toDTO);
