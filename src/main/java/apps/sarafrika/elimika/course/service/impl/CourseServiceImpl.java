@@ -44,6 +44,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -124,10 +126,25 @@ public class CourseServiceImpl implements CourseService {
         courseSpecificationBuilder.validateSortProperties(pageable);
         Page<Course> coursePage = courseRepository.findAll(pageable);
 
-        return coursePage.map(course -> {
-            List<String> categoryNames = mappingRepository.findCategoryNamesByCourseUuid(course.getUuid());
-            return CourseFactory.toDTO(course, categoryNames);
-        });
+        return toDtoPage(coursePage);
+    }
+
+    /**
+     * Maps a page of courses to DTOs, loading every row's category names in one query rather than
+     * one query per course.
+     */
+    private Page<CourseDTO> toDtoPage(Page<Course> coursePage) {
+        List<UUID> courseUuids = coursePage.getContent().stream()
+                .map(Course::getUuid)
+                .toList();
+        Map<UUID, List<String>> categoryNamesByCourse = new HashMap<>();
+        if (!courseUuids.isEmpty()) {
+            for (Object[] row : mappingRepository.findCategoryNamesByCourseUuidIn(courseUuids)) {
+                categoryNamesByCourse.computeIfAbsent((UUID) row[0], key -> new ArrayList<>()).add((String) row[1]);
+            }
+        }
+        return coursePage.map(course -> CourseFactory.toDTO(course,
+                categoryNamesByCourse.getOrDefault(course.getUuid(), List.of())));
     }
 
     /**
@@ -274,10 +291,7 @@ public class CourseServiceImpl implements CourseService {
 
         Page<Course> coursePage = courseRepository.findAll(spec, pageable);
 
-        return coursePage.map(course -> {
-            List<String> categoryNames = mappingRepository.findCategoryNamesByCourseUuid(course.getUuid());
-            return CourseFactory.toDTO(course, categoryNames);
-        });
+        return toDtoPage(coursePage);
     }
 
     @Override
