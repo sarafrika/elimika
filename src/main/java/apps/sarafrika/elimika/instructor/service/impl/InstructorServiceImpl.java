@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.search.InstructorSearchReader;
+import apps.sarafrika.elimika.instructor.search.InstructorVisibility;
 import apps.sarafrika.elimika.instructor.service.InstructorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class InstructorServiceImpl implements InstructorService {
     private final GenericSpecificationBuilder<Instructor> specificationBuilder;
     private final DomainSecurityService domainSecurityService;
     private final InstructorSearchReader instructorSearchReader;
+    private final InstructorVisibility instructorVisibility;
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
     private static final String QUERY_PARAM = "q";
@@ -82,7 +84,9 @@ public class InstructorServiceImpl implements InstructorService {
             return search(searchParams, pageable);
         }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
-        return instructorRepository.findAll(pageable).map(this::toDirectoryDTO);
+        Specification<Instructor> visible = instructorVisibility.databaseScope(instructorVisibility.currentCaller(), Map.of());
+        return (visible == null ? instructorRepository.findAll(pageable) : instructorRepository.findAll(visible, pageable))
+                .map(this::toDirectoryDTO);
     }
 
     @Override
@@ -113,10 +117,12 @@ public class InstructorServiceImpl implements InstructorService {
         Map<String, String> params = searchParams == null ? new HashMap<>() : new HashMap<>(searchParams);
         // q is free text, never a column: it must not reach the specification builder.
         String q = params.remove(QUERY_PARAM);
+        // One visibility rule for both paths; see InstructorVisibility.
+        InstructorVisibility.Caller caller = instructorVisibility.currentCaller();
         if (StringUtils.hasText(q)) {
             if (instructorSearchReader.handles(q)) {
                 Page<Instructor> hits = instructorSearchReader
-                        .search(q, params, pageable, domainSecurityService.isPlatformAdmin())
+                        .search(q, params, pageable, caller)
                         .orElse(null);
                 if (hits != null) {
                     return hits.map(this::toDirectoryDTO);
@@ -126,7 +132,12 @@ public class InstructorServiceImpl implements InstructorService {
         }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, params);
-        return instructorRepository.findAll(spec, pageable).map(this::toDirectoryDTO);
+        Specification<Instructor> visible = instructorVisibility.databaseScope(caller, params);
+        if (visible != null) {
+            spec = spec == null ? visible : spec.and(visible);
+        }
+        return (spec == null ? instructorRepository.findAll(pageable) : instructorRepository.findAll(spec, pageable))
+                .map(this::toDirectoryDTO);
     }
 
     // ================================

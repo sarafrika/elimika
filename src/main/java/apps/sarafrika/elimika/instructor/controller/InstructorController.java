@@ -135,9 +135,11 @@ public class InstructorController {
                     **Free-text search (`q`):** optional. When the instructor search index is enabled, `q` is
                     matched typo-tolerantly against name, headline, skills, experience, location and bio, and
                     results come back in relevance order (or by `sort` over `full_name`, `rating_avg`,
-                    `review_count`, `created_at`). Only admin-verified instructors are returned to callers
-                    who are not platform admins. When search is disabled or unavailable, `q` falls back to
-                    a case-insensitive match on the full name. Without `q` the list is unchanged.
+                    `review_count`, `created_at`). When search is disabled or unavailable, `q` falls back to
+                    a case-insensitive match on the full name.
+                   \s
+                    **Visibility:** the same with or without `q`. Platform admins see every instructor;
+                    everyone else sees admin-verified instructors plus their own profile.
                     """
     )
     @GetMapping
@@ -238,9 +240,15 @@ public class InstructorController {
                       `admin_verified`, `active`, `skills`, `skill_levels`, `location_name`, `uuid` and
                       `created_at` (operators `eq, noteq, in, notin, gt, gte, lt, lte, between`); `sort` is
                       limited to `full_name`, `rating_avg`, `review_count`, `created_at`. Anything else is a
-                      400. Callers who are not platform admins only see admin-verified instructors.
+                      400.
                     - When search is disabled or unavailable, `q` falls back to `fullName_like` and the
-                      other keys keep their database meaning. Without `q` nothing changes.
+                      other keys keep their database meaning.
+                   \s
+                    **Visibility** (the same with or without `q`): platform admins see every instructor.
+                    Everyone else sees admin-verified instructors plus their own profile, except in an exact
+                    identity lookup - a request pinned with `uuid`/`uuid_in` or `user_uuid`/`user_uuid_in` -
+                    which resolves the named instructors whatever their verification state, as
+                    `GET /instructors/{uuid}` does.
                    \s
                     **Examples:**
                     - `/search?q=pyhton&skill_levels=EXPERT`
