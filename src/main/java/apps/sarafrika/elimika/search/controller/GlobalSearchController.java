@@ -35,7 +35,7 @@ public class GlobalSearchController {
     private final GlobalSearchService globalSearchService;
 
     @GetMapping
-    @Operation(summary = "Global search",
+    @Operation(operationId = "globalSearch", summary = "Global search",
             description = "Searches every type the caller may see (or those named in types) and returns up to limit hits "
                     + "per type, grouped by type in the order requested, plus the total per type. Types: courses, "
                     + "programs, classes, marketplace_jobs, instructors, organisations, people, rubrics. A type the "
@@ -59,13 +59,14 @@ public class GlobalSearchController {
     }
 
     @GetMapping("/{type}")
-    @Operation(summary = "Search one type",
+    @Operation(operationId = SearchTypeFilterDocumentation.OPERATION_ID, summary = "Search one type",
             description = "One page of one type, for a \"see all results\" view. q is optional (at least 2 characters "
                     + "when present). Other parameters filter in the field_op vocabulary (op one of eq, noteq, in, "
                     + "notin, gt, gte, lt, lte, between) over the type's filterable attributes; facets names "
                     + "filterable attributes to count values of; sort is field[,asc|desc] over sortable attributes. "
                     + "Anything outside those allow-lists is a 400. 403 when the caller may not see the type; 503 "
-                    + "when search or the type is not enabled.")
+                    + "when search or the type is not enabled. The filterable and sortable attributes of every type are "
+                    + "listed in the filter map below.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "A page of hits with facets")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Unknown type, filter, facet or sort")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "The caller may not search this type")
