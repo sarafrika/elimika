@@ -24,28 +24,6 @@ public interface ClassMarketplaceJobRepository extends JpaRepository<ClassMarket
     /** Keyset page for search index rebuilds: rows after {@code id}, in id order. */
     List<ClassMarketplaceJob> findByIdGreaterThanOrderByIdAsc(Long id, Pageable pageable);
 
-    /**
-     * {@link #search} narrowed to titles matching {@code titlePattern}, a lower-cased pattern built with
-     * {@code LikePatterns}: the database fallback for a {@code q} search when the search engine is off.
-     */
-    @Query("""
-            SELECT job FROM ClassMarketplaceJob job
-            WHERE (:organisationUuid IS NULL OR job.organisationUuid = :organisationUuid)
-              AND (:courseUuid IS NULL OR job.courseUuid = :courseUuid)
-              AND (:programUuid IS NULL OR job.programUuid = :programUuid)
-              AND (:branchUuid IS NULL OR job.branchUuid = :branchUuid)
-              AND (:status IS NULL OR job.status = :status)
-              AND LOWER(job.title) LIKE :titlePattern ESCAPE '\\'
-            ORDER BY job.createdDate DESC
-            """)
-    Page<ClassMarketplaceJob> searchByTitle(@Param("organisationUuid") UUID organisationUuid,
-                                            @Param("courseUuid") UUID courseUuid,
-                                            @Param("programUuid") UUID programUuid,
-                                            @Param("branchUuid") UUID branchUuid,
-                                            @Param("status") ClassMarketplaceJobStatus status,
-                                            @Param("titlePattern") String titlePattern,
-                                            Pageable pageable);
-
     @Query("""
             SELECT job FROM ClassMarketplaceJob job
             WHERE (:organisationUuid IS NULL OR job.organisationUuid = :organisationUuid)

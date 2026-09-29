@@ -197,8 +197,7 @@ class InstructorFirmHoldConflictIntegrationTest {
                 new StorageProperties(),
                 new BranchLocationResolver(mock(TrainingBranchLookupService.class)),
                 mock(apps.sarafrika.elimika.classes.internal.ClassListingVisibility.class),
-                mock(apps.sarafrika.elimika.classes.search.ClassesSearch.class),
-                mock(apps.sarafrika.elimika.classes.search.ClassSearchFallbackFilter.class));
+                mock(apps.sarafrika.elimika.classes.search.ClassesSearch.class));
     }
 
     @Test

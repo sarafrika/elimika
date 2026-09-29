@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
@@ -9,15 +10,12 @@ import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
-import apps.sarafrika.elimika.classes.search.ClassSearchFallbackFilter;
-import apps.sarafrika.elimika.classes.search.ClassSearchSource;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
-import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import jakarta.persistence.EntityManager;
@@ -115,7 +113,6 @@ class ClassesSearchIntegrationTest {
     @Autowired private EntityManager entityManager;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private ApplicationContext applicationContext;
-    @Autowired private ClassSearchFallbackFilter fallbackFilter;
 
     /** An unrelated signed-in user: no staffed organisation, no instructor profile, no enrolments. */
     private static final ClassListingVisibility.Scope STRANGER =
@@ -186,38 +183,47 @@ class ClassesSearchIntegrationTest {
     }
 
     @Test
-    @DisplayName("The database fallback applies the same filters as the index")
-    void fallbackAppliesFilters() {
+    @DisplayName("Listing filters sent with q are applied by the index")
+    void indexAppliesFilters() {
         UUID organisation = UUID.randomUUID();
-        ClassDefinition online = saveClass("Fallback Pottery Online", organisation, ClassVisibility.PUBLIC);
-        ClassDefinition inPerson = saveClass("Fallback Pottery Studio", organisation, ClassVisibility.PUBLIC,
+        ClassDefinition online = saveClass("Filtered Pottery Online", organisation, ClassVisibility.PUBLIC);
+        ClassDefinition inPerson = saveClass("Filtered Pottery Studio", organisation, ClassVisibility.PUBLIC,
                 LocationType.IN_PERSON, new BigDecimal("4000.00"));
+        when(classListingVisibility.forCurrentCaller()).thenReturn(STRANGER);
+        awaitTrue(() -> filteredUuids(Map.of("q", "pottery", "organisation_uuid", organisation.toString()))
+                .containsAll(List.of(online.getUuid(), inPerson.getUuid())));
 
-        List<UUID> onlineOnly = fallbackUuids(Map.of("q", "pottery", "organisation_uuid", organisation.toString(),
-                "location_type", "online"));
-        assertThat(onlineOnly).containsExactly(online.getUuid());
-
-        List<UUID> expensive = fallbackUuids(Map.of("organisation_uuid", organisation.toString(),
-                "sale_price_gte", "2000"));
-        assertThat(expensive).containsExactly(inPerson.getUuid());
-
+        // Enum values match in any case: the UI sends location_type=online.
+        assertThat(filteredUuids(Map.of("q", "pottery",
+                "organisation_uuid", organisation.toString(), "location_type", "online")))
+                .containsExactly(online.getUuid());
+        assertThat(filteredUuids(Map.of("q", "pottery", "organisation_uuid", organisation.toString(),
+                "sale_price_gte", "2000")))
+                .containsExactly(inPerson.getUuid());
         String startsFrom = NOW.plusDays(6).toLocalDate().toString();
-        assertThat(fallbackUuids(Map.of("organisation_uuid", organisation.toString(), "starts_at_gte", startsFrom,
-                "registration_closes_at_gte", NOW.toLocalDate().plusDays(6).toString(), "content_approved", "true")))
+        assertThat(filteredUuids(Map.of("q", "pottery", "organisation_uuid", organisation.toString(),
+                "starts_at_gte", startsFrom)))
                 .containsExactlyInAnyOrder(online.getUuid(), inPerson.getUuid());
-        assertThat(fallbackUuids(Map.of("organisation_uuid", organisation.toString(),
-                "registration_closes_at_gt", NOW.toLocalDate().plusDays(6).atTime(23, 59, 59).toString())))
-                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("A filter the classes index cannot express is a 400, not a database query")
+    void unsupportedFilterIsRejected() {
+        when(classListingVisibility.forCurrentCaller()).thenReturn(STRANGER);
+
+        assertThatThrownBy(() -> filteredUuids(Map.of("q", "pottery", "title_like", "pottery")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("title_like");
     }
 
     // ===== Helpers =====
 
-    private List<UUID> fallbackUuids(Map<String, String> params) {
-        return new TransactionTemplate(transactionManager).execute(status -> classRepository.findAll(
-                        fallbackFilter.toSpecification(SearchParamsTranslator.toFilter(params, ClassSearchSource.DEFINITION)))
-                .stream()
-                .map(ClassDefinition::getUuid)
-                .toList());
+    private List<UUID> filteredUuids(Map<String, String> params) {
+        Map<String, String> filters = new java.util.HashMap<>(params);
+        String q = filters.remove("q");
+        return classService.searchClasses(q, filters, PageRequest.of(0, 20)).getContent().stream()
+                .map(dto -> dto.classDefinition().uuid())
+                .toList();
     }
 
     private List<UUID> classUuids(String q) {

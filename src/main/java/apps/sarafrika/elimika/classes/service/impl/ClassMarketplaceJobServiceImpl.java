@@ -44,7 +44,6 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.classes.search.ClassesSearch;
 import apps.sarafrika.elimika.classes.search.MarketplaceJobSearchScopes;
@@ -309,19 +308,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         String text = q.trim();
         ClassMarketplaceJobStatus visibleStatus = status;
         Page<ClassMarketplaceJob> jobs = searchJobIndex(organisationUuid, courseUuid, programUuid, branchUuid,
-                visibleStatus, text, platformAdmin, staffsOrganisation, pageable)
-                .orElseGet(() -> jobRepository.searchByTitle(organisationUuid, courseUuid, programUuid, branchUuid,
-                        visibleStatus, LikePatterns.containsLower(text), pageable));
+                visibleStatus, text, platformAdmin, staffsOrganisation, pageable);
         JobReadContext context = loadJobReadContext(jobs.getContent());
         return jobs.map(job -> toJobDTO(job, context));
     }
 
     /**
-     * One page of jobs from the {@code marketplace_jobs} index, loaded from the database in hit order,
-     * or empty when the index cannot answer. Hits are re-checked against the listing's filters on the
+     * One page of jobs from the {@code marketplace_jobs} index, loaded from the database in hit order.
+     * Free text has no database fallback: {@code SearchUnavailableException} (503) when the index cannot answer. Hits are re-checked against the listing's filters on the
      * loaded rows, so a document that lags its row (a job that just closed) drops out rather than leaks.
      */
-    private Optional<Page<ClassMarketplaceJob>> searchJobIndex(UUID organisationUuid,
+    private Page<ClassMarketplaceJob> searchJobIndex(UUID organisationUuid,
                                                                UUID courseUuid,
                                                                UUID programUuid,
                                                                UUID branchUuid,
@@ -330,9 +327,6 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                                boolean platformAdmin,
                                                                boolean staffsOrganisation,
                                                                org.springframework.data.domain.Pageable pageable) {
-        if (!classesSearch.isReadEnabled(MarketplaceJobSearchSource.INDEX)) {
-            return Optional.empty();
-        }
         Map<String, String> params = new LinkedHashMap<>();
         putIfPresent(params, "organisation_uuid", organisationUuid);
         putIfPresent(params, "course_uuid", courseUuid);
@@ -347,17 +341,16 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 MarketplaceJobSearchScopes.forCaller(platformAdmin, organisationUuid, staffsOrganisation),
                 MarketplaceJobSearchSource.sortFor(pageable.getSort()),
                 pageable.getPageNumber(), size, List.of(), null);
-        return classesSearch.search(request).map(hits -> {
-            Map<UUID, ClassMarketplaceJob> byUuid = new HashMap<>();
-            jobRepository.findByUuidIn(hits.uuids()).forEach(job -> byUuid.put(job.getUuid(), job));
-            List<ClassMarketplaceJob> content = hits.uuids().stream()
-                    .map(byUuid::get)
-                    .filter(Objects::nonNull)
-                    .filter(job -> matchesJobFilters(job, organisationUuid, courseUuid, programUuid, branchUuid, status))
-                    .toList();
-            return new PageImpl<>(content, PageRequest.of(pageable.getPageNumber(), size),
-                    SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));
-        });
+        ClassesSearch.Hits hits = classesSearch.search(request);
+        Map<UUID, ClassMarketplaceJob> byUuid = new HashMap<>();
+        jobRepository.findByUuidIn(hits.uuids()).forEach(job -> byUuid.put(job.getUuid(), job));
+        List<ClassMarketplaceJob> content = hits.uuids().stream()
+                .map(byUuid::get)
+                .filter(Objects::nonNull)
+                .filter(job -> matchesJobFilters(job, organisationUuid, courseUuid, programUuid, branchUuid, status))
+                .toList();
+        return new PageImpl<>(content, PageRequest.of(pageable.getPageNumber(), size),
+                SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));
     }
 
     private static boolean matchesJobFilters(ClassMarketplaceJob job,

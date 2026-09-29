@@ -8,22 +8,20 @@ import apps.sarafrika.elimika.shared.search.SearchPage;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The classes module's one door to the search platform: routes a {@code q} read to the engine when
- * the index is read-enabled, and enqueues re-indexing for writes that bypass JPA.
+ * The classes module's one door to the search platform: serves a {@code q} read from the engine, and
+ * enqueues re-indexing for writes that bypass JPA.
  * <p>
- * A read answers with the matching UUIDs in rank order, or empty when reads are off or the engine
- * cannot answer, which is the caller's cue to fall back to the database. Hydration stays with the
- * services, so redaction and response shapes are exactly those of the database path.
+ * A read answers with the matching UUIDs in rank order. Free text has no database fallback: when
+ * search is off, the index's reads are not enabled, or the engine fails, it throws
+ * {@link SearchUnavailableException} (503). Hydration stays with the services, so redaction and
+ * response shapes are exactly those of the relational listings.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ClassesSearch {
@@ -36,22 +34,17 @@ public class ClassesSearch {
     public record Hits(List<UUID> uuids, long totalHits) {
     }
 
-    public boolean isReadEnabled(String index) {
-        return searchAvailability.isReadEnabled(index);
-    }
-
-    /** Runs {@code request}, or answers empty when reads for its index are off or the engine is unavailable. */
-    public Optional<Hits> search(SearchRequest request) {
+    /**
+     * Runs {@code request}.
+     *
+     * @throws SearchUnavailableException when reads for its index are off or the engine is unavailable
+     */
+    public Hits search(SearchRequest request) {
         if (!searchAvailability.isReadEnabled(request.index())) {
-            return Optional.empty();
+            throw new SearchUnavailableException("Search is not enabled for " + request.index());
         }
-        try {
-            SearchPage page = searchGateway.search(request);
-            return Optional.of(new Hits(page.hits().stream().map(SearchHit::uuid).toList(), page.totalHits()));
-        } catch (SearchUnavailableException ex) {
-            log.warn("Search on {} unavailable, falling back to the database: {}", request.index(), ex.getMessage());
-            return Optional.empty();
-        }
+        SearchPage page = searchGateway.search(request);
+        return new Hits(page.hits().stream().map(SearchHit::uuid).toList(), page.totalHits());
     }
 
     /** Re-index a marketplace job after a write that fires no entity trigger (bulk deletes). */

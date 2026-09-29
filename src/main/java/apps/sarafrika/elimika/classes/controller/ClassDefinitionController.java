@@ -439,7 +439,8 @@ public class ClassDefinitionController {
             description = "The organisation's staff and platform admins see all of its classes; other callers see only its active PUBLIC classes and the ones they teach or are enrolled in. "
                     + "With q, only classes matching the text are returned, under the same visibility, ranked by relevance "
                     + "(typo-tolerant over title, course, program, organisation, branch, instructor, location and description) "
-                    + "when search is enabled, else by a case-insensitive title match; at most 100 classes are returned.")
+                    + "by the classes search index only; at most 100 classes are returned."
+                    + " There is no database fallback: when search or the index's reads are off, or the engine is down, a request with q answers 503 (\"Search is unavailable\").")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}")
     public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForOrganisation(
@@ -494,8 +495,8 @@ public class ClassDefinitionController {
                     + "category_uuid, is_active, class_visibility, content_approved, location_type, session_format, "
                     + "starts_at, registration_closes_at, sale_price and created_at (field or field_op, op one of eq, "
                     + "noteq, in, notin, gt, gte, lt, lte, between; any other parameter is rejected with 400). "
-                    + "When search is disabled or unavailable, q is a case-insensitive title match and the same filters "
-                    + "apply to the database.")
+                    + "q is served only by the classes search index: when search or the index's reads are off, or the "
+                    + "engine is down, a request with q answers 503 (\"Search is unavailable\"); there is no database fallback.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a property outside the allow-list, or a search filter names an unsupported field")
     @GetMapping
@@ -519,7 +520,8 @@ public class ClassDefinitionController {
             description = "Platform admins see every active class; other callers see active PUBLIC classes plus active classes those of organisations they staff, those they teach and those they are enrolled in. "
                     + "With q, only classes matching the text are returned, under the same visibility, ranked by relevance "
                     + "(typo-tolerant over title, course, program, organisation, branch, instructor, location and description) "
-                    + "when search is enabled, else by a case-insensitive title match; at most 100 classes are returned.")
+                    + "by the classes search index only; at most 100 classes are returned."
+                    + " There is no database fallback: when search or the index's reads are off, or the engine is down, a request with q answers 503 (\"Search is unavailable\").")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active class definitions retrieved successfully")
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getAllActiveClassDefinitions(

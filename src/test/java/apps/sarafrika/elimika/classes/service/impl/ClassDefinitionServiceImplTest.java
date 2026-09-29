@@ -162,8 +162,7 @@ class ClassDefinitionServiceImplTest {
                 new BranchLocationResolver(trainingBranchLookupService),
                 new apps.sarafrika.elimika.classes.internal.ClassListingVisibility(
                         classReadDomainSecurityService, userLookupService, timetableServiceProvider),
-                org.mockito.Mockito.mock(apps.sarafrika.elimika.classes.search.ClassesSearch.class),
-                org.mockito.Mockito.mock(apps.sarafrika.elimika.classes.search.ClassSearchFallbackFilter.class)
+                org.mockito.Mockito.mock(apps.sarafrika.elimika.classes.search.ClassesSearch.class)
         );
     }
 
