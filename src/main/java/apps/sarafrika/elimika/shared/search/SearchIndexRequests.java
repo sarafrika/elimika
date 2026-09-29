@@ -16,6 +16,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.Ordered;
 import org.springframework.orm.jpa.EntityManagerFactoryUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionExecution;
+import org.springframework.transaction.TransactionExecutionListener;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -31,16 +33,24 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * transaction that rolls back publishes nothing.
  * <p>
  * JPA only runs the post-insert/update/delete callbacks that feed this collector when the session is
- * flushed, and Spring's JPA transaction manager flushes <em>after</em> the before-commit callbacks.
- * So the synchronization flushes the transaction's entity manager itself, then publishes - otherwise
- * every change first flushed by the commit would be missed.
+ * flushed, and Spring's JPA transaction manager flushes <em>after</em> the before-commit callbacks -
+ * so a change first flushed by the commit would reach this collector too late, and one made in a
+ * transaction that had not enqueued anything yet would never register a synchronization at all.
+ * Two things close that gap:
+ * <ul>
+ *     <li>this bean is a {@link TransactionExecutionListener}, which Spring Boot registers with the
+ *     transaction manager, so every new read-write transaction gets the synchronization up front;</li>
+ *     <li>the synchronization flushes the transaction's entity manager itself before publishing, so
+ *     the entity callbacks have all run by then. The commit's own flush then finds nothing left but
+ *     the publication rows.</li>
+ * </ul>
  * <p>
  * Outside a transaction requests are published immediately. With {@code search.enabled=false} this
  * is a no-op, so nothing reaches the publication registry.
  */
 @Slf4j
 @Component
-public class SearchIndexRequests {
+public class SearchIndexRequests implements TransactionExecutionListener {
 
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectProvider<EntityManagerFactory> entityManagerFactories;
@@ -92,6 +102,18 @@ public class SearchIndexRequests {
             return;
         }
         pending.add(index, null, key);
+    }
+
+    /**
+     * Registers the collector with every new read-write transaction, so changes that are first
+     * flushed at commit are still collected and published.
+     */
+    @Override
+    public void afterBegin(TransactionExecution transaction, Throwable beginFailure) {
+        if (!enabled || beginFailure != null || transaction.isReadOnly()) {
+            return;
+        }
+        currentPending();
     }
 
     /** The collector for the current transaction, registering it on first use; null outside one. */
