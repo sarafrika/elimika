@@ -87,6 +87,42 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
 
     @Override
     public SearchPage search(SearchRequest request) {
+        Map<String, Object> body = pagedQueryBody(request);
+        JsonNode response = call("search " + request.index() + " [" + request.scope().label() + "]",
+                () -> client.post()
+                        .uri("/indexes/{uid}/search", request.index())
+                        .body(body)
+                        .retrieve()
+                        .body(JsonNode.class));
+        return toPage(request, response);
+    }
+
+    @Override
+    public List<SearchPage> multiSearchPerIndex(List<SearchRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> queries = new ArrayList<>();
+        for (SearchRequest request : requests) {
+            Map<String, Object> query = pagedQueryBody(request);
+            query.put("indexUid", request.index());
+            queries.add(query);
+        }
+        JsonNode response = call("multi-search over " + requests.size() + " index(es)",
+                () -> client.post().uri("/multi-search").body(Map.of("queries", queries)).retrieve().body(JsonNode.class));
+        JsonNode results = response.path("results");
+        if (!results.isArray() || results.size() != requests.size()) {
+            throw new SearchUnavailableException("Search engine answered a multi-search of " + requests.size()
+                    + " queries with " + results.size() + " result(s)");
+        }
+        List<SearchPage> pages = new ArrayList<>(requests.size());
+        for (int i = 0; i < requests.size(); i++) {
+            pages.add(toPage(requests.get(i), results.get(i)));
+        }
+        return pages;
+    }
+
+    private Map<String, Object> pagedQueryBody(SearchRequest request) {
         Map<String, Object> body = queryBody(request);
         body.put("page", request.page() + 1);
         body.put("hitsPerPage", request.size());
@@ -96,13 +132,10 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         if (!request.facets().isEmpty()) {
             body.put("facets", request.facets().stream().map(MeilisearchFilterRenderer::attribute).toList());
         }
-        JsonNode response = call("search " + request.index() + " [" + request.scope().label() + "]",
-                () -> client.post()
-                        .uri("/indexes/{uid}/search", request.index())
-                        .body(body)
-                        .retrieve()
-                        .body(JsonNode.class));
+        return body;
+    }
 
+    private SearchPage toPage(SearchRequest request, JsonNode response) {
         List<SearchHit> hits = new ArrayList<>();
         for (JsonNode hit : response.path("hits")) {
             hits.add(new SearchHit(uuidOf(hit), document(hit), formatted(hit)));

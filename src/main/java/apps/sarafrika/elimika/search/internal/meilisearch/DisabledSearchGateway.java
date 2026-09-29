@@ -38,6 +38,11 @@ public class DisabledSearchGateway implements SearchGateway, SearchIndexAdmin {
     }
 
     @Override
+    public List<SearchPage> multiSearchPerIndex(List<SearchRequest> requests) {
+        throw disabled();
+    }
+
+    @Override
     public void upsert(String index, List<?> documents) {
         throw disabled();
     }

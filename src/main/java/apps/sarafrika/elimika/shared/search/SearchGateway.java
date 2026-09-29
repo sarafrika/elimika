@@ -22,6 +22,12 @@ public interface SearchGateway {
      */
     FederatedSearchResult multiSearch(List<SearchRequest> requests, int limit);
 
+    /**
+     * Runs several requests in one round trip without merging them: one page per request, in request
+     * order, each with its own total, sort and facets. Used where results are shown grouped by index.
+     */
+    List<SearchPage> multiSearchPerIndex(List<SearchRequest> requests);
+
     /** Adds or replaces documents, keyed by the index's primary key. Waits until they are applied. */
     void upsert(String index, List<?> documents);
 
