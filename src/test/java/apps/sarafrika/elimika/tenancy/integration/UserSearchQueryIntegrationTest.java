@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.integration;
 
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
@@ -11,6 +12,8 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -97,6 +100,48 @@ class UserSearchQueryIntegrationTest {
         assertThat(userRepository.findByEmailIgnoreCase("mixed.case" + suffix + "@example.test"))
                 .map(User::getUuid).contains(lower);
         assertThat(userRepository.findByEmailIgnoreCase(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("admin-eligible users exclude global and organisation admins, search and page in the database")
+    void adminEligibleUsersExcludeAdmins() {
+        String tag = "elig" + UUID.randomUUID().toString().substring(0, 6);
+        UUID organisationUuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO organisation (uuid, name, created_by) VALUES (?, ?, 'test')",
+                organisationUuid, "Org " + tag);
+
+        UUID eligible = insertUser("Plain", null, tag, uniqueEmail());
+        UUID emailOnly = insertUser("", null, "", tag + "@example.test");
+        UUID globalAdmin = insertUser("Global", null, tag, uniqueEmail());
+        jdbc.update("INSERT INTO user_domain_mapping (user_uuid, domain_uuid) "
+                + "VALUES (?, (SELECT uuid FROM user_domain WHERE domain_name = 'admin'))", globalAdmin);
+        UUID orgAdmin = insertUser("Org", null, tag, uniqueEmail());
+        insertOrganisationMapping(orgAdmin, organisationUuid, true);
+        UUID formerOrgAdmin = insertUser("Former", null, tag, uniqueEmail());
+        insertOrganisationMapping(formerOrgAdmin, organisationUuid, false);
+
+        String pattern = LikePatterns.containsLower(tag.toUpperCase());
+        assertThat(userRepository.findAdminEligibleUsers(pattern, PageRequest.of(0, 20, Sort.by("id")))
+                .map(User::getUuid).getContent())
+                .containsExactly(eligible, emailOnly, formerOrgAdmin);
+
+        var secondPage = userRepository.findAdminEligibleUsers(pattern, PageRequest.of(1, 2, Sort.by("id")));
+        assertThat(secondPage.getTotalElements()).isEqualTo(3);
+        assertThat(secondPage.map(User::getUuid).getContent()).containsExactly(formerOrgAdmin);
+        assertThat(userRepository.findAdminEligibleUsers(pattern, PageRequest.of(5, 2)).getContent()).isEmpty();
+
+        assertThat(userRepository.findAdminEligibleUsers(null, PageRequest.of(0, 1000)).map(User::getUuid).getContent())
+                .contains(eligible, emailOnly, formerOrgAdmin)
+                .doesNotContain(globalAdmin, orgAdmin);
+        assertThat(userRepository.findAdminEligibleUsers(LikePatterns.containsLower("%"), PageRequest.of(0, 20))
+                .getContent()).isEmpty();
+    }
+
+    private void insertOrganisationMapping(UUID userUuid, UUID organisationUuid, boolean active) {
+        jdbc.update("INSERT INTO user_organisation_domain_mapping "
+                        + "(uuid, user_uuid, organisation_uuid, domain_uuid, active, created_by) "
+                        + "VALUES (?, ?, ?, (SELECT uuid FROM user_domain WHERE domain_name = 'organisation_user'), ?, 'test')",
+                UUID.randomUUID(), userUuid, organisationUuid, active);
     }
 
     private List<UUID> search(Map<String, String> params) {

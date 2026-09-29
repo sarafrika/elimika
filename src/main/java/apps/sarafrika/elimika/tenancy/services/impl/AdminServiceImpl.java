@@ -49,8 +49,9 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
+import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -67,6 +68,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
@@ -86,6 +90,7 @@ import java.util.concurrent.TimeUnit;
 public class AdminServiceImpl implements AdminService {
 
     private final UserRepository userRepository;
+    private final UserSpecificationBuilder userSpecificationBuilder;
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
@@ -329,21 +334,7 @@ public class AdminServiceImpl implements AdminService {
                 .findActiveByDomainName("organisation_user");
         orgAdminMappings.forEach(mapping -> adminUserUuids.add(mapping.getUserUuid()));
 
-        // Remove duplicates and get users
-        List<UUID> distinctAdminUuids = adminUserUuids.stream().distinct().toList();
-        List<User> adminUsers = userRepository.findByUuidIn(distinctAdminUuids);
-
-        // Convert to DTOs
-        List<UserDTO> adminUserDTOs = adminUsers.stream()
-                .map(user -> userService.toUserDTO(user))
-                .toList();
-
-        // Apply pagination (simple implementation)
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), adminUserDTOs.size());
-        List<UserDTO> pagedResults = adminUserDTOs.subList(start, end);
-
-        return new PageImpl<>(pagedResults, pageable, adminUserDTOs.size());
+        return pageUsers(new LinkedHashSet<>(adminUserUuids), pageable);
     }
 
     @Override
@@ -355,21 +346,11 @@ public class AdminServiceImpl implements AdminService {
         List<UserDomainMapping> adminMappings = userDomainMappingRepository
                 .findByUserDomainUuid(adminDomain.getUuid());
 
-        List<UUID> userUuids = adminMappings.stream()
+        Set<UUID> userUuids = adminMappings.stream()
                 .map(UserDomainMapping::getUserUuid)
-                .toList();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        List<User> systemAdminUsers = userRepository.findByUuidIn(userUuids);
-        List<UserDTO> userDTOs = systemAdminUsers.stream()
-                .map(user -> userService.toUserDTO(user))
-                .toList();
-
-        // Apply pagination
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), userDTOs.size());
-        List<UserDTO> pagedResults = userDTOs.subList(start, end);
-
-        return new PageImpl<>(pagedResults, pageable, userDTOs.size());
+        return pageUsers(userUuids, pageable);
     }
 
     @Override
@@ -380,22 +361,32 @@ public class AdminServiceImpl implements AdminService {
         List<UserOrganisationDomainMapping> orgAdminMappings = userOrganisationDomainMappingRepository
                 .findActiveByDomainName("organisation_user");
 
-        List<UUID> userUuids = orgAdminMappings.stream()
+        Set<UUID> userUuids = orgAdminMappings.stream()
                 .map(UserOrganisationDomainMapping::getUserUuid)
-                .distinct()
-                .toList();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        List<User> orgAdminUsers = userRepository.findByUuidIn(userUuids);
-        List<UserDTO> userDTOs = orgAdminUsers.stream()
-                .map(user -> userService.toUserDTO(user))
-                .toList();
+        return pageUsers(userUuids, pageable);
+    }
 
-        // Apply pagination
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), userDTOs.size());
-        List<UserDTO> pagedResults = userDTOs.subList(start, end);
+    /**
+     * Pages the given users in the database, ordered by the request's (allow-listed) sort or by id.
+     */
+    private Page<UserDTO> pageUsers(Set<UUID> userUuids, Pageable pageable) {
+        if (userUuids.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return userRepository.findByUuidIn(userUuids, withStableSort(pageable))
+                .map(userService::toUserDTO);
+    }
 
-        return new PageImpl<>(pagedResults, pageable, userDTOs.size());
+    private Pageable withStableSort(Pageable pageable) {
+        if (pageable.isUnpaged()) {
+            return pageable;
+        }
+        userSpecificationBuilder.validateSortProperties(pageable);
+        return pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("id"));
     }
 
     @Override
@@ -601,29 +592,11 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> getAdminEligibleUsers(String searchTerm, Pageable pageable) {
-        // Get all users who are not already admins
-        // This is a simplified implementation
-        List<User> allUsers = userRepository.findAll();
-        List<UserDTO> eligibleUsers = allUsers.stream()
-                .filter(user -> !isAdmin(user.getUuid()))
-                .map(user -> userService.toUserDTO(user))
-                .toList();
-
-        // Apply search filter if provided
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            eligibleUsers = eligibleUsers.stream()
-                    .filter(user -> user.firstName().toLowerCase().contains(searchTerm.toLowerCase()) ||
-                            user.lastName().toLowerCase().contains(searchTerm.toLowerCase()) ||
-                            user.email().toLowerCase().contains(searchTerm.toLowerCase()))
-                    .toList();
-        }
-
-        // Apply pagination
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), eligibleUsers.size());
-        List<UserDTO> pagedResults = eligibleUsers.subList(start, end);
-
-        return new PageImpl<>(pagedResults, pageable, eligibleUsers.size());
+        String pattern = searchTerm == null || searchTerm.isBlank()
+                ? null
+                : LikePatterns.containsLower(searchTerm.trim());
+        return userRepository.findAdminEligibleUsers(pattern, withStableSort(pageable))
+                .map(userService::toUserDTO);
     }
 
     @Override

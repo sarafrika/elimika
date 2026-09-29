@@ -63,6 +63,35 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     Page<User> findByUuidIn(Set<UUID> uuids, Pageable pageable);
 
+    /**
+     * Users who hold neither the global {@code admin} domain nor an active, non-deleted
+     * {@code organisation_user} organisation mapping - i.e. those {@code AdminService#isAdmin}
+     * reports as non-admins - optionally narrowed to a lower-cased, LIKE-escaped pattern matched
+     * against first name, last name or email.
+     *
+     * @param pattern a {@code %term%} pattern built with {@code LikePatterns}, or {@code null} for no search
+     */
+    @Query("""
+            SELECT u FROM User u
+            WHERE NOT EXISTS (
+                SELECT 1 FROM UserDomainMapping udm, UserDomain ud
+                WHERE ud.uuid = udm.userDomainUuid
+                  AND udm.userUuid = u.uuid
+                  AND ud.domainName = 'admin')
+              AND NOT EXISTS (
+                SELECT 1 FROM UserOrganisationDomainMapping uodm, UserDomain od
+                WHERE od.uuid = uodm.domainUuid
+                  AND uodm.userUuid = u.uuid
+                  AND uodm.active = true
+                  AND uodm.deleted = false
+                  AND od.domainName = 'organisation_user')
+              AND (:pattern IS NULL
+                   OR lower(u.firstName) LIKE :pattern ESCAPE '\\'
+                   OR lower(u.lastName) LIKE :pattern ESCAPE '\\'
+                   OR lower(u.email) LIKE :pattern ESCAPE '\\')
+            """)
+    Page<User> findAdminEligibleUsers(@Param("pattern") String pattern, Pageable pageable);
+
     long countByActiveFalse();
 
     long countByCreatedDateAfter(LocalDateTime createdDate);
