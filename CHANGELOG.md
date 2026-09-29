@@ -1,3 +1,12 @@
+# [2.154.0](https://github.com/sarafrika/elimika/compare/v2.153.0...v2.154.0) (2026-09-29)
+
+
+### Features
+
+* **search:** add globalSearch and searchByType operationIds and document the type filter map ([0c777c9](https://github.com/sarafrika/elimika/commit/0c777c93452bc4818b82208a2f3205dfa2024551))
+* **shared:** answer 503 Search is unavailable whenever a q request cannot be served by search ([3e7c490](https://github.com/sarafrika/elimika/commit/3e7c49067a6cbb86e14806e8d95088ea744b3cd3))
+* **timetabling:** search instructor-student rosters through the people index scoped to roster users ([b58fcd3](https://github.com/sarafrika/elimika/commit/b58fcd353a0ac69ad3b3f62df662f65ac26536e0))
+
 # [2.153.0](https://github.com/sarafrika/elimika/compare/v2.152.0...v2.153.0) (2026-09-29)
 
 
