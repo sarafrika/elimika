@@ -73,6 +73,9 @@ class ClassDefinitionServiceImplTest {
     private apps.sarafrika.elimika.shared.security.DomainSecurityService classReadDomainSecurityService;
 
     @Mock
+    private apps.sarafrika.elimika.tenancy.spi.UserLookupService userLookupService;
+
+    @Mock
     private ClassSchedulingConflictRepository classSchedulingConflictRepository;
 
     @Mock
@@ -156,7 +159,9 @@ class ClassDefinitionServiceImplTest {
                 mediaStorageService,
                 mediaValidationService,
                 storageProperties,
-                new BranchLocationResolver(trainingBranchLookupService)
+                new BranchLocationResolver(trainingBranchLookupService),
+                new apps.sarafrika.elimika.classes.internal.ClassListingVisibility(
+                        classReadDomainSecurityService, userLookupService, timetableServiceProvider)
         );
     }
 

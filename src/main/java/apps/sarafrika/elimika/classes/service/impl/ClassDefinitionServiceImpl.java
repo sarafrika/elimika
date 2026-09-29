@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.classes.dto.*;
 import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
+import apps.sarafrika.elimika.classes.internal.ClassListingVisibility;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
 import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
@@ -91,6 +92,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final MediaValidationService mediaValidationService;
     private final StorageProperties storageProperties;
     private final BranchLocationResolver branchLocationResolver;
+    private final ClassListingVisibility classListingVisibility;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
@@ -1034,8 +1036,12 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findClassesForOrganisation(UUID organisationUuid) {
         log.debug("Finding classes for organisation UUID: {}", organisationUuid);
 
+        // The organisation's staff see every class it runs; anyone else sees what the listing
+        // scope admits — its active public classes, and the ones they teach or study in.
+        ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
         return classDefinitionRepository.findByOrganisationUuid(organisationUuid)
                 .stream()
+                .filter(scope::admits)
                 .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
@@ -1081,7 +1087,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         // Rejected before a row is read, so a refused sort tells the caller nothing about the data.
         rejectSortOnWithheldFigures(pageable);
 
-        return classDefinitionRepository.findAll(pageable)
+        return classDefinitionRepository.findAll(classListingVisibility.forCurrentCaller().toSpecification(), pageable)
                 .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse);
     }
@@ -1091,8 +1097,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findAllActiveClasses() {
         log.debug("Finding all active classes");
 
+        ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
         return classDefinitionRepository.findByIsActiveTrue()
                 .stream()
+                .filter(scope::admits)
                 .filter(this::isLinkedContentApproved)
                 .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)

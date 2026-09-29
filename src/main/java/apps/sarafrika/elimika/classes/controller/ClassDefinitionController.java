@@ -434,7 +434,8 @@ public class ClassDefinitionController {
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for instructor retrieved successfully"));
     }
 
-    @Operation(summary = "Get class definitions for an organisation")
+    @Operation(summary = "Get class definitions for an organisation",
+            description = "The organisation's staff and platform admins see all of its classes; other callers see only its active PUBLIC classes and the ones they teach or are enrolled in.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}")
     public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForOrganisation(
@@ -470,7 +471,9 @@ public class ClassDefinitionController {
     }
 
     @Operation(summary = "Get all class definitions",
-            description = "instructor_pay is included only for the parties to it, as on every other class read. "
+            description = "Platform admins see every class; other callers see active PUBLIC classes plus those of "
+                    + "organisations they staff, those they teach and those they are enrolled in. "
+                    + "instructor_pay is included only for the parties to it, as on every other class read. "
                     + "Sorting by it is rejected with 400 for everyone, parties included: ordering a listing by a "
                     + "figure it does not print would disclose the same figure one comparison at a time.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
@@ -486,7 +489,8 @@ public class ClassDefinitionController {
                 "All class definitions retrieved successfully"));
     }
 
-    @Operation(summary = "Get all active class definitions")
+    @Operation(summary = "Get all active class definitions",
+            description = "Platform admins see every active class; other callers see active PUBLIC classes plus active classes those of organisations they staff, those they teach and those they are enrolled in.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active class definitions retrieved successfully")
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getAllActiveClassDefinitions() {
