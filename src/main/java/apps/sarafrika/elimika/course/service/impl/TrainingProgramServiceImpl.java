@@ -456,9 +456,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (dto.title() != null) {
             existingProgram.setTitle(dto.title());
         }
-        if (dto.courseCreatorUuid() != null) {
-            existingProgram.setCourseCreatorUuid(dto.courseCreatorUuid());
-        }
+        // course_creator_uuid is deliberately not settable: ownership never changes through an update.
         if (dto.categoryUuid() != null) {
             existingProgram.setCategoryUuid(dto.categoryUuid());
         }

@@ -694,9 +694,7 @@ public class CourseServiceImpl implements CourseService {
         if (dto.name() != null) {
             existingCourse.setName(dto.name());
         }
-        if (dto.courseCreatorUuid() != null) {
-            existingCourse.setCourseCreatorUuid(dto.courseCreatorUuid());
-        }
+        // course_creator_uuid is deliberately not settable: ownership never changes through an update.
         if (dto.difficultyUuid() != null) {
             existingCourse.setDifficultyUuid(dto.difficultyUuid());
         }
