@@ -243,6 +243,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                  UUID branchUuid,
                                                  ClassMarketplaceJobStatus status,
                                                  org.springframework.data.domain.Pageable pageable) {
+        // The marketplace is browsable across organisations, but only for OPEN postings. Drafts
+        // that were filled, cancelled or expired stay visible to platform admins and to the posting
+        // organisation's own staff when they ask for that organisation's jobs.
+        boolean seesEveryStatus = domainSecurityService.isPlatformAdmin()
+                || (organisationUuid != null && domainSecurityService.staffsOrganisation(organisationUuid));
+        if (!seesEveryStatus) {
+            if (status != null && status != ClassMarketplaceJobStatus.OPEN) {
+                return Page.empty(pageable);
+            }
+            status = ClassMarketplaceJobStatus.OPEN;
+        }
         Page<ClassMarketplaceJob> jobs =
                 jobRepository.search(organisationUuid, courseUuid, programUuid, branchUuid, status, pageable);
         JobReadContext context = loadJobReadContext(jobs.getContent());

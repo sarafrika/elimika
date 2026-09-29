@@ -83,7 +83,7 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "List marketplace class jobs",
-            description = "instructor_pay is included only for admin-verified instructors, managers of the posting organisation and platform admins; other callers receive the advert without it")
+            description = "Platform admins see every job; staff of the organisation named by organisation_uuid see that organisation's jobs in any status; everyone else sees OPEN jobs only (a non-open status filter returns an empty page). instructor_pay is included only for admin-verified instructors, managers of the posting organisation and platform admins; other callers receive the advert without it")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobDTO>>> listJobs(
             @RequestParam(value = "organisation_uuid", required = false) UUID organisationUuid,

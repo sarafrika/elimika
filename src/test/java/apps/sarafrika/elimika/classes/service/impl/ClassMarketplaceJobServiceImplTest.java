@@ -1720,7 +1720,7 @@ class ClassMarketplaceJobServiceImplTest {
         job.setInstructorPay(new BigDecimal("18000.00"));
         PageRequest pageable = PageRequest.of(0, 20);
 
-        when(jobRepository.search(null, null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
                 .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
 
         var page = service.listJobs(null, null, null, null, null, pageable);
@@ -1737,7 +1737,7 @@ class ClassMarketplaceJobServiceImplTest {
         PageRequest pageable = PageRequest.of(0, 20);
 
         when(domainSecurityService.isVerifiedInstructor()).thenReturn(true);
-        when(jobRepository.search(null, null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
                 .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
 
         var page = service.listJobs(null, null, null, null, null, pageable);
@@ -1835,7 +1835,7 @@ class ClassMarketplaceJobServiceImplTest {
         PageRequest pageable = PageRequest.of(0, 20);
 
         when(domainSecurityService.managesOrganisation(job.getOrganisationUuid())).thenReturn(true);
-        when(jobRepository.search(null, null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
                 .thenReturn(new PageImpl<>(List.of(job), pageable, 1));
 
         var page = service.listJobs(null, null, null, null, null, pageable);
@@ -1845,10 +1845,11 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
-    void listJobsDoesNotApplyHiddenStatusFilterWhenStatusMissing() {
+    void listJobsDoesNotApplyHiddenStatusFilterWhenStatusMissingForTheOrganisationsStaff() {
         UUID organisationUuid = UUID.randomUUID();
         UUID courseUuid = UUID.randomUUID();
 
+        when(domainSecurityService.staffsOrganisation(organisationUuid)).thenReturn(true);
         when(jobRepository.search(
                 organisationUuid,
                 courseUuid,
@@ -1876,6 +1877,41 @@ class ClassMarketplaceJobServiceImplTest {
                 null,
                 PageRequest.of(0, 20)
         );
+    }
+
+    @Test
+    void listJobsShowsOnlyOpenJobsToCallersOutsideTheOrganisation() {
+        UUID organisationUuid = UUID.randomUUID();
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(jobRepository.search(organisationUuid, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
+                .thenReturn(new PageImpl<>(List.of(sampleJob()), pageable, 1));
+
+        var page = service.listJobs(organisationUuid, null, null, null, null, pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        verify(jobRepository).search(organisationUuid, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable);
+    }
+
+    @Test
+    void listJobsReturnsNothingWhenOutsidersAskForClosedJobs() {
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        var page = service.listJobs(null, null, null, null, ClassMarketplaceJobStatus.FILLED, pageable);
+
+        assertThat(page.getContent()).isEmpty();
+        verify(jobRepository, never()).search(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void listJobsShowsPlatformAdminsEveryStatus() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(jobRepository.search(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(sampleJob()), pageable, 1));
+
+        var page = service.listJobs(null, null, null, null, null, pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
     }
 
     @Test
@@ -4532,7 +4568,7 @@ class ClassMarketplaceJobServiceImplTest {
         ClassMarketplaceJob busy = sampleJob();
         ClassMarketplaceJob quiet = sampleJob();
         PageRequest pageable = PageRequest.of(0, 20);
-        when(jobRepository.search(null, null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
                 .thenReturn(new PageImpl<>(List.of(busy, quiet), pageable, 2));
         when(applicationRepository.countByJobUuidInExcludingStatus(
                 List.of(busy.getUuid(), quiet.getUuid()), ClassMarketplaceJobApplicationStatus.WITHDRAWN))
@@ -4623,7 +4659,7 @@ class ClassMarketplaceJobServiceImplTest {
         alsoManaged.setBranchUuid(BRANCH_UUID);
         ClassMarketplaceJob rival = sampleJob();
         rival.setBranchUuid(UUID.randomUUID());
-        when(jobRepository.search(null, null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
                 .thenReturn(new PageImpl<>(List.of(managed, alsoManaged, rival), pageable, 3));
         when(domainSecurityService.managesOrganisation(managed.getOrganisationUuid())).thenReturn(true);
         when(trainingBranchLookupService.findBranchContacts(List.of(BRANCH_UUID)))
@@ -4708,7 +4744,7 @@ class ClassMarketplaceJobServiceImplTest {
         UUID venueUuid = UUID.randomUUID();
         UUID poolUuid = UUID.randomUUID();
         PageRequest pageable = PageRequest.of(0, 20);
-        when(jobRepository.search(null, null, null, null, null, pageable))
+        when(jobRepository.search(null, null, null, null, ClassMarketplaceJobStatus.OPEN, pageable))
                 .thenReturn(new PageImpl<>(List.of(recruiting, filled), pageable, 2));
         when(jobResourceRepository.findByJobUuidOrderByCreatedDateAsc(recruiting.getUuid()))
                 .thenReturn(List.of(jobResource(recruiting.getUuid(), venueUuid, 1),
