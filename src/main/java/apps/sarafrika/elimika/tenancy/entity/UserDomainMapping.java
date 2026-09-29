@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
+import apps.sarafrika.elimika.shared.search.SearchIndexingEntityListener;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,7 +12,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * A standalone (organisation-independent) domain held by a user. Not a {@code BaseEntity}, so it
+ * registers the search listener itself: the {@code people} index projects these domains.
+ */
 @Entity
+@EntityListeners(SearchIndexingEntityListener.class)
 @Table(name = "user_domain_mapping")
 @Getter
 @Setter
