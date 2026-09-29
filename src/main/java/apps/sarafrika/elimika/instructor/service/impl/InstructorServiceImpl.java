@@ -71,7 +71,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Transactional(readOnly = true)
     public Page<InstructorDTO> getAllInstructors(Pageable pageable) {
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
-        return instructorRepository.findAll(pageable).map(InstructorFactory::toPublicDTO);
+        return instructorRepository.findAll(pageable).map(this::toDirectoryDTO);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class InstructorServiceImpl implements InstructorService {
     public Page<InstructorDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, searchParams);
-        return instructorRepository.findAll(spec, pageable).map(InstructorFactory::toPublicDTO);
+        return instructorRepository.findAll(spec, pageable).map(this::toDirectoryDTO);
     }
 
     // ================================
@@ -163,7 +163,7 @@ public class InstructorServiceImpl implements InstructorService {
     public Page<InstructorDTO> getVerifiedInstructors(Pageable pageable) {
         log.debug("Getting verified instructors with pagination: {}", pageable);
         return instructorRepository.findByAdminVerified(true, pageable)
-                .map(InstructorFactory::toPublicDTO);
+                .map(this::toDirectoryDTO);
     }
 
     @Override
@@ -171,7 +171,7 @@ public class InstructorServiceImpl implements InstructorService {
     public Page<InstructorDTO> getUnverifiedInstructors(Pageable pageable) {
         log.debug("Getting unverified instructors with pagination: {}", pageable);
         return instructorRepository.findByAdminVerified(false, pageable)
-                .map(InstructorFactory::toPublicDTO);
+                .map(this::toDirectoryDTO);
     }
 
     @Override
@@ -298,10 +298,22 @@ public class InstructorServiceImpl implements InstructorService {
      * level for everyone else.
      */
     private InstructorDTO toDtoForCaller(Instructor instructor) {
-        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
-        boolean owner = callerUuid != null && callerUuid.equals(instructor.getUserUuid());
-        return owner || domainSecurityService.isPlatformAdmin()
+        return isOwnedByCaller(instructor) || domainSecurityService.isPlatformAdmin()
                 ? InstructorFactory.toDTO(instructor)
                 : InstructorFactory.toPublicDTO(instructor);
+    }
+
+    /**
+     * A list or search row: coordinates at town level, except on the caller's own profile. The
+     * profile screens load the owner's record through search and write it back on save, so rounding
+     * the owner's own row would silently coarsen their stored location.
+     */
+    private InstructorDTO toDirectoryDTO(Instructor instructor) {
+        return isOwnedByCaller(instructor) ? InstructorFactory.toDTO(instructor) : InstructorFactory.toPublicDTO(instructor);
+    }
+
+    private boolean isOwnedByCaller(Instructor instructor) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        return callerUuid != null && callerUuid.equals(instructor.getUserUuid());
     }
 }

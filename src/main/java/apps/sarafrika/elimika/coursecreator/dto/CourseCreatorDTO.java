@@ -81,7 +81,7 @@ public record CourseCreatorDTO(
         String locationName,
 
         @Schema(
-                description = "**[OPTIONAL]** Geographical latitude of the course creator's primary location. Rounded to 2 decimal places (about 1 km) in list and search responses, and on single-profile reads by anyone other than the owner or a platform admin.",
+                description = "**[OPTIONAL]** Geographical latitude of the course creator's primary location. Rounded to 2 decimal places (about 1 km) for anyone other than the profile owner, except a platform admin reading the single profile by UUID.",
                 example = "-1.2921",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
@@ -90,7 +90,7 @@ public record CourseCreatorDTO(
         java.math.BigDecimal latitude,
 
         @Schema(
-                description = "**[OPTIONAL]** Geographical longitude of the course creator's primary location. Rounded to 2 decimal places (about 1 km) in list and search responses, and on single-profile reads by anyone other than the owner or a platform admin.",
+                description = "**[OPTIONAL]** Geographical longitude of the course creator's primary location. Rounded to 2 decimal places (about 1 km) for anyone other than the profile owner, except a platform admin reading the single profile by UUID.",
                 example = "36.8219",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED

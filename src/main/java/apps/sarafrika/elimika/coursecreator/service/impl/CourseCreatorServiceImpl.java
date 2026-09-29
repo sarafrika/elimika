@@ -65,7 +65,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     @Transactional(readOnly = true)
     public Page<CourseCreatorDTO> getAllCourseCreators(Pageable pageable) {
         specificationBuilder.validateSortProperties(CourseCreator.class, pageable);
-        return courseCreatorRepository.findAll(pageable).map(CourseCreatorFactory::toPublicDTO);
+        return courseCreatorRepository.findAll(pageable).map(this::toDirectoryDTO);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     public Page<CourseCreatorDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(CourseCreator.class, pageable);
         Specification<CourseCreator> spec = specificationBuilder.buildSpecification(CourseCreator.class, searchParams);
-        return courseCreatorRepository.findAll(spec, pageable).map(CourseCreatorFactory::toPublicDTO);
+        return courseCreatorRepository.findAll(spec, pageable).map(this::toDirectoryDTO);
     }
 
     // ================================
@@ -159,7 +159,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         Specification<CourseCreator> spec = (root, query, cb) ->
                 cb.equal(root.get("adminVerified"), true);
         return courseCreatorRepository.findAll(spec, pageable)
-                .map(CourseCreatorFactory::toPublicDTO);
+                .map(this::toDirectoryDTO);
     }
 
     @Override
@@ -169,7 +169,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         Specification<CourseCreator> spec = (root, query, cb) ->
                 cb.equal(root.get("adminVerified"), false);
         return courseCreatorRepository.findAll(spec, pageable)
-                .map(CourseCreatorFactory::toPublicDTO);
+                .map(this::toDirectoryDTO);
     }
 
     @Override
@@ -263,10 +263,22 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
      * level for everyone else.
      */
     private CourseCreatorDTO toDtoForCaller(CourseCreator courseCreator) {
-        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
-        boolean owner = callerUuid != null && callerUuid.equals(courseCreator.getUserUuid());
-        return owner || domainSecurityService.isPlatformAdmin()
+        return isOwnedByCaller(courseCreator) || domainSecurityService.isPlatformAdmin()
                 ? CourseCreatorFactory.toDTO(courseCreator)
                 : CourseCreatorFactory.toPublicDTO(courseCreator);
+    }
+
+    /**
+     * A list or search row: coordinates at town level, except on the caller's own profile. The
+     * profile screens load the owner's record through search and write it back on save, so rounding
+     * the owner's own row would silently coarsen their stored location.
+     */
+    private CourseCreatorDTO toDirectoryDTO(CourseCreator courseCreator) {
+        return isOwnedByCaller(courseCreator) ? CourseCreatorFactory.toDTO(courseCreator) : CourseCreatorFactory.toPublicDTO(courseCreator);
+    }
+
+    private boolean isOwnedByCaller(CourseCreator courseCreator) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        return callerUuid != null && callerUuid.equals(courseCreator.getUserUuid());
     }
 }
