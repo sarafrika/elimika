@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -323,6 +324,39 @@ public class CourseSpecificationBuilder {
     public Specification<Course> hasCourseCreator(UUID courseCreatorUuid) {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.equal(root.get("courseCreatorUuid"), courseCreatorUuid);
+    }
+
+    /**
+     * Limits a course listing to what a caller who is not a platform admin may see.
+     * <p>
+     * A row is visible when it is in the public catalogue (published, admin-approved and active), when
+     * the caller authored it, or when it is one of {@code relatedCourseUuids} — the courses the caller
+     * is enrolled in or approved to teach, which must keep resolving after they are unpublished or
+     * archived. Shadow drafts (rows with a parent course) are pending edits and are never listed;
+     * their owners reach them through the pending-edit and draft endpoints.
+     *
+     * @param courseCreatorUuid  the caller's course creator profile, or null when they have none
+     * @param relatedCourseUuids courses the caller holds a relationship with; may be empty
+     */
+    public Specification<Course> visibleTo(UUID courseCreatorUuid, Set<UUID> relatedCourseUuids) {
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> visible = new ArrayList<>();
+            visible.add(criteriaBuilder.and(
+                    criteriaBuilder.equal(root.get("status"), ContentStatus.PUBLISHED),
+                    criteriaBuilder.isTrue(root.get("adminApproved")),
+                    criteriaBuilder.isTrue(root.get("active"))
+            ));
+            if (courseCreatorUuid != null) {
+                visible.add(criteriaBuilder.equal(root.get("courseCreatorUuid"), courseCreatorUuid));
+            }
+            if (relatedCourseUuids != null && !relatedCourseUuids.isEmpty()) {
+                visible.add(root.get("uuid").in(relatedCourseUuids));
+            }
+            return criteriaBuilder.and(
+                    criteriaBuilder.isNull(root.get("parentCourseUuid")),
+                    criteriaBuilder.or(visible.toArray(new Predicate[0]))
+            );
+        };
     }
 
     /**

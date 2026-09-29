@@ -24,7 +24,9 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.course.util.enums.ModerationAction;
 import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
@@ -46,6 +48,7 @@ import org.springframework.web.util.UriUtils;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,6 +75,8 @@ public class CourseServiceImpl implements CourseService {
     private final ContentModerationHistoryService contentModerationHistoryService;
     private final CourseDraftService courseDraftService;
     private final CoursePendingEditService coursePendingEditService;
+    private final DomainSecurityService domainSecurityService;
+    private final CourseSecuritySpi courseSecurityService;
 
     private static final String COURSE_NOT_FOUND_TEMPLATE = "Course with ID %s not found";
 
@@ -113,11 +118,50 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
 
-        // Fetch category names
+        return toDetailDto(course);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CourseDTO getVisibleCourseByUuid(UUID uuid) {
+        Course course = courseRepository.findByUuid(uuid)
+                .filter(this::isVisibleToCaller)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
+
+        return toDetailDto(course);
+    }
+
+    private CourseDTO toDetailDto(Course course) {
+        UUID uuid = course.getUuid();
         List<String> categoryNames = mappingRepository.findCategoryNamesByCourseUuid(uuid);
         List<CourseTrainingRequirementDTO> trainingRequirements = courseTrainingRequirementService.findByCourseUuid(uuid);
 
         return CourseFactory.toDTO(course, categoryNames, trainingRequirements.isEmpty() ? null : trainingRequirements);
+    }
+
+    /**
+     * Published and archived courses are readable by anyone: learners and classes keep referencing
+     * a course after it is retired. A draft or in-review course is readable by its author, a
+     * platform admin, an enrolled learner (an unpublished course keeps its enrolments) or someone
+     * approved to teach it. A shadow draft is a pending edit, readable by its author and admins only.
+     */
+    private boolean isVisibleToCaller(Course course) {
+        boolean shadowDraft = course.getParentCourseUuid() != null;
+        boolean unpublished = course.getStatus() == ContentStatus.DRAFT
+                || course.getStatus() == ContentStatus.IN_REVIEW;
+        if (!shadowDraft && !unpublished) {
+            return true;
+        }
+        if (domainSecurityService.isPlatformAdmin()
+                || domainSecurityService.isCourseCreatorWithUuid(course.getCourseCreatorUuid())) {
+            return true;
+        }
+        if (shadowDraft) {
+            return false;
+        }
+        return courseSecurityService.canReadCourseAsLearner(course.getUuid())
+                || courseSecurityService.canManageCourseGradebook(course.getUuid());
     }
 
     @Override
@@ -292,6 +336,37 @@ public class CourseServiceImpl implements CourseService {
         Page<Course> coursePage = courseRepository.findAll(spec, pageable);
 
         return toDtoPage(coursePage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CourseDTO> searchVisible(Map<String, String> searchParams, Pageable pageable) {
+        log.debug("Searching visible courses with params: {}", searchParams);
+        courseSpecificationBuilder.validateSortProperties(pageable);
+        Specification<Course> spec = combine(
+                courseSpecificationBuilder.buildCourseSpecification(searchParams), callerVisibility());
+
+        return toDtoPage(courseRepository.findAll(spec, pageable));
+    }
+
+    /**
+     * The caller's visibility scope for course listings, or null (unrestricted) for a platform admin.
+     */
+    private Specification<Course> callerVisibility() {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return null;
+        }
+        Set<UUID> relatedCourseUuids = new HashSet<>(courseSecurityService.enrolledCourseUuids());
+        relatedCourseUuids.addAll(courseSecurityService.manageableCourseUuids());
+        return courseSpecificationBuilder.visibleTo(
+                domainSecurityService.getCurrentCourseCreatorUuid(), relatedCourseUuids);
+    }
+
+    private static Specification<Course> combine(Specification<Course> first, Specification<Course> second) {
+        if (first == null) {
+            return second;
+        }
+        return second == null ? first : first.and(second);
     }
 
     @Override

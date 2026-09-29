@@ -22,7 +22,26 @@ public interface CourseService {
 
     void deleteCourse(UUID uuid);
 
+    /**
+     * Unscoped search over every course row, shadow drafts included. For platform-admin and
+     * system-internal use; endpoints serving arbitrary callers use {@link #searchVisible}.
+     */
     Page<CourseDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Search limited to the courses the current caller may see: everything for a platform admin;
+     * otherwise the public catalogue, the caller's own courses, and courses they are enrolled in
+     * or approved to teach — never shadow drafts.
+     */
+    Page<CourseDTO> searchVisible(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * A single course as the current caller may see it. Unpublished (draft or in-review) courses
+     * resolve only for a platform admin, their author, an enrolled learner or someone approved to
+     * teach them; shadow drafts only for a platform admin or their author. Anyone else gets
+     * {@link apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException}.
+     */
+    CourseDTO getVisibleCourseByUuid(UUID uuid);
 
     boolean isCourseReadyForPublishing(UUID uuid);
 

@@ -184,7 +184,7 @@ public class CourseController {
     @GetMapping("/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseDTO>> getCourseByUuid(
             @PathVariable UUID uuid) {
-        CourseDTO courseDTO = courseService.getCourseByUuid(uuid);
+        CourseDTO courseDTO = courseService.getVisibleCourseByUuid(uuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(courseDTO, "Course retrieved successfully"));
     }
@@ -196,7 +196,7 @@ public class CourseController {
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getAllCourses(
             Pageable pageable) {
-        Page<CourseDTO> courses = courseService.getAllCourses(pageable);
+        Page<CourseDTO> courses = courseService.searchVisible(Map.of(), pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(courses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -409,7 +409,7 @@ public class CourseController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<CourseDTO> courses = courseService.search(searchParams, pageable);
+        Page<CourseDTO> courses = courseService.searchVisible(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(courses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -1755,8 +1755,8 @@ public class CourseController {
     @GetMapping("/active")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getActiveCourses(
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("active", "true", "admin_approved", "true");
-        Page<CourseDTO> activeCourses = courseService.search(searchParams, pageable);
+        Map<String, String> searchParams = Map.of("active", "true", "admin_approved", "true", "status", "PUBLISHED");
+        Page<CourseDTO> activeCourses = courseService.searchVisible(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(activeCourses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -1771,7 +1771,7 @@ public class CourseController {
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getPublishedCourses(
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("status", "PUBLISHED", "admin_approved", "true");
-        Page<CourseDTO> publishedCourses = courseService.search(searchParams, pageable);
+        Page<CourseDTO> publishedCourses = courseService.searchVisible(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(publishedCourses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -1827,7 +1827,7 @@ public class CourseController {
                 .collect(java.util.stream.Collectors.joining(","));
 
         Map<String, String> searchParams = Map.of("uuid_in", courseUuidsList);
-        Page<CourseDTO> categoryCourses = courseService.search(searchParams, pageable);
+        Page<CourseDTO> categoryCourses = courseService.searchVisible(searchParams, pageable);
 
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(categoryCourses, ServletUriComponentsBuilder
