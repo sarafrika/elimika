@@ -57,9 +57,11 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     mem_reservation: 256m
+    # The master key is kept out of .env so the API container never receives it.
+    env_file:
+      - meilisearch.env
     environment:
       MEILI_ENV: production
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
       MEILI_NO_ANALYTICS: "true"
       MEILI_MAX_INDEXING_MEMORY: 256Mb
     networks:

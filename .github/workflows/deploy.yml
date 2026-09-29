@@ -74,8 +74,52 @@ jobs:
               elimika:
                 mem_limit: 1536m
                 mem_reservation: 768m
+              meilisearch:
+                image: getmeili/meilisearch:v1.54.1
+                container_name: elimika-meilisearch
+                restart: unless-stopped
+                mem_limit: 512m
+                mem_reservation: 256m
+                env_file:
+                  - meilisearch.env
+                environment:
+                  MEILI_ENV: production
+                  MEILI_NO_ANALYTICS: "true"
+                  MEILI_MAX_INDEXING_MEMORY: 256Mb
+                networks:
+                  - sarafrika-net
+                volumes:
+                  - meili_data:/meili_data
+                healthcheck:
+                  test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+                  interval: 30s
+                  timeout: 5s
+                  retries: 3
+                  start_period: 20s
+            volumes:
+              meili_data:
             YAML
               echo "  wrote $OVERRIDE"
+            fi
+
+            echo "🔎 Ensuring the search engine..."
+            # The master key lives in its own file so the API container, which loads all of .env,
+            # never receives it; the API authenticates with a scoped key (SEARCH_MEILISEARCH_API_KEY).
+            # Generated once and then left alone - rotating it invalidates every key derived from it.
+            if [ ! -f meilisearch.env ]; then
+              (umask 077 && printf 'MEILI_MASTER_KEY=%s\n' "$(openssl rand -hex 32)" > meilisearch.env)
+              echo "  generated meilisearch.env"
+            fi
+            docker compose pull meilisearch
+            docker compose up -d --no-deps meilisearch
+            for i in $(seq 1 12); do
+              MSTATUS=$(docker inspect elimika-meilisearch -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')
+              if [ "$MSTATUS" = "healthy" ]; then break; fi
+              sleep 5
+            done
+            echo "  meilisearch: $MSTATUS"
+            if [ "$MSTATUS" != "healthy" ] && grep -qiE '^SEARCH_ENABLED=true' .env; then
+              echo "❌ Search is enabled but Meilisearch is not healthy"; docker logs elimika-meilisearch --tail 40; exit 1
             fi
 
             echo "📥 Pulling backend image..."

@@ -113,7 +113,7 @@ The per-index read flags, one per index:
 | `people` | `SEARCH_READENABLED_PEOPLE` |
 
 `docker/compose.yaml` runs `getmeili/meilisearch` (pinned tag, no published port, 512 MB limit)
-with `MEILI_MASTER_KEY` from `docker/.env`. The application key is created once with the master key
+with `MEILI_MASTER_KEY` from `docker/meilisearch.env` (kept out of `.env` so the API never sees it; the staging deploy generates it once). The application key is created once with the master key
 (see the runbook below).
 
 ## Global search endpoints
