@@ -41,8 +41,9 @@ import java.util.UUID;
  * <p>
  * Names owned by other modules (course, program, organisation, branch, instructor) and the linked
  * content's approval are copied in when a class is indexed; a rename or an approval change in the
- * owning module does not re-index the classes that show it. A rebuild
- * ({@code POST /api/v1/admin/search/indexes/classes/rebuild}) refreshes them, and reads re-check
+ * owning module does not re-index the classes that show it (except an instructor's user rename, see
+ * {@code ClassInstructorNameChangeIndexer}). The nightly full rebuild
+ * ({@code search.full-rebuild-cron}) or a manual one refreshes them, and module reads re-check
  * visibility and approval against the database, so a stale copy can mis-rank but never leak.
  */
 @Component

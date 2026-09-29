@@ -39,7 +39,7 @@ import java.util.UUID;
  * <p>
  * Course-creator names come through the course creator SPI. A creator renaming themselves is a change
  * in another module whose entity this module cannot see, so it is not a trigger: the next change to
- * the course, a rebuild, or reconciliation picks it up.
+ * the course or the nightly full rebuild ({@code search.full-rebuild-cron}) picks it up.
  */
 @Component
 public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocument> {
