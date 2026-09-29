@@ -7,6 +7,8 @@ volumes:
     driver: local
   elimika_logs:
     driver: local
+  meili_data:
+    driver: local
 
 services:
   elimika:
@@ -39,3 +41,34 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Search engine for the search module. Holds disposable projections of PostgreSQL only - losing the
+  # volume costs a rebuild (POST /api/v1/admin/search/rebuild), not data.
+  #
+  # No published port: the API reaches it over the sarafrika network as http://meilisearch:7700, and
+  # nothing outside the host should. The image tag is pinned exactly; a Meilisearch upgrade can change
+  # the on-disk format, so move it deliberately and rebuild the indexes afterwards.
+  #
+  # elimika deliberately has no depends_on on this service: search is optional (SEARCH_ENABLED), the
+  # API starts and serves from PostgreSQL without it, and a depends_on would make every API deploy
+  # wait on - or fail with - a service it does not need.
+  meilisearch:
+    image: getmeili/meilisearch:v1.54.1
+    restart: unless-stopped
+    mem_limit: 512m
+    mem_reservation: 256m
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MAX_INDEXING_MEMORY: 256Mb
+    networks:
+      - sarafrika
+    volumes:
+      - meili_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
