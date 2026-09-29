@@ -349,6 +349,17 @@ public class CourseServiceImpl implements CourseService {
         return toDtoPage(courseRepository.findAll(spec, pageable));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CourseDTO> getCoursesForInstructor(UUID instructorUuid, Pageable pageable) {
+        courseSpecificationBuilder.validateSortProperties(pageable);
+        Specification<Course> spec = combine(
+                courseSpecificationBuilder.hasUuidIn(courseSecurityService.manageableCourseUuidsForInstructor(instructorUuid)),
+                callerVisibility());
+
+        return toDtoPage(courseRepository.findAll(spec, pageable));
+    }
+
     /**
      * The caller's visibility scope for course listings, or null (unrestricted) for a platform admin.
      */

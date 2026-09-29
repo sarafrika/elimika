@@ -43,6 +43,13 @@ public interface CourseService {
      */
     CourseDTO getVisibleCourseByUuid(UUID uuid);
 
+    /**
+     * The courses an instructor may deliver — authored by their user, approved for them personally,
+     * approved for an organisation they teach for, or inside a programme approved on either footing —
+     * limited to what the current caller may see.
+     */
+    Page<CourseDTO> getCoursesForInstructor(UUID instructorUuid, Pageable pageable);
+
     boolean isCourseReadyForPublishing(UUID uuid);
 
     CourseDTO publishCourse(UUID uuid);

@@ -74,6 +74,7 @@ class CourseCatalogueVisibilityIntegrationTest {
     private UUID archivedCourse;
     private UUID shadowDraft;
     private UUID courseCreatorUuid;
+    private UUID trainerInstructorUuid;
 
 
 
@@ -95,7 +96,9 @@ class CourseCatalogueVisibilityIntegrationTest {
 
         UUID trainerUserUuid = user(TRAINER_SUBJECT, "visibility-trainer@test.local");
         grantDomain(trainerUserUuid, "instructor");
-        trainingApplication(draftCourse, instructor(trainerUserUuid));
+        trainerInstructorUuid = instructor(trainerUserUuid);
+        trainingApplication(draftCourse, trainerInstructorUuid);
+        trainingApplication(liveCourse, trainerInstructorUuid);
 
         UUID outsiderUserUuid = user(OUTSIDER_SUBJECT, "visibility-outsider@test.local");
         grantDomain(outsiderUserUuid, "student");
@@ -165,6 +168,19 @@ class CourseCatalogueVisibilityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(
                         inReviewCourse.toString(), unapprovedCourse.toString())));
+    }
+
+    @Test
+    @DisplayName("An instructor's courses are the ones they are approved to deliver, as the caller may see them")
+    void instructorCoursesAreTheirApprovedCourses() throws Exception {
+        String url = "/api/v1/courses/instructor/" + trainerInstructorUuid;
+        mockMvc.perform(get(url).with(jwt(TRAINER_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(
+                        liveCourse.toString(), draftCourse.toString())));
+        mockMvc.perform(get(url).with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(liveCourse.toString())));
     }
 
     // ===== SINGLE COURSE =====

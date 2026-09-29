@@ -1780,14 +1780,17 @@ public class CourseController {
 
     @Operation(
             summary = "Get courses by instructor",
-            description = "Retrieves all courses created by a specific instructor."
+            description = """
+                Retrieves the courses an instructor may deliver: courses authored by the instructor's
+                user, approved for them personally, approved for an organisation they teach for, or
+                inside a programme approved on either footing. Limited to the courses the caller may see.
+                """
     )
     @GetMapping("/instructor/{instructorUuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseDTO>>> getCoursesByInstructor(
             @PathVariable UUID instructorUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("instructorUuid", instructorUuid.toString());
-        Page<CourseDTO> instructorCourses = courseService.search(searchParams, pageable);
+        Page<CourseDTO> instructorCourses = courseService.getCoursesForInstructor(instructorUuid, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(instructorCourses, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

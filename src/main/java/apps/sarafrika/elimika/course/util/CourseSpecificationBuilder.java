@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -357,6 +358,15 @@ public class CourseSpecificationBuilder {
                     criteriaBuilder.or(visible.toArray(new Predicate[0]))
             );
         };
+    }
+
+    /**
+     * Filter courses to the given UUIDs. An empty collection matches nothing.
+     */
+    public Specification<Course> hasUuidIn(Collection<UUID> courseUuids) {
+        return (root, query, criteriaBuilder) -> courseUuids == null || courseUuids.isEmpty()
+                ? criteriaBuilder.disjunction()
+                : root.get("uuid").in(courseUuids);
     }
 
     /**
