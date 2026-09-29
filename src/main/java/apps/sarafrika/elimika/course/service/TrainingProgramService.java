@@ -187,6 +187,17 @@ public interface TrainingProgramService {
     List<TrainingProgramDTO> getFreePrograms();
 
     /**
+     * Retrieves a page of free training programs (price is null or 0).
+     * <p>
+     * Price is deliberately not a generic search filter, so "free" is answered by a dedicated
+     * specification rather than a {@code price} search parameter.
+     *
+     * @param pageable pagination parameters
+     * @return paginated free programs
+     */
+    Page<TrainingProgramDTO> getFreePrograms(Pageable pageable);
+
+    /**
      * Retrieves training programs by category.
      *
      * @param categoryUuid the category UUID

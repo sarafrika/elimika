@@ -171,8 +171,6 @@ public class TrainingProgramController {
                     - `status=PUBLISHED` - Only published programs
                     - `active=true` - Only active programs
                     - `status_in=PUBLISHED,ACTIVE` - Published or active programs
-                    - `price_lte=500.00` - Programs priced at $500 or less
-                    - `price=null` - Free programs
                     - `courseCreatorUuid=uuid` - Programs by specific course creator
                     - `categoryUuid=uuid` - Programs in specific category
                     - `totalDurationHours_gte=40` - Programs 40+ hours long
@@ -180,10 +178,12 @@ public class TrainingProgramController {
                     - `createdDate_gte=2024-01-01T00:00:00` - Programs created after Jan 1, 2024
                     
                     **Advanced Program Queries:**
-                    - `status=PUBLISHED&active=true&price_lte=100` - Published, active programs under $100
+                    - `status=PUBLISHED&active=true` - Published, active programs
                     - `title_like=certification&totalDurationHours_gte=50` - Certification programs 50+ hours
                     - `courseCreatorUuid=uuid&status=PUBLISHED` - Published programs by specific course creator
                     
+                    Price is not a search filter; use `GET /programs/free` for free programs.
+
                     For complete operator documentation, see the instructor search endpoint.
                     """
     )
@@ -541,13 +541,12 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Get free programs",
-            description = "Retrieves all programs available at no cost."
+            description = "Retrieves all programs available at no cost (no price, or a price of 0)."
     )
     @GetMapping("/free")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getFreePrograms(
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("price", "null");
-        Page<TrainingProgramDTO> freePrograms = trainingProgramService.search(searchParams, pageable);
+        Page<TrainingProgramDTO> freePrograms = trainingProgramService.getFreePrograms(pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(freePrograms, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

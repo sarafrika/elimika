@@ -115,6 +115,22 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         return trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TrainingProgramDTO> getFreePrograms(Pageable pageable) {
+        specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
+        return trainingProgramRepository.findAll(isFree(), pageable).map(TrainingProgramFactory::toDTO);
+    }
+
+    /**
+     * A program is free when it carries no price or a zero price.
+     */
+    private static Specification<TrainingProgram> isFree() {
+        return (root, query, cb) -> cb.or(
+                cb.isNull(root.get("price")),
+                cb.equal(root.get("price"), BigDecimal.ZERO));
+    }
+
     // Domain-specific methods leveraging TrainingProgramDTO computed properties
     @Transactional(readOnly = true)
     public List<TrainingProgramDTO> getActivePrograms() {
