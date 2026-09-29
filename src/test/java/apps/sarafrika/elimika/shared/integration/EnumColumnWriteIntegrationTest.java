@@ -12,7 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import apps.sarafrika.elimika.shared.config.DatabaseAuditConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.core.env.Environment;
@@ -39,6 +43,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 // The container dies with this class; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
+// The audit listener reads its EntityManager from a static field; wire it to THIS context, or it
+// keeps the one a previous (now closed) test context left behind.
+@Import(DatabaseAuditConfiguration.class)
+@ImportAutoConfiguration(ValidationAutoConfiguration.class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 @DisplayName("Enum-backed columns accept writes on a plain JDBC URL")
