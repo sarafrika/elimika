@@ -308,14 +308,15 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Get program enrollments",
-            description = "Retrieves enrollment data for a specific program with completion analytics."
+            description = "Retrieves enrollment data for a specific program. Platform admins and the program's staff "
+                    + "(author or approved trainer) get the named roster; an enrolled learner gets their own rows; "
+                    + "anyone else gets an anonymised tally (program and status only)."
     )
     @GetMapping("/{programUuid}/enrollments")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<ProgramEnrollmentDTO>>> getProgramEnrollments(
             @PathVariable UUID programUuid,
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("programUuid", programUuid.toString());
-        Page<ProgramEnrollmentDTO> enrollments = programEnrollmentService.search(searchParams, pageable);
+        Page<ProgramEnrollmentDTO> enrollments = programEnrollmentService.getProgramEnrollmentsForCaller(programUuid, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(enrollments, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -618,7 +619,8 @@ public class TrainingProgramController {
     @Operation(
             summary = "Search program enrollments",
             description = """
-                    Search enrollment records across all programs.
+                    Search enrollment records across all programs. Non-admin callers only see rows of programs
+                    they author or are approved to deliver, plus their own rows as a learner.
                     
                     **Common Program Enrollment Search Examples:**
                     - `programUuid=uuid` - All enrollments for specific program
@@ -638,7 +640,7 @@ public class TrainingProgramController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<ProgramEnrollmentDTO> enrollments = programEnrollmentService.search(searchParams, pageable);
+        Page<ProgramEnrollmentDTO> enrollments = programEnrollmentService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(enrollments, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

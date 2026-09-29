@@ -69,6 +69,7 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private static final String CACHE_OWNED_PROGRAM_PREFIX = "courseSecurity.ownsProgram.";
     private static final String CACHE_TEACHABLE_COURSES = "courseSecurity.teachableCourses";
     private static final String CACHE_TEACHES_STUDENT_PREFIX = "courseSecurity.teachesStudent.";
+    private static final String CACHE_ROSTER_PROGRAMS = "courseSecurity.rosterPrograms";
 
     /**
      * The org-scoped roles that make somebody staff of an organisation rather than one of its
@@ -679,6 +680,46 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             return isProgramOwner(programUuid);
         }
         return false;
+    }
+
+    /**
+     * The training programs whose enrolment roster the caller may read: the ones they author (on
+     * either creator identity, see {@link #isProgramOwner(UUID)}) and the ones they - or an
+     * organisation they teach for - are approved to deliver. The programme-level analogue of
+     * {@link #manageableCourseUuids()}. Platform admins are decided by the caller, not here.
+     * <p>
+     * Loaded once per request; anything that throws resolves to "nothing".
+     */
+    public Set<UUID> rosterReadableProgramUuids() {
+        return requestScopedCache.get(CACHE_ROSTER_PROGRAMS, () -> {
+            try {
+                UUID userUuid = currentUserUuid();
+                if (userUuid == null) {
+                    return Set.<UUID>of();
+                }
+                Set<UUID> programs = new HashSet<>();
+                for (UUID identity : programCreatorIdentities(userUuid)) {
+                    programs.addAll(trainingProgramRepository.findUuidsByCourseCreatorUuid(identity));
+                }
+                List<UUID> asInstructor = Optional.ofNullable(domainSecurityService.getCurrentInstructorUuid())
+                        .map(List::of)
+                        .orElseGet(List::of);
+                programs.addAll(approvedProgrammes(CourseTrainingApplicantType.INSTRUCTOR, asInstructor));
+                programs.addAll(approvedProgrammes(CourseTrainingApplicantType.ORGANISATION, teachingOrganisationsOf(userUuid)));
+                return Set.copyOf(programs);
+            } catch (Exception e) {
+                log.error("Error resolving the program rosters the caller may read", e);
+                return Set.<UUID>of();
+            }
+        });
+    }
+
+    /**
+     * True when the caller may read this program's named enrolment roster. See
+     * {@link #rosterReadableProgramUuids()}.
+     */
+    public boolean canReadProgramRoster(UUID programUuid) {
+        return programUuid != null && rosterReadableProgramUuids().contains(programUuid);
     }
 
     /**
