@@ -53,8 +53,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * The {@code courses}, {@code programs} and {@code rubrics} indexes against a real PostgreSQL and a
  * real Meilisearch: rows seeded in SQL, indexed through the blue/green rebuild and the durable
- * listener, and read back through the public endpoints with {@code q}, so the scopes and the SQL
- * fallback are exercised exactly as callers see them.
+ * listener, and read back through the public endpoints with {@code q}, so the scopes and the
+ * no-fallback rules (400 for what the index cannot express, 503 when search cannot answer) are
+ * exercised exactly as callers see them.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
@@ -210,17 +211,66 @@ class CatalogueSearchIntegrationTest {
     }
 
     @Test
-    @DisplayName("Without read routing, q falls back to a name match in the database")
-    void fallsBackToDatabaseWhenReadsAreOff() throws Exception {
+    @DisplayName("Without read routing, q answers 503 \"Search is unavailable\" instead of querying the database")
+    void unavailableWhenReadsAreOff() throws Exception {
         searchProperties.getReadEnabled().put(CourseSearchSource.INDEX, false);
         try {
-            search("/api/v1/courses/search", "python", OUTSIDER_SUBJECT)
+            mockMvc.perform(get("/api/v1/courses/search").param("q", "python").with(jwt(OUTSIDER_SUBJECT)))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value("Search is unavailable"));
+            // Without q the relational listing still answers from the database.
+            mockMvc.perform(get("/api/v1/courses/search").param("status", "PUBLISHED").with(jwt(OUTSIDER_SUBJECT)))
+                    .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(liveCourse.toString())));
-            search("/api/v1/courses/search", "pyton", OUTSIDER_SUBJECT)
-                    .andExpect(jsonPath("$.data.content.length()").value(0));
         } finally {
             searchProperties.getReadEnabled().put(CourseSearchSource.INDEX, true);
         }
+    }
+
+    @Test
+    @DisplayName("Filters the UI sends with q keep working on the courses index")
+    void courseFiltersSentWithQuery() throws Exception {
+        for (String status : List.of("draft", "DRAFT")) {
+            mockMvc.perform(get("/api/v1/courses/search").param("q", "rust")
+                            .param("course_creator_uuid_eq", courseCreatorUuid.toString())
+                            .param("status_eq", status)
+                            .with(jwt(CREATOR_SUBJECT)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(draftCourse.toString())));
+        }
+        mockMvc.perform(get("/api/v1/courses/search").param("q", "python").param("lifecycle_stage", "published")
+                        .param("is_published", "true").param("status_noteq", "draft")
+                        .with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/courses/search").param("q", "python").param("lifecycle_stage", "published")
+                        .with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(liveCourse.toString())));
+        mockMvc.perform(get("/api/v1/courses/search").param("q", "python").param("is_published", "false")
+                        .with(jwt(ADMIN_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("A filter or sort the courses index cannot express is a 400 naming it, never a database query")
+    void unsupportedKeysAreRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/courses/search").param("q", "python").param("category_name", "serpent")
+                        .with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("category_name")));
+        mockMvc.perform(get("/api/v1/courses/search").param("q", "python").param("sort", "lastModifiedDate,desc")
+                        .with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("lastModifiedDate")));
+        mockMvc.perform(get("/api/v1/courses/search").param("name_like", "python").with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString(
+                        "Text operators were removed; use the q parameter for text search")));
+        // Without q, category_name is gone from the relational filters too.
+        mockMvc.perform(get("/api/v1/courses/search").param("category_name", "serpent").with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isBadRequest());
     }
 
     // ===== PROGRAMS =====
@@ -236,6 +286,26 @@ class CatalogueSearchIntegrationTest {
                 .andExpect(jsonPath("$.data.content.length()").value(0));
         search("/api/v1/programs/search", "kubernetes", CREATOR_SUBJECT)
                 .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(draftProgram.toString())));
+    }
+
+    @Test
+    @DisplayName("Filters the UI sends with q keep working on the programs index")
+    void programFiltersSentWithQuery() throws Exception {
+        for (String status : List.of("draft", "DRAFT")) {
+            mockMvc.perform(get("/api/v1/programs/search").param("q", "kubernetes")
+                            .param("course_creator_uuid_eq", courseCreatorUuid.toString())
+                            .param("status_eq", status)
+                            .with(jwt(CREATOR_SUBJECT)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(draftProgram.toString())));
+        }
+        mockMvc.perform(get("/api/v1/programs/search").param("q", "kubernetes").param("status_eq", "published")
+                        .with(jwt(CREATOR_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/v1/programs/search").param("q", "kubernetes").param("title_like", "kube")
+                        .with(jwt(CREATOR_SUBJECT)))
+                .andExpect(status().isBadRequest());
     }
 
     // ===== RUBRICS =====
@@ -254,6 +324,37 @@ class CatalogueSearchIntegrationTest {
                 .andExpect(jsonPath("$.data.content.length()").value(0));
         search("/api/v1/rubrics/search", "laboratry", CREATOR_SUBJECT)
                 .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(privateRubric.toString())));
+    }
+
+    @Test
+    @DisplayName("Rubric discovery by type is an exact, case-insensitive match, with q through the index and without q in SQL")
+    void rubricDiscoveryByType() throws Exception {
+        for (String type : List.of("assignment", "ASSIGNMENT")) {
+            mockMvc.perform(get("/api/v1/rubrics/discovery/search").param("q", "presentation").param("type", type)
+                            .with(jwt(OUTSIDER_SUBJECT)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(publicRubric.toString())));
+            mockMvc.perform(get("/api/v1/rubrics/discovery/search").param("type", type).with(jwt(OUTSIDER_SUBJECT)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(publicRubric.toString())));
+        }
+        // A part of the type no longer matches: the type is an exact filter, not a substring search.
+        mockMvc.perform(get("/api/v1/rubrics/discovery/search").param("type", "assign").with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/v1/rubrics/discovery/search").param("q", "presentation").param("type", "assign")
+                        .with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+
+        searchProperties.getReadEnabled().put(RubricSearchSource.INDEX, false);
+        try {
+            mockMvc.perform(get("/api/v1/rubrics/discovery/search").param("q", "presentation").with(jwt(OUTSIDER_SUBJECT)))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.message").value("Search is unavailable"));
+        } finally {
+            searchProperties.getReadEnabled().put(RubricSearchSource.INDEX, true);
+        }
     }
 
     // ===== TEST PLUMBING =====

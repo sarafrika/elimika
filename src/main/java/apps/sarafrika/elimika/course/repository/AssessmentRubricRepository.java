@@ -31,43 +31,20 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
     Page<AssessmentRubric> findByIsPublicTrueAndIsActiveTrueOrderByCreatedDateDesc(Pageable pageable);
 
     /**
-     * Finds public rubrics by rubric type.
+     * Public, active rubrics of one type, newest first. An exact match, case-insensitive: free-text
+     * search over rubrics is served by the {@code rubrics} search index only.
      *
-     * @param rubricType the type of rubric to search for
-     * @param pageable pagination parameters
-     * @return page of public rubrics of the specified type
+     * @param rubricType the rubric type, lower-cased by the caller
+     * @param pageable   pagination parameters
+     * @return page of public rubrics of that type
      */
-    Page<AssessmentRubric> findByIsPublicTrueAndIsActiveTrueAndRubricTypeContainingIgnoreCaseOrderByCreatedDateDesc(
-            String rubricType, Pageable pageable);
-
-    /**
-     * Searches public rubrics by title or description.
-     *
-     * @param searchTerm the lower-cased, LIKE-escaped search term (see {@code LikePatterns#escapeLower})
-     *                   to match against title or description
-     * @param pageable pagination parameters
-     * @return page of matching public rubrics
-     */
-    @Query("""
-        SELECT ar FROM AssessmentRubric ar 
-        WHERE ar.isPublic = true AND ar.isActive = true 
-        AND (LOWER(ar.title) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\'
-             OR LOWER(ar.description) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\')
-        ORDER BY ar.createdDate DESC
-        """)
-    Page<AssessmentRubric> findPublicRubricsBySearchTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
-
     @Query("""
         SELECT ar FROM AssessmentRubric ar
         WHERE ar.isPublic = true AND ar.isActive = true
-        AND LOWER(ar.rubricType) LIKE CONCAT('%', :rubricType, '%') ESCAPE '\\'
-        AND (LOWER(ar.title) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\'
-             OR LOWER(ar.description) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\')
+        AND LOWER(ar.rubricType) = :rubricType
         ORDER BY ar.createdDate DESC
         """)
-    Page<AssessmentRubric> findPublicRubricsBySearchTermAndType(@Param("searchTerm") String searchTerm,
-                                                                @Param("rubricType") String rubricType,
-                                                                Pageable pageable);
+    Page<AssessmentRubric> findPublicActiveByRubricType(@Param("rubricType") String rubricType, Pageable pageable);
 
     /**
      * Finds rubrics created by a specific course creator.

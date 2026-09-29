@@ -62,7 +62,9 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private static final CatalogueSearchRouter.Route PROGRAM_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
             ProgramSearchSource.DEFINITION,
             Map.of("createddate", "created_at", "createdat", "created_at"),
-            Set.of("status"));
+            Set.of("status"),
+            Map.of("lifecyclestage", "status"),
+            Map.of());
 
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with ID %s not found";
 
@@ -155,7 +157,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     public Page<TrainingProgramDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
         Specification<TrainingProgram> spec = specificationBuilder.buildSpecification(
-                TrainingProgram.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
+                TrainingProgram.class, CatalogueSearchRouter.withoutQuery(searchParams));
         return trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);
     }
 
@@ -166,18 +168,15 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (q != null) {
             boolean platformAdmin = domainSecurityService.isPlatformAdmin();
             Set<UUID> ownIdentities = platformAdmin ? Set.of() : ownIdentities();
-            Optional<Page<TrainingProgramDTO>> found = catalogueSearchRouter.search(PROGRAM_SEARCH_ROUTE, q,
+            return catalogueSearchRouter.search(PROGRAM_SEARCH_ROUTE, q,
                     searchParams, pageable,
                     () -> CatalogueSearchScopes.programs(platformAdmin, ownIdentities),
                     uuids -> hydrateVisible(uuids, platformAdmin ? null : visibleTo(ownIdentities)),
                     TrainingProgramDTO::uuid);
-            if (found.isPresent()) {
-                return found.get();
-            }
         }
         specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
         Specification<TrainingProgram> spec = specificationBuilder.buildSpecification(
-                TrainingProgram.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
+                TrainingProgram.class, CatalogueSearchRouter.withoutQuery(searchParams));
         Specification<TrainingProgram> visible = visibleToCaller();
         if (visible != null) {
             spec = spec == null ? visible : spec.and(visible);

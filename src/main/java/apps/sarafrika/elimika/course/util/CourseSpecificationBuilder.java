@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.course.model.DifficultyLevel;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import jakarta.persistence.criteria.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -63,9 +62,16 @@ public class CourseSpecificationBuilder {
 
         List<Specification<Course>> specifications = new ArrayList<>();
 
+        // Name matches on categories and difficulty levels were SQL text search; free text now goes
+        // through q (the courses index searches category and difficulty names).
+        for (String removed : List.of("category_name", "difficulty_name")) {
+            if (searchParams.containsKey(removed)) {
+                throw new IllegalArgumentException("Unsupported search field: " + removed
+                        + "; use the q parameter for text search, or filter by category_uuids / difficulty_uuid");
+            }
+        }
+
         // Extract custom parameters that need special handling
-        String categoryName = searchParams.get("category_name");
-        String difficultyName = searchParams.get("difficulty_name");
         String lifecycleStage = searchParams.get("lifecycle_stage");
         String isPublished = searchParams.get("is_published");
         String isDraft = searchParams.get("is_draft");
@@ -76,16 +82,6 @@ public class CourseSpecificationBuilder {
         String courseCreatorUuid = searchParams.get("course_creator_uuid");
         String instructorUuid = searchParams.getOrDefault("instructor_uuid", searchParams.get("instructor_uuid_eq"));
         String active = searchParams.get("active");
-
-        // Handle category name search
-        if (categoryName != null && !categoryName.trim().isEmpty()) {
-            specifications.add(hasCategoryName(categoryName.trim()));
-        }
-
-        // Handle difficulty name search
-        if (difficultyName != null && !difficultyName.trim().isEmpty()) {
-            specifications.add(hasDifficultyName(difficultyName.trim()));
-        }
 
         // Handle lifecycle stage (computed field)
         if (lifecycleStage != null && !lifecycleStage.trim().isEmpty()) {
@@ -148,8 +144,6 @@ public class CourseSpecificationBuilder {
 
         // Use generic specification helper for remaining standard fields
         Map<String, String> remainingParams = new java.util.HashMap<>(searchParams);
-        remainingParams.remove("category_name");
-        remainingParams.remove("difficulty_name");
         remainingParams.remove("lifecycle_stage");
         remainingParams.remove("is_published");
         remainingParams.remove("is_draft");
@@ -177,41 +171,6 @@ public class CourseSpecificationBuilder {
         return specifications.stream()
                 .reduce((spec1, spec2) -> spec1 == null ? spec2 : spec1.and(spec2))
                 .orElse(null);
-    }
-
-    /**
-     * Search courses by category name.
-     * Uses subquery to check the course_category_mappings junction table.
-     */
-    public Specification<Course> hasCategoryName(String categoryName) {
-        return (root, query, criteriaBuilder) -> {
-            Subquery<UUID> subquery = query.subquery(UUID.class);
-            Root<CourseCategoryMapping> mappingRoot = subquery.from(CourseCategoryMapping.class);
-            Join<CourseCategoryMapping, Category> categoryJoin = mappingRoot.join("category");
-
-            subquery.select(mappingRoot.get("courseUuid"))
-                    .where(criteriaBuilder.like(
-                            criteriaBuilder.lower(categoryJoin.get("name")),
-                            LikePatterns.containsLower(categoryName),
-                            LikePatterns.ESCAPE_CHAR
-                    ));
-
-            return criteriaBuilder.in(root.get("uuid")).value(subquery);
-        };
-    }
-
-    /**
-     * Search courses by difficulty level name.
-     */
-    public Specification<Course> hasDifficultyName(String difficultyName) {
-        return (root, query, criteriaBuilder) -> {
-            Join<Course, DifficultyLevel> difficultyJoin = root.join("difficulty", JoinType.LEFT);
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(difficultyJoin.get("name")),
-                    LikePatterns.containsLower(difficultyName),
-                    LikePatterns.ESCAPE_CHAR
-            );
-        };
     }
 
     /**

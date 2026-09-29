@@ -12,18 +12,18 @@ import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
-import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,7 +41,7 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     private static final CatalogueSearchRouter.Route RUBRIC_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
             RubricSearchSource.DEFINITION,
             Map.of("createddate", "created_at", "createdat", "created_at"),
-            Set.of("status"));
+            Set.of("status", "rubric_type"));
 
     private static final String ASSESSMENT_RUBRIC_NOT_FOUND_TEMPLATE = "Assessment rubric with ID %s not found";
 
@@ -115,7 +115,7 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     public Page<AssessmentRubricDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(AssessmentRubric.class, pageable);
         Specification<AssessmentRubric> spec = specificationBuilder.buildSpecification(
-                AssessmentRubric.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
+                AssessmentRubric.class, CatalogueSearchRouter.withoutQuery(searchParams));
         return assessmentRubricRepository.findAll(spec, pageable).map(AssessmentRubricFactory::toDTO);
     }
 
@@ -126,21 +126,18 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         String q = CatalogueSearchRouter.queryText(searchParams);
         if (q != null) {
             UUID courseCreatorUuid = platformAdmin ? null : domainSecurityService.getCurrentCourseCreatorUuid();
-            Optional<Page<AssessmentRubricDTO>> found = catalogueSearchRouter.search(RUBRIC_SEARCH_ROUTE, q,
+            return catalogueSearchRouter.search(RUBRIC_SEARCH_ROUTE, q,
                     searchParams, pageable,
                     () -> CatalogueSearchScopes.rubrics(platformAdmin, courseCreatorUuid),
                     uuids -> hydrate(uuids, platformAdmin ? null : visibleTo(courseCreatorUuid)),
                     AssessmentRubricDTO::uuid);
-            if (found.isPresent()) {
-                return found.get();
-            }
         }
         if (platformAdmin) {
             return search(searchParams, pageable);
         }
         specificationBuilder.validateSortProperties(AssessmentRubric.class, pageable);
         Specification<AssessmentRubric> spec = specificationBuilder.buildSpecification(
-                AssessmentRubric.class, CatalogueSearchRouter.forDatabase(searchParams, "title_like"));
+                AssessmentRubric.class, CatalogueSearchRouter.withoutQuery(searchParams));
         Specification<AssessmentRubric> visible = visibleToCaller();
         spec = spec == null ? visible : spec.and(visible);
         return assessmentRubricRepository.findAll(spec, pageable).map(AssessmentRubricFactory::toDTO);
@@ -219,37 +216,25 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
                 .map(AssessmentRubricFactory::toDTO);
     }
 
+    /**
+     * Public, active rubrics. Free text goes only to the {@code rubrics} index; the type is an exact,
+     * case-insensitive match on {@code rubric_type} - through the index with text, in SQL without.
+     */
     @Override
     public Page<AssessmentRubricDTO> searchPublicRubrics(String searchTerm, String rubricType, Pageable pageable) {
-        // A type filter is a case-insensitive substring match the index cannot express, so only a
-        // plain text search goes to search; everything else keeps the database queries below.
-        if (searchTerm != null && rubricType == null) {
-            Optional<Page<AssessmentRubricDTO>> found = catalogueSearchRouter.search(RUBRIC_SEARCH_ROUTE,
-                    searchTerm, Map.of(), pageable,
+        String type = StringUtils.hasText(rubricType) ? rubricType.trim() : null;
+        if (StringUtils.hasText(searchTerm)) {
+            Map<String, String> params = type == null ? Map.of() : Map.of("rubric_type", type);
+            return catalogueSearchRouter.search(RUBRIC_SEARCH_ROUTE, searchTerm, params, pageable,
                     CatalogueSearchScopes::publicRubrics,
                     uuids -> hydrate(uuids, publicAndActive()),
                     AssessmentRubricDTO::uuid);
-            if (found.isPresent()) {
-                return found.get();
-            }
         }
-        if (searchTerm != null && rubricType != null) {
-            // Search with both term and type
-            return assessmentRubricRepository.findPublicRubricsBySearchTermAndType(
-                            LikePatterns.escapeLower(searchTerm), LikePatterns.escapeLower(rubricType), pageable)
+        if (type != null) {
+            return assessmentRubricRepository.findPublicActiveByRubricType(type.toLowerCase(Locale.ROOT), pageable)
                     .map(AssessmentRubricFactory::toDTO);
-        } else if (searchTerm != null) {
-            // Search by term only
-            return assessmentRubricRepository.findPublicRubricsBySearchTerm(LikePatterns.escapeLower(searchTerm), pageable)
-                    .map(AssessmentRubricFactory::toDTO);
-        } else if (rubricType != null) {
-            // Filter by type only
-            return assessmentRubricRepository.findByIsPublicTrueAndIsActiveTrueAndRubricTypeContainingIgnoreCaseOrderByCreatedDateDesc(rubricType, pageable)
-                    .map(AssessmentRubricFactory::toDTO);
-        } else {
-            // No filters - return all public rubrics
-            return getPublicRubrics(pageable);
         }
+        return getPublicRubrics(pageable);
     }
 
     @Override

@@ -114,10 +114,13 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Search for assessment rubrics", description = "Searches for assessment rubrics based on a set of filter criteria. Non-admin callers see public rubrics plus their own.\n\n"
-            + "**Free-text search (`q`):** when `q` is present and search is enabled for the rubrics index, it is matched "
-            + "typo-tolerantly against title, rubric type and description and ranked by relevance (unless `sort` names a "
-            + "sortable field: title, created_date, usage_count); the other parameters narrow the result and visibility "
-            + "rules still apply. Otherwise `q` falls back to a case-insensitive `title_like` match.")
+            + "**Free-text search (`q`):** served only by the rubrics search index. `q` is matched typo-tolerantly "
+            + "against title, rubric type and description and ranked by relevance (unless `sort` names a sortable "
+            + "field: title, created_date, usage_count); the other parameters must be filterable on the index "
+            + "(is_public, is_active, status, course_creator_uuid, rubric_type, usage_count, uuid, created_at) or the "
+            + "request is a 400 naming the key, and visibility rules still apply. There is no database fallback: with "
+            + "search or the index's reads off, or the engine down, `q` answers 503 (\"Search is unavailable\"). "
+            + "The `_like`, `_startswith` and `_endswith` operators were removed and answer 400.")
     @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> searchAssessmentRubrics(@RequestParam java.util.Map<String, String> searchParams, Pageable pageable) {
         Page<AssessmentRubricDTO> rubrics = assessmentRubricService.searchForCaller(searchParams, pageable);

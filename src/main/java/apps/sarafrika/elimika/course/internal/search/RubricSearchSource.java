@@ -32,7 +32,7 @@ public class RubricSearchSource implements SearchDocumentSource<RubricSearchDocu
     static final String IS_ACTIVE = "is_active";
     static final String COURSE_CREATOR_UUID = "course_creator_uuid";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
                     List.of("title", "rubric_type", "description"),
                     List.of(IS_PUBLIC, IS_ACTIVE, "status", COURSE_CREATOR_UUID, "rubric_type", "usage_count",
                             "uuid", "created_at"),
@@ -105,6 +105,11 @@ public class RubricSearchSource implements SearchDocumentSource<RubricSearchDocu
         return documents;
     }
 
+    /** Enum-like values are stored lower case, so the engine's exact filters match case-insensitively. */
+    private static String lowerCase(String value) {
+        return value == null ? null : value.toLowerCase(Locale.ROOT);
+    }
+
     private static RubricRow row(ResultSet rs) throws SQLException {
         String status = rs.getString("status");
         return new RubricRow(
@@ -112,10 +117,10 @@ public class RubricSearchSource implements SearchDocumentSource<RubricSearchDocu
                 SearchRows.uuid(rs, "uuid"),
                 rs.getString("title"),
                 rs.getString("description"),
-                rs.getString("rubric_type"),
+                lowerCase(rs.getString("rubric_type")),
                 SearchRows.flag(rs, "is_public"),
                 SearchRows.flag(rs, "is_active"),
-                status == null ? null : status.toLowerCase(Locale.ROOT),
+                lowerCase(status),
                 SearchRows.uuid(rs, "course_creator_uuid"),
                 SearchRows.nullableLong(rs, "created_at"));
     }

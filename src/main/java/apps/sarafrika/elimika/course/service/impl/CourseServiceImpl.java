@@ -90,7 +90,10 @@ public class CourseServiceImpl implements CourseService {
     private static final CatalogueSearchRouter.Route COURSE_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
             CourseSearchSource.DEFINITION,
             Map.of("createddate", "created_at", "createdat", "created_at"),
-            Set.of("status"));
+            Set.of("status"),
+            Map.of("lifecyclestage", "status"),
+            Map.of("ispublished", "published", "isdraft", "draft", "isarchived", "archived",
+                    "isinreview", "in_review"));
 
     @Override
     public CourseDTO createCourse(CourseDTO courseDTO) {
@@ -344,7 +347,7 @@ public class CourseServiceImpl implements CourseService {
         log.debug("Searching courses with params: {}", searchParams);
         courseSpecificationBuilder.validateSortProperties(pageable);
         Specification<Course> spec = courseSpecificationBuilder.buildCourseSpecification(
-                CatalogueSearchRouter.forDatabase(searchParams, "name_like"));
+                CatalogueSearchRouter.withoutQuery(searchParams));
 
         Page<Course> coursePage = courseRepository.findAll(spec, pageable);
 
@@ -358,16 +361,13 @@ public class CourseServiceImpl implements CourseService {
         String q = CatalogueSearchRouter.queryText(searchParams);
         if (q != null) {
             Supplier<CourseCaller> caller = memoize(this::currentCourseCaller);
-            Optional<Page<CourseDTO>> found = catalogueSearchRouter.search(COURSE_SEARCH_ROUTE, q, searchParams, pageable,
+            return catalogueSearchRouter.search(COURSE_SEARCH_ROUTE, q, searchParams, pageable,
                     () -> CatalogueSearchScopes.courses(caller.get().platformAdmin(), caller.get().courseCreatorUuid(),
                             caller.get().relatedCourseUuids()),
                     uuids -> hydrateVisible(uuids, caller.get()),
                     CourseDTO::uuid);
-            if (found.isPresent()) {
-                return found.get();
-            }
         }
-        Map<String, String> params = CatalogueSearchRouter.forDatabase(searchParams, "name_like");
+        Map<String, String> params = CatalogueSearchRouter.withoutQuery(searchParams);
         courseSpecificationBuilder.validateSortProperties(pageable);
         Specification<Course> spec = combine(
                 courseSpecificationBuilder.buildCourseSpecification(params), callerVisibility());

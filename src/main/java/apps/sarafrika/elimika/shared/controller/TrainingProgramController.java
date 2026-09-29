@@ -40,10 +40,15 @@ import java.util.UUID;
 public class TrainingProgramController {
 
     private static final String PROGRAM_QUERY_DOC = """
-                **Free-text search (`q`):** when `q` is present and search is enabled for this index, the
-                query is matched typo-tolerantly and ranked by relevance (unless `sort` names a sortable
-                field: title, created_date); the other parameters narrow the result and visibility rules still apply. Otherwise
-                `q` falls back to a case-insensitive `title_like` match.
+                **Free-text search (`q`):** served only by the programs search index. The query is matched
+                typo-tolerantly and ranked by relevance (unless `sort` names a sortable field: title,
+                created_date). With `q` the other parameters must be filterable on the index (status,
+                is_published, admin_approved, active, is_public, course_creator_uuid, category_uuid,
+                is_free, uuid, created_at; `lifecycle_stage` is accepted as `status`) or the request is a
+                400 naming the key; visibility rules still apply. There is no database fallback: with
+                search or the index's reads off, or the engine down, `q` answers 503 ("Search is
+                unavailable"). The `_like`, `_startswith` and `_endswith` operators were removed and
+                answer 400.
                 """;
 
     public static final String API_ROOT_PATH = "/api/v1/programs";
@@ -217,7 +222,6 @@ public class TrainingProgramController {
                     see live programs (published, admin-approved, active) plus the programs they author.
                     
                     **Common Program Search Examples:**
-                    - `title_like=data science` - Programs with titles containing "data science"
                     - `status=PUBLISHED` - Only published programs
                     - `active=true` - Only active programs
                     - `status_in=PUBLISHED,ACTIVE` - Published or active programs
@@ -229,7 +233,6 @@ public class TrainingProgramController {
                     
                     **Advanced Program Queries:**
                     - `status=PUBLISHED&active=true` - Published, active programs
-                    - `title_like=certification&totalDurationHours_gte=50` - Certification programs 50+ hours
                     - `courseCreatorUuid=uuid&status=PUBLISHED` - Published programs by specific course creator
                     
                     Price is not a search filter; use `GET /programs/free` for free programs.
@@ -705,7 +708,6 @@ public class TrainingProgramController {
                     - `programUuid=uuid` - All requirements for specific program
                     - `requirementType=PREREQUISITE` - Only prerequisites
                     - `isMandatory=true` - Only mandatory requirements
-                    - `requirementText_like=certification` - Requirements mentioning "certification"
                     """
     )
     @GetMapping("/requirements/search")

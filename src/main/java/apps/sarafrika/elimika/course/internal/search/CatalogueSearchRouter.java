@@ -11,7 +11,6 @@ import apps.sarafrika.elimika.shared.search.SearchRequest;
 import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -23,24 +22,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Routes a catalogue read that carries free text ({@code q}) to the search engine, and tells the
- * caller when it must serve the read from the database instead.
+ * Routes a catalogue read that carries free text ({@code q}) to the search engine.
  * <p>
- * A read goes to search only when {@code q} is present and the index is read-enabled. The remaining
+ * Free text is served only by search: there is no database fallback. The remaining
  * {@code searchParams} are translated against the index's filterable allow-list, the caller's scope is
  * ANDed on, and the hits are hydrated back into the endpoint's existing DTOs in hit order, so the
- * response shape does not change. Whenever search cannot answer - it is off, the engine is down, a
- * parameter or sort has no search equivalent, or the page is larger than search allows - the result is
- * empty and the caller runs its existing SQL path, with {@code q} mapped to a {@code *_like} filter.
+ * response shape does not change.
+ * <ul>
+ *     <li>Search off, the index's read flag off, or the engine failing raises
+ *     {@link SearchUnavailableException}, which the global handler maps to 503.</li>
+ *     <li>A parameter or sort with no index equivalent, an unpaged request, or a page larger than
+ *     {@value SearchRequest#MAX_SIZE} raises {@link IllegalArgumentException} naming it (400).</li>
+ * </ul>
+ * Requests without {@code q} never reach this class; the caller serves them from its relational
+ * SQL filters (see {@link #withoutQuery(Map)}).
  */
-@Slf4j
 @Component
 public class CatalogueSearchRouter {
 
@@ -64,34 +66,38 @@ public class CatalogueSearchRouter {
     }
 
     /**
-     * The params the SQL path should see: {@code q} removed (the specification builders reject unknown
-     * keys) and, when there was a query, mapped to {@code likeKey} unless the caller already sent one.
+     * The params the relational SQL path should see: a blank {@code q} removed (the specification
+     * builders reject unknown keys). A {@code q} with text is refused, since the database never
+     * answers free text; callers route those through {@link #search} first.
+     *
+     * @throws IllegalArgumentException when {@code q} carries text on an endpoint without search
      */
-    public static Map<String, String> forDatabase(Map<String, String> searchParams, String likeKey) {
+    public static Map<String, String> withoutQuery(Map<String, String> searchParams) {
         if (searchParams == null || !searchParams.containsKey(QUERY_PARAM)) {
             return searchParams;
         }
-        Map<String, String> params = new HashMap<>(searchParams);
-        String q = queryText(params);
-        params.remove(QUERY_PARAM);
-        if (q != null && likeKey != null) {
-            params.putIfAbsent(likeKey, q);
+        if (queryText(searchParams) != null) {
+            throw new IllegalArgumentException("The q parameter is not supported on this endpoint");
         }
+        Map<String, String> params = new HashMap<>(searchParams);
+        params.remove(QUERY_PARAM);
         return params;
     }
 
     /**
-     * Runs the read through search when it can, or returns empty to send the caller to the database.
+     * Runs a free-text read through search.
      *
      * @param route      the index and the endpoint-specific translation rules
-     * @param q          the free-text query; blank means "use the database"
+     * @param q          the free-text query; must not be blank
      * @param params     the endpoint's other search params (reserved keys are ignored)
      * @param pageable   the bound page request; its sort is honoured only from the sortable allow-list
-     * @param scope      the caller's visibility boundary, built only when search is actually used
+     * @param scope      the caller's visibility boundary
      * @param hydrate    loads the DTOs for the hit UUIDs in one batch query; order does not matter
      * @param uuidOf     the UUID of a hydrated DTO
+     * @throws SearchUnavailableException when search, or this index's reads, are off, or the engine fails (503)
+     * @throws IllegalArgumentException   for a parameter, sort or page the index cannot serve (400)
      */
-    public <T> Optional<Page<T>> search(
+    public <T> Page<T> search(
             Route route,
             String q,
             Map<String, String> params,
@@ -101,31 +107,23 @@ public class CatalogueSearchRouter {
             Function<T, UUID> uuidOf
     ) {
         String index = route.definition().name();
-        if (!StringUtils.hasText(q) || !availability.isReadEnabled(index)) {
-            return Optional.empty();
+        if (!StringUtils.hasText(q)) {
+            throw new IllegalArgumentException("q must not be blank");
         }
-        if (pageable == null || pageable.isUnpaged() || pageable.getPageSize() > SearchRequest.MAX_SIZE) {
-            log.debug("Serving {} query from the database: page size is outside what search allows", index);
-            return Optional.empty();
+        if (pageable == null || pageable.isUnpaged()) {
+            throw new IllegalArgumentException("A request with q must be paged");
         }
-        SearchRequest request;
-        try {
-            SearchFilter filter = SearchParamsTranslator.toFilter(route.normalise(params), route.definition());
-            List<SearchSort> sort = route.toSort(pageable.getSort());
-            request = new SearchRequest(index, q.trim(), filter, scope.get(), sort,
-                    pageable.getPageNumber(), pageable.getPageSize(), List.of(), null);
-        } catch (IllegalArgumentException ex) {
-            log.debug("Serving {} query from the database: {}", index, ex.getMessage());
-            return Optional.empty();
+        if (pageable.getPageSize() > SearchRequest.MAX_SIZE) {
+            throw new IllegalArgumentException("size must be at most " + SearchRequest.MAX_SIZE + " when q is present");
         }
-        SearchPage result;
-        try {
-            result = gateway.search(request);
-        } catch (SearchUnavailableException ex) {
-            log.debug("Search unavailable for {}, falling back to the database: {}", index, ex.getMessage());
-            return Optional.empty();
+        SearchFilter filter = SearchParamsTranslator.toFilter(route.normalise(params), route.definition());
+        List<SearchSort> sort = route.toSort(pageable.getSort());
+        if (!availability.isReadEnabled(index)) {
+            throw new SearchUnavailableException("Search is not enabled for " + index);
         }
-        return Optional.of(toPage(result, pageable, hydrate, uuidOf));
+        SearchRequest request = new SearchRequest(index, q.trim(), filter, scope.get(), sort,
+                pageable.getPageNumber(), pageable.getPageSize(), List.of(), null);
+        return toPage(gateway.search(request), pageable, hydrate, uuidOf);
     }
 
     private static <T> Page<T> toPage(SearchPage result, Pageable pageable,
@@ -149,28 +147,79 @@ public class CatalogueSearchRouter {
      *                            name a document attribute differently, e.g. {@code createddate -> created_at}
      * @param lowercaseAttributes attributes stored lower case (enum values such as {@code status}), whose
      *                            filter values are lower-cased so {@code status=PUBLISHED} keeps working
+     * @param paramAliases        request filter fields (normalised) that name a document attribute
+     *                            differently, e.g. {@code lifecyclestage -> status}
+     * @param statusFlags         boolean request flags (normalised) that stand for one {@code status}
+     *                            value, e.g. {@code ispublished -> published}: {@code true} becomes
+     *                            {@code status = value}, {@code false} becomes {@code status != value}
      */
-    public record Route(SearchIndexDefinition definition, Map<String, String> sortAliases, Set<String> lowercaseAttributes) {
+    public record Route(SearchIndexDefinition definition, Map<String, String> sortAliases,
+                        Set<String> lowercaseAttributes, Map<String, String> paramAliases,
+                        Map<String, String> statusFlags) {
+
+        private static final Set<String> OPERATIONS =
+                Set.of("eq", "noteq", "in", "notin", "gt", "gte", "lt", "lte", "between");
 
         public Route {
             sortAliases = sortAliases == null ? Map.of() : Map.copyOf(sortAliases);
             lowercaseAttributes = lowercaseAttributes == null ? Set.of() : Set.copyOf(lowercaseAttributes);
+            paramAliases = paramAliases == null ? Map.of() : Map.copyOf(paramAliases);
+            statusFlags = statusFlags == null ? Map.of() : Map.copyOf(statusFlags);
         }
 
+        public Route(SearchIndexDefinition definition, Map<String, String> sortAliases, Set<String> lowercaseAttributes) {
+            this(definition, sortAliases, lowercaseAttributes, Map.of(), Map.of());
+        }
+
+        /** Applies the aliases and lower-cases values of lower-case attributes. */
         Map<String, String> normalise(Map<String, String> params) {
-            if (params == null || params.isEmpty() || lowercaseAttributes.isEmpty()) {
+            if (params == null || params.isEmpty()) {
                 return params;
             }
             Map<String, String> normalised = new HashMap<>(params.size());
-            params.forEach((key, value) -> normalised.put(key,
-                    value != null && key != null && lowercaseAttributes.contains(fieldOf(key))
-                            ? value.toLowerCase(Locale.ROOT) : value));
+            params.forEach((key, value) -> {
+                if (key == null) {
+                    return;
+                }
+                String flagStatus = statusFlags.get(squash(key));
+                if (flagStatus != null) {
+                    if (value == null || value.isBlank()) {
+                        return;
+                    }
+                    boolean on = Boolean.parseBoolean(value.trim());
+                    put(normalised, on ? "status" : "status_noteq", flagStatus);
+                    return;
+                }
+                String rewritten = aliasKey(key);
+                put(normalised, rewritten, value != null && lowercaseAttributes.contains(fieldOf(rewritten))
+                        ? value.toLowerCase(Locale.ROOT) : value);
+            });
             return normalised;
+        }
+
+        private static void put(Map<String, String> params, String key, String value) {
+            if (params.containsKey(key)) {
+                throw new IllegalArgumentException("Conflicting filters on " + key);
+            }
+            params.put(key, value);
+        }
+
+        /** {@code lifecycle_stage_in} becomes {@code status_in} when {@code lifecyclestage -> status}. */
+        private String aliasKey(String key) {
+            String field = key;
+            String suffix = "";
+            int lastUnderscore = key.lastIndexOf('_');
+            if (lastUnderscore > 0 && OPERATIONS.contains(key.substring(lastUnderscore + 1).toLowerCase(Locale.ROOT))) {
+                field = key.substring(0, lastUnderscore);
+                suffix = key.substring(lastUnderscore);
+            }
+            String alias = paramAliases.get(squash(field));
+            return alias == null ? key : alias + suffix;
         }
 
         /**
          * The page request's sort as search sorts. Unsorted means relevance. A property outside the
-         * sortable allow-list throws, which sends the read to the database.
+         * sortable allow-list throws, which the global handler turns into a 400 naming it.
          */
         List<SearchSort> toSort(Sort sort) {
             if (sort == null || sort.isUnsorted()) {
@@ -193,7 +242,7 @@ public class CatalogueSearchRouter {
             int lastUnderscore = key.lastIndexOf('_');
             if (lastUnderscore > 0) {
                 String suffix = key.substring(lastUnderscore + 1).toLowerCase(Locale.ROOT);
-                if (Set.of("eq", "noteq", "in", "notin", "gt", "gte", "lt", "lte", "between").contains(suffix)) {
+                if (OPERATIONS.contains(suffix)) {
                     field = key.substring(0, lastUnderscore);
                 }
             }

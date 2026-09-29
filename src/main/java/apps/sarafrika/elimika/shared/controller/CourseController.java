@@ -58,11 +58,16 @@ public class CourseController {
     public static final String API_ROOT_PATH = "/api/v1/courses";
 
     private static final String COURSE_QUERY_DOC = """
-                **Free-text search (`q`):** when `q` is present and search is enabled for this index, the
-                query is matched typo-tolerantly and ranked by relevance (unless `sort` names a sortable
-                field: name, created_date, price,
-                rating_avg, enrolment_count); the other parameters narrow the result and visibility rules still apply. Otherwise
-                `q` falls back to a case-insensitive `name_like` match.
+                **Free-text search (`q`):** served only by the courses search index. The query is matched
+                typo-tolerantly and ranked by relevance (unless `sort` names a sortable field: name,
+                created_date, price, rating_avg, enrolment_count). With `q` the other parameters must be
+                filterable on the index (status, active, admin_approved, is_public, course_creator_uuid,
+                category_uuids, difficulty_uuid, is_free, price, uuid, created_at; `lifecycle_stage` and
+                `is_published` / `is_draft` / `is_archived` / `is_in_review` are accepted as `status`) or the
+                request is a 400 naming the key; visibility rules still apply. There is no database
+                fallback: with search or the index's reads off, or the engine down, `q` answers 503
+                ("Search is unavailable"). The `_like`, `_startswith` and `_endswith` operators were
+                removed and answer 400.
                 """;
 
     private static Map<String, String> queryOnly(String q) {
@@ -408,13 +413,11 @@ public class CourseController {
                 **Category-Specific Search Examples:**
                 - `categoryUuids_in=uuid1,uuid2` - Courses in any of these categories
                 - `categoryUuids_contains=uuid` - Courses containing specific category
-                - `categoryNames_like=programming` - Courses in categories with "programming" in the name
                 - `categoryCount_gte=2` - Courses assigned to 2 or more categories
                 - `hasMultipleCategories=true` - Courses with multiple category assignments
                 
                 **Combined Search Examples:**
                 - `status=PUBLISHED&categoryUuids_in=uuid1,uuid2&price_lte=100` - Published courses under $100 in specific categories
-                - `name_like=java&categoryNames_like=programming&active=true` - Active Java courses in programming categories
                 
                 For complete operator documentation, see the general course search endpoint.
                 """ + COURSE_QUERY_DOC

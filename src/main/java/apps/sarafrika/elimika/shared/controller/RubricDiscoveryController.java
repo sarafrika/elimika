@@ -51,17 +51,19 @@ public class RubricDiscoveryController {
 
     @Operation(
             summary = "Search public rubrics",
-            description = "Searches public, active rubrics by title, description, and optionally by rubric type.\n\n"
-                    + "When search is enabled for the rubrics index and no `type` is given, `q` is matched "
-                    + "typo-tolerantly against title, rubric type and description and results are ranked by "
-                    + "relevance; otherwise `q` is a case-insensitive substring match on title or description, "
-                    + "newest first."
+            description = "Searches public, active rubrics.\n\n"
+                    + "`q` is served by the rubrics search index only: it is matched typo-tolerantly against "
+                    + "title, rubric type and description and results are ranked by relevance. There is no "
+                    + "database fallback - with search or the rubrics index's reads off, or the engine down, a "
+                    + "request with `q` answers 503. `type` is an exact, case-insensitive rubric type match; "
+                    + "without `q` it is served from the database, newest first."
     )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "q was sent and search is unavailable")
     @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> searchPublicRubrics(
-            @Parameter(description = "Search term to match in title or description", required = false)
+            @Parameter(description = "Free-text query, served by the search index", required = false)
             @RequestParam(required = false) String q,
-            @Parameter(description = "Filter by rubric type", required = false)
+            @Parameter(description = "Exact rubric type, case-insensitive", required = false)
             @RequestParam(required = false) String type,
             Pageable pageable) {
         
