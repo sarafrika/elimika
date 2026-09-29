@@ -5,7 +5,7 @@ import lombok.Getter;
 
 /**
  * Enum for document status
- * Must match the database enum: document_status_enum
+ * Stored uppercase in a varchar column guarded by a CHECK constraint
  */
 @Getter
 public enum DocumentStatus {

@@ -3,10 +3,9 @@ package apps.sarafrika.elimika.tenancy.entity;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.shared.utils.Filterable;
+import apps.sarafrika.elimika.shared.utils.converter.GenderConverter;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 
@@ -55,9 +54,8 @@ public class User extends BaseEntity {
     @Column(name = "keycloak_id")
     private String keycloakId;
 
-    @Column(name="gender", columnDefinition = "gender")
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    @Convert(converter = GenderConverter.class)
     @Filterable
     private Gender gender;
 

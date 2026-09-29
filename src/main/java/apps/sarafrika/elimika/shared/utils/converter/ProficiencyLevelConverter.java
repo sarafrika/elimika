@@ -24,6 +24,6 @@ public class ProficiencyLevelConverter implements AttributeConverter<Proficiency
         if (dbData == null) {
             return null;
         }
-        return ProficiencyLevel.fromValue(dbData.trim());
+        return ProficiencyLevel.fromValue(dbData.trim().toUpperCase(Locale.ROOT));
     }
 }

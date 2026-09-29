@@ -9,7 +9,7 @@ import java.util.Map;
 
 /**
  * Enum for skill proficiency levels shared across instructor and course creator domains.
- * Must match the database enum: proficiency_level_enum
+ * Stored uppercase in a varchar column guarded by a CHECK constraint
  */
 @Getter
 public enum ProficiencyLevel {

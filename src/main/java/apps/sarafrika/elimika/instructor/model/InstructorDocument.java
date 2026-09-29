@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.instructor.model;
 
+import apps.sarafrika.elimika.shared.utils.converter.DocumentStatusConverter;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
@@ -9,8 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -91,9 +90,8 @@ public class InstructorDocument extends BaseEntity {
     private String verificationNotes;
 
     // Status
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", columnDefinition = "document_status_enum")
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status")
+    @Convert(converter = DocumentStatusConverter.class)
     @Filterable
     private DocumentStatus status;
 
