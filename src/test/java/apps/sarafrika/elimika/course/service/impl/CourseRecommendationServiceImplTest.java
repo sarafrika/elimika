@@ -9,12 +9,14 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -39,6 +42,8 @@ class CourseRecommendationServiceImplTest {
     private CourseCreatorLookupService courseCreatorLookupService;
     @Mock
     private InstructorLookupService instructorLookupService;
+    @Mock
+    private DomainSecurityService domainSecurityService;
 
     @InjectMocks
     private CourseRecommendationServiceImpl service;
@@ -56,9 +61,9 @@ class CourseRecommendationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid))
+        lenient().when(courseCreatorLookupService.findCourseCreatorUuidByUserUuid(userUuid))
                 .thenReturn(Optional.of(creatorUuid));
-        when(instructorLookupService.findInstructorUuidByUserUuid(userUuid))
+        lenient().when(instructorLookupService.findInstructorUuidByUserUuid(userUuid))
                 .thenReturn(Optional.empty());
     }
 
@@ -68,6 +73,9 @@ class CourseRecommendationServiceImplTest {
         course.setName(name);
         course.setDifficultyUuid(difficultyUuid);
         course.setCreatedDate(created);
+        course.setStatus(ContentStatus.PUBLISHED);
+        course.setAdminApproved(true);
+        course.setActive(true);
         return course;
     }
 
@@ -114,5 +122,40 @@ class CourseRecommendationServiceImplTest {
         assertThat(result).extracting(RecommendedCourseDTO::courseUuid)
                 .containsExactly(candidateShared, candidateUnrelated);
         assertThat(result).allSatisfy(dto -> assertThat(dto.reason()).isEqualTo("Popular right now"));
+    }
+
+    @Test
+    void neverRecommendsUnapprovedOrInactiveCourses() {
+        when(courseRepository.findUuidsByCourseCreatorUuid(creatorUuid)).thenReturn(List.of());
+        lenient().when(courseRepository.findByUuidIn(any())).thenReturn(List.of());
+
+        Course approved = course(candidateShared, "Approved Course", null, LocalDateTime.now().minusDays(1));
+        Course unapproved = course(candidateUnrelated, "Unapproved Course", null, LocalDateTime.now());
+        unapproved.setAdminApproved(false);
+        Course inactive = course(pastCourse, "Inactive Course", null, LocalDateTime.now());
+        inactive.setActive(false);
+        when(courseRepository.findByStatus(ContentStatus.PUBLISHED)).thenReturn(List.of(unapproved, inactive, approved));
+
+        List<RecommendedCourseDTO> result = service.recommendForUser(userUuid, 6);
+
+        assertThat(result).extracting(RecommendedCourseDTO::courseUuid).containsExactly(candidateShared);
+    }
+
+    @Test
+    void refusesAnotherUsersRecommendationsToANonAdmin() {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(UUID.randomUUID());
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.recommendForCaller(userUuid, 6))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void defaultsToTheCallerWhenNoUserIsGiven() {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(userUuid);
+        when(courseRepository.findUuidsByCourseCreatorUuid(creatorUuid)).thenReturn(List.of());
+        when(courseRepository.findByStatus(ContentStatus.PUBLISHED)).thenReturn(List.of());
+
+        assertThat(service.recommendForCaller(null, 6)).isEmpty();
     }
 }

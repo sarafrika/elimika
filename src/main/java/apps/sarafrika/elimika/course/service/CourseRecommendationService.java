@@ -24,4 +24,13 @@ public interface CourseRecommendationService {
      * @return an ordered list of recommendations, strongest match first
      */
     List<RecommendedCourseDTO> recommendForUser(UUID userUuid, int limit);
+
+    /**
+     * Recommendations requested by the current caller. A missing {@code requestedUserUuid} means the
+     * caller; only a platform admin may ask on behalf of another user.
+     *
+     * @throws org.springframework.security.access.AccessDeniedException when a non-admin asks for
+     *                                                                   another user
+     */
+    List<RecommendedCourseDTO> recommendForCaller(UUID requestedUserUuid, int limit);
 }

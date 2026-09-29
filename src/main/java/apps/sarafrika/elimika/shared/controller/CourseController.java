@@ -147,19 +147,22 @@ public class CourseController {
                 level overlap with the user's past courses (authored and/or approved-to-train),
                 excluding courses already taken. Falls back to the most recently published courses
                 when the user has no usable history. Each result carries a short reason.
+
+                `user_uuid` defaults to the caller; only a platform admin may request another user's.
                 """,
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Recommendations retrieved successfully")
+                    @ApiResponse(responseCode = "200", description = "Recommendations retrieved successfully"),
+                    @ApiResponse(responseCode = "403", description = "Requested another user's recommendations")
             }
     )
     @GetMapping("/recommendations")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<java.util.List<RecommendedCourseDTO>>> getCourseRecommendations(
-            @Parameter(description = "UUID of the user to recommend for", required = true)
-            @RequestParam("user_uuid") java.util.UUID userUuid,
+            @Parameter(description = "UUID of the user to recommend for; defaults to the caller")
+            @RequestParam(value = "user_uuid", required = false) java.util.UUID userUuid,
             @Parameter(description = "Maximum number of recommendations to return (default 6, max 50)")
             @RequestParam(value = "limit", defaultValue = "6") int limit) {
         java.util.List<RecommendedCourseDTO> recommendations =
-                courseRecommendationService.recommendForUser(userUuid, limit);
+                courseRecommendationService.recommendForCaller(userUuid, limit);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(recommendations, "Course recommendations retrieved successfully"));
     }

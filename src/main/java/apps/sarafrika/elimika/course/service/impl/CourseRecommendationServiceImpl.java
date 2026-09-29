@@ -11,8 +11,10 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseTrainingApplicationStatus;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +51,19 @@ public class CourseRecommendationServiceImpl implements CourseRecommendationServ
     private final CourseTrainingApplicationRepository trainingApplicationRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final InstructorLookupService instructorLookupService;
+    private final DomainSecurityService domainSecurityService;
+
+    @Override
+    public List<RecommendedCourseDTO> recommendForCaller(UUID requestedUserUuid, int limit) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        if (requestedUserUuid == null) {
+            return recommendForUser(callerUuid, limit);
+        }
+        if (!requestedUserUuid.equals(callerUuid) && !domainSecurityService.isPlatformAdmin()) {
+            throw new AccessDeniedException("You can only request recommendations for yourself.");
+        }
+        return recommendForUser(requestedUserUuid, limit);
+    }
 
     @Override
     public List<RecommendedCourseDTO> recommendForUser(UUID userUuid, int limit) {
@@ -77,7 +92,7 @@ public class CourseRecommendationServiceImpl implements CourseRecommendationServ
 
         final List<Scored> scored = new ArrayList<>();
         for (Course candidate : courseRepository.findByStatus(ContentStatus.PUBLISHED)) {
-            if (pastCourseUuids.contains(candidate.getUuid())) {
+            if (!isRecommendable(candidate) || pastCourseUuids.contains(candidate.getUuid())) {
                 continue;
             }
             final Set<UUID> candidateCategories = categoriesOf(candidate.getUuid());
@@ -135,12 +150,24 @@ public class CourseRecommendationServiceImpl implements CourseRecommendationServ
 
     private List<RecommendedCourseDTO> popularityFallback(Set<UUID> excluded, int limit) {
         return courseRepository.findByStatus(ContentStatus.PUBLISHED).stream()
+                .filter(this::isRecommendable)
                 .filter(course -> !excluded.contains(course.getUuid()))
                 .sorted(Comparator.comparing(Course::getCreatedDate,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(limit)
                 .map(course -> toDto(course, 0.0, "Popular right now"))
                 .toList();
+    }
+
+    /**
+     * Only the public catalogue is recommended: published, admin-approved, active, and never a
+     * shadow draft holding a pending edit.
+     */
+    private boolean isRecommendable(Course course) {
+        return course.getStatus() == ContentStatus.PUBLISHED
+                && Boolean.TRUE.equals(course.getAdminApproved())
+                && Boolean.TRUE.equals(course.getActive())
+                && course.getParentCourseUuid() == null;
     }
 
     private String reasonFor(Scored scored) {
