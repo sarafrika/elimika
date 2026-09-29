@@ -45,6 +45,7 @@ public class RubricMatrixController {
             summary = "Get complete rubric matrix",
             description = "Retrieves the complete rubric matrix including all criteria, scoring levels, matrix cells, and statistics."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricMatrixDTO>> getRubricMatrix(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -88,6 +89,7 @@ public class RubricMatrixController {
             summary = "Validate rubric matrix",
             description = "Validates the rubric matrix for completeness, weight consistency, and readiness for use."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/validate", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricMatrixService.MatrixValidationResult>> validateMatrix(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -106,6 +108,7 @@ public class RubricMatrixController {
             summary = "Get matrix statistics",
             description = "Retrieves statistical information about the matrix including completion percentage and score calculations."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/stats", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricMatrixDTO.MatrixStatisticsDTO>> getMatrixStatistics(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -119,6 +122,7 @@ public class RubricMatrixController {
             summary = "Check matrix readiness",
             description = "Quick check to determine if the rubric matrix is ready for use in assessments."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/ready", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkMatrixReadiness(
             @Parameter(description = "UUID of the rubric", required = true)

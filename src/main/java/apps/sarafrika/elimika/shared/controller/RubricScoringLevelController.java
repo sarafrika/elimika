@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -82,6 +83,7 @@ public class RubricScoringLevelController {
             summary = "Get all scoring levels for a rubric",
             description = "Retrieves all custom scoring levels for the specified rubric, ordered by level order."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> getScoringLevelsByRubric(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -98,6 +100,7 @@ public class RubricScoringLevelController {
             summary = "Get a specific scoring level",
             description = "Retrieves a specific scoring level by its UUID within the context of the rubric."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/{levelUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricScoringLevelDTO>> getScoringLevel(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -106,6 +109,11 @@ public class RubricScoringLevelController {
             @PathVariable UUID levelUuid) {
         
         RubricScoringLevelDTO scoringLevel = rubricScoringLevelService.getRubricScoringLevelByUuid(levelUuid);
+        // Read access was granted on the path rubric, so the level must belong to it.
+        if (!rubricUuid.equals(scoringLevel.rubricUuid())) {
+            throw new ResourceNotFoundException(String.format(
+                    "Scoring level %s not found in rubric %s", levelUuid, rubricUuid));
+        }
         return ResponseEntity.ok(ApiResponse.success(scoringLevel, "Scoring level retrieved successfully"));
     }
 
@@ -146,6 +154,7 @@ public class RubricScoringLevelController {
             summary = "Get passing scoring levels",
             description = "Retrieves only the scoring levels that are marked as passing for the specified rubric."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/passing", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<RubricScoringLevelDTO>>> getPassingScoringLevels(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -161,6 +170,7 @@ public class RubricScoringLevelController {
             summary = "Get highest scoring level",
             description = "Retrieves the highest performance scoring level (level_order = 1) for the specified rubric."
     )
+    @PreAuthorize(AssessmentRubricController.READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/highest", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricScoringLevelDTO>> getHighestScoringLevel(
             @Parameter(description = "UUID of the rubric", required = true)

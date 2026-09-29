@@ -38,20 +38,19 @@ public class AssessmentRubricController {
     static final String MANAGEMENT_ACCESS = "@domainSecurityService.hasAnyDomain("
             + USER_DOMAIN + ".course_creator, " + USER_DOMAIN + ".instructor, " + USER_DOMAIN + ".admin)";
     /**
-     * A learner marked against a rubric has to be able to read the criteria and scoring levels
-     * they are being judged on — but only for rubrics attached to a course they are enrolled in,
-     * which is what {@code learnerContentAccess.canReadRubric} resolves. Applied to single-rubric
-     * reads only; listing and searching every rubric on the platform stays management-only, as do
-     * all writes.
+     * Single-rubric reads (the rubric, its criteria, scoring and matrix) follow the rubric's own
+     * read rule, {@code courseSecurityService.canReadRubric}: a public rubric is readable by any
+     * authenticated caller; a private one by its author, a platform admin, or the authors, approved
+     * trainers and enrolled learners of a course that uses it. Listing and searching stay
+     * management-only.
      * <p>
-     * A method-level {@code @PreAuthorize} <em>replaces</em> the class-level one rather than
-     * being ANDed with it, so the management clause is restated in each variant below. The two
-     * variants differ only in the path-variable name the rubric arrives under.
+     * A method-level {@code @PreAuthorize} <em>replaces</em> the class-level one rather than being
+     * ANDed with it. The two variants differ only in the path-variable name the rubric arrives under.
      */
-    static final String READ_ACCESS_BY_UUID = MANAGEMENT_ACCESS
-            + " or @learnerContentAccess.canReadRubric(#uuid)";
-    static final String READ_ACCESS_BY_RUBRIC_UUID = MANAGEMENT_ACCESS
-            + " or @learnerContentAccess.canReadRubric(#rubricUuid)";
+    static final String READ_ACCESS_BY_UUID = "@domainSecurityService.isPlatformAdmin()"
+            + " or @courseSecurityService.canReadRubric(#uuid)";
+    public static final String READ_ACCESS_BY_RUBRIC_UUID = "@domainSecurityService.isPlatformAdmin()"
+            + " or @courseSecurityService.canReadRubric(#rubricUuid)";
 
     /**
      * Writes are restricted to the rubric's author (its course creator) and platform admins; holding
@@ -196,6 +195,7 @@ public class AssessmentRubricController {
 
 
     @Operation(summary = "Validate rubric matrix", description = "Validates the matrix for completeness and consistency before use in assessments.")
+    @PreAuthorize(READ_ACCESS_BY_RUBRIC_UUID)
     @GetMapping(value = "/{rubricUuid}/validate-matrix", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricMatrixService.MatrixValidationResult>> validateMatrix(@PathVariable UUID rubricUuid) {
         RubricMatrixService.MatrixValidationResult validation = rubricMatrixService.validateMatrix(rubricUuid);

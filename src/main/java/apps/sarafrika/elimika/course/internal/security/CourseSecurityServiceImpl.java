@@ -717,6 +717,40 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     }
 
     /**
+     * True when the caller may read the rubric and its criteria, scoring levels and matrix.
+     * <p>
+     * A public rubric is readable by any authenticated caller. A private one is readable by its
+     * author and by anyone with a real relationship to a course that uses it: the course's author,
+     * an instructor or organisation approved to teach it (they grade against it), or a learner
+     * enrolled in it (they are graded against it). Platform admins are granted at the endpoint.
+     * A rubric that does not exist is not readable.
+     */
+    public boolean canReadRubric(UUID rubricUuid) {
+        if (rubricUuid == null) {
+            return false;
+        }
+        try {
+            AssessmentRubric rubric = assessmentRubricRepository.findByUuid(rubricUuid).orElse(null);
+            if (rubric == null) {
+                return false;
+            }
+            if (Boolean.TRUE.equals(rubric.getIsPublic()) || isRubricOwner(rubricUuid)) {
+                return true;
+            }
+            List<UUID> usingCourses = assessmentRubricRepository.findCourseUuidsUsingRubric(rubricUuid);
+            if (usingCourses.isEmpty()) {
+                return false;
+            }
+            Set<UUID> manageable = manageableCourseUuids();
+            Set<UUID> enrolled = enrolledCourseUuids();
+            return usingCourses.stream().anyMatch(course -> manageable.contains(course) || enrolled.contains(course));
+        } catch (Exception e) {
+            log.error("Error checking rubric read access for rubric: {}", rubricUuid, e);
+            return false;
+        }
+    }
+
+    /**
      * True when the caller may attach the rubric to a course: it is public or their own.
      */
     public boolean canUseRubric(UUID rubricUuid) {

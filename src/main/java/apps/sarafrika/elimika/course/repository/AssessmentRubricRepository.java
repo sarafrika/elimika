@@ -141,4 +141,30 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
      * @return count of the course creator's rubrics
      */
     long countByCourseCreatorUuidAndIsActiveTrue(UUID courseCreatorUuid);
+
+    /**
+     * The courses that use a rubric: through a course-rubric association, a course assessment or one
+     * of its line items, or an assignment or quiz in one of the course's lessons.
+     *
+     * @param rubricUuid the rubric
+     * @return the UUIDs of the courses using it
+     */
+    @Query(value = """
+            SELECT course_uuid FROM course_rubric_associations WHERE rubric_uuid = :rubricUuid
+            UNION
+            SELECT course_uuid FROM course_assessments WHERE rubric_uuid = :rubricUuid
+            UNION
+            SELECT ca.course_uuid FROM course_assessment_line_items li
+                JOIN course_assessments ca ON ca.uuid = li.course_assessment_uuid
+                WHERE li.rubric_uuid = :rubricUuid
+            UNION
+            SELECT l.course_uuid FROM assignments a
+                JOIN lessons l ON l.uuid = a.lesson_uuid
+                WHERE a.rubric_uuid = :rubricUuid
+            UNION
+            SELECT l.course_uuid FROM quizzes q
+                JOIN lessons l ON l.uuid = q.lesson_uuid
+                WHERE q.rubric_uuid = :rubricUuid
+            """, nativeQuery = true)
+    List<UUID> findCourseUuidsUsingRubric(@Param("rubricUuid") UUID rubricUuid);
 }
