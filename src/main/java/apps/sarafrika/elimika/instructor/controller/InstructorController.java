@@ -129,11 +129,23 @@ public class InstructorController {
 
     @Operation(
             summary = "Get all instructors",
-            description = "Fetches a paginated list of instructors."
+            description = """
+                    Fetches a paginated list of instructors.
+                   \s
+                    **Free-text search (`q`):** optional. When the instructor search index is enabled, `q` is
+                    matched typo-tolerantly against name, headline, skills, experience, location and bio, and
+                    results come back in relevance order (or by `sort` over `full_name`, `rating_avg`,
+                    `review_count`, `created_at`). Only admin-verified instructors are returned to callers
+                    who are not platform admins. When search is disabled or unavailable, `q` falls back to
+                    a case-insensitive match on the full name. Without `q` the list is unchanged.
+                    """
     )
     @GetMapping
-    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorDTO>>> getAllInstructors(Pageable pageable) {
-        Page<InstructorDTO> instructors = instructorService.getAllInstructors(pageable);
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorDTO>>> getAllInstructors(
+            @Parameter(description = "Optional free-text query; see the operation description.")
+            @RequestParam(value = "q", required = false) String q,
+            Pageable pageable) {
+        Page<InstructorDTO> instructors = instructorService.getAllInstructors(q, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(instructors, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -219,7 +231,19 @@ public class InstructorController {
                     - String, UUID, Boolean (true/false or 1/0), Integer, Long, Double, Float, BigDecimal
                     - Date (YYYY-MM-DD), Timestamp, LocalDateTime (ISO format)
                    \s
+                    **Free-text search (`q`):**
+                    - `q=python` - Optional. When the instructor search index is enabled, `q` is matched
+                      typo-tolerantly against name, headline, skills, experience, location and bio, in
+                      relevance order. Alongside `q` the other keys filter the index and are limited to
+                      `admin_verified`, `active`, `skills`, `skill_levels`, `location_name`, `uuid` and
+                      `created_at` (operators `eq, noteq, in, notin, gt, gte, lt, lte, between`); `sort` is
+                      limited to `full_name`, `rating_avg`, `review_count`, `created_at`. Anything else is a
+                      400. Callers who are not platform admins only see admin-verified instructors.
+                    - When search is disabled or unavailable, `q` falls back to `fullName_like` and the
+                      other keys keep their database meaning. Without `q` nothing changes.
+                   \s
                     **Examples:**
+                    - `/search?q=pyhton&skill_levels=EXPERT`
                     - `/search?firstName_like=john&isActive=true&createdDate_gte=2024-01-01T00:00:00`
                     - `/search?experience_gt=5&status_in=ACTIVE,VERIFIED`
                     - `/search?email_endswith=@company.com&department_noteq=IT`

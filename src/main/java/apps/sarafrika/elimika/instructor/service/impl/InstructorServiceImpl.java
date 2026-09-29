@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
+import apps.sarafrika.elimika.instructor.search.InstructorSearchReader;
 import apps.sarafrika.elimika.instructor.service.InstructorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,8 +42,11 @@ public class InstructorServiceImpl implements InstructorService {
 
     private final GenericSpecificationBuilder<Instructor> specificationBuilder;
     private final DomainSecurityService domainSecurityService;
+    private final InstructorSearchReader instructorSearchReader;
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
+    private static final String QUERY_PARAM = "q";
+    private static final String FULL_NAME_LIKE_PARAM = "fullName_like";
 
     @Override
     public InstructorDTO createInstructor(InstructorDTO instructorDTO) {
@@ -69,7 +75,12 @@ public class InstructorServiceImpl implements InstructorService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<InstructorDTO> getAllInstructors(Pageable pageable) {
+    public Page<InstructorDTO> getAllInstructors(String q, Pageable pageable) {
+        if (StringUtils.hasText(q)) {
+            Map<String, String> searchParams = new HashMap<>();
+            searchParams.put(QUERY_PARAM, q);
+            return search(searchParams, pageable);
+        }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         return instructorRepository.findAll(pageable).map(this::toDirectoryDTO);
     }
@@ -99,8 +110,22 @@ public class InstructorServiceImpl implements InstructorService {
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        Map<String, String> params = searchParams == null ? new HashMap<>() : new HashMap<>(searchParams);
+        // q is free text, never a column: it must not reach the specification builder.
+        String q = params.remove(QUERY_PARAM);
+        if (StringUtils.hasText(q)) {
+            if (instructorSearchReader.handles(q)) {
+                Page<Instructor> hits = instructorSearchReader
+                        .search(q, params, pageable, domainSecurityService.isPlatformAdmin())
+                        .orElse(null);
+                if (hits != null) {
+                    return hits.map(this::toDirectoryDTO);
+                }
+            }
+            params.putIfAbsent(FULL_NAME_LIKE_PARAM, q.trim());
+        }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
-        Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, searchParams);
+        Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, params);
         return instructorRepository.findAll(spec, pageable).map(this::toDirectoryDTO);
     }
 

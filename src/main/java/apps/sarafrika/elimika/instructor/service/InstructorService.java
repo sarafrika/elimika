@@ -12,9 +12,17 @@ import java.util.UUID;
 public interface InstructorService {
     InstructorDTO createInstructor(InstructorDTO instructorDTO);
     InstructorDTO getInstructorByUuid(UUID uuid);
-    Page<InstructorDTO> getAllInstructors(Pageable pageable);
+    /**
+     * Lists instructors. With a {@code q}, matches it against the directory: through the search index
+     * when reads are enabled for it, otherwise as a case-insensitive full-name match.
+     */
+    Page<InstructorDTO> getAllInstructors(String q, Pageable pageable);
     InstructorDTO updateInstructor(UUID uuid, InstructorDTO instructorDTO);
     void deleteInstructor(UUID uuid);
+    /**
+     * Filters instructors by {@code searchParams}. A {@code q} key is free text, served like
+     * {@link #getAllInstructors(String, Pageable)}; every other key keeps its filter meaning.
+     */
     Page<InstructorDTO> search(Map<String, String> searchParams, Pageable pageable);
 
     // ================================
