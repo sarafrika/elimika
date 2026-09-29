@@ -151,6 +151,10 @@ public class SecurityConfiguration {
                             // Whether this environment collects money decides how the cart routes
                             // a learner, which the page must know before anyone signs in.
                             .requestMatchers(HttpMethod.GET, "/api/v1/commerce/payment-mode").permitAll()
+                            // Global search answers anonymous visitors too; each type's provider
+                            // scopes them to the public catalogue (courses, programs,
+                            // organisations, public classes) and hides every other type.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/search", "/api/v1/search/*").permitAll()
                             // Invitation and guardian-consent links must be readable by someone
                             // who has no account yet; acting on them still requires a sign-in.
                             .requestMatchers(HttpMethod.GET, "/api/v1/invitations/token/*").permitAll()
