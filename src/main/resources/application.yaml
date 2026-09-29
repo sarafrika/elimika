@@ -11,6 +11,13 @@ spring:
       max-file-size: 500MB
       max-request-size: 500MB
 
+  # Keep Boot's applicationTaskExecutor (and keep it the default for @Async) even when a module
+  # declares its own Executor bean - the search module's single-threaded searchIndexExecutor would
+  # otherwise make Boot back off and leave every other @Async method on that one thread.
+  task:
+    execution:
+      mode: force
+
   modulith:
     detection-strategy: explicitly-annotated
     republish-outstanding-events-on-restart: true
@@ -166,6 +173,28 @@ wallet:
       interval: ${WALLET_LEDGER_RECONCILIATION_INTERVAL:PT1H}
       batch-size: ${WALLET_LEDGER_RECONCILIATION_BATCH_SIZE:500}
       max-batches-per-run: ${WALLET_LEDGER_RECONCILIATION_MAX_BATCHES:20}
+
+# Search (Meilisearch). Off by default: with SEARCH_ENABLED=false nothing is indexed, no HTTP call is
+# made and every search falls back to the database. PostgreSQL stays the source of truth; indexes are
+# disposable projections rebuilt through POST /api/v1/admin/search/... See docs/guides/search-platform.md.
+search:
+  enabled: ${SEARCH_ENABLED:false}
+  # Rebuild an index on startup when its definition's schema version moved on.
+  auto-rebuild: ${SEARCH_AUTO_REBUILD:false}
+  # Reads are opted in per index, independently of indexing, e.g. SEARCH_READENABLED_COURSES=true
+  # or search.read-enabled.courses=true.
+  read-enabled: {}
+  reconcile-interval: ${SEARCH_RECONCILE_INTERVAL:PT1H}
+  resubmit-interval: ${SEARCH_RESUBMIT_INTERVAL:PT5M}
+  resubmit-older-than: ${SEARCH_RESUBMIT_OLDER_THAN:PT5M}
+  rebuild-batch-size: ${SEARCH_REBUILD_BATCH_SIZE:500}
+  meilisearch:
+    host: ${SEARCH_MEILISEARCH_HOST:http://meilisearch:7700}
+    # A scoped key (search + documents + indexes + settings + tasks + stats), never the master key.
+    api-key: ${SEARCH_MEILISEARCH_API_KEY:}
+    connect-timeout: ${SEARCH_MEILISEARCH_CONNECT_TIMEOUT:PT2S}
+    read-timeout: ${SEARCH_MEILISEARCH_READ_TIMEOUT:PT5S}
+    task-wait-timeout: ${SEARCH_MEILISEARCH_TASK_WAIT_TIMEOUT:PT30S}
 
 mpesa:
   service:
