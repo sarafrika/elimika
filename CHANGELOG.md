@@ -1,3 +1,78 @@
+# [2.153.0](https://github.com/sarafrika/elimika/compare/v2.152.0...v2.153.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **admin:** page admin and admin-eligible user lists in the database ([8e22860](https://github.com/sarafrika/elimika/commit/8e2286058e8b44850f785171bb30313fe42e5332))
+* **classes:** apply class search filters in the database fallback of q listings ([c10b312](https://github.com/sarafrika/elimika/commit/c10b312b54cb786974fea21964b72dba6bb5d85d))
+* **classes:** keep the public sale price sortable on class listings and their search path ([f8c3d9d](https://github.com/sarafrika/elimika/commit/f8c3d9df14583a041a0ab6a8a99890a1aee51dda))
+* **classes:** scope class listings to active public classes unless the caller staffs, teaches or studies in them ([2f417ba](https://github.com/sarafrika/elimika/commit/2f417ba70debc3c8af1c57507810a63e574c3d13))
+* **commerce:** show hidden or inactive catalogue entries to platform admins only ([c5f4012](https://github.com/sarafrika/elimika/commit/c5f40124d1f2831877a135a8324217f3cde5a472))
+* **config:** restrict system configuration writes to platform admins ([88c8fe5](https://github.com/sarafrika/elimika/commit/88c8fe54dbaf50c5b00c405dfb881d1413a63246))
+* **coursecreator:** restrict course creator certification, membership and education reads to credential readers ([3669374](https://github.com/sarafrika/elimika/commit/3669374362159c496cfb83305e37827652bf0d6c))
+* **course:** ignore course_creator_uuid on course and program updates so ownership never changes ([39e08b0](https://github.com/sarafrika/elimika/commit/39e08b068e0a3a800e361f875eb828e7ec955496))
+* **course:** list the courses an instructor may deliver on the instructor courses endpoint ([6aefc3d](https://github.com/sarafrika/elimika/commit/6aefc3d6b529a53b9b3273e5f9cb15340432fc13))
+* **course:** restrict course recommendations to the caller and the approved catalogue ([32022f6](https://github.com/sarafrika/elimika/commit/32022f60370924a527c9c0180bffbf822f320ed9))
+* **course:** scope course listings and course reads to what the caller may see ([19b2cd4](https://github.com/sarafrika/elimika/commit/19b2cd448a7ca3c61abe07a68bb0ed0df48f9ef4))
+* **instructor:** apply one visibility rule to database and search instructor listings ([acb8494](https://github.com/sarafrika/elimika/commit/acb8494478d6bb6a83ca6392d4955356c5688eb9))
+* **marketplace:** show non-open jobs only to admins and the posting organisation's staff ([83dd7f7](https://github.com/sarafrika/elimika/commit/83dd7f79b1b4bf109a3ccef474a7b41a5bb44f00))
+* **persistence:** convert enum columns to varchar with CHECK constraints and map gender and document status through converters ([a4667f9](https://github.com/sarafrika/elimika/commit/a4667f9958b114f18ca72940ed355740bec9d9d3))
+* **profiles:** keep full coordinate precision on the caller's own profile in list and search rows ([7b1b185](https://github.com/sarafrika/elimika/commit/7b1b1851b38ded01ddbeeb45e1cbba619ab71679))
+* **profiles:** round instructor and course creator coordinates to town level outside owner and admin single-profile reads ([8befb50](https://github.com/sarafrika/elimika/commit/8befb5092bbfea56ea8887e2664dd3c0865c4725))
+* **program:** backfill publish status for programs published under the old flow and gate the catalogue on it ([80f3fdc](https://github.com/sarafrika/elimika/commit/80f3fdcf7bf04c11d151f70169776713f7b30465))
+* **program:** hide draft and unapproved programs from single-program reads outside admins, owners, enrolled learners and approved trainers ([05c7a60](https://github.com/sarafrika/elimika/commit/05c7a60b454e6500c74ee2fa83baf93366fdfd6e))
+* **program:** publish, unpublish and archive programs through the course lifecycle and ignore client lifecycle fields ([e47b973](https://github.com/sarafrika/elimika/commit/e47b97383d60379ce829f5dcd37b5a79641eb141))
+* **programs:** hide unapproved and inactive programs from non-owners in program listings ([d62559e](https://github.com/sarafrika/elimika/commit/d62559e3e9eb81f46099cab1ec8439363f101d62))
+* **programs:** list free programs through a dedicated price query instead of a price filter ([f941c35](https://github.com/sarafrika/elimika/commit/f941c355a059fd79fcfbf939022a9747de8f1b6c))
+* **programs:** scope program enrolment listings to the caller's standing ([a125e2e](https://github.com/sarafrika/elimika/commit/a125e2e88e9d7b5006c38ca03b4fa8fa157defae))
+* **rubric:** apply the rubric read rule to rubric, criteria, scoring-level and matrix reads ([4d68e55](https://github.com/sarafrika/elimika/commit/4d68e550fbaf50e242dbd700c0db306675323ecb))
+* **rubric:** limit course-rubric association writes to the course owner and to public or own rubrics ([7605faf](https://github.com/sarafrika/elimika/commit/7605fafb1295a13bccaeb551224be271cdae8b4b))
+* **rubric:** reject scoring cells whose scoring level belongs to a different rubric than their criterion ([4ff698d](https://github.com/sarafrika/elimika/commit/4ff698de4dc782cfbb65bd7146745ac73035b216))
+* **rubric:** restrict rubric, criteria, scoring-level and matrix writes to the rubric's course creator or a platform admin ([ae21aef](https://github.com/sarafrika/elimika/commit/ae21aefd27b602313f826ae5075b5e7a0588e351))
+* **rubrics:** keep private rubrics out of discovery for non-owners and honour type with a search term ([738d2a3](https://github.com/sarafrika/elimika/commit/738d2a31146d1b18932ea839ee234ccc227d3ccd))
+* **rubrics:** scope rubric listing and search to public rubrics plus the caller's own ([7675594](https://github.com/sarafrika/elimika/commit/7675594e78c972986ad6024c75a3be99771a6fe7))
+* **search:** escape LIKE wildcards in generic, course and rubric search input ([2625af9](https://github.com/sarafrika/elimika/commit/2625af93722c1c0e48f598c20aa9168e27f8f143))
+* **search:** match per-index read flags ignoring separators so env vars enable marketplace_jobs ([6ecdac1](https://github.com/sarafrika/elimika/commit/6ecdac1c9bd6185c01f051a9be7b4a979897e216))
+* **search:** re-check people hits in global search against SQL memberships and restate totals ([8294b87](https://github.com/sarafrika/elimika/commit/8294b8757ee2693bee2c45d3351a3235eefd943a))
+* **search:** restate totals when hydration drops hits via a shared SearchResults helper ([3eb48ca](https://github.com/sarafrika/elimika/commit/3eb48ca937690c994e923bb5ba8cd43607b6b973))
+* **shared:** register search index collection with every read-write transaction so commit-time flushes are captured ([2239ff1](https://github.com/sarafrika/elimika/commit/2239ff1fb7d8c62c49626eeed82567a0d56fcf26))
+* **shared:** restrict paged listing sorts to per-endpoint allow-lists ([a4bfa99](https://github.com/sarafrika/elimika/commit/a4bfa996cb75c214afb4dc32ce57d4476e5d4087))
+* **student:** include learners enrolled on a course creator's own courses and programs in the directory scope ([ed1ab99](https://github.com/sarafrika/elimika/commit/ed1ab99529172af8ed7b38a5c6f81a16e3a5b4cc))
+* **student:** scope student directory list and search to learners related to the caller ([d85f00e](https://github.com/sarafrika/elimika/commit/d85f00ecc6cd28dfd16ee7c0fd754ff3df8bd171))
+* **student:** serve explicit uuid lookups of up to 100 students unscoped but projected to display identity ([ef828cc](https://github.com/sarafrika/elimika/commit/ef828cc6ea8aa8334858d6dfb713c96cee582ff6))
+* **tenancy:** guard organisation and branch search against a null filter specification ([ed091fb](https://github.com/sarafrika/elimika/commit/ed091fbcdf022bef68b6c980ee59b7165ea2a3a8))
+* **tenancy:** look up users by email case-insensitively with a lower(email) index ([068d35a](https://github.com/sarafrika/elimika/commit/068d35a53f9ab83cffc4bfcc5b9770538e6ce35b))
+* **tenancy:** match user full names without a middle name in full_name search ([4ceca10](https://github.com/sarafrika/elimika/commit/4ceca10debc435a7f4d1b6b77dc82aa6e40a5c56))
+* **tenancy:** validate sort against the filterable allow-list on organisation, branch and org-user lists ([8a8058b](https://github.com/sarafrika/elimika/commit/8a8058b71c98fb077764694df3cf2421d019111b))
+* **tracking:** redact search, location and email query parameters before persisting request audit rows ([9b21c0a](https://github.com/sarafrika/elimika/commit/9b21c0af35001f43eda47d11c963086541d99c03))
+
+
+### Features
+
+* **classes:** index class definitions and marketplace jobs in the classes and marketplace_jobs search indexes ([c992ea1](https://github.com/sarafrika/elimika/commit/c992ea133b2715c409f64ee469c85ed57112cb1f))
+* **classes:** re-index an instructor's classes when their user account is renamed ([9b275ff](https://github.com/sarafrika/elimika/commit/9b275ff5eec887e68f618eedd26074041c51c892))
+* **classes:** route q searches on class and marketplace job listings to the search index with a database title fallback ([bcc7b59](https://github.com/sarafrika/elimika/commit/bcc7b59c153324055b570698fb4acb71192dddba))
+* **course:** add batch course and program approval lookups to the course info SPI ([8dff2f6](https://github.com/sarafrika/elimika/commit/8dff2f695d907ba2ab99f248fb438345afc8fc28))
+* **course:** index courses, programs and rubrics in search with caller scopes mirroring the SQL visibility rules ([1c99cf1](https://github.com/sarafrika/elimika/commit/1c99cf19cf76de0a8eb8b043ae35a5f535b0f0d6))
+* **course:** route q on course, program and rubric listings to search with SQL fallback ([7d78bcc](https://github.com/sarafrika/elimika/commit/7d78bccdaa27abb1517ecacb5dc2cafa263a6d4f))
+* **enrollment:** expose the students an instructor teaches through the enrollment lookup SPI ([6004205](https://github.com/sarafrika/elimika/commit/60042052ab1354864568b9fae1634b1c0a5ea30f))
+* **instructor:** add instructors search index source with skill, experience and review triggers ([f5ed210](https://github.com/sarafrika/elimika/commit/f5ed210473dd7a8423af01a4d13b0e06b7cfa7a7))
+* **instructor:** route q on instructor list and search endpoints through the instructors index ([636a460](https://github.com/sarafrika/elimika/commit/636a4604e508d9fc7e59901bfac77d958342a99a))
+* **search:** add durable indexing listener, blue/green rebuilds, reconciliation and admin endpoints ([17db179](https://github.com/sarafrika/elimika/commit/17db179e6f955305cd9a6962dce7a9d08ef1f558))
+* **search:** add global search providers for all eight indexes in their owning modules ([9b7d960](https://github.com/sarafrika/elimika/commit/9b7d960fead1f72c4c4bfbfd400e4b81b0a891cc))
+* **search:** add search module with Meilisearch gateway, index state table and search config ([a31fefb](https://github.com/sarafrika/elimika/commit/a31fefb4169bb100d6c916a2785acab8858398ca))
+* **search:** add the global search provider contract and a per-index multi-search to the gateway ([d0ca633](https://github.com/sarafrika/elimika/commit/d0ca633f82a9c404ae5f36448ff8a4add54f458e))
+* **search:** rebuild every index nightly on search.full-rebuild-cron, skipping indexes already rebuilding ([797b2f1](https://github.com/sarafrika/elimika/commit/797b2f17dc981bec8e414612c95a7ddce14342eb))
+* **search:** serve global search at GET /api/v1/search and /api/v1/search/{type} with anonymous access ([7db341f](https://github.com/sarafrika/elimika/commit/7db341f6e9e10c2af9b0a56a195db37e5f41737c))
+* **shared:** add engine-neutral search contracts and transaction-bound indexing requests ([a97c926](https://github.com/sarafrika/elimika/commit/a97c9268e0780f32eb53b11c72114ccf7ffde3a4))
+* **tenancy:** add people and organisations search index sources with entity triggers ([336c8ea](https://github.com/sarafrika/elimika/commit/336c8ea41906083f397ba3344f41502aeb9f3402))
+* **tenancy:** route q on user, org roster, admin-eligible and organisation searches to scoped people and organisations indexes with SQL fallback ([b65925f](https://github.com/sarafrika/elimika/commit/b65925fabb399220d015a664cd60e1f91147bd64))
+
+
+### Performance Improvements
+
+* **course:** batch category name lookups for course list and search pages ([5287a7e](https://github.com/sarafrika/elimika/commit/5287a7edc6f9f975551afd8905b851027eb19267))
+
 # [2.152.0](https://github.com/sarafrika/elimika/compare/v2.151.0...v2.152.0) (2026-09-17)
 
 
