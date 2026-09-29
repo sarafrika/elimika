@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.TrainingProgramService;
+import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.course.util.enums.ModerationAction;
@@ -51,6 +52,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ContentModerationHistoryService contentModerationHistoryService;
     private final DomainSecurityService domainSecurityService;
+    private final CourseSecuritySpi courseSecurityService;
 
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with ID %s not found";
 
@@ -76,6 +78,38 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
                 .map(TrainingProgramFactory::toDTO)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(PROGRAM_NOT_FOUND_TEMPLATE, uuid)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TrainingProgramDTO getVisibleTrainingProgramByUuid(UUID uuid) {
+        return trainingProgramRepository.findByUuid(uuid)
+                .filter(this::isVisibleToCaller)
+                .map(TrainingProgramFactory::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(PROGRAM_NOT_FOUND_TEMPLATE, uuid)));
+    }
+
+    /**
+     * The single-program counterpart of {@code CourseServiceImpl#isVisibleToCaller}. A live program
+     * (published and admin-approved) and an archived one are readable by anyone: learners and
+     * classes keep referencing a program after it is retired. A draft, in-review or not-yet-approved
+     * program is readable only by a platform admin, its author, a learner enrolled on it (an
+     * unpublished program keeps its enrolments) or someone approved to deliver it.
+     */
+    private boolean isVisibleToCaller(TrainingProgram program) {
+        boolean live = program.getStatus() == ContentStatus.PUBLISHED
+                && Boolean.TRUE.equals(program.getAdminApproved());
+        if (live || program.getStatus() == ContentStatus.ARCHIVED) {
+            return true;
+        }
+        if (domainSecurityService.isPlatformAdmin()
+                || courseSecurityService.canReadProgramRoster(program.getUuid())) {
+            return true;
+        }
+        UUID studentUuid = domainSecurityService.getCurrentStudentUuid();
+        return studentUuid != null && programEnrollmentRepository.existsByStudentUuidAndProgramUuidAndStatusIn(
+                studentUuid, program.getUuid(), EnrollmentStatus.ACCESS_ALLOWING);
     }
 
     @Override

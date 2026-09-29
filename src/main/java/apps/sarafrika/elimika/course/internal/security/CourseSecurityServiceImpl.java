@@ -718,6 +718,7 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
      * True when the caller may read this program's named enrolment roster. See
      * {@link #rosterReadableProgramUuids()}.
      */
+    @Override
     public boolean canReadProgramRoster(UUID programUuid) {
         return programUuid != null && rosterReadableProgramUuids().contains(programUuid);
     }

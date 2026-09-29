@@ -40,6 +40,17 @@ public interface TrainingProgramService {
     TrainingProgramDTO getTrainingProgramByUuid(UUID uuid);
 
     /**
+     * {@link #getTrainingProgramByUuid(UUID)} for the current caller: a program that is not live
+     * (draft, in review, or not admin-approved) resolves only for a platform admin, its author, an
+     * enrolled learner or someone approved to deliver it, and is reported as not found to anyone
+     * else. Published-and-approved and archived programs are readable by all.
+     *
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if the program does
+     *         not exist or is not visible to the caller
+     */
+    TrainingProgramDTO getVisibleTrainingProgramByUuid(UUID uuid);
+
+    /**
      * Retrieves all training programs with pagination support.
      *
      * @param pageable pagination parameters

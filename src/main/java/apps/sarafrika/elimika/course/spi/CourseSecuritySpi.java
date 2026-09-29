@@ -156,4 +156,13 @@ public interface CourseSecuritySpi {
      * @return the instructor's manageable course UUIDs, never null
      */
     Set<UUID> manageableCourseUuidsForInstructor(UUID instructorUuid);
+
+    /**
+     * True when the caller authors this training program or is approved (individually or through
+     * an organisation they teach for) to deliver it. Platform admins are decided by the caller.
+     *
+     * @param programUuid the program being checked
+     * @return true if the caller owns or may teach the program
+     */
+    boolean canReadProgramRoster(UUID programUuid);
 }

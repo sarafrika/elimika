@@ -73,16 +73,18 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Get program by UUID",
-            description = "Retrieves a complete program profile including computed properties and analytics.",
+            description = "Retrieves a complete program profile including computed properties and analytics. "
+                    + "Published-and-approved and archived programs are readable by anyone; a draft, in-review or "
+                    + "unapproved program only by platform admins, its author, enrolled learners and approved trainers.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Program found"),
-                    @ApiResponse(responseCode = "404", description = "Program not found")
+                    @ApiResponse(responseCode = "404", description = "Program not found or not visible to the caller")
             }
     )
     @GetMapping("/{uuid}")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> getTrainingProgramByUuid(
             @PathVariable UUID uuid) {
-        TrainingProgramDTO programDTO = trainingProgramService.getTrainingProgramByUuid(uuid);
+        TrainingProgramDTO programDTO = trainingProgramService.getVisibleTrainingProgramByUuid(uuid);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(programDTO, "Training program retrieved successfully"));
     }
