@@ -4,7 +4,6 @@ import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferen
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
@@ -55,9 +54,6 @@ class UserServiceImplTest {
 
     @Mock
     private StorageProperties storageProperties;
-
-    @Mock
-    private GenericSpecificationBuilder<User> specificationBuilder;
 
     @Mock
     private UserSpecificationBuilder userSpecificationBuilder;

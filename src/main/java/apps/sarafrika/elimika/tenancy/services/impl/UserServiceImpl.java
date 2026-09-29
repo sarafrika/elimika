@@ -3,7 +3,6 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 import apps.sarafrika.elimika.shared.event.user.*;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
@@ -55,7 +54,6 @@ public class UserServiceImpl implements UserService {
 
     private final MediaStorageService mediaStorageService;
     private final StorageProperties storageProperties;
-    private final GenericSpecificationBuilder<User> specificationBuilder;
     private final UserSpecificationBuilder userSpecificationBuilder;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final NotificationPreferencesService notificationPreferencesService;

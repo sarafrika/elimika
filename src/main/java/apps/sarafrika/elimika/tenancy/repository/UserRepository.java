@@ -52,15 +52,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     List<User> findByUuidIn(List<UUID> uuids);
 
-    @Query(value = """
-            SELECT u.*
-            FROM users u
-            JOIN user_group_membership ugm ON ugm.user_id = u.id
-            JOIN user_group ug ON ug.id = ugm.group_id
-            WHERE ug.uuid = :uuid
-            """, nativeQuery = true)
-    Page<User> getUsersInUserGroup(@Param("uuid") UUID uuid, Pageable pageable);
-
     Page<User> findByUuidIn(Set<UUID> uuids, Pageable pageable);
 
     /**
