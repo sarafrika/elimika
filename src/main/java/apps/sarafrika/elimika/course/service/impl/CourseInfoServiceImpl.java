@@ -12,10 +12,12 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -36,6 +38,8 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     private final apps.sarafrika.elimika.course.repository.ProgramCourseRepository programCourseRepository;
     private final TrainingProgramRepository trainingProgramRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
+    private final apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository courseEnrollmentRepository;
+    private final apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository programEnrollmentRepository;
     private final apps.sarafrika.elimika.course.repository.CategoryRepository categoryRepository;
 
     @Override
@@ -189,5 +193,16 @@ public class CourseInfoServiceImpl implements CourseInfoService {
             return List.of();
         }
         return courseRepository.findUuidsByCourseCreatorUuid(courseCreatorUuid);
+    }
+
+    @Override
+    public Set<UUID> findStudentUuidsEnrolledWithCourseCreator(UUID courseCreatorUuid) {
+        if (courseCreatorUuid == null) {
+            return Set.of();
+        }
+        Set<UUID> students = new LinkedHashSet<>(
+                courseEnrollmentRepository.findDistinctStudentUuidsByCourseCreatorUuid(courseCreatorUuid));
+        students.addAll(programEnrollmentRepository.findDistinctStudentUuidsByCourseCreatorUuid(courseCreatorUuid));
+        return students;
     }
 }

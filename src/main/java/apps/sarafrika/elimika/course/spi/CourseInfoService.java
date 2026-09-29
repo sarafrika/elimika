@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -139,6 +140,15 @@ public interface CourseInfoService {
      * @return true if the category exists, false otherwise
      */
     boolean categoryExists(UUID categoryUuid);
+
+    /**
+     * The learners a course creator teaches through their catalogue: every student enrolled, in any
+     * status, on a course or program the creator owns.
+     *
+     * @param courseCreatorUuid the course creator profile; null yields an empty set
+     * @return distinct student profile identifiers, never null
+     */
+    Set<UUID> findStudentUuidsEnrolledWithCourseCreator(UUID courseCreatorUuid);
 
     record AgeLimits(Integer minAge, Integer maxAge) { }
 

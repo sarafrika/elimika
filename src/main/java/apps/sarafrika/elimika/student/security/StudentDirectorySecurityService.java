@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.student.security;
 
+import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
@@ -63,6 +64,7 @@ public class StudentDirectorySecurityService {
     private final StudentGuardianLinkRepository guardianLinkRepository;
     private final RequestScopedCache requestScopedCache;
     private final EnrollmentLookupService enrollmentLookupService;
+    private final CourseInfoService courseInfoService;
 
     /**
      * Which student records a directory listing or search may return to the caller — applied as a
@@ -137,8 +139,8 @@ public class StudentDirectorySecurityService {
     /**
      * The records the caller may list or search, resolved once per request: everything for a
      * platform admin; otherwise the caller's own profile, the wards they hold an active guardian
-     * link to, the members of organisations they staff, and the learners enrolled on classes they
-     * teach. Anyone with none of these relationships gets {@link DirectoryScope#isEmpty() nothing}.
+     * link to, the members of organisations they staff, the learners enrolled on classes they
+     * teach, and the learners enrolled on courses or programs they author. Anyone with none of these relationships gets {@link DirectoryScope#isEmpty() nothing}.
      * Fails closed.
      */
     public DirectoryScope directoryScope() {
@@ -153,12 +155,27 @@ public class StudentDirectorySecurityService {
                     students.add(reach.ownStudentUuid());
                 }
                 students.addAll(taughtStudents());
+                students.addAll(catalogueStudents());
                 return new DirectoryScope(false, Set.copyOf(students), Set.copyOf(reach.managedMemberUsers()));
             } catch (Exception e) {
                 log.error("Error resolving the current caller's student directory scope", e);
                 return DirectoryScope.NOTHING;
             }
         });
+    }
+
+    /**
+     * The learners enrolled on courses or programs the caller owns as a course creator; empty
+     * unless the caller holds a course creator profile.
+     */
+    private Set<UUID> catalogueStudents() {
+        if (!domainSecurityService.isCourseCreator()) {
+            return Set.of();
+        }
+        UUID courseCreatorUuid = domainSecurityService.getCurrentCourseCreatorUuid();
+        return courseCreatorUuid == null
+                ? Set.of()
+                : courseInfoService.findStudentUuidsEnrolledWithCourseCreator(courseCreatorUuid);
     }
 
     /**

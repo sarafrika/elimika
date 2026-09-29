@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
@@ -53,4 +54,9 @@ public interface ProgramEnrollmentRepository extends JpaRepository<ProgramEnroll
     long countByStatusAndCompletionDateAfter(EnrollmentStatus status, LocalDateTime completionDate);
 
     Page<ProgramEnrollment> findByStudentUuid(UUID studentUuid, Pageable pageable);
+
+    /** Distinct learners enrolled, in any status, on programs owned by this course creator. */
+    @Query("SELECT DISTINCT pe.studentUuid FROM ProgramEnrollment pe, TrainingProgram tp " +
+           "WHERE pe.programUuid = tp.uuid AND tp.courseCreatorUuid = :courseCreatorUuid")
+    List<UUID> findDistinctStudentUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 }

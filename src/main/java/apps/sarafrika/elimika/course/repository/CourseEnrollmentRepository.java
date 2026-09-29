@@ -82,4 +82,9 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
             """)
     List<UUID> findCourseUuidsByStudentUuidAndStatusIn(@Param("studentUuid") UUID studentUuid,
                                                        @Param("statuses") Collection<EnrollmentStatus> statuses);
+
+    /** Distinct learners enrolled, in any status, on courses owned by this course creator. */
+    @Query("SELECT DISTINCT ce.studentUuid FROM CourseEnrollment ce, Course c " +
+           "WHERE ce.courseUuid = c.uuid AND c.courseCreatorUuid = :courseCreatorUuid")
+    List<UUID> findDistinctStudentUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 }
