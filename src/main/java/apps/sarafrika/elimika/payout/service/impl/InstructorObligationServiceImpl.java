@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot;
 import apps.sarafrika.elimika.shared.spi.payout.InstructorPayableLookupService;
+import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,9 @@ public class InstructorObligationServiceImpl
      * existed and disputed rows are contested, so neither counts as money owed nor as a session
      * delivered.
      */
+    /** Obligations sort by date and state; the rate is not an ordering key. */
+    private static final Set<String> OBLIGATION_SORTABLE_PROPERTIES = Set.of(
+            "createdDate", "lastModifiedDate", "accruedAt", "settledAt", "status");
     private static final Set<InstructorObligationStatus> COUNTED_STATUSES =
             Set.of(InstructorObligationStatus.ACCRUED, InstructorObligationStatus.SETTLED);
 
@@ -222,6 +226,7 @@ public class InstructorObligationServiceImpl
     @Transactional(readOnly = true)
     public Page<InstructorObligationDTO> findForOrganisation(
             UUID organisationUuid, UUID instructorUuid, InstructorObligationStatus status, Pageable pageable) {
+        SortAllowList.validate(pageable, OBLIGATION_SORTABLE_PROPERTIES);
 
         Page<InstructorObligation> page;
         if (instructorUuid != null && status != null) {
@@ -256,6 +261,7 @@ public class InstructorObligationServiceImpl
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorObligationDTO> findForInstructorUser(UUID instructorUserUuid, Pageable pageable) {
+        SortAllowList.validate(pageable, OBLIGATION_SORTABLE_PROPERTIES);
         return obligationRepository.findByInstructorUserUuid(instructorUserUuid, pageable)
                 .map(InstructorObligationFactory::toDTO);
     }

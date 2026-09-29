@@ -44,6 +44,7 @@ import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
 import apps.sarafrika.elimika.resourcing.spi.ResourceType;
+import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.utils.recurrence.OccurrenceWindow;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
@@ -123,6 +124,17 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     private static final DateTimeFormatter INTERVIEW_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'");
     private static final int MAX_ELIGIBILITY_BATCH = 50;
+    /**
+     * What a job listing may be sorted by. Pay, price and contact fields are left out: ordering by a
+     * column the caller cannot read ranks the rows by it all the same.
+     */
+    private static final Set<String> JOB_SORTABLE_PROPERTIES = Set.of(
+            "createdDate", "lastModifiedDate", "title", "status", "defaultStartTime",
+            "academicPeriodStartDate", "academicPeriodEndDate",
+            "registrationPeriodStartDate", "registrationPeriodEndDate");
+    /** What an application listing may be sorted by; notes and reviewer fields are left out. */
+    private static final Set<String> APPLICATION_SORTABLE_PROPERTIES = Set.of(
+            "createdDate", "lastModifiedDate", "status");
     private static final String CACHE_PAY_VISIBLE = "marketplaceJob.payVisible";
     private static final String CACHE_BRANCH_NAME_PREFIX = "marketplaceJob.branchName.";
     private static final String CACHE_RESOURCE_PREFIX = "marketplaceJob.resource.";
@@ -243,6 +255,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                                                  UUID branchUuid,
                                                  ClassMarketplaceJobStatus status,
                                                  org.springframework.data.domain.Pageable pageable) {
+        SortAllowList.validate(pageable, JOB_SORTABLE_PROPERTIES);
         // The marketplace is browsable across organisations, but only for OPEN postings. Drafts
         // that were filled, cancelled or expired stay visible to platform admins and to the posting
         // organisation's own staff when they ask for that organisation's jobs.
@@ -402,6 +415,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public Page<ClassMarketplaceJobApplicationDTO> listJobApplications(UUID jobUuid,
                                                                        ClassMarketplaceJobApplicationStatus status,
                                                                        org.springframework.data.domain.Pageable pageable) {
+        SortAllowList.validate(pageable, APPLICATION_SORTABLE_PROPERTIES);
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         requireOrganisationApplicationReadAccess(job.getOrganisationUuid());
         if (status == null) {
@@ -416,6 +430,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     @Transactional(readOnly = true)
     public Page<ClassMarketplaceJobApplicationDTO> listMyApplications(ClassMarketplaceJobApplicationStatus status,
                                                                       org.springframework.data.domain.Pageable pageable) {
+        SortAllowList.validate(pageable, APPLICATION_SORTABLE_PROPERTIES);
         UUID instructorUuid = resolveCurrentInstructorUuid();
         return withJobSummaries(findInstructorApplications(instructorUuid, status, pageable));
     }
@@ -433,6 +448,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     public Page<ClassMarketplaceJobApplicationDTO> listInstructorApplications(UUID instructorUuid,
                                                                               ClassMarketplaceJobApplicationStatus status,
                                                                               org.springframework.data.domain.Pageable pageable) {
+        SortAllowList.validate(pageable, APPLICATION_SORTABLE_PROPERTIES);
         UUID currentUserUuid = requireCurrentUserUuid();
         if (domainSecurityService.isInstructorWithUuid(instructorUuid) || domainSecurityService.isPlatformAdmin()) {
             return withJobSummaries(findInstructorApplications(instructorUuid, status, pageable));

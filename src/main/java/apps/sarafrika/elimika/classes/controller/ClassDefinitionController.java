@@ -474,10 +474,11 @@ public class ClassDefinitionController {
             description = "Platform admins see every class; other callers see active PUBLIC classes plus those of "
                     + "organisations they staff, those they teach and those they are enrolled in. "
                     + "instructor_pay is included only for the parties to it, as on every other class read. "
-                    + "Sorting by it is rejected with 400 for everyone, parties included: ordering a listing by a "
-                    + "figure it does not print would disclose the same figure one comparison at a time.")
+                    + "Sortable by title, created_date, last_modified_date, default_start_time, default_end_time and "
+                    + "the academic and registration period dates; any other sort is rejected with 400, because "
+                    + "ordering a listing by a figure it does not print would disclose it one comparison at a time.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a field the listing withholds")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a property outside the allow-list")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<ClassDefinitionResponseDTO>>> getAllClassDefinitions(
             Pageable pageable) {

@@ -20,6 +20,7 @@ import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
@@ -53,6 +54,9 @@ import java.util.UUID;
 public class BookingServiceImpl implements BookingService {
 
     private static final int DEFAULT_HOLD_MINUTES = 30;
+    /** Booking listings sort by time and state only; price and payment fields are not ordering keys. */
+    private static final Set<String> BOOKING_SORTABLE_PROPERTIES = Set.of(
+            "createdDate", "lastModifiedDate", "startTime", "endTime", "status");
     private static final BigDecimal SECONDS_PER_HOUR = BigDecimal.valueOf(3600);
     private static final Set<BookingStatus> ACTIVE_STATUSES = EnumSet.of(
             BookingStatus.PAYMENT_REQUIRED, BookingStatus.CONFIRMED,
@@ -268,6 +272,7 @@ public class BookingServiceImpl implements BookingService {
         if (studentUuid == null) {
             throw new IllegalArgumentException("Student UUID cannot be null");
         }
+        SortAllowList.validate(pageable, BOOKING_SORTABLE_PROPERTIES);
 
         Page<Booking> bookings = status == null
                 ? bookingRepository.findByStudentUuid(studentUuid, pageable)
@@ -282,6 +287,7 @@ public class BookingServiceImpl implements BookingService {
         if (instructorUuid == null) {
             throw new IllegalArgumentException("Instructor UUID cannot be null");
         }
+        SortAllowList.validate(pageable, BOOKING_SORTABLE_PROPERTIES);
 
         Page<Booking> bookings = status == null
                 ? bookingRepository.findByInstructorUuid(instructorUuid, pageable)

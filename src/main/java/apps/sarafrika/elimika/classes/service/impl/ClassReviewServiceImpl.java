@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
+import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -32,6 +33,8 @@ import java.util.UUID;
 public class ClassReviewServiceImpl implements ClassReviewService {
 
     private static final Set<String> REVIEW_ELIGIBLE_STATUSES = Set.of("ENROLLED", "ATTENDED", "ABSENT");
+    /** Reviews sort by what the page shows; the reviewer's identity is never an ordering key. */
+    private static final Set<String> REVIEW_SORTABLE_PROPERTIES = Set.of("createdDate", "lastModifiedDate", "rating");
 
     private final ClassReviewRepository classReviewRepository;
     private final ClassDefinitionRepository classDefinitionRepository;
@@ -75,6 +78,7 @@ public class ClassReviewServiceImpl implements ClassReviewService {
     @Override
     @Transactional(readOnly = true)
     public Page<ClassReviewDTO> getReviewsForClass(UUID classDefinitionUuid, Pageable pageable) {
+        SortAllowList.validate(pageable, REVIEW_SORTABLE_PROPERTIES);
         enforceClassExists(classDefinitionUuid);
         return classReviewRepository.findByClassDefinitionUuid(classDefinitionUuid, pageable)
                 .map(this::toPublicDTO);

@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.wallet.service.impl;
 
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
+import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +44,9 @@ import org.springframework.util.StringUtils;
 public class WalletServiceImpl implements WalletService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    /** Transactions sort by when and what; amounts and balances are not ordering keys. */
+    private static final Set<String> TRANSACTION_SORTABLE_PROPERTIES = Set.of(
+            "createdDate", "lastModifiedDate", "transactionType");
     private static final String CAUSE_WALLET_TRANSACTION = "WALLET_TRANSACTION";
     private static final String CAUSE_WALLET_TRANSFER = "WALLET_TRANSFER";
 
@@ -60,6 +65,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserWalletTransaction> getTransactions(UUID userUuid, String currencyCode, Pageable pageable) {
+        SortAllowList.validate(pageable, TRANSACTION_SORTABLE_PROPERTIES);
         return userWalletRepository.findByUserUuidAndCurrencyCode(userUuid, resolveCurrencyCode(currencyCode))
                 .map(wallet -> transactionRepository.findByWalletUuid(wallet.getUuid(), pageable))
                 .orElseGet(() -> Page.empty(pageable));

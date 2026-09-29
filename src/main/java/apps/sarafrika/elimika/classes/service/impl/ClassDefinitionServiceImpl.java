@@ -35,6 +35,7 @@ import apps.sarafrika.elimika.shared.event.classes.ClassDefinitionUpdatedEventDT
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.shared.spi.payout.InstructorPayableLookupService;
+import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
@@ -50,7 +51,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -98,12 +98,15 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
     /**
-     * Sort properties a class listing refuses, in the form Spring Data matches them — lower case
-     * with separators removed, so {@code instructor_pay} and {@code instructorPay} are one name.
-     * The set holds exactly what {@link ClassDefinitionDTO#withoutInstructorPay()} strips: a figure
-     * added there has to be added here too, or the listing will sort by what it will not print.
+     * The only properties a class listing may be sorted by. An allow-list rather than a deny-list:
+     * ordering by a withheld figure (instructor pay, sale price) or a private field (meeting link)
+     * would disclose it one comparison at a time, and a new column must not become sortable just
+     * because nobody remembered to deny it.
      */
-    private static final Set<String> UNSORTABLE_PROPERTIES = Set.of("instructorpay");
+    private static final Set<String> SORTABLE_PROPERTIES = Set.of(
+            "title", "createdDate", "lastModifiedDate", "defaultStartTime", "defaultEndTime",
+            "academicPeriodStartDate", "academicPeriodEndDate",
+            "registrationPeriodStartDate", "registrationPeriodEndDate");
 
     @Override
     public ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
@@ -646,21 +649,13 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
      * the line the course trainer directory already draws around rate cards. Refused rather than
      * quietly dropped, so a client that asked for it finds out that it did not happen.
      *
-     * @throws IllegalArgumentException when the sort names a withheld figure
+     * Enforced as an allow-list ({@link #SORTABLE_PROPERTIES}), so every property not named there
+     * is refused, withheld or not.
+     *
+     * @throws IllegalArgumentException when the sort names a property outside the allow-list
      */
     private static void rejectSortOnWithheldFigures(Pageable pageable) {
-        if (pageable == null || pageable.getSort().isUnsorted()) {
-            return;
-        }
-        for (Sort.Order order : pageable.getSort()) {
-            String property = order.getProperty() == null
-                    ? ""
-                    : order.getProperty().toLowerCase(Locale.ROOT).replace("_", "");
-            if (UNSORTABLE_PROPERTIES.contains(property)) {
-                throw new IllegalArgumentException("Unsupported sort property: instructor_pay. "
-                        + "Class listings cannot be ordered by what an instructor is paid.");
-            }
-        }
+        SortAllowList.validate(pageable, SORTABLE_PROPERTIES);
     }
 
     /**
