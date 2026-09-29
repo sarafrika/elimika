@@ -22,6 +22,16 @@ public interface AssessmentRubricService {
     Page<AssessmentRubricDTO> search(Map<String, String> searchParams, Pageable pageable);
 
     /**
+     * {@link #search(Map, Pageable)} narrowed to the rubrics the current caller may list: every
+     * rubric for a platform admin, otherwise public rubrics plus the caller's own.
+     *
+     * @param searchParams search parameters with operators
+     * @param pageable pagination parameters
+     * @return page of matching rubrics visible to the caller
+     */
+    Page<AssessmentRubricDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
+
+    /**
      * Finds all public rubrics available for reuse across courses.
      *
      * @param pageable pagination parameters

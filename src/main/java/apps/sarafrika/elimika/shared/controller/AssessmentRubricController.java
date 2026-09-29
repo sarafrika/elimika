@@ -74,10 +74,10 @@ public class AssessmentRubricController {
         return ResponseEntity.ok(ApiResponse.success(assessmentRubricDTO, "Assessment rubric retrieved successfully"));
     }
 
-    @Operation(summary = "Get all assessment rubrics", description = "Retrieves a paginated list of all assessment rubrics.")
+    @Operation(summary = "Get all assessment rubrics", description = "Retrieves a paginated list of assessment rubrics. Non-admin callers see public rubrics plus their own.")
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> getAllAssessmentRubrics(Pageable pageable) {
-        Page<AssessmentRubricDTO> rubrics = assessmentRubricService.getAllAssessmentRubrics(pageable);
+        Page<AssessmentRubricDTO> rubrics = assessmentRubricService.searchForCaller(java.util.Map.of(), pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(rubrics, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Assessment rubrics retrieved successfully"));
     }
 
@@ -95,10 +95,10 @@ public class AssessmentRubricController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Search for assessment rubrics", description = "Searches for assessment rubrics based on a set of filter criteria.")
+    @Operation(summary = "Search for assessment rubrics", description = "Searches for assessment rubrics based on a set of filter criteria. Non-admin callers see public rubrics plus their own.")
     @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> searchAssessmentRubrics(@RequestParam java.util.Map<String, String> searchParams, Pageable pageable) {
-        Page<AssessmentRubricDTO> rubrics = assessmentRubricService.search(searchParams, pageable);
+        Page<AssessmentRubricDTO> rubrics = assessmentRubricService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(rubrics, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()), "Assessment rubrics search completed successfully"));
     }
 

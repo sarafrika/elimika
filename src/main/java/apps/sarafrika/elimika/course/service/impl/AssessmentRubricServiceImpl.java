@@ -105,6 +105,30 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
         return assessmentRubricRepository.findAll(spec, pageable).map(AssessmentRubricFactory::toDTO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AssessmentRubricDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return search(searchParams, pageable);
+        }
+        specificationBuilder.validateSortProperties(AssessmentRubric.class, pageable);
+        Specification<AssessmentRubric> spec = specificationBuilder.buildSpecification(
+                AssessmentRubric.class, searchParams);
+        Specification<AssessmentRubric> visible = visibleToCaller();
+        spec = spec == null ? visible : spec.and(visible);
+        return assessmentRubricRepository.findAll(spec, pageable).map(AssessmentRubricFactory::toDTO);
+    }
+
+    /**
+     * Public rubrics, plus the ones the caller authored as a course creator.
+     */
+    private Specification<AssessmentRubric> visibleToCaller() {
+        UUID courseCreatorUuid = domainSecurityService.getCurrentCourseCreatorUuid();
+        return (root, query, cb) -> courseCreatorUuid == null
+                ? cb.isTrue(root.get("isPublic"))
+                : cb.or(cb.isTrue(root.get("isPublic")), cb.equal(root.get("courseCreatorUuid"), courseCreatorUuid));
+    }
+
     private void updateAssessmentRubricFields(AssessmentRubric existingAssessmentRubric, AssessmentRubricDTO dto) {
         if (dto.title() != null) {
             existingAssessmentRubric.setTitle(dto.title());
