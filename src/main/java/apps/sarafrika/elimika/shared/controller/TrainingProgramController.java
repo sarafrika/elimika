@@ -89,12 +89,13 @@ public class TrainingProgramController {
 
     @Operation(
             summary = "Get all programs",
-            description = "Retrieves paginated list of all training programs with filtering support."
+            description = "Retrieves paginated list of training programs. Non-admin callers see live programs "
+                    + "(admin-approved, active, not archived) plus the programs they author."
     )
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getAllTrainingPrograms(
             Pageable pageable) {
-        Page<TrainingProgramDTO> programs = trainingProgramService.getAllTrainingPrograms(pageable);
+        Page<TrainingProgramDTO> programs = trainingProgramService.searchForCaller(Map.of(), pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(programs, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -164,7 +165,8 @@ public class TrainingProgramController {
     @Operation(
             summary = "Search training programs",
             description = """
-                    Advanced program search with flexible criteria and operators.
+                    Advanced program search with flexible criteria and operators. Non-admin callers only
+                    see live programs (admin-approved, active, not archived) plus the programs they author.
                     
                     **Common Program Search Examples:**
                     - `title_like=data science` - Programs with titles containing "data science"
@@ -196,7 +198,7 @@ public class TrainingProgramController {
             )
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
-        Page<TrainingProgramDTO> programs = trainingProgramService.search(searchParams, pageable);
+        Page<TrainingProgramDTO> programs = trainingProgramService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(programs, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -546,7 +548,7 @@ public class TrainingProgramController {
     @GetMapping("/free")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getFreePrograms(
             Pageable pageable) {
-        Page<TrainingProgramDTO> freePrograms = trainingProgramService.getFreePrograms(pageable);
+        Page<TrainingProgramDTO> freePrograms = trainingProgramService.getFreeProgramsForCaller(pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(freePrograms, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -562,7 +564,7 @@ public class TrainingProgramController {
             @PathVariable UUID courseCreatorUuid,
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("courseCreatorUuid", courseCreatorUuid.toString());
-        Page<TrainingProgramDTO> courseCreatorPrograms = trainingProgramService.search(searchParams, pageable);
+        Page<TrainingProgramDTO> courseCreatorPrograms = trainingProgramService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(courseCreatorPrograms, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -578,7 +580,7 @@ public class TrainingProgramController {
             @PathVariable UUID categoryUuid,
             Pageable pageable) {
         Map<String, String> searchParams = Map.of("categoryUuid", categoryUuid.toString());
-        Page<TrainingProgramDTO> categoryPrograms = trainingProgramService.search(searchParams, pageable);
+        Page<TrainingProgramDTO> categoryPrograms = trainingProgramService.searchForCaller(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(categoryPrograms, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),

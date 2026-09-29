@@ -19,6 +19,7 @@ import apps.sarafrika.elimika.course.util.enums.ModerationAction;
 import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -28,9 +29,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -47,6 +50,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final ApplicationEventPublisher eventPublisher;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ContentModerationHistoryService contentModerationHistoryService;
+    private final DomainSecurityService domainSecurityService;
 
     private static final String PROGRAM_NOT_FOUND_TEMPLATE = "Training program with ID %s not found";
 
@@ -117,9 +121,59 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<TrainingProgramDTO> getFreePrograms(Pageable pageable) {
+    public Page<TrainingProgramDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
-        return trainingProgramRepository.findAll(isFree(), pageable).map(TrainingProgramFactory::toDTO);
+        Specification<TrainingProgram> spec = specificationBuilder.buildSpecification(
+                TrainingProgram.class, searchParams);
+        Specification<TrainingProgram> visible = visibleToCaller();
+        if (visible != null) {
+            spec = spec == null ? visible : spec.and(visible);
+        }
+        return spec == null
+                ? trainingProgramRepository.findAll(pageable).map(TrainingProgramFactory::toDTO)
+                : trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TrainingProgramDTO> getFreeProgramsForCaller(Pageable pageable) {
+        specificationBuilder.validateSortProperties(TrainingProgram.class, pageable);
+        Specification<TrainingProgram> visible = visibleToCaller();
+        Specification<TrainingProgram> spec = visible == null ? isFree() : isFree().and(visible);
+        return trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);
+    }
+
+    /**
+     * The programs the current caller may discover, or {@code null} for a platform admin, who is
+     * unrestricted.
+     * <p>
+     * A program is live once an admin has approved it and it is active (the publish endpoint sets
+     * {@code active}; neither {@code status} nor {@code is_published} is moved by the publish flow,
+     * so they cannot be the gate). Its author - on either the course-creator or the legacy
+     * instructor identity, as {@code isProgramOwner} accepts - also sees their own drafts.
+     */
+    private Specification<TrainingProgram> visibleToCaller() {
+        if (domainSecurityService.isPlatformAdmin()) {
+            return null;
+        }
+        Set<UUID> ownIdentities = new HashSet<>();
+        UUID courseCreatorUuid = domainSecurityService.getCurrentCourseCreatorUuid();
+        if (courseCreatorUuid != null) {
+            ownIdentities.add(courseCreatorUuid);
+        }
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+        if (instructorUuid != null) {
+            ownIdentities.add(instructorUuid);
+        }
+        return (root, query, cb) -> {
+            var live = cb.and(
+                    cb.isTrue(root.get("adminApproved")),
+                    cb.isTrue(root.get("active")),
+                    cb.notEqual(root.get("status"), ContentStatus.ARCHIVED));
+            return ownIdentities.isEmpty()
+                    ? live
+                    : cb.or(live, root.get("courseCreatorUuid").in(ownIdentities));
+        };
     }
 
     /**

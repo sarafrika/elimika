@@ -74,6 +74,19 @@ public interface TrainingProgramService {
      */
     Page<TrainingProgramDTO> search(Map<String, String> searchParams, Pageable pageable);
 
+    /**
+     * {@link #search(Map, Pageable)} narrowed to the programs the current caller may discover.
+     * <p>
+     * Platform admins see everything. Everyone else sees live programs - admin-approved, active and
+     * not archived - plus the programs they author themselves, whatever their state. Internal
+     * callers that need every program keep using {@link #search(Map, Pageable)}.
+     *
+     * @param searchParams search parameters with operators
+     * @param pageable pagination parameters
+     * @return paginated search results visible to the caller
+     */
+    Page<TrainingProgramDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
+
     // ===== PROGRAM PUBLISHING =====
 
     /**
@@ -187,15 +200,16 @@ public interface TrainingProgramService {
     List<TrainingProgramDTO> getFreePrograms();
 
     /**
-     * Retrieves a page of free training programs (price is null or 0).
+     * Retrieves a page of free training programs (price is null or 0) that the current caller may
+     * discover, on the same visibility rule as {@link #searchForCaller(Map, Pageable)}.
      * <p>
      * Price is deliberately not a generic search filter, so "free" is answered by a dedicated
      * specification rather than a {@code price} search parameter.
      *
      * @param pageable pagination parameters
-     * @return paginated free programs
+     * @return paginated free programs visible to the caller
      */
-    Page<TrainingProgramDTO> getFreePrograms(Pageable pageable);
+    Page<TrainingProgramDTO> getFreeProgramsForCaller(Pageable pageable);
 
     /**
      * Retrieves training programs by category.
