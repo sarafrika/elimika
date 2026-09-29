@@ -27,6 +27,14 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
 
     boolean existsByUuid(UUID uuid);
 
+    /** Every course a class is linked to, for resolving content approval in one batch. */
+    @Query("SELECT DISTINCT cd.courseUuid FROM ClassDefinition cd WHERE cd.courseUuid IS NOT NULL")
+    List<UUID> findDistinctCourseUuids();
+
+    /** Every program a class is linked to, for resolving content approval in one batch. */
+    @Query("SELECT DISTINCT cd.programUuid FROM ClassDefinition cd WHERE cd.programUuid IS NOT NULL")
+    List<UUID> findDistinctProgramUuids();
+
     List<ClassDefinition> findByCourseUuid(UUID courseUuid);
 
     List<ClassDefinition> findByProgramUuid(UUID programUuid);

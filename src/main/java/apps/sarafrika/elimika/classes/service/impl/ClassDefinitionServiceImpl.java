@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.ClassListingVisibility;
+import apps.sarafrika.elimika.classes.search.ClassSearchFallbackFilter;
 import apps.sarafrika.elimika.classes.search.ClassSearchScopes;
 import apps.sarafrika.elimika.classes.search.ClassSearchSource;
 import apps.sarafrika.elimika.classes.search.ClassesSearch;
@@ -108,6 +109,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final BranchLocationResolver branchLocationResolver;
     private final ClassListingVisibility classListingVisibility;
     private final ClassesSearch classesSearch;
+    private final ClassSearchFallbackFilter classSearchFallbackFilter;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
@@ -1126,13 +1128,19 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         rejectSortOnWithheldFigures(pageable);
         ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
         int size = Math.min(pageable.getPageSize(), SearchRequest.MAX_SIZE);
-        Optional<Page<ClassDefinitionResponseDTO>> searched = searchIndex(q,
-                SearchParamsTranslator.toFilter(searchParams, ClassSearchSource.DEFINITION), scope,
+        SearchFilter filter = SearchParamsTranslator.toFilter(searchParams, ClassSearchSource.DEFINITION);
+        Optional<Page<ClassDefinitionResponseDTO>> searched = searchIndex(q, filter, scope,
                 ClassSearchSource.sortFor(pageable.getSort()), pageable.getPageNumber(), size, definition -> true);
         if (searched.isPresent()) {
             return searched.get();
         }
-        return classDefinitionRepository.findAll(scope.toSpecification().and(titleMatches(q)), pageable)
+        // The same filters as the index path, applied to the rows, so the fallback answers the same question.
+        Specification<ClassDefinition> spec = scope.toSpecification().and(titleMatches(q));
+        Specification<ClassDefinition> filters = classSearchFallbackFilter.toSpecification(filter);
+        if (filters != null) {
+            spec = spec.and(filters);
+        }
+        return classDefinitionRepository.findAll(spec, pageable)
                 .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse);
     }

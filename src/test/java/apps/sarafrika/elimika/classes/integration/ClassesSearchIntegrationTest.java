@@ -9,12 +9,15 @@ import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
+import apps.sarafrika.elimika.classes.search.ClassSearchFallbackFilter;
+import apps.sarafrika.elimika.classes.search.ClassSearchSource;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import jakarta.persistence.EntityManager;
@@ -112,6 +115,7 @@ class ClassesSearchIntegrationTest {
     @Autowired private EntityManager entityManager;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private ApplicationContext applicationContext;
+    @Autowired private ClassSearchFallbackFilter fallbackFilter;
 
     /** An unrelated signed-in user: no staffed organisation, no instructor profile, no enrolments. */
     private static final ClassListingVisibility.Scope STRANGER =
@@ -181,7 +185,40 @@ class ClassesSearchIntegrationTest {
         awaitTrue(() -> jobUuids(null, "astronomy").isEmpty());
     }
 
+    @Test
+    @DisplayName("The database fallback applies the same filters as the index")
+    void fallbackAppliesFilters() {
+        UUID organisation = UUID.randomUUID();
+        ClassDefinition online = saveClass("Fallback Pottery Online", organisation, ClassVisibility.PUBLIC);
+        ClassDefinition inPerson = saveClass("Fallback Pottery Studio", organisation, ClassVisibility.PUBLIC,
+                LocationType.IN_PERSON, new BigDecimal("4000.00"));
+
+        List<UUID> onlineOnly = fallbackUuids(Map.of("q", "pottery", "organisation_uuid", organisation.toString(),
+                "location_type", "online"));
+        assertThat(onlineOnly).containsExactly(online.getUuid());
+
+        List<UUID> expensive = fallbackUuids(Map.of("organisation_uuid", organisation.toString(),
+                "sale_price_gte", "2000"));
+        assertThat(expensive).containsExactly(inPerson.getUuid());
+
+        String startsFrom = NOW.plusDays(6).toLocalDate().toString();
+        assertThat(fallbackUuids(Map.of("organisation_uuid", organisation.toString(), "starts_at_gte", startsFrom,
+                "registration_closes_at_gte", NOW.toLocalDate().plusDays(6).toString(), "content_approved", "true")))
+                .containsExactlyInAnyOrder(online.getUuid(), inPerson.getUuid());
+        assertThat(fallbackUuids(Map.of("organisation_uuid", organisation.toString(),
+                "registration_closes_at_gt", NOW.toLocalDate().plusDays(6).atTime(23, 59, 59).toString())))
+                .isEmpty();
+    }
+
     // ===== Helpers =====
+
+    private List<UUID> fallbackUuids(Map<String, String> params) {
+        return new TransactionTemplate(transactionManager).execute(status -> classRepository.findAll(
+                        fallbackFilter.toSpecification(SearchParamsTranslator.toFilter(params, ClassSearchSource.DEFINITION)))
+                .stream()
+                .map(ClassDefinition::getUuid)
+                .toList());
+    }
 
     private List<UUID> classUuids(String q) {
         return classService.searchClasses(q, Map.of("q", q), PageRequest.of(0, 20)).getContent().stream()
@@ -196,6 +233,11 @@ class ClassesSearchIntegrationTest {
     }
 
     private ClassDefinition saveClass(String title, UUID organisation, ClassVisibility visibility) {
+        return saveClass(title, organisation, visibility, LocationType.ONLINE, new BigDecimal("1500.00"));
+    }
+
+    private ClassDefinition saveClass(String title, UUID organisation, ClassVisibility visibility,
+                                      LocationType locationType, BigDecimal salePrice) {
         ClassDefinition definition = new ClassDefinition();
         definition.setTitle(title);
         definition.setDescription("About " + title);
@@ -207,11 +249,11 @@ class ClassesSearchIntegrationTest {
         definition.setAcademicPeriodEndDate(NOW.toLocalDate().plusDays(60));
         definition.setRegistrationPeriodStartDate(NOW.toLocalDate().minusDays(30));
         definition.setRegistrationPeriodEndDate(NOW.toLocalDate().plusDays(6));
-        definition.setLocationType(LocationType.ONLINE);
+        definition.setLocationType(locationType);
         definition.setMaxParticipants(20);
         definition.setAllowWaitlist(true);
         definition.setIsActive(true);
-        definition.setSalePrice(new BigDecimal("1500.00"));
+        definition.setSalePrice(salePrice);
         definition.setInstructorPay(new BigDecimal("900.00"));
         definition.setRateBasis(RateBasis.PER_HOUR);
         definition.setClassVisibility(visibility);

@@ -488,12 +488,14 @@ public class ClassDefinitionController {
                     + "With q, only classes matching the text are returned, under the same visibility. When search is "
                     + "enabled the match is typo-tolerant over title, course, program, organisation, branch, instructor, "
                     + "location and description, ranked by relevance unless sorted by title, created_date or "
-                    + "default_start_time, pages hold at most 100 classes, and other query parameters filter on "
+                    + "default_start_time, and pages hold at most 100 classes. With or without search, other query "
+                    + "parameters filter on "
                     + "uuid, course_uuid, program_uuid, organisation_uuid, branch_uuid, default_instructor_uuid, "
                     + "category_uuid, is_active, class_visibility, content_approved, location_type, session_format, "
                     + "starts_at, registration_closes_at, sale_price and created_at (field or field_op, op one of eq, "
                     + "noteq, in, notin, gt, gte, lt, lte, between; any other parameter is rejected with 400). "
-                    + "Otherwise q is a case-insensitive title match.")
+                    + "When search is disabled or unavailable, q is a case-insensitive title match and the same filters "
+                    + "apply to the database.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a property outside the allow-list, or a search filter names an unsupported field")
     @GetMapping
