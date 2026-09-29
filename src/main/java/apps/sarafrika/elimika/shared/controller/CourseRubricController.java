@@ -51,12 +51,27 @@ public class CourseRubricController {
     static final String READ_ACCESS = MANAGEMENT_ACCESS
             + " or @courseSecurityService.isEnrolledLearner(#courseUuid)";
 
+    /**
+     * Attaching, re-pointing or removing a course's rubrics is limited to the course's owner and
+     * platform admins, and a creator may only attach a rubric that is public or their own.
+     */
+    static final String ADMIN = "@domainSecurityService.isPlatformAdmin()";
+    static final String ASSOCIATE_ACCESS = ADMIN + " or (@courseSecurityService.isCourseOwner(#courseUuid)"
+            + " and @courseSecurityService.canUseRubric(#associationDTO.rubricUuid()))";
+    static final String SET_PRIMARY_ACCESS = ADMIN + " or (@courseSecurityService.isCourseOwner(#courseUuid)"
+            + " and @courseSecurityService.canUseRubric(#rubricUuid))";
+    static final String UPDATE_ASSOCIATION_ACCESS = ADMIN
+            + " or @courseSecurityService.canWriteCourseRubricAssociation(#courseUuid, #associationUuid,"
+            + " #associationDTO.courseUuid(), #associationDTO.rubricUuid())";
+    static final String DISSOCIATE_ACCESS = ADMIN + " or @courseSecurityService.isCourseOwner(#courseUuid)";
+
     private final CourseRubricAssociationService courseRubricAssociationService;
 
     @Operation(
             summary = "Associate a rubric with a course",
             description = "Creates an association between a rubric and a course, allowing the rubric to be used for assessments in that course."
     )
+    @PreAuthorize(ASSOCIATE_ACCESS)
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<CourseRubricAssociationDTO>> associateRubric(
             @Parameter(description = "UUID of the course", required = true)
@@ -121,6 +136,7 @@ public class CourseRubricController {
             summary = "Set primary rubric for a course",
             description = "Designates a specific rubric as the primary rubric for the course."
     )
+    @PreAuthorize(SET_PRIMARY_ACCESS)
     @PutMapping(value = "/{rubricUuid}/primary", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<CourseRubricAssociationDTO>> setPrimaryRubric(
             @Parameter(description = "UUID of the course", required = true)
@@ -157,6 +173,7 @@ public class CourseRubricController {
             summary = "Update rubric association",
             description = "Updates an existing rubric association, allowing changes to context, primary status, etc."
     )
+    @PreAuthorize(UPDATE_ASSOCIATION_ACCESS)
     @PutMapping(value = "/associations/{associationUuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<CourseRubricAssociationDTO>> updateAssociation(
             @Parameter(description = "UUID of the course", required = true)
@@ -173,6 +190,7 @@ public class CourseRubricController {
             summary = "Remove rubric association",
             description = "Removes the association between a rubric and a course."
     )
+    @PreAuthorize(DISSOCIATE_ACCESS)
     @DeleteMapping(value = "/{rubricUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Void>> dissociateRubric(
             @Parameter(description = "UUID of the course", required = true)
@@ -188,6 +206,7 @@ public class CourseRubricController {
             summary = "Remove rubric association by context",
             description = "Removes a specific rubric association based on usage context."
     )
+    @PreAuthorize(DISSOCIATE_ACCESS)
     @DeleteMapping(value = "/{rubricUuid}/context/{context}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Void>> dissociateRubricByContext(
             @Parameter(description = "UUID of the course", required = true)
