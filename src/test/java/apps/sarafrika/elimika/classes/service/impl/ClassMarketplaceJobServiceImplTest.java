@@ -212,7 +212,8 @@ class ClassMarketplaceJobServiceImplTest {
                         new AuditUserResolver(userLookupService)),
                 new AuditUserResolver(userLookupService),
                 new MarketplaceApplicationHistory(eventRepository, domainSecurityService, userLookupService),
-                organisationLookupService
+                organisationLookupService,
+                org.mockito.Mockito.mock(apps.sarafrika.elimika.classes.search.ClassesSearch.class)
         );
         org.mockito.Mockito.lenient()
                 .when(trainingBranchLookupService.findBranch(any(), any()))

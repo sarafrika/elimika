@@ -43,6 +43,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -435,15 +436,22 @@ public class ClassDefinitionController {
     }
 
     @Operation(summary = "Get class definitions for an organisation",
-            description = "The organisation's staff and platform admins see all of its classes; other callers see only its active PUBLIC classes and the ones they teach or are enrolled in.")
+            description = "The organisation's staff and platform admins see all of its classes; other callers see only its active PUBLIC classes and the ones they teach or are enrolled in. "
+                    + "With q, only classes matching the text are returned, under the same visibility, ranked by relevance "
+                    + "(typo-tolerant over title, course, program, organisation, branch, instructor, location and description) "
+                    + "when search is enabled, else by a case-insensitive title match; at most 100 classes are returned.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
     @GetMapping("/organisation/{organisationUuid}")
     public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getClassDefinitionsForOrganisation(
             @Parameter(description = "UUID of the organisation", required = true)
-            @PathVariable UUID organisationUuid) {
+            @PathVariable UUID organisationUuid,
+            @Parameter(description = "Free-text search; omit to list every visible class")
+            @RequestParam(value = "q", required = false) String q) {
         log.debug("REST request to get classes for organisation: {}", organisationUuid);
         
-        List<ClassDefinitionResponseDTO> result = classDefinitionService.findClassesForOrganisation(organisationUuid);
+        List<ClassDefinitionResponseDTO> result = StringUtils.hasText(q)
+                ? classDefinitionService.searchClassesForOrganisation(organisationUuid, q)
+                : classDefinitionService.findClassesForOrganisation(organisationUuid);
         return ResponseEntity.ok(ApiResponse.success(result, "Class definitions for organisation retrieved successfully"));
     }
 
@@ -476,28 +484,50 @@ public class ClassDefinitionController {
                     + "instructor_pay is included only for the parties to it, as on every other class read. "
                     + "Sortable by title, created_date, last_modified_date, default_start_time, default_end_time and "
                     + "the academic and registration period dates; any other sort is rejected with 400, because "
-                    + "ordering a listing by a figure it does not print would disclose it one comparison at a time.")
+                    + "ordering a listing by a figure it does not print would disclose it one comparison at a time. "
+                    + "With q, only classes matching the text are returned, under the same visibility. When search is "
+                    + "enabled the match is typo-tolerant over title, course, program, organisation, branch, instructor, "
+                    + "location and description, ranked by relevance unless sorted by title, created_date or "
+                    + "default_start_time, pages hold at most 100 classes, and other query parameters filter on "
+                    + "uuid, course_uuid, program_uuid, organisation_uuid, branch_uuid, default_instructor_uuid, "
+                    + "category_uuid, is_active, class_visibility, content_approved, location_type, session_format, "
+                    + "starts_at, registration_closes_at, sale_price and created_at (field or field_op, op one of eq, "
+                    + "noteq, in, notin, gt, gte, lt, lte, between; any other parameter is rejected with 400). "
+                    + "Otherwise q is a case-insensitive title match.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Class definitions retrieved successfully")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a property outside the allow-list")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Sort names a property outside the allow-list, or a search filter names an unsupported field")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<ClassDefinitionResponseDTO>>> getAllClassDefinitions(
+            @Parameter(description = "Free-text search; omit to list every visible class")
+            @RequestParam(value = "q", required = false) String q,
+            @Parameter(hidden = true)
+            @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         log.debug("REST request to get all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<ClassDefinitionResponseDTO> result = classDefinitionService.findAllClasses(pageable);
+        Page<ClassDefinitionResponseDTO> result = StringUtils.hasText(q)
+                ? classDefinitionService.searchClasses(q, searchParams, pageable)
+                : classDefinitionService.findAllClasses(pageable);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(result, baseUrl),
                 "All class definitions retrieved successfully"));
     }
 
     @Operation(summary = "Get all active class definitions",
-            description = "Platform admins see every active class; other callers see active PUBLIC classes plus active classes those of organisations they staff, those they teach and those they are enrolled in.")
+            description = "Platform admins see every active class; other callers see active PUBLIC classes plus active classes those of organisations they staff, those they teach and those they are enrolled in. "
+                    + "With q, only classes matching the text are returned, under the same visibility, ranked by relevance "
+                    + "(typo-tolerant over title, course, program, organisation, branch, instructor, location and description) "
+                    + "when search is enabled, else by a case-insensitive title match; at most 100 classes are returned.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active class definitions retrieved successfully")
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getAllActiveClassDefinitions() {
+    public ResponseEntity<ApiResponse<List<ClassDefinitionResponseDTO>>> getAllActiveClassDefinitions(
+            @Parameter(description = "Free-text search; omit to list every visible active class")
+            @RequestParam(value = "q", required = false) String q) {
         log.debug("REST request to get all active classes");
         
-        List<ClassDefinitionResponseDTO> result = classDefinitionService.findAllActiveClasses();
+        List<ClassDefinitionResponseDTO> result = StringUtils.hasText(q)
+                ? classDefinitionService.searchActiveClasses(q)
+                : classDefinitionService.findAllActiveClasses();
         return ResponseEntity.ok(ApiResponse.success(result, "All active class definitions retrieved successfully"));
     }
 

@@ -35,6 +35,18 @@ public interface ClassMarketplaceJobServiceInterface {
                                           ClassMarketplaceJobStatus status,
                                           Pageable pageable);
 
+    /**
+     * {@link #listJobs} narrowed to jobs matching {@code q}, under the same visibility rules: ranked by
+     * the search index when it is read-enabled, else a title match in the database.
+     */
+    Page<ClassMarketplaceJobDTO> searchJobs(UUID organisationUuid,
+                                            UUID courseUuid,
+                                            UUID programUuid,
+                                            UUID branchUuid,
+                                            ClassMarketplaceJobStatus status,
+                                            String q,
+                                            Pageable pageable);
+
     ClassMarketplaceJobDTO cancelJob(UUID jobUuid);
 
     ClassMarketplaceJobApplicationDTO applyToJob(UUID jobUuid, ClassMarketplaceJobApplicationRequestDTO request);

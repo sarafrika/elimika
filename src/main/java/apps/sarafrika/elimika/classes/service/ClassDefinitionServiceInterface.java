@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -63,6 +64,22 @@ public interface ClassDefinitionServiceInterface {
     Page<ClassDefinitionResponseDTO> findAllClasses(Pageable pageable);
 
     List<ClassDefinitionResponseDTO> findAllActiveClasses();
+
+    /**
+     * {@link #findAllClasses} narrowed to classes matching {@code q}: ranked by the search index when
+     * it is read-enabled (other {@code searchParams} then filter on its filterable attributes), else a
+     * title match in the database.
+     */
+    Page<ClassDefinitionResponseDTO> searchClasses(String q, Map<String, String> searchParams, Pageable pageable);
+
+    /** {@link #findAllActiveClasses} narrowed to classes matching {@code q}, at most {@code SEARCH_LIST_LIMIT}. */
+    List<ClassDefinitionResponseDTO> searchActiveClasses(String q);
+
+    /** {@link #findClassesForOrganisation} narrowed to classes matching {@code q}, at most {@code SEARCH_LIST_LIMIT}. */
+    List<ClassDefinitionResponseDTO> searchClassesForOrganisation(UUID organisationUuid, String q);
+
+    /** The most classes an unpaged listing returns for a {@code q} search. */
+    int SEARCH_LIST_LIMIT = 100;
 
     Page<ScheduledInstanceDTO> getClassSchedule(UUID classDefinitionUuid, Pageable pageable);
 

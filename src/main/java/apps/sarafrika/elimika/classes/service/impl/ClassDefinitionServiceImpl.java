@@ -6,6 +6,19 @@ import apps.sarafrika.elimika.classes.factory.ClassDefinitionFactory;
 import apps.sarafrika.elimika.classes.factory.ClassSessionTemplateFactory;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.ClassListingVisibility;
+import apps.sarafrika.elimika.classes.search.ClassSearchScopes;
+import apps.sarafrika.elimika.classes.search.ClassSearchSource;
+import apps.sarafrika.elimika.classes.search.ClassesSearch;
+import apps.sarafrika.elimika.shared.search.SearchFilter;
+import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
+import apps.sarafrika.elimika.shared.search.SearchRequest;
+import apps.sarafrika.elimika.shared.search.SearchSort;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
 import apps.sarafrika.elimika.classes.model.ClassSchedulingConflict;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
@@ -93,6 +106,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private final StorageProperties storageProperties;
     private final BranchLocationResolver branchLocationResolver;
     private final ClassListingVisibility classListingVisibility;
+    private final ClassesSearch classesSearch;
 
     private static final String CLASS_DEFINITION_NOT_FOUND_TEMPLATE = "Class definition with UUID %s not found";
     private static final String TRAINING_PROGRAM_NOT_FOUND_TEMPLATE = "Training program with UUID %s not found";
@@ -1100,6 +1114,115 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ClassDefinitionResponseDTO> searchClasses(String q, Map<String, String> searchParams, Pageable pageable) {
+        if (!StringUtils.hasText(q)) {
+            return findAllClasses(pageable);
+        }
+        rejectSortOnWithheldFigures(pageable);
+        ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
+        int size = Math.min(pageable.getPageSize(), SearchRequest.MAX_SIZE);
+        Optional<Page<ClassDefinitionResponseDTO>> searched = searchIndex(q,
+                SearchParamsTranslator.toFilter(searchParams, ClassSearchSource.DEFINITION), scope,
+                ClassSearchSource.sortFor(pageable.getSort()), pageable.getPageNumber(), size, definition -> true);
+        if (searched.isPresent()) {
+            return searched.get();
+        }
+        return classDefinitionRepository.findAll(scope.toSpecification().and(titleMatches(q)), pageable)
+                .map(this::toDTOWithSessionTemplates)
+                .map(this::buildResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionResponseDTO> searchActiveClasses(String q) {
+        if (!StringUtils.hasText(q)) {
+            return findAllActiveClasses();
+        }
+        ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
+        SearchFilter activeAndApproved = SearchFilter.and(
+                SearchFilter.eq("is_active", true), SearchFilter.eq("content_approved", true));
+        // Approval is re-read from the course module on the hits: the index copy is only refreshed
+        // when the class itself changes.
+        Optional<Page<ClassDefinitionResponseDTO>> searched = searchIndex(q, activeAndApproved, scope, List.of(),
+                0, SEARCH_LIST_LIMIT, definition -> Boolean.TRUE.equals(definition.getIsActive())
+                        && isLinkedContentApproved(definition));
+        if (searched.isPresent()) {
+            return searched.get().getContent();
+        }
+        Specification<ClassDefinition> active = (root, query, cb) -> cb.isTrue(root.get("isActive"));
+        return classDefinitionRepository.findAll(active.and(scope.toSpecification()).and(titleMatches(q)),
+                        PageRequest.of(0, SEARCH_LIST_LIMIT, Sort.by("title")))
+                .stream()
+                .filter(this::isLinkedContentApproved)
+                .map(this::toDTOWithSessionTemplates)
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassDefinitionResponseDTO> searchClassesForOrganisation(UUID organisationUuid, String q) {
+        if (!StringUtils.hasText(q)) {
+            return findClassesForOrganisation(organisationUuid);
+        }
+        ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
+        Optional<Page<ClassDefinitionResponseDTO>> searched = searchIndex(q,
+                SearchFilter.eq("organisation_uuid", organisationUuid), scope, List.of(), 0, SEARCH_LIST_LIMIT,
+                definition -> organisationUuid.equals(definition.getOrganisationUuid()));
+        if (searched.isPresent()) {
+            return searched.get().getContent();
+        }
+        Specification<ClassDefinition> ofOrganisation =
+                (root, query, cb) -> cb.equal(root.get("organisationUuid"), organisationUuid);
+        return classDefinitionRepository.findAll(ofOrganisation.and(scope.toSpecification()).and(titleMatches(q)),
+                        PageRequest.of(0, SEARCH_LIST_LIMIT, Sort.by("title")))
+                .stream()
+                .map(this::toDTOWithSessionTemplates)
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * One page from the {@code classes} index, hydrated from the database in hit order, or empty when
+     * the index cannot answer. The hits are re-checked against the listing scope and {@code stillMatches}
+     * on the loaded rows, so an index document that lags its row can drop out but never leak, and every
+     * row goes through the same DTO assembly and instructor-pay redaction as the database listing.
+     */
+    private Optional<Page<ClassDefinitionResponseDTO>> searchIndex(String q,
+                                                                   SearchFilter filter,
+                                                                   ClassListingVisibility.Scope scope,
+                                                                   List<SearchSort> sort,
+                                                                   int page,
+                                                                   int size,
+                                                                   java.util.function.Predicate<ClassDefinition> stillMatches) {
+        if (!classesSearch.isReadEnabled(ClassSearchSource.INDEX)) {
+            return Optional.empty();
+        }
+        SearchRequest request = new SearchRequest(ClassSearchSource.INDEX, q.trim(), filter,
+                ClassSearchScopes.forListing(scope), sort, page, size, List.of(), null);
+        return classesSearch.search(request).map(hits -> {
+            Map<UUID, ClassDefinition> byUuid = classDefinitionRepository.findByUuidIn(hits.uuids()).stream()
+                    .collect(Collectors.toMap(ClassDefinition::getUuid, Function.identity(), (first, second) -> first));
+            List<ClassDefinitionResponseDTO> content = hits.uuids().stream()
+                    .map(byUuid::get)
+                    .filter(Objects::nonNull)
+                    .filter(scope::admits)
+                    .filter(stillMatches)
+                    .map(this::toDTOWithSessionTemplates)
+                    .map(this::buildResponse)
+                    .toList();
+            return new PageImpl<>(content, PageRequest.of(page, size), hits.totalHits());
+        });
+    }
+
+    /** Case-insensitive title containment with the input escaped, the fallback for a {@code q} search. */
+    private static Specification<ClassDefinition> titleMatches(String q) {
+        String pattern = LikePatterns.containsLower(q.trim());
+        return (root, query, cb) -> cb.like(cb.lower(root.get("title")), pattern, LikePatterns.ESCAPE_CHAR);
     }
 
     @Override

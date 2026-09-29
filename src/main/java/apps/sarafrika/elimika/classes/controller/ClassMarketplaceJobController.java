@@ -83,9 +83,15 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "List marketplace class jobs",
-            description = "Platform admins see every job; staff of the organisation named by organisation_uuid see that organisation's jobs in any status; everyone else sees OPEN jobs only (a non-open status filter returns an empty page). instructor_pay is included only for admin-verified instructors, managers of the posting organisation and platform admins; other callers receive the advert without it")
+            description = "Platform admins see every job; staff of the organisation named by organisation_uuid see that organisation's jobs in any status; everyone else sees OPEN jobs only (a non-open status filter returns an empty page). instructor_pay is included only for admin-verified instructors, managers of the posting organisation and platform admins; other callers receive the advert without it. "
+                    + "With q, only jobs matching the text are returned, under the same visibility and filters: when search is enabled "
+                    + "the match is typo-tolerant over title, course, program, organisation, branch, location, target groups and description, "
+                    + "ranked by relevance unless sorted by created_date or default_start_time, and pages hold at most 100 jobs; otherwise q is a "
+                    + "case-insensitive title match")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedDTO<ClassMarketplaceJobDTO>>> listJobs(
+            @Parameter(description = "Free-text search; omit to list every visible job")
+            @RequestParam(value = "q", required = false) String q,
             @RequestParam(value = "organisation_uuid", required = false) UUID organisationUuid,
             @RequestParam(value = "course_uuid", required = false) UUID courseUuid,
             @RequestParam(value = "program_uuid", required = false) UUID programUuid,
@@ -97,14 +103,22 @@ public class ClassMarketplaceJobController {
                 .filter(value -> !value.isBlank())
                 .map(ClassMarketplaceJobStatus::fromValue);
 
-        Page<ClassMarketplaceJobDTO> page = classMarketplaceJobService.listJobs(
-                organisationUuid,
-                courseUuid,
-                programUuid,
-                branchUuid,
-                statusFilter.orElse(null),
-                pageable
-        );
+        Page<ClassMarketplaceJobDTO> page = q == null || q.isBlank()
+                ? classMarketplaceJobService.listJobs(
+                        organisationUuid,
+                        courseUuid,
+                        programUuid,
+                        branchUuid,
+                        statusFilter.orElse(null),
+                        pageable)
+                : classMarketplaceJobService.searchJobs(
+                        organisationUuid,
+                        courseUuid,
+                        programUuid,
+                        branchUuid,
+                        statusFilter.orElse(null),
+                        q,
+                        pageable);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
                 "Marketplace class jobs retrieved successfully"));

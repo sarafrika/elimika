@@ -196,7 +196,8 @@ class InstructorFirmHoldConflictIntegrationTest {
                 mock(MediaValidationService.class),
                 new StorageProperties(),
                 new BranchLocationResolver(mock(TrainingBranchLookupService.class)),
-                mock(apps.sarafrika.elimika.classes.internal.ClassListingVisibility.class));
+                mock(apps.sarafrika.elimika.classes.internal.ClassListingVisibility.class),
+                mock(apps.sarafrika.elimika.classes.search.ClassesSearch.class));
     }
 
     @Test
