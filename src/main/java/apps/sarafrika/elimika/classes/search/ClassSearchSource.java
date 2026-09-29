@@ -65,7 +65,8 @@ public class ClassSearchSource implements SearchDocumentSource<ClassSearchDocume
     private static final Map<String, String> SORT_ATTRIBUTES = Map.of(
             "title", "title",
             "createdDate", "created_at",
-            "defaultStartTime", "starts_at");
+            "defaultStartTime", "starts_at",
+            "salePrice", "sale_price");
 
     private final ClassDefinitionRepository classDefinitionRepository;
     private final ClassSessionTemplateRepository sessionTemplateRepository;

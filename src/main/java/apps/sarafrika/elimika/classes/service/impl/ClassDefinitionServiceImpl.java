@@ -116,12 +116,12 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     private static final int MAX_ROLLOVER_ITERATIONS = 20;
     /**
      * The only properties a class listing may be sorted by. An allow-list rather than a deny-list:
-     * ordering by a withheld figure (instructor pay, sale price) or a private field (meeting link)
-     * would disclose it one comparison at a time, and a new column must not become sortable just
-     * because nobody remembered to deny it.
+     * ordering by a withheld figure (instructor pay) or a private field (meeting link) would
+     * disclose it one comparison at a time, and a new column must not become sortable just because
+     * nobody remembered to deny it. The sale price is the public price, so it stays sortable.
      */
     private static final Set<String> SORTABLE_PROPERTIES = Set.of(
-            "title", "createdDate", "lastModifiedDate", "defaultStartTime", "defaultEndTime",
+            "title", "createdDate", "salePrice", "lastModifiedDate", "defaultStartTime", "defaultEndTime",
             "academicPeriodStartDate", "academicPeriodEndDate",
             "registrationPeriodStartDate", "registrationPeriodEndDate");
 
