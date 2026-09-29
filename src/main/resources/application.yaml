@@ -188,6 +188,9 @@ search:
   resubmit-interval: ${SEARCH_RESUBMIT_INTERVAL:PT5M}
   resubmit-older-than: ${SEARCH_RESUBMIT_OLDER_THAN:PT5M}
   rebuild-batch-size: ${SEARCH_REBUILD_BATCH_SIZE:500}
+  # Nightly blue/green rebuild of every index (UTC), which refreshes names copied from other modules
+  # (organisation, branch, course, program, instructor, creator). "-" disables it.
+  full-rebuild-cron: ${SEARCH_FULL_REBUILD_CRON:0 30 1 * * *}
   meilisearch:
     host: ${SEARCH_MEILISEARCH_HOST:http://meilisearch:7700}
     # A scoped key (search + documents + indexes + settings + tasks + stats), never the master key.

@@ -34,6 +34,12 @@ public class SearchProperties {
     /** How long an indexing request may stay incomplete before it is resubmitted. */
     private Duration resubmitOlderThan = Duration.ofMinutes(5);
 
+    /**
+     * When every index is rebuilt blue/green, refreshing names copied from other modules; UTC.
+     * {@code -} disables the nightly rebuild.
+     */
+    private String fullRebuildCron = "0 30 1 * * *";
+
     /** Rows loaded per rebuild batch. */
     private int rebuildBatchSize = 500;
 
