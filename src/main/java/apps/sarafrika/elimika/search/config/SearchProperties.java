@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.search.config;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -45,8 +46,23 @@ public class SearchProperties {
 
     private Meilisearch meilisearch = new Meilisearch();
 
+    /**
+     * Keys are matched ignoring case and separators: an environment variable such as
+     * {@code SEARCH_READENABLED_MARKETPLACE_JOBS} binds to the key {@code marketplace.jobs}, not
+     * {@code marketplace_jobs}, so an exact lookup would never find it.
+     */
     public boolean isReadEnabled(String index) {
-        return enabled && Boolean.TRUE.equals(readEnabled.getOrDefault(index, false));
+        if (!enabled || index == null) {
+            return false;
+        }
+        String wanted = normaliseIndexKey(index);
+        return readEnabled.entrySet().stream()
+                .anyMatch(entry -> normaliseIndexKey(entry.getKey()).equals(wanted)
+                        && Boolean.TRUE.equals(entry.getValue()));
+    }
+
+    private static String normaliseIndexKey(String key) {
+        return key.replaceAll("[^A-Za-z0-9]", "").toLowerCase(Locale.ROOT);
     }
 
     @Getter
