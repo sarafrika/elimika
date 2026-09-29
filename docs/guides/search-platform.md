@@ -10,7 +10,13 @@ a disposable projection that can be rebuilt from its tables at any time.
   nothing about any domain. Nothing depends on it.
 - **Off by default.** With `SEARCH_ENABLED=false` nothing is indexed, no HTTP call is made, the
   health endpoint has no `search` component, and `SearchGateway` throws
-  `SearchUnavailableException`, so callers fall back to the database.
+  `SearchUnavailableException`.
+- **`q` requires search. There is no database fallback.** Free text is served only by Meilisearch.
+  A request with `q` whose index cannot answer (search off, the index's read flag off, or the engine
+  failing) is a **503** `{"success": false, "message": "Search is unavailable"}`. PostgreSQL serves only
+  relational filters (`eq, in, notin, noteq, gt, gte, lt, lte, between, notingroup`) through
+  `GenericSpecificationBuilder`; the SQL text operators `_like`, `_startswith` and `_endswith` were
+  removed and answer **400** ("Text operators were removed; use the q parameter for text search").
 
 ## Flow
 
@@ -20,9 +26,15 @@ a disposable projection that can be rebuilt from its tables at any time.
  GET /courses?q=java&...
         │
         ▼
- Controller ──► Service ── SearchAvailability.isReadEnabled("courses")?
-                   │            │ no / SearchUnavailableException
-                   │            └──────────────► JPA Specification ──► PostgreSQL
+ Controller ──► Service ── q present?
+                   │            │ no ──► relational filters only: JPA Specification ──► PostgreSQL
+                   │ yes
+                   ├── SearchAvailability.isReadEnabled("courses")?
+                   │            │ no ──► SearchUnavailableException ──► 503 "Search is unavailable"
+                   │            │        (GlobalExceptionHandler; never a SQL LIKE)
+                   │ yes
+                   ├── every other param/sort in the index allow-list (after aliases)?
+                   │            │ no ──► IllegalArgumentException naming the key ──► 400
                    │ yes
                    ▼
             SearchRequest(index, text, SearchParamsTranslator.toFilter(params),
@@ -31,9 +43,12 @@ a disposable projection that can be rebuilt from its tables at any time.
                    ▼
             SearchGateway.search ─────────────────────────────────► Meilisearch
             (scope AND filter, quoted and escaped)                   (index "courses")
-                   │
+                   │ engine error ──► SearchUnavailableException ──► 503
                    ▼
             SearchPage { hits[uuid, document, formatted], total_hits, facets }
+                   │ hydrate hit UUIDs in one SQL query that re-applies visibility
+                   ▼
+            the endpoint's existing DTO page, in hit order
 
 
  Write path (no search code in the service):
@@ -88,7 +103,7 @@ a disposable projection that can be rebuilt from its tables at any time.
 | Property | Env var | Default | Meaning |
 |---|---|---|---|
 | `search.enabled` | `SEARCH_ENABLED` | `false` | Master switch for indexing and search |
-| `search.read-enabled.<index>` | `SEARCH_READENABLED_<INDEX>` | `false` | Route reads for this index to search - both the module's `q` listings and global search. Indexing runs whenever search is enabled; reads are opted in separately |
+| `search.read-enabled.<index>` | `SEARCH_READENABLED_<INDEX>` | `false` | Serve reads for this index from search - both the module's `q` listings and global search. Indexing runs whenever search is enabled; reads are opted in separately. **While it is off, every `q` on that index's endpoints answers 503** |
 | `search.auto-rebuild` | `SEARCH_AUTO_REBUILD` | `false` | Rebuild on startup when a definition's `schemaVersion` moved on |
 | `search.full-rebuild-cron` | `SEARCH_FULL_REBUILD_CRON` | `0 30 1 * * *` | Nightly blue/green rebuild of every index, UTC. `-` disables it |
 | `search.meilisearch.host` | `SEARCH_MEILISEARCH_HOST` | `http://meilisearch:7700` | Engine URL (internal Docker network only) |
@@ -122,6 +137,9 @@ Registered whether or not search is on, so a disabled engine answers **503** rat
 `GET` on both routes is `permitAll` in `SecurityConfiguration`: each type's provider decides what the
 caller sees, and `DomainSecurityService` answers "no user, no roles" for an anonymous request, so every
 provider falls back to its public boundary or hides the type.
+
+Both endpoints carry explicit OpenAPI `operationId`s - `globalSearch` and `searchByType` - so the
+generated client keeps stable method names.
 
 ### `GET /api/v1/search?q=&types=&limit=`
 
@@ -171,6 +189,9 @@ A "see all results" page for one type: `{ content: [GlobalSearchHit], metadata: 
   translated by `SearchParamsTranslator` against the index's filterable allow-list; `facets` must name
   filterable attributes; `sort` is `field[,asc|desc]` over sortable attributes. Anything else is a 400.
 - `page` ≥ 0, `size` 1-100 (default 20).
+- The OpenAPI description of `searchByType` ends with a **filter map**: one row per type listing its
+  filterable and sortable attributes, generated from the providers' index definitions
+  (`SearchTypeFilterDocumentation`), so it always matches what the endpoint accepts.
 - **403** when the provider returns no scope for the caller (for example `people` for a student).
   **503** when search, or this type's index, is not enabled.
 
@@ -218,7 +239,7 @@ thread and run one after another.
 | `marketplace_jobs` | `classes/search`: `MarketplaceJobSearchSource`, `MarketplaceJobSearchScopes`, `…MarketplaceJobs` | `class_marketplace_jobs` | `GET /api/v1/classes/jobs` |
 | `instructors` | `instructor/search`: `InstructorSearchSource`, `InstructorSearchScopes` + `InstructorVisibility`, `InstructorGlobalSearchProvider` | `instructors` | `GET /api/v1/instructors`, `/instructors/search` |
 | `organisations` | `tenancy/search`: `OrganisationSearchSource`, `OrganisationSearchScopes`, `TenancyGlobalSearchProviders.Organisations` | `organisation` | `GET /api/v1/organisations`, the pending-verification queue |
-| `people` | `tenancy/search`: `PeopleSearchSource`, `PeopleSearchScopes`, `TenancyGlobalSearchProviders.People` | `users` | `/users/search`, `/admin/users/eligible`, organisation rosters |
+| `people` | `tenancy/search`: `PeopleSearchSource`, `PeopleSearchScopes`, `TenancyGlobalSearchProviders.People` | `users` | `/users/search`, `/admin/users/eligible`, organisation rosters, and the instructor-student roster `search` (timetabling, see below) |
 
 ### Fields, scopes, triggers and staleness
 
@@ -226,7 +247,7 @@ thread and run one after another.
 |---|---|---|---|---|---|---|
 | `courses` | name, category_names, creator_name, difficulty_name, description, objectives | status, active, admin_approved, is_public, course_creator_uuid, category_uuids, difficulty_uuid, is_free, price, uuid, created_at | name, created_at, price, rating_avg, enrolment_count | `is_public` OR own creator OR related (enrolled / manageable) course | `Course`, `CourseCategoryMapping`, `CourseReview`; fan-out on `Category`, `DifficultyLevel` | `creator_name` (course-creator module) until the nightly rebuild |
 | `programs` | title, course_names, category_name, creator_name, description | status, is_published, admin_approved, active, is_public, course_creator_uuid, … | title, created_at | `is_public` OR authored under own identities | `TrainingProgram`, `ProgramCourse`; fan-out on `Course`, `Category` | `creator_name` until the nightly rebuild |
-| `rubrics` | title, rubric_type, description | is_public, is_active, status, course_creator_uuid, rubric_type, usage_count, uuid, created_at | title, created_at, usage_count | public OR own; discovery: public AND active | `AssessmentRubric`, `CourseRubricAssociation` | none |
+| `rubrics` | title, rubric_type, description | is_public, is_active, status, course_creator_uuid, rubric_type (stored lower-case, schema v2), usage_count, uuid, created_at | title, created_at, usage_count | public OR own; discovery: public AND active | `AssessmentRubric`, `CourseRubricAssociation` | none |
 | `classes` | title, course_name, program_title, organisation_name, branch_name, instructor_name, location_name, description | uuid, course_uuid, program_uuid, organisation_uuid, branch_uuid, default_instructor_uuid, category_uuid, is_active, class_visibility, content_approved, location_type, session_format, starts_at, registration_closes_at, sale_price, created_at | starts_at, sale_price, created_at, title | active `PUBLIC` OR staffed org OR taught OR enrolled | `ClassDefinition`, `ClassSessionTemplate`; `UserUpdateEvent` re-indexes the classes of a renamed instructor | course/program names and approval, organisation and branch names until the nightly rebuild (module reads re-check approval and visibility on the rows) |
 | `marketplace_jobs` | title, course_name, program_title, organisation_name, branch_name, location_name, target_groups, description | status, organisation_uuid, branch_uuid, course_uuid, program_uuid, category_uuid, location_type, session_format, starts_at, registration_closes_at, uuid, created_at | created_at, starts_at | `OPEN`; staff of the filtered organisation see it in any status | `ClassMarketplaceJob`, `ClassMarketplaceJobSessionTemplate`; bulk deletes enqueue explicitly | course/program, organisation and branch names until the nightly rebuild |
 | `instructors` | full_name, professional_headline, skills, experience_positions, experience_organisations, location_name, bio | admin_verified, active, skills, skill_levels, location_name, uuid, created_at | full_name, rating_avg, review_count, created_at | verified OR own profile OR pinned by `uuid` | `Instructor`, `InstructorSkill`, `InstructorExperience`, `InstructorReview`; `UserUpdateEvent` (name kept by a DB trigger) | none |
@@ -248,12 +269,83 @@ thread and run one after another.
   lookup (`uuid`/`uuid_in`, `user_uuid`/`user_uuid_in`) resolves the named profiles whatever their
   state, as `GET /instructors/{uuid}` does - which keeps the organisation, course-creator and booking
   screens able to name an instructor who is not verified yet.
-- **Fallback** (reads off or engine down): a case-insensitive, escaped match (`name_like`,
-  `title_like`, `fullName_like` or the class title) inside the same scoped SQL query. On
-  `GET /api/v1/classes?q=` the other filter parameters are applied to the database too
-  (`ClassSearchFallbackFilter`), so both paths answer the same question.
 - **Unpaged class lists** (`/classes/active`, `/classes/organisation/{uuid}`) return at most 100 matches
   for `q`; paged endpoints cap a page at 100.
+
+## `q` rules: no SQL fallback
+
+Free text has exactly one path - the index. Every module endpoint that accepts `q` follows the same
+rules; nothing falls back to PostgreSQL.
+
+| Situation | Answer |
+|---|---|
+| `q` absent or blank | Relational SQL listing, as before (`GenericSpecificationBuilder` + the module's own relational keys) |
+| `q` present, index read-enabled, engine healthy | Search, hydrated in hit order |
+| `SEARCH_ENABLED=false`, or `SEARCH_READENABLED_<INDEX>` off | **503** `{"success": false, "message": "Search is unavailable", "error": "Text search (q) is disabled or temporarily unavailable; try again later"}` |
+| The engine errors or times out | **503**, same body |
+| `q` with a filter or sort the index cannot express (e.g. `category_name`, `sort=lastModifiedDate`, any `_like`) | **400** naming the key |
+| `q` with a page size above 100, or unpaged | **400** (catalogue endpoints) |
+| Any `_like`, `_startswith`, `_endswith` key, with or without `q` | **400** "Text operators were removed; use the q parameter for text search" |
+
+`SearchUnavailableException` is mapped once, in `GlobalExceptionHandler`, and the UI detects an outage by
+the exact message `Search is unavailable`.
+
+**Aliases** (cheap and unambiguous; anything else is a 400):
+
+| Endpoint | Request key with `q` | Index filter |
+|---|---|---|
+| courses | `is_published` / `is_draft` / `is_archived` / `is_in_review` = `true` / `false` | `status = value` / `status != value` |
+| courses, programs | `lifecycle_stage` (also `lifecycle_stage_in`, …) | `status` |
+| courses, programs, rubrics | `status`, `status_eq` in any case | `status` (stored lower-case) |
+| rubrics | `rubric_type` in any case | `rubric_type` (stored lower-case) |
+| classes | `location_type`, `session_format`, `class_visibility` in any case | the enum constant name |
+| `/users/search` | `user_domain` | `domains` |
+| sorts | `createdDate`, `created_date` | `created_at` |
+
+`lastModifiedDate` is **not** aliased: modification time is not in the documents and `created_at` means
+something else, so `sort=lastModifiedDate` with `q` is a 400. Sort by relevance (no `sort`) instead.
+
+**Removed SQL text paths** (all now answered by the index or gone):
+
+- `GenericSpecificationBuilder` `like` / `startswith` / `endswith` and `LikePatterns`.
+- `UserSpecificationBuilder` `full_name`, `full_name_like` and the name-or-email helper.
+- `CourseSpecificationBuilder` `category_name` and `difficulty_name` (use `category_uuids` /
+  `difficulty_uuid`, or `q`, which searches category and difficulty names).
+- `AssessmentRubricRepository` title/description `LIKE` queries and the `RubricTypeContaining` lookup.
+  Rubric discovery `type` is now an **exact, case-insensitive** match: through the index with `q`,
+  `LOWER(rubric_type) = :type` in SQL without.
+- The admin-eligible users term search, the organisation and pending-queue name matches, the class
+  title match and `ClassSearchFallbackFilter`, the marketplace job `searchByTitle`, and the instructor
+  `fullName_like` fallback.
+- The timetabling instructor-student roster's `full_name ILIKE`.
+- `InstructorEducationRepository.findByQualificationContainingIgnoreCase` (unused).
+
+**Categories are not indexed.** `GET /config/categories/search` keeps its relational filters, but there
+is no name search any more (`name_like` is a 400); the UI lists `GET /config/categories` and filters the
+small set client-side.
+
+### Instructor-student roster search (timetabling)
+
+`GET /api/v1/organisations/{org}/instructors/{instructor}/students?search=` has no index of its own:
+
+```
+ UI ── search=amina ──► InstructorStudentRosterServiceImpl
+                            │ people reads enabled?  no ──► 503
+                            ▼
+        EnrollmentRepository.findAllInstructorStudentsForOrganisation  (SQL, no name filter)
+        organisation + instructor of record (+ class) - the roster is already authorised in SQL
+                            │ roster rows + each student's user_uuid
+                            ▼
+        SearchGateway.search("people", text,
+            scope = uuid IN [roster user uuids],          ◄── can only narrow the roster
+            searchOn = full_name, first_name, last_name)  ◄── never email / username
+                            │ ranked user uuids (pages of 100 until every match is read)
+                            ▼
+        roster rows of the matched users, in rank order, paged in memory ──► InstructorStudentPageDTO
+```
+
+Timetabling reaches the index through `shared.search.SearchGateway` (the `shared` module it already
+depends on) and names the index by its string; it imports nothing from tenancy's search package.
 
 ## Go-live runbook
 
@@ -265,21 +357,29 @@ thread and run one after another.
      -d '{"description":"elimika api","actions":["search","documents.*","indexes.*","settings.*","tasks.get","stats.get"],"indexes":["*"],"expiresAt":null}'
    ```
 
-2. **Turn indexing on**: set `SEARCH_ENABLED=true` (leave every `SEARCH_READENABLED_*` unset) and
-   redeploy. Writes now reach the indexes; every read still comes from PostgreSQL, and global search
-   answers 503 because no index is read-enabled.
+> **Order matters since the SQL fallback was removed.** `q` is served only by search. Search must be
+> enabled, every index built, and **every `SEARCH_READENABLED_*` flag on BEFORE the release without the
+> SQL fallback deploys** - otherwise every request with `q` (course, program, rubric, class, job,
+> instructor, organisation and people listings, the admin-eligible `search` and the instructor-student
+> roster `search`) answers 503 "Search is unavailable". Run steps 1-5 on the previous release first.
+
+2. **Turn indexing on**: set `SEARCH_ENABLED=true` and redeploy. Writes now reach the indexes.
+   On a release without the fallback, `q` answers 503 until step 5 is done for its index.
 3. **Build each index**: `POST /api/v1/admin/search/rebuild` (all), or
    `POST /api/v1/admin/search/indexes/{index}/rebuild` one at a time. Rebuilds run in the background.
 4. **Verify counts**: `GET /api/v1/admin/search/indexes` until every index shows `status: READY`,
    `engine_document_count` equal to `recorded_document_count`, no `last_error`, and (after the next hourly reconcile)
    `drift` 0.
-5. **Enable reads one index at a time**: set `SEARCH_READENABLED_<INDEX>=true` for one index, redeploy,
-   and check its `q` listings and `GET /api/v1/search?types=<index>` before the next. Suggested order:
-   `organisations`, `courses`, `programs`, `classes`, `marketplace_jobs`, `instructors`, `rubrics`,
-   `people` last.
-6. **Roll back** by turning the flag off: `SEARCH_READENABLED_<INDEX>=false` sends that index's reads
-   back to PostgreSQL and drops the type from global search on the next deploy; nothing needs
-   rebuilding. `SEARCH_ENABLED=false` switches everything off (no indexing, no HTTP, global search 503).
+5. **Enable reads for every index**: set `SEARCH_READENABLED_<INDEX>=true` for all eight
+   (`organisations`, `courses`, `programs`, `classes`, `marketplace_jobs`, `instructors`, `rubrics`,
+   `people`), redeploy, and check each index's `q` listings and `GET /api/v1/search?types=<index>`.
+   The rubrics index moved to schema version 2 (lower-cased `rubric_type`): rebuild it (step 3) or
+   enable `SEARCH_AUTO_REBUILD` before relying on the discovery `type` filter with `q`.
+6. **Deploy the no-fallback release** only once step 5 holds on the target environment.
+7. **There is no SQL rollback for text search any more.** `SEARCH_READENABLED_<INDEX>=false` turns that
+   index's `q` into a 503 (and drops the type from global search); relational listings without `q`
+   keep working. If the engine is down, fix or rebuild it (`POST /api/v1/admin/search/rebuild`);
+   `SEARCH_ENABLED=false` switches everything off (no indexing, no HTTP, every `q` 503).
 
 ## Adding a searchable entity
 
@@ -370,23 +470,23 @@ final class CourseSearchScopes {
 
 ### 5. `q` routing
 
-Keep the existing endpoint and parameters; route only requests with `q` when the index is read-enabled,
-and fall back on `SearchUnavailableException`.
+Keep the existing endpoint and parameters. A request with `q` goes to search and **only** to search;
+never catch `SearchUnavailableException` to run a SQL `LIKE` - let it reach `GlobalExceptionHandler`
+(503). Without `q`, run the relational SQL listing.
 
 ```java
-if (StringUtils.hasText(q) && searchAvailability.isReadEnabled("courses")) {
-    try {
-        SearchRequest request = new SearchRequest("courses", q,
-                SearchParamsTranslator.toFilter(searchParams, DEFINITION),   // unknown key -> 400
-                CourseSearchScopes.forCaller(caller),
-                SearchParamsTranslator.toSort(searchParams.get("sort"), DEFINITION),
-                page, size, List.of(), null);
-        return toResponse(searchGateway.search(request));
-    } catch (SearchUnavailableException ex) {
-        log.warn("Search unavailable, falling back to the database: {}", ex.getMessage());
+if (StringUtils.hasText(q)) {
+    SearchFilter filter = SearchParamsTranslator.toFilter(searchParams, DEFINITION); // unknown key -> 400
+    if (!searchAvailability.isReadEnabled("courses")) {
+        throw new SearchUnavailableException("Search is not enabled for courses");       // -> 503
     }
+    SearchRequest request = new SearchRequest("courses", q, filter,
+            CourseSearchScopes.forCaller(caller),
+            SearchParamsTranslator.toSort(searchParams.get("sort"), DEFINITION),
+            page, size, List.of(), null);
+    return toResponse(searchGateway.search(request));   // engine error -> 503
 }
-return databaseQuery(searchParams, pageable);
+return relationalQuery(searchParams, pageable);         // no q: filters only, no text
 ```
 
 Then enable indexing (`SEARCH_ENABLED=true`), rebuild the index from the admin endpoint, check it in
