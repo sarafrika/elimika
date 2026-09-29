@@ -77,7 +77,10 @@ public interface OrganisationService {
     void deleteOrganisation(UUID uuid);
 
     /**
-     * Searches for organizations based on criteria.
+     * Searches for organizations based on criteria. A free-text {@code q} is routed to the
+     * {@code organisations} search index when it is read-enabled, and otherwise matched against the
+     * name in the database; either way a caller who is not a platform admin only finds active,
+     * verified organisations through {@code q}.
      *
      * @param searchParams the search criteria
      * @param pageable pagination information
@@ -233,4 +236,10 @@ public interface OrganisationService {
      * @return paginated list of unverified organizations
      */
     Page<OrganisationDTO> getUnverifiedOrganisations(Pageable pageable);
+
+    /**
+     * Unverified organisations, optionally narrowed by a free-text {@code query} matched against the
+     * name (and slug, location and description when the {@code organisations} index answers).
+     */
+    Page<OrganisationDTO> getUnverifiedOrganisations(String query, Pageable pageable);
 }

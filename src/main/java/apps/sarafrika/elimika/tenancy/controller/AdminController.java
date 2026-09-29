@@ -247,7 +247,9 @@ public class AdminController {
     @Operation(
             summary = "Get users eligible for admin promotion",
             description = "Retrieves a paginated list of users who can be promoted to administrator roles. " +
-                    "Excludes users who already have administrative privileges. Supports search by name or email."
+                    "Excludes users who already have administrative privileges. Supports search by name or email: " +
+                    "`search` is routed to the people search index (typo-tolerant, relevance-ordered) when it is " +
+                    "enabled, and otherwise matched case-insensitively against first name, last name and email."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Eligible users retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient privileges - system admin required")
@@ -257,7 +259,8 @@ public class AdminController {
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        log.debug("Getting admin eligible users with search term: {}", search);
+        // Never log the term itself: it is typically a person's name or email address.
+        log.debug("Getting admin eligible users (search length {})", search == null ? 0 : search.length());
         var eligibleUsers = adminService.getAdminEligibleUsers(search, pageable);
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(eligibleUsers, ServletUriComponentsBuilder
@@ -385,15 +388,19 @@ public class AdminController {
     @Operation(
             summary = "Get pending organisation approvals",
             description = "Retrieves a paginated list of organisations that are awaiting admin verification. " +
-                    "Results include organisations where the admin_verified flag is false or not yet set."
+                    "Results include organisations where the admin_verified flag is false or not yet set. " +
+                    "`q` optionally narrows the queue: over name, slug, location and description through the " +
+                    "organisations search index when it is enabled, otherwise a partial name match."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending organisations retrieved successfully")
     @GetMapping("/organisations/pending")
     public ResponseEntity<ApiResponse<PagedDTO<OrganisationDTO>>> getPendingOrganisations(
+            @Parameter(description = "Optional free-text search over the pending organisations")
+            @RequestParam(required = false) String q,
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.debug("Fetching pending organisations for approval with pagination: {}", pageable);
-        Page<OrganisationDTO> pendingOrganisations = organisationService.getUnverifiedOrganisations(pageable);
+        Page<OrganisationDTO> pendingOrganisations = organisationService.getUnverifiedOrganisations(q, pageable);
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(pendingOrganisations, ServletUriComponentsBuilder
                         .fromCurrentRequestUri()

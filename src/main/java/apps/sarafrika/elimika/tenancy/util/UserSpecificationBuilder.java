@@ -291,15 +291,38 @@ public class UserSpecificationBuilder {
     public Specification<User> hasFullNameLike(String fullName) {
         return (root, query, criteriaBuilder) -> {
             log.debug("Building hasFullNameLike predicate for: {}", fullName);
-
-            String pattern = LikePatterns.containsLower(normaliseFullName(fullName));
-            return criteriaBuilder.or(
-                    criteriaBuilder.like(criteriaBuilder.lower(createFullNameExpression(root, criteriaBuilder)),
-                            pattern, LikePatterns.ESCAPE_CHAR),
-                    criteriaBuilder.like(criteriaBuilder.lower(createFirstLastNameExpression(root, criteriaBuilder)),
-                            pattern, LikePatterns.ESCAPE_CHAR)
-            );
+            return fullNameLikePredicate(root, criteriaBuilder, fullName);
         };
+    }
+
+    /**
+     * The database form of a free-text {@code q}: {@code full_name_like}, OR'd with a
+     * case-insensitive partial email match when {@code includeEmail} is set. LIKE wildcards in the
+     * input match literally. The term is never logged - it is typically a person's name or address.
+     *
+     * @param term         the query text
+     * @param includeEmail whether the email column may match too
+     */
+    public Specification<User> nameOrEmailLike(String term, boolean includeEmail) {
+        return (root, query, criteriaBuilder) -> {
+            Predicate name = fullNameLikePredicate(root, criteriaBuilder, term);
+            if (!includeEmail) {
+                return name;
+            }
+            Predicate email = criteriaBuilder.like(criteriaBuilder.lower(root.get("email")),
+                    LikePatterns.containsLower(term.trim()), LikePatterns.ESCAPE_CHAR);
+            return criteriaBuilder.or(name, email);
+        };
+    }
+
+    private Predicate fullNameLikePredicate(Root<User> root, CriteriaBuilder criteriaBuilder, String fullName) {
+        String pattern = LikePatterns.containsLower(normaliseFullName(fullName));
+        return criteriaBuilder.or(
+                criteriaBuilder.like(criteriaBuilder.lower(createFullNameExpression(root, criteriaBuilder)),
+                        pattern, LikePatterns.ESCAPE_CHAR),
+                criteriaBuilder.like(criteriaBuilder.lower(createFirstLastNameExpression(root, criteriaBuilder)),
+                        pattern, LikePatterns.ESCAPE_CHAR)
+        );
     }
 
     private static String normaliseFullName(String fullName) {

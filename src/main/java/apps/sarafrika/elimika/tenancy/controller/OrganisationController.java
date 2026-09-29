@@ -170,7 +170,13 @@ class OrganisationController {
                     "Examples:\n" +
                     "- `/search?admin_verified=true` - Get verified organisations\n" +
                     "- `/search?admin_verified=false` - Get unverified organisations\n" +
-                    "- `/search?active=true&admin_verified=true` - Get active verified organisations")
+                    "- `/search?active=true&admin_verified=true` - Get active verified organisations\n\n" +
+                    "`q` - optional free-text search over name, slug, location and description (typo-tolerant, " +
+                    "relevance-ordered) when the organisations search index is enabled, otherwise a " +
+                    "case-insensitive partial match on the name. With `q`, callers other than platform " +
+                    "administrators only find active, verified organisations, and the other parameters filter " +
+                    "on `active`, `admin_verified`, `country`, `uuid` and `created_at`; `sort` accepts `name` " +
+                    "and `created_at`. Without `q` the endpoint behaves exactly as before.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
             description = "Paginated list of organisations matching the search criteria")
     @GetMapping("search")
@@ -193,7 +199,12 @@ class OrganisationController {
     // ORGANISATION USERS MANAGEMENT
     // ================================
 
-    @Operation(summary = "Get users by organisation ID")
+    @Operation(summary = "Get users by organisation ID",
+            description = "Pages the organisation's active members. `q` optionally narrows them by name: " +
+                    "organisation managers match on full, first and last name only (never email); platform " +
+                    "administrators may also match email, username and user number. When the people search " +
+                    "index is enabled the match is typo-tolerant and relevance-ordered, and `sort` accepts " +
+                    "`full_name` and `created_at`. Without `q` the endpoint behaves exactly as before.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Users retrieved successfully")
     @GetMapping("/{uuid}/users")
     @PreAuthorize(MANAGE_ORGANISATION)
@@ -201,8 +212,10 @@ class OrganisationController {
             @Parameter(description = "UUID of the organisation to get users for. Must be an existing organisation identifier.",
                     example = "550e8400-e29b-41d4-a716-446655440001", required = true)
             @PathVariable UUID uuid,
+            @Parameter(description = "Optional free-text name search over the organisation's members")
+            @RequestParam(required = false) String q,
             Pageable pageable) {
-        Page<UserDTO> users = userService.getUsersByOrganisation(uuid, pageable);
+        Page<UserDTO> users = userService.getUsersByOrganisation(uuid, q, pageable);
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(users, ServletUriComponentsBuilder
                         .fromCurrentRequestUri()
                         .build()

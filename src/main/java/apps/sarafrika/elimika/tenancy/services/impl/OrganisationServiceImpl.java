@@ -5,12 +5,14 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
 import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.tenancy.factory.OrganisationFactory;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.repository.*;
+import apps.sarafrika.elimika.tenancy.search.OrganisationSearchService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,6 +35,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrganisationServiceImpl implements OrganisationService {
 
+    private static final String SEARCH_QUERY_PARAM = "q";
+
 
     private final ApplicationEventPublisher eventPublisher;
     private final OrganisationRepository organisationRepository;
@@ -43,6 +48,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     private final GenericSpecificationBuilder<Organisation> specificationBuilder;
     private final UserContextService userContextService;
     private final DomainSecurityService domainSecurityService;
+    private final OrganisationSearchService organisationSearchService;
 
     @Override
     @Transactional
@@ -177,12 +183,31 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Override
     @Transactional(readOnly = true)
     public Page<OrganisationDTO> search(Map<String, String> searchParams, Pageable pageable) {
+        // Strip q before the specification builder, which would reject it as an unknown field.
+        Map<String, String> filters = new HashMap<>(searchParams == null ? Map.of() : searchParams);
+        String rawQuery = filters.remove(SEARCH_QUERY_PARAM);
+        String text = StringUtils.hasText(rawQuery) ? rawQuery.trim() : null;
+        if (text != null) {
+            Optional<Page<Organisation>> hits = organisationSearchService.search(text, filters, pageable);
+            if (hits.isPresent()) {
+                return hits.get().map(OrganisationFactory::toDTO);
+            }
+        }
         specificationBuilder.validateSortProperties(Organisation.class, pageable);
-        Specification<Organisation> spec = specificationBuilder.buildSpecification(Organisation.class, searchParams);
+        Specification<Organisation> spec = specificationBuilder.buildSpecification(Organisation.class, filters);
         // Add deleted=false filter to search
         Specification<Organisation> notDeletedSpec = (root, query, criteriaBuilder) ->
                 criteriaBuilder.isFalse(root.get("deleted"));
         Specification<Organisation> combinedSpec = spec == null ? notDeletedSpec : spec.and(notDeletedSpec);
+        if (text != null) {
+            combinedSpec = combinedSpec.and(nameLike(text));
+            if (!organisationSearchService.callerIsPlatformAdmin()) {
+                // The same boundary the index applies to q, so results do not depend on the engine.
+                combinedSpec = combinedSpec.and((root, query, criteriaBuilder) -> criteriaBuilder.and(
+                        criteriaBuilder.isTrue(root.get("active")),
+                        criteriaBuilder.isTrue(root.get("adminVerified"))));
+            }
+        }
 
         Page<Organisation> organisations = organisationRepository.findAll(combinedSpec, pageable);
         return organisations.map(OrganisationFactory::toDTO);
@@ -634,6 +659,29 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         log.debug("Found {} verified organisations", organisations.getTotalElements());
         return organisations.map(OrganisationFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrganisationDTO> getUnverifiedOrganisations(String query, Pageable pageable) {
+        if (!StringUtils.hasText(query)) {
+            return getUnverifiedOrganisations(pageable);
+        }
+        String text = query.trim();
+        Optional<Page<Organisation>> hits = organisationSearchService.searchPending(text, pageable);
+        if (hits.isPresent()) {
+            return hits.get().map(OrganisationFactory::toDTO);
+        }
+        specificationBuilder.validateSortProperties(Organisation.class, pageable);
+        return organisationRepository.findPendingByNameLike(LikePatterns.containsLower(text), pageable)
+                .map(OrganisationFactory::toDTO);
+    }
+
+    /** Case-insensitive partial name match; LIKE wildcards in the input match literally. */
+    private static Specification<Organisation> nameLike(String text) {
+        String pattern = LikePatterns.containsLower(text);
+        return (root, query, criteriaBuilder) -> criteriaBuilder.like(
+                criteriaBuilder.lower(root.get("name")), pattern, LikePatterns.ESCAPE_CHAR);
     }
 
     @Override

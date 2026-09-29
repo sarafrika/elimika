@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -82,6 +83,46 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                    OR lower(u.email) LIKE :pattern ESCAPE '\\')
             """)
     Page<User> findAdminEligibleUsers(@Param("pattern") String pattern, Pageable pageable);
+
+    /**
+     * The users among {@code uuids} who are currently active, non-deleted members of the
+     * organisation - the authorization predicate of an organisation roster, re-applied to search hits
+     * so a membership revoked after the index was written is never returned.
+     */
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.uuid IN :uuids
+              AND EXISTS (
+                SELECT 1 FROM UserOrganisationDomainMapping uodm
+                WHERE uodm.userUuid = u.uuid
+                  AND uodm.organisationUuid = :organisationUuid
+                  AND uodm.active = true
+                  AND uodm.deleted = false)
+            """)
+    List<User> findOrganisationMembersByUuidIn(@Param("uuids") Collection<UUID> uuids,
+                                               @Param("organisationUuid") UUID organisationUuid);
+
+    /**
+     * The users among {@code uuids} that {@link #findAdminEligibleUsers} would return, re-applied to
+     * search hits so a user promoted after the index was written is never offered again.
+     */
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.uuid IN :uuids
+              AND NOT EXISTS (
+                SELECT 1 FROM UserDomainMapping udm, UserDomain ud
+                WHERE ud.uuid = udm.userDomainUuid
+                  AND udm.userUuid = u.uuid
+                  AND ud.domainName = 'admin')
+              AND NOT EXISTS (
+                SELECT 1 FROM UserOrganisationDomainMapping uodm, UserDomain od
+                WHERE od.uuid = uodm.domainUuid
+                  AND uodm.userUuid = u.uuid
+                  AND uodm.active = true
+                  AND uodm.deleted = false
+                  AND od.domainName = 'organisation_user')
+            """)
+    List<User> findAdminEligibleByUuidIn(@Param("uuids") Collection<UUID> uuids);
 
     long countByActiveFalse();
 

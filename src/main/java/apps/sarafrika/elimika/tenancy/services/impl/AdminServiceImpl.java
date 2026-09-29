@@ -22,6 +22,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
 import apps.sarafrika.elimika.tenancy.dto.AdminActivityEventDTO;
+import apps.sarafrika.elimika.tenancy.search.PeopleSearchService;
 import apps.sarafrika.elimika.tenancy.dto.AdminDashboardStatsDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminDomainAssignmentRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AdminCreateUserRequestDTO;
@@ -111,6 +112,7 @@ public class AdminServiceImpl implements AdminService {
     private final MeterRegistry meterRegistry;
     private final KeycloakUserService keycloakUserService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final PeopleSearchService peopleSearchService;
 
     @Value("${app.keycloak.realm}")
     private String keycloakRealm;
@@ -592,6 +594,12 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> getAdminEligibleUsers(String searchTerm, Pageable pageable) {
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            Optional<Page<User>> hits = peopleSearchService.searchAdminEligible(searchTerm.trim(), pageable);
+            if (hits.isPresent()) {
+                return hits.get().map(userService::toUserDTO);
+            }
+        }
         String pattern = searchTerm == null || searchTerm.isBlank()
                 ? null
                 : LikePatterns.containsLower(searchTerm.trim());

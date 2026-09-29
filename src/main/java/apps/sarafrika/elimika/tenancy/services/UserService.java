@@ -157,6 +157,14 @@ public interface UserService {
     Page<UserDTO> getUsersByOrganisation(UUID organisationId, Pageable pageable);
 
     /**
+     * An organisation's active members, optionally narrowed by a free-text {@code query}. With a
+     * query, the {@code people} search index answers when it is read-enabled (names only for an
+     * organisation manager, names and email for a platform admin); otherwise the database does, with
+     * the same matching rules. Without one this is {@link #getUsersByOrganisation(UUID, Pageable)}.
+     */
+    Page<UserDTO> getUsersByOrganisation(UUID organisationId, String query, Pageable pageable);
+
+    /**
      * Retrieves users with a specific role in an organization.
      *
      * @param organisationUuid the organization UUID

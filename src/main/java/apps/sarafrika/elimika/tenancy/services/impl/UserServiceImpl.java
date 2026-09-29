@@ -17,6 +17,7 @@ import apps.sarafrika.elimika.tenancy.entity.*;
 import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.tenancy.factory.UserFactory;
 import apps.sarafrika.elimika.tenancy.repository.*;
+import apps.sarafrika.elimika.tenancy.search.PeopleSearchService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.services.UserNumberService;
 import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
@@ -31,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -42,6 +44,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class UserServiceImpl implements UserService {
+    private static final String SEARCH_QUERY_PARAM = "q";
+
     @Value("${app.keycloak.realm}")
     private String realm;
 
@@ -58,6 +62,7 @@ public class UserServiceImpl implements UserService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final NotificationPreferencesService notificationPreferencesService;
     private final UserNumberService userNumberService;
+    private final PeopleSearchService peopleSearchService;
 
     @Override
     @Transactional
@@ -130,8 +135,21 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> getUsersByOrganisation(UUID organisationId, Pageable pageable) {
-        userSpecificationBuilder.validateSortProperties(pageable);
+        return getUsersByOrganisation(organisationId, null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserDTO> getUsersByOrganisation(UUID organisationId, String query, Pageable pageable) {
         Organisation organisation = findOrganisationOrThrow(organisationId);
+        String text = StringUtils.hasText(query) ? query.trim() : null;
+        if (text != null) {
+            Optional<Page<User>> hits = peopleSearchService.searchOrganisationRoster(organisationId, text, pageable);
+            if (hits.isPresent()) {
+                return hits.get().map(this::toUserDTO);
+            }
+        }
+        userSpecificationBuilder.validateSortProperties(pageable);
 
         // Get users through the organisation domain mapping
         List<UserOrganisationDomainMapping> mappings = userOrganisationDomainMappingRepository
@@ -141,9 +159,16 @@ public class UserServiceImpl implements UserService {
                 .map(UserOrganisationDomainMapping::getUserUuid)
                 .collect(Collectors.toSet());
 
-        Page<User> users = userRepository.findByUuidIn(userUuids, pageable);
-
-        return users.map(this::toUserDTO);
+        if (text == null) {
+            return userRepository.findByUuidIn(userUuids, pageable).map(this::toUserDTO);
+        }
+        if (userUuids.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Specification<User> members = (root, criteriaQuery, criteriaBuilder) -> root.get("uuid").in(userUuids);
+        Specification<User> matching = members.and(userSpecificationBuilder.nameOrEmailLike(
+                text, peopleSearchService.rosterMatchesEmail()));
+        return userRepository.findAll(matching, pageable).map(this::toUserDTO);
     }
 
     @Override
@@ -367,9 +392,24 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        log.debug("Searching users with params: {}", searchParams);
+        // q is free text (names, email addresses): route it, never log it, and strip it before the
+        // specification builders, which would reject it as an unknown field.
+        Map<String, String> filters = new HashMap<>(searchParams == null ? Map.of() : searchParams);
+        String rawQuery = filters.remove(SEARCH_QUERY_PARAM);
+        String query = StringUtils.hasText(rawQuery) ? rawQuery.trim() : null;
+        if (query != null) {
+            Optional<Page<User>> hits = peopleSearchService.searchAll(query, filters, pageable);
+            if (hits.isPresent()) {
+                return hits.get().map(this::toUserDTO);
+            }
+        }
+        log.debug("Searching users with params: {}", filters);
         userSpecificationBuilder.validateSortProperties(pageable);
-        Specification<User> spec = userSpecificationBuilder.buildUserSpecification(searchParams);
+        Specification<User> spec = userSpecificationBuilder.buildUserSpecification(filters);
+        if (query != null) {
+            Specification<User> matching = userSpecificationBuilder.nameOrEmailLike(query, true);
+            spec = spec == null ? matching : spec.and(matching);
+        }
         Page<User> users = userRepository.findAll(spec, pageable);
         return users.map(this::toUserDTO);
     }

@@ -353,7 +353,14 @@ class UserController {
     @Operation(summary = "Search users",
             description = "Fetches a paginated list of users based on optional filters. " +
                     "Supports pagination and sorting. Restricted to platform administrators — " +
-                    "callers looking up their own record should use GET /api/v1/users/me.")
+                    "callers looking up their own record should use GET /api/v1/users/me.\n\n" +
+                    "`q` - optional free-text search over name, email, username and user number. When the " +
+                    "people search index is enabled it is typo-tolerant on names (exact on email, username " +
+                    "and user number) and ordered by relevance; other parameters then filter on the index " +
+                    "attributes `domains`, `organisation_uuids`, `branch_uuids`, `active`, `is_platform_admin`, " +
+                    "`is_org_admin`, `uuid` and `created_at`, and `sort` accepts `full_name` and `created_at`. " +
+                    "Otherwise `q` is a case-insensitive partial match on full name or email. " +
+                    "Without `q` the endpoint behaves exactly as before.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
             description = "Paginated list of users matching the search criteria")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
