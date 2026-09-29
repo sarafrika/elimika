@@ -79,8 +79,8 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         // rubric in the path - otherwise a caller authorised on one rubric could write another's cells.
         if (!rubricUuid.equals(rubricCriteriaService.getRubricCriteriaByUuid(cellUpdate.criteriaUuid()).rubricUuid())
                 || !rubricUuid.equals(rubricScoringLevelService.getRubricScoringLevelByUuid(cellUpdate.scoringLevelUuid()).rubricUuid())) {
-            throw new ResourceNotFoundException(String.format(
-                    "Criterion %s or scoring level %s not found in rubric %s",
+            throw new IllegalArgumentException(String.format(
+                    "Criterion %s and scoring level %s must both belong to rubric %s",
                     cellUpdate.criteriaUuid(), cellUpdate.scoringLevelUuid(), rubricUuid));
         }
 

@@ -4,8 +4,11 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.RubricScoringDTO;
 import apps.sarafrika.elimika.course.factory.RubricScoringFactory;
+import apps.sarafrika.elimika.course.model.RubricCriteria;
 import apps.sarafrika.elimika.course.model.RubricScoring;
+import apps.sarafrika.elimika.course.model.RubricScoringLevel;
 import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
+import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
 import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
 import apps.sarafrika.elimika.course.service.RubricScoringService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
 
     private final RubricScoringRepository rubricScoringRepository;
     private final RubricCriteriaRepository rubricCriteriaRepository;
+    private final RubricScoringLevelRepository rubricScoringLevelRepository;
     private final GenericSpecificationBuilder<RubricScoring> specificationBuilder;
 
     private static final String RUBRIC_SCORING_NOT_FOUND_TEMPLATE = "Rubric scoring with ID %s not found";
@@ -33,6 +37,7 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     public RubricScoringDTO createRubricScoring(UUID criteriaUuid, RubricScoringDTO rubricScoringDTO) {
         RubricScoring rubricScoring = RubricScoringFactory.toEntity(rubricScoringDTO);
         rubricScoring.setCriteriaUuid(criteriaUuid);
+        requireLevelInCriterionRubric(criteriaUuid, rubricScoring.getRubricScoringLevelUuid());
 
         RubricScoring savedRubricScoring = rubricScoringRepository.save(rubricScoring);
         return RubricScoringFactory.toDTO(savedRubricScoring);
@@ -82,6 +87,24 @@ public class RubricScoringServiceImpl implements RubricScoringService {
         Specification<RubricScoring> spec = specificationBuilder.buildSpecification(
                 RubricScoring.class, searchParams);
         return rubricScoringRepository.findAll(spec, pageable).map(RubricScoringFactory::toDTO);
+    }
+
+    /**
+     * A scoring cell sits at the intersection of a criterion and a scoring level of the same rubric.
+     * A level borrowed from another rubric would make the matrix meaningless, so it is rejected.
+     */
+    private void requireLevelInCriterionRubric(UUID criteriaUuid, UUID scoringLevelUuid) {
+        UUID criterionRubric = rubricCriteriaRepository.findByUuid(criteriaUuid)
+                .map(RubricCriteria::getRubricUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("Rubric criteria with ID %s not found", criteriaUuid)));
+        UUID levelRubric = scoringLevelUuid == null ? null : rubricScoringLevelRepository.findByUuid(scoringLevelUuid)
+                .map(RubricScoringLevel::getRubricUuid)
+                .orElse(null);
+        if (!criterionRubric.equals(levelRubric)) {
+            throw new IllegalArgumentException(String.format(
+                    "Scoring level %s does not belong to the rubric of criterion %s", scoringLevelUuid, criteriaUuid));
+        }
     }
 
     private void updateRubricScoringFields(RubricScoring existingRubricScoring, RubricScoringDTO dto) {
