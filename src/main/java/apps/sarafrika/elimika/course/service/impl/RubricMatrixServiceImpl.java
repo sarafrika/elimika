@@ -75,6 +75,15 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
 
     @Override
     public RubricMatrixDTO updateMatrixCell(UUID rubricUuid, RubricMatrixCellDTO cellUpdate) {
+        // The cell is addressed by criterion and level, not by rubric, so both must belong to the
+        // rubric in the path - otherwise a caller authorised on one rubric could write another's cells.
+        if (!rubricUuid.equals(rubricCriteriaService.getRubricCriteriaByUuid(cellUpdate.criteriaUuid()).rubricUuid())
+                || !rubricUuid.equals(rubricScoringLevelService.getRubricScoringLevelByUuid(cellUpdate.scoringLevelUuid()).rubricUuid())) {
+            throw new ResourceNotFoundException(String.format(
+                    "Criterion %s or scoring level %s not found in rubric %s",
+                    cellUpdate.criteriaUuid(), cellUpdate.scoringLevelUuid(), rubricUuid));
+        }
+
         // Find or create the matrix cell (RubricScoring entry)
         RubricScoring matrixCell = rubricScoringRepository
                 .findByCriteriaUuidAndRubricScoringLevelUuid(cellUpdate.criteriaUuid(), cellUpdate.scoringLevelUuid())

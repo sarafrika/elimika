@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -34,6 +35,10 @@ public class RubricMatrixController {
 
     public static final String API_ROOT_PATH = "/api/v1/rubrics/{rubricUuid}/matrix";
 
+    /** Writes are restricted to the rubric's author and platform admins. */
+    static final String WRITE_ACCESS = "@domainSecurityService.isPlatformAdmin()"
+            + " or @courseSecurityService.isRubricOwner(#rubricUuid)";
+
     private final RubricMatrixService rubricMatrixService;
 
     @Operation(
@@ -54,6 +59,7 @@ public class RubricMatrixController {
             summary = "Update matrix cell",
             description = "Updates the description for a specific matrix cell (criteria-scoring level intersection)."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @PutMapping(value = "/cells", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricMatrixDTO>> updateMatrixCell(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -68,6 +74,7 @@ public class RubricMatrixController {
             summary = "Recalculate rubric scores",
             description = "Recalculates maximum and minimum passing scores based on current matrix configuration and weights."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @PostMapping(value = "/recalculate", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricMatrixDTO>> recalculateScores(
             @Parameter(description = "UUID of the rubric", required = true)

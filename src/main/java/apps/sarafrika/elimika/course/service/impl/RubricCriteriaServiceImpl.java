@@ -87,9 +87,8 @@ public class RubricCriteriaServiceImpl implements RubricCriteriaService {
     }
 
     private void updateRubricCriteriaFields(RubricCriteria existingRubricCriteria, RubricCriteriaDTO dto) {
-        if (dto.rubricUuid() != null) {
-            existingRubricCriteria.setRubricUuid(dto.rubricUuid());
-        }
+        // rubric_uuid is not settable: a criterion stays in the rubric it was created in, so an
+        // update cannot move it into a rubric the caller was never authorised against.
         if (dto.componentName() != null) {
             existingRubricCriteria.setComponentName(dto.componentName());
         }

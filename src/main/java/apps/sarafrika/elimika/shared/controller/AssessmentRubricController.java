@@ -53,6 +53,22 @@ public class AssessmentRubricController {
     static final String READ_ACCESS_BY_RUBRIC_UUID = MANAGEMENT_ACCESS
             + " or @learnerContentAccess.canReadRubric(#rubricUuid)";
 
+    /**
+     * Writes are restricted to the rubric's author (its course creator) and platform admins; holding
+     * a management domain is not enough to change somebody else's rubric. The criterion variant also
+     * requires the criterion to belong to the rubric in the path, because scoring writes go by
+     * criterion alone.
+     */
+    static final String ADMIN = "@domainSecurityService.isPlatformAdmin()";
+    static final String CREATE_ACCESS = ADMIN
+            + " or @domainSecurityService.isCourseCreatorWithUuid(#assessmentRubricDTO.courseCreatorUuid())";
+    static final String UPDATE_ACCESS = ADMIN
+            + " or @courseSecurityService.canWriteRubric(#uuid, #assessmentRubricDTO.courseCreatorUuid())";
+    static final String WRITE_ACCESS_BY_UUID = ADMIN + " or @courseSecurityService.isRubricOwner(#uuid)";
+    static final String WRITE_ACCESS_BY_RUBRIC_UUID = ADMIN + " or @courseSecurityService.isRubricOwner(#rubricUuid)";
+    static final String WRITE_ACCESS_BY_CRITERIA = ADMIN
+            + " or @courseSecurityService.canWriteRubricCriteria(#rubricUuid, #criteriaUuid)";
+
     private final AssessmentRubricService assessmentRubricService;
     private final RubricCriteriaService rubricCriteriaService;
     private final RubricScoringService rubricScoringService;
@@ -61,6 +77,7 @@ public class AssessmentRubricController {
 
     @Operation(summary = "Create a new assessment rubric", description = "Creates a new assessment rubric. The rubric can be associated with a specific course or be a general-purpose rubric.")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize(CREATE_ACCESS)
     public ResponseEntity<ApiResponse<AssessmentRubricDTO>> createAssessmentRubric(@Valid @RequestBody AssessmentRubricDTO assessmentRubricDTO) {
         AssessmentRubricDTO createdRubric = assessmentRubricService.createAssessmentRubric(assessmentRubricDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(createdRubric, "Assessment rubric created successfully"));
@@ -82,6 +99,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Update an assessment rubric", description = "Updates an existing assessment rubric.")
+    @PreAuthorize(UPDATE_ACCESS)
     @PutMapping(value = "/{uuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<AssessmentRubricDTO>> updateAssessmentRubric(@PathVariable UUID uuid, @Valid @RequestBody AssessmentRubricDTO assessmentRubricDTO) {
         AssessmentRubricDTO updatedRubric = assessmentRubricService.updateAssessmentRubric(uuid, assessmentRubricDTO);
@@ -89,6 +107,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Delete an assessment rubric", description = "Deletes an assessment rubric and all its associated criteria and scoring levels.")
+    @PreAuthorize(WRITE_ACCESS_BY_UUID)
     @DeleteMapping("/{uuid}")
     public ResponseEntity<Void> deleteAssessmentRubric(@PathVariable UUID uuid) {
         assessmentRubricService.deleteAssessmentRubric(uuid);
@@ -103,6 +122,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Add a criterion to a rubric", description = "Adds a new criterion to an existing assessment rubric. If scoring levels exist, the matrix will be auto-generated.")
+    @PreAuthorize(WRITE_ACCESS_BY_RUBRIC_UUID)
     @PostMapping(value = "/{rubricUuid}/criteria", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Object>> addRubricCriterion(@PathVariable UUID rubricUuid, @Valid @RequestBody RubricCriteriaDTO rubricCriteriaDTO) {
         Object result = rubricCriteriaService.createRubricCriteriaWithMatrixCheck(rubricUuid, rubricCriteriaDTO);
@@ -118,6 +138,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Update a rubric criterion", description = "Updates an existing criterion within a rubric.")
+    @PreAuthorize(WRITE_ACCESS_BY_CRITERIA)
     @PutMapping(value = "/{rubricUuid}/criteria/{criteriaUuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricCriteriaDTO>> updateRubricCriterion(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, @Valid @RequestBody RubricCriteriaDTO rubricCriteriaDTO) {
         RubricCriteriaDTO updatedCriterion = rubricCriteriaService.updateRubricCriteria(rubricUuid, criteriaUuid, rubricCriteriaDTO);
@@ -125,6 +146,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Delete a rubric criterion", description = "Deletes a criterion from a rubric.")
+    @PreAuthorize(WRITE_ACCESS_BY_CRITERIA)
     @DeleteMapping("/{rubricUuid}/criteria/{criteriaUuid}")
     public ResponseEntity<Void> deleteRubricCriterion(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid) {
         rubricCriteriaService.deleteRubricCriteria(rubricUuid, criteriaUuid);
@@ -132,6 +154,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Add a scoring level to a criterion", description = "Adds a new scoring level to an existing rubric criterion.")
+    @PreAuthorize(WRITE_ACCESS_BY_CRITERIA)
     @PostMapping(value = "/{rubricUuid}/criteria/{criteriaUuid}/scoring", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricScoringDTO>> addRubricScoring(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, @Valid @RequestBody RubricScoringDTO rubricScoringDTO) {
         RubricScoringDTO createdScoring = rubricScoringService.createRubricScoring(criteriaUuid, rubricScoringDTO);
@@ -147,6 +170,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Update a scoring level", description = "Updates an existing scoring level for a criterion.")
+    @PreAuthorize(WRITE_ACCESS_BY_CRITERIA)
     @PutMapping(value = "/{rubricUuid}/criteria/{criteriaUuid}/scoring/{scoringUuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricScoringDTO>> updateRubricScoring(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, @PathVariable UUID scoringUuid, @Valid @RequestBody RubricScoringDTO rubricScoringDTO) {
         RubricScoringDTO updatedScoring = rubricScoringService.updateRubricScoring(criteriaUuid, scoringUuid, rubricScoringDTO);
@@ -154,6 +178,7 @@ public class AssessmentRubricController {
     }
 
     @Operation(summary = "Delete a scoring level", description = "Deletes a scoring level from a criterion.")
+    @PreAuthorize(WRITE_ACCESS_BY_CRITERIA)
     @DeleteMapping("/{rubricUuid}/criteria/{criteriaUuid}/scoring/{scoringUuid}")
     public ResponseEntity<Void> deleteRubricScoring(@PathVariable UUID rubricUuid, @PathVariable UUID criteriaUuid, @PathVariable UUID scoringUuid) {
         rubricScoringService.deleteRubricScoring(criteriaUuid, scoringUuid);

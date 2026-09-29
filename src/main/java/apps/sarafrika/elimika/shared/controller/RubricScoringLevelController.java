@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -39,12 +40,17 @@ public class RubricScoringLevelController {
 
     public static final String API_ROOT_PATH = "/api/v1/rubrics/{rubricUuid}/scoring-levels";
 
+    /** Writes are restricted to the rubric's author and platform admins. */
+    static final String WRITE_ACCESS = "@domainSecurityService.isPlatformAdmin()"
+            + " or @courseSecurityService.isRubricOwner(#rubricUuid)";
+
     private final RubricScoringLevelService rubricScoringLevelService;
 
     @Operation(
             summary = "Create a new scoring level for a rubric",
             description = "Creates a new custom scoring level (e.g., Excellent, Good, Fair) within the specified rubric for matrix-based assessment."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricScoringLevelDTO>> createRubricScoringLevel(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -60,6 +66,7 @@ public class RubricScoringLevelController {
             summary = "Create multiple scoring levels for a rubric (batch)",
             description = "Creates multiple custom scoring levels at once for efficient rubric setup."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @PostMapping(value = "/batch", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<List<RubricScoringLevelDTO>>> createRubricScoringLevelsBatch(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -106,6 +113,7 @@ public class RubricScoringLevelController {
             summary = "Update a scoring level",
             description = "Updates an existing scoring level within the specified rubric."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @PutMapping(value = "/{levelUuid}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<RubricScoringLevelDTO>> updateScoringLevel(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -122,6 +130,7 @@ public class RubricScoringLevelController {
             summary = "Delete a scoring level",
             description = "Removes a scoring level from the specified rubric. This will also remove any associated matrix cells."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @DeleteMapping(value = "/{levelUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Void>> deleteScoringLevel(
             @Parameter(description = "UUID of the rubric", required = true)
@@ -169,6 +178,7 @@ public class RubricScoringLevelController {
             summary = "Reorder scoring levels",
             description = "Updates the display order of scoring levels within the rubric. Provide a map of level UUIDs to their new order values."
     )
+    @PreAuthorize(WRITE_ACCESS)
     @PatchMapping(value = "/reorder", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Void>> reorderScoringLevels(
             @Parameter(description = "UUID of the rubric", required = true)

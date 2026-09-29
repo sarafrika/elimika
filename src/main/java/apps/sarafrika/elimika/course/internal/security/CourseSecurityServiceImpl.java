@@ -8,7 +8,13 @@ import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.CourseTrainingApplication;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramRequirement;
+import apps.sarafrika.elimika.course.model.AssessmentRubric;
+import apps.sarafrika.elimika.course.model.CourseRubricAssociation;
+import apps.sarafrika.elimika.course.model.RubricCriteria;
+import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
+import apps.sarafrika.elimika.course.repository.CourseRubricAssociationRepository;
+import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionAttachmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.repository.CertificateRepository;
@@ -90,6 +96,9 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private final CertificateRepository certificateRepository;
     private final TrainingProgramRepository trainingProgramRepository;
     private final ProgramRequirementRepository programRequirementRepository;
+    private final AssessmentRubricRepository assessmentRubricRepository;
+    private final RubricCriteriaRepository rubricCriteriaRepository;
+    private final CourseRubricAssociationRepository courseRubricAssociationRepository;
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
@@ -648,6 +657,103 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
         return payloadProgramUuid == null
                 || payloadProgramUuid.equals(owningProgramUuid)
                 || isProgramOwner(payloadProgramUuid);
+    }
+
+    // ===== rubric authoring =====
+
+    /**
+     * Checks if the current caller authored the specified assessment rubric.
+     * <p>
+     * A rubric records its author in {@code course_creator_uuid}, so this is the rubric-side sibling
+     * of {@link #isCourseOwner(UUID)}. Platform admins are granted at the endpoint.
+     *
+     * @param rubricUuid UUID of the rubric to check
+     * @return true if the caller's course-creator profile owns the rubric
+     */
+    public boolean isRubricOwner(UUID rubricUuid) {
+        if (rubricUuid == null) {
+            return false;
+        }
+        try {
+            UUID courseCreatorUuid = domainSecurityService.getCurrentCourseCreatorUuid();
+            if (courseCreatorUuid == null) {
+                return false;
+            }
+            return assessmentRubricRepository.findByUuid(rubricUuid)
+                    .map(AssessmentRubric::getCourseCreatorUuid)
+                    .map(courseCreatorUuid::equals)
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error checking rubric ownership for rubric: {}", rubricUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * True when the caller may update the rubric: they own it and, when the body names an author,
+     * that author is themselves - otherwise an update could hand the rubric to somebody else.
+     */
+    public boolean canWriteRubric(UUID rubricUuid, UUID payloadCourseCreatorUuid) {
+        return isRubricOwner(rubricUuid)
+                && (payloadCourseCreatorUuid == null
+                        || domainSecurityService.isCourseCreatorWithUuid(payloadCourseCreatorUuid));
+    }
+
+    /**
+     * True when the caller may write under the given criterion. The criterion is resolved first and
+     * must belong to the rubric in the path, because the scoring service writes by criterion and
+     * never looks at the rubric - trusting the path would let a caller quote their own rubric
+     * alongside a stranger's criterion.
+     */
+    public boolean canWriteRubricCriteria(UUID rubricUuid, UUID criteriaUuid) {
+        if (rubricUuid == null || criteriaUuid == null) {
+            return false;
+        }
+        boolean inRubric = rubricCriteriaRepository.findByUuid(criteriaUuid)
+                .map(RubricCriteria::getRubricUuid)
+                .map(rubricUuid::equals)
+                .orElse(false);
+        return inRubric && isRubricOwner(rubricUuid);
+    }
+
+    /**
+     * True when the caller may attach the rubric to a course: it is public or their own.
+     */
+    public boolean canUseRubric(UUID rubricUuid) {
+        if (rubricUuid == null) {
+            return false;
+        }
+        boolean isPublic = assessmentRubricRepository.findByUuid(rubricUuid)
+                .map(rubric -> Boolean.TRUE.equals(rubric.getIsPublic()))
+                .orElse(false);
+        return isPublic || isRubricOwner(rubricUuid);
+    }
+
+    /**
+     * True when the caller may rewrite a course-rubric association. The association is resolved
+     * first and its own course decides, because the association service writes the row named by
+     * {@code associationUuid} and ignores the path. When the body re-points the association at a
+     * different course or rubric, the caller must own that course and be allowed to use that rubric.
+     */
+    public boolean canWriteCourseRubricAssociation(UUID courseUuid, UUID associationUuid,
+                                                   UUID payloadCourseUuid, UUID payloadRubricUuid) {
+        if (associationUuid == null) {
+            return false;
+        }
+        CourseRubricAssociation association = courseRubricAssociationRepository.findByUuid(associationUuid)
+                .orElse(null);
+        UUID owningCourseUuid = association == null ? courseUuid : association.getCourseUuid();
+        if (owningCourseUuid == null || !isCourseOwner(owningCourseUuid)) {
+            return false;
+        }
+        if (payloadCourseUuid != null && !payloadCourseUuid.equals(owningCourseUuid)
+                && !isCourseOwner(payloadCourseUuid)) {
+            return false;
+        }
+        UUID currentRubricUuid = association == null ? null : association.getRubricUuid();
+        return payloadRubricUuid == null
+                || payloadRubricUuid.equals(currentRubricUuid)
+                || canUseRubric(payloadRubricUuid);
     }
 
     // ===== certificate issuance, revocation and reads (unit u17) =====

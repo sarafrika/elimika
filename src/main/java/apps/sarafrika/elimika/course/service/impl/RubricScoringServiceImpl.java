@@ -85,9 +85,8 @@ public class RubricScoringServiceImpl implements RubricScoringService {
     }
 
     private void updateRubricScoringFields(RubricScoring existingRubricScoring, RubricScoringDTO dto) {
-        if (dto.criteriaUuid() != null) {
-            existingRubricScoring.setCriteriaUuid(dto.criteriaUuid());
-        }
+        // criteria_uuid is not settable: a scoring cell stays under the criterion it was created in,
+        // so an update cannot move it into a rubric the caller was never authorised against.
         if (dto.description() != null) {
             existingRubricScoring.setDescription(dto.description());
         }

@@ -4,7 +4,10 @@ import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.Certificate;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
+import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
+import apps.sarafrika.elimika.course.repository.CourseRubricAssociationRepository;
+import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionAttachmentRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.repository.CertificateRepository;
@@ -78,6 +81,9 @@ class CourseSecurityServiceImplTest {
     @Mock private InstructorLookupService instructorLookupService;
     @Mock private DomainSecurityService domainSecurityService;
     @Mock private ProgramRequirementRepository programRequirementRepository;
+    @Mock private AssessmentRubricRepository assessmentRubricRepository;
+    @Mock private RubricCriteriaRepository rubricCriteriaRepository;
+    @Mock private CourseRubricAssociationRepository courseRubricAssociationRepository;
 
     private CourseSecurityServiceImpl service;
 
@@ -88,6 +94,7 @@ class CourseSecurityServiceImplTest {
                 programCourseRepository, courseEnrollmentRepository, quizRepository, assignmentRepository,
                 assignmentSubmissionRepository, assignmentSubmissionAttachmentRepository,
                 certificateRepository, trainingProgramRepository, programRequirementRepository,
+                assessmentRubricRepository, rubricCriteriaRepository, courseRubricAssociationRepository,
                 courseCreatorLookupService, instructorLookupService, userLookupService,
                 domainSecurityService, new TeachingOrganisations(userLookupService), new RequestScopedCache());
 
