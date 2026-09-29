@@ -86,6 +86,23 @@ class UserSearchQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("the q fallback matches full name, and email only when allowed")
+    void nameOrEmailFallback() {
+        String tag = "q" + UUID.randomUUID().toString().substring(0, 8);
+        UUID byName = insertUser("Quentin", null, tag, uniqueEmail());
+        UUID byEmail = insertUser("Other", null, "Person", tag + "@Example.test");
+
+        assertThat(userRepository.findAll(userSpecificationBuilder.nameOrEmailLike(tag.toUpperCase(), true))
+                .stream().map(User::getUuid).toList())
+                .containsExactlyInAnyOrder(byName, byEmail);
+        assertThat(userRepository.findAll(userSpecificationBuilder.nameOrEmailLike("quentin " + tag, false))
+                .stream().map(User::getUuid).toList())
+                .containsExactly(byName);
+        assertThat(userRepository.findAll(userSpecificationBuilder.nameOrEmailLike(tag + "@example", false)))
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("email lookup ignores case and prefers an exact match")
     void emailLookupIgnoresCase() {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
