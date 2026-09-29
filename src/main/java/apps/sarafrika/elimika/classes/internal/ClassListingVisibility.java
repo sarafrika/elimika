@@ -51,6 +51,11 @@ public class ClassListingVisibility {
                 enrolledClasses());
     }
 
+    /** The organisations the current caller staffs, without the rest of the listing scope. */
+    public Set<UUID> staffedOrganisationsOfCurrentCaller() {
+        return staffedOrganisations();
+    }
+
     private Set<UUID> staffedOrganisations() {
         UUID userUuid = domainSecurityService.getCurrentUserUuid();
         if (userUuid == null) {
