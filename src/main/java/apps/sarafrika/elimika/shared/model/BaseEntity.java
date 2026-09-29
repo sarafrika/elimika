@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.shared.model;
 
 import apps.sarafrika.elimika.shared.internal.DatabaseAuditListener;
+import apps.sarafrika.elimika.shared.search.SearchIndexingEntityListener;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -24,7 +25,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @MappedSuperclass
-@EntityListeners({AuditingEntityListener.class, DatabaseAuditListener.class})
+@EntityListeners({AuditingEntityListener.class, DatabaseAuditListener.class, SearchIndexingEntityListener.class})
 public abstract class BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
