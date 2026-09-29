@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.shared.exceptions.SmtpAuthenticationException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpConnectionException;
 import apps.sarafrika.elimika.shared.exceptions.SmtpMessagingException;
 import apps.sarafrika.elimika.shared.exceptions.UserNotFoundException;
+import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import jakarta.validation.ValidationException;
@@ -43,6 +44,20 @@ public class GlobalExceptionHandler {
         log.debug("Record not found", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Record not found", ex.getMessage()));
+    }
+
+    /**
+     * Free text ({@code q}) is served only by the search engine. When search is off, the index's reads
+     * are not enabled, or the engine fails, the request cannot be answered and there is no database
+     * fallback. The engine's message is not echoed or logged at warn level: it can quote filter values.
+     */
+    @ExceptionHandler(SearchUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSearchUnavailable(SearchUnavailableException ex) {
+        log.warn("Search unavailable; answering 503");
+        log.debug("Search unavailable", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("Search is unavailable",
+                        "Text search (q) is disabled or temporarily unavailable; try again later"));
     }
 
     @ExceptionHandler(StudentAgeGateException.class)

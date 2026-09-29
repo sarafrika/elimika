@@ -16,8 +16,8 @@
  *     <li>{@code internal.state} - the {@code search_index_state} table.</li>
  * </ul>
  * Search is off by default ({@code search.enabled=false}): no events are published, no HTTP call is
- * made, and every search raises {@code SearchUnavailableException} so callers fall back to the
- * database.
+ * made, and every search raises {@code SearchUnavailableException}, which a request with {@code q}
+ * answers as 503 - there is no database fallback for free text.
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Search",

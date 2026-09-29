@@ -8,7 +8,8 @@ import java.util.UUID;
  * The engine-neutral search contract. Modules search through this and never see an engine type.
  * <p>
  * Every method throws {@link SearchUnavailableException} when search is disabled or the engine
- * cannot answer, so a caller routing a read through search can fall back to the database.
+ * cannot answer. Free text has no database fallback: callers let it propagate, and the global
+ * handler answers 503 ("Search is unavailable").
  */
 public interface SearchGateway {
 
