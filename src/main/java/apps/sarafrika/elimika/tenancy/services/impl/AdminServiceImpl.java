@@ -259,7 +259,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private void ensureEmailAvailable(String normalizedEmail, String context) {
-        userRepository.findByEmail(normalizedEmail).ifPresent(user -> {
+        userRepository.findByEmailIgnoreCase(normalizedEmail).ifPresent(user -> {
             throw new IllegalStateException("User already exists locally. Provide the existing email to " + context.toLowerCase() + ".");
         });
 

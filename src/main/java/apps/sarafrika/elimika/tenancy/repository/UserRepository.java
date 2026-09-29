@@ -17,13 +17,32 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     Optional<User> findByUuid(UUID uuid);
 
-    Optional<User> findByEmail(String email);
+    /**
+     * Every user whose email equals the given one, ignoring case. Uses {@code lower(email)} so the
+     * {@code idx_users_email_lower} expression index applies.
+     */
+    @Query("SELECT u FROM User u WHERE lower(u.email) = lower(:email) ORDER BY u.id")
+    List<User> findAllByEmailIgnoreCase(@Param("email") String email);
+
+    /**
+     * Case-insensitive email lookup. The unique constraint on {@code users.email} is case-sensitive,
+     * so two rows could differ only by case; an exact match wins, otherwise the oldest row does.
+     */
+    default Optional<User> findByEmailIgnoreCase(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        String trimmed = email.trim();
+        List<User> matches = findAllByEmailIgnoreCase(trimmed);
+        return matches.stream()
+                .filter(user -> trimmed.equals(user.getEmail()))
+                .findFirst()
+                .or(() -> matches.stream().findFirst());
+    }
 
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     Optional<User> findByKeycloakId(String keycloakId);
-
-    boolean existsByEmail(String email);
 
     boolean existsByKeycloakId(String keycloakId);
 

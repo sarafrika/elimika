@@ -82,6 +82,23 @@ class UserSearchQueryIntegrationTest {
         assertThat(search(Map.of("full_name_like", "f_fty"))).isEmpty();
     }
 
+    @Test
+    @DisplayName("email lookup ignores case and prefers an exact match")
+    void emailLookupIgnoresCase() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        UUID mixed = insertUser("Mixed", null, "Case", "Mixed.Case" + suffix + "@Example.test");
+
+        assertThat(userRepository.findByEmailIgnoreCase("mixed.case" + suffix + "@example.test"))
+                .map(User::getUuid).contains(mixed);
+        assertThat(userRepository.findByEmailIgnoreCase("  MIXED.CASE" + suffix + "@EXAMPLE.TEST "))
+                .map(User::getUuid).contains(mixed);
+
+        UUID lower = insertUser("Lower", null, "Case", "mixed.case" + suffix + "@example.test");
+        assertThat(userRepository.findByEmailIgnoreCase("mixed.case" + suffix + "@example.test"))
+                .map(User::getUuid).contains(lower);
+        assertThat(userRepository.findByEmailIgnoreCase(null)).isEmpty();
+    }
+
     private List<UUID> search(Map<String, String> params) {
         return userRepository.findAll(userSpecificationBuilder.buildUserSpecification(params)).stream()
                 .map(User::getUuid)

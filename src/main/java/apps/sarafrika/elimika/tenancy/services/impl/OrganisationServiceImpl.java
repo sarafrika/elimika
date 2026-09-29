@@ -206,7 +206,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         }
 
         // Check if user exists
-        Optional<User> userOptional = userRepository.findByEmail(email);
+        Optional<User> userOptional = userRepository.findByEmailIgnoreCase(email);
 
         if (userOptional.isEmpty()) {
             throw new IllegalStateException("User must register on the platform before being associated with " + domainName +

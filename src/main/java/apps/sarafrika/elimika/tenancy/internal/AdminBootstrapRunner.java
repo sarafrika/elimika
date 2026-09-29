@@ -79,7 +79,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
                 .map(UserRepresentation::getId)
                 .filter(Objects::nonNull)
                 .flatMap(userRepository::findByKeycloakId);
-        Optional<User> userByEmail = userRepository.findByEmail(admin.email());
+        Optional<User> userByEmail = userRepository.findByEmailIgnoreCase(admin.email());
 
         if (userByKeycloakId.isPresent() && userByEmail.isPresent()
                 && !userByKeycloakId.get().getUuid().equals(userByEmail.get().getUuid())) {

@@ -174,7 +174,7 @@ public class UserServiceImpl implements UserService {
                 email, organisationUuid, domainName);
 
         // Check if user exists
-        Optional<User> userOptional = userRepository.findByEmail(email);
+        Optional<User> userOptional = userRepository.findByEmailIgnoreCase(email);
 
         if (userOptional.isEmpty()) {
             // User doesn't exist - they need to register on Keycloak first

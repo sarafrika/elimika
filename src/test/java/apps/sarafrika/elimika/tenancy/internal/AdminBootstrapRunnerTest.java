@@ -100,7 +100,7 @@ class AdminBootstrapRunnerTest {
         when(keycloakUserService.getUserByUsername("admin@example.com", "elimika"))
                 .thenReturn(Optional.of(keycloakUser));
         when(userRepository.findByKeycloakId("kc-admin")).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
         when(userDomainRepository.findByDomainName("admin")).thenReturn(Optional.of(adminDomain));
         when(userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(userUuid, domainUuid))

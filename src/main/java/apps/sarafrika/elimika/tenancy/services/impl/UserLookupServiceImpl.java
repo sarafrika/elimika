@@ -46,7 +46,7 @@ public class UserLookupServiceImpl implements UserLookupService {
 
     @Override
     public Optional<UUID> findUserUuidByEmail(String email) {
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmailIgnoreCase(email)
                 .map(User::getUuid);
     }
 
