@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.instructor.repository;
 
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.spi.InstructorDirectoryEntry;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -77,6 +78,12 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
     Set<Instructor> findByIdIn(Set<Long> ids);
 
     Optional<Instructor> findByUuid(UUID uuid);
+
+    /** Batch load, used to hydrate search hits and to build search documents. */
+    List<Instructor> findByUuidIn(Collection<UUID> uuids);
+
+    /** Keyset page for search index rebuilds: rows after {@code id}, in id order. */
+    List<Instructor> findByIdGreaterThanOrderByIdAsc(Long id, Limit limit);
 
     void deleteByUuid(UUID uuid);
 

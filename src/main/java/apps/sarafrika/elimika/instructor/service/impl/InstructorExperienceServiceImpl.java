@@ -7,6 +7,8 @@ import apps.sarafrika.elimika.instructor.factory.InstructorExperienceFactory;
 import apps.sarafrika.elimika.instructor.model.InstructorExperience;
 import apps.sarafrika.elimika.instructor.repository.InstructorExperienceRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorExperienceService;
+import apps.sarafrika.elimika.instructor.search.InstructorSearchSource;
+import apps.sarafrika.elimika.shared.search.SearchIndexRequests;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +27,7 @@ public class InstructorExperienceServiceImpl implements InstructorExperienceServ
 
     private final InstructorExperienceRepository instructorExperienceRepository;
     private final GenericSpecificationBuilder<InstructorExperience> specificationBuilder;
+    private final SearchIndexRequests searchIndexRequests;
 
     private static final String INSTRUCTOR_EXPERIENCE_NOT_FOUND_TEMPLATE = "Instructor experience with ID %s not found";
 
@@ -97,7 +100,12 @@ public class InstructorExperienceServiceImpl implements InstructorExperienceServ
 
     private void updateExperienceFields(InstructorExperience existingExperience, InstructorExperienceDTO dto) {
         if (dto.instructorUuid() != null) {
+            UUID previousInstructorUuid = existingExperience.getInstructorUuid();
             existingExperience.setInstructorUuid(dto.instructorUuid());
+            if (previousInstructorUuid != null && !previousInstructorUuid.equals(dto.instructorUuid())) {
+                // The entity trigger only sees the new owner; the old owner's search document still lists this row.
+                searchIndexRequests.enqueue(InstructorSearchSource.INDEX, previousInstructorUuid);
+            }
         }
         if (dto.position() != null) {
             existingExperience.setPosition(dto.position());

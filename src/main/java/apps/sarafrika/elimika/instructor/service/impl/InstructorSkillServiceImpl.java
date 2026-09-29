@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.instructor.model.InstructorSkill;
 import apps.sarafrika.elimika.instructor.repository.InstructorSkillRepository;
 import apps.sarafrika.elimika.instructor.service.InstructorSkillService;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
+import apps.sarafrika.elimika.instructor.search.InstructorSearchSource;
+import apps.sarafrika.elimika.shared.search.SearchIndexRequests;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +28,7 @@ public class InstructorSkillServiceImpl implements InstructorSkillService {
 
     private final InstructorSkillRepository instructorSkillRepository;
     private final GenericSpecificationBuilder<InstructorSkill> specificationBuilder;
+    private final SearchIndexRequests searchIndexRequests;
 
     private static final String INSTRUCTOR_SKILL_NOT_FOUND_TEMPLATE = "Instructor skill with ID %s not found";
 
@@ -88,7 +91,12 @@ public class InstructorSkillServiceImpl implements InstructorSkillService {
 
     private void updateSkillFields(InstructorSkill existingSkill, InstructorSkillDTO dto) {
         if (dto.instructorUuid() != null) {
+            UUID previousInstructorUuid = existingSkill.getInstructorUuid();
             existingSkill.setInstructorUuid(dto.instructorUuid());
+            if (previousInstructorUuid != null && !previousInstructorUuid.equals(dto.instructorUuid())) {
+                // The entity trigger only sees the new owner; the old owner's search document still lists this row.
+                searchIndexRequests.enqueue(InstructorSearchSource.INDEX, previousInstructorUuid);
+            }
         }
         if (dto.skillName() != null) {
             existingSkill.setSkillName(dto.skillName());
