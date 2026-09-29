@@ -44,7 +44,7 @@ import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     /**
-     * Search keys an anonymous caller may not influence: the field name, its column name, and any
+     * Search keys a caller other than a platform admin may not influence: the field name, its column name, and any
      * operator-suffixed form of either (e.g. {@code publiclyVisible_noteq}, {@code publicly_visible_in}).
      */
     private static final Set<String> ANONYMOUS_RESERVED_FIELDS = Set.of("publiclyvisible", "publicly_visible", "active");
@@ -318,20 +318,17 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             Map<String, String> searchParams,
             VisibilityContext context) {
         Map<String, String> effectiveParams = new HashMap<>(searchParams);
-        if (!context.authenticated()) {
+        if (!context.admin()) {
             effectiveParams.keySet().removeIf(CommerceCatalogueServiceImpl::isAnonymousReservedParam);
         }
 
         Specification<CommerceCatalogueItem> spec = specificationBuilder.buildSpecification(
                 CommerceCatalogueItem.class, effectiveParams);
-        if (context.authenticated()) {
+        Specification<CommerceCatalogueItem> visibility = accessService.buildVisibilitySpecification(context);
+        if (visibility == null) {
             return spec;
         }
-
-        Specification<CommerceCatalogueItem> publicAndActive = (root, query, cb) -> cb.and(
-                cb.isTrue(root.get("publiclyVisible")),
-                cb.isTrue(root.get("active")));
-        return spec == null ? publicAndActive : spec.and(publicAndActive);
+        return spec == null ? visibility : spec.and(visibility);
     }
 
     private static boolean isAnonymousReservedParam(String key) {
