@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.tracking.service;
 
+import apps.sarafrika.elimika.shared.tracking.QueryStringRedactor;
 import apps.sarafrika.elimika.shared.tracking.entity.RequestAuditLog;
 import apps.sarafrika.elimika.shared.tracking.model.RequestUserMetadata;
 import apps.sarafrika.elimika.shared.tracking.repository.RequestAuditLogRepository;
@@ -40,7 +41,7 @@ public class RequestAuditService {
             logEntry.setRequestId(truncate(requestId, MAX_REQUEST_ID_LENGTH));
             logEntry.setHttpMethod(request.getMethod());
             logEntry.setRequestUri(request.getRequestURI());
-            logEntry.setQueryString(request.getQueryString());
+            logEntry.setQueryString(QueryStringRedactor.redact(request.getQueryString()));
             logEntry.setIpAddress(ipAddress);
             logEntry.setRemoteHost(request.getRemoteHost());
             logEntry.setUserAgent(truncate(request.getHeader("User-Agent"), MAX_USER_AGENT_LENGTH));
