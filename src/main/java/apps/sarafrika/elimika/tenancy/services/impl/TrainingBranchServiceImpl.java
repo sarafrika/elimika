@@ -98,6 +98,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
     @Transactional(readOnly = true)
     public Page<TrainingBranchDTO> getAllTrainingBranches(Pageable pageable) {
         log.debug("Fetching all training branches");
+        specificationBuilder.validateSortProperties(TrainingBranch.class, pageable);
         return trainingBranchRepository.findByDeletedFalse(pageable)
                 .map(TrainingBranchFactory::toDTO);
     }
@@ -106,6 +107,7 @@ public class TrainingBranchServiceImpl implements TrainingBranchService {
     @Transactional(readOnly = true)
     public Page<TrainingBranchDTO> getTrainingBranchesByOrganisation(UUID organisationUuid, Pageable pageable) {
         log.debug("Fetching training branches for organisation UUID: {}", organisationUuid);
+        specificationBuilder.validateSortProperties(TrainingBranch.class, pageable);
         return trainingBranchRepository.findByOrganisationUuidAndDeletedFalse(organisationUuid, pageable)
                 .map(TrainingBranchFactory::toDTO);
     }

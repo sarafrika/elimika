@@ -132,6 +132,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserDTO> getUsersByOrganisation(UUID organisationId, Pageable pageable) {
+        userSpecificationBuilder.validateSortProperties(pageable);
         Organisation organisation = findOrganisationOrThrow(organisationId);
 
         // Get users through the organisation domain mapping

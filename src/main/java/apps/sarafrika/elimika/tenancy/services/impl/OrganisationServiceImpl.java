@@ -114,6 +114,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Transactional(readOnly = true)
     public Page<OrganisationDTO> getAllOrganisations(Pageable pageable) {
         log.debug("Fetching all organisations");
+        specificationBuilder.validateSortProperties(Organisation.class, pageable);
         return organisationRepository.findByDeletedFalse(pageable)
                 .map(OrganisationFactory::toDTO);
     }
@@ -639,6 +640,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     @Transactional(readOnly = true)
     public Page<OrganisationDTO> getUnverifiedOrganisations(Pageable pageable) {
         log.debug("Fetching unverified organisations with pagination: {}", pageable);
+        specificationBuilder.validateSortProperties(Organisation.class, pageable);
 
         Page<Organisation> organisations = organisationRepository.findByAdminVerifiedFalseOrNullAndDeletedFalse(pageable);
 
