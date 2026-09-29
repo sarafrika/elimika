@@ -63,7 +63,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Transactional(readOnly = true)
     public InstructorDTO getInstructorByUuid(UUID uuid) {
         return instructorRepository.findByUuid(uuid)
-                .map(InstructorFactory::toDTO)
+                .map(this::toDtoForCaller)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
     }
 
@@ -71,7 +71,7 @@ public class InstructorServiceImpl implements InstructorService {
     @Transactional(readOnly = true)
     public Page<InstructorDTO> getAllInstructors(Pageable pageable) {
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
-        return instructorRepository.findAll(pageable).map(InstructorFactory::toDTO);
+        return instructorRepository.findAll(pageable).map(InstructorFactory::toPublicDTO);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class InstructorServiceImpl implements InstructorService {
     public Page<InstructorDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, searchParams);
-        return instructorRepository.findAll(spec, pageable).map(InstructorFactory::toDTO);
+        return instructorRepository.findAll(spec, pageable).map(InstructorFactory::toPublicDTO);
     }
 
     // ================================
@@ -163,7 +163,7 @@ public class InstructorServiceImpl implements InstructorService {
     public Page<InstructorDTO> getVerifiedInstructors(Pageable pageable) {
         log.debug("Getting verified instructors with pagination: {}", pageable);
         return instructorRepository.findByAdminVerified(true, pageable)
-                .map(InstructorFactory::toDTO);
+                .map(InstructorFactory::toPublicDTO);
     }
 
     @Override
@@ -171,7 +171,7 @@ public class InstructorServiceImpl implements InstructorService {
     public Page<InstructorDTO> getUnverifiedInstructors(Pageable pageable) {
         log.debug("Getting unverified instructors with pagination: {}", pageable);
         return instructorRepository.findByAdminVerified(false, pageable)
-                .map(InstructorFactory::toDTO);
+                .map(InstructorFactory::toPublicDTO);
     }
 
     @Override
@@ -291,5 +291,17 @@ public class InstructorServiceImpl implements InstructorService {
     private static long toLong(Object value) {
         if (value instanceof Number n) return n.longValue();
         return 0L;
+    }
+
+    /**
+     * A single profile at full coordinate precision for its owner or a platform admin, and at town
+     * level for everyone else.
+     */
+    private InstructorDTO toDtoForCaller(Instructor instructor) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        boolean owner = callerUuid != null && callerUuid.equals(instructor.getUserUuid());
+        return owner || domainSecurityService.isPlatformAdmin()
+                ? InstructorFactory.toDTO(instructor)
+                : InstructorFactory.toPublicDTO(instructor);
     }
 }

@@ -80,7 +80,7 @@ public record InstructorDTO(
         String locationName,
 
         @Schema(
-                description = "**[OPTIONAL]** Geographical latitude coordinate of instructor's primary training location. Used for location-based instructor matching and distance calculations.",
+                description = "**[OPTIONAL]** Geographical latitude coordinate of instructor's primary training location. Used for location-based instructor matching and distance calculations. Rounded to 2 decimal places (about 1 km) in list and search responses, and on single-profile reads by anyone other than the owner or a platform admin.",
                 example = "-1.2921",
                 minimum = "-90.0",
                 maximum = "90.0",
@@ -93,7 +93,7 @@ public record InstructorDTO(
         BigDecimal latitude,
 
         @Schema(
-                description = "**[OPTIONAL]** Geographical longitude coordinate of instructor's primary training location. Used for location-based instructor matching and distance calculations.",
+                description = "**[OPTIONAL]** Geographical longitude coordinate of instructor's primary training location. Used for location-based instructor matching and distance calculations. Rounded to 2 decimal places (about 1 km) in list and search responses, and on single-profile reads by anyone other than the owner or a platform admin.",
                 example = "36.8219",
                 minimum = "-180.0",
                 maximum = "180.0",

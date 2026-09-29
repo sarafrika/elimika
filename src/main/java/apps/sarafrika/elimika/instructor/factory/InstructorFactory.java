@@ -2,8 +2,11 @@ package apps.sarafrika.elimika.instructor.factory;
 
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.model.Instructor;
+import apps.sarafrika.elimika.shared.utils.CoordinatePrecision;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class InstructorFactory {
@@ -13,13 +16,32 @@ public class InstructorFactory {
         if (instructor == null) {
             return null;
         }
+        return toDTO(instructor, instructor.getLatitude(), instructor.getLongitude());
+    }
+
+    /**
+     * The directory form of a profile: identical to {@link #toDTO(Instructor)} except that latitude and
+     * longitude are rounded to town level (see {@link CoordinatePrecision}). Used for every list and
+     * search response, and for single-profile reads by anyone other than the owner or a platform
+     * admin.
+     */
+    public static InstructorDTO toPublicDTO(Instructor instructor) {
+        if (instructor == null) {
+            return null;
+        }
+        return toDTO(instructor,
+                CoordinatePrecision.toPublic(instructor.getLatitude()),
+                CoordinatePrecision.toPublic(instructor.getLongitude()));
+    }
+
+    private static InstructorDTO toDTO(Instructor instructor, BigDecimal latitude, BigDecimal longitude) {
         return new InstructorDTO(
                 instructor.getUuid(),
                 instructor.getUserUuid(),
                 instructor.getFullName(),
                 instructor.getLocationName(),
-                instructor.getLatitude(),
-                instructor.getLongitude(),
+                latitude,
+                longitude,
                 instructor.getAdminVerified(),
                 instructor.getWebsite(),
                 instructor.getBio(),

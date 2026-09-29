@@ -57,7 +57,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     @Transactional(readOnly = true)
     public CourseCreatorDTO getCourseCreatorByUuid(UUID uuid) {
         return courseCreatorRepository.findByUuid(uuid)
-                .map(CourseCreatorFactory::toDTO)
+                .map(this::toDtoForCaller)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_CREATOR_NOT_FOUND_TEMPLATE, uuid)));
     }
 
@@ -65,7 +65,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     @Transactional(readOnly = true)
     public Page<CourseCreatorDTO> getAllCourseCreators(Pageable pageable) {
         specificationBuilder.validateSortProperties(CourseCreator.class, pageable);
-        return courseCreatorRepository.findAll(pageable).map(CourseCreatorFactory::toDTO);
+        return courseCreatorRepository.findAll(pageable).map(CourseCreatorFactory::toPublicDTO);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     public Page<CourseCreatorDTO> search(Map<String, String> searchParams, Pageable pageable) {
         specificationBuilder.validateSortProperties(CourseCreator.class, pageable);
         Specification<CourseCreator> spec = specificationBuilder.buildSpecification(CourseCreator.class, searchParams);
-        return courseCreatorRepository.findAll(spec, pageable).map(CourseCreatorFactory::toDTO);
+        return courseCreatorRepository.findAll(spec, pageable).map(CourseCreatorFactory::toPublicDTO);
     }
 
     // ================================
@@ -159,7 +159,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         Specification<CourseCreator> spec = (root, query, cb) ->
                 cb.equal(root.get("adminVerified"), true);
         return courseCreatorRepository.findAll(spec, pageable)
-                .map(CourseCreatorFactory::toDTO);
+                .map(CourseCreatorFactory::toPublicDTO);
     }
 
     @Override
@@ -169,7 +169,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         Specification<CourseCreator> spec = (root, query, cb) ->
                 cb.equal(root.get("adminVerified"), false);
         return courseCreatorRepository.findAll(spec, pageable)
-                .map(CourseCreatorFactory::toDTO);
+                .map(CourseCreatorFactory::toPublicDTO);
     }
 
     @Override
@@ -256,5 +256,17 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
                 ),
                 "course-creator-verification:" + courseCreator.getUuid() + ":" + notificationType
         ));
+    }
+
+    /**
+     * A single profile at full coordinate precision for its owner or a platform admin, and at town
+     * level for everyone else.
+     */
+    private CourseCreatorDTO toDtoForCaller(CourseCreator courseCreator) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        boolean owner = callerUuid != null && callerUuid.equals(courseCreator.getUserUuid());
+        return owner || domainSecurityService.isPlatformAdmin()
+                ? CourseCreatorFactory.toDTO(courseCreator)
+                : CourseCreatorFactory.toPublicDTO(courseCreator);
     }
 }
