@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,7 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
 
     private final AssessmentRubricRepository assessmentRubricRepository;
     private final GenericSpecificationBuilder<AssessmentRubric> specificationBuilder;
+    private final DomainSecurityService domainSecurityService;
 
     private static final String ASSESSMENT_RUBRIC_NOT_FOUND_TEMPLATE = "Assessment rubric with ID %s not found";
 
@@ -152,7 +154,7 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     public Page<AssessmentRubricDTO> searchPublicRubrics(String searchTerm, String rubricType, Pageable pageable) {
         if (searchTerm != null && rubricType != null) {
             // Search with both term and type
-            return assessmentRubricRepository.findPublicRubricsBySearchTerm(searchTerm, pageable)
+            return assessmentRubricRepository.findPublicRubricsBySearchTermAndType(searchTerm, rubricType, pageable)
                     .map(AssessmentRubricFactory::toDTO);
         } else if (searchTerm != null) {
             // Search by term only
@@ -170,7 +172,11 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
 
     @Override
     public Page<AssessmentRubricDTO> getCourseCreatorRubrics(UUID courseCreatorUuid, boolean includePrivate, Pageable pageable) {
-        return assessmentRubricRepository.findCourseCreatorShareableRubrics(courseCreatorUuid, includePrivate, pageable)
+        // Private rubrics belong to their author: anyone else asking for them gets the public ones.
+        boolean mayIncludePrivate = includePrivate
+                && (domainSecurityService.isPlatformAdmin()
+                        || domainSecurityService.isCourseCreatorWithUuid(courseCreatorUuid));
+        return assessmentRubricRepository.findCourseCreatorShareableRubrics(courseCreatorUuid, mayIncludePrivate, pageable)
                 .map(AssessmentRubricFactory::toDTO);
     }
 
@@ -188,8 +194,10 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
 
     @Override
     public Page<AssessmentRubricDTO> getRubricsByStatus(ContentStatus status, Pageable pageable) {
-        return assessmentRubricRepository.findByStatusAndIsActiveTrueOrderByCreatedDateDesc(status, pageable)
-                .map(AssessmentRubricFactory::toDTO);
+        Page<AssessmentRubric> rubrics = domainSecurityService.isPlatformAdmin()
+                ? assessmentRubricRepository.findByStatusAndIsActiveTrueOrderByCreatedDateDesc(status, pageable)
+                : assessmentRubricRepository.findByStatusAndIsPublicTrueAndIsActiveTrueOrderByCreatedDateDesc(status, pageable);
+        return rubrics.map(AssessmentRubricFactory::toDTO);
     }
 
     @Override

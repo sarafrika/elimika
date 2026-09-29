@@ -90,7 +90,8 @@ public class RubricDiscoveryController {
 
     @Operation(
             summary = "Get rubrics by status",
-            description = "Retrieves rubrics filtered by their content status (e.g., DRAFT, PUBLISHED, ARCHIVED)."
+            description = "Retrieves rubrics filtered by their content status (e.g., DRAFT, PUBLISHED, ARCHIVED). "
+                    + "Non-admin callers only see public rubrics."
     )
     @GetMapping(value = "/status/{status}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> getRubricsByStatus(
@@ -106,7 +107,8 @@ public class RubricDiscoveryController {
 
     @Operation(
             summary = "Get course creator's rubrics",
-            description = "Retrieves rubrics defined by a specific course creator, with option to include private rubrics."
+            description = "Retrieves rubrics defined by a specific course creator, with option to include private rubrics. "
+                    + "Private rubrics are only included for that course creator or a platform admin."
     )
     @GetMapping(value = "/course-creator/{courseCreatorUuid}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<PagedDTO<AssessmentRubricDTO>>> getCourseCreatorRubrics(

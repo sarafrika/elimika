@@ -56,6 +56,18 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
         """)
     Page<AssessmentRubric> findPublicRubricsBySearchTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
 
+    @Query("""
+        SELECT ar FROM AssessmentRubric ar
+        WHERE ar.isPublic = true AND ar.isActive = true
+        AND LOWER(ar.rubricType) LIKE LOWER(CONCAT('%', :rubricType, '%'))
+        AND (LOWER(ar.title) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+             OR LOWER(ar.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+        ORDER BY ar.createdDate DESC
+        """)
+    Page<AssessmentRubric> findPublicRubricsBySearchTermAndType(@Param("searchTerm") String searchTerm,
+                                                                @Param("rubricType") String rubricType,
+                                                                Pageable pageable);
+
     /**
      * Finds rubrics created by a specific course creator.
      *
@@ -111,6 +123,8 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
      * @return page of rubrics with the specified status
      */
     Page<AssessmentRubric> findByStatusAndIsActiveTrueOrderByCreatedDateDesc(ContentStatus status, Pageable pageable);
+
+    Page<AssessmentRubric> findByStatusAndIsPublicTrueAndIsActiveTrueOrderByCreatedDateDesc(ContentStatus status, Pageable pageable);
 
     /**
      * Counts total public rubrics available for reuse.

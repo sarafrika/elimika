@@ -43,7 +43,8 @@ public interface AssessmentRubricService {
      * Gets rubrics created by a specific course creator.
      *
      * @param courseCreatorUuid the UUID of the course creator
-     * @param includePrivate whether to include private rubrics
+     * @param includePrivate whether to include private rubrics; honoured only when the caller is that
+     *                       course creator or a platform admin, otherwise only public rubrics are returned
      * @param pageable pagination parameters
      * @return page of the course creator's rubrics
      */
@@ -66,7 +67,8 @@ public interface AssessmentRubricService {
     Page<AssessmentRubricDTO> getPopularRubrics(Pageable pageable);
 
     /**
-     * Gets rubrics by content status.
+     * Gets rubrics by content status. Platform admins see every rubric in that status; everyone
+     * else sees only public ones.
      *
      * @param status the content status to filter by
      * @param pageable pagination parameters
