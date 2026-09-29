@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.controller;
 
+import apps.sarafrika.elimika.coursecreator.security.CourseCreatorCredentialSecurityService;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorCertificationDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDocumentDTO;
@@ -64,6 +65,14 @@ import java.util.UUID;
 public class CourseCreatorController {
 
     public static final String API_ROOT_PATH = "/api/v1/course-creators";
+
+    /**
+     * Certifications, memberships and education carry certificate and membership numbers, so they
+     * are answered to the course creator themselves, a platform admin and staff of an organisation
+     * the course creator belongs to - see {@link CourseCreatorCredentialSecurityService}.
+     */
+    private static final String CREDENTIAL_ACCESS =
+            "@courseCreatorCredentialSecurityService.canReadCredentials(#courseCreatorUuid)";
 
     private final CourseCreatorService courseCreatorService;
     private final CourseCreatorSkillService courseCreatorSkillService;
@@ -403,6 +412,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Get course creator education", description = "Retrieves all education history for a course creator.")
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{courseCreatorUuid}/education")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorEducationDTO>>> getCourseCreatorEducation(
             @PathVariable UUID courseCreatorUuid,
@@ -497,6 +507,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Get professional memberships", description = "Retrieves memberships for a specific course creator.")
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{courseCreatorUuid}/memberships")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorProfessionalMembershipDTO>>> getCourseCreatorMemberships(
             @PathVariable UUID courseCreatorUuid,
@@ -544,6 +555,7 @@ public class CourseCreatorController {
     }
 
     @Operation(summary = "Get certifications", description = "Retrieves certification records for a course creator.")
+    @PreAuthorize(CREDENTIAL_ACCESS)
     @GetMapping("/{courseCreatorUuid}/certifications")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseCreatorCertificationDTO>>> getCourseCreatorCertifications(
             @PathVariable UUID courseCreatorUuid,
