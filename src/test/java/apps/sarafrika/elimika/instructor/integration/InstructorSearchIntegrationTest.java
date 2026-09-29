@@ -82,9 +82,6 @@ class InstructorSearchIntegrationTest {
         registry.add("encryption.secret-key", () -> "0123456789abcdef0123456789abcdef");
         registry.add("encryption.salt", () -> "0123456789abcdef");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
-        // instructor_skills.proficiency_level is a PostgreSQL enum and the converter binds a varchar;
-        // let the server infer the parameter type so the skill insert under test can run.
-        registry.add("spring.datasource.hikari.data-source-properties.stringtype", () -> "unspecified");
 
         registry.add("search.enabled", () -> "true");
         registry.add("search.read-enabled.instructors", () -> "true");
@@ -213,7 +210,7 @@ class InstructorSearchIntegrationTest {
 
     private void skill(UUID instructorUuid, String name, String level) {
         jdbc.update("INSERT INTO instructor_skills (uuid, instructor_uuid, skill_name, proficiency_level, created_by) "
-                + "VALUES (?, ?, ?, ?::proficiency_level_enum, 'test')", UUID.randomUUID(), instructorUuid, name, level);
+                + "VALUES (?, ?, ?, ?, 'test')", UUID.randomUUID(), instructorUuid, name, level);
     }
 
     private static void awaitTrue(BooleanSupplier condition) {
