@@ -143,10 +143,10 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
      * The programs the current caller may discover, or {@code null} for a platform admin, who is
      * unrestricted.
      * <p>
-     * A program is live once an admin has approved it and it is active (the publish endpoint sets
-     * {@code active}; neither {@code status} nor {@code is_published} is moved by the publish flow,
-     * so they cannot be the gate). Its author - on either the course-creator or the legacy
-     * instructor identity, as {@code isProgramOwner} accepts - also sees their own drafts.
+     * A program is live once it is published, active and approved by an admin - the same state
+     * {@code GET /programs/published} and the admin pending queue key off. Its author - on either
+     * the course-creator or the legacy instructor identity, as {@code isProgramOwner} accepts - also
+     * sees their own drafts.
      */
     private Specification<TrainingProgram> visibleToCaller() {
         if (domainSecurityService.isPlatformAdmin()) {
@@ -165,7 +165,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
             var live = cb.and(
                     cb.isTrue(root.get("adminApproved")),
                     cb.isTrue(root.get("active")),
-                    cb.notEqual(root.get("status"), ContentStatus.ARCHIVED));
+                    cb.equal(root.get("status"), ContentStatus.PUBLISHED));
             return ownIdentities.isEmpty()
                     ? live
                     : cb.or(live, root.get("courseCreatorUuid").in(ownIdentities));

@@ -90,7 +90,7 @@ public class TrainingProgramController {
     @Operation(
             summary = "Get all programs",
             description = "Retrieves paginated list of training programs. Non-admin callers see live programs "
-                    + "(admin-approved, active, not archived) plus the programs they author."
+                    + "(published, admin-approved, active) plus the programs they author."
     )
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getAllTrainingPrograms(
@@ -202,7 +202,7 @@ public class TrainingProgramController {
             summary = "Search training programs",
             description = """
                     Advanced program search with flexible criteria and operators. Non-admin callers only
-                    see live programs (admin-approved, active, not archived) plus the programs they author.
+                    see live programs (published, admin-approved, active) plus the programs they author.
                     
                     **Common Program Search Examples:**
                     - `title_like=data science` - Programs with titles containing "data science"
@@ -554,7 +554,7 @@ public class TrainingProgramController {
     @GetMapping("/active")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<TrainingProgramDTO>>> getActivePrograms(
             Pageable pageable) {
-        Map<String, String> searchParams = Map.of("active", "true", "admin_approved", "true");
+        Map<String, String> searchParams = Map.of("active", "true", "admin_approved", "true", "status", "PUBLISHED");
         Page<TrainingProgramDTO> activePrograms = trainingProgramService.search(searchParams, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(activePrograms, ServletUriComponentsBuilder
