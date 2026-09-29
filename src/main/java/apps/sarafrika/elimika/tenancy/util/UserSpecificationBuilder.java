@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.util;
 
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
@@ -261,7 +262,8 @@ public class UserSpecificationBuilder {
 
     /**
      * Creates a specification to search by exact full name match.
-     * Concatenates firstName + middleName + lastName and compares.
+     * Matches either "first middle last" (just "first last" when there is no middle name)
+     * or "first last", case-insensitively and ignoring repeated whitespace in the input.
      *
      * @param fullName The full name to search for
      * @return Specification for full name exact match
@@ -270,17 +272,18 @@ public class UserSpecificationBuilder {
         return (root, query, criteriaBuilder) -> {
             log.debug("Building hasFullNameEqual predicate for: {}", fullName);
 
-            Expression<String> fullNameExpr = createFullNameExpression(root, criteriaBuilder);
-            return criteriaBuilder.equal(
-                    criteriaBuilder.lower(fullNameExpr),
-                    fullName.toLowerCase().trim()
+            String normalised = normaliseFullName(fullName);
+            return criteriaBuilder.or(
+                    criteriaBuilder.equal(criteriaBuilder.lower(createFullNameExpression(root, criteriaBuilder)), normalised),
+                    criteriaBuilder.equal(criteriaBuilder.lower(createFirstLastNameExpression(root, criteriaBuilder)), normalised)
             );
         };
     }
 
     /**
      * Creates a specification to search by full name with partial matching (LIKE).
-     * Concatenates firstName + middleName + lastName and performs LIKE search.
+     * Matches against either "first middle last" (just "first last" when there is no middle
+     * name) or "first last", case-insensitively; LIKE wildcards in the input match literally.
      *
      * @param fullName The partial name to search for
      * @return Specification for full name LIKE match
@@ -289,32 +292,44 @@ public class UserSpecificationBuilder {
         return (root, query, criteriaBuilder) -> {
             log.debug("Building hasFullNameLike predicate for: {}", fullName);
 
-            Expression<String> fullNameExpr = createFullNameExpression(root, criteriaBuilder);
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(fullNameExpr),
-                    "%" + fullName.toLowerCase().trim() + "%"
+            String pattern = LikePatterns.containsLower(normaliseFullName(fullName));
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(createFullNameExpression(root, criteriaBuilder)),
+                            pattern, LikePatterns.ESCAPE_CHAR),
+                    criteriaBuilder.like(criteriaBuilder.lower(createFirstLastNameExpression(root, criteriaBuilder)),
+                            pattern, LikePatterns.ESCAPE_CHAR)
             );
         };
     }
 
+    private static String normaliseFullName(String fullName) {
+        return fullName.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
     /**
-     * Helper method to create full name concatenation expression.
-     * Handles null middle names gracefully.
+     * "firstName middleName lastName", or "firstName lastName" when the middle name is null or
+     * blank, so users without a middle name never produce a double space.
      */
     private Expression<String> createFullNameExpression(Root<User> root, CriteriaBuilder criteriaBuilder) {
-        // firstName + " " + (middleName or "") + " " + lastName
         Expression<String> firstName = criteriaBuilder.coalesce(root.get("firstName"), "");
-        Expression<String> middleName = criteriaBuilder.coalesce(root.get("middleName"), "");
+        Expression<String> middleName = criteriaBuilder.coalesce(criteriaBuilder.trim(root.<String>get("middleName")), "");
         Expression<String> lastName = criteriaBuilder.coalesce(root.get("lastName"), "");
 
-        // Build: firstName + " "
-        Expression<String> firstWithSpace = criteriaBuilder.concat(firstName, " ");
+        Expression<String> firstMiddleLast = criteriaBuilder.concat(
+                criteriaBuilder.concat(criteriaBuilder.concat(firstName, " "), criteriaBuilder.concat(middleName, " ")),
+                lastName);
 
-        // Build: (firstName + " ") + (middleName + " ")
-        Expression<String> middleWithSpace = criteriaBuilder.concat(middleName, " ");
-        Expression<String> firstAndMiddle = criteriaBuilder.concat(firstWithSpace, middleWithSpace);
+        return criteriaBuilder.<String>selectCase()
+                .when(criteriaBuilder.equal(middleName, ""), createFirstLastNameExpression(root, criteriaBuilder))
+                .otherwise(firstMiddleLast);
+    }
 
-        // Build: ((firstName + " ") + (middleName + " ")) + lastName
-        return criteriaBuilder.concat(firstAndMiddle, lastName);
+    /**
+     * "firstName lastName", ignoring any middle name.
+     */
+    private Expression<String> createFirstLastNameExpression(Root<User> root, CriteriaBuilder criteriaBuilder) {
+        Expression<String> firstName = criteriaBuilder.coalesce(root.get("firstName"), "");
+        Expression<String> lastName = criteriaBuilder.coalesce(root.get("lastName"), "");
+        return criteriaBuilder.concat(criteriaBuilder.concat(firstName, " "), lastName);
     }
 }
