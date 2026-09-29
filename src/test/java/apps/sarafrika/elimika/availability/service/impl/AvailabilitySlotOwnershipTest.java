@@ -5,7 +5,6 @@ import apps.sarafrika.elimika.availability.model.InstructorAvailability;
 import apps.sarafrika.elimika.availability.repository.AvailabilityRepository;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,13 +39,12 @@ class AvailabilitySlotOwnershipTest {
 
     @Mock private AvailabilityRepository availabilityRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
-    @Mock private GenericSpecificationBuilder<InstructorAvailability> specificationBuilder;
 
     private AvailabilityServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new AvailabilityServiceImpl(availabilityRepository, eventPublisher, specificationBuilder);
+        service = new AvailabilityServiceImpl(availabilityRepository, eventPublisher);
     }
 
     @Test

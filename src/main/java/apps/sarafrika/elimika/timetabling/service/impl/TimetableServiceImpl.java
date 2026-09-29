@@ -88,7 +88,6 @@ public class TimetableServiceImpl implements TimetableService {
     private final ScheduledInstanceRepository scheduledInstanceRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final GenericSpecificationBuilder<ScheduledInstance> scheduledInstanceSpecBuilder;
     private final GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final CourseInfoService courseInfoService;

@@ -71,9 +71,6 @@ class TimetableServiceImplTest {
     private ApplicationEventPublisher applicationEventPublisher;
 
     @Mock
-    private GenericSpecificationBuilder<ScheduledInstance> scheduledInstanceSpecBuilder;
-
-    @Mock
     private GenericSpecificationBuilder<Enrollment> enrollmentSpecBuilder;
 
     @Mock
@@ -129,7 +126,6 @@ class TimetableServiceImplTest {
                 scheduledInstanceRepository,
                 enrollmentRepository,
                 applicationEventPublisher,
-                scheduledInstanceSpecBuilder,
                 enrollmentSpecBuilder,
                 classDefinitionLookupService,
                 courseInfoService,

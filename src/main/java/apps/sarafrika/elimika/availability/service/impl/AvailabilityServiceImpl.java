@@ -9,13 +9,9 @@ import apps.sarafrika.elimika.availability.util.AvailabilityTimezones;
 import apps.sarafrika.elimika.shared.enums.AvailabilityType;
 import apps.sarafrika.elimika.shared.event.availability.InstructorAvailabilityChangedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +20,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -36,7 +31,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     private final AvailabilityRepository availabilityRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final GenericSpecificationBuilder<InstructorAvailability> specificationBuilder;
 
     private static final String AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE = "Availability slot with UUID %s not found";
 
@@ -125,17 +119,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                 String.format(AVAILABILITY_SLOT_NOT_FOUND_TEMPLATE, slotUuid)));
 
         return AvailabilityFactory.toDTO(entity);
-    }
-
-    @Override
-    public Page<AvailabilitySlotDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        log.debug("Searching availability with params: {}", searchParams);
-
-        specificationBuilder.validateSortProperties(InstructorAvailability.class, pageable);
-        Specification<InstructorAvailability> spec = specificationBuilder.buildSpecification(InstructorAvailability.class, searchParams);
-        Page<InstructorAvailability> entities = availabilityRepository.findAll(spec, pageable);
-
-        return entities.map(AvailabilityFactory::toDTO);
     }
 
     @Override

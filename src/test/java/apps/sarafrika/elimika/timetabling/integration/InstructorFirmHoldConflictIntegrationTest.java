@@ -157,7 +157,6 @@ class InstructorFirmHoldConflictIntegrationTest {
                 enrollmentRepository,
                 mock(ApplicationEventPublisher.class),
                 mock(GenericSpecificationBuilder.class),
-                mock(GenericSpecificationBuilder.class),
                 new ClassDefinitionLookupServiceImpl(classDefinitionRepository),
                 mock(CourseInfoService.class),
                 mock(LearnerProgressLookupService.class),

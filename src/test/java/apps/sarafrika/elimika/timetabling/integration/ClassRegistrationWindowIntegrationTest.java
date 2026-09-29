@@ -172,7 +172,6 @@ class ClassRegistrationWindowIntegrationTest {
                 enrollmentRepository,
                 mock(ApplicationEventPublisher.class),
                 mock(GenericSpecificationBuilder.class),
-                mock(GenericSpecificationBuilder.class),
                 new ClassDefinitionLookupServiceImpl(classDefinitionRepository),
                 courseInfoService,
                 mock(LearnerProgressLookupService.class),
