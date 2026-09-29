@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.internal.search.CourseSearchSource;
+import apps.sarafrika.elimika.shared.search.SearchIndexRequests;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseCategoryMappingDTO;
 import apps.sarafrika.elimika.course.factory.CourseCategoryMappingFactory;
@@ -28,6 +30,7 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
     private final CourseCategoryMappingRepository mappingRepository;
     private final CourseRepository courseRepository;
     private final CategoryRepository categoryRepository;
+    private final SearchIndexRequests searchIndexRequests;
 
     @Override
     public CourseCategoryMappingDTO addCategoryToCourse(UUID courseUuid, UUID categoryUuid) {
@@ -100,6 +103,8 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
         }
 
         mappingRepository.deleteByCourseUuidAndCategoryUuid(courseUuid, categoryUuid);
+        // A @Modifying repository delete is not guaranteed to pass through the entity listeners.
+        searchIndexRequests.enqueue(CourseSearchSource.INDEX, courseUuid);
         log.info("Successfully removed category {} from course {}", categoryUuid, courseUuid);
     }
 
@@ -172,6 +177,7 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
 
         long deletedCount = mappingRepository.countByCourseUuid(courseUuid);
         mappingRepository.deleteByCourseUuid(courseUuid);
+        searchIndexRequests.enqueue(CourseSearchSource.INDEX, courseUuid);
 
         log.info("Successfully removed {} categories from course {}", deletedCount, courseUuid);
     }
