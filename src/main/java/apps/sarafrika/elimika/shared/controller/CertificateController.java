@@ -557,7 +557,6 @@ public class CertificateController {
                     - `isValid=false` - Only revoked certificates
                     - `finalGrade_gte=85` - Certificates with grade 85%+
                     - `issuedDate_gte=2024-01-01T00:00:00` - Certificates issued from 2024
-                    - `certificateNumber_like=CERT-2024` - Certificates from 2024
                     
                     **Certificate Analytics Queries:**
                     - `courseUuid_noteq=null&isValid=true` - Valid course certificates
@@ -596,7 +595,6 @@ public class CertificateController {
                     - `templateType=PROGRAM` - Program certificate templates
                     - `status=PUBLISHED` - Published templates
                     - `active=true` - Active templates
-                    - `name_like=modern` - Templates with "modern" in name
                     """
     )
     @GetMapping("/templates/search")

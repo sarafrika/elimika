@@ -78,7 +78,6 @@ public class CommerceCatalogueController {
                     - `courseUuid=<uuid>` — catalogue entries for a course
                     - `programUuid=<uuid>` — catalogue entries for a training program
                     - `classDefinitionUuid=<uuid>&active=true` — active class-level entries
-                    - `variantCode_like=starter` — variant codes containing `starter`
                     
                     Supports all comparison operators accepted by the platform-wide search builder.
                     """

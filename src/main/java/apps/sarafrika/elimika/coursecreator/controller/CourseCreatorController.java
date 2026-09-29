@@ -204,11 +204,9 @@ public class CourseCreatorController {
                     - `field_lte=value` - Less than or equal
                     - `createdDate_gte=2024-01-01T00:00:00` - Created after Jan 1, 2024
                    \s
-                    **String Operations:**
-                    - `field_like=value` - Contains (case-insensitive)
-                    - `field_startswith=value` - Starts with (case-insensitive) \s
-                    - `field_endswith=value` - Ends with (case-insensitive)
-                    - `fullName_like=alice` - Full name contains "alice"
+                    **Text search:**
+                    - The `_like`, `_startswith` and `_endswith` operators were removed and answer 400;
+                      free text goes through the `q` parameter where an endpoint offers it.
                    \s
                     **Boolean Operations:**
                     - `adminVerified=true` - Only verified course creators
@@ -222,9 +220,7 @@ public class CourseCreatorController {
                     - `field_noteq=value` - Not equal to value
                    \s
                     **Examples:**
-                    - `/search?fullName_like=john&adminVerified=true`
                     - `/search?createdDate_gte=2024-01-01T00:00:00`
-                    - `/search?professionalHeadline_like=content`
                    \s""",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Search results returned successfully",

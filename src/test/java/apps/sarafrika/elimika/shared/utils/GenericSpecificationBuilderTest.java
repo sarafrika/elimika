@@ -11,6 +11,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,8 +25,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyChar;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -114,26 +121,25 @@ class GenericSpecificationBuilderTest {
                 .hasMessageContaining("Unsupported sort property");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"owner_like", "owner_startswith", "owner_endswith", "OWNER_LIKE", "unknown_like"})
+    void removedTextOperatorsAreRejectedWithAPointerToQ(String key) {
+        assertThatThrownBy(() -> builder.buildSpecification(TestEntity.class, Map.of(key, "abc")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Text operators were removed; use the q parameter for text search");
+        verifyNoInteractions(criteriaBuilder);
+    }
+
     @Test
-    @SuppressWarnings("unchecked")
-    void likeOperationsEscapeWildcardsInUserInput() {
-        Expression<String> stringExpression = mock(Expression.class);
-        Expression<String> lowerExpression = mock(Expression.class);
+    void relationalOperatorsStillBuildPredicates() {
         when(root.get("owner")).thenReturn(path);
         when(path.getJavaType()).thenAnswer(invocation -> String.class);
-        when(path.as(String.class)).thenReturn(stringExpression);
-        when(criteriaBuilder.lower(stringExpression)).thenReturn(lowerExpression);
 
-        builder.buildSpecification(TestEntity.class, Map.of("owner_like", "50%_Off\\"))
-                .toPredicate(root, criteriaQuery, criteriaBuilder);
-        builder.buildSpecification(TestEntity.class, Map.of("owner_startswith", "a_"))
-                .toPredicate(root, criteriaQuery, criteriaBuilder);
-        builder.buildSpecification(TestEntity.class, Map.of("owner_endswith", "%z"))
+        builder.buildSpecification(TestEntity.class, Map.of("owner_noteq", "ada"))
                 .toPredicate(root, criteriaQuery, criteriaBuilder);
 
-        verify(criteriaBuilder).like(lowerExpression, "%50\\%\\_off\\\\%", '\\');
-        verify(criteriaBuilder).like(lowerExpression, "a\\_%", '\\');
-        verify(criteriaBuilder).like(lowerExpression, "%\\%z", '\\');
+        verify(criteriaBuilder).notEqual(path, "ada");
+        verify(criteriaBuilder, never()).like(any(Expression.class), anyString(), anyChar());
     }
 
     @Test

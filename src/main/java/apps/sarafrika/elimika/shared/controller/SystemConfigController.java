@@ -363,10 +363,12 @@ public class SystemConfigController {
     @Operation(
             summary = "Search categories",
             description = """
-                    Search categories with filtering options.
+                    Search categories with relational filters (eq, noteq, in, notin, gt, gte, lt, lte,
+                    between). Categories are not in the search index, so there is no text search by name:
+                    `name_like` and the other `_like`, `_startswith` and `_endswith` operators were removed
+                    and answer 400. List the categories (`GET /config/categories`) and filter them client-side.
                     
                     **Common Category Search Examples:**
-                    - `name_like=technology` - Categories with "technology" in name
                     - `parentUuid=null` - Root categories only
                     - `parentUuid=uuid` - Subcategories of specific parent
                     - `isActive=true` - Only active categories
@@ -394,8 +396,6 @@ public class SystemConfigController {
                     Search content types with filtering options.
                     
                     **Common Content Type Search Examples:**
-                    - `name_like=video` - Content types with "video" in name
-                    - `mimeTypes_like=image/` - Image content types
                     - `maxFileSizeMb_gte=100` - Large file content types
                     """
     )

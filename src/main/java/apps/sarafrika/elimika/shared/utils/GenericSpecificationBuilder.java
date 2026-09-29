@@ -41,15 +41,20 @@ public class GenericSpecificationBuilder<T> {
             "lt",
             "gte",
             "lte",
-            "like",
-            "startswith",
-            "endswith",
             "in",
             "notin",
             "noteq",
             "between",
             "notingroup"
     );
+    /**
+     * Text operators that used to run SQL {@code LIKE} matches. Free-text search is served only by the
+     * search engine through the {@code q} parameter, so a key using one of these is rejected outright
+     * rather than being read as an equality on a field called {@code name_like}.
+     */
+    public static final Set<String> REMOVED_TEXT_OPERATIONS = Set.of("like", "startswith", "endswith");
+    public static final String REMOVED_TEXT_OPERATION_MESSAGE =
+            "Text operators were removed; use the q parameter for text search";
     private final Map<Class<?>, Map<String, String>> fieldColumnCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Set<String>> sortablePropertyCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Map<String, Class<?>>> relationshipCache = new ConcurrentHashMap<>();
@@ -197,6 +202,10 @@ public class GenericSpecificationBuilder<T> {
         int lastUnderscoreIndex = key.lastIndexOf("_");
         if (lastUnderscoreIndex != -1 && lastUnderscoreIndex < key.length() - 1) {
             String potentialOperation = key.substring(lastUnderscoreIndex + 1).toLowerCase(Locale.ROOT);
+            if (REMOVED_TEXT_OPERATIONS.contains(potentialOperation)) {
+                throw new IllegalArgumentException(REMOVED_TEXT_OPERATION_MESSAGE
+                        + " (rejected: " + sanitiseForMessage(key) + ")");
+            }
             if (SUPPORTED_OPERATIONS.contains(potentialOperation)) {
                 return new SearchCriteriaInfo(
                         key.substring(0, lastUnderscoreIndex),
@@ -298,9 +307,6 @@ public class GenericSpecificationBuilder<T> {
             case "lt" -> compare(criteriaBuilder, field, value, ComparisonOperator.LESS_THAN);
             case "gte" -> compare(criteriaBuilder, field, value, ComparisonOperator.GREATER_THAN_OR_EQUAL);
             case "lte" -> compare(criteriaBuilder, field, value, ComparisonOperator.LESS_THAN_OR_EQUAL);
-            case "like" -> createLikePredicate(criteriaBuilder, field, value);
-            case "startswith" -> createStartsWithPredicate(criteriaBuilder, field, value);
-            case "endswith" -> createEndsWithPredicate(criteriaBuilder, field, value);
             case "in" -> createInPredicate(field, value);
             case "notin" -> createNotInPredicate(criteriaBuilder, field, value);
             case "noteq" -> criteriaBuilder.notEqual(field, value);
@@ -317,61 +323,6 @@ public class GenericSpecificationBuilder<T> {
             return LocalDateTime.parse(value.toString());
         } else {
             throw new IllegalArgumentException("Invalid value for LocalDateTime: " + value);
-        }
-    }
-
-    private void validateStringOperation(Class<?> fieldType, String operation) {
-        if (fieldType.equals(Boolean.class) ||
-                fieldType.equals(Date.class) ||
-                fieldType.equals(Timestamp.class) ||
-                fieldType.equals(LocalDateTime.class)) {
-            log.warn("Applying string operation '{}' to field of type '{}' - this may not produce expected results",
-                    operation, fieldType.getSimpleName());
-        }
-    }
-
-    private Predicate createLikePredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
-        Class<?> fieldType = field.getJavaType();
-        validateStringOperation(fieldType, "like");
-
-        if (fieldType.equals(String.class)) {
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(field.as(String.class)),
-                    LikePatterns.containsLower(value.toString()),
-                    LikePatterns.ESCAPE_CHAR
-            );
-        } else {
-            return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
-        }
-    }
-
-    private Predicate createStartsWithPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
-        Class<?> fieldType = field.getJavaType();
-        validateStringOperation(fieldType, "startswith");
-
-        if (fieldType.equals(String.class)) {
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(field.as(String.class)),
-                    LikePatterns.startsWithLower(value.toString()),
-                    LikePatterns.ESCAPE_CHAR
-            );
-        } else {
-            return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
-        }
-    }
-
-    private Predicate createEndsWithPredicate(CriteriaBuilder criteriaBuilder, Path<?> field, Object value) {
-        Class<?> fieldType = field.getJavaType();
-        validateStringOperation(fieldType, "endswith");
-
-        if (fieldType.equals(String.class)) {
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(field.as(String.class)),
-                    LikePatterns.endsWithLower(value.toString()),
-                    LikePatterns.ESCAPE_CHAR
-            );
-        } else {
-            return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
         }
     }
 

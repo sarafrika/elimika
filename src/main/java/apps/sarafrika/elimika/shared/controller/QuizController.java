@@ -476,7 +476,6 @@ public class QuizController {
                     Advanced quiz search with flexible criteria and operators.
                     
                     **Common Quiz Search Examples:**
-                    - `title_like=midterm` - Quizzes with "midterm" in title
                     - `lessonUuid=uuid` - Quizzes for specific lesson
                     - `status=PUBLISHED` - Only published quizzes
                     - `active=true` - Only active quizzes
@@ -511,7 +510,6 @@ public class QuizController {
                     - `quizUuid=uuid` - All questions for specific quiz
                     - `questionType=MULTIPLE_CHOICE` - Only multiple choice questions
                     - `points_gte=2` - Questions worth 2+ points
-                    - `questionText_like=calculate` - Questions containing "calculate"
                     """
     )
     @GetMapping("/questions/search")

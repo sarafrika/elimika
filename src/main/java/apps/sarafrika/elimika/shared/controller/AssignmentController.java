@@ -628,7 +628,6 @@ public class AssignmentController {
                     Advanced assignment search with flexible criteria and operators.
                     
                     **Common Assignment Search Examples:**
-                    - `title_like=essay` - Assignments with "essay" in title
                     - `lessonUuid=uuid` - Assignments for specific lesson
                     - `is_published=true` - Only published assignments
                     - `dueDate_gte=2024-12-01T00:00:00` - Assignments due from Dec 1, 2024
