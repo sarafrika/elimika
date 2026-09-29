@@ -43,15 +43,16 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
     /**
      * Searches public rubrics by title or description.
      *
-     * @param searchTerm the search term to match against title or description
+     * @param searchTerm the lower-cased, LIKE-escaped search term (see {@code LikePatterns#escapeLower})
+     *                   to match against title or description
      * @param pageable pagination parameters
      * @return page of matching public rubrics
      */
     @Query("""
         SELECT ar FROM AssessmentRubric ar 
         WHERE ar.isPublic = true AND ar.isActive = true 
-        AND (LOWER(ar.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) 
-             OR LOWER(ar.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+        AND (LOWER(ar.title) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\'
+             OR LOWER(ar.description) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\')
         ORDER BY ar.createdDate DESC
         """)
     Page<AssessmentRubric> findPublicRubricsBySearchTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
@@ -59,9 +60,9 @@ public interface AssessmentRubricRepository extends JpaRepository<AssessmentRubr
     @Query("""
         SELECT ar FROM AssessmentRubric ar
         WHERE ar.isPublic = true AND ar.isActive = true
-        AND LOWER(ar.rubricType) LIKE LOWER(CONCAT('%', :rubricType, '%'))
-        AND (LOWER(ar.title) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
-             OR LOWER(ar.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+        AND LOWER(ar.rubricType) LIKE CONCAT('%', :rubricType, '%') ESCAPE '\\'
+        AND (LOWER(ar.title) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\'
+             OR LOWER(ar.description) LIKE CONCAT('%', :searchTerm, '%') ESCAPE '\\')
         ORDER BY ar.createdDate DESC
         """)
     Page<AssessmentRubric> findPublicRubricsBySearchTermAndType(@Param("searchTerm") String searchTerm,

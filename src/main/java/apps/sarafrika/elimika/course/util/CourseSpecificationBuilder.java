@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.model.DifficultyLevel;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import jakarta.persistence.criteria.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -191,7 +192,8 @@ public class CourseSpecificationBuilder {
             subquery.select(mappingRoot.get("courseUuid"))
                     .where(criteriaBuilder.like(
                             criteriaBuilder.lower(categoryJoin.get("name")),
-                            "%" + categoryName.toLowerCase() + "%"
+                            LikePatterns.containsLower(categoryName),
+                            LikePatterns.ESCAPE_CHAR
                     ));
 
             return criteriaBuilder.in(root.get("uuid")).value(subquery);
@@ -206,7 +208,8 @@ public class CourseSpecificationBuilder {
             Join<Course, DifficultyLevel> difficultyJoin = root.join("difficulty", JoinType.LEFT);
             return criteriaBuilder.like(
                     criteriaBuilder.lower(difficultyJoin.get("name")),
-                    "%" + difficultyName.toLowerCase() + "%"
+                    LikePatterns.containsLower(difficultyName),
+                    LikePatterns.ESCAPE_CHAR
             );
         };
     }

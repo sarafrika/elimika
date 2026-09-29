@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.service.AssessmentRubricService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.utils.LikePatterns;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -178,11 +179,12 @@ public class AssessmentRubricServiceImpl implements AssessmentRubricService {
     public Page<AssessmentRubricDTO> searchPublicRubrics(String searchTerm, String rubricType, Pageable pageable) {
         if (searchTerm != null && rubricType != null) {
             // Search with both term and type
-            return assessmentRubricRepository.findPublicRubricsBySearchTermAndType(searchTerm, rubricType, pageable)
+            return assessmentRubricRepository.findPublicRubricsBySearchTermAndType(
+                            LikePatterns.escapeLower(searchTerm), LikePatterns.escapeLower(rubricType), pageable)
                     .map(AssessmentRubricFactory::toDTO);
         } else if (searchTerm != null) {
             // Search by term only
-            return assessmentRubricRepository.findPublicRubricsBySearchTerm(searchTerm, pageable)
+            return assessmentRubricRepository.findPublicRubricsBySearchTerm(LikePatterns.escapeLower(searchTerm), pageable)
                     .map(AssessmentRubricFactory::toDTO);
         } else if (rubricType != null) {
             // Filter by type only

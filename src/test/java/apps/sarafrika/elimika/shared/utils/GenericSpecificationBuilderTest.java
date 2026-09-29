@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -22,6 +23,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,6 +112,33 @@ class GenericSpecificationBuilderTest {
         assertThatThrownBy(() -> builder.validateSortProperties(TestEntity.class, pageable))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported sort property");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void likeOperationsEscapeWildcardsInUserInput() {
+        Expression<String> stringExpression = mock(Expression.class);
+        Expression<String> lowerExpression = mock(Expression.class);
+        when(root.get("owner")).thenReturn(path);
+        when(path.getJavaType()).thenAnswer(invocation -> String.class);
+        when(path.as(String.class)).thenReturn(stringExpression);
+        when(criteriaBuilder.lower(stringExpression)).thenReturn(lowerExpression);
+
+        builder.buildSpecification(TestEntity.class, Map.of("owner_like", "50%_Off\\"))
+                .toPredicate(root, criteriaQuery, criteriaBuilder);
+        builder.buildSpecification(TestEntity.class, Map.of("owner_startswith", "a_"))
+                .toPredicate(root, criteriaQuery, criteriaBuilder);
+        builder.buildSpecification(TestEntity.class, Map.of("owner_endswith", "%z"))
+                .toPredicate(root, criteriaQuery, criteriaBuilder);
+
+        verify(criteriaBuilder).like(lowerExpression, "%50\\%\\_off\\\\%", '\\');
+        verify(criteriaBuilder).like(lowerExpression, "a\\_%", '\\');
+        verify(criteriaBuilder).like(lowerExpression, "%\\%z", '\\');
+    }
+
+    @Test
+    void buildSpecificationReturnsNullWithoutCriteria() {
+        assertThat(builder.buildSpecification(TestEntity.class, Map.of())).isNull();
     }
 
     @Entity

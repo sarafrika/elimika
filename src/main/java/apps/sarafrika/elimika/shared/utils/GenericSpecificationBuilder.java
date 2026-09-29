@@ -337,7 +337,8 @@ public class GenericSpecificationBuilder<T> {
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
                     criteriaBuilder.lower(field.as(String.class)),
-                    "%" + value.toString().toLowerCase() + "%"
+                    LikePatterns.containsLower(value.toString()),
+                    LikePatterns.ESCAPE_CHAR
             );
         } else {
             return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
@@ -351,7 +352,8 @@ public class GenericSpecificationBuilder<T> {
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
                     criteriaBuilder.lower(field.as(String.class)),
-                    value.toString().toLowerCase() + "%"
+                    LikePatterns.startsWithLower(value.toString()),
+                    LikePatterns.ESCAPE_CHAR
             );
         } else {
             return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
@@ -365,7 +367,8 @@ public class GenericSpecificationBuilder<T> {
         if (fieldType.equals(String.class)) {
             return criteriaBuilder.like(
                     criteriaBuilder.lower(field.as(String.class)),
-                    "%" + value.toString().toLowerCase()
+                    LikePatterns.endsWithLower(value.toString()),
+                    LikePatterns.ESCAPE_CHAR
             );
         } else {
             return criteriaBuilder.equal(field, convertToPostgresType(value.toString(), fieldType));
