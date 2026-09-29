@@ -100,6 +100,27 @@ A rebuild creates `<index>__build_<yyyyMMddHHmm>`, applies the settings, copies 
 batches (checkpointed in `search_index_state`, so a restart resumes it), swaps it with the live index
 and drops the old contents. While it runs, live writes go to both indexes.
 
+## Indexes
+
+| Index | Owner | Source table | Read endpoints (`q`) | Read switch |
+|---|---|---|---|---|
+| `classes` | `classes/search/ClassSearchSource` | `class_definitions` | `GET /api/v1/classes`, `/classes/active`, `/classes/organisation/{uuid}` | `SEARCH_READENABLED_CLASSES` |
+| `marketplace_jobs` | `classes/search/MarketplaceJobSearchSource` | `class_marketplace_jobs` | `GET /api/v1/classes/jobs` | `SEARCH_READENABLED_MARKETPLACE_JOBS` |
+
+- **Scopes** mirror the SQL listings. Classes: admins everything; others active `PUBLIC` classes OR
+  `organisation_uuid IN` staffed orgs OR `default_instructor_uuid` = own profile OR `uuid IN` enrolled
+  classes. Jobs: admins everything; staff of the `organisation_uuid` filter that org in any status;
+  everyone else `status = OPEN`.
+- **Hydration** loads the hit UUIDs in one query and re-checks scope on the rows, so a lagging
+  document can drop out but never leak; instructor pay is redacted exactly as on the database path.
+- **Unpaged lists** (`/classes/active`, `/classes/organisation/{uuid}`) return at most 100 matches for `q`;
+  paged endpoints cap a page at 100.
+- **Fallback** (reads off or engine down): a case-insensitive, escaped title match inside the same
+  scoped SQL query.
+- **Stale copies**: course/program names and approval, organisation, branch and instructor names are
+  owned by other modules and copied in at index time. Their changes do not re-index classes or jobs;
+  reconciliation only reports count drift, so rebuild the index to refresh them.
+
 ## Adding a searchable entity
 
 Everything below lives in the **owning module** (e.g. `course/search/`). Nothing is added to the
