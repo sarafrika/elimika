@@ -99,6 +99,23 @@ public interface TrainingProgramService {
      */
     TrainingProgramDTO publishProgram(UUID programUuid);
 
+    /**
+     * Returns a training program to draft (status DRAFT, not published). It stays active only while
+     * learners are actively enrolled, mirroring course unpublishing.
+     *
+     * @param programUuid the program UUID to unpublish
+     * @return the unpublished program DTO
+     */
+    TrainingProgramDTO unpublishProgram(UUID programUuid);
+
+    /**
+     * Archives a training program (status ARCHIVED, not published, inactive).
+     *
+     * @param programUuid the program UUID to archive
+     * @return the archived program DTO
+     */
+    TrainingProgramDTO archiveProgram(UUID programUuid);
+
     TrainingProgramDTO approveProgram(UUID programUuid, String reason);
 
     TrainingProgramDTO unapproveProgram(UUID programUuid, String reason, ModerationAction action);

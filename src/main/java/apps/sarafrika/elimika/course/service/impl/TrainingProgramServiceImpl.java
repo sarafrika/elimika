@@ -58,16 +58,12 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     public TrainingProgramDTO createTrainingProgram(TrainingProgramDTO trainingProgramDTO) {
         TrainingProgram program = TrainingProgramFactory.toEntity(trainingProgramDTO);
 
-        // Set defaults based on TrainingProgramDTO business logic
-        if (program.getActive() == null) {
-            program.setActive(false);
-        }
-        if (program.getAdminApproved() == null) {
-            program.setAdminApproved(false);
-        }
-        if (program.getStatus() == null) {
-            program.setStatus(ContentStatus.DRAFT);
-        }
+        // A new program always starts as an unapproved draft. Lifecycle fields sent by the client
+        // are ignored: publishing goes through publishProgram and approval through admin moderation.
+        program.setStatus(ContentStatus.DRAFT);
+        program.setIsPublished(false);
+        program.setActive(false);
+        program.setAdminApproved(false);
 
         TrainingProgram savedProgram = trainingProgramRepository.save(program);
         return TrainingProgramFactory.toDTO(savedProgram);
@@ -305,15 +301,54 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Publishes a program the way {@code CourseServiceImpl#publishCourse} publishes a course: it
+     * becomes PUBLISHED and active. Admin approval is untouched, so an unapproved program lands in
+     * the admin pending queue ({@code admin_approved = false}, status PUBLISHED) and goes live once
+     * approved.
+     */
+    @Override
     public TrainingProgramDTO publishProgram(UUID programUuid) {
-        TrainingProgram program = trainingProgramRepository.findByUuid(programUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
+        TrainingProgram program = findProgram(programUuid);
 
+        program.setStatus(ContentStatus.PUBLISHED);
+        program.setIsPublished(true);
         program.setActive(true);
 
-        TrainingProgram updatedProgram = trainingProgramRepository.save(program);
-        return TrainingProgramFactory.toDTO(updatedProgram);
+        return TrainingProgramFactory.toDTO(trainingProgramRepository.save(program));
+    }
+
+    /**
+     * Returns a program to draft. As with courses, it stays active while learners are still
+     * enrolled so their access is not cut off, but it leaves the catalogue.
+     */
+    @Override
+    public TrainingProgramDTO unpublishProgram(UUID programUuid) {
+        TrainingProgram program = findProgram(programUuid);
+
+        program.setStatus(ContentStatus.DRAFT);
+        program.setIsPublished(false);
+        program.setActive(programEnrollmentRepository
+                .countByProgramUuidAndStatus(programUuid, EnrollmentStatus.ACTIVE) > 0);
+
+        return TrainingProgramFactory.toDTO(trainingProgramRepository.save(program));
+    }
+
+    @Override
+    public TrainingProgramDTO archiveProgram(UUID programUuid) {
+        TrainingProgram program = findProgram(programUuid);
+
+        program.setStatus(ContentStatus.ARCHIVED);
+        program.setIsPublished(false);
+        program.setActive(false);
+
+        return TrainingProgramFactory.toDTO(trainingProgramRepository.save(program));
+    }
+
+    private TrainingProgram findProgram(UUID programUuid) {
+        return trainingProgramRepository.findByUuid(programUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(PROGRAM_NOT_FOUND_TEMPLATE, programUuid)));
     }
 
     @Override
@@ -414,9 +449,8 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         if (dto.price() != null) {
             existingProgram.setPrice(dto.price());
         }
-        if (dto.active() != null) {
-            existingProgram.setActive(dto.active());
-        }
+        // status, published and active are deliberately not settable here. Lifecycle changes go
+        // through publishProgram/unpublishProgram/archiveProgram, as they do for courses.
     }
 
     private void publishProgramModerationNotification(TrainingProgram program, boolean approved, String reason) {

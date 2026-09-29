@@ -163,6 +163,42 @@ public class TrainingProgramController {
     }
 
     @Operation(
+            summary = "Unpublish training program",
+            description = "Returns a program to draft and removes it from the catalogue. It stays active while "
+                    + "learners are actively enrolled. Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Program unpublished successfully"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PostMapping("/{uuid}/unpublish")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> unpublishProgram(
+            @PathVariable UUID uuid) {
+        TrainingProgramDTO program = trainingProgramService.unpublishProgram(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(program, "Training program unpublished successfully"));
+    }
+
+    @Operation(
+            summary = "Archive training program",
+            description = "Archives a program: it leaves the catalogue and becomes inactive but stays readable. "
+                    + "Restricted to the program's creator and platform admins.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Program archived successfully"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PostMapping("/{uuid}/archive")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> archiveProgram(
+            @PathVariable UUID uuid) {
+        TrainingProgramDTO program = trainingProgramService.archiveProgram(uuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(program, "Training program archived successfully"));
+    }
+
+    @Operation(
             summary = "Search training programs",
             description = """
                     Advanced program search with flexible criteria and operators. Non-admin callers only
