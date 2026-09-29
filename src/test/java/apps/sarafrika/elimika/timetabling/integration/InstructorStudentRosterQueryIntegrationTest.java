@@ -1,5 +1,11 @@
 package apps.sarafrika.elimika.timetabling.integration;
 
+import apps.sarafrika.elimika.shared.search.SearchAvailability;
+import apps.sarafrika.elimika.shared.search.SearchFilter;
+import apps.sarafrika.elimika.shared.search.SearchGateway;
+import apps.sarafrika.elimika.shared.search.SearchHit;
+import apps.sarafrika.elimika.shared.search.SearchPage;
+import apps.sarafrika.elimika.shared.search.SearchRequest;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassSessionTemplate;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
@@ -107,6 +113,11 @@ class InstructorStudentRosterQueryIntegrationTest {
     private UUID theoryClass;
     private UUID amina;
     private UUID brian;
+    private UUID esther;
+    private UUID faith;
+    private final Map<UUID, UUID> userOfStudent = new java.util.HashMap<>();
+    private final List<SearchRequest> searchRequests = new java.util.ArrayList<>();
+    private List<UUID> peopleHits = List.of();
 
     @BeforeEach
     void seed() {
@@ -144,14 +155,24 @@ class InstructorStudentRosterQueryIntegrationTest {
         enrol(cheruiyot, piano1, EnrollmentStatus.CANCELLED);
         enrol(cheruiyot, piano2, EnrollmentStatus.CANCELLED);
 
-        enrol(student("Esther Violinist"), instance(violinClass, 0, SchedulingStatus.SCHEDULED), EnrollmentStatus.ENROLLED);
-        enrol(student("Faith Chorister"), instance(choirClass, 0, SchedulingStatus.SCHEDULED), EnrollmentStatus.ENROLLED);
+        esther = student("Esther Violinist");
+        enrol(esther, instance(violinClass, 0, SchedulingStatus.SCHEDULED), EnrollmentStatus.ENROLLED);
+        faith = student("Faith Chorister");
+        enrol(faith, instance(choirClass, 0, SchedulingStatus.SCHEDULED), EnrollmentStatus.ENROLLED);
 
         DomainSecurityService security = mock(DomainSecurityService.class);
         when(security.managesOrganisation(ORGANISATION)).thenReturn(true);
         TrainingBranchLookupService branches = mock(TrainingBranchLookupService.class);
         when(branches.findBranchNames(anyCollection())).thenReturn(Map.of(BRANCH, "Main Campus"));
-        service = new InstructorStudentRosterServiceImpl(enrollmentRepository, branches, security);
+        SearchAvailability availability = mock(SearchAvailability.class);
+        when(availability.isReadEnabled("people")).thenReturn(true);
+        SearchGateway gateway = mock(SearchGateway.class);
+        when(gateway.search(org.mockito.ArgumentMatchers.any(SearchRequest.class))).thenAnswer(invocation -> {
+            searchRequests.add(invocation.getArgument(0));
+            return new SearchPage(peopleHits.stream().map(uuid -> new SearchHit(uuid, Map.of(), null)).toList(),
+                    peopleHits.size(), 0, SearchRequest.MAX_SIZE, Map.of());
+        });
+        service = new InstructorStudentRosterServiceImpl(enrollmentRepository, branches, security, gateway, availability);
         entityManager.flush();
         entityManager.clear();
     }
@@ -206,14 +227,38 @@ class InstructorStudentRosterQueryIntegrationTest {
     }
 
     @Test
-    @DisplayName("search matches part of the name case-insensitively and takes wildcards literally")
-    void searchMatchesPartOfTheName() {
+    @DisplayName("a name search asks the people index only about the SQL-authorised roster's users")
+    void searchIsScopedToTheRosterUsers() {
+        peopleHits = List.of(userOfStudent.get(brian));
+
         assertThat(service.listInstructorStudents(ORGANISATION, INSTRUCTOR, " kAMa ", null, 0, 20)
                 .students().getContent())
-                .extracting(InstructorStudentDTO::studentUuid)
-                .containsExactly(brian, brian);
-        assertThat(service.listInstructorStudents(ORGANISATION, INSTRUCTOR, "%", null, 0, 20)
-                .students().getTotalElements()).isZero();
+                .extracting(InstructorStudentDTO::studentUuid, InstructorStudentDTO::classTitle)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(brian, "aural Theory"),
+                        org.assertj.core.groups.Tuple.tuple(brian, "Grade 5 Piano"));
+
+        assertThat(searchRequests).singleElement().satisfies(request -> {
+            assertThat(request.index()).isEqualTo("people");
+            assertThat(request.text()).isEqualTo("kAMa");
+            assertThat(request.scope().filter()).isInstanceOfSatisfying(SearchFilter.In.class, in ->
+                    assertThat(in.values()).as("the roster's users only: not the violin or choir students")
+                            .containsExactlyInAnyOrderElementsOf(userOfStudent.entrySet().stream()
+                                    .filter(entry -> !entry.getKey().equals(esther) && !entry.getKey().equals(faith))
+                                    .map(Map.Entry::getValue).toList()));
+        });
+    }
+
+    @Test
+    @DisplayName("a name search pages the matched rows and restates the total")
+    void searchPagesTheMatches() {
+        peopleHits = List.of(userOfStudent.get(amina), userOfStudent.get(brian));
+
+        InstructorStudentRoster second = service.listInstructorStudents(ORGANISATION, INSTRUCTOR, "a", null, 1, 2);
+
+        assertThat(second.students().getTotalElements()).isEqualTo(3);
+        assertThat(second.students().getContent())
+                .extracting(InstructorStudentDTO::studentUuid, InstructorStudentDTO::classTitle)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(brian, "Grade 5 Piano"));
     }
 
     @Test
@@ -267,10 +312,12 @@ class InstructorStudentRosterQueryIntegrationTest {
 
     private UUID student(String fullName) {
         UUID uuid = UUID.randomUUID();
+        UUID userUuid = UUID.randomUUID();
         entityManager.createNativeQuery("INSERT INTO students (uuid, user_uuid, full_name, created_by) "
                         + "VALUES (?1, ?2, ?3, 'test')")
-                .setParameter(1, uuid).setParameter(2, UUID.randomUUID()).setParameter(3, fullName)
+                .setParameter(1, uuid).setParameter(2, userUuid).setParameter(3, fullName)
                 .executeUpdate();
+        userOfStudent.put(uuid, userUuid);
         return uuid;
     }
 

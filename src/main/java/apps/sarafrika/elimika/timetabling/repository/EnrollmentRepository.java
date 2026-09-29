@@ -389,12 +389,21 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<Object[]> findStudentPerformanceForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                          @Param("studentUuid") UUID studentUuid);
-    // One row per student per organisation class the instructor is instructor of record for. The
-    // class's session templates come packed as type|days|start|end, joined by ';'.
-    @Query(value = """
+    /**
+     * One row per student per organisation class the instructor is instructor of record for, as
+     * {@code [student_uuid, student_name, class_definition_uuid, class_title, course_or_program_name,
+     * session_format, location_type, branch_uuid, enrolled_at, attended, recorded, enrollment_status,
+     * packed_session_templates, student_user_uuid]}. The class's session templates come packed as
+     * type|days|start|end, joined by ';'.
+     * <p>
+     * There is no name filter: a free-text search over the roster goes to the {@code people} search
+     * index, scoped to the roster's own user UUIDs (see {@code InstructorStudentRosterServiceImpl}).
+     */
+    String INSTRUCTOR_STUDENT_ROSTER_QUERY = """
             WITH roster AS (
                 SELECT ce.student_uuid AS student_uuid,
                        s.full_name AS student_name,
+                       s.user_uuid AS user_uuid,
                        si.class_definition_uuid AS class_definition_uuid,
                        MIN(ce.created_date) AS enrolled_at,
                        COUNT(*) FILTER (WHERE ce.status = 'ATTENDED') AS attended,
@@ -412,8 +421,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                 WHERE cd.organisation_uuid = :organisationUuid
                   AND cd.default_instructor_uuid = :instructorUuid
                   AND (CAST(:classDefinitionUuid AS uuid) IS NULL OR cd.uuid = CAST(:classDefinitionUuid AS uuid))
-                  AND s.full_name ILIKE :namePattern
-                GROUP BY ce.student_uuid, s.full_name, si.class_definition_uuid
+                GROUP BY ce.student_uuid, s.full_name, s.user_uuid, si.class_definition_uuid
             )
             SELECT r.student_uuid, r.student_name, cd.uuid, cd.title, COALESCE(c.name, tp.title),
                    cd.session_format, cd.location_type, cd.branch_uuid, r.enrolled_at, r.attended, r.recorded,
@@ -423,13 +431,17 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                                                 to_char(t.end_time, 'HH24:MI')),
                                       ';' ORDER BY t.template_order, t.created_date)
                     FROM class_session_templates t
-                    WHERE t.class_definition_uuid = cd.uuid)
+                    WHERE t.class_definition_uuid = cd.uuid),
+                   r.user_uuid
             FROM roster r
             JOIN class_definitions cd ON cd.uuid = r.class_definition_uuid
             LEFT JOIN courses c ON c.uuid = cd.course_uuid
             LEFT JOIN training_programs tp ON tp.uuid = cd.program_uuid
             ORDER BY lower(r.student_name), r.student_uuid, lower(cd.title), cd.uuid
-            """,
+            """;
+
+    /** One page of {@link #INSTRUCTOR_STUDENT_ROSTER_QUERY}. */
+    @Query(value = INSTRUCTOR_STUDENT_ROSTER_QUERY,
             countQuery = """
             SELECT COUNT(*) FROM (
                 SELECT 1
@@ -440,7 +452,6 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                 WHERE cd.organisation_uuid = :organisationUuid
                   AND cd.default_instructor_uuid = :instructorUuid
                   AND (CAST(:classDefinitionUuid AS uuid) IS NULL OR cd.uuid = CAST(:classDefinitionUuid AS uuid))
-                  AND s.full_name ILIKE :namePattern
                 GROUP BY ce.student_uuid, si.class_definition_uuid
             ) roster
             """,
@@ -448,8 +459,16 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     Page<Object[]> findInstructorStudentsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
                                                          @Param("instructorUuid") UUID instructorUuid,
                                                          @Param("classDefinitionUuid") UUID classDefinitionUuid,
-                                                         @Param("namePattern") String namePattern,
                                                          Pageable pageable);
+
+    /**
+     * Every row of {@link #INSTRUCTOR_STUDENT_ROSTER_QUERY}, for a roster search: the rows are narrowed
+     * to the students the {@code people} index matches, then paged in memory.
+     */
+    @Query(value = INSTRUCTOR_STUDENT_ROSTER_QUERY, nativeQuery = true)
+    List<Object[]> findAllInstructorStudentsForOrganisation(@Param("organisationUuid") UUID organisationUuid,
+                                                            @Param("instructorUuid") UUID instructorUuid,
+                                                            @Param("classDefinitionUuid") UUID classDefinitionUuid);
 
     /** The organisation's classes the instructor has students in, as {@code [class_definition_uuid, title]} rows. */
     @Query(value = """

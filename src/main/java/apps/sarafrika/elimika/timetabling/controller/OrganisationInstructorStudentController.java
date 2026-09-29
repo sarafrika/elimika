@@ -42,7 +42,7 @@ public class OrganisationInstructorStudentController {
     public ResponseEntity<ApiResponse<InstructorStudentPageDTO>> listInstructorStudents(
             @PathVariable UUID organisationUuid,
             @PathVariable UUID instructorUuid,
-            @Parameter(description = "Case-insensitive part of the student's name")
+            @Parameter(description = "Free-text match on the student's name, served by the people search index (503 when search is unavailable)")
             @RequestParam(value = "search", required = false) String search,
             @Parameter(description = "Only students of this class")
             @RequestParam(value = "class_definition_uuid", required = false) UUID classDefinitionUuid,
