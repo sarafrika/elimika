@@ -68,7 +68,7 @@ final class TenancyGlobalSearchProviders {
      * <ul>
      *     <li>A platform admin searches everyone, on every searchable attribute.</li>
      *     <li>An organisation manager searches the active members of the organisations they manage, by
-     *     name only - never email, username or user number, the same rule as the roster search.</li>
+     *     name only - never email, username or user number (the roster search alone adds email).</li>
      *     <li>Everyone else, anonymous callers included, never sees the type.</li>
      * </ul>
      */

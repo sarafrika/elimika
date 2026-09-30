@@ -39,10 +39,10 @@ class PeopleSearchSource implements SearchDocumentSource<PeopleSearchDocument> {
 
     static final String INDEX = "people";
 
-    static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
+    static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
                     List.of("full_name", "first_name", "last_name", "email", "username", "user_no"),
                     List.of("domains", "organisation_uuids", "branch_uuids", "active", "is_platform_admin",
-                            "is_org_admin", "uuid", "created_at"),
+                            "is_org_admin", "uuid", "created_at", "email_normalized"),
                     List.of("full_name", "created_at"))
             .withTypoDisabledAttributes(List.of("email", "user_no", "username"));
 

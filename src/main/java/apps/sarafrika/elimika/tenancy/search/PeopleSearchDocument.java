@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.search;
 import apps.sarafrika.elimika.shared.search.SearchDocument;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,16 @@ public record PeopleSearchDocument(
         domains = domains == null ? List.of() : List.copyOf(domains);
         organisationUuids = organisationUuids == null ? List.of() : List.copyOf(organisationUuids);
         branchUuids = branchUuids == null ? List.of() : List.copyOf(branchUuids);
+    }
+
+    /**
+     * The email, trimmed and lower-cased, as an exact-match filter. The source already stores
+     * {@code email} normalized; this repeats it under a filterable name so a roster query containing
+     * {@code @} can match one address exactly rather than every document sharing its tokens.
+     */
+    @JsonProperty("email_normalized")
+    public String emailNormalized() {
+        return email == null || email.isBlank() ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     /** First, middle and last name joined by single spaces, skipping blank parts. */

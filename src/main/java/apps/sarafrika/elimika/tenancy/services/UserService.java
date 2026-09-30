@@ -158,9 +158,9 @@ public interface UserService {
 
     /**
      * An organisation's active members, optionally narrowed by a free-text {@code query}. With a
-     * query, the {@code people} search index answers when it is read-enabled (names only for an
-     * organisation manager, names and email for a platform admin); otherwise the database does, with
-     * the same matching rules. Without one this is {@link #getUsersByOrganisation(UUID, Pageable)}.
+     * query, the {@code people} search index answers (names and email for an organisation manager,
+     * with a query containing {@code @} matched exactly; every searchable attribute for a platform
+     * admin); when it is not read-enabled the query is unavailable. Without one this is {@link #getUsersByOrganisation(UUID, Pageable)}.
      */
     Page<UserDTO> getUsersByOrganisation(UUID organisationId, String query, Pageable pageable);
 

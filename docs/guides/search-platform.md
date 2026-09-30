@@ -252,7 +252,7 @@ thread and run one after another.
 | `marketplace_jobs` | title, course_name, program_title, organisation_name, branch_name, location_name, target_groups, description | status, organisation_uuid, branch_uuid, course_uuid, program_uuid, category_uuid, location_type, session_format, starts_at, registration_closes_at, uuid, created_at | created_at, starts_at | `OPEN`; staff of the filtered organisation see it in any status | `ClassMarketplaceJob`, `ClassMarketplaceJobSessionTemplate`; bulk deletes enqueue explicitly | course/program, organisation and branch names until the nightly rebuild |
 | `instructors` | full_name, professional_headline, skills, experience_positions, experience_organisations, location_name, bio | admin_verified, active, skills, skill_levels, location_name, uuid, created_at | full_name, rating_avg, review_count, created_at | verified OR own profile OR pinned by `uuid` | `Instructor`, `InstructorSkill`, `InstructorExperience`, `InstructorReview`; `UserUpdateEvent` (name kept by a DB trigger) | none |
 | `organisations` | name, slug, location, description | active, admin_verified, country, uuid, created_at | name, created_at | active AND verified | `Organisation` | none |
-| `people` | full_name, first_name, last_name, email, username, user_no | domains, organisation_uuids, branch_uuids, active, is_platform_admin, is_org_admin, uuid, created_at | full_name, created_at | admins only; roster: members of a managed organisation, names only | `User`, `UserDomainMapping`, `UserOrganisationDomainMapping` | none |
+| `people` (schema v2) | full_name, first_name, last_name, email, username, user_no | domains, organisation_uuids, branch_uuids, active, is_platform_admin, is_org_admin, uuid, created_at, email_normalized | full_name, created_at | admins only (every attribute); roster: members of a managed organisation by name and email (`searchOn` adds `email`; a `q` containing `@` is an exact `email_normalized` filter); username and user_no stay admin-only; global search stays names only | `User`, `UserDomainMapping`, `UserOrganisationDomainMapping` | none |
 
 - **Staleness window.** A name copied from another module (organisation, branch, course, program,
   course-creator) is refreshed when the copying document itself changes, and otherwise by the nightly
@@ -347,6 +347,30 @@ small set client-side.
 Timetabling reaches the index through `shared.search.SearchGateway` (the `shared` module it already
 depends on) and names the index by its string; it imports nothing from tenancy's search package.
 
+### Organisation roster search by email
+
+`GET /api/v1/organisations/{uuid}/users?q=` lets a manager of that organisation match members by name
+**and email** - the roster DTO already shows them their members' emails, so the search reveals nothing
+new. Username and user number stay admin-only, and global people search stays names only.
+
+```
+ UI ── q=amina / q=Amina.W@School.ke ──► UserService.getUsersByOrganisation
+                            │ PeopleSearchService.searchOrganisationRoster
+                            │ people reads enabled?  no ──► 503
+                            ▼
+        scope = organisation_uuids = {uuid}                  (manages {uuid}? no ──► 403)
+        q has "@"?  no  ──► text = q,    searchOn = full_name, first_name, last_name, email
+                    yes ──► text = none, filter email_normalized = lower(trim(q))  ◄── exact address only
+                            │ ranked user uuids
+                            ▼
+        UserRepository.findOrganisationMembersByUuidIn  (SQL re-check: active, non-deleted membership)
+                            ▼
+        Page<UserDTO>  ◄── users.email ── people document { email, email_normalized }
+```
+
+A local-part prefix (`q=amina.w`) matches through normal search; once the query contains `@` only the
+exact address matches, so a partial `amina@sch` finds nothing.
+
 ## Go-live runbook
 
 1. **Create the scoped key** once, with the master key, and store it as `SEARCH_MEILISEARCH_API_KEY`:
@@ -375,6 +399,8 @@ depends on) and names the index by its string; it imports nothing from tenancy's
    `people`), redeploy, and check each index's `q` listings and `GET /api/v1/search?types=<index>`.
    The rubrics index moved to schema version 2 (lower-cased `rubric_type`): rebuild it (step 3) or
    enable `SEARCH_AUTO_REBUILD` before relying on the discovery `type` filter with `q`.
+   The people index moved to schema version 2 (filterable `email_normalized`): until it is rebuilt, a
+   manager's roster `q` containing `@` fails because the attribute is not yet filterable.
 6. **Deploy the no-fallback release** only once step 5 holds on the target environment.
 7. **There is no SQL rollback for text search any more.** `SEARCH_READENABLED_<INDEX>=false` turns that
    index's `q` into a 503 (and drops the type from global search); relational listings without `q`

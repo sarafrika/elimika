@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
+import apps.sarafrika.elimika.shared.search.GlobalSearchProvider;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchGateway;
 import apps.sarafrika.elimika.shared.search.SearchHit;
@@ -109,6 +110,7 @@ class TenancySearchIntegrationTest {
     @Autowired private OrganisationService organisationService;
     @Autowired private OrganisationRepository organisationRepository;
     @Autowired private SearchGateway gateway;
+    @Autowired private List<GlobalSearchProvider> providers;
     @Autowired private SearchIndexRequests indexRequests;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactionManager;
@@ -231,7 +233,7 @@ class TenancySearchIntegrationTest {
     }
 
     @Test
-    @DisplayName("An organisation manager finds only their own members, by name and never by email")
+    @DisplayName("An organisation manager finds only their own members, by name")
     void organisationManagerIsScopedToTheirMembers() {
         String surname = word();
         UUID ownOrganisation = insertOrganisation("Own " + word());
@@ -247,11 +249,66 @@ class TenancySearchIntegrationTest {
         assertThat(uuids(byName)).containsExactly(member);
         assertThat(byName.getTotalElements()).isEqualTo(1);
 
-        assertThat(userService.getUsersByOrganisation(ownOrganisation, surname + "member@example.test",
-                PageRequest.of(0, 20)).getContent()).isEmpty();
-
         assertThatThrownBy(() -> userService.getUsersByOrganisation(otherOrganisation, surname, PageRequest.of(0, 20)))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("On their roster, a manager finds a member by exact email and by a local-part prefix, never a non-member")
+    void organisationManagerFindsMembersByEmail() {
+        String local = word();
+        String domain = word();
+        UUID ownOrganisation = insertOrganisation("Emails " + word());
+        UUID otherOrganisation = insertOrganisation("Elsewhere " + word());
+        UUID member = insertUser("Ignatius", null, word(), local + ".member@" + domain + ".test");
+        UUID sameDomain = insertUser("Ignatius", null, word(), word() + "@" + domain + ".test");
+        UUID outsider = insertUser("Ignatius", null, word(), local + ".outsider@" + domain + ".test");
+        insertMembership(member, ownOrganisation, "student");
+        insertMembership(sameDomain, ownOrganisation, "student");
+        insertMembership(outsider, otherOrganisation, "student");
+        index(PEOPLE, member, sameDomain, outsider);
+        managing(ownOrganisation);
+
+        // Exact, case-insensitive: only the one address, not every member sharing the domain.
+        Page<UserDTO> exact = userService.getUsersByOrganisation(ownOrganisation,
+                " " + local.toUpperCase() + ".Member@" + domain + ".TEST ", PageRequest.of(0, 20));
+        assertThat(uuids(exact)).containsExactly(member);
+        assertThat(exact.getTotalElements()).isEqualTo(1);
+
+        // A local-part prefix goes through normal search.
+        assertThat(uuids(userService.getUsersByOrganisation(ownOrganisation, local.substring(0, 6),
+                PageRequest.of(0, 20)))).containsExactly(member);
+
+        // A non-member's exact address finds nothing on this roster.
+        assertThat(userService.getUsersByOrganisation(ownOrganisation, local + ".outsider@" + domain + ".test",
+                PageRequest.of(0, 20)).getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Global people search for a manager still matches names only, never email")
+    void globalPeopleSearchForManagerIgnoresEmail() {
+        String surname = word();
+        String local = word();
+        UUID organisation = insertOrganisation("Global " + word());
+        UUID manager = insertUser("Manager", null, word(), word() + "@example.test");
+        UUID member = insertUser("Octavia", null, surname, local + "@example.test");
+        insertMembership(manager, organisation, "organisation_user");
+        insertMembership(member, organisation, "student");
+        index(PEOPLE, manager, member);
+        managing(organisation);
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(manager);
+
+        GlobalSearchProvider people = providers.stream()
+                .filter(provider -> PEOPLE.equals(provider.type())).findFirst().orElseThrow();
+        SearchScope scope = people.scopeForCurrentCaller().orElseThrow();
+        List<String> searchOn = people.searchOnForCurrentCaller();
+
+        assertThat(hitUuids(gateway.search(new SearchRequest(PEOPLE, surname, null, scope, List.of(), 0, 20,
+                List.of(), searchOn)))).containsExactly(member);
+        assertThat(hitUuids(gateway.search(new SearchRequest(PEOPLE, local + "@example.test", null, scope,
+                List.of(), 0, 20, List.of(), searchOn)))).isEmpty();
+        assertThat(hitUuids(gateway.search(new SearchRequest(PEOPLE, local, null, scope,
+                List.of(), 0, 20, List.of(), searchOn)))).isEmpty();
     }
 
     @Test

@@ -76,7 +76,10 @@ public class PeopleSearchService {
         return search(query, eligible, scope, pageable, userRepository::findAdminEligibleByUuidIn);
     }
 
-    /** Active members of one organisation, for that organisation's managers (and platform admins). */
+    /**
+     * Active members of one organisation, for that organisation's managers (and platform admins). A
+     * manager matches names and email; a query containing {@code @} is an exact email match.
+     */
     @Transactional(readOnly = true)
     public Page<User> searchOrganisationRoster(UUID organisationUuid, String query, Pageable pageable) {
         PeopleScope scope = PeopleSearchScopes.organisationRoster(organisationUuid,
@@ -112,7 +115,13 @@ public class PeopleSearchService {
             throw new SearchUnavailableException("Search is not enabled for " + PeopleSearchSource.INDEX);
         }
         String text = query.trim();
-        SearchRequest request = new SearchRequest(PeopleSearchSource.INDEX, text, filter, scope.scope(),
+        SearchFilter emailFilter = scope.emailFilter(text);
+        if (emailFilter != null) {
+            // An address is matched exactly, not tokenised: the filter alone selects the member.
+            filter = filter == null ? emailFilter : SearchFilter.and(filter, emailFilter);
+        }
+        SearchRequest request = new SearchRequest(PeopleSearchSource.INDEX,
+                emailFilter == null ? text : null, filter, scope.scope(),
                 SearchPaging.sorts(pageable, PeopleSearchSource.DEFINITION),
                 SearchPaging.page(pageable), SearchPaging.size(pageable), List.of(), scope.searchOn());
         log.debug("People search: scope={} query_length={}", scope.scope().label(), text.length());

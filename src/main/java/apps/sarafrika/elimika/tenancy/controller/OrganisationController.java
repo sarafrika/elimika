@@ -200,9 +200,10 @@ class OrganisationController {
     // ================================
 
     @Operation(summary = "Get users by organisation ID",
-            description = "Pages the organisation's active members. `q` optionally narrows them by name: " +
-                    "organisation managers match on full, first and last name only (never email); platform " +
-                    "administrators may also match email, username and user number. `q` is served only by the " +
+            description = "Pages the organisation's active members. `q` optionally narrows them: " +
+                    "organisation managers match on full, first and last name and email (a `q` containing `@` " +
+                    "matches one address exactly, case-insensitively); platform administrators may also match " +
+                    "username and user number. `q` is served only by the " +
                     "people search index: typo-tolerant and relevance-ordered, and `sort` accepts `full_name` " +
                     "and `created_at`; with search or the index's reads off, or the engine down, it answers 503 " +
                     "(\"Search is unavailable\"). Without `q` the members are paged from the database.")
