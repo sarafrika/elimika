@@ -491,6 +491,103 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         return assessEligibility(jobs, instructorUuid);
     }
 
+    /**
+     * The same eligibility the instructor's own eligibility reads report, for jobs already loaded (job
+     * matching). The caller must have established that {@code instructorUuid} is the current instructor.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassMarketplaceJobEligibilityDTO> assessEligibilityForInstructor(List<ClassMarketplaceJob> jobs,
+                                                                                 UUID instructorUuid) {
+        return assessEligibility(jobs, instructorUuid);
+    }
+
+    /**
+     * Reverse eligibility: one job against several instructors, each judged exactly as
+     * {@link #getMyJobEligibility} would judge them. Per-instructor facts load in bulk (verification,
+     * approval, applications); the job's sessions expand once and only the clash check and the rate run
+     * per instructor. Keyed by instructor UUID; for the organisation side only - callers must not pass
+     * the result through, since it names rates and clashes.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, ClassMarketplaceJobEligibilityDTO> assessEligibilityForCandidates(ClassMarketplaceJob job,
+                                                                                      Collection<UUID> instructorUuids) {
+        List<UUID> candidates = instructorUuids == null ? List.of() : instructorUuids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (candidates.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Boolean> verified = new HashMap<>();
+        instructorLookupService.findInstructorDirectoryEntries(candidates)
+                .forEach((uuid, entry) -> verified.put(uuid, entry.adminVerified()));
+        Set<UUID> approved = job.getCourseUuid() != null
+                ? courseTrainingApprovalSpi.approvedInstructorUuidsForCourse(job.getCourseUuid())
+                : courseTrainingApprovalSpi.approvedInstructorUuidsForProgram(job.getProgramUuid());
+        Map<UUID, ClassMarketplaceJobApplicationStatus> applicationStatuses = new HashMap<>();
+        applicationRepository.findByJobUuidAndInstructorUuidIn(job.getUuid(), candidates)
+                .forEach(application -> applicationStatuses.put(application.getInstructorUuid(), application.getStatus()));
+        List<OccurrenceWindow> occurrences = expandJobOccurrences(job.getUuid());
+
+        Map<UUID, ClassMarketplaceJobEligibilityDTO> result = new LinkedHashMap<>();
+        for (UUID instructorUuid : candidates) {
+            boolean trainingApproved = approved.contains(instructorUuid);
+            BigDecimal approvedRate = trainingApproved
+                    ? resolveInstructorRateForJob(job, instructorUuid).orElse(null)
+                    : null;
+            EligibilityFacts facts = new EligibilityFacts(verified.getOrDefault(instructorUuid, false),
+                    trainingApproved, approvedRate, applicationStatuses.get(instructorUuid));
+            result.put(instructorUuid, decideEligibility(job, facts,
+                    findInstructorScheduleConflicts(job, occurrences, instructorUuid)));
+        }
+        return result;
+    }
+
+    /**
+     * Each instructor's approved rate for the job's cell, priced as eligibility prices it; instructors
+     * with none are left out. For scoring only - never for a response the organisation sees.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, BigDecimal> approvedRatesForJob(ClassMarketplaceJob job, Collection<UUID> instructorUuids) {
+        Map<UUID, BigDecimal> rates = new HashMap<>();
+        if (instructorUuids == null) {
+            return rates;
+        }
+        instructorUuids.stream().filter(Objects::nonNull).distinct().forEach(instructorUuid ->
+                resolveInstructorRateForJob(job, instructorUuid).ifPresent(rate -> rates.put(instructorUuid, rate)));
+        return rates;
+    }
+
+    /** The job read access the organisation's application list uses: its managers and platform admins. */
+    @Transactional(readOnly = true)
+    public ClassMarketplaceJob loadJobForCandidateReview(UUID jobUuid) {
+        ClassMarketplaceJob job = getJobEntity(jobUuid);
+        requireOrganisationApplicationReadAccess(job.getOrganisationUuid());
+        return job;
+    }
+
+    /** The current caller's instructor UUID; refuses anyone who is not an instructor. */
+    public UUID requireCurrentInstructor() {
+        return resolveCurrentInstructorUuid();
+    }
+
+    /** Job rows as the listing maps them, with pay redacted for callers who may not see it. */
+    @Transactional(readOnly = true)
+    public List<ClassMarketplaceJobDTO> toJobDTOs(List<ClassMarketplaceJob> jobs) {
+        if (jobs.isEmpty()) {
+            return List.of();
+        }
+        JobReadContext context = loadJobReadContext(jobs);
+        return jobs.stream().map(job -> toJobDTO(job, context)).toList();
+    }
+
+    /** What eligibility is decided on, loaded in bulk by whichever direction asks. */
+    private record EligibilityFacts(boolean instructorVerified,
+                                    boolean trainingApproved,
+                                    BigDecimal approvedRate,
+                                    ClassMarketplaceJobApplicationStatus applicationStatus) {
+    }
+
     // The one eligibility path: the instructor's facts load once for all the jobs; only the clash check runs per job.
     private List<ClassMarketplaceJobEligibilityDTO> assessEligibility(List<ClassMarketplaceJob> jobs, UUID instructorUuid) {
         if (jobs.isEmpty()) {
@@ -503,26 +600,35 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                         jobs.stream().map(ClassMarketplaceJob::getUuid).toList())
                 .forEach(application -> applicationStatuses.put(application.getJobUuid(), application.getStatus()));
         return jobs.stream()
-                .map(job -> assessEligibility(job, instructorUuid, instructorVerified, approvals,
-                        applicationStatuses.get(job.getUuid())))
+                .map(job -> decideEligibility(job,
+                        eligibilityFacts(job, instructorVerified, approvals, applicationStatuses.get(job.getUuid())),
+                        findInstructorScheduleConflicts(job, instructorUuid)))
                 .toList();
     }
 
-    private ClassMarketplaceJobEligibilityDTO assessEligibility(ClassMarketplaceJob job,
-                                                               UUID instructorUuid,
-                                                               boolean instructorVerified,
-                                                               InstructorTrainingApprovals approvals,
-                                                               ClassMarketplaceJobApplicationStatus applicationStatus) {
+    private static EligibilityFacts eligibilityFacts(ClassMarketplaceJob job,
+                                                     boolean instructorVerified,
+                                                     InstructorTrainingApprovals approvals,
+                                                     ClassMarketplaceJobApplicationStatus applicationStatus) {
         boolean trainingApproved = job.getCourseUuid() != null
                 ? approvals.approvedForCourse(job.getCourseUuid())
                 : approvals.approvedForProgram(job.getProgramUuid());
         Optional<BigDecimal> approvedRate = job.getCourseUuid() != null
                 ? approvals.courseRate(job.getCourseUuid(), job.getSessionFormat(), job.getLocationType(), job.getRateBasis())
                 : approvals.programRate(job.getProgramUuid(), job.getSessionFormat(), job.getLocationType(), job.getRateBasis());
-        InstructorRateCheck rateCheck = new InstructorRateCheck(pricedRate(approvedRate).orElse(null), job.getInstructorPay());
+        return new EligibilityFacts(instructorVerified, trainingApproved, pricedRate(approvedRate).orElse(null),
+                applicationStatus);
+    }
+
+    private ClassMarketplaceJobEligibilityDTO decideEligibility(ClassMarketplaceJob job,
+                                                               EligibilityFacts facts,
+                                                               List<ClassSchedulingConflictDTO> scheduleConflicts) {
+        boolean instructorVerified = facts.instructorVerified();
+        boolean trainingApproved = facts.trainingApproved();
+        ClassMarketplaceJobApplicationStatus applicationStatus = facts.applicationStatus();
+        InstructorRateCheck rateCheck = new InstructorRateCheck(facts.approvedRate(), job.getInstructorPay());
         boolean alreadyApplied = applicationStatus != null;
         boolean canReapply = applicationStatus != null && applicationStatus.allowsReapplication();
-        List<ClassSchedulingConflictDTO> scheduleConflicts = findInstructorScheduleConflicts(job, instructorUuid);
         boolean scheduleClear = scheduleConflicts.isEmpty();
         // An application that is still live blocks a fresh one; a closed one does not.
         boolean blockedByExistingApplication = applicationStatus != null && !applicationStatus.allowsReapplication();
@@ -1614,7 +1720,13 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * another class job, or declared unavailability.
      */
     private List<ClassSchedulingConflictDTO> findInstructorScheduleConflicts(ClassMarketplaceJob job, UUID instructorUuid) {
-        List<OccurrenceWindow> occurrences = expandJobOccurrences(job.getUuid());
+        return findInstructorScheduleConflicts(job, expandJobOccurrences(job.getUuid()), instructorUuid);
+    }
+
+    /** As above, for occurrences already expanded (one job checked against several instructors). */
+    private List<ClassSchedulingConflictDTO> findInstructorScheduleConflicts(ClassMarketplaceJob job,
+                                                                            List<OccurrenceWindow> occurrences,
+                                                                            UUID instructorUuid) {
         if (occurrences.isEmpty()) {
             return List.of();
         }

@@ -8,6 +8,9 @@ import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDecisionRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobEligibilityDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobRequestDTO;
+import apps.sarafrika.elimika.classes.dto.JobCandidateDTO;
+import apps.sarafrika.elimika.classes.dto.JobMatchDTO;
+import apps.sarafrika.elimika.classes.internal.matching.JobMatchService;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.service.ClassMarketplaceJobServiceInterface;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException;
@@ -52,6 +55,7 @@ public class ClassMarketplaceJobController {
     public static final String API_ROOT_PATH = "/api/v1/classes/jobs";
 
     private final ClassMarketplaceJobServiceInterface classMarketplaceJobService;
+    private final JobMatchService jobMatchService;
 
     @Operation(summary = "Create a marketplace class job",
             description = "Attached resources are validated against their calendars and reserved with HOLD bookings for every session occurrence; conflicts return 409 with a per-occurrence report. A preferred instructor whose schedule clashes with the sessions is not hired: 409 with the clashing windows, and nothing is posted. A preferred instructor with no approved rate for the job's format, delivery and rate_basis, or a rate above instructor_pay, is refused with 409")
@@ -211,6 +215,37 @@ public class ClassMarketplaceJobController {
         return ResponseEntity.ok(ApiResponse.success(
                 classMarketplaceJobService.withdrawApplication(jobUuid, applicationUuid, request),
                 "Marketplace class job application withdrawn successfully"));
+    }
+
+    @Operation(summary = "Open marketplace jobs matched to the current instructor",
+            description = "Open jobs whose course or training program the instructor is approved to teach and whose registration has not closed, "
+                    + "scored rules-v1 (skills 0.35, location 0.20, pay above rate 0.15, experience 0.10, rating 0.10, urgency 0.10; "
+                    + "a missing mandatory skill multiplies by 0.3). Each item is the job plus match {score, matched_skills, required_skills, reasons, eligibility}; "
+                    + "ineligible jobs come last with the eligibility reason. radius_km (2-100) only applies when the instructor has opted in to location search. "
+                    + "Callers without an instructor profile are refused. 503 when search is unavailable")
+    @GetMapping("/matches")
+    public ResponseEntity<ApiResponse<JobMatchDTO.Page>> getJobMatches(
+            @Parameter(description = "How many matches, 1-50 (default 20)")
+            @RequestParam(value = "limit", required = false) Integer limit,
+            @Parameter(description = "Only jobs within this many km of the instructor; ignored unless they opted in to location search")
+            @RequestParam(value = "radius_km", required = false) Integer radiusKm) {
+        return ResponseEntity.ok(ApiResponse.success(
+                jobMatchService.matchesForCurrentInstructor(limit, radiusKm),
+                "Marketplace job matches retrieved successfully"));
+    }
+
+    @Operation(summary = "Suggested instructors for a marketplace class job",
+            description = "Verified instructors approved to teach the job's course or training program, best fit first. "
+                    + "A fit summary only: score, reasons, schedule_clear and rate_within_budget - never rates, clash details or the diary. "
+                    + "Restricted to managers of the organisation that posted the job, and to platform admins. 503 when search is unavailable")
+    @GetMapping("/{jobUuid}/candidates")
+    public ResponseEntity<ApiResponse<JobCandidateDTO.Page>> getJobCandidates(
+            @PathVariable UUID jobUuid,
+            @Parameter(description = "How many candidates, 1-20 (default 20)")
+            @RequestParam(value = "limit", required = false) Integer limit) {
+        return ResponseEntity.ok(ApiResponse.success(
+                jobMatchService.candidatesForJob(jobUuid, limit),
+                "Marketplace job candidates retrieved successfully"));
     }
 
     @Operation(summary = "Check the current instructor's eligibility for several marketplace class jobs",

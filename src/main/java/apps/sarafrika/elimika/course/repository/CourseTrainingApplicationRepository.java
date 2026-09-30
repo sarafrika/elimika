@@ -183,4 +183,15 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
             """)
     List<CourseTrainerRateView> findTrainerDirectoryWithRates(@Param("courseUuid") UUID courseUuid,
                                                               @Param("status") CourseTrainingApplicationStatus status);
+
+    /** Every applicant of one type holding an application at this status on the course, as bare UUIDs. */
+    @Query("""
+            SELECT DISTINCT a.applicantUuid FROM CourseTrainingApplication a
+            WHERE a.courseUuid = :courseUuid
+              AND a.applicantType = :applicantType
+              AND a.status = :status
+            """)
+    List<UUID> findApplicantUuidsByCourseAndStatus(@Param("courseUuid") UUID courseUuid,
+                                                   @Param("applicantType") CourseTrainingApplicantType applicantType,
+                                                   @Param("status") CourseTrainingApplicationStatus status);
 }

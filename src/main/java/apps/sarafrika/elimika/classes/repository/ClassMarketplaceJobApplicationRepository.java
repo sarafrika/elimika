@@ -39,6 +39,8 @@ public interface ClassMarketplaceJobApplicationRepository extends JpaRepository<
 
     List<ClassMarketplaceJobApplication> findByInstructorUuidAndJobUuidIn(UUID instructorUuid, Collection<UUID> jobUuids);
 
+    List<ClassMarketplaceJobApplication> findByJobUuidAndInstructorUuidIn(UUID jobUuid, Collection<UUID> instructorUuids);
+
     Page<ClassMarketplaceJobApplication> findByJobUuidOrderByCreatedDateDesc(UUID jobUuid, Pageable pageable);
 
     Page<ClassMarketplaceJobApplication> findByJobUuidAndStatusOrderByCreatedDateDesc(UUID jobUuid,

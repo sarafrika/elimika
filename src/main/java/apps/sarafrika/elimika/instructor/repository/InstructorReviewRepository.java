@@ -23,6 +23,10 @@ public interface InstructorReviewRepository extends JpaRepository<InstructorRevi
     @Query("SELECT AVG(r.rating) FROM InstructorReview r WHERE r.instructorUuid = :instructorUuid")
     Double findAverageRatingForInstructor(@Param("instructorUuid") UUID instructorUuid);
 
+    /** The platform-wide mean rating, the prior of every instructor's Bayesian average. */
+    @Query("SELECT AVG(r.rating) FROM InstructorReview r WHERE r.rating IS NOT NULL")
+    Double findPlatformAverageRating();
+
     /** Average rating and review count per instructor, in one query, for search documents. */
     @Query("""
             SELECT new apps.sarafrika.elimika.instructor.search.InstructorRatingAggregate(

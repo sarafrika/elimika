@@ -93,4 +93,15 @@ public interface ProgramTrainingApplicationRepository extends JpaRepository<Prog
     List<UUID> findApprovedProgramUuids(@Param("applicantType") CourseTrainingApplicantType applicantType,
                                         @Param("applicantUuids") Collection<UUID> applicantUuids,
                                         @Param("status") CourseTrainingApplicationStatus status);
+
+    /** Every applicant of one type holding an application at this status on the program, as bare UUIDs. */
+    @Query("""
+            SELECT DISTINCT a.applicantUuid FROM ProgramTrainingApplication a
+            WHERE a.programUuid = :programUuid
+              AND a.applicantType = :applicantType
+              AND a.status = :status
+            """)
+    List<UUID> findApplicantUuidsByProgramAndStatus(@Param("programUuid") UUID programUuid,
+                                                    @Param("applicantType") CourseTrainingApplicantType applicantType,
+                                                    @Param("status") CourseTrainingApplicationStatus status);
 }

@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -133,6 +135,28 @@ public class CourseTrainingApprovalSpiImpl implements CourseTrainingApprovalSpi 
         courses.remove(null);
         programs.remove(null);
         return new InstructorTrainingApprovals(courses, programs);
+    }
+
+    @Override
+    public Set<UUID> approvedInstructorUuidsForCourse(UUID courseUuid) {
+        if (courseUuid == null) {
+            return Set.of();
+        }
+        Set<UUID> uuids = new LinkedHashSet<>(applicationRepository.findApplicantUuidsByCourseAndStatus(
+                courseUuid, CourseTrainingApplicantType.INSTRUCTOR, CourseTrainingApplicationStatus.APPROVED));
+        uuids.remove(null);
+        return uuids;
+    }
+
+    @Override
+    public Set<UUID> approvedInstructorUuidsForProgram(UUID programUuid) {
+        if (programUuid == null) {
+            return Set.of();
+        }
+        Set<UUID> uuids = new LinkedHashSet<>(programTrainingApplicationRepository.findApplicantUuidsByProgramAndStatus(
+                programUuid, CourseTrainingApplicantType.INSTRUCTOR, CourseTrainingApplicationStatus.APPROVED));
+        uuids.remove(null);
+        return uuids;
     }
 
     /** Priced exactly as the single-cell lookups price it, so a batch answer never disagrees with them. */

@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -86,4 +87,10 @@ public interface CourseTrainingApprovalSpi {
 
     /** Every approval the instructor holds, loaded once so many jobs can be checked without a query each. */
     InstructorTrainingApprovals findInstructorApprovals(UUID instructorUuid);
+
+    /** Every instructor approved to train the course; empty for a null course. */
+    Set<UUID> approvedInstructorUuidsForCourse(UUID courseUuid);
+
+    /** Every instructor approved to train the training program; empty for a null program. */
+    Set<UUID> approvedInstructorUuidsForProgram(UUID programUuid);
 }

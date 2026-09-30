@@ -79,9 +79,59 @@ class ClassMarketplaceJobControllerTest {
     @Autowired
     private RequestAuditService requestAuditService;
 
+    @Autowired
+    private apps.sarafrika.elimika.classes.internal.matching.JobMatchService jobMatchService;
+
     @BeforeEach
     void setUp() {
-        reset(classMarketplaceJobService, userManagementService, requestAuditService);
+        reset(classMarketplaceJobService, userManagementService, requestAuditService, jobMatchService);
+    }
+
+    @Test
+    void candidatesAreForbiddenToCallersWhoDoNotStaffThePostingOrganisation() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        when(jobMatchService.candidatesForJob(jobUuid, null))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("not staff"));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/candidates", jobUuid))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void candidatesReturnOnlyTheFitSummary() throws Exception {
+        UUID jobUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        when(jobMatchService.candidatesForJob(jobUuid, 5)).thenReturn(new apps.sarafrika.elimika.classes.dto.JobCandidateDTO.Page(
+                UUID.randomUUID(), "rules-v1", jobUuid, List.of(new apps.sarafrika.elimika.classes.dto.JobCandidateDTO(
+                        instructorUuid, "Jane Doe", "Nairobi", true,
+                        new apps.sarafrika.elimika.classes.dto.JobCandidateDTO.Match(0.81,
+                                List.of("Matches 2/3 required skills"), false, true)))));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/{jobUuid}/candidates", jobUuid).param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.model_version").value("rules-v1"))
+                .andExpect(jsonPath("$.data.items[0].instructor_uuid").value(instructorUuid.toString()))
+                .andExpect(jsonPath("$.data.items[0].match.score").value(0.81))
+                .andExpect(jsonPath("$.data.items[0].match.schedule_clear").value(false))
+                .andExpect(jsonPath("$.data.items[0].match.rate_within_budget").value(true))
+                .andExpect(jsonPath("$.data.items[0].match.approved_rate").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].match.schedule_conflicts").doesNotExist());
+    }
+
+    @Test
+    void jobMatchesFlattenTheJobAndAddTheMatch() throws Exception {
+        ClassMarketplaceJobDTO job = sampleResponse(sampleRequest());
+        when(jobMatchService.matchesForCurrentInstructor(20, null)).thenReturn(new apps.sarafrika.elimika.classes.dto.JobMatchDTO.Page(
+                UUID.randomUUID(), "rules-v1", List.of(new apps.sarafrika.elimika.classes.dto.JobMatchDTO(job,
+                        new apps.sarafrika.elimika.classes.dto.JobMatchDTO.Match(0.7, List.of(), List.of(),
+                                List.of("No schedule clashes"), null)))));
+
+        mockMvc.perform(get("/api/v1/classes/jobs/matches").param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].uuid").value(job.uuid().toString()))
+                .andExpect(jsonPath("$.data.items[0].title").value(job.title()))
+                .andExpect(jsonPath("$.data.items[0].match.score").value(0.7))
+                .andExpect(jsonPath("$.data.items[0].match.reasons[0]").value("No schedule clashes"));
     }
 
     @Test
@@ -656,6 +706,11 @@ class ClassMarketplaceJobControllerTest {
         @Bean
         ClassMarketplaceJobServiceInterface classMarketplaceJobService() {
             return Mockito.mock(ClassMarketplaceJobServiceInterface.class);
+        }
+
+        @Bean
+        apps.sarafrika.elimika.classes.internal.matching.JobMatchService jobMatchService() {
+            return Mockito.mock(apps.sarafrika.elimika.classes.internal.matching.JobMatchService.class);
         }
 
         @Bean
