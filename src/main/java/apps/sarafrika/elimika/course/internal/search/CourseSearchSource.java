@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.course.internal.search;
 import apps.sarafrika.elimika.course.model.Category;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
+import apps.sarafrika.elimika.course.model.CoursePrerequisite;
 import apps.sarafrika.elimika.course.model.CourseReview;
 import apps.sarafrika.elimika.course.model.DifficultyLevel;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
@@ -49,21 +51,30 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
     static final String IS_PUBLIC = "is_public";
     static final String COURSE_CREATOR_UUID = "course_creator_uuid";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
+    /**
+     * Schema 2 adds the nightly aggregates from {@code course_learning_stats} ({@code completion_rate},
+     * {@code popularity_30d}, {@code rating_bayes}), {@code level_order}, {@code prerequisite_uuids} and the
+     * age band, and ranks ties by the Bayesian rating instead of the raw average.
+     */
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
                     List.of("name", "category_names", "creator_name", "difficulty_name", "description", "objectives"),
                     List.of("status", "active", "admin_approved", IS_PUBLIC, COURSE_CREATOR_UUID, "category_uuids",
-                            "difficulty_uuid", "is_free", "price", UUID_ATTRIBUTE, "created_at"),
-                    List.of("name", "created_at", "price", "rating_avg", "enrolment_count"))
-            .withRankingRules(List.of("words", "typo", "proximity", "attribute", "sort", "exactness", "rating_avg:desc"))
+                            "difficulty_uuid", "is_free", "price", UUID_ATTRIBUTE, "created_at", "level_order",
+                            "prerequisite_uuids", "age_lower_limit", "age_upper_limit"),
+                    List.of("name", "created_at", "price", "rating_avg", "enrolment_count", "completion_rate",
+                            "popularity_30d", "rating_bayes"))
+            .withRankingRules(List.of("words", "typo", "proximity", "attribute", "sort", "exactness", "rating_bayes:desc"))
             .withTypoDisabledAttributes(List.of("status"));
 
     private static final String COURSE_COLUMNS = """
             SELECT c.id, c.uuid, c.parent_course_uuid, c.name, c.description, c.objectives, c.difficulty_uuid,
                    d.name AS difficulty_name, c.course_creator_uuid, c.status, c.active, c.admin_approved,
-                   c.price, c.thumbnail_url,
-                   EXTRACT(EPOCH FROM c.created_date)::bigint AS created_at
+                   c.price, c.thumbnail_url, d.level_order, c.age_lower_limit, c.age_upper_limit,
+                   EXTRACT(EPOCH FROM c.created_date)::bigint AS created_at,
+                   s.completion_rate::float8 AS completion_rate, s.enrolments_30d, s.rating_bayes::float8 AS rating_bayes
             FROM courses c
             LEFT JOIN course_difficulty_levels d ON d.uuid = c.difficulty_uuid
+            LEFT JOIN course_learning_stats s ON s.course_uuid = c.uuid
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -114,6 +125,10 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                 SearchIndexTrigger.direct(Course.class, Course::getUuid),
                 SearchIndexTrigger.direct(CourseCategoryMapping.class, CourseCategoryMapping::getCourseUuid),
                 SearchIndexTrigger.direct(CourseReview.class, CourseReview::getCourseUuid),
+                // Keeps enrolment_count live between nightly rebuilds.
+                SearchIndexTrigger.direct(CourseEnrollment.class, CourseEnrollment::getCourseUuid),
+                // A draft's rows name the draft course, which loadByUuids ignores; promotion rewrites the live rows.
+                SearchIndexTrigger.direct(CoursePrerequisite.class, CoursePrerequisite::getCourseUuid),
                 SearchIndexTrigger.fanOut(Category.class, category -> keyOf("category", category.getUuid())),
                 SearchIndexTrigger.fanOut(DifficultyLevel.class, level -> keyOf("difficulty", level.getUuid())));
     }
@@ -183,6 +198,15 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
             enrolments.put(SearchRows.uuid(rs, "course_uuid"), rs.getLong("enrolment_count"));
         });
 
+        Map<UUID, List<UUID>> prerequisites = new HashMap<>();
+        jdbc.query("""
+                SELECT course_uuid, prerequisite_course_uuid FROM course_prerequisites
+                WHERE course_uuid IN (:uuids) ORDER BY id
+                """, byCourse, rs -> {
+            prerequisites.computeIfAbsent(SearchRows.uuid(rs, "course_uuid"), key -> new ArrayList<>())
+                    .add(SearchRows.uuid(rs, "prerequisite_course_uuid"));
+        });
+
         Set<UUID> creatorUuids = new LinkedHashSet<>();
         rows.stream().map(CourseRow::courseCreatorUuid).filter(Objects::nonNull).forEach(creatorUuids::add);
         Map<UUID, String> creatorNames = creatorUuids.isEmpty()
@@ -213,7 +237,14 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                     review == null ? null : review[0],
                     review == null ? 0 : (long) review[1],
                     enrolments.getOrDefault(row.uuid(), 0L),
-                    row.createdAt()));
+                    row.createdAt(),
+                    row.completionRate(),
+                    row.enrolments30d(),
+                    row.ratingBayes(),
+                    row.levelOrder(),
+                    prerequisites.getOrDefault(row.uuid(), List.of()),
+                    row.ageLowerLimit(),
+                    row.ageUpperLimit()));
         }
         return documents;
     }
@@ -235,7 +266,23 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                 SearchRows.flag(rs, "admin_approved"),
                 rs.getBigDecimal("price"),
                 rs.getString("thumbnail_url"),
-                SearchRows.nullableLong(rs, "created_at"));
+                SearchRows.nullableLong(rs, "created_at"),
+                nullableInt(rs, "level_order"),
+                nullableInt(rs, "age_lower_limit"),
+                nullableInt(rs, "age_upper_limit"),
+                nullableDouble(rs, "completion_rate"),
+                rs.getLong("enrolments_30d"),
+                nullableDouble(rs, "rating_bayes"));
+    }
+
+    private static Integer nullableInt(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private static Double nullableDouble(ResultSet rs, String column) throws SQLException {
+        double value = rs.getDouble(column);
+        return rs.wasNull() ? null : value;
     }
 
     private record CourseRow(
@@ -253,7 +300,13 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
             boolean adminApproved,
             BigDecimal price,
             String thumbnailUrl,
-            Long createdAt
+            Long createdAt,
+            Integer levelOrder,
+            Integer ageLowerLimit,
+            Integer ageUpperLimit,
+            Double completionRate,
+            long enrolments30d,
+            Double ratingBayes
     ) {
     }
 }

@@ -11,7 +11,8 @@ import java.util.UUID;
  * The {@code courses} index document: one root course (never a shadow draft), denormalised with its
  * categories, difficulty, creator name and review/enrolment figures.
  * <p>
- * Deliberately absent: the minimum training fee, revenue-share fields, rate cards and lesson content.
+ * Deliberately absent: co-enrolment neighbours (they stay in SQL), the minimum training fee,
+ * revenue-share fields, rate cards and lesson content.
  * {@code status} is the lower-case value the API serialises; instants are UTC epoch seconds.
  */
 public record CourseSearchDocument(
@@ -35,6 +36,14 @@ public record CourseSearchDocument(
         @JsonProperty("rating_avg") Double ratingAvg,
         @JsonProperty("review_count") long reviewCount,
         @JsonProperty("enrolment_count") long enrolmentCount,
-        @JsonProperty("created_at") Long createdAt
+        @JsonProperty("created_at") Long createdAt,
+        // Nightly aggregates from course_learning_stats (up to a day old; live figures come from SQL).
+        @JsonProperty("completion_rate") Double completionRate,
+        @JsonProperty("popularity_30d") long popularity30d,
+        @JsonProperty("rating_bayes") Double ratingBayes,
+        @JsonProperty("level_order") Integer levelOrder,
+        @JsonProperty("prerequisite_uuids") List<UUID> prerequisiteUuids,
+        @JsonProperty("age_lower_limit") Integer ageLowerLimit,
+        @JsonProperty("age_upper_limit") Integer ageUpperLimit
 ) implements SearchDocument {
 }

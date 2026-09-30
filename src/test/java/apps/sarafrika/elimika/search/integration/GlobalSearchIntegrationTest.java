@@ -307,7 +307,7 @@ class GlobalSearchIntegrationTest {
     private static CourseSearchDocument course(UUID uuid, String name, String status, boolean isPublic) {
         return new CourseSearchDocument(uuid, name, "About " + name, null, List.of(), List.of(), null, null,
                 UUID.randomUUID(), "Ada Creator", status, true, isPublic, isPublic, false, new BigDecimal("100.00"),
-                null, null, 0, 0, Instant.now().getEpochSecond());
+                null, null, 0, 0, Instant.now().getEpochSecond(), null, 0, null, null, List.of(), null, null);
     }
 
     private static ClassSearchDocument classDocument(UUID uuid, String title, String visibility) {
