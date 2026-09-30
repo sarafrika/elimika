@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.spi;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -68,6 +69,17 @@ public interface UserLookupService {
      * @return Optional date of birth
      */
     Optional<LocalDate> getUserDateOfBirth(UUID userUuid);
+
+    /**
+     * The subset of {@code userUuids} born strictly after {@code cutoff}, in one query. Users with no
+     * date of birth on record are never returned. Callers pass {@code today.minusYears(age)} to learn
+     * who is younger than {@code age} without reading anyone's date of birth.
+     *
+     * @param userUuids users to test
+     * @param cutoff    exclusive lower bound on the date of birth
+     * @return matching user UUIDs (empty when none match)
+     */
+    Set<UUID> findUserUuidsBornAfter(Collection<UUID> userUuids, LocalDate cutoff);
 
     /**
      * Checks if a user has a specific domain.

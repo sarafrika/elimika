@@ -53,6 +53,10 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     List<User> findByUuidIn(List<UUID> uuids);
 
+    /** Uuids among {@code uuids} whose date of birth is after {@code cutoff}; a NULL dob never matches. */
+    @Query("SELECT u.uuid FROM User u WHERE u.uuid IN :uuids AND u.dob > :cutoff")
+    List<UUID> findUuidsBornAfter(@Param("uuids") Collection<UUID> uuids, @Param("cutoff") java.time.LocalDate cutoff);
+
     Page<User> findByUuidIn(Set<UUID> uuids, Pageable pageable);
 
     /**

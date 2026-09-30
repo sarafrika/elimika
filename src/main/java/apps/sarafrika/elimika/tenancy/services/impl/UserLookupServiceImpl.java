@@ -74,6 +74,14 @@ public class UserLookupServiceImpl implements UserLookupService {
     }
 
     @Override
+    public Set<UUID> findUserUuidsBornAfter(java.util.Collection<UUID> userUuids, LocalDate cutoff) {
+        if (userUuids == null || userUuids.isEmpty() || cutoff == null) {
+            return Set.of();
+        }
+        return new java.util.HashSet<>(userRepository.findUuidsBornAfter(userUuids, cutoff));
+    }
+
+    @Override
     public boolean userHasDomain(UUID userUuid, UserDomain domain) {
         // Global (platform-level) domain mappings.
         if (userHasGlobalDomain(userUuid, domain)) {
