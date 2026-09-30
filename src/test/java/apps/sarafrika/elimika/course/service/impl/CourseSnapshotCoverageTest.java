@@ -109,6 +109,7 @@ class CourseSnapshotCoverageTest {
     @Mock private CourseAssessmentLineItemRepository lineItemRepository;
     @Mock private CourseRequirementRepository requirementRepository;
     @Mock private CourseTrainingRequirementRepository trainingRequirementRepository;
+    @Mock private apps.sarafrika.elimika.course.repository.CoursePrerequisiteRepository prerequisiteRepository;
     @Mock private AssessmentRubricRepository assessmentRubricRepository;
     @Mock private RubricCriteriaRepository rubricCriteriaRepository;
     @Mock private RubricScoringLevelRepository rubricScoringLevelRepository;

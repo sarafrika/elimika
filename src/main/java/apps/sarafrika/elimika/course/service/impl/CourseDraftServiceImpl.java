@@ -11,6 +11,7 @@ import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItem;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
+import apps.sarafrika.elimika.course.model.CoursePrerequisite;
 import apps.sarafrika.elimika.course.model.CourseRequirement;
 import apps.sarafrika.elimika.course.model.CourseTrainingRequirement;
 import apps.sarafrika.elimika.course.model.CourseVersionSnapshot;
@@ -30,6 +31,7 @@ import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemReposito
 import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.CoursePrerequisiteRepository;
 import apps.sarafrika.elimika.course.repository.CourseRequirementRepository;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.repository.CourseVersionSnapshotRepository;
@@ -61,6 +63,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +103,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     private final CourseAssessmentLineItemRepository lineItemRepository;
     private final CourseRequirementRepository requirementRepository;
     private final CourseTrainingRequirementRepository trainingRequirementRepository;
+    private final CoursePrerequisiteRepository prerequisiteRepository;
     private final AssessmentRubricRepository assessmentRubricRepository;
     private final RubricCriteriaRepository rubricCriteriaRepository;
     private final RubricScoringLevelRepository rubricScoringLevelRepository;
@@ -121,11 +126,13 @@ public class CourseDraftServiceImpl implements CourseDraftService {
      * its scoring levels and the matrix cells between them. Rubrics are shared library objects, so
      * a pointer alone could not say what a learner was actually graded against once the rubric was
      * edited.
+     * 4 — structured prerequisites under {@code prerequisites}. Restoring an older row leaves the
+     * course's current prerequisites alone rather than clearing them.
      * <p>
      * Rows written before this field existed have no {@code schema_version} key at all; read
      * an absent key as 1.
      */
-    static final int SNAPSHOT_SCHEMA_VERSION = 3;
+    static final int SNAPSHOT_SCHEMA_VERSION = 4;
 
     // ---------------------------------------------------------------- open / find
 
@@ -154,6 +161,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         cloneAssessments(live.getUuid(), draft.getUuid());
         cloneRequirements(live.getUuid(), draft.getUuid());
         cloneTrainingRequirements(live.getUuid(), draft.getUuid());
+        clonePrerequisites(live.getUuid(), draft.getUuid());
 
         log.info("Opened draft {} for live course {}", draft.getUuid(), liveCourseUuid);
         return draft;
@@ -182,6 +190,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         promoteAssessments(draft.getUuid(), live.getUuid());
         promoteRequirements(draft.getUuid(), live.getUuid());
         promoteTrainingRequirements(draft.getUuid(), live.getUuid());
+        promotePrerequisites(draft.getUuid(), live.getUuid());
 
         // Snapshot the resulting live tree before the draft goes away, so the version
         // history records what actually went live rather than what was proposed.
@@ -329,6 +338,13 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             copy.setCourseUuid(draftCourseUuid);
             copy.setSourceRequirementUuid(live.getUuid());
             trainingRequirementRepository.save(copy);
+        }
+    }
+
+    private void clonePrerequisites(UUID liveCourseUuid, UUID draftCourseUuid) {
+        for (CoursePrerequisite live : prerequisiteRepository.findByCourseUuidOrderByIdAsc(liveCourseUuid)) {
+            prerequisiteRepository.save(new CoursePrerequisite(
+                    draftCourseUuid, live.getPrerequisiteCourseUuid(), Boolean.TRUE.equals(live.getIsMandatory())));
         }
     }
 
@@ -691,6 +707,42 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 .forEach(trainingRequirementRepository::delete);
     }
 
+    /**
+     * Prerequisites carry no learner data and are identified by the pair, so they reconcile by
+     * prerequisite uuid: kept pairs keep their row, removed ones are deleted, new ones inserted.
+     * <p>
+     * The cycle check runs again here because it ran against the live graph when the draft was
+     * edited, and another course's edit may have been promoted since.
+     */
+    private void promotePrerequisites(UUID draftCourseUuid, UUID liveCourseUuid) {
+        Map<UUID, Boolean> desired = new LinkedHashMap<>();
+        prerequisiteRepository.findByCourseUuidOrderByIdAsc(draftCourseUuid)
+                .forEach(p -> desired.put(p.getPrerequisiteCourseUuid(), Boolean.TRUE.equals(p.getIsMandatory())));
+        if (!desired.isEmpty() && prerequisiteRepository.reaches(desired.keySet(), liveCourseUuid)) {
+            throw new IllegalStateException("Course " + liveCourseUuid + " cannot be promoted: its prerequisites "
+                    + "now form a cycle with another course. Edit the prerequisites and resubmit.");
+        }
+
+        Map<UUID, CoursePrerequisite> current = new HashMap<>();
+        for (CoursePrerequisite live : prerequisiteRepository.findByCourseUuidOrderByIdAsc(liveCourseUuid)) {
+            if (desired.containsKey(live.getPrerequisiteCourseUuid())) {
+                current.put(live.getPrerequisiteCourseUuid(), live);
+            } else {
+                prerequisiteRepository.delete(live);
+            }
+        }
+        prerequisiteRepository.flush();
+        desired.forEach((prerequisiteUuid, mandatory) -> {
+            CoursePrerequisite row = current.get(prerequisiteUuid);
+            if (row == null) {
+                prerequisiteRepository.save(new CoursePrerequisite(liveCourseUuid, prerequisiteUuid, mandatory));
+            } else if (!mandatory.equals(row.getIsMandatory())) {
+                row.setIsMandatory(mandatory);
+                prerequisiteRepository.save(row);
+            }
+        });
+    }
+
     // ---------------------------------------------------------------- restore
 
     /**
@@ -729,6 +781,9 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         restoreAssessments(draft.getUuid(), liveCourseUuid, tree.path("assessments"));
         restoreRequirements(draft.getUuid(), tree.path("requirements"));
         restoreTrainingRequirements(draft.getUuid(), tree.path("training_requirements"));
+        if (tree.has("prerequisites")) {
+            restorePrerequisites(draft.getUuid(), liveCourseUuid, tree.path("prerequisites"));
+        }
 
         log.info("Restored course {} version {} into draft {}", liveCourseUuid, versionNumber, draft.getUuid());
         return draft;
@@ -966,6 +1021,25 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
+    /**
+     * Replaces the draft's cloned prerequisites with the snapshot's. A prior course deleted since, or
+     * the course itself, is skipped: the foreign key would refuse the first, the check the second.
+     */
+    private void restorePrerequisites(UUID draftCourseUuid, UUID liveCourseUuid, JsonNode prerequisites) {
+        prerequisiteRepository.deleteAll(prerequisiteRepository.findByCourseUuidOrderByIdAsc(draftCourseUuid));
+        prerequisiteRepository.flush();
+        Set<UUID> seen = new HashSet<>();
+        for (JsonNode node : prerequisites) {
+            UUID prerequisiteUuid = uuid(node, "prerequisite_course_uuid");
+            if (prerequisiteUuid == null || prerequisiteUuid.equals(liveCourseUuid) || !seen.add(prerequisiteUuid)
+                    || courseRepository.findByUuid(prerequisiteUuid).isEmpty()) {
+                continue;
+            }
+            prerequisiteRepository.save(new CoursePrerequisite(
+                    draftCourseUuid, prerequisiteUuid, !Boolean.FALSE.equals(bool(node, "is_mandatory"))));
+        }
+    }
+
     private void restoreTrainingRequirements(UUID draftCourseUuid, JsonNode requirements) {
         for (JsonNode node : requirements) {
             CourseTrainingRequirement requirement = new CourseTrainingRequirement();
@@ -1122,6 +1196,13 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             rn.put("name", req.getName());
             rn.put("quantity", req.getQuantity());
             rn.put("unit", req.getUnit());
+        }
+
+        ArrayNode prerequisites = root.putArray("prerequisites");
+        for (CoursePrerequisite prerequisite : prerequisiteRepository.findByCourseUuidOrderByIdAsc(courseUuid)) {
+            ObjectNode pn = prerequisites.addObject();
+            pn.put("prerequisite_course_uuid", str(prerequisite.getPrerequisiteCourseUuid()));
+            pn.put("is_mandatory", prerequisite.getIsMandatory());
         }
 
         ArrayNode rubrics = root.putArray("rubrics");
