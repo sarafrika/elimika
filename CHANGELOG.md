@@ -1,3 +1,18 @@
+# [2.155.0](https://github.com/sarafrika/elimika/compare/v2.154.0...v2.155.0) (2026-09-30)
+
+
+### Features
+
+* **course:** add editable course prerequisites with cycle checks, program backfill and draft promotion ([69aa112](https://github.com/sarafrika/elimika/commit/69aa11277effc1a2e9ed018bafa965e8a3a37b2c))
+* **course:** add nightly course learning stats and minor-aware co-enrolment feature tables ([7dca062](https://github.com/sarafrika/elimika/commit/7dca062334bbd333a091ab06ca871cd1b14494cf))
+* **search:** add course_content index, in-course search endpoint and global search type ([8c0a59c](https://github.com/sarafrika/elimika/commit/8c0a59c071da6aa7b9009919a1c6c7156b2305b2))
+* **search:** add geo radius filter, distance sort, ranking score and matching strategy to the search contract ([06b8618](https://github.com/sarafrika/elimika/commit/06b8618007ac19fa3e82537d973da53505942583))
+* **search:** index course completion, popularity, bayesian rating, level, prerequisites and age band ([17d1f43](https://github.com/sarafrika/elimika/commit/17d1f4378b1f5bc72245a77aa9107ca7e30e75b4))
+* **skills:** add admin-curated skills taxonomy with owner tagging of courses and marketplace jobs ([cd4729a](https://github.com/sarafrika/elimika/commit/cd4729a5fbbd461cd695562a919e27bcb4b96b9b))
+* **tenancy:** let organisation managers search their roster by member email ([04dae84](https://github.com/sarafrika/elimika/commit/04dae848567e16d02e30a34208fcb9428871e6c1))
+* **tracking:** record discovery impressions, clicks and dismissals with 180-day retention ([db62220](https://github.com/sarafrika/elimika/commit/db6222087e3d3c9436e38c8a260a6aef0e0009e3))
+* **tracking:** redact historical request_audit_log query strings with a Java Flyway migration ([43ce8b2](https://github.com/sarafrika/elimika/commit/43ce8b29a39d7fb13278f3c46f5c93a0b8f85177))
+
 # [2.154.0](https://github.com/sarafrika/elimika/compare/v2.153.0...v2.154.0) (2026-09-29)
 
 
