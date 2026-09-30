@@ -135,6 +135,8 @@ public class SecurityConfiguration {
                             // bodies and no lesson uuids. Authenticating changes what it returns,
                             // never whether it answers, so the catalogue page needs no token.
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/content").permitAll()
+                            // Similar courses are not personal and cover public courses only.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/similar").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()
                             // Handed-in work is not public media: a submitted file is served
                             // only to the learner who uploaded it or the staff who mark its

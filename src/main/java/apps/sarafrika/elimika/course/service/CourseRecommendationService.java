@@ -1,36 +1,46 @@
 package apps.sarafrika.elimika.course.service;
 
+import apps.sarafrika.elimika.course.dto.RecommendationEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.RecommendedCourseDTO;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Recommends published courses to a user based on their past courses.
+ * Course recommendations ("rules-v2"): personal lists built from the learner's enrolments, progress,
+ * skill goals and affiliations, and a non-personal "similar courses" list. See
+ * {@code docs/guides/course-recommendations.md}.
  *
  * @author Wilfred Njuguna
- * @version 1.0
+ * @version 2.0
  * @since 2026-07-10
  */
 public interface CourseRecommendationService {
 
     /**
-     * Returns up to {@code limit} recommended published courses for the given user,
-     * ranked by topic and level overlap with the user's past courses. Falls back to
-     * the most recently published courses when the user has no usable history.
+     * Personal recommendations requested by the current caller.
+     * <ul>
+     *   <li>{@code studentUuid} set: that learner's list, for the learner themselves, a guardian whose share
+     *       scope is FULL or ACADEMICS, or a platform admin.</li>
+     *   <li>otherwise {@code requestedUserUuid}, defaulting to the caller; only a platform admin may name
+     *       another user.</li>
+     * </ul>
+     * Impressions are recorded against the caller.
      *
-     * @param userUuid the user to recommend for
-     * @param limit    the maximum number of recommendations (defaults/caps applied)
-     * @return an ordered list of recommendations, strongest match first
+     * @param surface {@code for_you} (default) or {@code next_steps}
+     * @throws org.springframework.security.access.AccessDeniedException for a learner the caller may not see
+     * @throws IllegalArgumentException                                   for an unknown surface or both ids
      */
-    List<RecommendedCourseDTO> recommendForUser(UUID userUuid, int limit);
+    List<RecommendedCourseDTO> recommendForCaller(UUID requestedUserUuid, UUID studentUuid, String surface, int limit);
 
     /**
-     * Recommendations requested by the current caller. A missing {@code requestedUserUuid} means the
-     * caller; only a platform admin may ask on behalf of another user.
+     * Courses similar to a public course, for anyone: co-enrolment neighbours, same categories and
+     * "more like this". Not personal.
      *
-     * @throws org.springframework.security.access.AccessDeniedException when a non-admin asks for
-     *                                                                   another user
+     * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException when the course is not public
      */
-    List<RecommendedCourseDTO> recommendForCaller(UUID requestedUserUuid, int limit);
+    List<RecommendedCourseDTO> findSimilar(UUID courseUuid, int limit);
+
+    /** Offline leave-last-out evaluation over {@code course_enrollments}. */
+    RecommendationEvaluationDTO evaluate();
 }

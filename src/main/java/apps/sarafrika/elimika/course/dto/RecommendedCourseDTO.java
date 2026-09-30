@@ -3,17 +3,19 @@ package apps.sarafrika.elimika.course.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
- * A single course recommendation for a user, with a short human-readable reason.
+ * A single course recommendation with the reasons it was chosen.
  * <p>
- * Prototype heuristic engine — recommendations are derived from the user's past
- * courses (authored and/or approved-to-train) by topic and level overlap, with a
- * popularity fallback when there is no history.
+ * {@code reason} is the first entry of {@code reasons}, kept for existing clients. Every item carries at
+ * least one reason, and reasons only ever name the viewer's own courses, a category, a skill count or an
+ * organisation, never another learner. Clients quote {@code recommendation_id} back on
+ * {@code POST /api/v1/discovery/events} when the item is clicked or dismissed.
  *
  * @author Wilfred Njuguna
- * @version 1.0
+ * @version 2.0
  * @since 2026-07-10
  */
 @Schema(name = "RecommendedCourse", description = "A recommended course with an explanation")
@@ -35,13 +37,29 @@ public record RecommendedCourseDTO(
         @JsonProperty("thumbnail_url")
         String thumbnailUrl,
 
-        @Schema(description = "Short explanation of why this course was recommended")
+        @Schema(description = "The main reason, as display text (the first of `reasons`)")
         @JsonProperty("reason")
         String reason,
 
-        @Schema(description = "Internal ranking score (higher is a stronger match)")
+        @Schema(description = "Ranking score; higher is a stronger match. Comparable only within one response")
         @JsonProperty("score")
-        double score
+        double score,
+
+        @Schema(description = "Why the course was recommended, strongest first")
+        @JsonProperty("reasons")
+        List<RecommendationReasonDTO> reasons,
+
+        @Schema(description = "Identifies this response; quote it back on discovery events")
+        @JsonProperty("recommendation_id")
+        UUID recommendationId,
+
+        @Schema(description = "Where the list is shown: for_you, next_steps or similar")
+        @JsonProperty("surface")
+        String surface,
+
+        @Schema(description = "The scoring version that produced the ranking", example = "rules-v2")
+        @JsonProperty("model_version")
+        String modelVersion
 
 ) {
 }

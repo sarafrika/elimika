@@ -158,28 +158,42 @@ public class CourseController {
     }
 
     @Operation(
-            summary = "Get course recommendations for a user",
+            summary = "Get course recommendations for a learner",
             description = """
-                Returns published courses recommended for the given user, ranked by topic and
-                level overlap with the user's past courses (authored and/or approved-to-train),
-                excluding courses already taken. Falls back to the most recently published courses
-                when the user has no usable history. Each result carries a short reason.
+                Public courses recommended for a learner ("rules-v2"), built from their enrolments and
+                progress, prerequisites, co-enrolment, categories, declared skill goals and the
+                organisations and instructors they learn with. Courses the learner is enrolled in and
+                courses outside their age band never appear. Each item carries `reasons[]`
+                (`code`, `text`, `related_uuid`), a `score`, the response's `recommendation_id`
+                (quote it on `POST /api/v1/discovery/events`), `surface` and `model_version`.
+                A learner with no history gets the most enrolled courses of the last 30 days.
 
-                `user_uuid` defaults to the caller; only a platform admin may request another user's.
+                - `surface=for_you` (default): the personal list, at most 2 per category in the top 6
+                  plus one course from a category the learner has not tried.
+                - `surface=next_steps`: courses that follow on from the learner's own, including
+                  ones with a prerequisite still to finish ("Complete X first").
+                - `student_uuid`: a learner's list, for the learner, a guardian whose share scope is
+                  FULL or ACADEMICS, or a platform admin.
+                - `user_uuid` defaults to the caller; only a platform admin may name another user.
                 """,
             responses = {
                     @ApiResponse(responseCode = "200", description = "Recommendations retrieved successfully"),
-                    @ApiResponse(responseCode = "403", description = "Requested another user's recommendations")
+                    @ApiResponse(responseCode = "400", description = "Unknown surface, or both user_uuid and student_uuid"),
+                    @ApiResponse(responseCode = "403", description = "Requested a learner the caller may not see")
             }
     )
     @GetMapping("/recommendations")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<java.util.List<RecommendedCourseDTO>>> getCourseRecommendations(
             @Parameter(description = "UUID of the user to recommend for; defaults to the caller")
             @RequestParam(value = "user_uuid", required = false) java.util.UUID userUuid,
+            @Parameter(description = "Student profile to recommend for (the learner, a guardian with a FULL or ACADEMICS share, or an admin)")
+            @RequestParam(value = "student_uuid", required = false) java.util.UUID studentUuid,
+            @Parameter(description = "for_you (default) or next_steps")
+            @RequestParam(value = "surface", required = false) String surface,
             @Parameter(description = "Maximum number of recommendations to return (default 6, max 50)")
             @RequestParam(value = "limit", defaultValue = "6") int limit) {
         java.util.List<RecommendedCourseDTO> recommendations =
-                courseRecommendationService.recommendForCaller(userUuid, limit);
+                courseRecommendationService.recommendForCaller(userUuid, studentUuid, surface, limit);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(recommendations, "Course recommendations retrieved successfully"));
     }
