@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.search.dto.GlobalSearchResponse;
 import apps.sarafrika.elimika.search.dto.TypeSearchResponse;
 import apps.sarafrika.elimika.search.internal.global.GlobalSearchService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.search.NearMe;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -68,7 +69,12 @@ public class GlobalSearchController {
                     + "filterable attributes to count values of; sort is field[,asc|desc] over sortable attributes. "
                     + "Anything outside those allow-lists is a 400. 403 when the caller may not see the type; 503 "
                     + "when search or the type is not enabled. The filterable and sortable attributes of every type are "
-                    + "listed in the filter map below.")
+                    + "listed in the filter map below. Near me: near=lat,lng with optional radius_km (clamped to 2-100, "
+                    + "default 10), with or without q, for instructors, classes and marketplace_jobs only (any other type "
+                    + "is a 400) and for signed-in callers only (403 otherwise). near is rounded to 2 decimals on the "
+                    + "server and never stored or logged. Without q hits are nearest first. Each hit carries "
+                    + "distance_band (<2 km, 2-5 km, 5-10 km, 10-25 km, >25 km), never metres or coordinates. "
+                    + "Instructors appear only when verified and opted in.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "A page of hits with facets")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Unknown type, filter, facet or sort")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "The caller may not search this type")
@@ -80,6 +86,10 @@ public class GlobalSearchController {
             @RequestParam(value = "sort", required = false) String sort,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size,
+            @Parameter(description = "Near-me point as lat,lng (instructors, classes, marketplace_jobs; signed-in only)")
+            @RequestParam(value = NearMe.NEAR_PARAM, required = false) String near,
+            @Parameter(description = "Near-me radius in km, clamped to 2-100 (default 10); needs near")
+            @RequestParam(value = NearMe.RADIUS_PARAM, required = false) String radiusKm,
             @Parameter(hidden = true) @RequestParam Map<String, String> params) {
         TypeSearchResponse response = globalSearchService.searchType(type, q, params, facets, sort, page, size);
         return ResponseEntity.ok(ApiResponse.success(response, "Search results retrieved successfully"));

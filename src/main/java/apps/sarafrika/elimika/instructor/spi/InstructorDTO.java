@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.instructor.spi;
 
 import apps.sarafrika.elimika.shared.utils.validation.ValidUrl;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -185,7 +186,30 @@ public record InstructorDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(
+                description = "**[READ-ONLY]** Whether the instructor has opted in to near-me search. Present only on the owner's own profile; change it with PUT /api/v1/instructors/{uuid}/location-search.",
+                example = "false",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty(value = "location_search_opt_in", access = JsonProperty.Access.READ_ONLY)
+        Boolean locationSearchOptIn,
+
+        @Schema(
+                description = "**[READ-ONLY]** On a near-me search (near=lat,lng) only: how far the instructor is from the searched point, as a coarse band. Never metres.",
+                example = "2-5 km",
+                allowableValues = {"<2 km", "2-5 km", "5-10 km", "10-25 km", ">25 km"},
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty(value = "distance_band", access = JsonProperty.Access.READ_ONLY)
+        String distanceBand
 
 ) {
 

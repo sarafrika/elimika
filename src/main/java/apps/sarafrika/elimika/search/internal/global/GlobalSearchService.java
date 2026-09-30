@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.search.dto.GlobalSearchResponse;
 import apps.sarafrika.elimika.search.dto.TypeSearchResponse;
 import apps.sarafrika.elimika.shared.search.GlobalSearchHit;
 import apps.sarafrika.elimika.shared.search.GlobalSearchProvider;
+import apps.sarafrika.elimika.shared.search.NearMe;
 import apps.sarafrika.elimika.shared.search.SearchAvailability;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchGateway;
@@ -31,6 +32,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -157,6 +161,18 @@ public class GlobalSearchService {
         SearchFilter filter = SearchParamsTranslator.toFilter(params, definition);
         List<SearchSort> sorts = SearchParamsTranslator.toSort(sort, definition);
         List<String> facetAttributes = parseFacets(facets, definition);
+        // near is rounded to 2 decimals here, before anything else sees it, and never logged.
+        Optional<NearMe> near = NearMe.from(params);
+        if (near.isPresent()) {
+            if (!definition.geoFilterable() || !definition.geoSortable()) {
+                throw new IllegalArgumentException("near is not supported for " + provider.type());
+            }
+            if (!signedIn()) {
+                throw new AccessDeniedException("Near-me search is for signed-in users");
+            }
+            filter = SearchFilter.and(filter, near.get().filter());
+            sorts = near.get().sorts(text != null, sorts);
+        }
 
         requireEnabled();
         if (!availability.isReadEnabled(provider.index())) {
@@ -167,10 +183,21 @@ public class GlobalSearchService {
 
         SearchRequest request = new SearchRequest(provider.index(), text, filter, scope, sorts, pageNumber, pageSize,
                 facetAttributes, provider.searchOnForCurrentCaller());
-        log.debug("Search of {} (query length {})", provider.type(), text == null ? 0 : text.length());
-        SearchPage result = run(List.of(provider.type()), () -> gateway.search(request));
+        log.debug("Search of {} (query length {}, near-me {})", provider.type(), text == null ? 0 : text.length(),
+                near.isPresent());
+        SearchPage result = run(List.of(provider.type()), near.isPresent(), () -> gateway.search(request));
 
         List<GlobalSearchHit> content = authorised(provider, result);
+        if (near.isPresent() && !content.isEmpty()) {
+            // The owning module re-reads each hit's point: one that is no longer locatable (opt-in
+            // withdrawn, class moved online) since it was indexed has no band and drops out.
+            Map<java.util.UUID, String> bands = near.get().distanceBands(result,
+                    provider.nearMePoints(content.stream().map(GlobalSearchHit::uuid).toList()));
+            content = content.stream()
+                    .filter(hit -> bands.containsKey(hit.uuid()))
+                    .map(hit -> hit.withDistanceBand(bands.get(hit.uuid())))
+                    .toList();
+        }
         PageMetadata metadata = PageMetadata.from(new PageImpl<>(content, PageRequest.of(pageNumber, pageSize),
                 SearchResults.total(result.totalHits(), result.hits().size(), content.size())));
         return new TypeSearchResponse(content, metadata, result.facetDistribution());
@@ -190,17 +217,28 @@ public class GlobalSearchService {
     }
 
     private <T> T run(List<String> types, java.util.function.Supplier<T> call) {
+        return run(types, false, call);
+    }
+
+    private <T> T run(List<String> types, boolean nearMe, java.util.function.Supplier<T> call) {
         try {
             return call.get();
         } catch (SearchUnavailableException ex) {
-            if (types.contains(PEOPLE)) {
-                // The engine's error can echo the request; with people in it, that may be personal data.
+            if (types.contains(PEOPLE) || nearMe) {
+                // The engine's error can echo the request; with people in it, that may be personal data,
+                // and a near-me request carries the caller's (rounded) location.
                 log.warn("Global search over {} unavailable", types);
             } else {
                 log.warn("Global search over {} unavailable: {}", types, ex.getMessage());
             }
             throw ex;
         }
+    }
+
+    private static boolean signedIn() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 
     private void requireEnabled() {

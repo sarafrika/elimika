@@ -47,6 +47,20 @@ public interface ClassMarketplaceJobServiceInterface {
                                             String q,
                                             Pageable pageable);
 
+    /**
+     * Near-me: {@link #searchJobs} narrowed to IN_PERSON and HYBRID jobs within {@code near}'s radius,
+     * {@code q} optional; nearest first without it. Each row carries a distance band and coordinates
+     * rounded to 2 decimals. Served only by the marketplace_jobs index (503 when it cannot answer).
+     */
+    Page<ClassMarketplaceJobDTO> searchJobsNear(UUID organisationUuid,
+                                                UUID courseUuid,
+                                                UUID programUuid,
+                                                UUID branchUuid,
+                                                ClassMarketplaceJobStatus status,
+                                                String q,
+                                                apps.sarafrika.elimika.shared.search.NearMe near,
+                                                Pageable pageable);
+
     ClassMarketplaceJobDTO cancelJob(UUID jobUuid);
 
     ClassMarketplaceJobApplicationDTO applyToJob(UUID jobUuid, ClassMarketplaceJobApplicationRequestDTO request);

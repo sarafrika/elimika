@@ -1,6 +1,12 @@
 package apps.sarafrika.elimika.classes.search;
 
+import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
 import apps.sarafrika.elimika.classes.internal.ClassListingVisibility;
+import apps.sarafrika.elimika.classes.model.ClassDefinition;
+import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
+import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
+import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.search.GlobalSearchHit;
 import apps.sarafrika.elimika.shared.search.GlobalSearchProvider;
@@ -11,6 +17,8 @@ import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -33,9 +41,32 @@ public final class ClassesGlobalSearchProviders {
     static class Classes implements GlobalSearchProvider {
 
         private final ClassListingVisibility classListingVisibility;
+        private final ClassDefinitionRepository classDefinitionRepository;
+        private final BranchLocationResolver branchLocationResolver;
 
-        Classes(ClassListingVisibility classListingVisibility) {
+        Classes(ClassListingVisibility classListingVisibility, ClassDefinitionRepository classDefinitionRepository,
+                BranchLocationResolver branchLocationResolver) {
             this.classListingVisibility = classListingVisibility;
+            this.classDefinitionRepository = classDefinitionRepository;
+            this.branchLocationResolver = branchLocationResolver;
+        }
+
+        @Override
+        public Map<UUID, SearchGeoPoint> nearMePoints(Collection<UUID> uuids) {
+            Map<UUID, SearchGeoPoint> points = new HashMap<>();
+            if (uuids == null || uuids.isEmpty()) {
+                return points;
+            }
+            var branchPins = BranchLocationResolver.branchPinMemo();
+            for (ClassDefinition definition : classDefinitionRepository.findByUuidIn(uuids)) {
+                SearchGeoPoint point = branchLocationResolver.searchPoint(definition.getOrganisationUuid(),
+                        definition.getBranchUuid(), definition.getLocationType(), definition.getLocationLatitude(),
+                        definition.getLocationLongitude(), branchPins);
+                if (point != null) {
+                    points.put(definition.getUuid(), point);
+                }
+            }
+            return points;
         }
 
         @Override
@@ -80,10 +111,33 @@ public final class ClassesGlobalSearchProviders {
 
         private final DomainSecurityService domainSecurityService;
         private final ClassListingVisibility classListingVisibility;
+        private final ClassMarketplaceJobRepository jobRepository;
+        private final BranchLocationResolver branchLocationResolver;
 
-        MarketplaceJobs(DomainSecurityService domainSecurityService, ClassListingVisibility classListingVisibility) {
+        MarketplaceJobs(DomainSecurityService domainSecurityService, ClassListingVisibility classListingVisibility,
+                        ClassMarketplaceJobRepository jobRepository, BranchLocationResolver branchLocationResolver) {
             this.domainSecurityService = domainSecurityService;
             this.classListingVisibility = classListingVisibility;
+            this.jobRepository = jobRepository;
+            this.branchLocationResolver = branchLocationResolver;
+        }
+
+        @Override
+        public Map<UUID, SearchGeoPoint> nearMePoints(Collection<UUID> uuids) {
+            Map<UUID, SearchGeoPoint> points = new HashMap<>();
+            if (uuids == null || uuids.isEmpty()) {
+                return points;
+            }
+            var branchPins = BranchLocationResolver.branchPinMemo();
+            for (ClassMarketplaceJob job : jobRepository.findByUuidIn(uuids)) {
+                SearchGeoPoint point = branchLocationResolver.searchPoint(job.getOrganisationUuid(),
+                        job.getBranchUuid(), job.getLocationType(), job.getLocationLatitude(),
+                        job.getLocationLongitude(), branchPins);
+                if (point != null) {
+                    points.put(job.getUuid(), point);
+                }
+            }
+            return points;
         }
 
         @Override

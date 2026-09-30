@@ -4,7 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobDTO;
+import apps.sarafrika.elimika.classes.search.ClassSearchDocument;
+import apps.sarafrika.elimika.classes.search.ClassSearchSource;
+import apps.sarafrika.elimika.shared.search.NearMe;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.classes.internal.ClassListingVisibility;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
@@ -113,6 +118,7 @@ class ClassesSearchIntegrationTest {
     @Autowired private EntityManager entityManager;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private ApplicationContext applicationContext;
+    @Autowired private ClassSearchSource classSearchSource;
 
     /** An unrelated signed-in user: no staffed organisation, no instructor profile, no enrolments. */
     private static final ClassListingVisibility.Scope STRANGER =
@@ -214,6 +220,78 @@ class ClassesSearchIntegrationTest {
         assertThatThrownBy(() -> filteredUuids(Map.of("q", "pottery", "title_like", "pottery")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("title_like");
+    }
+
+    // ===== Near me =====
+
+    @Test
+    @DisplayName("Only in-person and hybrid classes get a rounded _geo; an online class has none and is never near")
+    void onlyInPersonClassesAreLocatable() {
+        UUID organisation = UUID.randomUUID();
+        ClassDefinition online = saveClass("Geo Ceramics Online", organisation, ClassVisibility.PUBLIC);
+        setLocation(online, "-1.292066", "36.821946");
+        ClassDefinition studio = saveClass("Geo Ceramics Studio", organisation, ClassVisibility.PUBLIC,
+                LocationType.IN_PERSON, new BigDecimal("2000.00"));
+        setLocation(studio, "-1.292066", "36.821946");
+        when(classListingVisibility.forCurrentCaller()).thenReturn(STRANGER);
+
+        Map<UUID, ClassSearchDocument> documents = new java.util.HashMap<>();
+        classSearchSource.loadByUuids(List.of(online.getUuid(), studio.getUuid()))
+                .forEach(document -> documents.put(document.uuid(), document));
+        assertThat(documents.get(online.getUuid()).geo()).isNull();
+        assertThat(documents.get(studio.getUuid()).geo()).isEqualTo(new SearchGeoPoint(-1.29, 36.82));
+        assertThat(ClassSearchSource.DEFINITION.displayedAttributes()).doesNotContain("_geo").contains("title");
+
+        NearMe near = NearMe.parse("-1.30,36.83", "5").orElseThrow();
+        List<ClassDefinitionResponseDTO> found = awaitNonEmpty(() -> classService
+                .searchClassesNear(null, near, Map.of(), PageRequest.of(0, 20)).getContent());
+        assertThat(found).extracting(dto -> dto.classDefinition().uuid()).containsExactly(studio.getUuid());
+        ClassDefinitionResponseDTO row = found.getFirst();
+        assertThat(row.distanceBand()).isEqualTo("<2 km");
+        assertThat(row.classDefinition().locationLatitude()).isEqualByComparingTo("-1.29");
+        assertThat(row.classDefinition().locationLongitude()).isEqualByComparingTo("36.82");
+        assertThat(row.classDefinition().locationLatitude().scale()).isLessThanOrEqualTo(2);
+
+        // With q, and outside the radius.
+        assertThat(classService.searchClassesNear("ceramics", near, Map.of(), PageRequest.of(0, 20)).getContent())
+                .extracting(dto -> dto.classDefinition().uuid()).containsExactly(studio.getUuid());
+        assertThat(classService.searchClassesNear(null, NearMe.parse("-1.29,38.20", "5").orElseThrow(), Map.of(),
+                PageRequest.of(0, 20)).getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An in-person job is found near its coordinates with a band and rounded coordinates")
+    void inPersonJobIsNear() {
+        ClassMarketplaceJob job = saveJob("Geo Pottery Trainer", UUID.randomUUID(), ClassMarketplaceJobStatus.OPEN,
+                NOW.plusDays(10));
+        inTransaction(() -> {
+            ClassMarketplaceJob row = jobRepository.findByUuid(job.getUuid()).orElseThrow();
+            row.setLocationType(LocationType.HYBRID);
+            row.setLocationLatitude(new BigDecimal("-1.292066"));
+            row.setLocationLongitude(new BigDecimal("36.821946"));
+            return jobRepository.saveAndFlush(row);
+        });
+        ClassMarketplaceJob online = saveJob("Geo Pottery Remote", UUID.randomUUID(), ClassMarketplaceJobStatus.OPEN,
+                NOW.plusDays(10));
+
+        NearMe near = NearMe.parse("-1.30,36.83", null).orElseThrow();
+        List<ClassMarketplaceJobDTO> found = awaitNonEmpty(() -> jobService
+                .searchJobsNear(null, null, null, null, null, "pottery", near, PageRequest.of(0, 20)).getContent());
+        assertThat(found).extracting(ClassMarketplaceJobDTO::uuid).containsExactly(job.getUuid())
+                .doesNotContain(online.getUuid());
+        assertThat(found.getFirst().distanceBand()).isEqualTo("<2 km");
+        assertThat(found.getFirst().locationLatitude()).isEqualByComparingTo("-1.29");
+        assertThat(found.getFirst().locationLongitude()).isEqualByComparingTo("36.82");
+    }
+
+    private void setLocation(ClassDefinition definition, String latitude, String longitude) {
+        inTransaction(() -> {
+            ClassDefinition row = classRepository.findByUuid(definition.getUuid()).orElseThrow();
+            row.setLocationName("Sarit Centre");
+            row.setLocationLatitude(new BigDecimal(latitude));
+            row.setLocationLongitude(new BigDecimal(longitude));
+            return classRepository.saveAndFlush(row);
+        });
     }
 
     // ===== Helpers =====

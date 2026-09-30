@@ -156,7 +156,7 @@ class GlobalSearchIntegrationTest {
                 List.of(VERIFIED_ORGANISATION), List.of(), true, false, false, now)));
         gateway.upsert("instructors", List.of(new InstructorSearchDocument(VERIFIED_INSTRUCTOR, "Zephyrine Kamau",
                 "Astronomy tutor", "Teaches stars", "Nairobi", List.of("astronomy"), List.of("EXPERT"), List.of(),
-                List.of(), true, true, null, 0, now, List.of())));
+                List.of(), true, true, null, 0, now, List.of(), null)));
     }
 
     @Test
@@ -314,6 +314,6 @@ class GlobalSearchIntegrationTest {
         return new ClassSearchDocument(uuid, title, "About " + title, "Online", null, null, null, null,
                 UUID.randomUUID(), "Some Organisation", null, null, UUID.randomUUID(), "Some Instructor", null,
                 true, visibility, true, "ONLINE", "GROUP", null, null, new BigDecimal("10.00"),
-                Instant.now().getEpochSecond());
+                Instant.now().getEpochSecond(), null);
     }
 }

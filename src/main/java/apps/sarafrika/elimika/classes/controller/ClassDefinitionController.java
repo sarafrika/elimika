@@ -52,8 +52,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.search.NearMe;
 
 /**
  * Class definitions and the schedule built from them.
@@ -503,12 +505,23 @@ public class ClassDefinitionController {
     public ResponseEntity<ApiResponse<PagedDTO<ClassDefinitionResponseDTO>>> getAllClassDefinitions(
             @Parameter(description = "Free-text search; omit to list every visible class")
             @RequestParam(value = "q", required = false) String q,
+            @Parameter(description = "Near-me point as lat,lng in decimal degrees, with or without q. Only IN_PERSON "
+                    + "and HYBRID classes (located by their own or their branch's coordinates) within radius_km are "
+                    + "returned, nearest first without q; each carries distance_band and coordinates rounded to 2 "
+                    + "decimals. near is rounded to 2 decimals on the server and never stored or logged. Served only "
+                    + "by the search index: 503 (\"Search is unavailable\") when it cannot answer.")
+            @RequestParam(value = NearMe.NEAR_PARAM, required = false) String near,
+            @Parameter(description = "Near-me radius in km, clamped to 2-100 (default 10); needs near")
+            @RequestParam(value = NearMe.RADIUS_PARAM, required = false) String radiusKm,
             @Parameter(hidden = true)
             @RequestParam Map<String, String> searchParams,
             Pageable pageable) {
         log.debug("REST request to get all classes (page: {}, size: {})", pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<ClassDefinitionResponseDTO> result = StringUtils.hasText(q)
+        Optional<NearMe> nearMe = NearMe.parse(near, radiusKm);
+        Page<ClassDefinitionResponseDTO> result = nearMe.isPresent()
+                ? classDefinitionService.searchClassesNear(q, nearMe.get(), searchParams, pageable)
+                : StringUtils.hasText(q)
                 ? classDefinitionService.searchClasses(q, searchParams, pageable)
                 : classDefinitionService.findAllClasses(pageable);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();

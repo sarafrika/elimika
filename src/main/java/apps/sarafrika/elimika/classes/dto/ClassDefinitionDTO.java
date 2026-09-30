@@ -886,6 +886,56 @@ public record ClassDefinitionDTO(
         );
     }
 
+    /**
+     * Returns a copy whose coordinates are rounded to town level (see {@code CoordinatePrecision}), for
+     * near-me results: a row that says how far away it is never also pins where it is.
+     */
+    public ClassDefinitionDTO withPublicCoordinates() {
+        return new ClassDefinitionDTO(
+                uuid,
+                title,
+                description,
+                thumbnailUrl,
+                promotionalVideoUrl,
+                defaultInstructorUuid,
+                organisationUuid,
+                branchUuid,
+                courseUuid,
+                programUuid,
+                salePrice,
+                instructorPay, rateBasis,
+                classVisibility,
+                sessionFormat,
+                defaultStartTime,
+                defaultEndTime,
+                academicPeriodStartDate,
+                academicPeriodEndDate,
+                registrationPeriodStartDate,
+                registrationPeriodEndDate,
+                classReminderMinutes,
+                classColor,
+                locationType,
+                locationName,
+                apps.sarafrika.elimika.shared.utils.CoordinatePrecision.toPublic(locationLatitude),
+                apps.sarafrika.elimika.shared.utils.CoordinatePrecision.toPublic(locationLongitude),
+                meetingLink,
+                maxParticipants,
+                allowWaitlist,
+                isActive,
+                sessionTemplates,
+                scheduledSessionCount,
+                completedSessionCount,
+                classProgressPercentage,
+                createdDate,
+                updatedDate,
+                createdBy,
+                updatedBy,
+                venueResourceUuid,
+                marketplaceJobUuid,
+                categoryUuid
+        );
+    }
+
     public ClassDefinitionDTO withResourceLinks(UUID venueResourceUuid, UUID marketplaceJobUuid) {
         return new ClassDefinitionDTO(
                 uuid,

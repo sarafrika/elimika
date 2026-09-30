@@ -47,5 +47,13 @@ public class Instructor extends BaseEntity {
     @Column(name="admin_verified")
     @Filterable
     private Boolean adminVerified;
+
+    /**
+     * The owner's opt-in to near-me search. NOT NULL in the schema; defaulted here because Hibernate
+     * writes every mapped column on insert, so the column DEFAULT never runs.
+     */
+    @Column(name = "location_search_opt_in")
+    @Builder.Default
+    private Boolean locationSearchOptIn = Boolean.FALSE;
 }
 

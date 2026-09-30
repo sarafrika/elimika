@@ -10,10 +10,12 @@ import apps.sarafrika.elimika.instructor.spi.InstructorDirectoryEntry;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
+import apps.sarafrika.elimika.shared.search.SearchDocumentAttributes;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchIndexTrigger;
 import apps.sarafrika.elimika.shared.search.SearchSort;
+import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +27,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -52,14 +55,18 @@ public class ClassSearchSource implements SearchDocumentSource<ClassSearchDocume
 
     public static final String INDEX = "classes";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
+    /**
+     * Schema v2 adds {@code _geo} (near-me): filterable and sortable, never displayed.
+     */
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
             List.of("title", "course_name", "program_title", "organisation_name", "branch_name",
                     "instructor_name", "location_name", "description"),
             List.of("uuid", "course_uuid", "program_uuid", "organisation_uuid", "branch_uuid",
                     "default_instructor_uuid", "category_uuid", "is_active", "class_visibility",
                     "content_approved", "location_type", "session_format", "starts_at",
-                    "registration_closes_at", "sale_price", "created_at"),
-            List.of("starts_at", "sale_price", "created_at", "title"));
+                    "registration_closes_at", "sale_price", "created_at", SearchIndexDefinition.GEO_ATTRIBUTE),
+            List.of("starts_at", "sale_price", "created_at", "title", SearchIndexDefinition.GEO_ATTRIBUTE))
+            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(ClassSearchDocument.class));
 
     /** The listing's sortable entity properties that have an index counterpart. */
     private static final Map<String, String> SORT_ATTRIBUTES = Map.of(
@@ -152,6 +159,7 @@ public class ClassSearchSource implements SearchDocumentSource<ClassSearchDocume
         Map<UUID, String> branchNames = branchUuids.isEmpty() ? Map.of() : branchLocationResolver.branchNames(branchUuids);
         Map<UUID, InstructorDirectoryEntry> instructors = instructorUuids.isEmpty() ? Map.of()
                 : instructorLookupService.findInstructorDirectoryEntries(instructorUuids);
+        Map<UUID, Optional<BranchLocation>> branchPins = BranchLocationResolver.branchPinMemo();
 
         return classes.stream()
                 .map(definition -> {
@@ -182,7 +190,10 @@ public class ClassSearchSource implements SearchDocumentSource<ClassSearchDocume
                                     firstSessionByClass.get(definition.getUuid()), definition.getDefaultStartTime())),
                             SearchValues.endOfDay(definition.getRegistrationPeriodEndDate()),
                             definition.getSalePrice(),
-                            SearchValues.epochSeconds(definition.getCreatedDate()));
+                            SearchValues.epochSeconds(definition.getCreatedDate()),
+                            branchLocationResolver.searchPoint(definition.getOrganisationUuid(),
+                                    definition.getBranchUuid(), definition.getLocationType(),
+                                    definition.getLocationLatitude(), definition.getLocationLongitude(), branchPins));
                 })
                 .toList();
     }

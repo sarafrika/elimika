@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.internal;
 
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.tenancy.spi.BranchContact;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,6 +70,40 @@ public class BranchLocationResolver {
                 label(branch),
                 branch.latitude().setScale(COORDINATE_SCALE, RoundingMode.HALF_UP),
                 branch.longitude().setScale(COORDINATE_SCALE, RoundingMode.HALF_UP));
+    }
+
+    /**
+     * The near-me point a class or job is indexed with: only for IN_PERSON or HYBRID delivery, from
+     * its own coordinates or, when those are missing, its branch's pin; always rounded to about 1 km.
+     * ONLINE delivery and anything without a location stays out of every geo query.
+     *
+     * @param branchPins memo of branch lookups for one indexing batch, so a batch reads each branch once
+     */
+    public SearchGeoPoint searchPoint(UUID organisationUuid,
+                                      UUID branchUuid,
+                                      LocationType locationType,
+                                      BigDecimal latitude,
+                                      BigDecimal longitude,
+                                      Map<UUID, Optional<BranchLocation>> branchPins) {
+        if (locationType != LocationType.IN_PERSON && locationType != LocationType.HYBRID) {
+            return null;
+        }
+        if (latitude != null && longitude != null) {
+            return SearchGeoPoint.rounded(latitude, longitude);
+        }
+        if (organisationUuid == null || branchUuid == null) {
+            return null;
+        }
+        Optional<BranchLocation> branch = branchPins.computeIfAbsent(branchUuid,
+                ignored -> trainingBranchLookupService.findBranch(organisationUuid, branchUuid));
+        return branch.filter(BranchLocation::hasPin)
+                .map(pin -> SearchGeoPoint.rounded(pin.latitude(), pin.longitude()))
+                .orElse(null);
+    }
+
+    /** A fresh memo for {@link #searchPoint}. */
+    public static Map<UUID, Optional<BranchLocation>> branchPinMemo() {
+        return new HashMap<>();
     }
 
     public Optional<String> branchName(UUID branchUuid) {

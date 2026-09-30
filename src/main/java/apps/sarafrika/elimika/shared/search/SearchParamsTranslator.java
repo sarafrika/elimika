@@ -36,7 +36,8 @@ import java.util.regex.Pattern;
  */
 public final class SearchParamsTranslator {
 
-    private static final Set<String> RESERVED_PARAMS = Set.of("page", "size", "sort", "q", "facets");
+    private static final Set<String> RESERVED_PARAMS = Set.of("page", "size", "sort", "q", "facets",
+            NearMe.NEAR_PARAM, NearMe.RADIUS_PARAM);
     private static final Set<String> OPERATIONS = Set.of(
             "eq", "noteq", "in", "notin", "gt", "gte", "lt", "lte", "between");
     private static final Set<String> SORT_DIRECTIONS = Set.of("asc", "desc");

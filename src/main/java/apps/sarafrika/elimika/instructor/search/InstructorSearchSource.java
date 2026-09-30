@@ -9,7 +9,9 @@ import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorReviewRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorSkillRepository;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
+import apps.sarafrika.elimika.shared.search.SearchDocumentAttributes;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchIndexTrigger;
 import java.math.BigDecimal;
@@ -32,6 +34,10 @@ import org.springframework.stereotype.Component;
  * Feeds the {@code instructors} index: one public discovery profile per instructor, with their skills,
  * experience and review metrics folded in. Every instructor row is indexable; visibility (verified
  * only, for non-admins) is applied at query time by {@link InstructorSearchScopes}.
+ * <p>
+ * Schema v3 adds {@code _geo} for near-me search: only for an instructor who opted in, is verified
+ * and has coordinates, and always rounded to about 1 km. Verification and the opt-in are columns of
+ * the instructor row, so the entity trigger re-indexes the profile when either changes.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,12 +45,13 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
 
     public static final String INDEX = "instructors";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 3,
             List.of("full_name", "professional_headline", "skills", "experience_positions",
                     "experience_organisations", "location_name", "bio"),
             List.of("admin_verified", "active", "skills", "skill_levels", "skill_uuids", "location_name", "uuid",
-                    "created_at"),
-            List.of("full_name", "rating_avg", "review_count", "created_at"));
+                    "created_at", SearchIndexDefinition.GEO_ATTRIBUTE),
+            List.of("full_name", "rating_avg", "review_count", "created_at", SearchIndexDefinition.GEO_ATTRIBUTE))
+            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(InstructorSearchDocument.class));
 
     static final int BIO_MAX_LENGTH = 1500;
 
@@ -146,7 +153,26 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
                         : BigDecimal.valueOf(rating.average()).setScale(2, RoundingMode.HALF_UP).doubleValue(),
                 rating == null || rating.count() == null ? 0L : rating.count(),
                 instructor.getCreatedDate() == null ? null : instructor.getCreatedDate().toEpochSecond(ZoneOffset.UTC),
-                skillUuids);
+                skillUuids,
+                nearMePoint(instructor));
+    }
+
+    /**
+     * The instructor's near-me point: only with the owner's opt-in, verification and both coordinates,
+     * and rounded to about 1 km. Anything else stays out of every geo query.
+     */
+    static SearchGeoPoint nearMePoint(Instructor instructor) {
+        return isLocatable(instructor)
+                ? SearchGeoPoint.rounded(instructor.getLatitude(), instructor.getLongitude())
+                : null;
+    }
+
+    /** Opted in, verified and with both coordinates: the only instructors near-me may return. */
+    static boolean isLocatable(Instructor instructor) {
+        return Boolean.TRUE.equals(instructor.getLocationSearchOptIn())
+                && Boolean.TRUE.equals(instructor.getAdminVerified())
+                && instructor.getLatitude() != null
+                && instructor.getLongitude() != null;
     }
 
     private static List<String> distinctNonBlank(List<InstructorExperience> rows,

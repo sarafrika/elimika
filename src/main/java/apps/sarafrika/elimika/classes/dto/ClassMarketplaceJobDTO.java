@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import apps.sarafrika.elimika.shared.utils.CoordinatePrecision;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
@@ -194,8 +195,78 @@ public record ClassMarketplaceJobDTO(
 
         @Schema(description = "**[READ-ONLY]** The contact person's email; same visibility as contact_name.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
         @JsonProperty(value = "contact_email", access = JsonProperty.Access.READ_ONLY)
-        String contactEmail
+        String contactEmail,
+
+        @Schema(description = "**[READ-ONLY]** On a near-me listing (near=lat,lng) only: how far the job is from the searched point, as a coarse band. Never metres.", example = "2-5 km", allowableValues = {"<2 km", "2-5 km", "5-10 km", "10-25 km", ">25 km"}, accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "distance_band", access = JsonProperty.Access.READ_ONLY)
+        String distanceBand
 ) {
+
+    /** Every field but the near-me distance band. */
+    public ClassMarketplaceJobDTO(
+            UUID uuid,
+            UUID organisationUuid,
+            UUID courseUuid,
+            UUID programUuid,
+            String title,
+            String description,
+            BigDecimal salePrice,
+            BigDecimal instructorPay,
+            apps.sarafrika.elimika.shared.utils.enums.RateBasis rateBasis,
+            ClassMarketplaceJobStatus status,
+            ClassVisibility classVisibility,
+            SessionFormat sessionFormat,
+            LocalDateTime defaultStartTime,
+            LocalDateTime defaultEndTime,
+            LocalDate academicPeriodStartDate,
+            LocalDate academicPeriodEndDate,
+            LocalDate registrationPeriodStartDate,
+            LocalDate registrationPeriodEndDate,
+            Integer classReminderMinutes,
+            String classColor,
+            String thumbnailUrl,
+            LocationType locationType,
+            String locationName,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            String meetingLink,
+            Integer maxParticipants,
+            Boolean allowWaitlist,
+            UUID assignedInstructorUuid,
+            UUID assignedApplicationUuid,
+            UUID assignedClassDefinitionUuid,
+            LocalDateTime filledAt,
+            List<ClassSessionTemplateDTO> sessionTemplates,
+            List<ClassMarketplaceJobResourceDTO> resources,
+            LocalDateTime createdDate,
+            LocalDateTime updatedDate,
+            String createdBy,
+            String updatedBy,
+            ClassServiceType serviceType,
+            UUID preferredInstructorUuid,
+            List<String> targetGroups,
+            List<UUID> targetGroupUuids,
+            UUID categoryUuid,
+            Boolean remindStudents,
+            Boolean remindInstructor,
+            Boolean remindViaEmail,
+            Boolean remindViaSms,
+            Boolean remindViaPush,
+            UUID branchUuid,
+            String branchName,
+            Long applicationCount,
+            UUID hiredInstructorUuid,
+            String contactName,
+            String contactPhone,
+            String contactEmail
+    ) {
+        this(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, locationLatitude, locationLongitude, meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, null);
+    }
+
+    /** A near-me row: the distance band, and the job's coordinates rounded to town level. */
+    public ClassMarketplaceJobDTO forNearMe(String band) {
+        return new ClassMarketplaceJobDTO(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, CoordinatePrecision.toPublic(locationLatitude), CoordinatePrecision.toPublic(locationLongitude), meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, band);
+    }
 
     @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)
     public long getDurationMinutes() {

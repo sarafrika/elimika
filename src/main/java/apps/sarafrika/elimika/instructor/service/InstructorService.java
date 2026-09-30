@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.instructor.service;
 
 import apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
+import apps.sarafrika.elimika.shared.search.NearMe;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -24,6 +25,19 @@ public interface InstructorService {
      * {@link #getAllInstructors(String, Pageable)}; every other key keeps its filter meaning.
      */
     Page<InstructorDTO> search(Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Near-me: verified instructors who opted in, within {@code near}'s radius, each with a
+     * {@code distance_band}. Nearest first without {@code q}, by relevance with it. Served only by the
+     * instructors index (503 when it cannot answer); coordinates in the rows are rounded to 2 decimals.
+     */
+    Page<InstructorDTO> searchNear(String q, NearMe near, Map<String, String> searchParams, Pageable pageable);
+
+    /**
+     * Turns the owner's near-me opt-in on or off; the profile is re-indexed with or without its
+     * rounded location.
+     */
+    InstructorDTO setLocationSearchOptIn(UUID uuid, boolean enabled);
 
     // ================================
     // INSTRUCTOR VERIFICATION

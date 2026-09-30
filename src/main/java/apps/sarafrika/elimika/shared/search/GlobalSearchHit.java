@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.search;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collection;
 import java.util.Map;
@@ -18,6 +19,8 @@ import java.util.stream.Collectors;
  * @param subtitle  a secondary label (creator, organisation, headline), or {@code null}
  * @param imageUrl  a public image URL, or {@code null}
  * @param highlight the matched text with the engine's {@code <em>} markers, or {@code null}
+ * @param distanceBand on a near-me search only, how far away the result is as a coarse band
+ *                     ({@code "<2 km"} ... {@code ">25 km"}, see {@link NearMe#distanceBand}); never metres
  */
 public record GlobalSearchHit(
         @JsonProperty("type") String type,
@@ -25,8 +28,19 @@ public record GlobalSearchHit(
         @JsonProperty("title") String title,
         @JsonProperty("subtitle") String subtitle,
         @JsonProperty("image_url") String imageUrl,
-        @JsonProperty("highlight") String highlight
+        @JsonProperty("highlight") String highlight,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("distance_band") String distanceBand
 ) {
+
+    public GlobalSearchHit(String type, UUID uuid, String title, String subtitle, String imageUrl, String highlight) {
+        this(type, uuid, title, subtitle, imageUrl, highlight, null);
+    }
+
+    /** This hit carrying the given distance band. */
+    public GlobalSearchHit withDistanceBand(String band) {
+        return new GlobalSearchHit(type, uuid, title, subtitle, imageUrl, highlight, band);
+    }
 
     private static final String MARK = "<em>";
 

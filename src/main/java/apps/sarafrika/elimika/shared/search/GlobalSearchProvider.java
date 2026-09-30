@@ -1,7 +1,10 @@
 package apps.sarafrika.elimika.shared.search;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Puts one index into global search ({@code GET /api/v1/search}). Implemented once per index by the
@@ -56,5 +59,15 @@ public interface GlobalSearchProvider {
      */
     default List<GlobalSearchHit> recheck(List<GlobalSearchHit> hits) {
         return hits;
+    }
+
+    /**
+     * For a near-me search: the rounded point each of these documents is indexed at (see
+     * {@link SearchGeoPoint#rounded}), read from the owning module's rows, so the search module can
+     * band distances without the engine ever returning {@code _geo}. Documents that are not locatable
+     * are left out. Called once per page. The default suits a type without geo.
+     */
+    default Map<UUID, SearchGeoPoint> nearMePoints(Collection<UUID> uuids) {
+        return Map.of();
     }
 }

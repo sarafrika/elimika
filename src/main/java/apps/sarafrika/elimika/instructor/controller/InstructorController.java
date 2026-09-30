@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.instructor.dto.*;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.service.*;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.search.NearMe;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.CredentialsDocumentUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadResult;
@@ -31,6 +32,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -141,14 +144,32 @@ public class InstructorController {
                    \s
                     **Visibility:** the same with or without `q`. Platform admins see every instructor;
                     everyone else sees admin-verified instructors plus their own profile.
+                   \s
+                    **Near me (`near=lat,lng&radius_km=`):** optional, with or without `q`, signed-in callers
+                    only. Returns only verified instructors who opted in (`PUT /{uuid}/location-search`) and
+                    have a location, within the radius (clamped to 2-100 km, default 10). `near` is rounded
+                    to 2 decimals on the server and never stored or logged. Without `q` results are nearest
+                    first; with `q`, by relevance. Each row carries `distance_band` (`<2 km`, `2-5 km`,
+                    `5-10 km`, `10-25 km`, `>25 km`) and coordinates rounded to 2 decimals; never metres.
+                    Served only by the index: 503 ("Search is unavailable") when it cannot answer.
                     """
     )
     @GetMapping
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<InstructorDTO>>> getAllInstructors(
             @Parameter(description = "Optional free-text query; see the operation description.")
             @RequestParam(value = "q", required = false) String q,
+            @Parameter(description = "Optional near-me point as lat,lng in decimal degrees; rounded to 2 decimals.")
+            @RequestParam(value = NearMe.NEAR_PARAM, required = false) String near,
+            @Parameter(description = "Near-me radius in km, clamped to 2-100 (default 10); needs near.")
+            @RequestParam(value = NearMe.RADIUS_PARAM, required = false) String radiusKm,
             Pageable pageable) {
-        Page<InstructorDTO> instructors = instructorService.getAllInstructors(q, pageable);
+        Optional<NearMe> nearMe = NearMe.parse(near, radiusKm);
+        if (nearMe.isPresent() && domainSecurityService.getCurrentUserUuid() == null) {
+            throw new AccessDeniedException("Near-me search is for signed-in users");
+        }
+        Page<InstructorDTO> instructors = nearMe.isPresent()
+                ? instructorService.searchNear(q, nearMe.get(), Map.of(), pageable)
+                : instructorService.getAllInstructors(q, pageable);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(PagedDTO.from(instructors, ServletUriComponentsBuilder
                                 .fromCurrentRequestUri().build().toString()),
@@ -172,6 +193,31 @@ public class InstructorController {
         InstructorDTO updatedInstructor = instructorService.updateInstructor(uuid, instructorDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedInstructor, "Instructor updated successfully"));
+    }
+
+    @Operation(
+            summary = "Opt in to or out of near-me search",
+            description = """
+                    The profile owner only. With `enabled: true` a verified instructor with coordinates appears
+                    in near-me search (`near=lat,lng`), located to about 1 km (2 decimal places); with `false`
+                    they are dropped from it. The flag is returned as `location_search_opt_in` on the owner's
+                    own profile only.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Opt-in updated",
+                            content = @Content(schema = @Schema(implementation = InstructorDTO.class))),
+                    @ApiResponse(responseCode = "403", description = "Not the profile owner"),
+                    @ApiResponse(responseCode = "404", description = "Instructor not found")
+            }
+    )
+    @PreAuthorize("@domainSecurityService.isInstructorWithUuid(#uuid)")
+    @PutMapping("/{uuid}/location-search")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorDTO>> setLocationSearchOptIn(
+            @PathVariable UUID uuid,
+            @Valid @RequestBody LocationSearchOptInRequest request) {
+        InstructorDTO updated = instructorService.setLocationSearchOptIn(uuid, request.enabled());
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(updated, "Location search preference updated"));
     }
 
     @Operation(

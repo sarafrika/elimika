@@ -16,7 +16,32 @@ public class InstructorFactory {
         if (instructor == null) {
             return null;
         }
-        return toDTO(instructor, instructor.getLatitude(), instructor.getLongitude());
+        return toDTO(instructor, instructor.getLatitude(), instructor.getLongitude(), null, null);
+    }
+
+    /**
+     * The owner's own profile: stored precision, plus their near-me opt-in, which no other reader sees.
+     */
+    public static InstructorDTO toOwnerDTO(Instructor instructor) {
+        if (instructor == null) {
+            return null;
+        }
+        return toDTO(instructor, instructor.getLatitude(), instructor.getLongitude(), optIn(instructor), null);
+    }
+
+    /**
+     * A near-me search row: town-level coordinates for everyone (the owner included) and the distance
+     * band; the opt-in flag only on the owner's own row.
+     */
+    public static InstructorDTO toNearMeDTO(Instructor instructor, String distanceBand, boolean owner) {
+        if (instructor == null) {
+            return null;
+        }
+        return toDTO(instructor,
+                CoordinatePrecision.toPublic(instructor.getLatitude()),
+                CoordinatePrecision.toPublic(instructor.getLongitude()),
+                owner ? optIn(instructor) : null,
+                distanceBand);
     }
 
     /**
@@ -31,10 +56,15 @@ public class InstructorFactory {
         }
         return toDTO(instructor,
                 CoordinatePrecision.toPublic(instructor.getLatitude()),
-                CoordinatePrecision.toPublic(instructor.getLongitude()));
+                CoordinatePrecision.toPublic(instructor.getLongitude()), null, null);
     }
 
-    private static InstructorDTO toDTO(Instructor instructor, BigDecimal latitude, BigDecimal longitude) {
+    private static Boolean optIn(Instructor instructor) {
+        return Boolean.TRUE.equals(instructor.getLocationSearchOptIn());
+    }
+
+    private static InstructorDTO toDTO(Instructor instructor, BigDecimal latitude, BigDecimal longitude,
+                                       Boolean locationSearchOptIn, String distanceBand) {
         return new InstructorDTO(
                 instructor.getUuid(),
                 instructor.getUserUuid(),
@@ -49,7 +79,9 @@ public class InstructorFactory {
                 instructor.getCreatedDate(),
                 instructor.getCreatedBy(),
                 instructor.getLastModifiedDate(),
-                instructor.getLastModifiedBy()
+                instructor.getLastModifiedBy(),
+                locationSearchOptIn,
+                distanceBand
         );
     }
 

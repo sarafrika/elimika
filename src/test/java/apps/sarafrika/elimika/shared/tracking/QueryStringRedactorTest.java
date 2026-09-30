@@ -22,6 +22,8 @@ class QueryStringRedactorTest {
             "q=jane                 | q=[redacted:4]",
             "search=math            | search=[redacted:4]",
             "near=Nairobi           | near=[redacted:7]",
+            "near=-1.2921%2C36.8219&radius_km=5 | near=[redacted:15]&radius_km=5",
+            "q=maths&near=-1.29,36.82&page=0 | q=[redacted:5]&near=[redacted:11]&page=0",
             "lat=-1.29&lng=36.82    | lat=[redacted:5]&lng=[redacted:5]",
             "email=a@b.co           | email=[redacted:6]",
             "recipient_email=a@b.co | recipient_email=[redacted:6]",

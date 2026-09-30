@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.search;
 
 import apps.sarafrika.elimika.shared.search.SearchDocument;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -11,7 +12,10 @@ import java.util.UUID;
  * <p>
  * Carries {@code status} and {@code organisation_uuid} for the marketplace scope, and nothing a
  * browser of the marketplace may not read: no instructor pay, sale price, branch contact, meeting
- * link or coordinates. Instants are UTC epoch seconds.
+ * link or exact coordinates. Instants are UTC epoch seconds.
+ * <p>
+ * {@code _geo} (schema v3) is set only for IN_PERSON and HYBRID jobs, from the job's own
+ * coordinates or its branch's pin, rounded to about 1 km; it is not a displayed attribute.
  */
 public record MarketplaceJobSearchDocument(
         @JsonProperty("uuid") UUID uuid,
@@ -38,6 +42,7 @@ public record MarketplaceJobSearchDocument(
         @JsonProperty("session_count") int sessionCount,
         @JsonProperty("created_at") Long createdAt,
         @JsonProperty("required_skill_uuids") List<UUID> requiredSkillUuids,
-        @JsonProperty("required_skill_names") List<String> requiredSkillNames
+        @JsonProperty("required_skill_names") List<String> requiredSkillNames,
+        @JsonProperty("_geo") SearchGeoPoint geo
 ) implements SearchDocument {
 }

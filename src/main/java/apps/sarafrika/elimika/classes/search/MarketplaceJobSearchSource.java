@@ -10,6 +10,7 @@ import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobSessionTempl
 import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
+import apps.sarafrika.elimika.shared.search.SearchDocumentAttributes;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchIndexTrigger;
@@ -19,6 +20,7 @@ import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceFrequency;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrencePattern;
 import apps.sarafrika.elimika.skills.spi.SkillLookupService;
 import apps.sarafrika.elimika.skills.spi.SkillSummary;
+import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -62,13 +65,18 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
 
     public static final String INDEX = "marketplace_jobs";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
+    /**
+     * Schema v3 adds {@code _geo} (near-me): filterable and sortable, never displayed.
+     */
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 3,
             List.of("title", "course_name", "program_title", "required_skill_names", "organisation_name", "branch_name",
                     "location_name", "target_groups", "description"),
             List.of("status", "organisation_uuid", "branch_uuid", "course_uuid", "program_uuid",
                     "category_uuid", "location_type", "session_format", "starts_at",
-                    "registration_closes_at", "uuid", "created_at", "required_skill_uuids"),
-            List.of("created_at", "starts_at"));
+                    "registration_closes_at", "uuid", "created_at", "required_skill_uuids",
+                    SearchIndexDefinition.GEO_ATTRIBUTE),
+            List.of("created_at", "starts_at", SearchIndexDefinition.GEO_ATTRIBUTE))
+            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(MarketplaceJobSearchDocument.class));
 
     /** The listing's sortable entity properties that have an index counterpart. */
     private static final Map<String, String> SORT_ATTRIBUTES = Map.of(
@@ -161,6 +169,7 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
                 .map(JobRequiredSkills.Tag::skillUuid)
                 .distinct()
                 .toList();
+        Map<UUID, Optional<BranchLocation>> branchPins = BranchLocationResolver.branchPinMemo();
         Map<UUID, String> skillNames = new HashMap<>();
         if (!skillUuids.isEmpty()) {
             for (SkillSummary skill : skillLookupService.findByUuids(skillUuids)) {
@@ -202,7 +211,10 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
                             sessionCount(job.getUuid(), templates),
                             SearchValues.epochSeconds(job.getCreatedDate()),
                             jobSkills,
-                            jobSkills.stream().map(skillNames::get).toList());
+                            jobSkills.stream().map(skillNames::get).toList(),
+                            branchLocationResolver.searchPoint(job.getOrganisationUuid(), job.getBranchUuid(),
+                                    job.getLocationType(), job.getLocationLatitude(), job.getLocationLongitude(),
+                                    branchPins));
                 })
                 .toList();
     }

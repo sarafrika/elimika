@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.classes.internal.ClassListingVisibility;
 import apps.sarafrika.elimika.classes.search.ClassSearchScopes;
 import apps.sarafrika.elimika.classes.search.ClassSearchSource;
 import apps.sarafrika.elimika.classes.search.ClassesSearch;
+import apps.sarafrika.elimika.shared.search.NearMe;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchParamsTranslator;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
@@ -1133,6 +1134,26 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     @Override
     @Transactional(readOnly = true)
+    public Page<ClassDefinitionResponseDTO> searchClassesNear(String q, NearMe near, Map<String, String> searchParams,
+                                                             Pageable pageable) {
+        rejectSortOnWithheldFigures(pageable);
+        ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
+        int size = Math.min(pageable.getPageSize(), SearchRequest.MAX_SIZE);
+        SearchFilter filter = SearchFilter.and(
+                SearchParamsTranslator.toFilter(upperCaseEnumValues(searchParams), ClassSearchSource.DEFINITION),
+                near.filter());
+        String text = StringUtils.hasText(q) ? q : null;
+        List<SearchSort> sort = near.sorts(text != null, ClassSearchSource.sortFor(pageable.getSort()));
+        return searchIndex(text, filter, scope, sort, pageable.getPageNumber(), size,
+                // Only in-person or hybrid delivery is ever locatable; a class that went online since it
+                // was indexed drops out.
+                definition -> definition.getLocationType() == LocationType.IN_PERSON
+                        || definition.getLocationType() == LocationType.HYBRID,
+                near);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ClassDefinitionResponseDTO> searchActiveClasses(String q) {
         if (!StringUtils.hasText(q)) {
             return findAllActiveClasses();
@@ -1194,18 +1215,42 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                                                    int page,
                                                                    int size,
                                                                    java.util.function.Predicate<ClassDefinition> stillMatches) {
-        SearchRequest request = new SearchRequest(ClassSearchSource.INDEX, q.trim(), filter,
+        return searchIndex(q, filter, scope, sort, page, size, stillMatches, null);
+    }
+
+    /**
+     * {@link #searchIndex} for a near-me read when {@code near} is set: each row carries its distance
+     * band, worked out from the same rounded points the index filtered on (the engine never hands the
+     * points back), and its coordinates rounded to town level.
+     */
+    private Page<ClassDefinitionResponseDTO> searchIndex(String q,
+                                                         SearchFilter filter,
+                                                         ClassListingVisibility.Scope scope,
+                                                         List<SearchSort> sort,
+                                                         int page,
+                                                         int size,
+                                                         java.util.function.Predicate<ClassDefinition> stillMatches,
+                                                         NearMe near) {
+        SearchRequest request = new SearchRequest(ClassSearchSource.INDEX, q == null ? null : q.trim(), filter,
                 ClassSearchScopes.forListing(scope), sort, page, size, List.of(), null);
         ClassesSearch.Hits hits = classesSearch.search(request);
         Map<UUID, ClassDefinition> byUuid = classDefinitionRepository.findByUuidIn(hits.uuids()).stream()
                 .collect(Collectors.toMap(ClassDefinition::getUuid, Function.identity(), (first, second) -> first));
+        var branchPins = BranchLocationResolver.branchPinMemo();
         List<ClassDefinitionResponseDTO> content = hits.uuids().stream()
                 .map(byUuid::get)
                 .filter(Objects::nonNull)
                 .filter(scope::admits)
                 .filter(stillMatches)
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
+                .map(definition -> {
+                    ClassDefinitionResponseDTO response = buildResponse(toDTOWithSessionTemplates(definition));
+                    if (near == null) {
+                        return response;
+                    }
+                    return response.forNearMe(near.distanceBand(branchLocationResolver.searchPoint(
+                            definition.getOrganisationUuid(), definition.getBranchUuid(), definition.getLocationType(),
+                            definition.getLocationLatitude(), definition.getLocationLongitude(), branchPins)));
+                })
                 .toList();
         return new PageImpl<>(content, PageRequest.of(page, size),
                 SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));

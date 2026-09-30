@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.instructor.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,7 +14,9 @@ import apps.sarafrika.elimika.shared.search.SearchRequest;
 import apps.sarafrika.elimika.shared.search.SearchScope;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -188,6 +191,182 @@ class InstructorSearchIntegrationTest {
         }
         mockMvc.perform(get("/api/v1/instructors/search?fullName_like=amina").with(jwt(ADMIN_SUBJECT)))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ===== Near me =====
+
+    private static final String NAIROBI_SUBJECT = "keycloak-nairobi";
+    /** More than two decimals on purpose: the index and every response must round it. */
+    private static final String NAIROBI_LAT = "-1.292066";
+    private static final String NAIROBI_LNG = "36.821946";
+    private static final Pattern FINE_NUMBER = Pattern.compile("-?\\d+\\.\\d{3,}");
+
+    @Test
+    @DisplayName("An opted-out instructor never appears in near-me results, even verified and right next door")
+    void optedOutInstructorNeverAppears() throws Exception {
+        // The seeded verified instructor sits at -0.0917, 34.7679 and never opted in.
+        for (String subject : List.of(OUTSIDER_SUBJECT, ADMIN_SUBJECT, VERIFIED_SUBJECT)) {
+            assertThat(uuids(list("/api/v1/instructors?near=-0.09,34.77&radius_km=100", subject))).isEmpty();
+            assertThat(uuids(list("/api/v1/instructors?q=kubernetes&near=-0.09,34.77", subject))).isEmpty();
+        }
+        assertThat(hits("/api/v1/search/instructors?near=-0.09,34.77&radius_km=100", ADMIN_SUBJECT)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An opted-in verified instructor appears within the radius with a distance band, and not outside it")
+    void optedInInstructorWithinRadius() throws Exception {
+        UUID nairobi = optedInNairobiInstructor();
+        // An unverified instructor who opted in at the same spot stays out.
+        jdbc.update("UPDATE instructors SET location_search_opt_in = TRUE, lat = ?, long = ? WHERE uuid = ?",
+                new BigDecimal(NAIROBI_LAT), new BigDecimal(NAIROBI_LNG), unverifiedInstructorUuid);
+        rebuilder.rebuild(InstructorSearchSource.INDEX);
+
+        String body = body("/api/v1/instructors?near=-1.30,36.83&radius_km=5", OUTSIDER_SUBJECT);
+        JsonNode content = objectMapper.readTree(body).path("data").path("content");
+        assertThat(uuids(content)).containsExactly(nairobi.toString());
+        assertThat(content.get(0).path("distance_band").asText()).isEqualTo("<2 km");
+        assertThat(content.get(0).path("latitude").decimalValue()).isEqualByComparingTo("-1.29");
+        assertThat(content.get(0).path("longitude").decimalValue()).isEqualByComparingTo("36.82");
+        assertThat(content.get(0).has("location_search_opt_in")).isFalse();
+        assertNoPreciseLocation(body);
+
+        // About 153 km east: outside the radius.
+        assertThat(uuids(list("/api/v1/instructors?near=-1.29,38.20&radius_km=5", OUTSIDER_SUBJECT))).isEmpty();
+        // With q the match must satisfy both the text and the radius.
+        assertThat(uuids(list("/api/v1/instructors?q=kubernetes&near=-1.30,36.83", OUTSIDER_SUBJECT)))
+                .containsExactly(nairobi.toString());
+        assertThat(uuids(list("/api/v1/instructors?q=astrophysics&near=-1.30,36.83", OUTSIDER_SUBJECT))).isEmpty();
+
+        // The owner's own row carries the opt-in flag and is still rounded.
+        String ownBody = body("/api/v1/instructors?near=-1.30,36.83", NAIROBI_SUBJECT);
+        assertThat(objectMapper.readTree(ownBody).path("data").path("content").get(0)
+                .path("location_search_opt_in").asBoolean()).isTrue();
+        assertNoPreciseLocation(ownBody);
+
+        // Global search: same rule, a band, and no coordinates at all.
+        String globalBody = body("/api/v1/search/instructors?near=-1.30,36.83&radius_km=5", OUTSIDER_SUBJECT);
+        JsonNode globalHits = objectMapper.readTree(globalBody).path("data").path("content");
+        assertThat(uuids(globalHits)).containsExactly(nairobi.toString());
+        assertThat(globalHits.get(0).path("distance_band").asText()).isEqualTo("<2 km");
+        assertNoPreciseLocation(globalBody);
+        assertThat(globalBody).doesNotContain("\"latitude\"", "\"lat\"", "\"lng\"");
+
+        // Opting out drops the profile from near-me.
+        mockMvc.perform(put("/api/v1/instructors/{uuid}/location-search", nairobi).with(jwt(NAIROBI_SUBJECT))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.location_search_opt_in").value(false));
+        awaitTrue(() -> {
+            try {
+                return uuids(list("/api/v1/instructors?near=-1.30,36.83", OUTSIDER_SUBJECT)).isEmpty();
+            } catch (Exception ex) {
+                throw new IllegalStateException(ex);
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("The radius is clamped to 2-100 km")
+    void radiusIsClamped() throws Exception {
+        UUID nairobi = optedInNairobiInstructor();
+
+        // About 1.1 km away: a 0.5 km radius is raised to 2 km, so the instructor is found.
+        assertThat(uuids(list("/api/v1/instructors?near=-1.29,36.83&radius_km=0.5", OUTSIDER_SUBJECT)))
+                .containsExactly(nairobi.toString());
+        // About 44 km away: within the 100 km cap.
+        assertThat(uuids(list("/api/v1/instructors?near=-1.29,37.22&radius_km=5000", OUTSIDER_SUBJECT)))
+                .containsExactly(nairobi.toString());
+        // About 153 km away: a 5000 km radius is capped at 100 km.
+        assertThat(uuids(list("/api/v1/instructors?near=-1.29,38.20&radius_km=5000", OUTSIDER_SUBJECT))).isEmpty();
+        // The default is 10 km.
+        assertThat(uuids(list("/api/v1/instructors?near=-1.29,37.22", OUTSIDER_SUBJECT))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("near is redacted in the audit log, only the owner may opt in, and near-me needs search")
+    void nearIsRedactedAndGuarded() throws Exception {
+        UUID nairobi = optedInNairobiInstructor();
+        list("/api/v1/instructors?near=-1.2987,36.8321&radius_km=5", OUTSIDER_SUBJECT);
+        awaitTrue(() -> !jdbc.queryForList("SELECT query_string FROM request_audit_log "
+                + "WHERE request_uri = '/api/v1/instructors' AND query_string LIKE '%radius_km=5%'", String.class).isEmpty());
+        List<String> logged = jdbc.queryForList("SELECT query_string FROM request_audit_log "
+                + "WHERE request_uri = '/api/v1/instructors' AND query_string LIKE '%radius_km=5%'", String.class);
+        assertThat(logged).allSatisfy(query -> assertThat(query)
+                .contains("near=[redacted:")
+                .doesNotContain("1.29", "36.8"));
+
+        // Only the owner toggles the opt-in - not even a platform admin.
+        mockMvc.perform(put("/api/v1/instructors/{uuid}/location-search", nairobi).with(jwt(ADMIN_SUBJECT))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false}"))
+                .andExpect(status().isForbidden());
+        // The flag is on the owner's own profile only.
+        mockMvc.perform(get("/api/v1/instructors/{uuid}", nairobi).with(jwt(NAIROBI_SUBJECT)))
+                .andExpect(jsonPath("$.data.location_search_opt_in").value(true));
+        mockMvc.perform(get("/api/v1/instructors/{uuid}", nairobi).with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(jsonPath("$.data.location_search_opt_in").doesNotExist());
+        mockMvc.perform(get("/api/v1/instructors/{uuid}", nairobi).with(jwt(ADMIN_SUBJECT)))
+                .andExpect(jsonPath("$.data.location_search_opt_in").doesNotExist());
+
+        // The people index never takes near; a malformed near is a 400.
+        mockMvc.perform(get("/api/v1/search/people?near=-1.29,36.82").with(jwt(ADMIN_SUBJECT)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/instructors?near=somewhere").with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isBadRequest());
+
+        searchProperties.getReadEnabled().put(InstructorSearchSource.INDEX, false);
+        try {
+            mockMvc.perform(get("/api/v1/instructors?near=-1.29,36.82").with(jwt(OUTSIDER_SUBJECT)))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.message").value("Search is unavailable"));
+        } finally {
+            searchProperties.getReadEnabled().put(InstructorSearchSource.INDEX, true);
+        }
+    }
+
+    /** A verified Nairobi instructor who opts in through the API as the owner. */
+    private UUID optedInNairobiInstructor() throws Exception {
+        UUID userUuid = user(NAIROBI_SUBJECT, "wanjiku@test.local", "Wanjiku", "Mwangi");
+        UUID uuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO instructors (uuid, user_uuid, full_name, location_name, lat, long, "
+                        + "admin_verified, bio, professional_headline, created_by) "
+                        + "VALUES (?, ?, 'ignored', 'Nairobi', ?, ?, TRUE, 'Teaches cloud', 'Cloud trainer', 'test')",
+                uuid, userUuid, new BigDecimal(NAIROBI_LAT), new BigDecimal(NAIROBI_LNG));
+        skill(uuid, "Kubernetes", "EXPERT");
+        mockMvc.perform(put("/api/v1/instructors/{uuid}/location-search", uuid).with(jwt(NAIROBI_SUBJECT))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.location_search_opt_in").value(true));
+        rebuilder.rebuild(InstructorSearchSource.INDEX);
+        return uuid;
+    }
+
+    /**
+     * No JSON number finer than 2 decimals, the stored coordinates nowhere in the text, and no raw
+     * distance or engine geo field.
+     */
+    private void assertNoPreciseLocation(String body) throws Exception {
+        List<String> fine = new ArrayList<>();
+        collectFineNumbers(objectMapper.readTree(body), fine);
+        assertThat(fine).as("numbers with 3+ decimals in %s", body).isEmpty();
+        assertThat(body).doesNotContain("1.292066", "36.821946", "1.2920", "36.8219");
+        assertThat(body).doesNotContain("_geo", "distance_m", "\"distance\"", "geo_distance");
+    }
+
+    private static void collectFineNumbers(JsonNode node, List<String> fine) {
+        if (node.isNumber() && FINE_NUMBER.matcher(node.decimalValue().toPlainString()).matches()) {
+            fine.add(node.asText());
+        }
+        node.forEach(child -> collectFineNumbers(child, fine));
+    }
+
+    private String body(String url, String subject) throws Exception {
+        return mockMvc.perform(get(url).with(jwt(subject)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    private JsonNode hits(String url, String subject) throws Exception {
+        return objectMapper.readTree(body(url, subject)).path("data").path("content");
     }
 
     // ===== Helpers =====

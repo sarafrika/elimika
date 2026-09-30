@@ -72,6 +72,14 @@ public interface ClassDefinitionServiceInterface {
      */
     Page<ClassDefinitionResponseDTO> searchClasses(String q, Map<String, String> searchParams, Pageable pageable);
 
+    /**
+     * Near-me: {@link #findAllClasses} narrowed to IN_PERSON and HYBRID classes within {@code near}'s
+     * radius, with {@code q} optional. Nearest first without {@code q}. Each row carries a distance band
+     * and coordinates rounded to 2 decimals. Served only by the classes index (503 when it cannot answer).
+     */
+    Page<ClassDefinitionResponseDTO> searchClassesNear(String q, apps.sarafrika.elimika.shared.search.NearMe near,
+                                                      Map<String, String> searchParams, Pageable pageable);
+
     /** {@link #findAllActiveClasses} narrowed to classes matching {@code q}, at most {@code SEARCH_LIST_LIMIT}. */
     List<ClassDefinitionResponseDTO> searchActiveClasses(String q);
 

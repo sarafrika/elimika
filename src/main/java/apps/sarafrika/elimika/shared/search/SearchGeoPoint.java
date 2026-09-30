@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.shared.search;
 
+import apps.sarafrika.elimika.shared.utils.CoordinatePrecision;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 
 /**
  * A WGS84 point, shaped the way the engine expects a document's {@code _geo} attribute:
@@ -18,6 +20,24 @@ public record SearchGeoPoint(
 
     public SearchGeoPoint {
         requireValid(lat, lng);
+    }
+
+    /**
+     * The point at public precision ({@link CoordinatePrecision#toPublic}, about 1 km), or
+     * {@code null} when either coordinate is missing or out of range. Every {@code _geo} a document
+     * carries goes through here, so no index ever holds a stored coordinate at full precision.
+     */
+    public static SearchGeoPoint rounded(BigDecimal lat, BigDecimal lng) {
+        if (lat == null || lng == null) {
+            return null;
+        }
+        double roundedLat = CoordinatePrecision.toPublic(lat).doubleValue();
+        double roundedLng = CoordinatePrecision.toPublic(lng).doubleValue();
+        if (!Double.isFinite(roundedLat) || roundedLat < -90 || roundedLat > 90
+                || !Double.isFinite(roundedLng) || roundedLng < -180 || roundedLng > 180) {
+            return null;
+        }
+        return new SearchGeoPoint(roundedLat, roundedLng);
     }
 
     static void requireValid(double lat, double lng) {

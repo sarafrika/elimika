@@ -83,6 +83,9 @@ import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.search.NearMe;
+import apps.sarafrika.elimika.shared.search.SearchFilter;
+import apps.sarafrika.elimika.shared.search.SearchSort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -295,6 +298,32 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         if (q == null || q.isBlank()) {
             return listJobs(organisationUuid, courseUuid, programUuid, branchUuid, status, pageable);
         }
+        return searchJobIndexAsDtos(organisationUuid, courseUuid, programUuid, branchUuid, status, q.trim(), null,
+                pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ClassMarketplaceJobDTO> searchJobsNear(UUID organisationUuid,
+                                                       UUID courseUuid,
+                                                       UUID programUuid,
+                                                       UUID branchUuid,
+                                                       ClassMarketplaceJobStatus status,
+                                                       String q,
+                                                       NearMe near,
+                                                       org.springframework.data.domain.Pageable pageable) {
+        return searchJobIndexAsDtos(organisationUuid, courseUuid, programUuid, branchUuid, status,
+                q == null || q.isBlank() ? null : q.trim(), Objects.requireNonNull(near, "near"), pageable);
+    }
+
+    private Page<ClassMarketplaceJobDTO> searchJobIndexAsDtos(UUID organisationUuid,
+                                                              UUID courseUuid,
+                                                              UUID programUuid,
+                                                              UUID branchUuid,
+                                                              ClassMarketplaceJobStatus status,
+                                                              String text,
+                                                              NearMe near,
+                                                              org.springframework.data.domain.Pageable pageable) {
         SortAllowList.validate(pageable, JOB_SORTABLE_PROPERTIES);
         // The same visibility rule as listJobs, applied as an index scope or inside the SQL query.
         boolean platformAdmin = domainSecurityService.isPlatformAdmin();
@@ -305,12 +334,19 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             }
             status = ClassMarketplaceJobStatus.OPEN;
         }
-        String text = q.trim();
         ClassMarketplaceJobStatus visibleStatus = status;
         Page<ClassMarketplaceJob> jobs = searchJobIndex(organisationUuid, courseUuid, programUuid, branchUuid,
-                visibleStatus, text, platformAdmin, staffsOrganisation, pageable);
+                visibleStatus, text, near, platformAdmin, staffsOrganisation, pageable);
         JobReadContext context = loadJobReadContext(jobs.getContent());
-        return jobs.map(job -> toJobDTO(job, context));
+        if (near == null) {
+            return jobs.map(job -> toJobDTO(job, context));
+        }
+        // The band comes from the same rounded points the index filtered on; the engine never hands
+        // them back.
+        var branchPins = BranchLocationResolver.branchPinMemo();
+        return jobs.map(job -> toJobDTO(job, context).forNearMe(near.distanceBand(branchLocationResolver.searchPoint(
+                job.getOrganisationUuid(), job.getBranchUuid(), job.getLocationType(), job.getLocationLatitude(),
+                job.getLocationLongitude(), branchPins))));
     }
 
     /**
@@ -319,14 +355,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
      * loaded rows, so a document that lags its row (a job that just closed) drops out rather than leaks.
      */
     private Page<ClassMarketplaceJob> searchJobIndex(UUID organisationUuid,
-                                                               UUID courseUuid,
-                                                               UUID programUuid,
-                                                               UUID branchUuid,
-                                                               ClassMarketplaceJobStatus status,
-                                                               String text,
-                                                               boolean platformAdmin,
-                                                               boolean staffsOrganisation,
-                                                               org.springframework.data.domain.Pageable pageable) {
+                                       UUID courseUuid,
+                                       UUID programUuid,
+                                       UUID branchUuid,
+                                       ClassMarketplaceJobStatus status,
+                                       String text,
+                                       NearMe near,
+                                       boolean platformAdmin,
+                                       boolean staffsOrganisation,
+                                       org.springframework.data.domain.Pageable pageable) {
         Map<String, String> params = new LinkedHashMap<>();
         putIfPresent(params, "organisation_uuid", organisationUuid);
         putIfPresent(params, "course_uuid", courseUuid);
@@ -336,11 +373,15 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             params.put("status", status.name());
         }
         int size = Math.min(pageable.getPageSize(), SearchRequest.MAX_SIZE);
-        SearchRequest request = new SearchRequest(MarketplaceJobSearchSource.INDEX, text,
-                SearchParamsTranslator.toFilter(params, MarketplaceJobSearchSource.DEFINITION),
+        SearchFilter filter = SearchParamsTranslator.toFilter(params, MarketplaceJobSearchSource.DEFINITION);
+        List<SearchSort> sort = MarketplaceJobSearchSource.sortFor(pageable.getSort());
+        if (near != null) {
+            filter = SearchFilter.and(filter, near.filter());
+            sort = near.sorts(text != null, sort);
+        }
+        SearchRequest request = new SearchRequest(MarketplaceJobSearchSource.INDEX, text, filter,
                 MarketplaceJobSearchScopes.forCaller(platformAdmin, organisationUuid, staffsOrganisation),
-                MarketplaceJobSearchSource.sortFor(pageable.getSort()),
-                pageable.getPageNumber(), size, List.of(), null);
+                sort, pageable.getPageNumber(), size, List.of(), null);
         ClassesSearch.Hits hits = classesSearch.search(request);
         Map<UUID, ClassMarketplaceJob> byUuid = new HashMap<>();
         jobRepository.findByUuidIn(hits.uuids()).forEach(job -> byUuid.put(job.getUuid(), job));
@@ -348,6 +389,9 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 .map(byUuid::get)
                 .filter(Objects::nonNull)
                 .filter(job -> matchesJobFilters(job, organisationUuid, courseUuid, programUuid, branchUuid, status))
+                // A near-me hit that went online since it was indexed is no longer locatable.
+                .filter(job -> near == null || job.getLocationType() == LocationType.IN_PERSON
+                        || job.getLocationType() == LocationType.HYBRID)
                 .toList();
         return new PageImpl<>(content, PageRequest.of(pageable.getPageNumber(), size),
                 SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));

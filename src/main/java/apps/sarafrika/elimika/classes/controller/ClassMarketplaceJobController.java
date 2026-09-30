@@ -40,6 +40,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import apps.sarafrika.elimika.shared.search.NearMe;
 
 @RestController
 @RequestMapping(ClassMarketplaceJobController.API_ROOT_PATH)
@@ -98,12 +99,31 @@ public class ClassMarketplaceJobController {
             @Parameter(description = "Only jobs delivered at this training branch")
             @RequestParam(value = "branch_uuid", required = false) UUID branchUuid,
             @RequestParam(value = "status", required = false) String status,
+            @Parameter(description = "Near-me point as lat,lng in decimal degrees, with or without q. Only IN_PERSON "
+                    + "and HYBRID jobs (located by their own or their branch's coordinates) within radius_km are "
+                    + "returned, nearest first without q; each carries distance_band and coordinates rounded to 2 "
+                    + "decimals. near is rounded to 2 decimals on the server and never stored or logged. Served only "
+                    + "by the search index: 503 (\"Search is unavailable\") when it cannot answer.")
+            @RequestParam(value = NearMe.NEAR_PARAM, required = false) String near,
+            @Parameter(description = "Near-me radius in km, clamped to 2-100 (default 10); needs near")
+            @RequestParam(value = NearMe.RADIUS_PARAM, required = false) String radiusKm,
             Pageable pageable) {
         Optional<ClassMarketplaceJobStatus> statusFilter = Optional.ofNullable(status)
                 .filter(value -> !value.isBlank())
                 .map(ClassMarketplaceJobStatus::fromValue);
+        Optional<NearMe> nearMe = NearMe.parse(near, radiusKm);
 
-        Page<ClassMarketplaceJobDTO> page = q == null || q.isBlank()
+        Page<ClassMarketplaceJobDTO> page = nearMe.isPresent()
+                ? classMarketplaceJobService.searchJobsNear(
+                        organisationUuid,
+                        courseUuid,
+                        programUuid,
+                        branchUuid,
+                        statusFilter.orElse(null),
+                        q,
+                        nearMe.get(),
+                        pageable)
+                : q == null || q.isBlank()
                 ? classMarketplaceJobService.listJobs(
                         organisationUuid,
                         courseUuid,

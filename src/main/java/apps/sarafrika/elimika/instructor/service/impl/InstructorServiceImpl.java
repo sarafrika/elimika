@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.search.InstructorSearchReader;
 import apps.sarafrika.elimika.instructor.search.InstructorVisibility;
 import apps.sarafrika.elimika.instructor.service.InstructorService;
+import apps.sarafrika.elimika.shared.search.NearMe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -96,7 +97,9 @@ public class InstructorServiceImpl implements InstructorService {
         updateInstructorFields(existingInstructor, instructorDTO);
 
         Instructor updatedInstructor = instructorRepository.save(existingInstructor);
-        return InstructorFactory.toDTO(updatedInstructor);
+        return isOwnedByCaller(updatedInstructor)
+                ? InstructorFactory.toOwnerDTO(updatedInstructor)
+                : InstructorFactory.toDTO(updatedInstructor);
     }
 
     @Override
@@ -130,6 +133,26 @@ public class InstructorServiceImpl implements InstructorService {
         }
         return (spec == null ? instructorRepository.findAll(pageable) : instructorRepository.findAll(spec, pageable))
                 .map(this::toDirectoryDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<InstructorDTO> searchNear(String q, NearMe near, Map<String, String> searchParams, Pageable pageable) {
+        Map<String, String> params = searchParams == null ? new HashMap<>() : new HashMap<>(searchParams);
+        params.remove(QUERY_PARAM);
+        InstructorVisibility.Caller caller = instructorVisibility.currentCaller();
+        InstructorSearchReader.NearMeResult result = instructorSearchReader.searchNear(q, near, params, pageable, caller);
+        return result.page().map(instructor -> InstructorFactory.toNearMeDTO(instructor,
+                result.distanceBands().get(instructor.getUuid()), isOwnedByCaller(instructor)));
+    }
+
+    @Override
+    public InstructorDTO setLocationSearchOptIn(UUID uuid, boolean enabled) {
+        Instructor instructor = instructorRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_NOT_FOUND_TEMPLATE, uuid)));
+        instructor.setLocationSearchOptIn(enabled);
+        // The entity trigger re-indexes the profile, adding or dropping its rounded _geo point.
+        return InstructorFactory.toOwnerDTO(instructorRepository.save(instructor));
     }
 
     // ================================
@@ -326,7 +349,10 @@ public class InstructorServiceImpl implements InstructorService {
      * level for everyone else.
      */
     private InstructorDTO toDtoForCaller(Instructor instructor) {
-        return isOwnedByCaller(instructor) || domainSecurityService.isPlatformAdmin()
+        if (isOwnedByCaller(instructor)) {
+            return InstructorFactory.toOwnerDTO(instructor);
+        }
+        return domainSecurityService.isPlatformAdmin()
                 ? InstructorFactory.toDTO(instructor)
                 : InstructorFactory.toPublicDTO(instructor);
     }
@@ -337,7 +363,7 @@ public class InstructorServiceImpl implements InstructorService {
      * the owner's own row would silently coarsen their stored location.
      */
     private InstructorDTO toDirectoryDTO(Instructor instructor) {
-        return isOwnedByCaller(instructor) ? InstructorFactory.toDTO(instructor) : InstructorFactory.toPublicDTO(instructor);
+        return isOwnedByCaller(instructor) ? InstructorFactory.toOwnerDTO(instructor) : InstructorFactory.toPublicDTO(instructor);
     }
 
     private boolean isOwnedByCaller(Instructor instructor) {
