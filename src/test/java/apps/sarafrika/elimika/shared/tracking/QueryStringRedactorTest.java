@@ -94,4 +94,13 @@ class QueryStringRedactorTest {
         String query = "query=x&search_type=y&latitude_bucket=z&like=w&q_mode=v";
         assertThat(QueryStringRedactor.redact(query)).isEqualTo(query);
     }
+
+    @Test
+    @DisplayName("Redaction is a fixed point: an already redacted string comes back unchanged")
+    void isIdempotent() {
+        String once = QueryStringRedactor.redact("q=jane+doe&page=2&email_eq=a%40b.co");
+
+        assertThat(once).isEqualTo("q=[redacted:8]&page=2&email_eq=[redacted:6]");
+        assertThat(QueryStringRedactor.redact(once)).isEqualTo(once);
+    }
 }

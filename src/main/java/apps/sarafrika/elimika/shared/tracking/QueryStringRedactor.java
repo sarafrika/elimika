@@ -4,6 +4,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Masks free-text and personal values in a raw query string before it is persisted to the request audit log.
@@ -22,6 +23,7 @@ public final class QueryStringRedactor {
 
     private static final Set<String> SENSITIVE_KEYS = Set.of("q", "search", "near", "lat", "lng");
     private static final String[] SENSITIVE_SUFFIXES = {"_like", "_startswith", "_endswith"};
+    private static final Pattern ALREADY_REDACTED = Pattern.compile("\\[redacted:\\d+]");
 
     private QueryStringRedactor() {
     }
@@ -53,6 +55,10 @@ public final class QueryStringRedactor {
         }
         String rawValue = pair.substring(eq + 1);
         if (rawValue.isEmpty() || !isSensitive(decode(pair.substring(0, eq)))) {
+            return pair;
+        }
+        if (ALREADY_REDACTED.matcher(rawValue).matches()) {
+            // Keeps redaction a fixed point, so the historical backfill can run over rows twice.
             return pair;
         }
         return pair.substring(0, eq + 1) + "[redacted:" + decode(rawValue).length() + "]";
