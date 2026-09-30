@@ -1,3 +1,10 @@
+# [2.157.0](https://github.com/sarafrika/elimika/compare/v2.156.0...v2.157.0) (2026-09-30)
+
+
+### Features
+
+* **classes:** add rules-v1 job matching for instructors and organisation candidate suggestions with reverse eligibility ([dc116c7](https://github.com/sarafrika/elimika/commit/dc116c7bc331465320c8cb5e11189cb65a76a50d))
+
 # [2.156.0](https://github.com/sarafrika/elimika/compare/v2.155.0...v2.156.0) (2026-09-30)
 
 
