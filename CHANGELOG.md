@@ -1,3 +1,13 @@
+# [2.156.0](https://github.com/sarafrika/elimika/compare/v2.155.0...v2.156.0) (2026-09-30)
+
+
+### Features
+
+* **course:** replace the course recommender with relational rules-v2 ranking, similar courses and offline evaluation ([b8ccefd](https://github.com/sarafrika/elimika/commit/b8ccefdad7ad458afd0c2698eb03342384bb4e29))
+* **search:** add near-me search for instructors, classes and marketplace jobs with owner opt-in, rounded _geo and distance bands ([47fff9c](https://github.com/sarafrika/elimika/commit/47fff9c7b23257307f04cbbd2a2466af69180c1c))
+* **student:** add learner skill goals and a learner profile SPI with tenancy-computed age and guardian academic scope ([e21d279](https://github.com/sarafrika/elimika/commit/e21d2794a2ec147b240f8f578fc9d858a734d1b2))
+* **timetabling:** add learner affiliation lookup from class enrolments and organisation memberships ([e478381](https://github.com/sarafrika/elimika/commit/e478381d7dbf028011b35b55ea19f06997de0441))
+
 # [2.155.0](https://github.com/sarafrika/elimika/compare/v2.154.0...v2.155.0) (2026-09-30)
 
 
