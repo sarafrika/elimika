@@ -126,6 +126,7 @@ The per-index read flags, one per index:
 | `instructors` | `SEARCH_READENABLED_INSTRUCTORS` |
 | `organisations` | `SEARCH_READENABLED_ORGANISATIONS` |
 | `people` | `SEARCH_READENABLED_PEOPLE` |
+| `course_content` | `SEARCH_READENABLED_COURSE_CONTENT` (not enabled yet; staging first) |
 
 `docker/compose.yaml` runs `getmeili/meilisearch` (pinned tag, no published port, 512 MB limit)
 with `MEILI_MASTER_KEY` from `docker/meilisearch.env` (kept out of `.env` so the API never sees it; the staging deploy generates it once). The application key is created once with the master key
@@ -146,7 +147,7 @@ generated client keeps stable method names.
 | Param | Rule |
 |---|---|
 | `q` | required, 2-200 characters after trimming, else 400 |
-| `types` | comma-separated; omitted means all eight in the order `courses, programs, classes, marketplace_jobs, instructors, organisations, people, rubrics`. An unknown type is a 400; a type the caller may not see, or whose index is not read-enabled, is skipped silently |
+| `types` | comma-separated; omitted means all nine in the order `courses, programs, classes, marketplace_jobs, instructors, organisations, people, rubrics, course_content`. An unknown type is a 400; a type the caller may not see, or whose index is not read-enabled, is skipped silently |
 | `limit` | hits per type, 1-20, default 5, else 400 |
 
 ```json
@@ -207,6 +208,7 @@ A "see all results" page for one type: `{ content: [GlobalSearchHit], metadata: 
 | `instructors` | hidden | verified + own profile | all |
 | `people` | hidden | organisation managers only: active members of managed organisations, **names only** (`searchOn` = `full_name`, `first_name`, `last_name`; highlight from `full_name`) | everyone, every searchable attribute |
 | `rubrics` | hidden | course creators: public + own; instructors: public and active; others hidden | all |
+| `course_content` | hidden | every item of managed courses (`manageableCourseUuids`, which includes own) + published, course-scoped items of enrolled courses; class-scoped quizzes/assignments hidden from learners; guardians get nothing; **re-checked in SQL** (`recheck`); subtitle `Lesson {n} · {course}` | all |
 
 ## Admin endpoints
 
@@ -239,6 +241,7 @@ thread and run one after another.
 | `marketplace_jobs` | `classes/search`: `MarketplaceJobSearchSource`, `MarketplaceJobSearchScopes`, `…MarketplaceJobs` | `class_marketplace_jobs` | `GET /api/v1/classes/jobs` |
 | `instructors` | `instructor/search`: `InstructorSearchSource`, `InstructorSearchScopes` + `InstructorVisibility`, `InstructorGlobalSearchProvider` | `instructors` | `GET /api/v1/instructors`, `/instructors/search` |
 | `organisations` | `tenancy/search`: `OrganisationSearchSource`, `OrganisationSearchScopes`, `TenancyGlobalSearchProviders.Organisations` | `organisation` | `GET /api/v1/organisations`, the pending-verification queue |
+| `course_content` | `course/internal/search`: `CourseContentSearchSource`, `CourseContentEntitlement`, `CourseContentGlobalSearchProvider` | `lessons`, `lesson_contents`, `quizzes`, `assignments` (root courses only) | `GET /api/v1/courses/{courseUuid}/content/search` (see below) |
 | `people` | `tenancy/search`: `PeopleSearchSource`, `PeopleSearchScopes`, `TenancyGlobalSearchProviders.People` | `users` | `/users/search`, `/admin/users/eligible`, organisation rosters, and the instructor-student roster `search` (timetabling, see below) |
 
 ### Fields, scopes, triggers and staleness
@@ -252,6 +255,7 @@ thread and run one after another.
 | `marketplace_jobs` | title, course_name, program_title, organisation_name, branch_name, location_name, target_groups, description | status, organisation_uuid, branch_uuid, course_uuid, program_uuid, category_uuid, location_type, session_format, starts_at, registration_closes_at, uuid, created_at | created_at, starts_at | `OPEN`; staff of the filtered organisation see it in any status | `ClassMarketplaceJob`, `ClassMarketplaceJobSessionTemplate`; bulk deletes enqueue explicitly | course/program, organisation and branch names until the nightly rebuild |
 | `instructors` | full_name, professional_headline, skills, experience_positions, experience_organisations, location_name, bio | admin_verified, active, skills, skill_levels, location_name, uuid, created_at | full_name, rating_avg, review_count, created_at | verified OR own profile OR pinned by `uuid` | `Instructor`, `InstructorSkill`, `InstructorExperience`, `InstructorReview`; `UserUpdateEvent` (name kept by a DB trigger) | none |
 | `organisations` | name, slug, location, description | active, admin_verified, country, uuid, created_at | name, created_at | active AND verified | `Organisation` | none |
+| `course_content` | title, body | type, course_uuid, lesson_uuid, published, scope, class_definition_uuid, content_type, uuid | lesson_number, display_order, updated_at | `course_uuid` IN managed OR (`course_uuid` IN enrolled AND `published` AND `scope` = COURSE) | `Lesson`, `LessonContent`, `Quiz`, `Assignment`; fan-out on `Lesson` (its children) and `Course` (every item, and the live course of a shadow) | lesson title/number and course name follow within seconds; content type names until the nightly rebuild; hard-deleted lessons' children until the nightly rebuild (the SQL re-check hides them meanwhile) |
 | `people` (schema v2) | full_name, first_name, last_name, email, username, user_no | domains, organisation_uuids, branch_uuids, active, is_platform_admin, is_org_admin, uuid, created_at, email_normalized | full_name, created_at | admins only (every attribute); roster: members of a managed organisation by name and email (`searchOn` adds `email`; a `q` containing `@` is an exact `email_normalized` filter); username and user_no stay admin-only; global search stays names only | `User`, `UserDomainMapping`, `UserOrganisationDomainMapping` | none |
 
 - **Staleness window.** A name copied from another module (organisation, branch, course, program,
@@ -323,6 +327,44 @@ something else, so `sort=lastModifiedDate` with `q` is a 400. Sort by relevance 
 **Categories are not indexed.** `GET /config/categories/search` keeps its relational filters, but there
 is no name search any more (`name_like` is a 400); the UI lists `GET /config/categories` and filters the
 small set client-side.
+
+### In-course content search (`course_content`)
+
+`GET /api/v1/courses/{courseUuid}/content/search?q=&types=lesson,content,quiz,assignment&page=&size=`
+
+```
+ UI (course page search box)
+   │ q=photosynthsis&types=lesson,quiz
+   ▼
+ CourseContentSearchController
+   │ @PreAuthorize: platform admin OR canReadCourseAsLearner OR canManageCourseGradebook ── no ──► 403
+   ▼
+ CourseContentSearchService
+   │ q blank / > 200 chars, unknown type, page < 0, size outside 1-100 ──► 400
+   │ SEARCH_READENABLED_COURSE_CONTENT off, search off, engine error ──► 503 "Search is unavailable"
+   │ scope = CourseContentEntitlement (managed ∪ enrolled-published-course-scoped)
+   │ filter = course_uuid = {courseUuid} AND type IN types
+   ▼
+ SearchGateway ─────────────────────────────► Meilisearch index "course_content"
+   │ hits (stored fields only)
+   ▼
+ CourseContentEntitlement.retainVisible ────► PostgreSQL: one UNION query over lessons, lesson_contents,
+   │ (engine narrows, SQL authorizes)          quizzes, assignments joined to root courses
+   ▼
+ ApiResponse<PagedDTO<{ type, uuid, lesson_uuid, lesson_number, lesson_title, title, highlight }>>
+```
+
+- **One document per item**, keyed by the item UUID: `uuid`, `type` (`lesson`/`content`/`quiz`/`assignment`),
+  `course_uuid`, `lesson_uuid`, `lesson_number`, `lesson_title`, `course_name`, `title`, `body`
+  (description + learning objectives / content text / instructions, markup stripped, truncated to 2000),
+  `content_type`, `scope` (`COURSE`/`CLASS`), `class_definition_uuid`, `published`, `display_order`, `updated_at`.
+- **`published`** is what an enrolled learner may see: the lesson published and active, and for a quiz or
+  assignment the item itself published too (the `LearnerMaterialScope` rule).
+- **Never indexed:** quiz questions and options (answers), rubric data, submissions, `file_url`.
+  Shadow-draft courses (`parent_course_uuid` set) are excluded.
+- **Staff on a learner's dashboard** (acting-domain header) lose the managed branch, as on the material
+  endpoints (`CourseFootingCap`). Guardians are excluded in v1.
+- `highlight` is an excerpt of about 200 characters around the first match in `title` or `body`.
 
 ### Instructor-student roster search (timetabling)
 
@@ -401,6 +443,9 @@ exact address matches, so a partial `amina@sch` finds nothing.
    enable `SEARCH_AUTO_REBUILD` before relying on the discovery `type` filter with `q`.
    The people index moved to schema version 2 (filterable `email_normalized`): until it is rebuilt, a
    manager's roster `q` containing `@` fails because the attribute is not yet filterable.
+   **`course_content`** is new and separate: rebuild it (`POST /api/v1/admin/search/indexes/course_content/rebuild`),
+   check its count, then set `SEARCH_READENABLED_COURSE_CONTENT=true` (staging first). Until then the in-course
+   search answers 503 and global search skips the type.
 6. **Deploy the no-fallback release** only once step 5 holds on the target environment.
 7. **There is no SQL rollback for text search any more.** `SEARCH_READENABLED_<INDEX>=false` turns that
    index's `q` into a 503 (and drops the type from global search); relational listings without `q`
