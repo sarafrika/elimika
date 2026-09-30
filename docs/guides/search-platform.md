@@ -526,7 +526,9 @@ the owner's own profile (single read, list rows and near-me rows) and nowhere el
 
 ## Discovery tracking
 
-Recommenders record what they showed; the client reports what the user did with it. Both land in
+Recommenders record what they showed; the client reports what the user did with it. Job matching
+(see [job-matching.md](job-matching.md)) records on the `job_matches` and `job_candidates` surfaces with
+model version `rules-v1`. Both land in
 `discovery_events` (180-day retention, purged nightly at 02:45 UTC by `DiscoveryEventPurgeJob`).
 No query text is ever stored: surface and item type are `[a-z0-9_]` slugs, reason codes
 `[A-Za-z0-9_]` codes.
