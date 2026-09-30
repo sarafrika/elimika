@@ -31,6 +31,7 @@
             "availability :: availability-spi",
             "resourcing :: resourcing-spi",
             "course :: course-spi",
+            "skills :: skills-spi",
             "instructor :: instructor-spi",
             "student :: student-spi",
             "tenancy :: tenancy-spi",

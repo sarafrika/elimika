@@ -33,6 +33,11 @@ public class InstructorSkill extends BaseEntity {
     @Filterable
     private String skillName;
 
+    /** The taxonomy skill the name resolves to, by slug; null while the name is free text only. */
+    @Column(name = "skill_uuid")
+    @Filterable
+    private UUID skillUuid;
+
     @Column(name = "proficiency_level")
     @Convert(converter = ProficiencyLevelConverter.class)
     @Filterable

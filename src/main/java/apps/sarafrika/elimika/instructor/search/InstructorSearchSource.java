@@ -39,10 +39,11 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
 
     public static final String INDEX = "instructors";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
             List.of("full_name", "professional_headline", "skills", "experience_positions",
                     "experience_organisations", "location_name", "bio"),
-            List.of("admin_verified", "active", "skills", "skill_levels", "location_name", "uuid", "created_at"),
+            List.of("admin_verified", "active", "skills", "skill_levels", "skill_uuids", "location_name", "uuid",
+                    "created_at"),
             List.of("full_name", "rating_avg", "review_count", "created_at"));
 
     static final int BIO_MAX_LENGTH = 1500;
@@ -118,7 +119,11 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
     ) {
         List<String> skillNames = new ArrayList<>();
         List<String> skillLevels = new ArrayList<>();
+        List<UUID> skillUuids = new ArrayList<>();
         for (InstructorSkill skill : skills) {
+            if (skill.getSkillUuid() != null && !skillUuids.contains(skill.getSkillUuid())) {
+                skillUuids.add(skill.getSkillUuid());
+            }
             if (skill.getSkillName() == null || skill.getSkillName().isBlank()) {
                 continue;
             }
@@ -140,7 +145,8 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
                 rating == null || rating.average() == null ? null
                         : BigDecimal.valueOf(rating.average()).setScale(2, RoundingMode.HALF_UP).doubleValue(),
                 rating == null || rating.count() == null ? 0L : rating.count(),
-                instructor.getCreatedDate() == null ? null : instructor.getCreatedDate().toEpochSecond(ZoneOffset.UTC));
+                instructor.getCreatedDate() == null ? null : instructor.getCreatedDate().toEpochSecond(ZoneOffset.UTC),
+                skillUuids);
     }
 
     private static List<String> distinctNonBlank(List<InstructorExperience> rows,

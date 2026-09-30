@@ -75,6 +75,14 @@ public record InstructorSkillDTO(
         String skillName,
 
         @Schema(
+                description = "**[READ-ONLY]** The skills-taxonomy entry the skill name resolves to (matched by slug or alias). Null when the name is free text that matches no curated skill.",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "skill_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID skillUuid,
+
+        @Schema(
                 description = "**[REQUIRED]** Level of proficiency in this skill. Indicates instructor's competency and teaching capability.",
                 example = "EXPERT",
                 allowableValues = {"BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"},
@@ -137,6 +145,7 @@ public record InstructorSkillDTO(
                 uuid,
                 targetInstructorUuid,
                 skillName,
+                skillUuid,
                 proficiencyLevel,
                 createdDate,
                 createdBy,

@@ -36,6 +36,8 @@ public record MarketplaceJobSearchDocument(
         @JsonProperty("starts_at") Long startsAt,
         @JsonProperty("registration_closes_at") Long registrationClosesAt,
         @JsonProperty("session_count") int sessionCount,
-        @JsonProperty("created_at") Long createdAt
+        @JsonProperty("created_at") Long createdAt,
+        @JsonProperty("required_skill_uuids") List<UUID> requiredSkillUuids,
+        @JsonProperty("required_skill_names") List<String> requiredSkillNames
 ) implements SearchDocument {
 }

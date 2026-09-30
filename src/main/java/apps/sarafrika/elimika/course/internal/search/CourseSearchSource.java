@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.CoursePrerequisite;
 import apps.sarafrika.elimika.course.model.CourseReview;
+import apps.sarafrika.elimika.course.model.CourseSkill;
 import apps.sarafrika.elimika.course.model.DifficultyLevel;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
@@ -54,13 +55,14 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
     /**
      * Schema 2 adds the nightly aggregates from {@code course_learning_stats} ({@code completion_rate},
      * {@code popularity_30d}, {@code rating_bayes}), {@code level_order}, {@code prerequisite_uuids} and the
-     * age band, and ranks ties by the Bayesian rating instead of the raw average.
+     * age band, and ranks ties by the Bayesian rating instead of the raw average. Schema 3 adds the
+     * owner-tagged {@code skill_uuids}.
      */
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 3,
                     List.of("name", "category_names", "creator_name", "difficulty_name", "description", "objectives"),
                     List.of("status", "active", "admin_approved", IS_PUBLIC, COURSE_CREATOR_UUID, "category_uuids",
                             "difficulty_uuid", "is_free", "price", UUID_ATTRIBUTE, "created_at", "level_order",
-                            "prerequisite_uuids", "age_lower_limit", "age_upper_limit"),
+                            "prerequisite_uuids", "age_lower_limit", "age_upper_limit", "skill_uuids"),
                     List.of("name", "created_at", "price", "rating_avg", "enrolment_count", "completion_rate",
                             "popularity_30d", "rating_bayes"))
             .withRankingRules(List.of("words", "typo", "proximity", "attribute", "sort", "exactness", "rating_bayes:desc"))
@@ -129,6 +131,7 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                 SearchIndexTrigger.direct(CourseEnrollment.class, CourseEnrollment::getCourseUuid),
                 // A draft's rows name the draft course, which loadByUuids ignores; promotion rewrites the live rows.
                 SearchIndexTrigger.direct(CoursePrerequisite.class, CoursePrerequisite::getCourseUuid),
+                SearchIndexTrigger.direct(CourseSkill.class, CourseSkill::getCourseUuid),
                 SearchIndexTrigger.fanOut(Category.class, category -> keyOf("category", category.getUuid())),
                 SearchIndexTrigger.fanOut(DifficultyLevel.class, level -> keyOf("difficulty", level.getUuid())));
     }
@@ -190,6 +193,15 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                     new double[]{rs.getDouble("rating_avg"), rs.getLong("review_count")});
         });
 
+        Map<UUID, List<UUID>> skillUuids = new HashMap<>();
+        jdbc.query("""
+                SELECT course_uuid, skill_uuid FROM course_skills
+                WHERE course_uuid IN (:uuids) ORDER BY course_uuid, weight DESC, id
+                """, byCourse, rs -> {
+            skillUuids.computeIfAbsent(SearchRows.uuid(rs, "course_uuid"), key -> new ArrayList<>())
+                    .add(SearchRows.uuid(rs, "skill_uuid"));
+        });
+
         Map<UUID, Long> enrolments = new HashMap<>();
         jdbc.query("""
                 SELECT course_uuid, COUNT(*) AS enrolment_count
@@ -244,7 +256,8 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                     row.levelOrder(),
                     prerequisites.getOrDefault(row.uuid(), List.of()),
                     row.ageLowerLimit(),
-                    row.ageUpperLimit()));
+                    row.ageUpperLimit(),
+                    skillUuids.getOrDefault(row.uuid(), List.of())));
         }
         return documents;
     }

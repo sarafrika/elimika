@@ -13,6 +13,8 @@ import java.util.UUID;
  * leaving a field out is the only guarantee it cannot leak.
  *
  * @param skillLevels parallel to {@code skills}: the proficiency of the skill at the same position
+ * @param skillUuids  the distinct skills-taxonomy entries the skills resolve to (schema v2); free-text
+ *                    skills that match no curated skill are in {@code skills} only
  * @param active      always true for an indexed instructor - the module has no lifecycle flag, and
  *                    removing a profile deletes its row and with it the document
  * @param ratingAvg   mean review rating rounded to two decimals, null without reviews
@@ -32,6 +34,7 @@ public record InstructorSearchDocument(
         @JsonProperty("active") boolean active,
         @JsonProperty("rating_avg") Double ratingAvg,
         @JsonProperty("review_count") long reviewCount,
-        @JsonProperty("created_at") Long createdAt
+        @JsonProperty("created_at") Long createdAt,
+        @JsonProperty("skill_uuids") List<UUID> skillUuids
 ) implements SearchDocument {
 }

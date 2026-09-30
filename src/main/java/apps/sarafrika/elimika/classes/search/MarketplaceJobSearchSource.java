@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.classes.search;
 
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver;
+import apps.sarafrika.elimika.classes.internal.JobRequiredSkills;
+import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobRequiredSkill;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJob;
 import apps.sarafrika.elimika.classes.model.ClassMarketplaceJobSessionTemplate;
 import apps.sarafrika.elimika.classes.repository.ClassMarketplaceJobRepository;
@@ -15,6 +17,8 @@ import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceFrequency;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrencePattern;
+import apps.sarafrika.elimika.skills.spi.SkillLookupService;
+import apps.sarafrika.elimika.skills.spi.SkillSummary;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +49,11 @@ import java.util.UUID;
  * <p>
  * Organisation, branch, course and program names are copied in when a job is indexed; a rename in
  * the owning module is picked up by the next rebuild of the index.
+ * <p>
+ * Required skills (schema v2) are the job's own tags, or its course's skills when it has none
+ * ({@link JobRequiredSkills}). Own tags trigger re-indexing directly; a change to the course's tags
+ * arrives as {@code CourseSkillsChangedEvent} ({@link CourseSkillsChangeIndexer}). A renamed skill is
+ * picked up by the nightly rebuild.
  */
 @Slf4j
 @Component
@@ -53,12 +62,12 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
 
     public static final String INDEX = "marketplace_jobs";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
-            List.of("title", "course_name", "program_title", "organisation_name", "branch_name",
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
+            List.of("title", "course_name", "program_title", "required_skill_names", "organisation_name", "branch_name",
                     "location_name", "target_groups", "description"),
             List.of("status", "organisation_uuid", "branch_uuid", "course_uuid", "program_uuid",
                     "category_uuid", "location_type", "session_format", "starts_at",
-                    "registration_closes_at", "uuid", "created_at"),
+                    "registration_closes_at", "uuid", "created_at", "required_skill_uuids"),
             List.of("created_at", "starts_at"));
 
     /** The listing's sortable entity properties that have an index counterpart. */
@@ -71,6 +80,8 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
     private final CourseInfoService courseInfoService;
     private final OrganisationLookupService organisationLookupService;
     private final BranchLocationResolver branchLocationResolver;
+    private final JobRequiredSkills jobRequiredSkills;
+    private final SkillLookupService skillLookupService;
 
     @Override
     public SearchIndexDefinition definition() {
@@ -99,7 +110,9 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
         return List.of(
                 SearchIndexTrigger.direct(ClassMarketplaceJob.class, BaseEntity::getUuid),
                 SearchIndexTrigger.direct(ClassMarketplaceJobSessionTemplate.class,
-                        ClassMarketplaceJobSessionTemplate::getJobUuid));
+                        ClassMarketplaceJobSessionTemplate::getJobUuid),
+                SearchIndexTrigger.direct(ClassMarketplaceJobRequiredSkill.class,
+                        ClassMarketplaceJobRequiredSkill::getJobUuid));
     }
 
     @Override
@@ -142,10 +155,28 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
         Map<UUID, String> organisationNames = organisationUuids.isEmpty() ? Map.of()
                 : organisationLookupService.findOrganisationNames(organisationUuids);
         Map<UUID, String> branchNames = branchUuids.isEmpty() ? Map.of() : branchLocationResolver.branchNames(branchUuids);
+        Map<UUID, JobRequiredSkills.Effective> requiredSkills = jobRequiredSkills.forJobs(jobs);
+        List<UUID> skillUuids = requiredSkills.values().stream()
+                .flatMap(effective -> effective.tags().stream())
+                .map(JobRequiredSkills.Tag::skillUuid)
+                .distinct()
+                .toList();
+        Map<UUID, String> skillNames = new HashMap<>();
+        if (!skillUuids.isEmpty()) {
+            for (SkillSummary skill : skillLookupService.findByUuids(skillUuids)) {
+                skillNames.put(skill.uuid(), skill.name());
+            }
+        }
 
         return jobs.stream()
                 .map(job -> {
                     List<ClassMarketplaceJobSessionTemplate> templates = templatesByJob.getOrDefault(job.getUuid(), List.of());
+                    List<UUID> jobSkills = requiredSkills.containsKey(job.getUuid())
+                            ? requiredSkills.get(job.getUuid()).tags().stream()
+                                    .map(JobRequiredSkills.Tag::skillUuid)
+                                    .filter(skillNames::containsKey)
+                                    .toList()
+                            : List.of();
                     return new MarketplaceJobSearchDocument(
                             job.getUuid(),
                             job.getTitle(),
@@ -169,7 +200,9 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
                             SearchValues.epochSeconds(SearchValues.earliest(firstStart(templates), job.getDefaultStartTime())),
                             SearchValues.endOfDay(job.getRegistrationPeriodEndDate()),
                             sessionCount(job.getUuid(), templates),
-                            SearchValues.epochSeconds(job.getCreatedDate()));
+                            SearchValues.epochSeconds(job.getCreatedDate()),
+                            jobSkills,
+                            jobSkills.stream().map(skillNames::get).toList());
                 })
                 .toList();
     }

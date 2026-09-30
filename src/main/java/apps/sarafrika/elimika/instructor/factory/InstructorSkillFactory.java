@@ -17,6 +17,7 @@ public class InstructorSkillFactory {
                 skill.getUuid(),
                 skill.getInstructorUuid(),
                 skill.getSkillName(),
+                skill.getSkillUuid(),
                 skill.getProficiencyLevel(),
                 skill.getCreatedDate(),
                 skill.getCreatedBy(),

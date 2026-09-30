@@ -14,6 +14,7 @@ import java.util.UUID;
  * Deliberately absent: co-enrolment neighbours (they stay in SQL), the minimum training fee,
  * revenue-share fields, rate cards and lesson content.
  * {@code status} is the lower-case value the API serialises; instants are UTC epoch seconds.
+ * {@code skill_uuids} (schema v2) are the skills-taxonomy entries the creator tagged the course with.
  */
 public record CourseSearchDocument(
         @JsonProperty("uuid") UUID uuid,
@@ -44,6 +45,7 @@ public record CourseSearchDocument(
         @JsonProperty("level_order") Integer levelOrder,
         @JsonProperty("prerequisite_uuids") List<UUID> prerequisiteUuids,
         @JsonProperty("age_lower_limit") Integer ageLowerLimit,
-        @JsonProperty("age_upper_limit") Integer ageUpperLimit
+        @JsonProperty("age_upper_limit") Integer ageUpperLimit,
+        @JsonProperty("skill_uuids") List<UUID> skillUuids
 ) implements SearchDocument {
 }

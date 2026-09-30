@@ -65,6 +65,7 @@
             "coursecreator :: coursecreator-spi",
             "instructor :: instructor-spi",
             "resourcing :: resourcing-spi",
+            "skills :: skills-spi",
             "tenancy :: tenancy-spi",
             "notifications::events-api"
     }
