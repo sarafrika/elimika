@@ -82,6 +82,16 @@ public interface UserLookupService {
     Set<UUID> findUserUuidsBornAfter(Collection<UUID> userUuids, LocalDate cutoff);
 
     /**
+     * The user's age in whole years on {@code asOf}, computed here so the date of birth never leaves
+     * tenancy. Empty when the user is unknown or has no date of birth on record.
+     *
+     * @param userUuid user identifier
+     * @param asOf     the day to measure the age on (UTC)
+     * @return the age, or empty
+     */
+    java.util.OptionalInt findUserAgeInYears(UUID userUuid, LocalDate asOf);
+
+    /**
      * Checks if a user has a specific domain.
      *
      * @param userUuid The UUID of the user

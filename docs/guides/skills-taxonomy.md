@@ -51,6 +51,7 @@ publishing.** A job with no tags of its own inherits its course's skills.
 | `instructor_skills.skill_uuid` | `UUID NULL` → `skills` (`SET NULL`) | Backfilled by slug; names that match nothing keep their free text and no link |
 | `course_skills` | `course_uuid` (FK, cascade), `skill_uuid` (FK, cascade), `level` (BEGINNER..EXPERT, `ProficiencyLevelConverter`), `weight` 1-5 | UNIQUE (course, skill) |
 | `class_marketplace_job_required_skills` | `job_uuid` (FK, cascade), `skill_uuid` (FK, cascade), `min_proficiency` (BEGINNER..EXPERT), `is_mandatory` | UNIQUE (job, skill) |
+| `learner_skill_goals` | `student_uuid` (FK, cascade), `skill_uuid` (FK, cascade), `source` (SELF/GUARDIAN/ADMIN), audit | UNIQUE (student, skill). Set by the learner via `PUT /api/v1/students/{uuid}/skill-goals`; drives `SKILL_GAP` course recommendations (see `course-recommendations.md`) |
 
 **Slug rule** (`SkillSlugs.slugify`, and the same SQL in the migration): lower-case, every run outside
 `[a-z0-9]` becomes one hyphen, hyphens trimmed. `"Java  Programming!"` → `java-programming`. A name

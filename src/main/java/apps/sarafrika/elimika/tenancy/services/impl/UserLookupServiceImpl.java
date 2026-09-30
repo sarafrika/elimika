@@ -74,6 +74,18 @@ public class UserLookupServiceImpl implements UserLookupService {
     }
 
     @Override
+    public java.util.OptionalInt findUserAgeInYears(UUID userUuid, LocalDate asOf) {
+        if (userUuid == null || asOf == null) {
+            return java.util.OptionalInt.empty();
+        }
+        return userRepository.findByUuid(userUuid)
+                .map(User::getDob)
+                .filter(dob -> !dob.isAfter(asOf))
+                .map(dob -> java.util.OptionalInt.of(java.time.Period.between(dob, asOf).getYears()))
+                .orElse(java.util.OptionalInt.empty());
+    }
+
+    @Override
     public Set<UUID> findUserUuidsBornAfter(java.util.Collection<UUID> userUuids, LocalDate cutoff) {
         if (userUuids == null || userUuids.isEmpty() || cutoff == null) {
             return Set.of();
