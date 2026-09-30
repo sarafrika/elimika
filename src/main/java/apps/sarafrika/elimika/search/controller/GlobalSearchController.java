@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/search")
 @RequiredArgsConstructor
-@Tag(name = "Search", description = "Global search across courses, programs, classes, jobs, instructors, organisations, people and rubrics")
+@Tag(name = "Search", description = "Global search across courses, programs, classes, jobs, instructors, organisations, people, rubrics and course content")
 public class GlobalSearchController {
 
     private final GlobalSearchService globalSearchService;
@@ -38,9 +38,11 @@ public class GlobalSearchController {
     @Operation(operationId = "globalSearch", summary = "Global search",
             description = "Searches every type the caller may see (or those named in types) and returns up to limit hits "
                     + "per type, grouped by type in the order requested, plus the total per type. Types: courses, "
-                    + "programs, classes, marketplace_jobs, instructors, organisations, people, rubrics. A type the "
-                    + "caller may not see, or whose index is not read-enabled, is skipped silently; an unknown type "
-                    + "is a 400. Anonymous callers see public courses, programs, organisations and classes. People "
+                    + "programs, classes, marketplace_jobs, instructors, organisations, people, rubrics, course_content. "
+                    + "A type the caller may not see, or whose index is not read-enabled, is skipped silently; an "
+                    + "unknown type is a 400. Anonymous callers see public courses, programs, organisations and "
+                    + "classes. course_content (lessons, content, quizzes, assignments) covers the courses the caller "
+                    + "manages and the published material of the courses they are enrolled in. People "
                     + "are visible to platform admins, and to organisation managers by name within their "
                     + "organisations. Results come from the index without a database round trip, so a change can "
                     + "take a few seconds to show. 503 when search is disabled or unavailable.")

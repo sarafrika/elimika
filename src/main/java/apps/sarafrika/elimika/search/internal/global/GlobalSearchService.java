@@ -61,7 +61,8 @@ public class GlobalSearchService {
 
     /** The order types are returned in when the caller does not name any. */
     static final List<String> DEFAULT_ORDER = List.of(
-            "courses", "programs", "classes", "marketplace_jobs", "instructors", "organisations", "people", "rubrics");
+            "courses", "programs", "classes", "marketplace_jobs", "instructors", "organisations", "people", "rubrics",
+            "course_content");
 
     private static final String PEOPLE = "people";
     private static final int MAX_ECHOED_TYPE_LENGTH = 40;
