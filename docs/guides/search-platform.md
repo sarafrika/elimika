@@ -413,6 +413,57 @@ new. Username and user number stay admin-only, and global people search stays na
 A local-part prefix (`q=amina.w`) matches through normal search; once the query contains `@` only the
 exact address matches, so a partial `amina@sch` finds nothing.
 
+## Geo, ranking score and matching strategy
+
+The engine-neutral contract carries location and relevance without exposing Meilisearch types:
+
+| Contract | Rendered as | Needs |
+|---|---|---|
+| `SearchFilter.geoRadius(lat, lng, meters)` | `_geoRadius(lat, lng, meters)` | `_geo` in `filterableAttributes` |
+| `SearchSort.geoPoint(lat, lng)` (nearest first) | `_geoPoint(lat,lng):asc` | `_geo` in `sortableAttributes` |
+| `SearchRequest.withMatchingStrategy(LAST \| ALL \| FREQUENCY)` | `matchingStrategy` | nothing; `null` keeps the engine default (`last`) |
+| `SearchHit.rankingScore()` | `showRankingScore: true` → `_rankingScore` | every paged search |
+| `SearchHit.geoDistanceMeters()` | `_geoDistance` | a geo sort or radius filter |
+
+A document carries its point as `@JsonProperty("_geo") SearchGeoPoint geo` (`{"lat":..,"lng":..}`),
+or `null` to stay out of geo queries. `SearchIndexDefinition.GEO_ATTRIBUTE` names the attribute.
+`_geo` is never a plain `searchParams` filter, sort or facet key: `SearchParamsTranslator` and the
+facet check refuse it, so only code can build a geo query. `_geo` stays in `SearchHit.document()`;
+other `_`-prefixed engine fields are stripped. With search disabled, every call still throws
+`SearchUnavailableException`.
+
+```
+request (lat,lng,radius)  ─►  SearchFilter.geoRadius + SearchSort.geoPoint
+                                   │ MeilisearchFilterRenderer
+                                   ▼
+        POST /indexes/{uid}/search {filter:"… AND (_geoRadius(…))", sort:["_geoPoint(…):asc"], showRankingScore:true}
+                                   │
+                                   ▼
+        SearchHit(uuid, document incl. _geo, formatted, rankingScore, geoDistanceMeters)
+```
+
+## Discovery tracking
+
+Recommenders record what they showed; the client reports what the user did with it. Both land in
+`discovery_events` (180-day retention, purged nightly at 02:45 UTC by `DiscoveryEventPurgeJob`).
+No query text is ever stored: surface and item type are `[a-z0-9_]` slugs, reason codes
+`[A-Za-z0-9_]` codes.
+
+```
+recommender ── DiscoveryTracker.recordImpressions(user, surface, recommendation_id, model_version, items)
+                    │ own transaction; errors logged, never thrown
+                    ▼
+              discovery_events (IMPRESSION, position, reason_codes[], model_version, created_at UTC)
+                    ▲
+UI ── POST /api/v1/discovery/events {recommendation_id, item_uuid, item_type, event_type, position}
+      authenticated; user = principal; event_type CLICK | DISMISS (IMPRESSION → 400); always 202.
+      Stored only when it matches an impression shown to that user, inheriting its surface,
+      reason codes and model version; anything else is dropped silently.
+```
+
+Conversions (enrol, apply, hire) are never reported by the client; they are joined from the source
+tables afterwards.
+
 ## Go-live runbook
 
 1. **Create the scoped key** once, with the master key, and store it as `SEARCH_MEILISEARCH_API_KEY`:
