@@ -42,6 +42,15 @@ public record SearchIndexDefinition(
         int maxTotalHits
 ) {
 
+    /**
+     * The engine's reserved location attribute. A document carries it as a {@link SearchGeoPoint}
+     * under the JSON key {@code _geo}. List it in {@code filterableAttributes} to allow
+     * {@link SearchFilter#geoRadius} and in {@code sortableAttributes} to allow {@link SearchSort#geoPoint}.
+     * It is never a plain filter, sort or facet key: {@link SearchParamsTranslator} and facet requests
+     * refuse it.
+     */
+    public static final String GEO_ATTRIBUTE = "_geo";
+
     public static final String DEFAULT_PRIMARY_KEY = "uuid";
     public static final int DEFAULT_MAX_TOTAL_HITS = 1000;
     private static final Pattern INDEX_NAME = Pattern.compile("[a-z0-9_]+");
@@ -112,6 +121,16 @@ public record SearchIndexDefinition(
     public SearchIndexDefinition withMaxTotalHits(int hits) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
                 sortableAttributes, displayedAttributes, rankingRules, synonyms, stopWords, typoDisabledAttributes, hits);
+    }
+
+    /** Whether {@link SearchFilter#geoRadius} may be used on this index. */
+    public boolean geoFilterable() {
+        return filterableAttributes.contains(GEO_ATTRIBUTE);
+    }
+
+    /** Whether {@link SearchSort#geoPoint} may be used on this index. */
+    public boolean geoSortable() {
+        return sortableAttributes.contains(GEO_ATTRIBUTE);
     }
 
     private static List<String> copy(List<String> values) {

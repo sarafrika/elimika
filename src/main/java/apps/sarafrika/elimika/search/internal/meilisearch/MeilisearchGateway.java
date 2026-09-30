@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -126,6 +127,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         Map<String, Object> body = queryBody(request);
         body.put("page", request.page() + 1);
         body.put("hitsPerPage", request.size());
+        body.put("showRankingScore", true);
         if (!request.sort().isEmpty()) {
             body.put("sort", MeilisearchFilterRenderer.renderSort(request.sort()));
         }
@@ -138,7 +140,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
     private SearchPage toPage(SearchRequest request, JsonNode response) {
         List<SearchHit> hits = new ArrayList<>();
         for (JsonNode hit : response.path("hits")) {
-            hits.add(new SearchHit(uuidOf(hit), document(hit), formatted(hit)));
+            hits.add(new SearchHit(uuidOf(hit), document(hit), formatted(hit), rankingScore(hit), geoDistance(hit)));
         }
         return new SearchPage(
                 hits,
@@ -298,6 +300,9 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         if (request.hasText()) {
             body.put("attributesToHighlight", List.of("*"));
         }
+        if (request.matchingStrategy() != null) {
+            body.put("matchingStrategy", request.matchingStrategy().name().toLowerCase(Locale.ROOT));
+        }
         log.debug("Search on {} scoped to {}", request.index(), request.scope().label());
         return body;
     }
@@ -324,8 +329,18 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
 
     private Map<String, Object> document(JsonNode hit) {
         Map<String, Object> document = objectMapper.convertValue(hit, DOCUMENT);
-        document.keySet().removeIf(key -> key.startsWith("_"));
+        document.keySet().removeIf(key -> key.startsWith("_") && !SearchIndexDefinition.GEO_ATTRIBUTE.equals(key));
         return document;
+    }
+
+    private static Double rankingScore(JsonNode hit) {
+        JsonNode score = hit.get("_rankingScore");
+        return score == null || !score.isNumber() ? null : score.asDouble();
+    }
+
+    private static Integer geoDistance(JsonNode hit) {
+        JsonNode distance = hit.get("_geoDistance");
+        return distance == null || !distance.isNumber() ? null : (int) Math.round(distance.asDouble());
     }
 
     private Map<String, Object> formatted(JsonNode hit) {

@@ -214,6 +214,10 @@ public final class SearchParamsTranslator {
     private static Map<String, String> normalisedLookup(List<String> attributes) {
         Map<String, String> lookup = new HashMap<>();
         for (String attribute : attributes) {
+            // _geo is only reachable through SearchFilter.geoRadius and SearchSort.geoPoint.
+            if (SearchIndexDefinition.GEO_ATTRIBUTE.equals(attribute)) {
+                continue;
+            }
             lookup.put(normalise(attribute), attribute);
         }
         return lookup;

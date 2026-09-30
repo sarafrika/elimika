@@ -18,7 +18,9 @@ import java.util.stream.Collectors;
  *     <li>every value is rendered as a double-quoted string with {@code \} and {@code "} escaped,
  *     numbers included - the engine compares quoted numbers numerically;</li>
  *     <li>attribute names are checked against {@code [A-Za-z0-9_.]+} and rejected otherwise;</li>
- *     <li>every compound operand is parenthesised, so precedence never depends on the input.</li>
+ *     <li>every compound operand is parenthesised, so precedence never depends on the input;</li>
+ *     <li>the only unquoted values are the geo functions' coordinates and radius, which are typed
+ *     numbers ({@code double}, {@code int}) and so cannot carry syntax.</li>
  * </ul>
  */
 public final class MeilisearchFilterRenderer {
@@ -42,6 +44,8 @@ public final class MeilisearchFilterRenderer {
                     + "]";
             case SearchFilter.Range range -> renderRange(range);
             case SearchFilter.IsNull isNull -> attribute(isNull.attribute()) + " IS NULL";
+            case SearchFilter.GeoRadius geo -> "_geoRadius(" + coordinate(geo.lat()) + ", " + coordinate(geo.lng())
+                    + ", " + geo.meters() + ")";
             case SearchFilter.Not not -> "NOT (" + render(not.filter()) + ")";
             case SearchFilter.And and -> join(and.filters(), " AND ");
             case SearchFilter.Or or -> join(or.filters(), " OR ");
@@ -50,8 +54,23 @@ public final class MeilisearchFilterRenderer {
 
     public static List<String> renderSort(List<SearchSort> sorts) {
         return sorts.stream()
-                .map(sort -> attribute(sort.field()) + ":" + sort.direction().name().toLowerCase(Locale.ROOT))
+                .map(sort -> sortTarget(sort) + ":" + sort.direction().name().toLowerCase(Locale.ROOT))
                 .toList();
+    }
+
+    private static String sortTarget(SearchSort sort) {
+        if (sort.isGeo()) {
+            return "_geoPoint(" + coordinate(sort.origin().lat()) + "," + coordinate(sort.origin().lng()) + ")";
+        }
+        return attribute(sort.field());
+    }
+
+    /**
+     * Coordinates are unquoted - the geo functions take bare numbers - which is safe because they are
+     * finite doubles validated at construction and rendered as plain decimals.
+     */
+    static String coordinate(double value) {
+        return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
     }
 
     /** Validates an attribute name used outside a filter, e.g. in facets or attributesToSearchOn. */

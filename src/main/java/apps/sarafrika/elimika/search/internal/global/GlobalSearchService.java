@@ -262,7 +262,8 @@ public class GlobalSearchService {
                 .distinct()
                 .toList();
         for (String attribute : attributes) {
-            if (!definition.filterableAttributes().contains(attribute)) {
+            if (!definition.filterableAttributes().contains(attribute)
+                    || SearchIndexDefinition.GEO_ATTRIBUTE.equals(attribute)) {
                 throw new IllegalArgumentException("Unsupported facet: " + sanitise(attribute));
             }
         }

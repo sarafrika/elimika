@@ -6,15 +6,17 @@ import java.util.Objects;
 /**
  * One search against one index.
  *
- * @param index    the index to search
- * @param text     the user's query text, or {@code null}/blank to list by filter and sort only
- * @param filter   the caller's own filter (e.g. from {@link SearchParamsTranslator}), or {@code null}
- * @param scope    the visibility boundary - required, and always ANDed with {@code filter}
- * @param sort     orderings over sortable attributes; empty means relevance
- * @param page     0-based page number
- * @param size     page size, 1..{@value #MAX_SIZE}
- * @param facets   attributes to return a facet distribution for
- * @param searchOn restricts {@code text} to these searchable attributes, or {@code null} for all
+ * @param index            the index to search
+ * @param text             the user's query text, or {@code null}/blank to list by filter and sort only
+ * @param filter           the caller's own filter (e.g. from {@link SearchParamsTranslator}), or {@code null}
+ * @param scope            the visibility boundary - required, and always ANDed with {@code filter}
+ * @param sort             orderings over sortable attributes; empty means relevance
+ * @param page             0-based page number
+ * @param size             page size, 1..{@value #MAX_SIZE}
+ * @param facets           attributes to return a facet distribution for
+ * @param searchOn         restricts {@code text} to these searchable attributes, or {@code null} for all
+ * @param matchingStrategy how many query words a document must match, or {@code null} for the engine default
+ *                         ({@link MatchingStrategy#LAST})
  */
 public record SearchRequest(
         String index,
@@ -25,10 +27,26 @@ public record SearchRequest(
         int page,
         int size,
         List<String> facets,
-        List<String> searchOn
+        List<String> searchOn,
+        MatchingStrategy matchingStrategy
 ) {
 
     public static final int MAX_SIZE = 100;
+
+    /**
+     * How the engine treats a query whose words not every document contains.
+     */
+    public enum MatchingStrategy {
+        /** Drop query words from the end until enough documents match - the default. */
+        LAST,
+        /** Every query word must match. */
+        ALL,
+        /**
+         * Drop the most frequent words first, keeping the rare, distinctive ones - suits
+         * "more like this" queries built from another document's text.
+         */
+        FREQUENCY
+    }
 
     public SearchRequest {
         Objects.requireNonNull(index, "index");
@@ -44,9 +62,20 @@ public record SearchRequest(
         searchOn = searchOn == null ? null : List.copyOf(searchOn);
     }
 
+    /** A request with the engine's default matching strategy. */
+    public SearchRequest(String index, String text, SearchFilter filter, SearchScope scope, List<SearchSort> sort,
+                         int page, int size, List<String> facets, List<String> searchOn) {
+        this(index, text, filter, scope, sort, page, size, facets, searchOn, null);
+    }
+
     /** A text search with a filter, relevance-ordered, no facets. */
     public static SearchRequest of(String index, String text, SearchFilter filter, SearchScope scope, int page, int size) {
-        return new SearchRequest(index, text, filter, scope, List.of(), page, size, List.of(), null);
+        return new SearchRequest(index, text, filter, scope, List.of(), page, size, List.of(), null, null);
+    }
+
+    /** This request with the given matching strategy. */
+    public SearchRequest withMatchingStrategy(MatchingStrategy strategy) {
+        return new SearchRequest(index, text, filter, scope, sort, page, size, facets, searchOn, strategy);
     }
 
     public boolean hasText() {

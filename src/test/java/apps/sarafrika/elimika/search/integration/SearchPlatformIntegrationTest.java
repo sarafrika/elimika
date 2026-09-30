@@ -14,6 +14,7 @@ import apps.sarafrika.elimika.shared.search.SearchDocument;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
 import apps.sarafrika.elimika.shared.search.SearchGateway;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.shared.search.SearchHit;
 import apps.sarafrika.elimika.shared.search.SearchIndexAdmin;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
@@ -79,6 +80,7 @@ class SearchPlatformIntegrationTest {
     private static final String MASTER_KEY = "integration-test-master-key-0123456789";
     private static final String CATALOGUE = "test_catalogue";
     private static final String CURRENCIES = "test_currencies";
+    private static final String PLACES = "test_places";
 
     @Container
     @ServiceConnection
@@ -205,6 +207,45 @@ class SearchPlatformIntegrationTest {
         SearchPage afterDelete = gateway.search(SearchRequest.of(CATALOGUE, "java", null,
                 SearchScope.unrestricted("platform-admin"), 0, 10));
         assertThat(uuids(afterDelete.hits())).containsExactlyInAnyOrder(advancedA.uuid(), draftA.uuid());
+    }
+
+    // ===== Geo, ranking score, matching strategy =====
+
+    @Test
+    @DisplayName("A geo radius filter and a distance sort return nearby documents nearest first with distances")
+    void geoRadiusAndDistanceSort() {
+        SearchIndexDefinition places = SearchIndexDefinition.of(PLACES, 1, List.of("name"),
+                List.of("status", SearchIndexDefinition.GEO_ATTRIBUTE),
+                List.of("name", SearchIndexDefinition.GEO_ATTRIBUTE));
+        admin.deleteIndex(PLACES);
+        admin.ensureIndex(PLACES, places);
+
+        Place cbd = new Place(UUID.randomUUID(), "Nairobi CBD hall", "open", new SearchGeoPoint(-1.2864, 36.8172));
+        Place westlands = new Place(UUID.randomUUID(), "Westlands hall", "open", new SearchGeoPoint(-1.2676, 36.8108));
+        Place mombasa = new Place(UUID.randomUUID(), "Mombasa hall", "open", new SearchGeoPoint(-4.0435, 39.6682));
+        Place nowhere = new Place(UUID.randomUUID(), "Unlocated hall", "open", null);
+        gateway.upsert(PLACES, List.of(mombasa, westlands, cbd, nowhere));
+
+        SearchScope open = SearchScope.of(SearchFilter.eq("status", "open"), "open");
+        SearchPage near = gateway.search(new SearchRequest(PLACES, null,
+                SearchFilter.geoRadius(-1.2864, 36.8172, 10_000), open,
+                List.of(SearchSort.geoPoint(-1.2864, 36.8172)), 0, 10, List.of(), null));
+
+        assertThat(uuids(near.hits())).containsExactly(cbd.uuid(), westlands.uuid());
+        assertThat(near.hits().get(0).geoDistanceMeters()).isBetween(0, 50);
+        assertThat(near.hits().get(1).geoDistanceMeters()).isBetween(1_500, 3_000);
+        assertThat(near.hits().get(0).document()).containsKey("_geo").doesNotContainKey("_geoDistance");
+
+        SearchPage everywhere = gateway.search(new SearchRequest(PLACES, "hall", null, open,
+                List.of(SearchSort.geoPoint(-4.05, 39.67)), 0, 10, List.of(), null));
+        assertThat(uuids(everywhere.hits()).subList(0, 3)).containsExactly(mombasa.uuid(), cbd.uuid(), westlands.uuid());
+        assertThat(everywhere.hits()).allSatisfy(hit -> assertThat(hit.rankingScore()).isNotNull().isBetween(0.0, 1.0));
+
+        // Every word must match under ALL; LAST drops trailing words until something matches.
+        SearchRequest partial = SearchRequest.of(PLACES, "westlands zanzibar", null, open, 0, 10);
+        assertThat(gateway.search(partial.withMatchingStrategy(SearchRequest.MatchingStrategy.ALL)).hits()).isEmpty();
+        assertThat(uuids(gateway.search(partial.withMatchingStrategy(SearchRequest.MatchingStrategy.LAST)).hits()))
+                .containsExactly(westlands.uuid());
     }
 
     // ===== Durable listener =====
@@ -426,6 +467,14 @@ class SearchPlatformIntegrationTest {
         public long countIndexable() {
             return rows.values().stream().filter(item -> !hidden.contains(item.uuid())).count();
         }
+    }
+
+    record Place(
+            @JsonProperty("uuid") UUID uuid,
+            @JsonProperty("name") String name,
+            @JsonProperty("status") String status,
+            @JsonProperty("_geo") SearchGeoPoint geo
+    ) implements SearchDocument {
     }
 
     record CurrencyDocument(

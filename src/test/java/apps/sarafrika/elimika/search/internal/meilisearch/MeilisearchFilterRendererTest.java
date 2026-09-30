@@ -109,6 +109,36 @@ class MeilisearchFilterRendererTest {
     }
 
     @Test
+    @DisplayName("A geo radius renders as _geoRadius(lat, lng, metres) and composes with other filters")
+    void rendersGeoRadius() {
+        assertThat(MeilisearchFilterRenderer.render(SearchFilter.geoRadius(-1.2921, 36.8219, 5000)))
+                .isEqualTo("_geoRadius(-1.2921, 36.8219, 5000)");
+        assertThat(MeilisearchFilterRenderer.render(SearchFilter.eq("status", "published"),
+                SearchFilter.geoRadius(0.0000001, -180, 1)))
+                .isEqualTo("(status = \"published\") AND (_geoRadius(0.0000001, -180, 1))");
+    }
+
+    @Test
+    @DisplayName("A distance sort renders as _geoPoint(lat,lng):asc alongside plain sorts")
+    void rendersGeoPointSort() {
+        assertThat(MeilisearchFilterRenderer.renderSort(List.of(SearchSort.geoPoint(-1.2921, 36.8219),
+                SearchSort.desc("rating"))))
+                .containsExactly("_geoPoint(-1.2921,36.8219):asc", "rating:desc");
+    }
+
+    @Test
+    @DisplayName("Geo inputs are validated when built, so the renderer never sees an invalid coordinate")
+    void rejectsInvalidGeo() {
+        assertThatThrownBy(() -> SearchFilter.geoRadius(91, 0, 10)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchFilter.geoRadius(0, -180.5, 10)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchFilter.geoRadius(Double.NaN, 0, 10)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchFilter.geoRadius(0, 0, 0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchSort.geoPoint(0, Double.POSITIVE_INFINITY))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchSort.asc("_geo")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     @DisplayName("Unsupported value types never reach the renderer")
     void rejectsUnsupportedValues() {
         assertThatThrownBy(() -> SearchFilter.eq("a", new Object())).isInstanceOf(IllegalArgumentException.class);

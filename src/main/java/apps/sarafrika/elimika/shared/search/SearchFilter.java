@@ -67,6 +67,14 @@ public sealed interface SearchFilter {
         return new IsNull(attribute);
     }
 
+    /**
+     * Documents whose {@code _geo} point lies within {@code meters} of the given point. The index must
+     * list {@link SearchIndexDefinition#GEO_ATTRIBUTE} among its filterable attributes.
+     */
+    static SearchFilter geoRadius(double lat, double lng, int meters) {
+        return new GeoRadius(lat, lng, meters);
+    }
+
     static SearchFilter not(SearchFilter filter) {
         return new Not(filter);
     }
@@ -137,6 +145,19 @@ public sealed interface SearchFilter {
     record IsNull(String attribute) implements SearchFilter {
         public IsNull {
             Objects.requireNonNull(attribute, "attribute");
+        }
+    }
+
+    /**
+     * A circle around a point on the index's {@code _geo} attribute. Coordinates are WGS84 degrees;
+     * the radius is in metres and must be positive.
+     */
+    record GeoRadius(double lat, double lng, int meters) implements SearchFilter {
+        public GeoRadius {
+            SearchGeoPoint.requireValid(lat, lng);
+            if (meters <= 0) {
+                throw new IllegalArgumentException("A geo radius must be a positive number of metres");
+            }
         }
     }
 

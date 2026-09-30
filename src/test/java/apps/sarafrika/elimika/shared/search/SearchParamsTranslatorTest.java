@@ -158,4 +158,21 @@ class SearchParamsTranslatorTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported sort property: status");
     }
+
+    @Test
+    @DisplayName("_geo is never a plain filter or sort key, even when the index lists it")
+    void geoIsNotAPlainKey() {
+        SearchIndexDefinition geo = SearchIndexDefinition.of("venues", 1, List.of("name"),
+                List.of("status", "_geo"), List.of("name", "_geo"));
+
+        assertThat(geo.geoFilterable()).isTrue();
+        assertThat(geo.geoSortable()).isTrue();
+        assertThat(DEFINITION.geoFilterable()).isFalse();
+        assertThatThrownBy(() -> SearchParamsTranslator.toFilter(params("_geo", "1,2"), geo))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchParamsTranslator.toFilter(params("geo_eq", "1"), geo))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SearchParamsTranslator.toSort("_geo,asc", geo))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
