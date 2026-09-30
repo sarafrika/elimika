@@ -190,6 +190,9 @@ A "see all results" page for one type: `{ content: [GlobalSearchHit], metadata: 
   translated by `SearchParamsTranslator` against the index's filterable allow-list; `facets` must name
   filterable attributes; `sort` is `field[,asc|desc]` over sortable attributes. Anything else is a 400.
 - `page` ≥ 0, `size` 1-100 (default 20).
+- `near=lat,lng&radius_km=` is a near-me search for `instructors`, `classes` and `marketplace_jobs` only
+  (any other type is a 400), signed-in callers only (403). Hits carry `distance_band`; see
+  [Near-me search](#near-me-search).
 - The OpenAPI description of `searchByType` ends with a **filter map**: one row per type listing its
   filterable and sortable attributes, generated from the providers' index definitions
   (`SearchTypeFilterDocumentation`), so it always matches what the endpoint accepts.
@@ -251,9 +254,9 @@ thread and run one after another.
 | `courses` (v3) | name, category_names, creator_name, difficulty_name, description, objectives | status, active, admin_approved, is_public, course_creator_uuid, category_uuids, difficulty_uuid, is_free, price, uuid, created_at, level_order, prerequisite_uuids, age_lower_limit, age_upper_limit, skill_uuids | name, created_at, price, rating_avg, enrolment_count, completion_rate, popularity_30d, rating_bayes | `is_public` OR own creator OR related (enrolled / manageable) course | `Course`, `CourseCategoryMapping`, `CourseReview`, `CourseEnrollment`, `CoursePrerequisite`, `CourseSkill`; fan-out on `Category`, `DifficultyLevel` | `creator_name` (course-creator module); `completion_rate`, `popularity_30d`, `rating_bayes` from `course_learning_stats` (01:00 UTC job) until the nightly rebuild |
 | `programs` | title, course_names, category_name, creator_name, description | status, is_published, admin_approved, active, is_public, course_creator_uuid, … | title, created_at | `is_public` OR authored under own identities | `TrainingProgram`, `ProgramCourse`; fan-out on `Course`, `Category` | `creator_name` until the nightly rebuild |
 | `rubrics` | title, rubric_type, description | is_public, is_active, status, course_creator_uuid, rubric_type (stored lower-case, schema v2), usage_count, uuid, created_at | title, created_at, usage_count | public OR own; discovery: public AND active | `AssessmentRubric`, `CourseRubricAssociation` | none |
-| `classes` | title, course_name, program_title, organisation_name, branch_name, instructor_name, location_name, description | uuid, course_uuid, program_uuid, organisation_uuid, branch_uuid, default_instructor_uuid, category_uuid, is_active, class_visibility, content_approved, location_type, session_format, starts_at, registration_closes_at, sale_price, created_at | starts_at, sale_price, created_at, title | active `PUBLIC` OR staffed org OR taught OR enrolled | `ClassDefinition`, `ClassSessionTemplate`; `UserUpdateEvent` re-indexes the classes of a renamed instructor | course/program names and approval, organisation and branch names until the nightly rebuild (module reads re-check approval and visibility on the rows) |
-| `marketplace_jobs` (v2) | title, course_name, program_title, required_skill_names, organisation_name, branch_name, location_name, target_groups, description | status, organisation_uuid, branch_uuid, course_uuid, program_uuid, category_uuid, location_type, session_format, starts_at, registration_closes_at, uuid, created_at, required_skill_uuids | created_at, starts_at | `OPEN`; staff of the filtered organisation see it in any status | `ClassMarketplaceJob`, `ClassMarketplaceJobSessionTemplate`, `ClassMarketplaceJobRequiredSkill`; `CourseSkillsChangedEvent` re-indexes the course's jobs; bulk deletes enqueue explicitly | course/program, organisation, branch and skill names until the nightly rebuild |
-| `instructors` (v2) | full_name, professional_headline, skills, experience_positions, experience_organisations, location_name, bio | admin_verified, active, skills, skill_levels, skill_uuids, location_name, uuid, created_at | full_name, rating_avg, review_count, created_at | verified OR own profile OR pinned by `uuid` | `Instructor`, `InstructorSkill`, `InstructorExperience`, `InstructorReview`; `UserUpdateEvent` (name kept by a DB trigger) | none |
+| `classes` (v2) | title, course_name, program_title, organisation_name, branch_name, instructor_name, location_name, description | uuid, course_uuid, program_uuid, organisation_uuid, branch_uuid, default_instructor_uuid, category_uuid, is_active, class_visibility, content_approved, location_type, session_format, starts_at, registration_closes_at, sale_price, created_at, `_geo` | starts_at, sale_price, created_at, title, `_geo` | active `PUBLIC` OR staffed org OR taught OR enrolled | `ClassDefinition`, `ClassSessionTemplate`; `UserUpdateEvent` re-indexes the classes of a renamed instructor | course/program names and approval, organisation and branch names until the nightly rebuild (module reads re-check approval and visibility on the rows) |
+| `marketplace_jobs` (v3) | title, course_name, program_title, required_skill_names, organisation_name, branch_name, location_name, target_groups, description | status, organisation_uuid, branch_uuid, course_uuid, program_uuid, category_uuid, location_type, session_format, starts_at, registration_closes_at, uuid, created_at, required_skill_uuids, `_geo` | created_at, starts_at, `_geo` | `OPEN`; staff of the filtered organisation see it in any status | `ClassMarketplaceJob`, `ClassMarketplaceJobSessionTemplate`, `ClassMarketplaceJobRequiredSkill`; `CourseSkillsChangedEvent` re-indexes the course's jobs; bulk deletes enqueue explicitly | course/program, organisation, branch and skill names until the nightly rebuild |
+| `instructors` (v3) | full_name, professional_headline, skills, experience_positions, experience_organisations, location_name, bio | admin_verified, active, skills, skill_levels, skill_uuids, location_name, uuid, created_at, `_geo` | full_name, rating_avg, review_count, created_at, `_geo` | verified OR own profile OR pinned by `uuid` | `Instructor`, `InstructorSkill`, `InstructorExperience`, `InstructorReview`; `UserUpdateEvent` (name kept by a DB trigger) | none |
 | `organisations` | name, slug, location, description | active, admin_verified, country, uuid, created_at | name, created_at | active AND verified | `Organisation` | none |
 | `course_content` | title, body | type, course_uuid, lesson_uuid, published, scope, class_definition_uuid, content_type, uuid | lesson_number, display_order, updated_at | `course_uuid` IN managed OR (`course_uuid` IN enrolled AND `published` AND `scope` = COURSE) | `Lesson`, `LessonContent`, `Quiz`, `Assignment`; fan-out on `Lesson` (its children) and `Course` (every item, and the live course of a shadow) | lesson title/number and course name follow within seconds; content type names until the nightly rebuild; hard-deleted lessons' children until the nightly rebuild (the SQL re-check hides them meanwhile) |
 | `people` (schema v2) | full_name, first_name, last_name, email, username, user_no | domains, organisation_uuids, branch_uuids, active, is_platform_admin, is_org_admin, uuid, created_at, email_normalized | full_name, created_at | admins only (every attribute); roster: members of a managed organisation by name and email (`searchOn` adds `email`; a `q` containing `@` is an exact `email_normalized` filter); username and user_no stay admin-only; global search stays names only | `User`, `UserDomainMapping`, `UserOrganisationDomainMapping` | none |
@@ -443,8 +446,11 @@ The engine-neutral contract carries location and relevance without exposing Meil
 A document carries its point as `@JsonProperty("_geo") SearchGeoPoint geo` (`{"lat":..,"lng":..}`),
 or `null` to stay out of geo queries. `SearchIndexDefinition.GEO_ATTRIBUTE` names the attribute.
 `_geo` is never a plain `searchParams` filter, sort or facet key: `SearchParamsTranslator` and the
-facet check refuse it, so only code can build a geo query. `_geo` stays in `SearchHit.document()`;
-other `_`-prefixed engine fields are stripped. With search disabled, every call still throws
+facet check refuse it, so only code can build a geo query. The gateway keeps `_geo` in
+`SearchHit.document()` when the engine returns it, and strips other `_`-prefixed engine fields; but
+every index that stores `_geo` today leaves it out of `displayedAttributes`
+(`SearchDocumentAttributes.displayedWithoutGeo`), so it never comes back. Meilisearch then also omits
+`_geoDistance`, which is why near-me bands are worked out in the application (below). With search disabled, every call still throws
 `SearchUnavailableException`.
 
 ```
@@ -456,6 +462,67 @@ request (lat,lng,radius)  ─►  SearchFilter.geoRadius + SearchSort.geoPoint
                                    ▼
         SearchHit(uuid, document incl. _geo, formatted, rankingScore, geoDistanceMeters)
 ```
+
+## Near-me search
+
+`near=lat,lng&radius_km=` finds instructors, classes and marketplace jobs around a point, with or
+without `q`, on `GET /api/v1/instructors`, `GET /api/v1/classes`, `GET /api/v1/classes/jobs` and
+`GET /api/v1/search/{instructors|classes|marketplace_jobs}`.
+
+```
+UI (browser geolocation or a picked place)
+  │  GET /api/v1/instructors?near=-1.2921,36.8219&radius_km=5[&q=…]
+  ▼
+Controller ── NearMe.parse: near rounded to 2 dp (-1.29,36.82), radius clamped 2..100 km (default 10);
+  │           400 on a malformed value (never echoed). near is not stored, not logged, and
+  │           QueryStringRedactor masks near/lat/lng in request_audit_log (near=[redacted:15]).
+  ▼
+Module read path (InstructorSearchReader / ClassDefinitionServiceImpl / ClassMarketplaceJobServiceImpl)
+  │  filter = scope AND caller filters AND _geoRadius(-1.29, 36.82, radius_km * 1000)
+  │  sort   = no q: _geoPoint(...) first · with q: relevance, _geoPoint last as a tie-breaker
+  ▼
+Meilisearch index (`_geo` filterable + sortable, NOT displayed) ── 503 "Search is unavailable" when it
+  │                                                                  cannot answer; no SQL fallback
+  ▼  hit UUIDs
+Hydration (SQL): visibility re-checked; row still locatable (opted-in + verified instructor,
+  │  IN_PERSON/HYBRID class or job); distance band from the row's rounded point to the rounded near
+  ▼
+Response rows: distance_band ("<2 km" | "2-5 km" | "5-10 km" | "10-25 km" | ">25 km"),
+               coordinates rounded to 2 dp; never metres, never the searcher's point
+```
+
+**What gets a `_geo` point** (always through `SearchGeoPoint.rounded`, i.e.
+`CoordinatePrecision.toPublic`, about 1 km):
+
+| Index | Point | Only when |
+|---|---|---|
+| `instructors` | the profile's `lat`/`long` | `location_search_opt_in` AND `admin_verified` AND both coordinates |
+| `classes` | the class's coordinates, else its branch's pin (`TrainingBranchLookupService`) | `location_type` IN_PERSON or HYBRID |
+| `marketplace_jobs` | the job's coordinates, else its branch's pin | `location_type` IN_PERSON or HYBRID |
+| `people`, and every other index | never | - |
+
+Minors are never locatable: only instructors (adults, and only by their own opt-in), venues, classes and
+jobs carry points.
+
+**Instructor opt-in.** `instructors.location_search_opt_in` (`BOOLEAN NOT NULL DEFAULT FALSE`) is set
+by the owner only - not even a platform admin - through
+`PUT /api/v1/instructors/{uuid}/location-search` with `{"enabled": true|false}`. The entity trigger
+re-indexes the profile, adding or dropping its point. The flag appears as `location_search_opt_in` on
+the owner's own profile (single read, list rows and near-me rows) and nowhere else.
+
+**Rules.**
+
+- Instructors keep their usual scope (verified + own profile; admins everything); an unverified or
+  opted-out instructor has no point, so never matches. Near-me on instructors, and on any type through
+  global search, needs a signed-in caller (403 otherwise).
+- `near` alone is enough; `radius_km` without `near` is a 400.
+- **Distance bands are computed in the application.** Meilisearch reports `_geoDistance` only when
+  `_geo` is displayed, and it never is. The module read paths compute the band from the hydrated
+  row's rounded point; global search asks the owning module through
+  `GlobalSearchProvider.nearMePoints(uuids)` (one query per page) and drops a hit that is no longer
+  locatable. Both ends are the same rounded points the engine filtered on (great-circle distance), so
+  the band matches the engine's filter.
+- Global search logs neither `near` nor the engine's error text for a near-me request.
 
 ## Discovery tracking
 
