@@ -44,6 +44,15 @@ public class SearchProperties {
     /** Rows loaded per rebuild batch. */
     private int rebuildBatchSize = 500;
 
+    /**
+     * How many times the startup check tries to create an index and apply its settings before it
+     * gives up on that index (logged at error; the other indexes still go ahead).
+     */
+    private int startupRetryAttempts = 5;
+
+    /** The pause after the first failed startup attempt; it doubles after every further failure. */
+    private Duration startupRetryInitialBackoff = Duration.ofSeconds(1);
+
     private Meilisearch meilisearch = new Meilisearch();
 
     /**
@@ -77,7 +86,14 @@ public class SearchProperties {
 
         private Duration connectTimeout = Duration.ofSeconds(2);
 
+        /** Read timeout for searches and document writes; kept short so a slow engine fails fast. */
         private Duration readTimeout = Duration.ofSeconds(5);
+
+        /**
+         * Read timeout for index administration (create, settings, swap, delete), which the engine
+         * may answer slowly while it is busy with a rebuild.
+         */
+        private Duration adminReadTimeout = Duration.ofSeconds(30);
 
         /** How long a write waits for its engine task to finish before it counts as failed. */
         private Duration taskWaitTimeout = Duration.ofSeconds(30);

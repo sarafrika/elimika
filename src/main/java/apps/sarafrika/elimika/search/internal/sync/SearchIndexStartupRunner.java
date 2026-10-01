@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.shared.search.SearchDocument;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexAdmin;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,6 +24,12 @@ import org.springframework.stereotype.Component;
  *     was built with, and rebuilds it in the background when {@code search.auto-rebuild} is on;</li>
  *     <li>resumes a rebuild that a restart interrupted.</li>
  * </ul>
+ * Creating the index and applying its settings is retried with exponential backoff
+ * ({@code search.startup-retry-attempts}, first pause {@code search.startup-retry-initial-backoff},
+ * doubling): the engine can be slow to answer while another instance is rebuilding. Failed attempts
+ * are logged at warn; only giving up is an error. Each index is prepared on its own, so one that
+ * cannot be prepared never stops the others.
+ * <p>
  * A failure here is logged, never fatal: the application must start even when the engine does not.
  */
 @Slf4j
@@ -36,6 +43,7 @@ public class SearchIndexStartupRunner {
     private final SearchIndexStateStore stateStore;
     private final SearchIndexRebuilder rebuilder;
     private final SearchProperties properties;
+    private final SearchDefinitionResolver resolver;
 
     @EventListener(ApplicationReadyEvent.class)
     public void onReady() {
@@ -51,7 +59,7 @@ public class SearchIndexStartupRunner {
 
     private void prepare(SearchIndexDefinition definition) {
         String index = definition.name();
-        admin.ensureIndex(index, definition);
+        ensureWithRetry(index, resolver.effective(definition));
         SearchIndexState state = stateStore.getOrCreate(index);
 
         if (state.getStatus() == SearchIndexStatus.REBUILDING) {
@@ -70,6 +78,36 @@ public class SearchIndexStartupRunner {
                                 + "POST /api/v1/admin/search/indexes/{}/rebuild or set search.auto-rebuild=true",
                         index, state.getSchemaVersion(), definition.schemaVersion(), index);
             }
+        }
+    }
+
+    /** Creates the index and applies its settings, retrying with exponential backoff; throws the last failure. */
+    void ensureWithRetry(String index, SearchIndexDefinition definition) {
+        int attempts = Math.max(1, properties.getStartupRetryAttempts());
+        Duration pause = properties.getStartupRetryInitialBackoff() == null
+                ? Duration.ofSeconds(1) : properties.getStartupRetryInitialBackoff();
+        for (int attempt = 1; ; attempt++) {
+            try {
+                admin.ensureIndex(index, definition);
+                return;
+            } catch (RuntimeException ex) {
+                if (attempt >= attempts) {
+                    throw ex;
+                }
+                log.warn("Preparing search index {} failed (attempt {}/{}): {}; retrying in {}",
+                        index, attempt, attempts, ex.getMessage(), pause);
+                sleep(pause);
+                pause = pause.multipliedBy(2);
+            }
+        }
+    }
+
+    private static void sleep(Duration pause) {
+        try {
+            Thread.sleep(pause.toMillis());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to retry a search index", ex);
         }
     }
 }

@@ -60,6 +60,8 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
     private static final Duration MAX_POLL = Duration.ofSeconds(1);
 
     private final RestClient client;
+    /** Same engine, longer read timeout: index creation, settings, swaps and deletes. */
+    private final RestClient adminClient;
     private final ObjectMapper objectMapper;
     private final Duration taskWaitTimeout;
 
@@ -69,9 +71,19 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
                 .connectTimeout(settings.getConnectTimeout())
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(settings.getReadTimeout());
+        this.client = client(builder, settings, httpClient, settings.getReadTimeout());
+        Duration adminTimeout = settings.getAdminReadTimeout() == null
+                || settings.getAdminReadTimeout().compareTo(settings.getReadTimeout()) < 0
+                ? settings.getReadTimeout() : settings.getAdminReadTimeout();
+        this.adminClient = client(builder, settings, httpClient, adminTimeout);
+        this.objectMapper = objectMapper;
+        this.taskWaitTimeout = settings.getTaskWaitTimeout();
+    }
 
+    private static RestClient client(RestClient.Builder builder, SearchProperties.Meilisearch settings,
+                                     HttpClient httpClient, Duration readTimeout) {
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(readTimeout);
         RestClient.Builder configured = builder.clone()
                 .baseUrl(settings.getHost())
                 .requestFactory(requestFactory)
@@ -79,9 +91,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         if (StringUtils.hasText(settings.getApiKey())) {
             configured.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + settings.getApiKey());
         }
-        this.client = configured.build();
-        this.objectMapper = objectMapper;
-        this.taskWaitTimeout = settings.getTaskWaitTimeout();
+        return configured.build();
     }
 
     // ===== SearchGateway =====
@@ -211,7 +221,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
 
     @Override
     public void ensureIndex(String uid, SearchIndexDefinition definition) {
-        JsonNode created = call("create index " + uid, () -> client.post()
+        JsonNode created = call("create index " + uid, () -> adminClient.post()
                 .uri("/indexes")
                 .body(Map.of("uid", uid, "primaryKey", definition.primaryKey()))
                 .retrieve()
@@ -220,7 +230,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         if (!outcome.succeeded() && !"index_already_exists".equals(outcome.errorCode())) {
             throw outcome.failure();
         }
-        JsonNode updated = call("update settings of " + uid, () -> client.patch()
+        JsonNode updated = call("update settings of " + uid, () -> adminClient.patch()
                 .uri("/indexes/{uid}/settings", uid)
                 .body(settings(definition))
                 .retrieve()
@@ -230,7 +240,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
 
     @Override
     public void swapIndexes(String first, String second) {
-        JsonNode task = call("swap " + first + " and " + second, () -> client.post()
+        JsonNode task = call("swap " + first + " and " + second, () -> adminClient.post()
                 .uri("/swap-indexes")
                 .body(List.of(Map.of("indexes", List.of(first, second))))
                 .retrieve()
@@ -242,7 +252,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
     public void deleteIndex(String uid) {
         JsonNode task;
         try {
-            task = client.delete().uri("/indexes/{uid}", uid).retrieve().body(JsonNode.class);
+            task = adminClient.delete().uri("/indexes/{uid}", uid).retrieve().body(JsonNode.class);
         } catch (RestClientResponseException ex) {
             if (ex.getStatusCode().value() == 404) {
                 return;

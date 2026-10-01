@@ -188,6 +188,9 @@ search:
   resubmit-interval: ${SEARCH_RESUBMIT_INTERVAL:PT5M}
   resubmit-older-than: ${SEARCH_RESUBMIT_OLDER_THAN:PT5M}
   rebuild-batch-size: ${SEARCH_REBUILD_BATCH_SIZE:500}
+  # Startup ensure-index/settings retries per index: attempts, and the first pause (doubles each time).
+  startup-retry-attempts: ${SEARCH_STARTUP_RETRY_ATTEMPTS:5}
+  startup-retry-initial-backoff: ${SEARCH_STARTUP_RETRY_INITIAL_BACKOFF:PT1S}
   # Nightly blue/green rebuild of every index (UTC), which refreshes names copied from other modules
   # (organisation, branch, course, program, instructor, creator). "-" disables it.
   full-rebuild-cron: ${SEARCH_FULL_REBUILD_CRON:0 30 1 * * *}
@@ -197,6 +200,8 @@ search:
     api-key: ${SEARCH_MEILISEARCH_API_KEY:}
     connect-timeout: ${SEARCH_MEILISEARCH_CONNECT_TIMEOUT:PT2S}
     read-timeout: ${SEARCH_MEILISEARCH_READ_TIMEOUT:PT5S}
+    # Index creation, settings, swaps and deletes can be slow while the engine is busy rebuilding.
+    admin-read-timeout: ${SEARCH_MEILISEARCH_ADMIN_READ_TIMEOUT:PT30S}
     task-wait-timeout: ${SEARCH_MEILISEARCH_TASK_WAIT_TIMEOUT:PT30S}
 
 mpesa:
