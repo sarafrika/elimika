@@ -1,3 +1,38 @@
+# [2.158.0](https://github.com/sarafrika/elimika/compare/v2.157.0...v2.158.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **classes:** apply class listing filters without q by browsing the classes index instead of dropping them ([1b37ef2](https://github.com/sarafrika/elimika/commit/1b37ef2daebec531b91b1e4c46e7d7dc68194764))
+* **classes:** keep a class's or marketplace job's own coordinates over its branch pin, falling back to the branch only when it has none ([0463a31](https://github.com/sarafrika/elimika/commit/0463a317ccc8077e7e79168d09028cbd61d01523))
+* **course:** give the catalogue search its own operation id so it no longer clashes with the commerce catalogue search ([9492449](https://github.com/sarafrika/elimika/commit/9492449d7db260504de9127c33faf8fbf6fcac8f))
+* **course:** grant organisation course-content reads to staff only, not to the organisation's learners ([32061b4](https://github.com/sarafrika/elimika/commit/32061b46d00d3f35b751f5256d2a760ef1804257))
+* **course:** stop serving the prospect course summary for drafts and shadow drafts ([28e9ceb](https://github.com/sarafrika/elimika/commit/28e9ceb284a332f1091b68ee9a27e6e13fa19c42))
+* **onboarding:** let adults onboard as students and route only under-18 invitees to guardian consent ([ca22bb2](https://github.com/sarafrika/elimika/commit/ca22bb247ffac5db0bfd07df8c1af765dd61d228))
+* **search:** reject removed _like/_startswith/_endswith keys with one 400 on every GET listing and on the search-index path ([02d2a24](https://github.com/sarafrika/elimika/commit/02d2a24b81494cabaaf14336a57439e86dd546eb))
+* **student:** switch the guardian link request and response to snake_case JSON, accepting camelCase input for one release ([f1c2f6d](https://github.com/sarafrika/elimika/commit/f1c2f6df1c67761d3b53a412b99a7bdb7e3c3d63))
+
+
+### Features
+
+* **classes:** count active public classes per course in one grouped lookup ([6c77e98](https://github.com/sarafrika/elimika/commit/6c77e981eca33f9c7c994e535665dcaaeeaf48e2))
+* **course:** add catalogue card, level, rating and popularity fields to the programs index (schema v2) ([f4ebe89](https://github.com/sarafrika/elimika/commit/f4ebe895cff250ba6b982499f173120506e6acdd))
+* **course:** add the public catalogue search across courses and programmes with disjunctive facets ([1755288](https://github.com/sarafrika/elimika/commit/1755288ff3c34485344126e2615e899229932cd3))
+* **course:** allow anonymous reads of public courses, their prerequisites and skills without revenue terms ([9eb6d61](https://github.com/sarafrika/elimika/commit/9eb6d6157a7ef4bed2153ab938b6a2ff4c713976))
+* **course:** search the admin pending-programs queue with q through the programs index ([4b2f2ed](https://github.com/sarafrika/elimika/commit/4b2f2ed6950ac51d9a6c5e016b0356284e30d8de))
+* **instructor:** add rating_avg and review_count to instructor list and search rows from one aggregate query per page ([d817808](https://github.com/sarafrika/elimika/commit/d81780898a027ee51566e27804f050abe4bab93a))
+* **local:** add a self-contained local stack with Keycloak realm, seed and search/permission smoke suite ([9861acb](https://github.com/sarafrika/elimika/commit/9861acba3c798e723f5afebe1267ecc4dbc2961b))
+* **search:** add a sorted, offset-paged federated search to the search gateway ([03003c6](https://github.com/sarafrika/elimika/commit/03003c6e755922cebd1bddcfbc61ab3373cf0525))
+* **search:** add course and lesson context to global search hits for course content and classes ([6f50cbc](https://github.com/sarafrika/elimika/commit/6f50cbc452756880f6491e690d1a3fc6a81a1996))
+* **search:** apply skill names and aliases as Meilisearch synonyms on courses, jobs and instructors with a refresh on taxonomy changes ([d9eafd4](https://github.com/sarafrika/elimika/commit/d9eafd4e5b03f6e96b55834becc3738ce6e95535))
+* **search:** retry startup ensure-index with exponential backoff per index and give admin calls a longer read timeout ([464c07f](https://github.com/sarafrika/elimika/commit/464c07f456b155ea9de640d39b841e49d30ba7ff))
+* **tenancy:** add rate-limited exact user number lookup for wallet transfer recipients ([5082e46](https://github.com/sarafrika/elimika/commit/5082e463abff0d960cfbc198c73d7012ae29642b))
+
+
+### Performance Improvements
+
+* **classes:** resolve branch names and pins for search indexing with one batch tenancy lookup ([f38dfca](https://github.com/sarafrika/elimika/commit/f38dfcab80d8e27e313dc063244c73f93caff6c9))
+
 # [2.157.0](https://github.com/sarafrika/elimika/compare/v2.156.0...v2.157.0) (2026-09-30)
 
 
