@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.classes.spi;
 import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount;
+import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 
 import java.util.ArrayList;
@@ -194,6 +195,15 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
             return Map.of();
         }
         return toCountMap(classDefinitionRepository.countActiveByCourseAndOrganisation(courseUuid, requested));
+    }
+
+    @Override
+    public Map<UUID, Long> countActivePublicClassesByCourse(Collection<UUID> courseUuids) {
+        Collection<UUID> requested = distinct(courseUuids);
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        return toCountMap(classDefinitionRepository.countActiveByCourseAndVisibility(requested, ClassVisibility.PUBLIC));
     }
 
     private static Collection<UUID> distinct(Collection<UUID> uuids) {

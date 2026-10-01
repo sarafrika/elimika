@@ -114,6 +114,15 @@ public interface ClassDefinitionLookupService {
      */
     Map<UUID, Long> countActiveCourseClassesByOrganisation(UUID courseUuid, Collection<UUID> organisationUuids);
 
+    /**
+     * How many active, public classes deliver each of these courses, in one grouped query - the
+     * "N classes" figure on a public catalogue card, for a whole page of courses at once.
+     *
+     * @param courseUuids the courses to count for; nulls are ignored
+     * @return active public class count keyed by course UUID, omitting courses with none
+     */
+    Map<UUID, Long> countActivePublicClassesByCourse(Collection<UUID> courseUuids);
+
     default Optional<ClassDefinitionSnapshot> findByUuidWithoutCourse(UUID classDefinitionUuid) {
         return findByUuid(classDefinitionUuid).map(snapshot ->
                 new ClassDefinitionSnapshot(

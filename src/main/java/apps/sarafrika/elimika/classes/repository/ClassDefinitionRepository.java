@@ -116,4 +116,20 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
             """)
     List<TrainerClassCount> countActiveByCourseAndOrganisation(@Param("courseUuid") UUID courseUuid,
                                                                @Param("organisationUuids") Collection<UUID> organisationUuids);
+
+    /**
+     * Active class counts per course in the given visibility, grouped in one query. The grouping key
+     * travels in {@link TrainerClassCount#trainerUuid()} - here it is the course.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount(
+                       cd.courseUuid, COUNT(cd))
+            FROM ClassDefinition cd
+            WHERE cd.courseUuid IN :courseUuids
+              AND cd.isActive = true
+              AND cd.classVisibility = :visibility
+            GROUP BY cd.courseUuid
+            """)
+    List<TrainerClassCount> countActiveByCourseAndVisibility(@Param("courseUuids") Collection<UUID> courseUuids,
+                                                             @Param("visibility") apps.sarafrika.elimika.shared.enums.ClassVisibility visibility);
 }
