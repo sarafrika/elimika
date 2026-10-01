@@ -1,3 +1,16 @@
+# [2.159.0](https://github.com/sarafrika/elimika/compare/v2.158.1...v2.159.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **course:** stop duplicate training requirements from re-submitted draft edits, dedupe existing rows and add a unique guard ([3152a8b](https://github.com/sarafrika/elimika/commit/3152a8be64dc0106bd8c72d96b3a8bfcd9465bae))
+
+
+### Features
+
+* **course:** add public GET /courses/{uuid}/open-classes and class-fee price_from and open_class_count on catalogue cards ([25a9894](https://github.com/sarafrika/elimika/commit/25a9894ffeb0d9339ff8f88e346834d69e7b8c10))
+* **course:** replace open-class seat counts with an OPEN/FEW_LEFT/FULL availability band and keep full classes out of price_from and open_class_count ([cb25573](https://github.com/sarafrika/elimika/commit/cb25573fb6f5d732f03969896ed54242c9ced9e1))
+
 ## [2.158.1](https://github.com/sarafrika/elimika/compare/v2.158.0...v2.158.1) (2026-10-01)
 
 
