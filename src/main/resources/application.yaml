@@ -143,6 +143,16 @@ storage:
     assignments: ${ASSIGNMENTS_FOLDER:assignments}
     temp: ${TEMP_FOLDER:temp}
 
+# Embedded Tomcat. Bounded so the worker pool stays proportional to the database pool (DB_POOL_MAX):
+# 200 default threads all queueing on a 20-connection pool only multiplies latency and memory. Excess
+# connections wait in the accept queue, and beyond that are refused, so overload sheds load early.
+server:
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:60}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+    connection-timeout: 10s
+
 logging:
   level:
     root: INFO

@@ -20,10 +20,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +34,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.sql.SQLTransientConnectionException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +42,20 @@ import java.util.UUID;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    /** Seconds a client should wait before retrying when no database connection could be acquired. */
+    private static final String DATABASE_BUSY_RETRY_AFTER_SECONDS = "2";
+
+    /**
+     * No pooled database connection became free within the Hikari acquire timeout. This is overload, not a
+     * server fault: answer 503 with Retry-After so clients and load balancers back off, and keep the request
+     * thread free instead of letting it fail as a 500.
+     */
+    @ExceptionHandler({CannotGetJdbcConnectionException.class, CannotCreateTransactionException.class,
+            SQLTransientConnectionException.class})
+    public ResponseEntity<ApiResponse<Void>> handleDatabaseConnectionUnavailable(Exception ex) {
+        return databaseBusy(ex);
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleRecordNotFoundException(ResourceNotFoundException ex) {
@@ -194,6 +212,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataAccessException(DataAccessException ex) {
+        if (isConnectionUnavailable(ex)) {
+            return databaseBusy(ex);
+        }
         String errorId = UUID.randomUUID().toString();
         log.error("Database access error [errorId={}]", errorId, ex);
 
@@ -281,6 +302,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
+        if (isConnectionUnavailable(ex)) {
+            return databaseBusy(ex);
+        }
         String errorId = UUID.randomUUID().toString();
         log.error("Unexpected error occurred [errorId={}]", errorId, ex);
 
@@ -319,6 +343,34 @@ public class GlobalExceptionHandler {
         while (current != null) {
             String message = current.getMessage();
             if (message != null && message.contains(value)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private ResponseEntity<ApiResponse<Void>> databaseBusy(Exception ex) {
+        log.warn("No database connection available; answering 503: {}", ex.getMessage());
+        log.debug("Database connection unavailable", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, DATABASE_BUSY_RETRY_AFTER_SECONDS)
+                .body(ApiResponse.error("Service temporarily unavailable",
+                        "The server is busy; please retry shortly"));
+    }
+
+    /**
+     * True when the failure, at any depth, is a connection-pool acquire timeout. Hibernate and Spring wrap
+     * Hikari's {@link SQLTransientConnectionException} differently depending on where it surfaced (transaction
+     * begin, repository call, lazy load), so the cause chain is the reliable signal.
+     */
+    private boolean isConnectionUnavailable(Throwable throwable) {
+        Throwable current = throwable;
+        int depth = 0;
+        while (current != null && depth++ < 16) {
+            if (current instanceof SQLTransientConnectionException
+                    || current instanceof CannotGetJdbcConnectionException
+                    || current instanceof CannotCreateTransactionException) {
                 return true;
             }
             current = current.getCause();
