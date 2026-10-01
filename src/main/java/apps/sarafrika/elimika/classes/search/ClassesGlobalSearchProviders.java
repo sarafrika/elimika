@@ -19,7 +19,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -57,8 +59,10 @@ public final class ClassesGlobalSearchProviders {
             if (uuids == null || uuids.isEmpty()) {
                 return points;
             }
-            var branchPins = BranchLocationResolver.branchPinMemo();
-            for (ClassDefinition definition : classDefinitionRepository.findByUuidIn(uuids)) {
+            List<ClassDefinition> definitions = classDefinitionRepository.findByUuidIn(uuids);
+            var branchPins = branchLocationResolver.loadBranchPins(
+                    definitions.stream().map(ClassDefinition::getBranchUuid).filter(Objects::nonNull).distinct().toList());
+            for (ClassDefinition definition : definitions) {
                 SearchGeoPoint point = branchLocationResolver.searchPoint(definition.getOrganisationUuid(),
                         definition.getBranchUuid(), definition.getLocationType(), definition.getLocationLatitude(),
                         definition.getLocationLongitude(), branchPins);
@@ -128,8 +132,10 @@ public final class ClassesGlobalSearchProviders {
             if (uuids == null || uuids.isEmpty()) {
                 return points;
             }
-            var branchPins = BranchLocationResolver.branchPinMemo();
-            for (ClassMarketplaceJob job : jobRepository.findByUuidIn(uuids)) {
+            List<ClassMarketplaceJob> jobs = jobRepository.findByUuidIn(uuids);
+            var branchPins = branchLocationResolver.loadBranchPins(
+                    jobs.stream().map(ClassMarketplaceJob::getBranchUuid).filter(Objects::nonNull).distinct().toList());
+            for (ClassMarketplaceJob job : jobs) {
                 SearchGeoPoint point = branchLocationResolver.searchPoint(job.getOrganisationUuid(),
                         job.getBranchUuid(), job.getLocationType(), job.getLocationLatitude(),
                         job.getLocationLongitude(), branchPins);

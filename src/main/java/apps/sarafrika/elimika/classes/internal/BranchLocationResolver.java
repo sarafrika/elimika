@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -96,7 +97,8 @@ public class BranchLocationResolver {
         }
         Optional<BranchLocation> branch = branchPins.computeIfAbsent(branchUuid,
                 ignored -> trainingBranchLookupService.findBranch(organisationUuid, branchUuid));
-        return branch.filter(BranchLocation::hasPin)
+        return branch.filter(location -> organisationUuid.equals(location.organisationUuid()))
+                .filter(BranchLocation::hasPin)
                 .map(pin -> SearchGeoPoint.rounded(pin.latitude(), pin.longitude()))
                 .orElse(null);
     }
@@ -104,6 +106,56 @@ public class BranchLocationResolver {
     /** A fresh memo for {@link #searchPoint}. */
     public static Map<UUID, Optional<BranchLocation>> branchPinMemo() {
         return new HashMap<>();
+    }
+
+    /**
+     * A memo for {@link #searchPoint} pre-filled from one batch lookup: every requested branch is
+     * answered (empty when unknown or deleted), so the batch never falls back to per-branch reads.
+     */
+    public static Map<UUID, Optional<BranchLocation>> branchPinMemo(Map<UUID, BranchLocation> branches,
+                                                                    Collection<UUID> branchUuids) {
+        Map<UUID, Optional<BranchLocation>> memo = new HashMap<>();
+        for (UUID branchUuid : branchUuids) {
+            if (branchUuid != null) {
+                memo.put(branchUuid, Optional.ofNullable(branches.get(branchUuid)));
+            }
+        }
+        return memo;
+    }
+
+    /** {@link #branchPinMemo(Map, Collection)} loaded with one lookup for the given branches. */
+    public Map<UUID, Optional<BranchLocation>> loadBranchPins(Collection<UUID> branchUuids) {
+        return branchPinMemo(branches(branchUuids), branchUuids);
+    }
+
+    /** Non-deleted branches for an indexing batch, in one lookup. */
+    public Map<UUID, BranchLocation> branches(Collection<UUID> branchUuids) {
+        return branchUuids == null || branchUuids.isEmpty() ? Map.of()
+                : trainingBranchLookupService.findBranches(branchUuids);
+    }
+
+    /**
+     * Branch names from an already loaded batch; only branches missing from it (deleted ones, which
+     * keep their historical label) cost a second lookup.
+     */
+    public Map<UUID, String> branchNames(Map<UUID, BranchLocation> branches, Collection<UUID> branchUuids) {
+        Map<UUID, String> names = new HashMap<>();
+        List<UUID> missing = new ArrayList<>();
+        for (UUID branchUuid : branchUuids) {
+            if (branchUuid == null) {
+                continue;
+            }
+            BranchLocation branch = branches.get(branchUuid);
+            if (branch == null) {
+                missing.add(branchUuid);
+            } else if (branch.name() != null) {
+                names.put(branchUuid, branch.name());
+            }
+        }
+        if (!missing.isEmpty()) {
+            names.putAll(trainingBranchLookupService.findBranchNames(missing));
+        }
+        return names;
     }
 
     public Optional<String> branchName(UUID branchUuid) {

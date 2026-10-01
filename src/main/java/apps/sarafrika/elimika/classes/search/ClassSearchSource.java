@@ -156,10 +156,12 @@ public class ClassSearchSource implements SearchDocumentSource<ClassSearchDocume
                 : courseInfoService.findApprovedTrainingProgramUuids(programUuids);
         Map<UUID, String> organisationNames = organisationUuids.isEmpty() ? Map.of()
                 : organisationLookupService.findOrganisationNames(organisationUuids);
-        Map<UUID, String> branchNames = branchUuids.isEmpty() ? Map.of() : branchLocationResolver.branchNames(branchUuids);
+        Map<UUID, BranchLocation> branches = branchLocationResolver.branches(branchUuids);
+        Map<UUID, String> branchNames = branchUuids.isEmpty() ? Map.of()
+                : branchLocationResolver.branchNames(branches, branchUuids);
         Map<UUID, InstructorDirectoryEntry> instructors = instructorUuids.isEmpty() ? Map.of()
                 : instructorLookupService.findInstructorDirectoryEntries(instructorUuids);
-        Map<UUID, Optional<BranchLocation>> branchPins = BranchLocationResolver.branchPinMemo();
+        Map<UUID, Optional<BranchLocation>> branchPins = BranchLocationResolver.branchPinMemo(branches, branchUuids);
 
         return classes.stream()
                 .map(definition -> {

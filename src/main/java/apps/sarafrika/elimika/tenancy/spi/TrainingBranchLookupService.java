@@ -16,6 +16,12 @@ public interface TrainingBranchLookupService {
     Optional<BranchLocation> findBranch(UUID organisationUuid, UUID branchUuid);
 
     /**
+     * Resolves many non-deleted branches in one query, keyed by branch uuid; nulls and unknown or deleted
+     * branches are skipped. Callers check {@link BranchLocation#organisationUuid()} where ownership matters.
+     */
+    Map<UUID, BranchLocation> findBranches(Collection<UUID> branchUuids);
+
+    /**
      * Maps branch uuids to names, skipping nulls; deleted branches keep their label for historical records.
      */
     Map<UUID, String> findBranchNames(Collection<UUID> branchUuids);

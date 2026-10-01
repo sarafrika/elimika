@@ -39,6 +39,26 @@ public class TrainingBranchLookupServiceImpl implements TrainingBranchLookupServ
     }
 
     @Override
+    public Map<UUID, BranchLocation> findBranches(Collection<UUID> branchUuids) {
+        if (branchUuids == null || branchUuids.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> requested = branchUuids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, BranchLocation> branches = new LinkedHashMap<>();
+        for (TrainingBranch branch : trainingBranchRepository.findByUuidIn(requested)) {
+            if (branch.getUuid() != null && !branch.isDeleted()) {
+                branches.putIfAbsent(branch.getUuid(), toLocation(branch));
+            }
+        }
+        return branches;
+    }
+
+    @Override
     public Map<UUID, String> findBranchNames(Collection<UUID> branchUuids) {
         if (branchUuids == null || branchUuids.isEmpty()) {
             return Map.of();

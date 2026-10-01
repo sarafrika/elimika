@@ -162,14 +162,16 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
                 : courseInfoService.getTrainingProgramTitles(programUuids);
         Map<UUID, String> organisationNames = organisationUuids.isEmpty() ? Map.of()
                 : organisationLookupService.findOrganisationNames(organisationUuids);
-        Map<UUID, String> branchNames = branchUuids.isEmpty() ? Map.of() : branchLocationResolver.branchNames(branchUuids);
+        Map<UUID, BranchLocation> branches = branchLocationResolver.branches(branchUuids);
+        Map<UUID, String> branchNames = branchUuids.isEmpty() ? Map.of()
+                : branchLocationResolver.branchNames(branches, branchUuids);
         Map<UUID, JobRequiredSkills.Effective> requiredSkills = jobRequiredSkills.forJobs(jobs);
         List<UUID> skillUuids = requiredSkills.values().stream()
                 .flatMap(effective -> effective.tags().stream())
                 .map(JobRequiredSkills.Tag::skillUuid)
                 .distinct()
                 .toList();
-        Map<UUID, Optional<BranchLocation>> branchPins = BranchLocationResolver.branchPinMemo();
+        Map<UUID, Optional<BranchLocation>> branchPins = BranchLocationResolver.branchPinMemo(branches, branchUuids);
         Map<UUID, String> skillNames = new HashMap<>();
         if (!skillUuids.isEmpty()) {
             for (SkillSummary skill : skillLookupService.findByUuids(skillUuids)) {
