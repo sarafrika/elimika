@@ -175,4 +175,14 @@ class SearchParamsTranslatorTest {
         assertThatThrownBy(() -> SearchParamsTranslator.toSort("_geo,asc", geo))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("A removed text operator gets the same message as on the database path, not 'Unsupported search field'")
+    void removedTextOperatorUsesTheDocumentedMessage() {
+        for (String key : List.of("title_like", "title_startswith", "description_ENDSWITH")) {
+            assertThatThrownBy(() -> SearchParamsTranslator.toFilter(params(key, "kube"), DEFINITION))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Text operators were removed; use the q parameter for text search (rejected: " + key + ")");
+        }
+    }
 }

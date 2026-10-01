@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.shared.search;
 
+import apps.sarafrika.elimika.shared.utils.RemovedTextOperators;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -75,6 +77,7 @@ public final class SearchParamsTranslator {
                     || RESERVED_PARAMS.contains(key.toLowerCase(Locale.ROOT))) {
                 return;
             }
+            RemovedTextOperators.reject(key);
             ParsedKey parsed = parseKey(key);
             String attribute = attributes.get(normalise(parsed.field()));
             if (attribute == null) {

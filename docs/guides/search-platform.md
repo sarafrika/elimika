@@ -17,6 +17,8 @@ a disposable projection that can be rebuilt from its tables at any time.
   relational filters (`eq, in, notin, noteq, gt, gte, lt, lte, between, notingroup`) through
   `GenericSpecificationBuilder`; the SQL text operators `_like`, `_startswith` and `_endswith` were
   removed and answer **400** ("Text operators were removed; use the q parameter for text search").
+  `RemovedTextOperatorInterceptor` enforces this on every `GET /api/**`, so a listing that binds only `q`
+  and paging (e.g. `GET /api/v1/courses?name_like=x`) rejects the key instead of silently ignoring it.
 
 ## Flow
 
@@ -419,9 +421,9 @@ rules; nothing falls back to PostgreSQL.
 | `q` present, index read-enabled, engine healthy | Search, hydrated in hit order |
 | `SEARCH_ENABLED=false`, or `SEARCH_READENABLED_<INDEX>` off | **503** `{"success": false, "message": "Search is unavailable", "error": "Text search (q) is disabled or temporarily unavailable; try again later"}` |
 | The engine errors or times out | **503**, same body |
-| `q` with a filter or sort the index cannot express (e.g. `category_name`, `sort=lastModifiedDate`, any `_like`) | **400** naming the key |
+| `q` with a filter or sort the index cannot express (e.g. `category_name`, `sort=lastModifiedDate`) | **400** naming the key |
 | `q` with a page size above 100, or unpaged | **400** (catalogue endpoints) |
-| Any `_like`, `_startswith`, `_endswith` key, with or without `q` | **400** "Text operators were removed; use the q parameter for text search" |
+| Any `_like`, `_startswith`, `_endswith` key, with or without `q`, on any `GET /api/**` | **400** "Text operators were removed; use the q parameter for text search (rejected: <key>)" |
 
 `SearchUnavailableException` is mapped once, in `GlobalExceptionHandler`, and the UI detects an outage by
 the exact message `Search is unavailable`.

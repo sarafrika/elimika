@@ -52,9 +52,8 @@ public class GenericSpecificationBuilder<T> {
      * search engine through the {@code q} parameter, so a key using one of these is rejected outright
      * rather than being read as an equality on a field called {@code name_like}.
      */
-    public static final Set<String> REMOVED_TEXT_OPERATIONS = Set.of("like", "startswith", "endswith");
-    public static final String REMOVED_TEXT_OPERATION_MESSAGE =
-            "Text operators were removed; use the q parameter for text search";
+    public static final Set<String> REMOVED_TEXT_OPERATIONS = RemovedTextOperators.OPERATIONS;
+    public static final String REMOVED_TEXT_OPERATION_MESSAGE = RemovedTextOperators.MESSAGE;
     private final Map<Class<?>, Map<String, String>> fieldColumnCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Set<String>> sortablePropertyCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, Map<String, Class<?>>> relationshipCache = new ConcurrentHashMap<>();
@@ -202,10 +201,7 @@ public class GenericSpecificationBuilder<T> {
         int lastUnderscoreIndex = key.lastIndexOf("_");
         if (lastUnderscoreIndex != -1 && lastUnderscoreIndex < key.length() - 1) {
             String potentialOperation = key.substring(lastUnderscoreIndex + 1).toLowerCase(Locale.ROOT);
-            if (REMOVED_TEXT_OPERATIONS.contains(potentialOperation)) {
-                throw new IllegalArgumentException(REMOVED_TEXT_OPERATION_MESSAGE
-                        + " (rejected: " + sanitiseForMessage(key) + ")");
-            }
+            RemovedTextOperators.reject(key);
             if (SUPPORTED_OPERATIONS.contains(potentialOperation)) {
                 return new SearchCriteriaInfo(
                         key.substring(0, lastUnderscoreIndex),
