@@ -98,6 +98,18 @@ public interface TrainingProgramService {
      */
     Page<TrainingProgramDTO> searchForCaller(Map<String, String> searchParams, Pageable pageable);
 
+    /**
+     * The admin approval queue: programs never approved that are in review or published. With
+     * {@code q} the queue is searched through the programs index with an admin (unrestricted) scope
+     * and the hits re-checked against the queue's SQL filter; search off or failing raises
+     * {@link apps.sarafrika.elimika.shared.search.SearchUnavailableException} (503). Without
+     * {@code q} it is the relational listing.
+     *
+     * @param q        optional free text
+     * @param pageable pagination parameters
+     */
+    Page<TrainingProgramDTO> searchPendingApproval(String q, Pageable pageable);
+
     // ===== PROGRAM PUBLISHING =====
 
     /**

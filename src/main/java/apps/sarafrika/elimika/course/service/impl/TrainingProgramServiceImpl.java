@@ -186,6 +186,24 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
                 : trainingProgramRepository.findAll(spec, pageable).map(TrainingProgramFactory::toDTO);
     }
 
+    /** The admin approval queue's filter: never approved, and in review or published. */
+    private static final Map<String, String> PENDING_APPROVAL =
+            Map.of("admin_approved", "false", "status_in", "IN_REVIEW,PUBLISHED");
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TrainingProgramDTO> searchPendingApproval(String q, Pageable pageable) {
+        if (q == null || q.isBlank()) {
+            return search(PENDING_APPROVAL, pageable);
+        }
+        Specification<TrainingProgram> pending = specificationBuilder.buildSpecification(
+                TrainingProgram.class, PENDING_APPROVAL);
+        return catalogueSearchRouter.search(PROGRAM_SEARCH_ROUTE, q, PENDING_APPROVAL, pageable,
+                () -> CatalogueSearchScopes.programs(true, Set.of()),
+                uuids -> hydrateVisible(uuids, pending),
+                TrainingProgramDTO::uuid);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Page<TrainingProgramDTO> getFreeProgramsForCaller(Pageable pageable) {

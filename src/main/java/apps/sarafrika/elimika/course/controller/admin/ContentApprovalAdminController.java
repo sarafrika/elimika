@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -184,10 +185,22 @@ public class ContentApprovalAdminController {
     }
 
     @GetMapping("/programs/pending")
-    @Operation(summary = "List training programs pending approval")
-    public ResponseEntity<ApiResponse<PagedDTO<TrainingProgramDTO>>> listPendingPrograms(Pageable pageable) {
-        Page<TrainingProgramDTO> pending = trainingProgramService.search(
-                Map.of("admin_approved", "false", "status_in", "IN_REVIEW,PUBLISHED"), pageable);
+    @Operation(
+            summary = "List training programs pending approval",
+            description = """
+                    Programs never approved that are in review or published.
+
+                    `q` (optional) searches the queue through the programs index (title, course names,
+                    category, creator, description) with typo tolerance. It is served only by search:
+                    when search or the programs index's reads are off, a request with `q` answers 503
+                    ("Search is unavailable"). Without `q` the listing is unchanged.
+                    """
+    )
+    public ResponseEntity<ApiResponse<PagedDTO<TrainingProgramDTO>>> listPendingPrograms(
+            @Parameter(description = "Optional free text, served by the programs search index")
+            @RequestParam(value = "q", required = false) String q,
+            Pageable pageable) {
+        Page<TrainingProgramDTO> pending = trainingProgramService.searchPendingApproval(q, pageable);
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(pending, baseUrl), "Pending training programs retrieved successfully"));
     }

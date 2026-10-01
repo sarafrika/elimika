@@ -289,6 +289,24 @@ class CatalogueSearchIntegrationTest {
     }
 
     @Test
+    @DisplayName("The admin pending-programs queue takes q through the programs index and stays a queue")
+    void pendingProgramQueueSearch() throws Exception {
+        UUID pending = program("Quantum computing pathway", "in_review", false, true, false);
+        rebuilder.rebuild(ProgramSearchSource.INDEX);
+
+        search("/api/v1/admin/programs/pending", "quantm", ADMIN_SUBJECT)
+                .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(pending.toString())));
+        // An approved, live program matches the text but is not waiting on approval.
+        search("/api/v1/admin/programs/pending", "machine", ADMIN_SUBJECT)
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/v1/admin/programs/pending").with(jwt(ADMIN_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].uuid").value(containsInAnyOrder(pending.toString())));
+        mockMvc.perform(get("/api/v1/admin/programs/pending").param("q", "quantum").with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Filters the UI sends with q keep working on the programs index")
     void programFiltersSentWithQuery() throws Exception {
         for (String status : List.of("draft", "DRAFT")) {
