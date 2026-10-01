@@ -488,7 +488,7 @@ public class CatalogueSearchService {
                 TYPE_COURSE,
                 hit.uuid(),
                 text(document, "name"),
-                text(document, "description"),
+                plainText(text(document, "description")),
                 FileUrlResolver.publicUrl(text(document, "thumbnail_url")),
                 texts(document.get("category_names")),
                 uuids(document.get("category_uuids")),
@@ -524,7 +524,7 @@ public class CatalogueSearchService {
                 TYPE_PROGRAMME,
                 hit.uuid(),
                 text(document, "title"),
-                text(document, "description"),
+                plainText(text(document, "description")),
                 FileUrlResolver.publicUrl(text(document, "thumbnail_url")),
                 categoryNames,
                 categoryUuids,
@@ -558,6 +558,17 @@ public class CatalogueSearchService {
     }
 
     // ===== Document readers =====
+
+    /** Descriptions are stored as rich text; cards need a plain-text summary. */
+    static String plainText(String html) {
+        if (html == null) {
+            return null;
+        }
+        String withoutBlocks = html.replaceAll("(?i)</?(p|div|h[1-6]|li|ul|ol|br|blockquote)[^>]*>", " ");
+        String withoutTags = withoutBlocks.replaceAll("<[^>]*>", "");
+        String text = HtmlUtils.htmlUnescape(withoutTags).replace('\u00A0', ' ').replaceAll("\\s+", " ").trim();
+        return text.isEmpty() ? null : text;
+    }
 
     private static String text(Map<String, Object> document, String key) {
         Object value = document.get(key);
