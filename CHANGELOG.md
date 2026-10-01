@@ -1,3 +1,10 @@
+## [2.158.1](https://github.com/sarafrika/elimika/compare/v2.158.0...v2.158.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **course:** return catalogue descriptions as plain text instead of raw rich-text markup ([bde473a](https://github.com/sarafrika/elimika/commit/bde473a13a0ece71e9d81aab2cbcd1e0babe60be))
+
 # [2.158.0](https://github.com/sarafrika/elimika/compare/v2.157.0...v2.158.0) (2026-10-01)
 
 
