@@ -49,6 +49,19 @@ spring:
           timeout: 10000
           writetimeout: 10000
 
+  # Connection pool. The URL and credentials still come from SPRING_DATASOURCE_* in each environment.
+  # A short acquire timeout makes an exhausted pool fail fast (mapped to 503 + Retry-After by the
+  # global exception handler) instead of parking request threads for 30s until the container is
+  # unhealthy. Size the pool with DB_POOL_MAX, keeping max_connections on the server in mind.
+  datasource:
+    hikari:
+      pool-name: elimika
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: 5
+      connection-timeout: ${DB_POOL_TIMEOUT_MS:3000}
+      # Logs a stack trace for any connection held longer than 20s (diagnostic only, never closes it).
+      leak-detection-threshold: 20000
+
   # JPA configuration
   jpa:
     hibernate:
