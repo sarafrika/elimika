@@ -10,6 +10,8 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorFactory;
+import apps.sarafrika.elimika.instructor.repository.InstructorReviewRepository;
+import apps.sarafrika.elimika.instructor.search.InstructorRatingAggregate;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.search.InstructorSearchReader;
@@ -30,6 +32,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -46,6 +49,7 @@ public class InstructorServiceImpl implements InstructorService {
     private final DomainSecurityService domainSecurityService;
     private final InstructorSearchReader instructorSearchReader;
     private final InstructorVisibility instructorVisibility;
+    private final InstructorReviewRepository instructorReviewRepository;
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
     private static final String QUERY_PARAM = "q";
@@ -85,8 +89,9 @@ public class InstructorServiceImpl implements InstructorService {
         }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> visible = instructorVisibility.databaseScope(instructorVisibility.currentCaller(), Map.of());
-        return (visible == null ? instructorRepository.findAll(pageable) : instructorRepository.findAll(visible, pageable))
-                .map(this::toDirectoryDTO);
+        return toDirectoryPage(visible == null
+                ? instructorRepository.findAll(pageable)
+                : instructorRepository.findAll(visible, pageable));
     }
 
     @Override
@@ -123,7 +128,7 @@ public class InstructorServiceImpl implements InstructorService {
         InstructorVisibility.Caller caller = instructorVisibility.currentCaller();
         // Free text is served only by the instructors index: 503 when search cannot answer.
         if (StringUtils.hasText(q)) {
-            return instructorSearchReader.search(q, params, pageable, caller).map(this::toDirectoryDTO);
+            return toDirectoryPage(instructorSearchReader.search(q, params, pageable, caller));
         }
         specificationBuilder.validateSortProperties(Instructor.class, pageable);
         Specification<Instructor> spec = specificationBuilder.buildSpecification(Instructor.class, params);
@@ -131,8 +136,9 @@ public class InstructorServiceImpl implements InstructorService {
         if (visible != null) {
             spec = spec == null ? visible : spec.and(visible);
         }
-        return (spec == null ? instructorRepository.findAll(pageable) : instructorRepository.findAll(spec, pageable))
-                .map(this::toDirectoryDTO);
+        return toDirectoryPage(spec == null
+                ? instructorRepository.findAll(pageable)
+                : instructorRepository.findAll(spec, pageable));
     }
 
     @Override
@@ -142,8 +148,9 @@ public class InstructorServiceImpl implements InstructorService {
         params.remove(QUERY_PARAM);
         InstructorVisibility.Caller caller = instructorVisibility.currentCaller();
         InstructorSearchReader.NearMeResult result = instructorSearchReader.searchNear(q, near, params, pageable, caller);
-        return result.page().map(instructor -> InstructorFactory.toNearMeDTO(instructor,
-                result.distanceBands().get(instructor.getUuid()), isOwnedByCaller(instructor)));
+        Map<UUID, InstructorRatingAggregate> ratings = ratingsOf(result.page());
+        return result.page().map(instructor -> withRating(InstructorFactory.toNearMeDTO(instructor,
+                result.distanceBands().get(instructor.getUuid()), isOwnedByCaller(instructor)), ratings));
     }
 
     @Override
@@ -364,6 +371,35 @@ public class InstructorServiceImpl implements InstructorService {
      */
     private InstructorDTO toDirectoryDTO(Instructor instructor) {
         return isOwnedByCaller(instructor) ? InstructorFactory.toOwnerDTO(instructor) : InstructorFactory.toPublicDTO(instructor);
+    }
+
+    /**
+     * A page of list or search rows, each with {@code rating_avg} and {@code review_count} from one
+     * aggregate query over the page's instructors.
+     */
+    private Page<InstructorDTO> toDirectoryPage(Page<Instructor> page) {
+        Map<UUID, InstructorRatingAggregate> ratings = ratingsOf(page);
+        return page.map(instructor -> withRating(toDirectoryDTO(instructor), ratings));
+    }
+
+    private Map<UUID, InstructorRatingAggregate> ratingsOf(Page<Instructor> page) {
+        List<UUID> uuids = page.getContent().stream().map(Instructor::getUuid).filter(Objects::nonNull).toList();
+        if (uuids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, InstructorRatingAggregate> ratings = new HashMap<>();
+        for (InstructorRatingAggregate rating : instructorReviewRepository.aggregateRatingsByInstructorUuidIn(uuids)) {
+            ratings.put(rating.instructorUuid(), rating);
+        }
+        return ratings;
+    }
+
+    private static InstructorDTO withRating(InstructorDTO dto, Map<UUID, InstructorRatingAggregate> ratings) {
+        InstructorRatingAggregate rating = ratings.get(dto.uuid());
+        if (rating == null || rating.count() == null || rating.count() == 0) {
+            return dto.withRating(null, 0);
+        }
+        return dto.withRating(rating.average(), rating.count());
     }
 
     private boolean isOwnedByCaller(Instructor instructor) {

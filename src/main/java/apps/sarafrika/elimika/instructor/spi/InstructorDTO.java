@@ -209,9 +209,38 @@ public record InstructorDTO(
         )
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty(value = "distance_band", access = JsonProperty.Access.READ_ONLY)
-        String distanceBand
+        String distanceBand,
+
+        @Schema(
+                description = "**[READ-ONLY]** On list and search rows only: the instructor's mean review rating, or null when they have no reviews.",
+                example = "4.6",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty(value = "rating_avg", access = JsonProperty.Access.READ_ONLY)
+        Double ratingAvg,
+
+        @Schema(
+                description = "**[READ-ONLY]** On list and search rows only: how many reviews the instructor has (0 when none).",
+                example = "12",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty(value = "review_count", access = JsonProperty.Access.READ_ONLY)
+        Long reviewCount
 
 ) {
+
+        /** This row with its review metrics: the mean rating (null without reviews) and the count. */
+        public InstructorDTO withRating(Double average, long count) {
+                return new InstructorDTO(uuid, userUuid, fullName, locationName, latitude, longitude, verified,
+                        website, bio, professionalHeadline, createdDate, createdBy, updatedDate, updatedBy,
+                        locationSearchOptIn, distanceBand, average, count);
+        }
 
         /**
          * Checks if the instructor has location coordinates configured.

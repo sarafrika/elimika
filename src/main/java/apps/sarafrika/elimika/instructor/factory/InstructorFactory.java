@@ -81,7 +81,9 @@ public class InstructorFactory {
                 instructor.getLastModifiedDate(),
                 instructor.getLastModifiedBy(),
                 locationSearchOptIn,
-                distanceBand
+                distanceBand,
+                null,
+                null
         );
     }
 

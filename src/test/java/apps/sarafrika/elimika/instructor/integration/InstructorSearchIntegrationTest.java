@@ -154,6 +154,31 @@ class InstructorSearchIntegrationTest {
     }
 
     @Test
+    @DisplayName("List and search rows carry rating_avg and review_count")
+    void rowsCarryRatings() throws Exception {
+        // Reviews reference students and enrolments this test does not need: skip the foreign keys.
+        jdbc.execute("SET session_replication_role = replica; "
+                + "INSERT INTO instructor_reviews (uuid, instructor_uuid, student_uuid, enrollment_uuid, rating, created_by) VALUES "
+                + "('" + UUID.randomUUID() + "', '" + verifiedInstructorUuid + "', '" + UUID.randomUUID() + "', '"
+                + UUID.randomUUID() + "', 4, 'test'), "
+                + "('" + UUID.randomUUID() + "', '" + verifiedInstructorUuid + "', '" + UUID.randomUUID() + "', '"
+                + UUID.randomUUID() + "', 5, 'test'); "
+                + "SET session_replication_role = origin");
+
+        for (String url : List.of("/api/v1/instructors", "/api/v1/instructors?q=kubernetes")) {
+            JsonNode content = list(url, ADMIN_SUBJECT);
+            Map<String, JsonNode> byUuid = new java.util.HashMap<>();
+            content.forEach(row -> byUuid.put(row.path("uuid").asText(), row));
+            JsonNode reviewed = byUuid.get(verifiedInstructorUuid.toString());
+            assertThat(reviewed.path("rating_avg").asDouble()).isEqualTo(4.5);
+            assertThat(reviewed.path("review_count").asLong()).isEqualTo(2);
+            JsonNode unreviewed = byUuid.get(unverifiedInstructorUuid.toString());
+            assertThat(unreviewed.path("review_count").asLong()).isZero();
+            assertThat(unreviewed.has("rating_avg")).isFalse();
+        }
+    }
+
+    @Test
     @DisplayName("Adding a skill through the API re-indexes its instructor")
     void addingSkillReindexes() throws Exception {
         assertThat(uuids(list("/api/v1/instructors/search?q=terraform", ADMIN_SUBJECT))).isEmpty();
