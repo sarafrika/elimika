@@ -40,6 +40,10 @@ public interface CourseService {
      * resolve only for a platform admin, their author, an enrolled learner or someone approved to
      * teach them; shadow drafts only for a platform admin or their author. Anyone else gets
      * {@link apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException}.
+     * <p>
+     * An anonymous caller (no principal) reads public courses only - root, published, active and
+     * admin-approved - and without the commercial terms ({@link CourseDTO#publicView()}); any other
+     * course is not found for them.
      */
     CourseDTO getVisibleCourseByUuid(UUID uuid);
 

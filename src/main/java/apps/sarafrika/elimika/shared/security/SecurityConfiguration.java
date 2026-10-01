@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
@@ -53,6 +54,14 @@ public class SecurityConfiguration {
      * credentials, and a load balancer in front of the service does the same. Everything else
      * actuator exposes (info, metrics) is operational detail and is authenticated below.
      */
+    /**
+     * {@code GET /api/v1/courses/{uuid}}, {@code .../prerequisites} and {@code .../skills}, with a UUID
+     * in the path (and any query string, which this matcher sees too).
+     */
+    private static final String PUBLIC_COURSE_READ =
+            "^/api/v1/courses/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+                    + "(/prerequisites|/skills)?/?(\\?.*)?$";
+
     private static final String[] HEALTH_PATHS = {
             "/actuator/health",
             "/actuator/health/**",
@@ -135,6 +144,13 @@ public class SecurityConfiguration {
                             // bodies and no lesson uuids. Authenticating changes what it returns,
                             // never whether it answers, so the catalogue page needs no token.
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/content").permitAll()
+                            // The anonymous catalogue's course page. The services answer an
+                            // anonymous caller for public courses only (published, active,
+                            // admin-approved, root) - anything else is a 404 - and strip the
+                            // revenue terms. A signed-in caller keeps today's rules.
+                            // Matched on a UUID so sibling listings (/courses/search, /active...)
+                            // stay authenticated.
+                            .requestMatchers(new RegexRequestMatcher(PUBLIC_COURSE_READ, HttpMethod.GET.name())).permitAll()
                             // Similar courses are not personal and cover public courses only.
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/similar").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()

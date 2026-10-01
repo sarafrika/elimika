@@ -394,6 +394,19 @@ public record CourseDTO(
 ) {
 
     /**
+     * The form an anonymous caller reads: the commercial terms between the platform, the creator and
+     * instructors (minimum training fee, revenue shares and their notes) and the audit actors are
+     * left out. Everything the public catalogue already shows stays.
+     */
+    public CourseDTO publicView() {
+        return new CourseDTO(uuid, name, courseCreatorUuid, categoryUuids, difficultyUuid, description, objectives,
+                prerequisites, durationHours, durationMinutes, classLimit, price,
+                null, null, null, null,
+                ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
+                trainingRequirements, categoryNames, createdDate, null, updatedDate, null);
+    }
+
+    /**
      * Returns a formatted display string for total course duration.
      *
      * @return Formatted duration string

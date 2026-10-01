@@ -43,6 +43,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -139,12 +142,33 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional(readOnly = true)
     public CourseDTO getVisibleCourseByUuid(UUID uuid) {
+        boolean anonymous = isAnonymousCaller();
         Course course = courseRepository.findByUuid(uuid)
-                .filter(this::isVisibleToCaller)
+                .filter(found -> anonymous ? isPublicCourse(found) : isVisibleToCaller(found))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(COURSE_NOT_FOUND_TEMPLATE, uuid)));
 
-        return toDetailDto(course);
+        CourseDTO detail = toDetailDto(course);
+        return anonymous ? detail.publicView() : detail;
+    }
+
+    /** No signed-in principal: the restored anonymous catalogue. */
+    private static boolean isAnonymousCaller() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken;
+    }
+
+    /**
+     * The public catalogue, which is all an anonymous caller may read: a root course (never a shadow
+     * draft) that is published, active and approved by an admin.
+     */
+    private static boolean isPublicCourse(Course course) {
+        return course.getParentCourseUuid() == null
+                && course.getStatus() == ContentStatus.PUBLISHED
+                && Boolean.TRUE.equals(course.getActive())
+                && Boolean.TRUE.equals(course.getAdminApproved());
     }
 
     private CourseDTO toDetailDto(Course course) {

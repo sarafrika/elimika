@@ -209,6 +209,12 @@ public class CourseController {
                 - `category_names`: List of category names for display (read-only)
                 - `category_count`: Number of categories assigned to the course
                 - `has_multiple_categories`: Boolean indicating if course has multiple categories
+
+                **Anonymous callers** (no token) may read public courses only - published, active,
+                admin-approved and not a pending-edit draft - and get 404 for anything else. Their copy
+                leaves out `minimum_training_fee`, `creator_share_percentage`,
+                `instructor_share_percentage`, `revenue_share_notes`, `created_by` and `updated_by`.
+                Signed-in callers are unaffected.
                 """,
             responses = {
                     @ApiResponse(responseCode = "200", description = "Course found"),

@@ -22,6 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -216,6 +217,50 @@ class CourseCatalogueVisibilityIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/courses/" + shadowDraft).with(jwt(ADMIN_SUBJECT)))
                 .andExpect(status().isOk());
+    }
+
+    // ===== ANONYMOUS CATALOGUE =====
+
+    @Test
+    @DisplayName("An anonymous visitor reads a public course, its prerequisites and skills, without its revenue terms")
+    void anonymousReadsAPublicCourse() throws Exception {
+        jdbc.update("UPDATE courses SET minimum_training_fee = 500, revenue_share_notes = 'private' WHERE uuid = ?",
+                liveCourse);
+        mockMvc.perform(get("/api/v1/courses/" + liveCourse))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(liveCourse.toString()))
+                .andExpect(jsonPath("$.data.name").value("Live"))
+                .andExpect(jsonPath("$.data.minimum_training_fee").value(nullValue()))
+                .andExpect(jsonPath("$.data.creator_share_percentage").value(nullValue()))
+                .andExpect(jsonPath("$.data.instructor_share_percentage").value(nullValue()))
+                .andExpect(jsonPath("$.data.revenue_share_notes").value(nullValue()))
+                .andExpect(jsonPath("$.data.created_by").value(nullValue()));
+        mockMvc.perform(get("/api/v1/courses/" + liveCourse + "/prerequisites"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/courses/" + liveCourse + "/skills"))
+                .andExpect(status().isOk());
+
+        // A signed-in caller still gets the full record.
+        mockMvc.perform(get("/api/v1/courses/" + liveCourse).with(jwt(OUTSIDER_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.revenue_share_notes").value("private"));
+    }
+
+    @Test
+    @DisplayName("An anonymous visitor gets 404 for drafts, shadow drafts, unapproved and archived courses")
+    void anonymousCannotReadNonPublicCourses() throws Exception {
+        for (UUID hidden : new UUID[]{draftCourse, inReviewCourse, shadowDraft, unapprovedCourse, archivedCourse}) {
+            mockMvc.perform(get("/api/v1/courses/" + hidden)).andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/v1/courses/" + hidden + "/prerequisites")).andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/v1/courses/" + hidden + "/skills")).andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    @DisplayName("The anonymous course read does not open the sibling listings")
+    void anonymousListingsStayAuthenticated() throws Exception {
+        mockMvc.perform(get("/api/v1/courses/search")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/courses/active")).andExpect(status().isUnauthorized());
     }
 
     // ===== TEST PLUMBING =====

@@ -38,7 +38,8 @@ public class CoursePrerequisiteController {
             summary = "List a course's prerequisites",
             description = """
                     The prior courses this course requires (`is_mandatory: true`) or recommends. Readable by anyone
-                    who can read the course; a course the caller may not read answers 404.
+                    who can read the course; a course the caller may not read answers 404. Anonymous visitors
+                    may read the prerequisites of a public course (published, active, admin-approved).
 
                     On a live course with a pending edit this returns the live set. The author reads the proposed
                     set from the draft course (`draft_course_uuid` on the pending edit).

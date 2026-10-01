@@ -32,8 +32,8 @@ public class CourseSkillController {
     private final CourseSkillService courseSkillService;
 
     @Operation(operationId = "getCourseSkills", summary = "Get a course's skill tags",
-            description = "Readable by anyone who can read the course (404 otherwise). Heaviest first.")
-    @PreAuthorize("isAuthenticated()")
+            description = "Readable by anyone who can read the course (404 otherwise), including anonymous "
+                    + "visitors on a public course (published, active, admin-approved). Heaviest first.")
     @GetMapping("/{uuid}/skills")
     public ResponseEntity<ApiResponse<List<CourseSkillDTO>>> getCourseSkills(@PathVariable UUID uuid) {
         return ResponseEntity.ok(ApiResponse.success(courseSkillService.getCourseSkills(uuid),
