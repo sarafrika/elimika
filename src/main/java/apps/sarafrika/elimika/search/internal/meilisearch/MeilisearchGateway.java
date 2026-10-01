@@ -162,6 +162,15 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
 
     @Override
     public FederatedSearchResult multiSearch(List<SearchRequest> requests, int limit) {
+        return federated(requests, 0, limit, false);
+    }
+
+    @Override
+    public FederatedSearchResult federatedSearch(List<SearchRequest> requests, int offset, int limit) {
+        return federated(requests, offset, limit, true);
+    }
+
+    private FederatedSearchResult federated(List<SearchRequest> requests, int offset, int limit, boolean sorted) {
         if (requests == null || requests.isEmpty()) {
             return new FederatedSearchResult(List.of(), 0);
         }
@@ -169,10 +178,13 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         for (SearchRequest request : requests) {
             Map<String, Object> query = queryBody(request);
             query.put("indexUid", request.index());
+            if (sorted && !request.sort().isEmpty()) {
+                query.put("sort", MeilisearchFilterRenderer.renderSort(request.sort()));
+            }
             queries.add(query);
         }
         Map<String, Object> body = Map.of(
-                "federation", Map.of("limit", Math.max(1, limit), "offset", 0),
+                "federation", Map.of("limit", Math.max(1, limit), "offset", Math.max(0, offset)),
                 "queries", queries);
         JsonNode response = call("federated search",
                 () -> client.post().uri("/multi-search").body(body).retrieve().body(JsonNode.class));

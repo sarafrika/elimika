@@ -38,6 +38,11 @@ public class DisabledSearchGateway implements SearchGateway, SearchIndexAdmin {
     }
 
     @Override
+    public FederatedSearchResult federatedSearch(List<SearchRequest> requests, int offset, int limit) {
+        throw disabled();
+    }
+
+    @Override
     public List<SearchPage> multiSearchPerIndex(List<SearchRequest> requests) {
         throw disabled();
     }
