@@ -173,6 +173,8 @@ public class SecurityConfiguration {
                             // scopes them to the public catalogue (courses, programs,
                             // organisations, public classes) and hides every other type.
                             .requestMatchers(HttpMethod.GET, "/api/v1/search", "/api/v1/search/*").permitAll()
+                            // The catalogue page lists the public catalogue only, for every caller.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/catalogue/search").permitAll()
                             // Invitation and guardian-consent links must be readable by someone
                             // who has no account yet; acting on them still requires a sign-in.
                             .requestMatchers(HttpMethod.GET, "/api/v1/invitations/token/*").permitAll()

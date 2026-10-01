@@ -223,6 +223,69 @@ A "see all results" page for one type: `{ content: [GlobalSearchHit], metadata: 
 | `rubrics` | hidden | course creators: public + own; instructors: public and active; others hidden | all |
 | `course_content` | hidden | every item of managed courses (`manageableCourseUuids`, which includes own) + published, course-scoped items of enrolled courses; class-scoped quizzes/assignments hidden from learners; guardians get nothing; **re-checked in SQL** (`recheck`); subtitle `Lesson {n} · {course}` | all |
 
+## Public catalogue page
+
+### `GET /api/v1/catalogue/search` (operationId `searchCatalogue`)
+
+One ranked list of public courses **and** programmes - not tabs. Anonymous-capable (`permitAll` GET);
+every caller, signed in or not, admin or not, gets the public catalogue only (`is_public` on both
+indexes). Owned by the course module (`CatalogueSearchController`, `CatalogueSearchService`).
+
+```
+UI catalogue page                       API (course module)                          Storage
+-----------------                       -------------------                          -------
+q / show / category_uuid / level  --->  CatalogueSearchService
+price / creator_uuid / sort / page        | 1. difficulty names -> uuids (SQL)  ---> course_difficulty_levels
+                                          | 2. facets: ONE multi-search        ---> Meilisearch courses + programs
+                                          |    (base query per index + one per          (exhaustive totals,
+                                          |     group that has a selection)              facetDistribution)
+                                          | 3. hits: federated multi-search    ---> Meilisearch courses + programs
+                                          |    (offset/limit, merged by score           (show=all; one index for
+                                          |     or by the chosen sort)                   show=courses|programmes)
+                                          | 4. re-check + live counts: one SQL ---> courses+lessons+course_enrollments
+                                          |    query per type per page                training_programs+program_courses
+                                          |                                           +lessons+program_enrollments
+                                          | 5. class counts (shared SPI)       ---> classes module: class_definitions
+                                          | 6. category names (SQL)            ---> course_categories
+CatalogueSearchResponse  <-----------  { content: [CatalogueItem], metadata: PageMetadata, facets }
+```
+
+| Param | Values | Notes |
+|---|---|---|
+| `q` | text | Optional; empty browses. Typo-tolerant. |
+| `show` | `all` (default), `courses`, `programmes` | `all` is a federated search; the others search one index. |
+| `category_uuid` | UUIDs, repeatable or comma list | OR within the group. Courses: `category_uuids`; programmes: `category_uuid`. |
+| `level` | `beginner`, `intermediate`, `advanced`, repeatable | Mapped to `course_difficulty_levels` by name (case-insensitive; `Prep` is not a catalogue level). A course matches its `difficulty_uuid`; a programme matches when **any member course** has the level (`difficulty_uuids`) - programmes have no difficulty of their own. |
+| `price` | `free`, `paid` | `is_free` on both. Both values = no filter. |
+| `creator_uuid` | UUID | `course_creator_uuid` on both. |
+| `sort` | `relevance`, `newest`, `rating`, `popular` | Default `relevance` with `q`, `popular` without. `newest` = `created_at:desc`; `rating` = `rating_bayes:desc, created_at:desc`; `popular` = `popularity_30d:desc, created_at:desc` (enrolments in the last 30 days: the nightly `course_learning_stats` figure for courses, computed at index time for programmes). |
+| `page`, `size` | 0-based; 1-48 (default 24) | Out of range is a 400. |
+
+**Facets (disjunctive, exact).** Every group is counted under all the other active filters with its
+own selection left out. The service runs one non-federated multi-search per request holding, per
+index, a base query (every filter; its exhaustive `totalHits` is that index's `show` count, and it
+facets the groups with no selection) plus one query per group that has a selection (every other
+filter, that group's facet). With at most three groups that is at most 8 queries in one round trip.
+`show` narrows the category, level and price counts to the shown types but not the `show` counts
+themselves. A programme counts under every level any of its member courses has. Selected categories
+are listed even at count 0. `metadata.totalElements` is the sum of the shown indexes' exhaustive
+base totals (not the federated estimate), restated from the page when a hit fails the SQL re-check.
+
+**Card fields.** `thumbnail_url` is resolved through `FileUrlResolver.publicUrl` (as the course
+catalogue snapshot does); a programme shows its first member course's thumbnail (programmes have
+none of their own). `level` is the course's difficulty name, or the programme's member range
+(`"Beginner → Advanced"`, one name when they agree, `null` when no member has a difficulty).
+`lesson_count` (published lessons; a programme sums its members), `learner_count` (distinct learners
+with an active or completed enrolment) and a programme's `course_count` are live from the SQL
+re-check query; a course's `class_count` (active `PUBLIC` classes) comes from the classes module via
+`ClassDefinitionLookupService#countActivePublicClassesByCourse` (one grouped query). `course_count` is
+`null` for a course; `class_count` and `age_label` are `null` for a programme. `age_label` is `"<n>+"`
+when the course's `age_lower_limit` is 18 or more. `highlight` is the HTML-escaped title with the
+engine's `<em>` tags, `null` without `q` or when the title did not match.
+
+**Failure.** Either index not read-enabled, search off or the engine failing: 503 "Search is
+unavailable". No database fallback.
+
 ## Admin endpoints
 
 Platform admins only (`@domainSecurityService.isPlatformAdmin()`), registered only when search is
@@ -271,7 +334,7 @@ stops the others. Index administration uses its own, longer read timeout
 | Index | Searchable (priority order) | Filterable | Sortable | Scope (non-admin) | Re-indexed by | Known staleness |
 |---|---|---|---|---|---|---|
 | `courses` (v3) | name, category_names, creator_name, difficulty_name, description, objectives | status, active, admin_approved, is_public, course_creator_uuid, category_uuids, difficulty_uuid, is_free, price, uuid, created_at, level_order, prerequisite_uuids, age_lower_limit, age_upper_limit, skill_uuids | name, created_at, price, rating_avg, enrolment_count, completion_rate, popularity_30d, rating_bayes | `is_public` OR own creator OR related (enrolled / manageable) course | `Course`, `CourseCategoryMapping`, `CourseReview`, `CourseEnrollment`, `CoursePrerequisite`, `CourseSkill`; fan-out on `Category`, `DifficultyLevel` | `creator_name` (course-creator module); `completion_rate`, `popularity_30d`, `rating_bayes` from `course_learning_stats` (01:00 UTC job) until the nightly rebuild |
-| `programs` | title, course_names, category_name, creator_name, description | status, is_published, admin_approved, active, is_public, course_creator_uuid, … | title, created_at | `is_public` OR authored under own identities | `TrainingProgram`, `ProgramCourse`; fan-out on `Course`, `Category` | `creator_name` until the nightly rebuild |
+| `programs` (v2) | title, course_names, category_name, creator_name, description | status, is_published, admin_approved, active, is_public, course_creator_uuid, category_uuid, is_free, uuid, created_at, difficulty_uuids | title, created_at, rating_avg, rating_bayes, popularity_30d, enrolment_count (ranking rules identical to `courses`, so the two merge in one federated ranking) | `is_public` OR authored under own identities | `TrainingProgram`, `ProgramCourse`, `ProgramReview`, `ProgramEnrollment`; fan-out on `Course`, `Category`, `DifficultyLevel` | `creator_name`, member-course thumbnail and level range until the nightly rebuild |
 | `rubrics` | title, rubric_type, description | is_public, is_active, status, course_creator_uuid, rubric_type (stored lower-case, schema v2), usage_count, uuid, created_at | title, created_at, usage_count | public OR own; discovery: public AND active | `AssessmentRubric`, `CourseRubricAssociation` | none |
 | `classes` (v2) | title, course_name, program_title, organisation_name, branch_name, instructor_name, location_name, description | uuid, course_uuid, program_uuid, organisation_uuid, branch_uuid, default_instructor_uuid, category_uuid, is_active, class_visibility, content_approved, location_type, session_format, starts_at, registration_closes_at, sale_price, created_at, `_geo` | starts_at, sale_price, created_at, title, `_geo` | active `PUBLIC` OR staffed org OR taught OR enrolled | `ClassDefinition`, `ClassSessionTemplate`; `UserUpdateEvent` re-indexes the classes of a renamed instructor | course/program names and approval, organisation and branch names until the nightly rebuild (module reads re-check approval and visibility on the rows) |
 | `marketplace_jobs` (v3) | title, course_name, program_title, required_skill_names, organisation_name, branch_name, location_name, target_groups, description | status, organisation_uuid, branch_uuid, course_uuid, program_uuid, category_uuid, location_type, session_format, starts_at, registration_closes_at, uuid, created_at, required_skill_uuids, `_geo` | created_at, starts_at, `_geo` | `OPEN`; staff of the filtered organisation see it in any status | `ClassMarketplaceJob`, `ClassMarketplaceJobSessionTemplate`, `ClassMarketplaceJobRequiredSkill`; `CourseSkillsChangedEvent` re-indexes the course's jobs; bulk deletes enqueue explicitly | course/program, organisation, branch and skill names until the nightly rebuild |
