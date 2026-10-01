@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.internal;
 
 import apps.sarafrika.elimika.classes.internal.BranchLocationResolver.ResolvedLocation;
 import apps.sarafrika.elimika.shared.enums.LocationType;
+import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.tenancy.spi.BranchLocation;
 import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,10 +41,11 @@ class BranchLocationResolverTest {
     }
 
     @Test
-    void copiesRoundedBranchPinAndBuildsLabel() {
+    void copiesRoundedBranchPinAndBuildsLabelWhenTheClassHasNoCoordinatesOfItsOwn() {
         stubBranch(branch("Main Campus", "Kasarani, Nairobi", "-1.221812345678", "36.897000000001", true));
 
-        ResolvedLocation location = resolve(LocationType.IN_PERSON, true);
+        ResolvedLocation location = resolver.resolve(ORGANISATION_UUID, BRANCH_UUID, LocationType.IN_PERSON,
+                null, null, null, true);
 
         assertThat(location.locationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
         assertThat(location.latitude()).isEqualTo(new BigDecimal("-1.221812"));
@@ -64,10 +68,56 @@ class BranchLocationResolverTest {
     }
 
     @Test
+    void ownCoordinatesWinOverTheBranchPin() {
+        stubBranch(branch("Main Campus", "Kasarani, Nairobi", "-1.2218", "36.897", true));
+
+        ResolvedLocation location = resolve(LocationType.IN_PERSON, true);
+
+        assertThat(location).isEqualTo(new ResolvedLocation("Client name", CLIENT_LATITUDE, CLIENT_LONGITUDE));
+    }
+
+    @Test
+    void ownCoordinatesWithoutANameTakeTheBranchLabelButKeepTheirPin() {
+        stubBranch(branch("Main Campus", "Kasarani, Nairobi", "-1.2218", "36.897", true));
+
+        ResolvedLocation location = resolver.resolve(ORGANISATION_UUID, BRANCH_UUID, LocationType.HYBRID,
+                " ", CLIENT_LATITUDE, CLIENT_LONGITUDE, true);
+
+        assertThat(location).isEqualTo(new ResolvedLocation("Main Campus · Kasarani, Nairobi",
+                CLIENT_LATITUDE, CLIENT_LONGITUDE));
+    }
+
+    @Test
+    void strictModeAcceptsAnUnpinnedBranchWhenTheClassHasItsOwnCoordinates() {
+        stubBranch(branch("Main Campus", "Kasarani, Nairobi", null, null, true));
+
+        ResolvedLocation location = resolve(LocationType.IN_PERSON, true);
+
+        assertThat(location).isEqualTo(new ResolvedLocation("Client name", CLIENT_LATITUDE, CLIENT_LONGITUDE));
+    }
+
+    @Test
+    void searchPointPrefersOwnCoordinatesAndFallsBackToTheBranchPin() {
+        BranchLocation pinned = branch("Main Campus", null, "-1.2218", "36.897", true);
+        Map<UUID, Optional<BranchLocation>> memo = BranchLocationResolver.branchPinMemo(
+                Map.of(BRANCH_UUID, pinned), List.of(BRANCH_UUID));
+
+        SearchGeoPoint own = resolver.searchPoint(ORGANISATION_UUID, BRANCH_UUID, LocationType.IN_PERSON,
+                CLIENT_LATITUDE, CLIENT_LONGITUDE, memo);
+        SearchGeoPoint fallback = resolver.searchPoint(ORGANISATION_UUID, BRANCH_UUID, LocationType.IN_PERSON,
+                null, null, memo);
+
+        assertThat(own).isEqualTo(SearchGeoPoint.rounded(CLIENT_LATITUDE, CLIENT_LONGITUDE));
+        assertThat(fallback).isEqualTo(SearchGeoPoint.rounded(pinned.latitude(), pinned.longitude()));
+        assertThat(own).isNotEqualTo(fallback);
+    }
+
+    @Test
     void strictModeRefusesBranchWithoutPinForInPerson() {
         stubBranch(branch("Main Campus", "Kasarani, Nairobi", null, null, true));
 
-        assertThatThrownBy(() -> resolve(LocationType.IN_PERSON, true))
+        assertThatThrownBy(() -> resolver.resolve(ORGANISATION_UUID, BRANCH_UUID, LocationType.IN_PERSON,
+                "Client name", null, null, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Training branch 'Main Campus' has no location pin; set it on the branch first");
     }

@@ -307,7 +307,36 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     }
 
     /**
+     * A class moved to another branch without new coordinates of its own drops the location it held at
+     * the old branch, so the new branch's pin applies rather than the old one being kept as "its own".
+     * Coordinates left off, or the stored ones echoed back by an edit form, are not new.
+     */
+    private static void forgetPreviousBranchLocation(ClassDefinition entity, ClassDefinitionDTO dto,
+                                                     UUID previousBranchUuid, String previousLocationName,
+                                                     BigDecimal previousLatitude, BigDecimal previousLongitude) {
+        if (Objects.equals(previousBranchUuid, entity.getBranchUuid())) {
+            return;
+        }
+        boolean newCoordinates = (dto.locationLatitude() != null || dto.locationLongitude() != null)
+                && !(sameCoordinate(previousLatitude, dto.locationLatitude())
+                && sameCoordinate(previousLongitude, dto.locationLongitude()));
+        if (newCoordinates) {
+            return;
+        }
+        entity.setLocationLatitude(null);
+        entity.setLocationLongitude(null);
+        if (dto.locationName() == null || dto.locationName().equals(previousLocationName)) {
+            entity.setLocationName(null);
+        }
+    }
+
+    private static boolean sameCoordinate(BigDecimal stored, BigDecimal supplied) {
+        return stored == null ? supplied == null : supplied != null && stored.compareTo(supplied) == 0;
+    }
+
+    /**
      * Strict when the branch or delivery mode is new; an unchanged branch that lost its pin keeps the stored location.
+     * The class's own coordinates win over the branch's pin (see {@link BranchLocationResolver#resolve}).
      */
     private void applyBranchLocation(ClassDefinition entity, boolean strict) {
         ResolvedLocation location = branchLocationResolver.resolve(entity.getOrganisationUuid(), entity.getBranchUuid(),
@@ -854,10 +883,15 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
         UUID previousBranchUuid = existingEntity.getBranchUuid();
         LocationType previousLocationType = existingEntity.getLocationType();
+        String previousLocationName = existingEntity.getLocationName();
+        BigDecimal previousLatitude = existingEntity.getLocationLatitude();
+        BigDecimal previousLongitude = existingEntity.getLocationLongitude();
         ClassDefinitionFactory.updateEntityFromDTO(existingEntity, classDefinitionDTO);
         applyLearningContextOverrides(existingEntity, classDefinitionDTO);
         boolean placementChanged = !Objects.equals(previousBranchUuid, existingEntity.getBranchUuid())
                 || previousLocationType != existingEntity.getLocationType();
+        forgetPreviousBranchLocation(existingEntity, classDefinitionDTO, previousBranchUuid, previousLocationName,
+                previousLatitude, previousLongitude);
         applyBranchLocation(existingEntity, placementChanged);
         validateLocationRequirements(existingEntity);
         validateLearningContext(existingEntity);

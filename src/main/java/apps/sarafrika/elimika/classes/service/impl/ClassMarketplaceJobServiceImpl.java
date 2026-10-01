@@ -241,7 +241,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
             throw new IllegalArgumentException("organisation_uuid cannot be changed after a marketplace job has been created");
         }
 
-        ResolvedLocation location = validateJobDraft(request);
+        ResolvedLocation location = validateJobDraft(request, echoesLocationFromAnotherBranch(job, request));
         applyJobDraft(job, request, location);
         ClassMarketplaceJob saved = jobRepository.save(job);
         replaceSessionTemplates(saved.getUuid(), request.sessionTemplates());
@@ -1442,17 +1442,46 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     private ResolvedLocation validateJobDraft(ClassMarketplaceJobRequestDTO request) {
+        return validateJobDraft(request, false);
+    }
+
+    /**
+     * The job's own coordinates win over its branch's pin; the branch's pin is the fallback.
+     *
+     * @param ignoreSuppliedLocation the request only echoes back the location the job held at its previous branch,
+     *                               so it is not the job's own and the new branch's pin applies
+     */
+    private ResolvedLocation validateJobDraft(ClassMarketplaceJobRequestDTO request, boolean ignoreSuppliedLocation) {
         validateLearningContext(request);
         validateRegistrationWindow(request);
         if (request.branchUuid() == null) {
             throw new IllegalArgumentException("branch_uuid is required");
         }
-        ResolvedLocation location = branchLocationResolver.resolve(request.organisationUuid(), request.branchUuid(),
-                request.locationType(), request.locationName(), request.locationLatitude(), request.locationLongitude(), true);
+        ResolvedLocation location = ignoreSuppliedLocation
+                ? branchLocationResolver.resolve(request.organisationUuid(), request.branchUuid(),
+                        request.locationType(), null, null, null, true)
+                : branchLocationResolver.resolve(request.organisationUuid(), request.branchUuid(),
+                        request.locationType(), request.locationName(), request.locationLatitude(),
+                        request.locationLongitude(), true);
         validateLocationRequirements(request.locationType(), location.locationName(), location.latitude(), location.longitude());
         validateSessionTemplates(request.sessionTemplates());
         validateJobResources(request);
         return location;
+    }
+
+    /**
+     * An edit form sends the whole job back, location included. When the branch changes and the
+     * coordinates are the ones the job already held, they are the old branch's location echoed back,
+     * not a pin chosen for this job.
+     */
+    private static boolean echoesLocationFromAnotherBranch(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
+        return !Objects.equals(job.getBranchUuid(), request.branchUuid())
+                && sameCoordinate(job.getLocationLatitude(), request.locationLatitude())
+                && sameCoordinate(job.getLocationLongitude(), request.locationLongitude());
+    }
+
+    private static boolean sameCoordinate(BigDecimal stored, BigDecimal supplied) {
+        return stored == null ? supplied == null : supplied != null && stored.compareTo(supplied) == 0;
     }
 
     /**

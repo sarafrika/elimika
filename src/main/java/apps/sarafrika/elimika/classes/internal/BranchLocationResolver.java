@@ -34,7 +34,12 @@ public class BranchLocationResolver {
     }
 
     /**
-     * Strict mode refuses inactive or unpinned branches; lenient mode keeps the supplied values when the pin is missing.
+     * The location a class or job is delivered at. Its own coordinates come first: an in-person class
+     * pinned to a hall across town keeps that pin, and only one without coordinates of its own takes
+     * its branch's pin (and, when it has no name of its own either, the branch's label).
+     * <p>
+     * Strict mode refuses an inactive branch, and an unpinned branch when the class has no coordinates
+     * of its own to fall back on; lenient mode keeps the supplied values when the pin is missing.
      */
     public ResolvedLocation resolve(UUID organisationUuid,
                                     UUID branchUuid,
@@ -59,6 +64,10 @@ public class BranchLocationResolver {
         }
         if (locationType == null || locationType == LocationType.ONLINE) {
             return supplied;
+        }
+        if (latitude != null && longitude != null) {
+            boolean named = locationName != null && !locationName.isBlank();
+            return named ? supplied : new ResolvedLocation(label(branch), latitude, longitude);
         }
         if (!branch.hasPin()) {
             if (strict) {

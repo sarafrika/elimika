@@ -521,10 +521,28 @@ class ClassDefinitionServiceImplTest {
     private static final BigDecimal BRANCH_LONGITUDE = new BigDecimal("36.897000");
 
     @Test
-    void createCopiesBranchPinForInPersonClass() {
+    void createKeepsTheClassesOwnCoordinatesOverTheBranchPin() {
         UUID organisationUuid = UUID.randomUUID();
         ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.IN_PERSON,
-                "Typed by the client", new BigDecimal("10.0"), new BigDecimal("10.0"));
+                "Community Hall", new BigDecimal("-4.043477"), new BigDecimal("39.668206"));
+        when(trainingBranchLookupService.findBranch(organisationUuid, BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, organisationUuid, "Main Campus", "Kasarani, Nairobi",
+                        BRANCH_LATITUDE, BRANCH_LONGITUDE, true)));
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request);
+
+        assertThat(saved.get().getBranchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(saved.get().getLocationName()).isEqualTo("Community Hall");
+        assertThat(saved.get().getLocationLatitude()).isEqualTo(new BigDecimal("-4.043477"));
+        assertThat(saved.get().getLocationLongitude()).isEqualTo(new BigDecimal("39.668206"));
+    }
+
+    @Test
+    void createCopiesBranchPinForInPersonClassWithoutCoordinatesOfItsOwn() {
+        UUID organisationUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.IN_PERSON,
+                null, null, null);
         when(trainingBranchLookupService.findBranch(organisationUuid, BRANCH_UUID)).thenReturn(Optional.of(
                 new BranchLocation(BRANCH_UUID, organisationUuid, "Main Campus", "Kasarani, Nairobi",
                         new BigDecimal("-1.2218004"), BRANCH_LONGITUDE, true)));
@@ -605,6 +623,46 @@ class ClassDefinitionServiceImplTest {
         assertThat(existing.getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
         assertThat(existing.getLocationLatitude()).isEqualTo(BRANCH_LATITUDE);
         assertThat(existing.getLocationLongitude()).isEqualTo(BRANCH_LONGITUDE);
+    }
+
+    @Test
+    void updateMovingToAnotherBranchWithoutNewCoordinatesTakesTheNewBranchPin() {
+        UUID otherBranchUuid = UUID.randomUUID();
+        ClassDefinition existing = inPersonClassAtBranch();
+        when(classDefinitionRepository.findByUuid(existing.getUuid())).thenReturn(Optional.of(existing));
+        when(trainingBranchLookupService.findBranch(existing.getOrganisationUuid(), otherBranchUuid)).thenReturn(Optional.of(
+                new BranchLocation(otherBranchUuid, existing.getOrganisationUuid(), "Westlands Annex", null,
+                        new BigDecimal("-1.267000"), new BigDecimal("36.811000"), true)));
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(existing.getUuid()))
+                .thenReturn(List.of());
+
+        service.updateClassDefinition(existing.getUuid(), updateRequest(otherBranchUuid, null));
+
+        assertThat(existing.getLocationName()).isEqualTo("Westlands Annex");
+        assertThat(existing.getLocationLatitude()).isEqualTo(new BigDecimal("-1.267000"));
+        assertThat(existing.getLocationLongitude()).isEqualTo(new BigDecimal("36.811000"));
+    }
+
+    @Test
+    void updateKeepsOwnCoordinatesWhileTheBranchIsPinned() {
+        ClassDefinition existing = inPersonClassAtBranch();
+        existing.setLocationName("Community Hall");
+        existing.setLocationLatitude(new BigDecimal("-4.043477"));
+        existing.setLocationLongitude(new BigDecimal("39.668206"));
+        when(classDefinitionRepository.findByUuid(existing.getUuid())).thenReturn(Optional.of(existing));
+        when(trainingBranchLookupService.findBranch(existing.getOrganisationUuid(), BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, existing.getOrganisationUuid(), "Main Campus", "Kasarani, Nairobi",
+                        BRANCH_LATITUDE, BRANCH_LONGITUDE, true)));
+        when(classDefinitionRepository.save(any(ClassDefinition.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classSessionTemplateRepository.findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(existing.getUuid()))
+                .thenReturn(List.of());
+
+        service.updateClassDefinition(existing.getUuid(), updateRequest(null, "Renamed cohort"));
+
+        assertThat(existing.getLocationName()).isEqualTo("Community Hall");
+        assertThat(existing.getLocationLatitude()).isEqualTo(new BigDecimal("-4.043477"));
+        assertThat(existing.getLocationLongitude()).isEqualTo(new BigDecimal("39.668206"));
     }
 
     @Test

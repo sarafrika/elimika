@@ -4300,7 +4300,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
-    void createJobCopiesTheBranchPinOverClientCoordinates() {
+    void createJobKeepsItsOwnCoordinatesOverTheBranchPin() {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
         allowProgramJob(request, programUuid);
@@ -4312,17 +4312,36 @@ class ClassMarketplaceJobServiceImplTest {
         verify(jobRepository).save(jobCaptor.capture());
         ClassMarketplaceJob saved = jobCaptor.getValue();
         assertThat(saved.getBranchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(saved.getLocationName()).isEqualTo("Nairobi Campus - Lab 2");
+        assertThat(saved.getLocationLatitude()).isEqualByComparingTo(request.locationLatitude());
+        assertThat(saved.getLocationLongitude()).isEqualByComparingTo(request.locationLongitude());
+        assertThat(result.branchUuid()).isEqualTo(BRANCH_UUID);
+        assertThat(result.locationLatitude()).isEqualByComparingTo(request.locationLatitude());
+    }
+
+    @Test
+    void createJobWithoutCoordinatesOfItsOwnTakesTheBranchPin() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
+                LocationType.HYBRID, null, null, null, BRANCH_UUID);
+        allowProgramJob(request, programUuid);
+        stubJobSaves();
+
+        service.createJob(request);
+
+        ArgumentCaptor<ClassMarketplaceJob> jobCaptor = ArgumentCaptor.forClass(ClassMarketplaceJob.class);
+        verify(jobRepository).save(jobCaptor.capture());
+        ClassMarketplaceJob saved = jobCaptor.getValue();
         assertThat(saved.getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
         assertThat(saved.getLocationLatitude()).isEqualByComparingTo(BRANCH_LATITUDE);
         assertThat(saved.getLocationLongitude()).isEqualByComparingTo(BRANCH_LONGITUDE);
-        assertThat(result.branchUuid()).isEqualTo(BRANCH_UUID);
-        assertThat(result.locationLatitude()).isNotEqualByComparingTo(request.locationLatitude());
     }
 
     @Test
     void createJobRefusesABranchWithoutAPinForHybrid() {
         UUID programUuid = UUID.randomUUID();
-        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+        ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
+                LocationType.HYBRID, null, null, null, BRANCH_UUID);
         allowProgramJob(request, programUuid);
         when(trainingBranchLookupService.findBranch(request.organisationUuid(), BRANCH_UUID)).thenReturn(Optional.of(
                 new BranchLocation(BRANCH_UUID, request.organisationUuid(), "Main Campus", "Kasarani, Nairobi", null, null, true)));
@@ -4347,11 +4366,12 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
-    void updateJobRecopiesTheBranchPin() {
+    void updateJobMovedToAnotherBranchWithTheOldLocationEchoedBackTakesTheNewBranchPin() {
         UUID programUuid = UUID.randomUUID();
         UUID newBranchUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
-                LocationType.IN_PERSON, "Client typed name", new BigDecimal("10.0"), new BigDecimal("10.0"), newBranchUuid);
+                LocationType.IN_PERSON, "Nairobi Campus - Lab 2", new BigDecimal("-1.292066"),
+                new BigDecimal("36.821945"), newBranchUuid);
         ClassMarketplaceJob job = sampleProgramJob();
         job.setOrganisationUuid(request.organisationUuid());
         job.setProgramUuid(programUuid);
@@ -4370,6 +4390,33 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(job.getLocationName()).isEqualTo("Westlands Annex");
         assertThat(job.getLocationLatitude()).isEqualTo(new BigDecimal("-1.267612"));
         assertThat(job.getLocationLongitude()).isEqualTo(new BigDecimal("36.810800"));
+    }
+
+    @Test
+    void updateJobMovedToAnotherBranchKeepsNewOwnCoordinates() {
+        UUID programUuid = UUID.randomUUID();
+        UUID newBranchUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withLocation(sampleRequest(null, programUuid),
+                LocationType.IN_PERSON, "Community Hall", new BigDecimal("-4.043477"), new BigDecimal("39.668206"),
+                newBranchUuid);
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(request.organisationUuid());
+        job.setProgramUuid(programUuid);
+        job.setBranchUuid(BRANCH_UUID);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(request, programUuid);
+        when(trainingBranchLookupService.findBranch(request.organisationUuid(), newBranchUuid)).thenReturn(Optional.of(
+                new BranchLocation(newBranchUuid, request.organisationUuid(), "Westlands Annex", null,
+                        new BigDecimal("-1.26761234567"), new BigDecimal("36.81080000001"), true)));
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateJob(job.getUuid(), request);
+
+        assertThat(job.getBranchUuid()).isEqualTo(newBranchUuid);
+        assertThat(job.getLocationName()).isEqualTo("Community Hall");
+        assertThat(job.getLocationLatitude()).isEqualTo(new BigDecimal("-4.043477"));
+        assertThat(job.getLocationLongitude()).isEqualTo(new BigDecimal("39.668206"));
     }
 
     @Test
