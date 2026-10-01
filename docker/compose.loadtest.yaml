@@ -1,0 +1,139 @@
+# Load-test runtime: the API as a container with staging-like limits, plus Prometheus, Grafana,
+# postgres_exporter and cAdvisor. It is an OVERLAY on docker/compose.local.yaml (same project name, so the
+# same network and the same postgres/meilisearch/keycloak), never used on its own:
+#
+#   docker compose -f docker/compose.local.yaml -f docker/compose.loadtest.yaml up -d --build
+#
+# The wrappers are scripts/loadtest/stack-up.sh and stack-down.sh. Everything stays on this machine.
+#
+# Ports (localhost only):
+#   API 38080 (same as the bootRun backend, so stop that first), actuator/management 38081,
+#   Prometheus 9090 (also the k6 remote-write target: http://localhost:9090/api/v1/write),
+#   Grafana 3001 (anonymous, no login), cAdvisor 58088, postgres_exporter 59187.
+
+name: elimika-local
+
+volumes:
+  elimika_loadtest_prometheus:
+  elimika_loadtest_grafana:
+
+services:
+  app:
+    build:
+      context: ..
+      # Default: the host-built jar in the same runtime image as ./Dockerfile (see docker/loadtest/app.Dockerfile;
+      # stack-up.sh runs ./gradlew bootJar first). LOADTEST_APP_DOCKERFILE=Dockerfile builds ./Dockerfile verbatim.
+      dockerfile: ${LOADTEST_APP_DOCKERFILE:-docker/loadtest/app.Dockerfile}
+    image: elimika-loadtest-app:latest
+    # Staging-like limits: 1.5GiB memory (as in docker/compose.yaml) and 2 CPUs.
+    mem_limit: 1536m
+    cpus: 2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: "38080"
+      # Actuator on its own port so Prometheus can scrape without a token; the main port keeps
+      # /actuator/prometheus authenticated (see SecurityConfiguration).
+      MANAGEMENT_SERVER_PORT: "8081"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elimika
+      APP_KEYCLOAK_SERVERURL: http://keycloak:8080
+      SEARCH_MEILISEARCH_HOST: http://meilisearch:7700
+      STORAGE_PATH: /app/storage
+      STORAGE_BASE_URL: http://localhost:38080
+      LOGGING_FILE_NAME: /app/logs/elimika.log
+      # Observability only (not a tuning change): registers Tomcat's MBeans so tomcat_threads_* metrics exist.
+      SERVER_TOMCAT_MBEANREGISTRY_ENABLED: "true"
+    ports:
+      - "127.0.0.1:38080:38080"
+      - "127.0.0.1:38081:8081"
+    volumes:
+      - elimika_local_storage:/app/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    environment:
+      DATA_SOURCE_URI: postgres:5432/elimika?sslmode=disable
+      DATA_SOURCE_USER: elimika
+      DATA_SOURCE_PASS: elimika-local
+    command:
+      - --collector.stat_statements
+      - --collector.long_running_transactions
+    ports:
+      - "127.0.0.1:59187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.53.0
+    privileged: true
+    devices:
+      - /dev/kmsg
+    # This Docker uses the containerd image store (overlayfs snapshotter), which cAdvisor's docker handler cannot
+    # read ("failed to identify the read-write layer ID"). The docker handler is therefore pointed at a socket
+    # that does not exist so it never claims a container, and containers are read through containerd's "moby"
+    # namespace instead. Container ids carry no compose labels that way, so Prometheus derives a `container`
+    # label (app, postgres, meilisearch, keycloak) from the image (docker/observability/prometheus/prometheus.yml).
+    command:
+      - --housekeeping_interval=5s
+      - --docker=unix:///nonexistent.sock
+      - --containerd=/run/containerd/containerd.sock
+      - --containerd-namespace=moby
+      - --store_container_labels=false
+    ports:
+      - "127.0.0.1:58088:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /run/containerd:/run/containerd:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-remote-write-receiver
+      - --enable-feature=native-histograms
+      - --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - elimika_loadtest_prometheus:/prometheus
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/elimika-loadtest.json
+      GF_USERS_DEFAULT_THEME: light
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - elimika_loadtest_grafana:/var/lib/grafana
+    depends_on:
+      - prometheus

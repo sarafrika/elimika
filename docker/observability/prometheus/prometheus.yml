@@ -1,0 +1,51 @@
+# Prometheus for the local load-test runtime (docker/compose.loadtest.yaml). k6 pushes its own metrics
+# through the remote-write receiver (http://localhost:9090/api/v1/write), so it has no scrape job here.
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: elimika-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8081"]
+        labels:
+          service: app
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: postgres
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    # cAdvisor reads containers through containerd here (see compose.loadtest.yaml), so `name` is the bare
+    # container id and no compose labels come through. Derive a stable `container` label from the image
+    # instead, and drop every other cgroup (other projects' containers, systemd slices).
+    metric_relabel_configs:
+      - source_labels: [image]
+        regex: ".*/elimika-loadtest-app:.*"
+        target_label: container
+        replacement: app
+      - source_labels: [image]
+        regex: ".*/library/postgres:.*"
+        target_label: container
+        replacement: postgres
+      - source_labels: [image]
+        regex: ".*/getmeili/meilisearch:.*"
+        target_label: container
+        replacement: meilisearch
+      - source_labels: [image]
+        regex: ".*/keycloak/keycloak:.*"
+        target_label: container
+        replacement: keycloak
+      - source_labels: [container]
+        regex: ""
+        action: drop
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

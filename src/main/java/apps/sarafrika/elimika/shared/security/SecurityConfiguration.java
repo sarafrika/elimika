@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.shared.security;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -104,6 +105,23 @@ public class SecurityConfiguration {
     @Value("${springdoc.swagger-ui.path:/swagger-ui.html}")
     private String swaggerUiPath;
 
+    /**
+     * The separate actuator port, when one is configured via {@code MANAGEMENT_SERVER_PORT}; -1 when actuator
+     * shares the main port (the default, and staging today).
+     */
+    @Value("${management.server.port:-1}")
+    private int managementServerPort;
+
+    @Value("${server.port:8080}")
+    private int serverPort;
+
+    private boolean isPrometheusScrapeOnManagementPort(HttpServletRequest request) {
+        return managementServerPort > 0
+                && managementServerPort != serverPort
+                && request.getLocalPort() == managementServerPort
+                && "/actuator/prometheus".equals(request.getRequestURI());
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         log.info("Configuring security filter chain; API documentation is {}",
@@ -117,6 +135,9 @@ public class SecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req -> {
                     req.requestMatchers(HEALTH_PATHS).permitAll()
+                            // Prometheus scrapes anonymously, but only on a separate management port
+                            // (MANAGEMENT_SERVER_PORT), never on the public one.
+                            .requestMatchers(this::isPrometheusScrapeOnManagementPort).permitAll()
                             .requestMatchers("/error").permitAll()
                             // Registered ahead of the catch-all, so only health stays anonymous.
                             .requestMatchers("/actuator/**").authenticated();

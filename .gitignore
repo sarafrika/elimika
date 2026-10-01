@@ -56,3 +56,6 @@ __pycache__/
 
 ### Tooling artefacts ###
 .playwright-mcp/
+
+### Load-test output ###
+loadtest/results/

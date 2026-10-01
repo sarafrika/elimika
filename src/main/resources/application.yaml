@@ -238,14 +238,26 @@ springdoc:
 
 # Actuator configuration
 management:
+  # management.server.port is deliberately NOT set here, so actuator stays on the main port by default
+  # (staging's healthcheck curls localhost:<server.port>/actuator/health). Set MANAGEMENT_SERVER_PORT
+  # (e.g. 8081, as docker/compose.loadtest.yaml does) to move actuator onto its own port; Prometheus
+  # scrapes /actuator/prometheus anonymously on that port only (see SecurityConfiguration).
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,5s,10s
   health:
     defaults:
       enabled: true
