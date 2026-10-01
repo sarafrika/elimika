@@ -35,8 +35,11 @@ services:
     volumes:
       - elimika_storage:/app/storage
       - elimika_logs:/app/logs
+    # Liveness only (management.endpoint.health.probes.enabled): the aggregate /actuator/health also
+    # reports DOWN when the database pool is saturated, which marked the container unhealthy under load
+    # even though restarting it fixes nothing. Liveness says whether the JVM itself is stuck.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:30000/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${MANAGEMENT_SERVER_PORT:-30000}/actuator/health/liveness"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -273,6 +273,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      # Exposes /actuator/health/liveness and /readiness outside Kubernetes too; the container
+      # healthcheck in docker/compose.yaml probes liveness.
       probes:
         enabled: true
   metrics:
