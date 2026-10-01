@@ -1,0 +1,84 @@
+# Local workstation profile: the self-contained stack in docker/compose.local.yaml.
+#
+#   docker compose -f docker/compose.local.yaml up -d
+#   SPRING_PROFILES_ACTIVE=local ./gradlew bootRun      (or scripts/local/up.sh, which does both and seeds)
+#
+# Activating `local` also activates `dev` (spring.profiles.group in application.yaml), so the dev
+# commerce access service and the public API docs apply here exactly as on staging.
+#
+# Every default below is a throwaway value for the local stack only - the database, Keycloak realm and
+# Meilisearch master key exist nowhere else. Each one can still be overridden by the environment variable
+# named in it (the backend container in compose.local.yaml does so for the in-network host names).
+# The variable list lives in docs/guides/local-environment.md.
+
+server:
+  port: ${SERVER_PORT:38080}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:55432/elimika}
+    username: ${SPRING_DATASOURCE_USERNAME:elimika}
+    password: ${SPRING_DATASOURCE_PASSWORD:elimika-local}
+
+app:
+  keycloak:
+    serverUrl: ${APP_KEYCLOAK_SERVERURL:http://localhost:58080}
+    realm: ${APP_KEYCLOAK_REALM:elimika-local}
+    admin:
+      # The confidential client from docker/keycloak/elimika-local-realm.json. Its service account holds
+      # the realm-management roles the admin client needs, and its client roles are what
+      # KeyCloakJwtAuthenticationConverter reads from resource_access.elimika-backend.roles.
+      clientId: ${APP_KEYCLOAK_ADMIN_CLIENTID:elimika-backend}
+      clientSecret: ${APP_KEYCLOAK_ADMIN_CLIENTSECRET:elimika-local-backend-secret}
+  # qa-admin@elimika.local becomes the platform admin through the app's own bootstrap runner (idempotent).
+  bootstrap:
+    admin:
+      enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:true}
+      email: ${APP_BOOTSTRAP_ADMIN_EMAIL:qa-admin@elimika.local}
+      first-name: ${APP_BOOTSTRAP_ADMIN_FIRST_NAME:Ada}
+      last-name: ${APP_BOOTSTRAP_ADMIN_LAST_NAME:Admin}
+  email:
+    frontend:
+      url: ${APP_EMAIL_FRONTEND_URL:http://localhost:3000}
+
+encryption:
+  secret-key: ${ENCRYPTION_SECRET_KEY:elimika-local-encryption-key}
+  salt: ${ENCRYPTION_SALT:5c0744940b5c369b}
+
+storage:
+  location: ${STORAGE_PATH:${user.home}/elimika-local-storage}
+  base-url: ${STORAGE_BASE_URL:http://localhost:38080}
+
+logging:
+  file:
+    name: ${LOGGING_FILE_NAME:logs/elimika-local.log}
+
+search:
+  enabled: true
+  auto-rebuild: true
+  meilisearch:
+    host: ${SEARCH_MEILISEARCH_HOST:http://localhost:57700}
+    # LOCAL ONLY: the stack's master key. Staging and production use a scoped key (see
+    # docs/guides/search-platform.md, go-live runbook); never copy this pattern there.
+    api-key: ${SEARCH_MEILISEARCH_API_KEY:elimika-local-meili-master-key}
+  read-enabled:
+    courses: true
+    programs: true
+    rubrics: true
+    classes: true
+    marketplace_jobs: true
+    instructors: true
+    organisations: true
+    people: true
+    course_content: true
+  # Nightly jobs are noise on a workstation; scripts/local/seed.sh triggers the rebuild and the course
+  # feature refresh explicitly.
+  full-rebuild-cron: "-"
+
+course:
+  features:
+    refresh-cron: "-"
+
+commerce:
+  capture:
+    auto-on-complete: true

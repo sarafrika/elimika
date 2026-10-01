@@ -48,6 +48,11 @@ CLAUDE.md
 .env.*
 !.env.sample
 !.env.example
+# Local-stack template (throwaway values); its generated copy docker/.env.local stays ignored.
+!.env.local.example
+
+### Local stack scripts ###
+__pycache__/
 
 ### Tooling artefacts ###
 .playwright-mcp/

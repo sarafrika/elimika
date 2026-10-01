@@ -4,6 +4,9 @@ spring:
 
   profiles:
     active: prod
+    # `local` (the docker/compose.local.yaml workstation stack) is a relaxed environment too.
+    group:
+      local: dev
 
   # Multipart file upload configuration
   servlet:

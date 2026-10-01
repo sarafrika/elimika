@@ -1,0 +1,119 @@
+# Local, self-contained Elimika stack: PostgreSQL, Meilisearch and Keycloak (realm import), plus an
+# optional containerised backend. Nothing here talks to staging or to the shared Keycloak.
+#
+#   docker compose -f docker/compose.local.yaml up -d                     # services only (run the API with bootRun)
+#   docker compose -f docker/compose.local.yaml --profile app up -d --build  # services + backend container
+#
+# Every credential below is a throwaway local-development value; none of them is used anywhere else.
+# The one-command wrapper is scripts/local/up.sh, and docs/guides/local-environment.md explains the lot.
+#
+# Ports are deliberately off the usual defaults so the stack can run next to other projects:
+#   PostgreSQL 55432, Meilisearch 57700, Keycloak 58080, backend 38080.
+
+name: elimika-local
+
+volumes:
+  elimika_local_pg:
+  elimika_local_meili:
+  elimika_local_storage:
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: elimika
+      POSTGRES_USER: elimika
+      POSTGRES_PASSWORD: elimika-local
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - elimika_local_pg:/var/lib/postgresql/data
+      # Creates the keycloak database, on first initialisation of the volume only.
+      - ./local/postgres-init.sql:/docker-entrypoint-initdb.d/10-keycloak.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elimika -d elimika"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.54.1
+    environment:
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+      # Local only. The API uses this key directly on this stack (see application-local.yaml);
+      # staging and production use a scoped key instead.
+      MEILI_MASTER_KEY: elimika-local-meili-master-key
+    ports:
+      - "127.0.0.1:57700:7700"
+    volumes:
+      - elimika_local_meili:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.3
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Tokens always carry iss=http://localhost:58080/realms/elimika-local, whether they were minted
+      # through the published port (browser, bootRun, scripts) or over the compose network (backend
+      # container), and the backend container can still reach Keycloak at http://keycloak:8080.
+      KC_HOSTNAME: http://localhost:58080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      # The realm lives in its own database on the local PostgreSQL (created by local/postgres-init.sql).
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak-local
+      TZ: UTC
+    ports:
+      - "127.0.0.1:58080:8080"
+    volumes:
+      # --import-realm imports the realm only when it does not exist yet; to re-import after
+      # editing the JSON, run scripts/local/down.sh --reset-keycloak (drops only the keycloak database).
+      - ./keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl; bash's /dev/tcp is enough to probe the management health endpoint.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  # Optional: the API in a container (compose profile "app"). scripts/local/up.sh uses bootRun instead,
+  # which starts faster and picks up code changes; both read the same `local` Spring profile.
+  backend:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: "38080"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elimika
+      APP_KEYCLOAK_SERVERURL: http://keycloak:8080
+      SEARCH_MEILISEARCH_HOST: http://meilisearch:7700
+      STORAGE_PATH: /app/storage
+      STORAGE_BASE_URL: http://localhost:38080
+      LOGGING_FILE_NAME: /app/logs/elimika.log
+    ports:
+      - "127.0.0.1:38080:38080"
+    volumes:
+      - elimika_local_storage:/app/storage
