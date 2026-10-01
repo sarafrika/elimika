@@ -2,7 +2,10 @@ package apps.sarafrika.elimika.course.internal.search;
 
 import apps.sarafrika.elimika.course.model.Category;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.DifficultyLevel;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
+import apps.sarafrika.elimika.course.model.ProgramEnrollment;
+import apps.sarafrika.elimika.course.model.ProgramReview;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
@@ -42,11 +45,17 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
     static final String IS_PUBLIC = "is_public";
     static final String COURSE_CREATOR_UUID = "course_creator_uuid";
 
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 1,
+    /**
+     * Schema 2 adds the catalogue card fields and the sort attributes shared with {@code courses}
+     * ({@code rating_bayes}, {@code popularity_30d}), makes {@code difficulty_uuids} filterable, and
+     * ranks with the course index's rules so the two can be merged into one federated ranking.
+     */
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
                     List.of("title", "course_names", "category_name", "creator_name", "description"),
                     List.of("status", "is_published", "admin_approved", "active", IS_PUBLIC, COURSE_CREATOR_UUID,
-                            "category_uuid", "is_free", "uuid", "created_at"),
-                    List.of("title", "created_at"))
+                            "category_uuid", "is_free", "uuid", "created_at", "difficulty_uuids"),
+                    List.of("title", "created_at", "rating_avg", "rating_bayes", "popularity_30d", "enrolment_count"))
+            .withRankingRules(CourseSearchSource.DEFINITION.rankingRules())
             .withTypoDisabledAttributes(List.of("status"));
 
     private static final String PROGRAM_COLUMNS = """
@@ -97,11 +106,15 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
         return List.of(
                 SearchIndexTrigger.direct(TrainingProgram.class, TrainingProgram::getUuid),
                 SearchIndexTrigger.direct(ProgramCourse.class, ProgramCourse::getProgramUuid),
+                SearchIndexTrigger.direct(ProgramReview.class, ProgramReview::getProgramUuid),
+                SearchIndexTrigger.direct(ProgramEnrollment.class, ProgramEnrollment::getProgramUuid),
                 // A member course's name is part of the document.
                 SearchIndexTrigger.fanOut(Course.class, course -> course.getUuid() == null
                         || course.getParentCourseUuid() != null ? null : "course:" + course.getUuid()),
                 SearchIndexTrigger.fanOut(Category.class, category -> category.getUuid() == null
-                        ? null : "category:" + category.getUuid()));
+                        ? null : "category:" + category.getUuid()),
+                SearchIndexTrigger.fanOut(DifficultyLevel.class, level -> level.getUuid() == null
+                        ? null : "difficulty:" + level.getUuid()));
     }
 
     @Override
@@ -119,6 +132,10 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
         String sql = switch (key.substring(0, separator)) {
             case "course" -> "SELECT DISTINCT program_uuid FROM program_courses WHERE course_uuid = :uuid";
             case "category" -> "SELECT uuid FROM training_programs WHERE category_uuid = :uuid";
+            case "difficulty" -> """
+                    SELECT DISTINCT pc.program_uuid FROM program_courses pc
+                    JOIN courses c ON c.uuid = pc.course_uuid WHERE c.difficulty_uuid = :uuid
+                    """;
             default -> null;
         };
         return sql == null ? Set.of() : new HashSet<>(jdbc.queryForList(sql, Map.of("uuid", uuid), UUID.class));
@@ -129,16 +146,62 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
             return List.of();
         }
         List<UUID> programUuids = rows.stream().map(ProgramRow::uuid).toList();
+        MapSqlParameterSource byProgram = new MapSqlParameterSource("uuids", programUuids);
         Map<UUID, List<String>> courseNames = new HashMap<>();
+        Map<UUID, String> thumbnails = new HashMap<>();
+        Map<UUID, Set<UUID>> difficultyUuids = new HashMap<>();
+        Map<UUID, Level[]> levelRange = new HashMap<>();
         jdbc.query("""
-                SELECT pc.program_uuid, c.name
+                SELECT pc.program_uuid, c.name, c.thumbnail_url, c.difficulty_uuid, d.name AS difficulty_name,
+                       d.level_order
                 FROM program_courses pc
                 JOIN courses c ON c.uuid = pc.course_uuid
+                LEFT JOIN course_difficulty_levels d ON d.uuid = c.difficulty_uuid
                 WHERE pc.program_uuid IN (:uuids)
                 ORDER BY pc.sequence_order NULLS LAST, c.name
-                """, new MapSqlParameterSource("uuids", programUuids), rs -> {
-            courseNames.computeIfAbsent(SearchRows.uuid(rs, "program_uuid"), key -> new ArrayList<>())
-                    .add(rs.getString("name"));
+                """, byProgram, rs -> {
+            UUID programUuid = SearchRows.uuid(rs, "program_uuid");
+            courseNames.computeIfAbsent(programUuid, key -> new ArrayList<>()).add(rs.getString("name"));
+            String thumbnail = rs.getString("thumbnail_url");
+            if (thumbnail != null && !thumbnail.isBlank()) {
+                thumbnails.putIfAbsent(programUuid, thumbnail);
+            }
+            UUID difficultyUuid = SearchRows.uuid(rs, "difficulty_uuid");
+            if (difficultyUuid != null) {
+                difficultyUuids.computeIfAbsent(programUuid, key -> new LinkedHashSet<>()).add(difficultyUuid);
+                int order = rs.getInt("level_order");
+                Level level = new Level(rs.wasNull() ? Integer.MAX_VALUE : order, rs.getString("difficulty_name"));
+                Level[] range = levelRange.computeIfAbsent(programUuid, key -> new Level[]{level, level});
+                if (level.order() < range[0].order()) {
+                    range[0] = level;
+                }
+                if (level.order() > range[1].order()) {
+                    range[1] = level;
+                }
+            }
+        });
+
+        // Same Bayesian shrinkage as course_learning_stats.rating_bayes: (C*m + sum) / (C + n), C = 5,
+        // m = the mean of every program review.
+        Map<UUID, double[]> reviews = new HashMap<>();
+        jdbc.query("""
+                SELECT r.program_uuid, AVG(r.rating)::float8 AS rating_avg, COUNT(*) AS review_count,
+                       ((5 * (SELECT AVG(rating) FROM program_reviews) + SUM(r.rating)) / (5 + COUNT(*)))::float8
+                           AS rating_bayes
+                FROM program_reviews r WHERE r.program_uuid IN (:uuids) GROUP BY r.program_uuid
+                """, byProgram, rs -> {
+            reviews.put(SearchRows.uuid(rs, "program_uuid"), new double[]{
+                    rs.getDouble("rating_avg"), rs.getLong("review_count"), rs.getDouble("rating_bayes")});
+        });
+
+        Map<UUID, long[]> enrolments = new HashMap<>();
+        jdbc.query("""
+                SELECT program_uuid, COUNT(*) AS enrolment_count,
+                       COUNT(*) FILTER (WHERE enrollment_date >= NOW() - INTERVAL '30 days') AS enrolments_30d
+                FROM program_enrollments WHERE program_uuid IN (:uuids) GROUP BY program_uuid
+                """, byProgram, rs -> {
+            enrolments.put(SearchRows.uuid(rs, "program_uuid"),
+                    new long[]{rs.getLong("enrolment_count"), rs.getLong("enrolments_30d")});
         });
 
         Set<UUID> creatorUuids = new LinkedHashSet<>();
@@ -149,6 +212,10 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
         List<ProgramSearchDocument> documents = new ArrayList<>(rows.size());
         for (ProgramRow row : rows) {
             boolean isPublic = "published".equals(row.status()) && row.adminApproved() && row.active();
+            List<String> members = courseNames.getOrDefault(row.uuid(), List.of());
+            double[] review = reviews.get(row.uuid());
+            long[] enrolment = enrolments.getOrDefault(row.uuid(), new long[]{0, 0});
+            Level[] range = levelRange.get(row.uuid());
             documents.add(new ProgramSearchDocument(
                     row.uuid(),
                     row.title(),
@@ -157,7 +224,7 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
                     row.categoryName(),
                     row.courseCreatorUuid(),
                     row.courseCreatorUuid() == null ? null : creatorNames.get(row.courseCreatorUuid()),
-                    courseNames.getOrDefault(row.uuid(), List.of()),
+                    members,
                     row.status(),
                     row.isPublished(),
                     row.adminApproved(),
@@ -165,9 +232,25 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
                     isPublic,
                     SearchRows.isFree(row.price()),
                     row.price(),
-                    row.createdAt()));
+                    row.createdAt(),
+                    row.categoryUuid() == null ? List.of() : List.of(row.categoryUuid()),
+                    row.categoryName() == null ? List.of() : List.of(row.categoryName()),
+                    thumbnails.get(row.uuid()),
+                    members.size(),
+                    List.copyOf(difficultyUuids.getOrDefault(row.uuid(), Set.of())),
+                    range == null ? null : range[0].name(),
+                    range == null ? null : range[1].name(),
+                    review == null ? null : review[0],
+                    review == null ? 0 : (long) review[1],
+                    review == null ? null : review[2],
+                    enrolment[0],
+                    enrolment[1]));
         }
         return documents;
+    }
+
+    /** One member course's difficulty, for the program's level range. */
+    private record Level(int order, String name) {
     }
 
     private static ProgramRow row(ResultSet rs) throws SQLException {

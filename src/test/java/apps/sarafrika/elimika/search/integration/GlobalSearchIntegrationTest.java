@@ -142,7 +142,8 @@ class GlobalSearchIntegrationTest {
                 course(DRAFT_COURSE, "Zephyrine Draft Notes", "draft", false)));
         gateway.upsert("programs", List.of(new ProgramSearchDocument(LIVE_PROGRAM, "Zephyrine Programme", "Stars",
                 null, null, UUID.randomUUID(), "Ada Creator", List.of("Zephyrine Astronomy"), "published", true, true,
-                true, true, true, BigDecimal.ZERO, now)));
+                true, true, true, BigDecimal.ZERO, now, List.of(), List.of(), null, 1, List.of(), null, null,
+                null, 0, null, 0, 0)));
         gateway.upsert("organisations", List.of(
                 new OrganisationSearchDocument(VERIFIED_ORGANISATION, "Zephyrine Academy", "zephyrine-academy",
                         "An academy", "Nairobi", "KE", true, true, now),

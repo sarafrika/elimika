@@ -11,6 +11,14 @@ import java.util.UUID;
  * The {@code programs} index document: one training program with its category, creator name and the
  * names of its member courses. {@code is_public} is the live state the program SQL scope keys off
  * (published, active and admin-approved).
+ * <p>
+ * Schema 2 adds what a public catalogue card and the merged catalogue ranking need:
+ * {@code category_uuids}/{@code category_names} (the program's one category, shaped like the
+ * course document's lists), {@code thumbnail_url} (the first member course's, since programs carry
+ * no image of their own), {@code course_count}, {@code difficulty_uuids} and the
+ * {@code level_min}/{@code level_max} names over the member courses, review figures
+ * ({@code rating_avg}, {@code review_count}, {@code rating_bayes}) and {@code popularity_30d}
+ * (enrolments in the last 30 days), named like the course document's so the two indexes sort alike.
  */
 public record ProgramSearchDocument(
         @JsonProperty("uuid") UUID uuid,
@@ -28,6 +36,18 @@ public record ProgramSearchDocument(
         @JsonProperty("is_public") boolean isPublic,
         @JsonProperty("is_free") boolean isFree,
         @JsonProperty("price") BigDecimal price,
-        @JsonProperty("created_at") Long createdAt
+        @JsonProperty("created_at") Long createdAt,
+        @JsonProperty("category_uuids") List<UUID> categoryUuids,
+        @JsonProperty("category_names") List<String> categoryNames,
+        @JsonProperty("thumbnail_url") String thumbnailUrl,
+        @JsonProperty("course_count") int courseCount,
+        @JsonProperty("difficulty_uuids") List<UUID> difficultyUuids,
+        @JsonProperty("level_min") String levelMin,
+        @JsonProperty("level_max") String levelMax,
+        @JsonProperty("rating_avg") Double ratingAvg,
+        @JsonProperty("review_count") long reviewCount,
+        @JsonProperty("rating_bayes") Double ratingBayes,
+        @JsonProperty("enrolment_count") long enrolmentCount,
+        @JsonProperty("popularity_30d") long popularity30d
 ) implements SearchDocument {
 }
