@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.shared.search.SearchBatch;
 import apps.sarafrika.elimika.shared.search.SearchDocumentAttributes;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
+import apps.sarafrika.elimika.shared.search.SearchSynonymSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexTrigger;
 import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.shared.utils.recurrence.RecurrenceExpander;
@@ -76,7 +77,8 @@ public class MarketplaceJobSearchSource implements SearchDocumentSource<Marketpl
                     "registration_closes_at", "uuid", "created_at", "required_skill_uuids",
                     SearchIndexDefinition.GEO_ATTRIBUTE),
             List.of("created_at", "starts_at", SearchIndexDefinition.GEO_ATTRIBUTE))
-            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(MarketplaceJobSearchDocument.class));
+            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(MarketplaceJobSearchDocument.class))
+            .withSynonymSources(List.of(SearchSynonymSource.SKILLS));
 
     /** The listing's sortable entity properties that have an index counterpart. */
     private static final Map<String, String> SORT_ATTRIBUTES = Map.of(

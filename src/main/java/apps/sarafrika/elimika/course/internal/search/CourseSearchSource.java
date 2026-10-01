@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
+import apps.sarafrika.elimika.shared.search.SearchSynonymSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexTrigger;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -66,7 +67,8 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                     List.of("name", "created_at", "price", "rating_avg", "enrolment_count", "completion_rate",
                             "popularity_30d", "rating_bayes"))
             .withRankingRules(List.of("words", "typo", "proximity", "attribute", "sort", "exactness", "rating_bayes:desc"))
-            .withTypoDisabledAttributes(List.of("status"));
+            .withTypoDisabledAttributes(List.of("status"))
+            .withSynonymSources(List.of(SearchSynonymSource.SKILLS));
 
     private static final String COURSE_COLUMNS = """
             SELECT c.id, c.uuid, c.parent_course_uuid, c.name, c.description, c.objectives, c.difficulty_uuid,

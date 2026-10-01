@@ -57,6 +57,7 @@ public class SearchIndexRebuilder implements DisposableBean {
     private final SearchIndexAdmin admin;
     private final SearchIndexStateStore stateStore;
     private final SearchProperties properties;
+    private final SearchDefinitionResolver resolver;
     private final TransactionTemplate readOnlyTransaction;
     private final ThreadPoolTaskExecutor rebuildExecutor;
     private final Set<String> scheduled = ConcurrentHashMap.newKeySet();
@@ -67,8 +68,10 @@ public class SearchIndexRebuilder implements DisposableBean {
             SearchIndexAdmin admin,
             SearchIndexStateStore stateStore,
             SearchProperties properties,
+            SearchDefinitionResolver resolver,
             PlatformTransactionManager transactionManager
     ) {
+        this.resolver = resolver;
         this.registry = registry;
         this.gateway = gateway;
         this.admin = admin;
@@ -159,8 +162,9 @@ public class SearchIndexRebuilder implements DisposableBean {
 
         try {
             // The live index must exist to be swapped with; settings go on the build index first.
-            admin.ensureIndex(index, definition);
-            admin.ensureIndex(build, definition);
+            SearchIndexDefinition settings = resolver.effective(definition);
+            admin.ensureIndex(index, settings);
+            admin.ensureIndex(build, settings);
             stateStore.markRebuilding(index, build, checkpoint);
 
             int batchSize = Math.max(1, properties.getRebuildBatchSize());

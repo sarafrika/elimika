@@ -278,6 +278,20 @@ class SkillTaggingIntegrationTest {
         awaitCourse(courseSkill);
     }
 
+    @Test
+    @DisplayName("A skill's alias is a search synonym: a job tagged JavaScript (alias JS) is found by q=js")
+    void skillAliasIsASearchSynonym() throws Exception {
+        UUID javascript = createSkill("JavaScript", "[\"JS\"]");
+        ClassMarketplaceJob tagged = saveJob("Frontend mentor", UUID.randomUUID());
+        mockMvc.perform(put("/api/v1/classes/jobs/" + tagged.getUuid() + "/required-skills").with(jwt(managerSubject))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"skills\":[{\"skill_uuid\":\"" + javascript + "\"}]}"))
+                .andExpect(status().isOk());
+
+        // Neither the title, the description nor the tag contains "js": only the synonym matches.
+        awaitJobs("js", tagged.getUuid());
+    }
+
     // ===== Instructor skills =====
 
     @Test

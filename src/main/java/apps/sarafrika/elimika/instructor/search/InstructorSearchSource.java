@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.shared.search.SearchDocumentAttributes;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
 import apps.sarafrika.elimika.shared.search.SearchGeoPoint;
 import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
+import apps.sarafrika.elimika.shared.search.SearchSynonymSource;
 import apps.sarafrika.elimika.shared.search.SearchIndexTrigger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -51,7 +52,8 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
             List.of("admin_verified", "active", "skills", "skill_levels", "skill_uuids", "location_name", "uuid",
                     "created_at", SearchIndexDefinition.GEO_ATTRIBUTE),
             List.of("full_name", "rating_avg", "review_count", "created_at", SearchIndexDefinition.GEO_ATTRIBUTE))
-            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(InstructorSearchDocument.class));
+            .withDisplayedAttributes(SearchDocumentAttributes.displayedWithoutGeo(InstructorSearchDocument.class))
+            .withSynonymSources(List.of(SearchSynonymSource.SKILLS));
 
     static final int BIO_MAX_LENGTH = 1500;
 

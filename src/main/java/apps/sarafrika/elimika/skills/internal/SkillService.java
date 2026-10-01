@@ -2,10 +2,13 @@ package apps.sarafrika.elimika.skills.internal;
 
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.search.SearchSynonymSource;
+import apps.sarafrika.elimika.shared.search.SearchSynonymsChanged;
 import apps.sarafrika.elimika.skills.dto.SkillDTO;
 import apps.sarafrika.elimika.skills.dto.SkillRequest;
 import apps.sarafrika.elimika.skills.spi.SkillSlugs;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +40,7 @@ public class SkillService {
     public static final int MAX_LIMIT = 500;
 
     private final SkillRepository skillRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<SkillDTO> listAll(String q, Boolean active) {
@@ -63,13 +67,17 @@ public class SkillService {
     public SkillDTO create(SkillRequest request) {
         Skill skill = new Skill();
         apply(skill, request);
-        return toDto(skillRepository.save(skill));
+        SkillDTO created = toDto(skillRepository.save(skill));
+        synonymsChanged();
+        return created;
     }
 
     public SkillDTO update(UUID uuid, SkillRequest request) {
         Skill skill = find(uuid);
         apply(skill, request);
-        return toDto(skillRepository.save(skill));
+        SkillDTO updated = toDto(skillRepository.save(skill));
+        synonymsChanged();
+        return updated;
     }
 
     /**
@@ -79,6 +87,12 @@ public class SkillService {
      */
     public void delete(UUID uuid) {
         skillRepository.delete(find(uuid));
+        synonymsChanged();
+    }
+
+    /** Names and aliases are search synonyms; the search module re-applies them after commit. */
+    private void synonymsChanged() {
+        eventPublisher.publishEvent(new SearchSynonymsChanged(SearchSynonymSource.SKILLS));
     }
 
     private Skill find(UUID uuid) {

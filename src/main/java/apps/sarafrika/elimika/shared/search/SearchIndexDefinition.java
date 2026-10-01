@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.shared.search;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,6 +28,9 @@ import java.util.regex.Pattern;
  * @param stopWords              words ignored in queries
  * @param typoDisabledAttributes attributes matched exactly (codes, emails)
  * @param maxTotalHits           the most hits a query can page through; 0 means 1000
+ * @param synonymSources         names of {@link SearchSynonymSource}s whose live synonyms are merged
+ *                               into {@code synonyms} whenever settings are applied (e.g.
+ *                               {@link SearchSynonymSource#SKILLS}); changing them needs no schema bump
  */
 public record SearchIndexDefinition(
         String name,
@@ -39,7 +44,8 @@ public record SearchIndexDefinition(
         Map<String, List<String>> synonyms,
         List<String> stopWords,
         List<String> typoDisabledAttributes,
-        int maxTotalHits
+        int maxTotalHits,
+        List<String> synonymSources
 ) {
 
     /**
@@ -76,6 +82,7 @@ public record SearchIndexDefinition(
         stopWords = copy(stopWords);
         typoDisabledAttributes = copy(typoDisabledAttributes);
         maxTotalHits = maxTotalHits <= 0 ? DEFAULT_MAX_TOTAL_HITS : maxTotalHits;
+        synonymSources = copy(synonymSources);
     }
 
     /**
@@ -90,37 +97,64 @@ public record SearchIndexDefinition(
             List<String> sortableAttributes
     ) {
         return new SearchIndexDefinition(name, DEFAULT_PRIMARY_KEY, schemaVersion, searchableAttributes,
-                filterableAttributes, sortableAttributes, List.of(), List.of(), Map.of(), List.of(), List.of(), 0);
+                filterableAttributes, sortableAttributes, List.of(), List.of(), Map.of(), List.of(), List.of(), 0, List.of());
     }
 
     public SearchIndexDefinition withDisplayedAttributes(List<String> attributes) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
-                sortableAttributes, attributes, rankingRules, synonyms, stopWords, typoDisabledAttributes, maxTotalHits);
+                sortableAttributes, attributes, rankingRules, synonyms, stopWords, typoDisabledAttributes, maxTotalHits, synonymSources);
     }
 
     public SearchIndexDefinition withRankingRules(List<String> rules) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
-                sortableAttributes, displayedAttributes, rules, synonyms, stopWords, typoDisabledAttributes, maxTotalHits);
+                sortableAttributes, displayedAttributes, rules, synonyms, stopWords, typoDisabledAttributes, maxTotalHits, synonymSources);
     }
 
     public SearchIndexDefinition withSynonyms(Map<String, List<String>> words) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
-                sortableAttributes, displayedAttributes, rankingRules, words, stopWords, typoDisabledAttributes, maxTotalHits);
+                sortableAttributes, displayedAttributes, rankingRules, words, stopWords, typoDisabledAttributes, maxTotalHits, synonymSources);
     }
 
     public SearchIndexDefinition withStopWords(List<String> words) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
-                sortableAttributes, displayedAttributes, rankingRules, synonyms, words, typoDisabledAttributes, maxTotalHits);
+                sortableAttributes, displayedAttributes, rankingRules, synonyms, words, typoDisabledAttributes, maxTotalHits, synonymSources);
     }
 
     public SearchIndexDefinition withTypoDisabledAttributes(List<String> attributes) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
-                sortableAttributes, displayedAttributes, rankingRules, synonyms, stopWords, attributes, maxTotalHits);
+                sortableAttributes, displayedAttributes, rankingRules, synonyms, stopWords, attributes, maxTotalHits, synonymSources);
     }
 
     public SearchIndexDefinition withMaxTotalHits(int hits) {
         return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
-                sortableAttributes, displayedAttributes, rankingRules, synonyms, stopWords, typoDisabledAttributes, hits);
+                sortableAttributes, displayedAttributes, rankingRules, synonyms, stopWords, typoDisabledAttributes, hits, synonymSources);
+    }
+
+    /** This definition, taking live synonyms from the named {@link SearchSynonymSource}s too. */
+    public SearchIndexDefinition withSynonymSources(List<String> sources) {
+        return new SearchIndexDefinition(name, primaryKey, schemaVersion, searchableAttributes, filterableAttributes,
+                sortableAttributes, displayedAttributes, rankingRules, synonyms, stopWords, typoDisabledAttributes,
+                maxTotalHits, sources);
+    }
+
+    /**
+     * This definition with {@code extra} merged into its own synonyms: a word in both keeps the union
+     * of its synonyms, its own first.
+     */
+    public SearchIndexDefinition mergeSynonyms(Map<String, List<String>> extra) {
+        if (extra == null || extra.isEmpty()) {
+            return this;
+        }
+        Map<String, LinkedHashSet<String>> merged = new LinkedHashMap<>();
+        synonyms.forEach((word, words) -> merged.computeIfAbsent(word, key -> new LinkedHashSet<>()).addAll(words));
+        extra.forEach((word, words) -> {
+            if (word != null && words != null) {
+                merged.computeIfAbsent(word, key -> new LinkedHashSet<>()).addAll(words);
+            }
+        });
+        Map<String, List<String>> words = new LinkedHashMap<>();
+        merged.forEach((word, set) -> words.put(word, List.copyOf(set)));
+        return withSynonyms(words);
     }
 
     /** Whether {@link SearchFilter#geoRadius} may be used on this index. */
