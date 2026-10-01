@@ -1,9 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.shared.event.student.GuardianConsentRecordedEvent;
-import apps.sarafrika.elimika.systemconfig.dto.AgeGateDecision;
-import apps.sarafrika.elimika.systemconfig.dto.RuleContext;
-import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationResultDTO;
 import apps.sarafrika.elimika.tenancy.dto.GuardianConsentRequestDTO;
@@ -37,6 +34,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -65,7 +63,6 @@ class InvitationAcceptanceServiceImplTest {
     @Mock private UserDomainRepository userDomainRepository;
     @Mock private UserOrganisationDomainMappingRepository mappingRepository;
     @Mock private UserService userService;
-    @Mock private RuleEvaluationService ruleEvaluationService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
     private final InvitationTokenService tokenService = new InvitationTokenService();
@@ -79,7 +76,7 @@ class InvitationAcceptanceServiceImplTest {
         service = new InvitationAcceptanceServiceImpl(
                 invitationRepository, invitationClassRepository, organisationRepository,
                 userRepository, userDomainRepository, mappingRepository, userService,
-                ruleEvaluationService, tokenService, new InvitationLinkFactory("https://elimika.test"), eventPublisher);
+                tokenService, new InvitationLinkFactory("https://elimika.test"), eventPublisher);
 
         UserDomain studentDomain = new UserDomain();
         studentDomain.setUuid(DOMAIN_UUID);
@@ -99,8 +96,6 @@ class InvitationAcceptanceServiceImplTest {
         when(mappingRepository.existsByUserUuidAndOrganisationUuidAndActiveTrueAndDeletedFalse(any(), any()))
                 .thenReturn(false);
         when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
-        when(ruleEvaluationService.evaluateAgeGate(any(), any(RuleContext.class)))
-                .thenReturn(AgeGateDecision.allow());
     }
 
     // ================================
@@ -252,6 +247,49 @@ class InvitationAcceptanceServiceImplTest {
     }
 
     @Test
+    void aSeventeenYearOldStillNeedsAGuardian() {
+        OrganisationInvitation invitation = pendingInvitation();
+        givenInvitationForToken(invitation);
+        invitee.setDob(LocalDate.now(ZoneOffset.UTC).minusYears(18).plusDays(1));
+
+        AcceptInvitationResultDTO result = service.acceptByToken(
+                RAW_TOKEN, new AcceptInvitationRequestDTO(null, true), invitee.getUuid());
+
+        assertThat(result.guardianConsentRequired()).isTrue();
+        assertThat(result.status()).isEqualTo(InvitationStatus.AWAITING_GUARDIAN_CONSENT);
+        verify(userService, never()).assignUserToOrganisation(any(), any(), any(), any());
+    }
+
+    @Test
+    void anEighteenYearOldConsentsForThemselvesWithoutAGuardian() {
+        OrganisationInvitation invitation = pendingInvitation();
+        givenInvitationForToken(invitation);
+        invitee.setDob(LocalDate.now(ZoneOffset.UTC).minusYears(18));
+
+        AcceptInvitationResultDTO result = service.acceptByToken(
+                RAW_TOKEN, new AcceptInvitationRequestDTO(null, true), invitee.getUuid());
+
+        assertThat(result.guardianConsentRequired()).isFalse();
+        assertThat(result.affiliated()).isTrue();
+        assertThat(invitation.isRequiresGuardianConsent()).isFalse();
+    }
+
+    @Test
+    void anAdultWellAboveTheOldStudentAgeCapSkipsGuardianConsent() {
+        OrganisationInvitation invitation = pendingInvitation();
+        givenInvitationForToken(invitation);
+        invitee.setDob(LocalDate.now(ZoneOffset.UTC).minusYears(45));
+
+        AcceptInvitationResultDTO result = service.acceptByToken(
+                RAW_TOKEN, new AcceptInvitationRequestDTO(null, true), invitee.getUuid());
+
+        assertThat(result.guardianConsentRequired()).isFalse();
+        assertThat(result.status()).isEqualTo(InvitationStatus.ACCEPTED);
+        verify(userService).assignUserToOrganisation(
+                eq(invitee.getUuid()), eq(ORGANISATION_UUID), eq("student"), any());
+    }
+
+    @Test
     void nominatingAGuardianIssuesThemTheirOwnSeparateLink() {
         OrganisationInvitation invitation = awaitingGuardianInvitation();
         givenInvitationForToken(invitation);
@@ -399,8 +437,7 @@ class InvitationAcceptanceServiceImplTest {
     }
 
     private void givenTheInviteeIsAMinor() {
-        when(ruleEvaluationService.evaluateAgeGate(any(), any(RuleContext.class)))
-                .thenReturn(AgeGateDecision.rejected("Below the minimum age"));
+        invitee.setDob(LocalDate.now(ZoneOffset.UTC).minusYears(12));
     }
 
     private User user(String email, LocalDate dob) {

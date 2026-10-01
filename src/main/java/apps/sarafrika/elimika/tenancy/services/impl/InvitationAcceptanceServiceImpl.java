@@ -4,9 +4,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.student.GuardianConsentRecordedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.systemconfig.dto.AgeGateDecision;
-import apps.sarafrika.elimika.systemconfig.dto.RuleContext;
-import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
+import apps.sarafrika.elimika.shared.spi.MinorLearnerLookupService;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationResultDTO;
 import apps.sarafrika.elimika.tenancy.dto.GuardianConsentRequestDTO;
@@ -41,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
+import java.time.Period;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
@@ -66,7 +64,6 @@ import java.util.UUID;
 @Slf4j
 public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceService {
 
-    private static final String AGE_GATE_RULE_KEY = "student.onboarding.age_gate";
     private static final String DEFAULT_SHARE_SCOPE = "FULL";
 
     private final OrganisationInvitationRepository invitationRepository;
@@ -76,7 +73,6 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
     private final UserDomainRepository userDomainRepository;
     private final UserOrganisationDomainMappingRepository mappingRepository;
     private final UserService userService;
-    private final RuleEvaluationService ruleEvaluationService;
     private final InvitationTokenService tokenService;
     private final InvitationLinkFactory linkFactory;
     private final ApplicationEventPublisher eventPublisher;
@@ -482,12 +478,14 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
                 "Your date of birth is needed before this invitation can be accepted.");
     }
 
+    /**
+     * Whether the invitee is too young to consent for themselves. Judged against the age of
+     * majority, not the student onboarding age gate: that gate decides who may learn at all
+     * (adults included), whereas this decides who needs a guardian's say-so.
+     */
     private boolean isMinor(LocalDate dateOfBirth) {
-        AgeGateDecision decision = ruleEvaluationService.evaluateAgeGate(
-                dateOfBirth,
-                new RuleContext(AGE_GATE_RULE_KEY, null, null, null, null,
-                        OffsetDateTime.now(ZoneOffset.UTC)));
-        return !decision.allowed();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        return Period.between(dateOfBirth, today).getYears() < MinorLearnerLookupService.AGE_OF_MAJORITY;
     }
 
     // ================================

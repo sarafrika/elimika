@@ -37,20 +37,6 @@ def ensure_users():
     return {u: user_uuid(u) for u in QA_USERS}
 
 
-def relax_student_age_gate():
-    """The migration-seeded onboarding gate allows learners aged 5-18 only. The scenarios need adult learners
-    too (recommendations, co-enrolment), so the local seed widens it to 5-99 through the admin rules API."""
-    rules = must(call("GET", "/api/v1/system-rules", "qa-admin"), "list system rules")
-    rows = rules.get("content", rules) if isinstance(rules, dict) else rules
-    for rule in rows:
-        if rule.get("key") == "student.onboarding.age_gate" and rule["valuePayload"].get("maxAge") != 99:
-            body = {k: rule.get(k) for k in ("category", "key", "scope", "priority", "status", "valueType",
-                                             "effectiveFrom")}
-            body["valuePayload"] = {"minAge": 5, "maxAge": 99}
-            must(call("PUT", f"/api/v1/system-rules/{rule['uuid']}", "qa-admin", body), "widen age gate")
-            log("student age gate widened to 5-99 (local only)")
-
-
 # ---------------------------------------------------------------- profiles
 
 def ensure_student(u, uid, guardian_name=None):
@@ -461,7 +447,6 @@ def main():
     t0 = time.time()
     users = ensure_users()
     log(f"users synced: {len(users)}")
-    relax_student_age_gate()
 
     students = {
         "qa-student": ensure_student("qa-student", users["qa-student"]),
