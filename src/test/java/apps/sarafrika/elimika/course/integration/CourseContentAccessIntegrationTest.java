@@ -175,6 +175,28 @@ class CourseContentAccessIntegrationTest {
                 .doesNotContain(DRAFT_LESSON_TITLE);
     }
 
+    @Test
+    @DisplayName("A course the catalogue does not show has no public summary: drafts and shadow drafts are 404")
+    void prospectGetsNothingForACourseOutsideTheCatalogue() throws Exception {
+        UUID creatorUuid = UUID.fromString(jdbc.queryForObject(
+                "SELECT course_creator_uuid::text FROM courses WHERE uuid = ?", String.class, courseUuid));
+        UUID draftUuid = course("Unannounced draft course", creatorUuid);
+        jdbc.update("UPDATE courses SET status = 'draft', admin_approved = false, active = false WHERE uuid = ?",
+                draftUuid);
+        lesson(draftUuid, 1, "Draft outline nobody should read", "published", true);
+
+        UUID shadowUuid = course("Unreviewed edit of the syllabus", creatorUuid);
+        jdbc.update("UPDATE courses SET status = 'draft', admin_approved = false, active = false, parent_course_uuid = ? "
+                + "WHERE uuid = ?", courseUuid, shadowUuid);
+
+        mockMvc.perform(get("/api/v1/courses/" + draftUuid + "/content")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/courses/" + shadowUuid + "/content")).andExpect(status().isNotFound());
+        // The owner still reads their own draft in full.
+        mockMvc.perform(get("/api/v1/courses/" + draftUuid + "/content").with(jwt(CREATOR_SUBJECT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.access").value("creator"));
+    }
+
     // ===== THE CONTROL: THE ENDPOINT DOES SERVE CONTENT TO SOMEBODY =====
 
     @Test
@@ -240,8 +262,9 @@ class CourseContentAccessIntegrationTest {
 
     private UUID course(String name, UUID courseCreatorUuid) {
         UUID uuid = UUID.randomUUID();
-        jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, created_by) "
-                + "VALUES (?, ?, ?, 'published', true, 'test')", uuid, name, courseCreatorUuid);
+        // Published, approved and active: a course the public catalogue shows, so prospects get its summary.
+        jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, admin_approved, created_by) "
+                + "VALUES (?, ?, ?, 'published', true, true, 'test')", uuid, name, courseCreatorUuid);
         return uuid;
     }
 

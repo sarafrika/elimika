@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.course.service.CourseReviewService;
 import apps.sarafrika.elimika.course.service.LessonContentService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +62,12 @@ public class CourseContentServiceImpl implements CourseContentService {
      * disagreement would be a payload carrying content to somebody entitled to none of it.
      */
     private OrganisationCourseContentDTO assemble(UUID courseUuid, CourseContentAccess access) {
+        if (access == CourseContentAccess.PROSPECT && !isInPublicCatalogue(courseUuid)) {
+            // A prospect is shown "the same public summary the catalogue already shows"; a course the
+            // catalogue does not show (a draft, one awaiting approval, an inactive or archived course, or a
+            // shadow draft carrying an unreviewed edit) has no public summary, so it answers as absent.
+            throw new ResourceNotFoundException("Course with UUID " + courseUuid + " not found");
+        }
         final boolean fullAccess = access.grantsFullContent();
         final boolean seesDrafts = access.seesDrafts();
 
@@ -173,6 +180,16 @@ public class CourseContentServiceImpl implements CourseContentService {
      */
     private boolean isPublished(Lesson lesson) {
         return lesson.getStatus() == ContentStatus.PUBLISHED && Boolean.TRUE.equals(lesson.getActive());
+    }
+
+    /** The public-catalogue rule (published, admin-approved, active, not a shadow draft). */
+    private boolean isInPublicCatalogue(UUID courseUuid) {
+        return courseRepository.findByUuid(courseUuid)
+                .filter(course -> course.getStatus() == ContentStatus.PUBLISHED)
+                .filter(course -> Boolean.TRUE.equals(course.getAdminApproved()))
+                .filter(course -> Boolean.TRUE.equals(course.getActive()))
+                .filter(course -> course.getParentCourseUuid() == null)
+                .isPresent();
     }
 
     private Double averageRating(List<CourseReviewDTO> reviews) {

@@ -619,8 +619,9 @@ class CourseActingDomainIntegrationTest {
 
     private UUID course(String name, UUID courseCreatorUuid) {
         UUID uuid = UUID.randomUUID();
-        jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, created_by) "
-                + "VALUES (?, ?, ?, 'published', true, 'test')", uuid, name, courseCreatorUuid);
+        // Published, approved and active: a course the public catalogue shows, so prospects get its summary.
+        jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, admin_approved, created_by) "
+                + "VALUES (?, ?, ?, 'published', true, true, 'test')", uuid, name, courseCreatorUuid);
         return uuid;
     }
 
