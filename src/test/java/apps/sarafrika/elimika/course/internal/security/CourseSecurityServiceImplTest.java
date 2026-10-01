@@ -200,6 +200,32 @@ class CourseSecurityServiceImplTest {
     }
 
     @Test
+    void aStudentOfAnApprovedOrganisationMayNotReadTheCourseAsStaff() {
+        // Being enrolled in one of an organisation's classes affiliates a learner with it; that must not
+        // open every other course the organisation is approved to train.
+        UUID organisationUuid = UUID.randomUUID();
+        belongsToOrganisationAs(organisationUuid, UserDomain.student);
+        when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                COURSE_UUID, CourseTrainingApplicantType.ORGANISATION, organisationUuid,
+                CourseTrainingApplicationStatus.APPROVED)).thenReturn(true);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        assertThat(service.canReadCourseContent(COURSE_UUID)).isFalse();
+        assertThat(service.canReadCourseAsLearner(COURSE_UUID)).isFalse();
+    }
+
+    @Test
+    void staffOfAnApprovedOrganisationMayReadTheCourseContent() {
+        UUID organisationUuid = UUID.randomUUID();
+        belongsToOrganisationAs(organisationUuid, UserDomain.instructor);
+        when(trainingApplicationRepository.existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
+                COURSE_UUID, CourseTrainingApplicantType.ORGANISATION, organisationUuid,
+                CourseTrainingApplicationStatus.APPROVED)).thenReturn(true);
+
+        assertThat(service.canReadCourseContent(COURSE_UUID)).isTrue();
+    }
+
+    @Test
     void aMemberOfAnUnapprovedOrganisationIsRefused() {
         belongsToOrganisationAs(UUID.randomUUID(), UserDomain.instructor);
 

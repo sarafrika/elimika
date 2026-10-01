@@ -1131,7 +1131,9 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
      * one — see {@link #teachingOrganisationsOf(UUID)}.
      */
     private boolean belongsToApprovedTrainingOrganisation(UUID courseUuid, UUID userUuid) {
-        List<UUID> organisationUuids = userLookupService.getUserOrganizations(userUuid);
+        // Staff only: an approved organisation's learners are members too, and a training approval passes
+        // the organisation's rights to its staff, never to everyone it enrolled (as the gradebook rule does).
+        List<UUID> organisationUuids = staffedOrganisationUuids(userUuid);
         for (UUID organisationUuid : organisationUuids) {
             boolean approved = courseTrainingApplicationRepository
                     .existsByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
