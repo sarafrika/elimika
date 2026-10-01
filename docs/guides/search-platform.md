@@ -225,7 +225,7 @@ A "see all results" page for one type: `{ content: [GlobalSearchHit], metadata: 
 
 ## Public catalogue page
 
-### `GET /api/v1/catalogue/search` (operationId `searchCatalogue`)
+### `GET /api/v1/catalogue/search` (operationId `searchCoursesAndProgrammes`)
 
 One ranked list of public courses **and** programmes - not tabs. Anonymous-capable (`permitAll` GET);
 every caller, signed in or not, admin or not, gets the public catalogue only (`is_public` on both

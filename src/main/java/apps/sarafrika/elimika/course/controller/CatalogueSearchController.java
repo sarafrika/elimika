@@ -35,7 +35,7 @@ public class CatalogueSearchController {
     private final CatalogueSearchService catalogueSearchService;
 
     @GetMapping("/search")
-    @Operation(operationId = "searchCatalogue", summary = "Search the public catalogue",
+    @Operation(operationId = "searchCoursesAndProgrammes", summary = "Search the public catalogue",
             description = "One ranked list of public courses and programmes (is_public courses; published, active, "
                     + "admin-approved programmes) for every caller, signed in or not. With q the two types are merged "
                     + "by relevance (typo-tolerant); without q it is a browse. Filters: show, category_uuid, level, "
