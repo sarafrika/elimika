@@ -164,7 +164,7 @@ public class CourseServiceImpl implements CourseService {
      * The public catalogue, which is all an anonymous caller may read: a root course (never a shadow
      * draft) that is published, active and approved by an admin.
      */
-    private static boolean isPublicCourse(Course course) {
+    static boolean isPublicCourse(Course course) {
         return course.getParentCourseUuid() == null
                 && course.getStatus() == ContentStatus.PUBLISHED
                 && Boolean.TRUE.equals(course.getActive())

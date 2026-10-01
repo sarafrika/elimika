@@ -4,7 +4,15 @@ import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.classes.repository.projection.CourseOpenClassAggregate;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.CourseOpenClassSummary;
+import apps.sarafrika.elimika.shared.spi.OpenClassListing;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
+import apps.sarafrika.elimika.tenancy.spi.TrainingBranchLookupService;
+
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,6 +33,8 @@ import org.springframework.stereotype.Service;
 public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupService {
 
     private final ClassDefinitionRepository classDefinitionRepository;
+    private final EnrollmentLookupService enrollmentLookupService;
+    private final TrainingBranchLookupService trainingBranchLookupService;
 
     @Override
     public Optional<ClassDefinitionSnapshot> findByUuid(UUID classDefinitionUuid) {
@@ -204,6 +214,76 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
             return Map.of();
         }
         return toCountMap(classDefinitionRepository.countActiveByCourseAndVisibility(requested, ClassVisibility.PUBLIC));
+    }
+
+    @Override
+    public List<OpenClassListing> findOpenClassesForCourse(UUID courseUuid) {
+        if (courseUuid == null) {
+            return List.of();
+        }
+        List<ClassDefinition> open = classDefinitionRepository.findOpenByCourse(courseUuid, ClassVisibility.PUBLIC, todayUtc());
+        if (open.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> classUuids = open.stream().map(ClassDefinition::getUuid).toList();
+        Map<UUID, Long> filledSeats = enrollmentLookupService.countFilledSeatsByClassDefinition(classUuids);
+        Map<UUID, String> branchNames = trainingBranchLookupService.findBranchNames(
+                open.stream().map(ClassDefinition::getBranchUuid).filter(Objects::nonNull).distinct().toList());
+
+        List<OpenClassListing> listings = new ArrayList<>(open.size());
+        for (ClassDefinition definition : open) {
+            listings.add(new OpenClassListing(
+                    definition.getUuid(),
+                    definition.getTitle(),
+                    definition.getLocationType(),
+                    definition.getSessionFormat(),
+                    definition.getLocationName(),
+                    definition.getSalePrice(),
+                    definition.getMaxParticipants(),
+                    seatsLeft(definition.getMaxParticipants(), filledSeats.getOrDefault(definition.getUuid(), 0L)),
+                    startsOn(definition),
+                    definition.getAcademicPeriodEndDate(),
+                    definition.getRegistrationPeriodEndDate(),
+                    definition.getBranchUuid() == null ? null : branchNames.get(definition.getBranchUuid())));
+        }
+        return listings;
+    }
+
+    @Override
+    public Map<UUID, CourseOpenClassSummary> summariseOpenClassesByCourse(Collection<UUID> courseUuids) {
+        Collection<UUID> requested = distinct(courseUuids);
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, CourseOpenClassSummary> byCourse = new LinkedHashMap<>();
+        for (CourseOpenClassAggregate aggregate
+                : classDefinitionRepository.summariseOpenByCourse(requested, ClassVisibility.PUBLIC, todayUtc())) {
+            if (aggregate.courseUuid() != null) {
+                byCourse.put(aggregate.courseUuid(),
+                        new CourseOpenClassSummary(aggregate.classCount(), aggregate.minFee()));
+            }
+        }
+        return byCourse;
+    }
+
+    private static LocalDate todayUtc() {
+        return LocalDate.now(ZoneOffset.UTC);
+    }
+
+    /** Seats offered minus seats taken, floored at zero; unknown when the class sets no cap. */
+    private static Integer seatsLeft(Integer maxParticipants, long filled) {
+        if (maxParticipants == null) {
+            return null;
+        }
+        return (int) Math.max(0L, maxParticipants - filled);
+    }
+
+    /** The teaching period's first day, else the day of the first session. */
+    private static LocalDate startsOn(ClassDefinition definition) {
+        if (definition.getAcademicPeriodStartDate() != null) {
+            return definition.getAcademicPeriodStartDate();
+        }
+        return definition.getDefaultStartTime() == null ? null : definition.getDefaultStartTime().toLocalDate();
     }
 
     private static Collection<UUID> distinct(Collection<UUID> uuids) {

@@ -153,6 +153,11 @@ public class SecurityConfiguration {
                             .requestMatchers(new RegexRequestMatcher(PUBLIC_COURSE_READ, HttpMethod.GET.name())).permitAll()
                             // Similar courses are not personal and cover public courses only.
                             .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/similar").permitAll()
+                            // The joinable classes of a public course, for the signed-out course page.
+                            // The service answers for public courses only (404 otherwise) and lists
+                            // public classes reduced to publishable fields: no coordinates, no
+                            // instructor or organisation data, no revenue terms.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/open-classes").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/assignments/media/**").permitAll()
                             // Handed-in work is not public media: a submitted file is served
                             // only to the learner who uploaded it or the staff who mark its

@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.shared.spi.enrollment;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -108,6 +109,16 @@ public interface EnrollmentLookupService {
      * @return the number of filled seats
      */
     long countFilledSeatsForClassDefinitions(Collection<UUID> classDefinitionUuids);
+
+    /**
+     * Filled seats per class, in one grouped query: the distinct learners holding a live enrolment
+     * (not cancelled, not waitlisted) on each class. The per-class form of
+     * {@link #countFilledSeatsForClassDefinitions(Collection)}, for a page that shows seats left.
+     *
+     * @param classDefinitionUuids the classes to count; nulls are ignored, empty yields an empty map
+     * @return filled seats keyed by class definition UUID, omitting classes with none
+     */
+    Map<UUID, Long> countFilledSeatsByClassDefinition(Collection<UUID> classDefinitionUuids);
 
     /**
      * The learners an instructor teaches: every student holding an enrolment, in any status, on a

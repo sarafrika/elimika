@@ -132,4 +132,41 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
             """)
     List<TrainerClassCount> countActiveByCourseAndVisibility(@Param("courseUuids") Collection<UUID> courseUuids,
                                                              @Param("visibility") apps.sarafrika.elimika.shared.enums.ClassVisibility visibility);
+
+    /**
+     * A course's classes that a visitor can still join: active, in the given visibility, and neither
+     * the registration window nor the teaching period ended before {@code today}. A missing end date
+     * counts as open.
+     */
+    @Query("""
+            SELECT cd
+            FROM ClassDefinition cd
+            WHERE cd.courseUuid = :courseUuid
+              AND cd.isActive = true
+              AND cd.classVisibility = :visibility
+              AND (cd.registrationPeriodEndDate IS NULL OR cd.registrationPeriodEndDate >= :today)
+              AND (cd.academicPeriodEndDate IS NULL OR cd.academicPeriodEndDate >= :today)
+            """)
+    List<ClassDefinition> findOpenByCourse(@Param("courseUuid") UUID courseUuid,
+                                           @Param("visibility") apps.sarafrika.elimika.shared.enums.ClassVisibility visibility,
+                                           @Param("today") java.time.LocalDate today);
+
+    /**
+     * {@link #findOpenByCourse} counted and priced per course for many courses, grouped in one query.
+     */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.classes.repository.projection.CourseOpenClassAggregate(
+                       cd.courseUuid, COUNT(cd), MIN(cd.salePrice))
+            FROM ClassDefinition cd
+            WHERE cd.courseUuid IN :courseUuids
+              AND cd.isActive = true
+              AND cd.classVisibility = :visibility
+              AND (cd.registrationPeriodEndDate IS NULL OR cd.registrationPeriodEndDate >= :today)
+              AND (cd.academicPeriodEndDate IS NULL OR cd.academicPeriodEndDate >= :today)
+            GROUP BY cd.courseUuid
+            """)
+    List<apps.sarafrika.elimika.classes.repository.projection.CourseOpenClassAggregate> summariseOpenByCourse(
+            @Param("courseUuids") Collection<UUID> courseUuids,
+            @Param("visibility") apps.sarafrika.elimika.shared.enums.ClassVisibility visibility,
+            @Param("today") java.time.LocalDate today);
 }

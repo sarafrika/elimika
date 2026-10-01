@@ -123,6 +123,29 @@ public interface ClassDefinitionLookupService {
      */
     Map<UUID, Long> countActivePublicClassesByCourse(Collection<UUID> courseUuids);
 
+    /**
+     * The classes of a course a visitor can still join: active, {@code PUBLIC}, and neither the
+     * registration window nor the teaching period ended before today (UTC). A missing end date
+     * counts as still open.
+     * <p>
+     * The caller decides whether the course itself may be shown; this only answers for its classes.
+     * Seat availability is resolved for the whole list in one grouped query.
+     *
+     * @param courseUuid the course whose classes are wanted
+     * @return the open classes, unordered; empty when there are none
+     */
+    List<OpenClassListing> findOpenClassesForCourse(UUID courseUuid);
+
+    /**
+     * The open-class count and lowest fee per course, in one grouped query, over the same classes
+     * {@link #findOpenClassesForCourse(UUID)} returns - the "from KES 2,000 · 3 classes" figure on a
+     * page of catalogue cards.
+     *
+     * @param courseUuids the courses to summarise; nulls are ignored
+     * @return the summary keyed by course UUID, omitting courses with no open class
+     */
+    Map<UUID, CourseOpenClassSummary> summariseOpenClassesByCourse(Collection<UUID> courseUuids);
+
     default Optional<ClassDefinitionSnapshot> findByUuidWithoutCourse(UUID classDefinitionUuid) {
         return findByUuid(classDefinitionUuid).map(snapshot ->
                 new ClassDefinitionSnapshot(

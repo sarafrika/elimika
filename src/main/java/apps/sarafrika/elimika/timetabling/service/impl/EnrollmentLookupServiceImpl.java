@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -100,6 +102,21 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
         for (Object[] row : enrollmentRepository.countDistinctStudentsGroupedByClassDefinition(classes)) {
             if (row.length > 1 && row[1] instanceof Number learners) {
                 filled += learners.longValue();
+            }
+        }
+        return filled;
+    }
+
+    @Override
+    public Map<UUID, Long> countFilledSeatsByClassDefinition(Collection<UUID> classDefinitionUuids) {
+        Collection<UUID> classes = sanitise(classDefinitionUuids);
+        if (classes.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Long> filled = new LinkedHashMap<>();
+        for (Object[] row : enrollmentRepository.countDistinctStudentsGroupedByClassDefinition(classes)) {
+            if (row.length > 1 && row[0] instanceof UUID classUuid && row[1] instanceof Number learners) {
+                filled.put(classUuid, learners.longValue());
             }
         }
         return filled;

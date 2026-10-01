@@ -19,6 +19,7 @@ import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.CourseOpenClassSummary;
 import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.shared.utils.PageMetadata;
 import org.springframework.data.domain.PageImpl;
@@ -82,6 +83,7 @@ public class CatalogueSearchService {
     private static final SearchScope PUBLIC_PROGRAMS = CatalogueSearchScopes.programs(false, Set.of());
     /** Matches nothing: a level that names no difficulty row. */
     private static final UUID NO_MATCH = new UUID(0L, 0L);
+    private static final CourseOpenClassSummary NO_OPEN_CLASSES = new CourseOpenClassSummary(0L, null);
 
     private final SearchAvailability availability;
     private final SearchGateway gateway;
@@ -409,13 +411,16 @@ public class CatalogueSearchService {
         Map<UUID, long[]> programCounts = programCounts(programUuids);
         Map<UUID, Long> classCounts = courseCounts.isEmpty()
                 ? Map.of() : classDefinitionLookupService.countActivePublicClassesByCourse(courseCounts.keySet());
+        Map<UUID, CourseOpenClassSummary> openClasses = courseCounts.isEmpty()
+                ? Map.of() : classDefinitionLookupService.summariseOpenClassesByCourse(courseCounts.keySet());
 
         List<CatalogueItem> items = new ArrayList<>(hits.size());
         for (Hit hit : hits) {
             if (hit.index() == Index.COURSES) {
                 long[] counts = courseCounts.get(hit.uuid());
                 if (counts != null) {
-                    items.add(courseItem(hit, counts, classCounts.getOrDefault(hit.uuid(), 0L), hasText));
+                    items.add(courseItem(hit, counts, classCounts.getOrDefault(hit.uuid(), 0L),
+                            openClasses.getOrDefault(hit.uuid(), NO_OPEN_CLASSES), hasText));
                 }
             } else {
                 long[] counts = programCounts.get(hit.uuid());
@@ -481,7 +486,8 @@ public class CatalogueSearchService {
         return counts;
     }
 
-    private static CatalogueItem courseItem(Hit hit, long[] counts, long classCount, boolean hasText) {
+    private static CatalogueItem courseItem(Hit hit, long[] counts, long classCount,
+                                            CourseOpenClassSummary openClasses, boolean hasText) {
         Map<String, Object> document = hit.document();
         Integer ageLowerLimit = integer(document.get("age_lower_limit"));
         return new CatalogueItem(
@@ -501,6 +507,8 @@ public class CatalogueSearchService {
                 null,
                 counts[1],
                 classCount,
+                openClasses.priceFrom(),
+                openClasses.openClassCount(),
                 ageLowerLimit != null && ageLowerLimit >= 18 ? ageLowerLimit + "+" : null,
                 decimal(document.get("price")),
                 Boolean.TRUE.equals(document.get("is_free")),
@@ -537,6 +545,8 @@ public class CatalogueSearchService {
                 counts[0],
                 counts[2],
                 null,
+                null,
+                0L,
                 null,
                 decimal(document.get("price")),
                 Boolean.TRUE.equals(document.get("is_free")),
