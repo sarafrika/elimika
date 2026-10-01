@@ -62,6 +62,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -689,18 +690,34 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                         .collect(Collectors.toMap(CourseTrainingRequirement::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
 
         Set<UUID> retained = new LinkedHashSet<>();
-        for (CourseTrainingRequirement draft : draftReqs) {
+        List<CourseTrainingRequirement> promoted = new ArrayList<>();
+        // Linked rows first, so an unlinked copy of the same requirement matches a row that is
+        // already being kept rather than being inserted beside it.
+        List<CourseTrainingRequirement> ordered = new ArrayList<>(draftReqs);
+        ordered.sort(Comparator.comparing(r -> r.getSourceRequirementUuid() == null));
+        for (CourseTrainingRequirement draft : ordered) {
+            // The same requirement twice in one draft (a re-submitted add) is published once.
+            if (promoted.stream().anyMatch(kept -> CourseTrainingRequirementServiceImpl.sameRequirement(kept, draft))) {
+                continue;
+            }
             CourseTrainingRequirement target = draft.getSourceRequirementUuid() == null
                     ? null
                     : liveReqs.get(draft.getSourceRequirementUuid());
             if (target == null) {
-                target = new CourseTrainingRequirement();
+                // An unlinked row that repeats a live requirement reuses that row instead of adding
+                // a second copy of it (and keeps its uuid, which application answers reference).
+                target = liveReqs.values().stream()
+                        .filter(live -> !retained.contains(live.getUuid()))
+                        .filter(live -> CourseTrainingRequirementServiceImpl.sameRequirement(live, draft))
+                        .findFirst()
+                        .orElseGet(CourseTrainingRequirement::new);
             }
             copyTrainingRequirementFields(draft, target);
             target.setCourseUuid(liveCourseUuid);
             target.setSourceRequirementUuid(null);
             target = trainingRequirementRepository.save(target);
             retained.add(target.getUuid());
+            promoted.add(target);
         }
         liveReqs.values().stream()
                 .filter(r -> !retained.contains(r.getUuid()))

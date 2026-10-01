@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.factory.CourseTrainingRequirementFactory;
 import apps.sarafrika.elimika.course.model.CourseTrainingRequirement;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.service.CourseTrainingRequirementService;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +15,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -32,11 +37,47 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
     public CourseTrainingRequirementDTO create(UUID courseUuid, CourseTrainingRequirementDTO dto) {
         CourseTrainingRequirement entity = CourseTrainingRequirementFactory.toEntity(dto);
         entity.setCourseUuid(courseUuid);
+        if (entity.getName() != null) {
+            entity.setName(entity.getName().trim());
+        }
         if (entity.getIsMandatory() == null) {
             entity.setIsMandatory(true);
         }
+        // Idempotent: the same requirement posted twice is the same requirement. A creator editing a
+        // published course writes into its pending draft, which the editor's list (read from the live
+        // course) does not show, so a re-submitted row used to land in the draft a second time and
+        // approval then published both copies.
+        Optional<CourseTrainingRequirement> existing = findSameRequirement(courseUuid, entity, null);
+        if (existing.isPresent()) {
+            return CourseTrainingRequirementFactory.toDTO(existing.get());
+        }
         CourseTrainingRequirement saved = repository.save(entity);
         return CourseTrainingRequirementFactory.toDTO(saved);
+    }
+
+    /**
+     * Whether two rows describe the same requirement: same course, same name (trimmed, ignoring
+     * case), same type, same quantity and same provider side.
+     */
+    public static boolean sameRequirement(CourseTrainingRequirement a, CourseTrainingRequirement b) {
+        return Objects.equals(a.getRequirementType(), b.getRequirementType())
+                && Objects.equals(a.getQuantity(), b.getQuantity())
+                && Objects.equals(a.getProvidedBy(), b.getProvidedBy())
+                && normalisedName(a).equals(normalisedName(b));
+    }
+
+    private static String normalisedName(CourseTrainingRequirement requirement) {
+        return requirement.getName() == null ? "" : requirement.getName().trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Optional<CourseTrainingRequirement> findSameRequirement(UUID courseUuid,
+                                                                    CourseTrainingRequirement candidate,
+                                                                    UUID excludingUuid) {
+        return repository.findByCourseUuid(courseUuid).stream()
+                .filter(row -> excludingUuid == null || !excludingUuid.equals(row.getUuid()))
+                .filter(row -> sameRequirement(row, candidate))
+                .min(Comparator.comparing(CourseTrainingRequirement::getId,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
     }
 
     @Override
@@ -53,7 +94,7 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
             existing.setRequirementType(dto.requirementType());
         }
         if (dto.name() != null) {
-            existing.setName(dto.name());
+            existing.setName(dto.name().trim());
         }
         if (dto.description() != null) {
             existing.setDescription(dto.description());
@@ -69,6 +110,12 @@ public class CourseTrainingRequirementServiceImpl implements CourseTrainingRequi
         }
         if (dto.isMandatory() != null) {
             existing.setIsMandatory(dto.isMandatory());
+        }
+
+        if (findSameRequirement(courseUuid, existing, existing.getUuid()).isPresent()) {
+            throw new DuplicateResourceException(String.format(
+                    "Course %s already lists the training requirement '%s' with this type, quantity and provider",
+                    courseUuid, existing.getName()));
         }
 
         CourseTrainingRequirement updated = repository.save(existing);

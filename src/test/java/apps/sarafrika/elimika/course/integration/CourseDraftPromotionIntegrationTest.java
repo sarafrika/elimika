@@ -99,6 +99,8 @@ class CourseDraftPromotionIntegrationTest {
     @Autowired
     private apps.sarafrika.elimika.course.repository.CourseRequirementRepository requirementRepository;
     @Autowired
+    private apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository trainingRequirementRepository;
+    @Autowired
     private JdbcTemplate jdbc;
 
     private UUID courseCreatorUuid;
@@ -415,6 +417,40 @@ class CourseDraftPromotionIntegrationTest {
     }
 
     @Test
+    @DisplayName("a training requirement submitted twice into a draft is stored and published once")
+    void resubmittedTrainingRequirementIsPublishedOnce() {
+        Course live = publishedApprovedCourse("Organic gardening");
+        apps.sarafrika.elimika.course.model.CourseTrainingRequirement ppe =
+                addTrainingRequirement(live.getUuid(), "PPE suit", null);
+        Course draft = draftService.openDraft(live.getUuid());
+
+        // The editor lists the live course, so a row added to the draft looks unsaved and is sent
+        // again. The second submit answers the first row instead of adding another.
+        apps.sarafrika.elimika.course.service.impl.CourseTrainingRequirementServiceImpl service =
+                new apps.sarafrika.elimika.course.service.impl.CourseTrainingRequirementServiceImpl(
+                        trainingRequirementRepository, null);
+        apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO tools = trainingRequirementDto("Gardening tool set");
+        UUID first = service.create(draft.getUuid(), tools).uuid();
+        UUID second = service.create(draft.getUuid(), trainingRequirementDto(" gardening tool set ")).uuid();
+        assertThat(second).isEqualTo(first);
+
+        // A draft already holding copies from before the fix: an unlinked repeat of a live row and a
+        // second unlinked row of the new requirement.
+        addTrainingRequirement(draft.getUuid(), "PPE suit", null);
+        addTrainingRequirement(draft.getUuid(), "Gardening tool set", null);
+
+        draftService.promote(live.getUuid(), null);
+
+        List<apps.sarafrika.elimika.course.model.CourseTrainingRequirement> published =
+                trainingRequirementRepository.findByCourseUuid(live.getUuid());
+        assertThat(published).extracting(apps.sarafrika.elimika.course.model.CourseTrainingRequirement::getName)
+                .containsExactlyInAnyOrder("PPE suit", "Gardening tool set");
+        // The live row survives in place, so answers recorded against its uuid stay attached.
+        assertThat(published).extracting(apps.sarafrika.elimika.course.model.CourseTrainingRequirement::getUuid)
+                .contains(ppe.getUuid());
+    }
+
+    @Test
     @DisplayName("rejecting an edit leaves assessments and requirements untouched")
     void discardLeavesAssessmentsAndRequirements() {
         Course live = publishedApprovedCourse("Course");
@@ -505,6 +541,29 @@ class CourseDraftPromotionIntegrationTest {
                 apps.sarafrika.elimika.course.util.enums.RequirementType.STUDENT);
         requirement.setIsMandatory(true);
         return requirementRepository.saveAndFlush(requirement);
+    }
+
+    private apps.sarafrika.elimika.course.model.CourseTrainingRequirement addTrainingRequirement(
+            UUID courseUuid, String name, UUID sourceRequirementUuid) {
+        apps.sarafrika.elimika.course.model.CourseTrainingRequirement requirement =
+                new apps.sarafrika.elimika.course.model.CourseTrainingRequirement();
+        requirement.setCourseUuid(courseUuid);
+        requirement.setName(name);
+        requirement.setRequirementType(
+                apps.sarafrika.elimika.course.util.enums.CourseTrainingRequirementType.EQUIPMENT);
+        requirement.setQuantity(1);
+        requirement.setProvidedBy(apps.sarafrika.elimika.course.util.enums.CourseTrainingRequirementProvider.STUDENT);
+        requirement.setIsMandatory(true);
+        requirement.setSourceRequirementUuid(sourceRequirementUuid);
+        return trainingRequirementRepository.saveAndFlush(requirement);
+    }
+
+    private static apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO trainingRequirementDto(String name) {
+        return new apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO(
+                null, null, apps.sarafrika.elimika.course.util.enums.CourseTrainingRequirementType.EQUIPMENT,
+                name, null, 1, null,
+                apps.sarafrika.elimika.course.util.enums.CourseTrainingRequirementProvider.STUDENT,
+                true, null, null, null, null);
     }
 
     private static String randomUserNo() {
