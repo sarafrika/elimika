@@ -52,6 +52,18 @@ public final class SearchParamsTranslator {
      *
      * @throws IllegalArgumentException for a key that is not a filterable attribute, or a malformed value
      */
+    /**
+     * Whether the request carries any filter key besides paging, sort, text and near-me parameters.
+     */
+    public static boolean hasFilters(Map<String, String> searchParams) {
+        if (searchParams == null) {
+            return false;
+        }
+        return searchParams.entrySet().stream()
+                .anyMatch(entry -> entry.getValue() != null && !entry.getValue().isBlank()
+                        && !RESERVED_PARAMS.contains(entry.getKey().toLowerCase(java.util.Locale.ROOT)));
+    }
+
     public static SearchFilter toFilter(Map<String, String> searchParams, SearchIndexDefinition definition) {
         if (searchParams == null || searchParams.isEmpty()) {
             return null;

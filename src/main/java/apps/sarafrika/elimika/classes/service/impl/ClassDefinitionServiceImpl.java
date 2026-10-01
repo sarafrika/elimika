@@ -1120,7 +1120,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     @Override
     @Transactional(readOnly = true)
     public Page<ClassDefinitionResponseDTO> searchClasses(String q, Map<String, String> searchParams, Pageable pageable) {
-        if (!StringUtils.hasText(q)) {
+        boolean hasText = StringUtils.hasText(q);
+        // Without text or filters this is the plain listing; filters alone browse the index, which
+        // holds the same attributes the filters name, instead of being silently dropped.
+        if (!hasText && !SearchParamsTranslator.hasFilters(searchParams)) {
             return findAllClasses(pageable);
         }
         rejectSortOnWithheldFigures(pageable);
@@ -1128,7 +1131,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         int size = Math.min(pageable.getPageSize(), SearchRequest.MAX_SIZE);
         SearchFilter filter = SearchParamsTranslator.toFilter(upperCaseEnumValues(searchParams),
                 ClassSearchSource.DEFINITION);
-        return searchIndex(q, filter, scope,
+        return searchIndex(hasText ? q : null, filter, scope,
                 ClassSearchSource.sortFor(pageable.getSort()), pageable.getPageNumber(), size, definition -> true);
     }
 
