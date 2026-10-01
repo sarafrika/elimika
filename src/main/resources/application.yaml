@@ -64,6 +64,10 @@ spring:
 
   # JPA configuration
   jpa:
+    # Off: with open-in-view a request held its database connection from the first query until the
+    # response was written, so slow clients and JSON serialisation pinned pool connections. Entities
+    # must now be mapped to DTOs inside a @Transactional service method before leaving it.
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     properties:
