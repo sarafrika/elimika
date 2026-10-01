@@ -16,6 +16,9 @@ publishing.** A job with no tags of its own inherits its course's skills.
  ──                                   ───                                          ───────
  Admin screen ── POST/PUT/DELETE /api/v1/admin/skills ──► SkillService (skills) ──► skills
                  (platform admin only)                    slug unique, aliases unique, no parent cycles
+                                                          └ SearchSynonymsChanged("skills") (after commit)
+                                                              ─► search re-applies synonyms to courses,
+                                                                 marketplace_jobs, instructors settings
 
  Tag picker ──── GET /api/v1/skills?q=&limit= ──────────► SkillService.listActive
                  (signed in)                               active only, matched in memory
@@ -105,5 +108,11 @@ Inherited skills are all mandatory, with the course's `level` as `min_proficienc
 ## Search
 
 See [search-platform.md](search-platform.md#skill-tags-in-the-indexes): `instructors`, `courses` and
-`marketplace_jobs` moved to schema version 2 and must be rebuilt after deploy. Aliases are exposed by
-`SkillLookupService.aliases()` for use as engine synonyms; they are not wired into index settings yet.
+`marketplace_jobs` moved to schema version 2 and must be rebuilt after deploy.
+
+**Names and aliases are search synonyms** on those three indexes
+([details](search-platform.md#skill-names-and-aliases-as-synonyms)). `SkillSearchSynonyms` (skills module,
+implementing `shared.search.SearchSynonymSource` named `skills`) maps every active skill's name and aliases,
+lower-cased, to each other: "JavaScript" with alias "JS" makes `q=js` find a job tagged JavaScript. Every
+create, update or delete publishes `SearchSynonymsChanged("skills")`, and the search module re-applies the
+settings of the affected indexes after commit - no rebuild needed.

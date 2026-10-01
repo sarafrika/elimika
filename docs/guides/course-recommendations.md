@@ -47,6 +47,9 @@ whose "popular" list was really "newest".
         └─ click / dismiss ──► POST /api/v1/discovery/events {recommendation_id, item_uuid, ...}
 
  Course page
+   GET /api/v1/courses/{uuid}                    (anonymous allowed; public courses only, no revenue terms)
+   GET /api/v1/courses/{uuid}/prerequisites|skills  (anonymous allowed; public courses only)
+        ──► CourseService.getVisibleCourseByUuid ──► courses (404 for anything not public when anonymous)
    GET /api/v1/courses/{uuid}/similar?limit=     (anonymous allowed; public courses only)
         ──► co-neighbours of the course + same categories + "more like this" ──► same item shape,
             surface = similar; impressions only for signed-in callers
@@ -86,6 +89,14 @@ birth** sees only courses with no age limit (enrolling in a limited one needs a 
 
 Anonymous-capable (`permitAll` in `SecurityConfiguration`); 404 when the course is not public. Not personal:
 co-enrolment neighbours, shared categories and "more like this" on the course name. No age band.
+
+The page an anonymous visitor lands on from a similar course is anonymous-capable too:
+`GET /api/v1/courses/{uuid}`, `/prerequisites` and `/skills` answer a caller without a token for **public**
+courses only (root, published, admin-approved, active) and 404 for drafts, shadow drafts, unapproved and
+archived courses. The anonymous course record leaves out `minimum_training_fee`,
+`creator_share_percentage`, `instructor_share_percentage`, `revenue_share_notes`, `created_by` and
+`updated_by`. Signed-in callers keep the existing rules. The `permitAll` matcher is a UUID regex, so
+`/courses/search`, `/courses/active` and the other listings stay authenticated.
 
 ### `GET /api/v1/admin/recommendations/evaluation` (platform admin)
 

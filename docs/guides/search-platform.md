@@ -92,7 +92,8 @@ a disposable projection that can be rebuilt from its tables at any time.
             SearchGateway.multiSearchPerIndex ── one POST /multi-search ──► Meilisearch
                                 │ one page per type, each with its own total
                                 ▼
-            provider.toHit(hit) → GlobalSearchHit { type, uuid, title, subtitle, image_url, highlight }
+            provider.toHit(hit) → GlobalSearchHit { type, uuid, title, subtitle, image_url, highlight,
+                                                    context? { course_uuid, lesson_uuid? } }
                                 │ built from stored document fields, no PostgreSQL query
                                 ▼
  ApiResponse { hits: [...grouped by type, in request order], totals: { courses: 12, people: 3 } }
@@ -108,7 +109,9 @@ a disposable projection that can be rebuilt from its tables at any time.
 | `search.full-rebuild-cron` | `SEARCH_FULL_REBUILD_CRON` | `0 30 1 * * *` | Nightly blue/green rebuild of every index, UTC. `-` disables it |
 | `search.meilisearch.host` | `SEARCH_MEILISEARCH_HOST` | `http://meilisearch:7700` | Engine URL (internal Docker network only) |
 | `search.meilisearch.api-key` | `SEARCH_MEILISEARCH_API_KEY` | empty | A **scoped** key, never the master key |
-| `search.meilisearch.connect-timeout` / `read-timeout` | `SEARCH_MEILISEARCH_CONNECT_TIMEOUT` / `_READ_TIMEOUT` | `PT2S` / `PT5S` | HTTP timeouts |
+| `search.meilisearch.connect-timeout` / `read-timeout` | `SEARCH_MEILISEARCH_CONNECT_TIMEOUT` / `_READ_TIMEOUT` | `PT2S` / `PT5S` | HTTP timeouts for searches and document writes |
+| `search.meilisearch.admin-read-timeout` | `SEARCH_MEILISEARCH_ADMIN_READ_TIMEOUT` | `PT30S` | Read timeout for index administration (create, settings, swap, delete), which the engine can answer slowly while it rebuilds. Never shorter than `read-timeout` |
+| `search.startup-retry-attempts` / `startup-retry-initial-backoff` | `SEARCH_STARTUP_RETRY_ATTEMPTS` / `_INITIAL_BACKOFF` | `5` / `PT1S` | Startup ensure-index and settings retries per index; the pause doubles after each failure (1 s, 2 s, 4 s, 8 s) |
 | `search.meilisearch.task-wait-timeout` | `SEARCH_MEILISEARCH_TASK_WAIT_TIMEOUT` | `PT30S` | How long a write waits for its engine task |
 | `search.reconcile-interval` | `SEARCH_RECONCILE_INTERVAL` | `PT1H` | Drift check (engine count vs `countIndexable()`) |
 | `search.resubmit-interval` / `resubmit-older-than` | `SEARCH_RESUBMIT_INTERVAL` / `_OLDER_THAN` | `PT5M` / `PT5M` | Retry of failed syncs |
@@ -158,7 +161,10 @@ generated client keeps stable method names.
       { "type": "courses", "uuid": "…", "title": "Astronomy 101", "subtitle": "Ada Creator",
         "image_url": "/api/v1/files/…", "highlight": "<em>Astro</em>nomy 101" },
       { "type": "people", "uuid": "…", "title": "Asha Otieno", "subtitle": "student", "image_url": null,
-        "highlight": "<em>Asha</em> Otieno" }
+        "highlight": "<em>Asha</em> Otieno" },
+      { "type": "course_content", "uuid": "…", "title": "Stellar spectra", "subtitle": "Lesson 3 · Astronomy 101",
+        "image_url": null, "highlight": "<em>Astro</em>physics of …",
+        "context": { "course_uuid": "…", "lesson_uuid": "…" } }
     ],
     "totals": { "courses": 12, "people": 3 }
   }
@@ -176,6 +182,10 @@ generated client keeps stable method names.
 - **No hydration otherwise.** `GlobalSearchHit` is built from stored document fields by the owning module's
   provider, so a change reaches global search within seconds (the async indexing delay), and a stale
   denormalised name stays until the nightly rebuild (see the staleness column below).
+- **`context`** (optional, omitted when empty) tells the UI where a hit lives so it can deep-link it:
+  `course_content` hits carry `{course_uuid, lesson_uuid}` (a lesson hit's `lesson_uuid` is its own
+  uuid), `classes` hits carry `{course_uuid}` when the class has a course. Built from displayed
+  document attributes, never a database query. The same object appears on `GET /api/v1/search/{type}`.
 - **503** when `search.enabled=false`, when none of the requested types is read-enabled, or when the
   engine fails: `{"success": false, "message": "Search is unavailable", "error": "…try again later"}`.
 - **Privacy.** The query text is never logged by global search (only the types and its length), and
@@ -233,16 +243,25 @@ The same rebuild runs for every index each night at `search.full-rebuild-cron` (
 default). An index already `REBUILDING` is skipped; the rest are queued on the rebuilder's single
 thread and run one after another.
 
+**Startup.** Once the application is ready, `SearchIndexStartupRunner` creates each index if needed
+and applies its settings (definition plus live synonyms), then marks it stale or resumes a rebuild.
+The create-and-settings step is retried with exponential backoff (`search.startup-retry-attempts`,
+default 5, first pause `search.startup-retry-initial-backoff`, 1 s, doubling), because the engine can
+time out (`HttpTimeoutException`) while another instance rebuilds. Failed attempts log at **warn**;
+only giving up logs at **error**. Every index is prepared on its own, so one that keeps failing never
+stops the others. Index administration uses its own, longer read timeout
+(`search.meilisearch.admin-read-timeout`) so settings and swaps are not cut off by the 5 s search timeout.
+
 ## Indexes
 
 | Index | Owner (source, scopes, global provider) | Source table | Module read endpoints (`q`) |
 |---|---|---|---|
 | `courses` | `course/internal/search`: `CourseSearchSource`, `CatalogueSearchScopes.courses`, `CatalogueGlobalSearchProviders.Courses` | `courses` (root courses only) | `GET /api/v1/courses`, `/courses/search` and the catalogue listings |
-| `programs` | `course/internal/search`: `ProgramSearchSource`, `CatalogueSearchScopes.programs`, `…Programs` | `training_programs` | `GET /api/v1/programs`, `/programs/search` |
+| `programs` | `course/internal/search`: `ProgramSearchSource`, `CatalogueSearchScopes.programs`, `…Programs` | `training_programs` | `GET /api/v1/programs`, `/programs/search`, the admin approval queue `GET /api/v1/admin/programs/pending` (admin scope; hits re-checked against the queue filter) |
 | `rubrics` | `course/internal/search`: `RubricSearchSource`, `CatalogueSearchScopes.rubrics` / `publicRubrics`, `…Rubrics` | `assessment_rubrics` | `GET /api/v1/rubrics/search`, `/rubrics/discovery/search` |
 | `classes` | `classes/search`: `ClassSearchSource`, `ClassSearchScopes`, `ClassesGlobalSearchProviders.Classes` | `class_definitions` | `GET /api/v1/classes`, `/classes/active`, `/classes/organisation/{uuid}` |
 | `marketplace_jobs` | `classes/search`: `MarketplaceJobSearchSource`, `MarketplaceJobSearchScopes`, `…MarketplaceJobs` | `class_marketplace_jobs` | `GET /api/v1/classes/jobs` |
-| `instructors` | `instructor/search`: `InstructorSearchSource`, `InstructorSearchScopes` + `InstructorVisibility`, `InstructorGlobalSearchProvider` | `instructors` | `GET /api/v1/instructors`, `/instructors/search` |
+| `instructors` | `instructor/search`: `InstructorSearchSource`, `InstructorSearchScopes` + `InstructorVisibility`, `InstructorGlobalSearchProvider` | `instructors` | `GET /api/v1/instructors`, `/instructors/search` (every row, with or without `q`, carries `rating_avg` and `review_count` from one aggregate query per page) |
 | `organisations` | `tenancy/search`: `OrganisationSearchSource`, `OrganisationSearchScopes`, `TenancyGlobalSearchProviders.Organisations` | `organisation` | `GET /api/v1/organisations`, the pending-verification queue |
 | `course_content` | `course/internal/search`: `CourseContentSearchSource`, `CourseContentEntitlement`, `CourseContentGlobalSearchProvider` | `lessons`, `lesson_contents`, `quizzes`, `assignments` (root courses only) | `GET /api/v1/courses/{courseUuid}/content/search` (see below) |
 | `people` | `tenancy/search`: `PeopleSearchSource`, `PeopleSearchScopes`, `TenancyGlobalSearchProviders.People` | `users` | `/users/search`, `/admin/users/eligible`, organisation rosters, and the instructor-student roster `search` (timetabling, see below) |
@@ -293,6 +312,38 @@ through the module that owns the tag table:
 All three moved their `schemaVersion` to 2: rebuild them (`POST /api/v1/admin/search/rebuild`) or enable
 `SEARCH_AUTO_REBUILD` after deploying. A renamed or deleted skill reaches documents at the nightly rebuild
 (deleting a skill cascades in SQL, which fires no trigger).
+
+### Skill names and aliases as synonyms
+
+The same three indexes take the taxonomy's words as **engine synonyms**: every active skill's name and
+each of its aliases, lower-cased, map to each other. "JavaScript" with alias "JS" gives
+`javascript → [js]` and `js → [javascript]`, so `q=js` finds a job tagged JavaScript. Retired skills are
+left out.
+
+```
+ Admin UI ── POST/PUT/DELETE /api/v1/admin/skills ──► SkillService (skills) ──► skills table
+                                                         │ publishes SearchSynonymsChanged("skills")
+                                                         │ (shared.search; after commit)
+                                                         ▼
+                                    SearchSynonymsRefresher (search, single index thread)
+                                         │ every definition with synonymSources ∋ "skills":
+                                         │   courses, marketplace_jobs, instructors
+                                         ▼
+                                    SearchDefinitionResolver.effective(definition)
+                                         │ definition.synonyms ∪ SearchSynonymSource("skills").synonyms()
+                                         │                       (SkillSearchSynonyms, reads skills)
+                                         ▼
+                                    SearchIndexAdmin.ensureIndex ── PATCH /indexes/{uid}/settings ──► Meilisearch
+                                    (also the build index while a rebuild runs; no reindex, no schema bump)
+```
+
+- **Engine-neutral.** An index opts in with `SearchIndexDefinition.withSynonymSources(List.of(SearchSynonymSource.SKILLS))`.
+  The search module merges the live words in wherever it applies settings: startup, blue/green rebuilds and
+  the refresh above. The skills module only implements `shared.search.SearchSynonymSource` and publishes
+  `shared.search.SearchSynonymsChanged`; neither module depends on the other.
+- **Durable.** The refresh is a Modulith `@TransactionalEventListener`: a failed settings call leaves the
+  publication incomplete and it is resubmitted like any indexing request.
+- **No rebuild.** Synonyms apply at query time, so changing them needs neither a reindex nor a schema bump.
 
 ## `q` rules: no SQL fallback
 
