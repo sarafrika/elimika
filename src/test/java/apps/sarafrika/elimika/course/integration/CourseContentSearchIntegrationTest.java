@@ -191,7 +191,12 @@ class CourseContentSearchIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.hits[*].uuid").value(containsInAnyOrder(
                         publishedLesson.toString(), quiz.toString(), assignment.toString())))
-                .andExpect(jsonPath("$.data.hits[0].subtitle").value("Lesson 1 · Cell biology"));
+                .andExpect(jsonPath("$.data.hits[0].subtitle").value("Lesson 1 · Cell biology"))
+                // The context links each hit inside its course and lesson.
+                .andExpect(jsonPath("$.data.hits[*].context.course_uuid").value(containsInAnyOrder(
+                        course.toString(), course.toString(), course.toString())))
+                .andExpect(jsonPath("$.data.hits[?(@.uuid == '" + publishedLesson + "')].context.lesson_uuid")
+                        .value(containsInAnyOrder(publishedLesson.toString())));
     }
 
     @Test
