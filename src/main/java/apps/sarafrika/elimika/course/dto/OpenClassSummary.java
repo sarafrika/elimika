@@ -13,7 +13,7 @@ import java.util.UUID;
  * One class a visitor can still join, as the public course page lists it.
  * <p>
  * Safe for anonymous readers by construction: there is no field for coordinates, a meeting link,
- * the instructor, the organisation or any revenue term. The fee is the class's sticker price.
+ * the instructor, the organisation, seat counts or any revenue term. The fee is the class's sticker price.
  */
 @Schema(name = "OpenClassSummary", description = "A class on a course that a visitor can still join.")
 public record OpenClassSummary(
@@ -54,14 +54,12 @@ public record OpenClassSummary(
         @JsonProperty("currency_code")
         String currencyCode,
 
-        @Schema(description = "Seats offered. Null when unknown.", example = "20")
-        @JsonProperty("max_participants")
-        Integer maxParticipants,
-
-        @Schema(description = "Seats offered minus live (not cancelled, not waitlisted) enrolments, never "
-                + "below zero. Null when the class sets no seat cap.", example = "7")
-        @JsonProperty("seats_left")
-        Integer seatsLeft,
+        @Schema(description = "How easy the class is to get into. FULL: no seats left (listed, but not counted in "
+                + "open_class_count or price_from, and sorted last). FEW_LEFT: at most max(5, 20% of capacity) "
+                + "seats left. OPEN: otherwise, or when capacity is unknown. Seat counts are never published.",
+                example = "OPEN")
+        @JsonProperty("availability")
+        OpenClassAvailability availability,
 
         @Schema(description = "First teaching day (the academic period start, else the first session's day). "
                 + "Null when unknown.", example = "2026-10-12")

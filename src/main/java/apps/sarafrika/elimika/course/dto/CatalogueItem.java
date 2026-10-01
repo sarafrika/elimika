@@ -81,13 +81,13 @@ public record CatalogueItem(
         @JsonProperty("class_count")
         Long classCount,
 
-        @Schema(description = "Course: the lowest class fee among its open classes (active, public, registration "
-                + "and teaching not ended) - what a learner actually pays. Null when it has no open class with a "
+        @Schema(description = "Course: the lowest class fee among its open classes (active, public, not full, "
+                + "registration and teaching not ended) - what a learner actually pays. Null when it has no open class with a "
                 + "fee, and always null for a programme.", example = "2500.00")
         @JsonProperty("price_from")
         BigDecimal priceFrom,
 
-        @Schema(description = "Course: its open classes (active, public, registration and teaching not ended). "
+        @Schema(description = "Course: its open classes (active, public, not full, registration and teaching not ended). "
                 + "Always 0 for a programme.", example = "2")
         @JsonProperty("open_class_count")
         long openClassCount,

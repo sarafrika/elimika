@@ -137,9 +137,10 @@ public interface ClassDefinitionLookupService {
     List<OpenClassListing> findOpenClassesForCourse(UUID courseUuid);
 
     /**
-     * The open-class count and lowest fee per course, in one grouped query, over the same classes
-     * {@link #findOpenClassesForCourse(UUID)} returns - the "from KES 2,000 · 3 classes" figure on a
-     * page of catalogue cards.
+     * The open-class count and lowest fee per course over the classes
+     * {@link #findOpenClassesForCourse(UUID)} returns, leaving out full ones (a seat cap with no seat
+     * left) - the "from KES 2,000 · 3 classes" figure on a page of catalogue cards. Two queries for the
+     * whole page: the classes, then one grouped enrolment count.
      *
      * @param courseUuids the courses to summarise; nulls are ignored
      * @return the summary keyed by course UUID, omitting courses with no open class

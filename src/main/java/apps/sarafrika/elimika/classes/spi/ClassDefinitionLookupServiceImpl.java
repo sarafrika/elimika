@@ -4,7 +4,7 @@ import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.classes.repository.projection.TrainerClassCount;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
-import apps.sarafrika.elimika.classes.repository.projection.CourseOpenClassAggregate;
+import apps.sarafrika.elimika.classes.repository.projection.OpenClassSeatRow;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.CourseOpenClassSummary;
 import apps.sarafrika.elimika.shared.spi.OpenClassListing;
@@ -255,14 +255,34 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
         if (requested.isEmpty()) {
             return Map.of();
         }
-        Map<UUID, CourseOpenClassSummary> byCourse = new LinkedHashMap<>();
-        for (CourseOpenClassAggregate aggregate
-                : classDefinitionRepository.summariseOpenByCourse(requested, ClassVisibility.PUBLIC, todayUtc())) {
-            if (aggregate.courseUuid() != null) {
-                byCourse.put(aggregate.courseUuid(),
-                        new CourseOpenClassSummary(aggregate.classCount(), aggregate.minFee()));
+        List<OpenClassSeatRow> rows =
+                classDefinitionRepository.findOpenSeatRowsByCourses(requested, ClassVisibility.PUBLIC, todayUtc());
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Long> filledSeats = enrollmentLookupService.countFilledSeatsByClassDefinition(
+                rows.stream().map(OpenClassSeatRow::classUuid).toList());
+
+        // A full class stays listed on the course page but is not something a visitor can join, so
+        // it neither counts nor sets the "from" price.
+        Map<UUID, long[]> counts = new LinkedHashMap<>();
+        Map<UUID, java.math.BigDecimal> minFees = new LinkedHashMap<>();
+        for (OpenClassSeatRow row : rows) {
+            if (row.courseUuid() == null) {
+                continue;
+            }
+            Integer left = seatsLeft(row.maxParticipants(), filledSeats.getOrDefault(row.classUuid(), 0L));
+            if (left != null && left == 0) {
+                continue;
+            }
+            counts.computeIfAbsent(row.courseUuid(), key -> new long[1])[0]++;
+            if (row.fee() != null) {
+                minFees.merge(row.courseUuid(), row.fee(), (a, b) -> a.compareTo(b) <= 0 ? a : b);
             }
         }
+        Map<UUID, CourseOpenClassSummary> byCourse = new LinkedHashMap<>();
+        counts.forEach((course, count) ->
+                byCourse.put(course, new CourseOpenClassSummary(count[0], minFees.get(course))));
         return byCourse;
     }
 

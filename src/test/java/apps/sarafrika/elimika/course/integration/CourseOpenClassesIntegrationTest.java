@@ -96,6 +96,7 @@ class CourseOpenClassesIntegrationTest {
     private UUID unapprovedCourse;
     private UUID cheapClass;
     private UUID onlineClass;
+    private UUID fullClass;
 
     @BeforeEach
     void seed() {
@@ -124,6 +125,12 @@ class CourseOpenClassesIntegrationTest {
         onlineClass = classDefinition(publicCourse, instructorUuid, "Evening online", "ONLINE", "PUBLIC", true,
                 "5000.00", 5, null, 30, 5, 90);
 
+        // Full: one seat, taken. Cheapest of the three, yet listed last and left out of price_from
+        // and open_class_count - it cannot be joined.
+        fullClass = classDefinition(publicCourse, instructorUuid, "Sold out cohort", "ONLINE", "PUBLIC", true,
+                "1000.00", 1, null, 30, 3, 90);
+        enrol(session(fullClass, instructorUuid), learner("six"), "ENROLLED");
+
         // Not joinable, each cheaper than both above so a leak would also move price_from.
         classDefinition(publicCourse, instructorUuid, "Private cohort", "ONLINE", "PRIVATE", true,
                 "100.00", 5, null, 30, 5, 90);
@@ -141,31 +148,35 @@ class CourseOpenClassesIntegrationTest {
     }
 
     @Test
-    @DisplayName("An anonymous caller gets the joinable classes, cheapest first, with price_from the minimum fee")
+    @DisplayName("An anonymous caller gets the classes, cheapest first and FULL last, price_from the cheapest joinable fee")
     void anonymousCallerSeesOpenClasses() throws Exception {
         mockMvc.perform(get(url(publicCourse)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.open_class_count").value(2))
                 .andExpect(jsonPath("$.data.price_from").value(2000.00))
                 .andExpect(jsonPath("$.data.currency_code").value("KES"))
-                .andExpect(jsonPath("$.data.classes[*].uuid").value(contains(cheapClass.toString(), onlineClass.toString())))
+                .andExpect(jsonPath("$.data.classes[*].uuid").value(
+                        contains(cheapClass.toString(), onlineClass.toString(), fullClass.toString())))
                 .andExpect(jsonPath("$.data.classes[0].fee").value(2000.00))
                 .andExpect(jsonPath("$.data.classes[0].currency_code").value("KES"))
                 .andExpect(jsonPath("$.data.classes[0].location_type").value("IN_PERSON"))
                 .andExpect(jsonPath("$.data.classes[0].session_format").value("GROUP"))
                 .andExpect(jsonPath("$.data.classes[0].place_name").value("Kenya School of Government"))
                 .andExpect(jsonPath("$.data.classes[0].area").value("Lower Kabete Road, Nairobi"))
-                .andExpect(jsonPath("$.data.classes[0].max_participants").value(10))
-                .andExpect(jsonPath("$.data.classes[0].seats_left").value(7))
+                // 7 of 10 seats left: above max(5, 20% of 10).
+                .andExpect(jsonPath("$.data.classes[0].availability").value("OPEN"))
                 .andExpect(jsonPath("$.data.classes[0].starts_on").exists())
                 .andExpect(jsonPath("$.data.classes[0].ends_on").exists())
                 .andExpect(jsonPath("$.data.classes[0].registration_closes_on").exists())
-                .andExpect(jsonPath("$.data.classes[1].seats_left").value(5))
+                // 5 of 5 seats left: at the floor of five.
+                .andExpect(jsonPath("$.data.classes[1].availability").value("FEW_LEFT"))
+                .andExpect(jsonPath("$.data.classes[2].availability").value("FULL"))
+                .andExpect(jsonPath("$.data.classes[2].fee").value(1000.00))
                 .andExpect(jsonPath("$.data.classes[1].place_name").doesNotExist());
     }
 
     @Test
-    @DisplayName("No coordinates, meeting links, instructor or revenue data reach the wire")
+    @DisplayName("No coordinates, seat numbers, meeting links, instructor or revenue data reach the wire")
     void nothingPrivateIsSerialised() throws Exception {
         String body = mockMvc.perform(get(url(publicCourse)))
                 .andExpect(status().isOk())
@@ -180,7 +191,12 @@ class CourseOpenClassesIntegrationTest {
                 .doesNotContain("instructor")
                 .doesNotContain("organisation")
                 .doesNotContain("revenue")
-                .doesNotContain("share_percentage");
+                .doesNotContain("share_percentage")
+                // Seat counts beside a fee give away revenue: only the availability band is published.
+                .doesNotContain("max_participants")
+                .doesNotContain("seats_left")
+                .doesNotContain("capacity")
+                .doesNotContain("enrol");
     }
 
     @Test

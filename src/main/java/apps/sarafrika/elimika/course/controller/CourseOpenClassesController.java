@@ -38,14 +38,20 @@ public class CourseOpenClassesController {
 
                     Lists the course's classes that are active, `PUBLIC`, and whose registration window
                     and teaching period have not ended (a missing end date counts as open), cheapest
-                    first, then soonest start.
+                    first, then soonest start, with `FULL` classes last.
 
-                    `price_from` is the lowest class fee among them. That class fee (`fee`, the class
-                    sale price) is what a learner pays; the course's own `price` is not. `price_from`
-                    is null when there are no classes.
+                    Each class carries `availability` instead of seat numbers: `FULL` when no seat is
+                    left, `FEW_LEFT` at or under max(5, 20% of capacity) seats left, otherwise (or when
+                    capacity is unknown) `OPEN`. Seat counts are never published: beside a fee they
+                    give away a class's revenue.
+
+                    `price_from` is the lowest class fee among the classes that are not `FULL`, and
+                    `open_class_count` counts those. That class fee (`fee`, the class sale price) is what
+                    a learner pays; the course's own `price` is not. `price_from` is null when no class
+                    can be joined.
 
                     Never carries coordinates, meeting links, instructor or organisation identifiers,
-                    instructor pay or revenue terms. `place_name` and `area` come from the class's
+                    instructor pay, seat counts or revenue terms. `place_name` and `area` come from the class's
                     location label only.
                     """,
             responses = {

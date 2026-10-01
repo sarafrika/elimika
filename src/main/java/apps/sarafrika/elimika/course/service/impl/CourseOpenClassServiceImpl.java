@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseOpenClasses;
+import apps.sarafrika.elimika.course.dto.OpenClassAvailability;
 import apps.sarafrika.elimika.course.dto.OpenClassSummary;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseOpenClassService;
@@ -30,14 +31,16 @@ import java.util.stream.Collectors;
  * ({@link CourseServiceImpl#isPublicCourse}), for every caller: this page is the public face of a
  * course, so a signed-in author previewing their draft gets the same 404 a stranger does. The classes
  * themselves come from the classes module through {@link ClassDefinitionLookupService}, already reduced
- * to fields that are safe to publish.
+ * to fields that are safe to publish. Seat counts are turned into an availability band here and go
+ * no further.
  */
 @Service
 @Transactional(readOnly = true)
 public class CourseOpenClassServiceImpl implements CourseOpenClassService {
 
     private static final Comparator<OpenClassSummary> CHEAPEST_THEN_SOONEST = Comparator
-            .comparing(OpenClassSummary::fee, Comparator.nullsLast(Comparator.naturalOrder()))
+            .comparing((OpenClassSummary summary) -> summary.availability() == OpenClassAvailability.FULL)
+            .thenComparing(OpenClassSummary::fee, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(OpenClassSummary::startsOn, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(OpenClassSummary::title, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
 
@@ -70,12 +73,17 @@ public class CourseOpenClassServiceImpl implements CourseOpenClassService {
         }
         classes.sort(CHEAPEST_THEN_SOONEST);
 
-        BigDecimal priceFrom = classes.stream()
+        // A full class stays listed (it still tells the visitor the course runs) but cannot be joined,
+        // so it neither counts nor sets the "from" price.
+        List<OpenClassSummary> joinable = classes.stream()
+                .filter(summary -> summary.availability() != OpenClassAvailability.FULL)
+                .toList();
+        BigDecimal priceFrom = joinable.stream()
                 .map(OpenClassSummary::fee)
                 .filter(Objects::nonNull)
                 .min(Comparator.naturalOrder())
                 .orElse(null);
-        return new CourseOpenClasses(priceFrom, classes.isEmpty() ? null : currencyCode, classes.size(), classes);
+        return new CourseOpenClasses(priceFrom, classes.isEmpty() ? null : currencyCode, joinable.size(), classes);
     }
 
     private OpenClassSummary toSummary(OpenClassListing listing) {
@@ -89,8 +97,7 @@ public class CourseOpenClassServiceImpl implements CourseOpenClassService {
                 place[1],
                 listing.salePrice(),
                 currencyCode,
-                listing.maxParticipants(),
-                listing.seatsLeft(),
+                OpenClassAvailability.of(listing.maxParticipants(), listing.seatsLeft()),
                 listing.startsOn(),
                 listing.endsOn(),
                 listing.registrationClosesOn(),

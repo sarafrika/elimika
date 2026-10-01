@@ -152,20 +152,20 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
                                            @Param("today") java.time.LocalDate today);
 
     /**
-     * {@link #findOpenByCourse} counted and priced per course for many courses, grouped in one query.
+     * The rows behind {@link #findOpenByCourse} for many courses at once, in one query, carrying only the
+     * course, fee and seat cap.
      */
     @Query("""
-            SELECT new apps.sarafrika.elimika.classes.repository.projection.CourseOpenClassAggregate(
-                       cd.courseUuid, COUNT(cd), MIN(cd.salePrice))
+            SELECT new apps.sarafrika.elimika.classes.repository.projection.OpenClassSeatRow(
+                       cd.uuid, cd.courseUuid, cd.salePrice, cd.maxParticipants)
             FROM ClassDefinition cd
             WHERE cd.courseUuid IN :courseUuids
               AND cd.isActive = true
               AND cd.classVisibility = :visibility
               AND (cd.registrationPeriodEndDate IS NULL OR cd.registrationPeriodEndDate >= :today)
               AND (cd.academicPeriodEndDate IS NULL OR cd.academicPeriodEndDate >= :today)
-            GROUP BY cd.courseUuid
             """)
-    List<apps.sarafrika.elimika.classes.repository.projection.CourseOpenClassAggregate> summariseOpenByCourse(
+    List<apps.sarafrika.elimika.classes.repository.projection.OpenClassSeatRow> findOpenSeatRowsByCourses(
             @Param("courseUuids") Collection<UUID> courseUuids,
             @Param("visibility") apps.sarafrika.elimika.shared.enums.ClassVisibility visibility,
             @Param("today") java.time.LocalDate today);

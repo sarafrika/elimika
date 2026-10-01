@@ -12,21 +12,21 @@ import java.util.List;
 @Schema(name = "CourseOpenClasses", description = "The joinable classes of a public course and the cheapest fee.")
 public record CourseOpenClasses(
 
-        @Schema(description = "The lowest class fee among the listed classes. Null when there are no classes "
-                + "or none has a fee. This, not the course's own price, is what a learner pays.",
+        @Schema(description = "The lowest class fee among the classes that are not FULL. Null when there are "
+                + "none or none has a fee. This, not the course's own price, is what a learner pays.",
                 example = "2500.00")
         @JsonProperty("price_from")
         BigDecimal priceFrom,
 
-        @Schema(description = "ISO 4217 currency of price_from. Null when there are no classes.", example = "KES")
+        @Schema(description = "ISO 4217 currency of the fees. Null when the list is empty.", example = "KES")
         @JsonProperty("currency_code")
         String currencyCode,
 
-        @Schema(description = "Number of classes listed.", example = "3")
+        @Schema(description = "Number of listed classes that are not FULL.", example = "3")
         @JsonProperty("open_class_count")
         int openClassCount,
 
-        @Schema(description = "The classes, cheapest first, then soonest start.")
+        @Schema(description = "The classes: joinable ones cheapest first, then soonest start; FULL ones last.")
         @JsonProperty("classes")
         List<OpenClassSummary> classes
 ) {
