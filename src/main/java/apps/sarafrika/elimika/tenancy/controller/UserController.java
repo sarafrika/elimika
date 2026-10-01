@@ -8,7 +8,10 @@ import apps.sarafrika.elimika.shared.security.UserContactSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserRecipientDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
+import apps.sarafrika.elimika.tenancy.internal.UserLookupRateLimiter;
+import apps.sarafrika.elimika.tenancy.services.UserRecipientLookupService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,8 +30,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
@@ -86,6 +91,8 @@ class UserController {
      * same question must get the same answer.
      */
     private final UserContactSecurityService userContactSecurityService;
+    private final UserRecipientLookupService userRecipientLookupService;
+    private final UserLookupRateLimiter userLookupRateLimiter;
 
     // ================================
     // CORE USER MANAGEMENT
@@ -170,6 +177,34 @@ class UserController {
      * Both branches answer 404 for an unknown UUID. That is not a leak: any authenticated caller
      * may learn that an account exists, because that is what a directory is for.
      */
+    /**
+     * Picks a wallet transfer recipient from the number they shared. Exact match only, a masked name,
+     * and a per-caller rate limit, so the route confirms a known number without letting anyone
+     * enumerate accounts.
+     */
+    @Operation(operationId = "lookupUserByUserNo", summary = "Look up a user by their exact user number",
+            description = "Resolves an exact nine-digit user number to the user's UUID and a masked display name "
+                    + "(first name plus last-name initial, e.g. \"Wilfred N.\"). No partial matching, no other "
+                    + "fields, and never email, phone or the full name. Unknown or inactive users answer 404. "
+                    + "Limited to " + UserLookupRateLimiter.DEFAULT_LIMIT + " lookups per minute per caller.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "No authenticated caller")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No active user with that user number")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Too many lookups; try again in a minute")
+    @GetMapping("lookup")
+    @PreAuthorize(AUTHENTICATED)
+    public ResponseEntity<ApiResponse<UserRecipientDTO>> lookupUserByUserNo(
+            @Parameter(description = "The recipient's exact user number.", example = "123456789", required = true)
+            @RequestParam("user_no") String userNo,
+            Authentication authentication) {
+        if (!userLookupRateLimiter.tryAcquire(authentication.getName())) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many user lookups; try again in a minute");
+        }
+        UserRecipientDTO recipient = userRecipientLookupService.lookupByUserNo(userNo);
+        return ResponseEntity.ok(ApiResponse.success(recipient, "User found"));
+    }
+
     @Operation(summary = "Get a user by UUID",
             description = "Returns the full User record to the account holder, to platform administrators, "
                     + "to a manager of one of the account's organisations, and to a caller with a working "

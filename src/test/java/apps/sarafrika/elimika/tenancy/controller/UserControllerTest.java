@@ -6,8 +6,12 @@ import apps.sarafrika.elimika.shared.security.UserContactSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.dto.UserRecipientDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
+import apps.sarafrika.elimika.tenancy.internal.UserLookupRateLimiter;
+import apps.sarafrika.elimika.tenancy.services.UserRecipientLookupService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,9 +80,72 @@ class UserControllerTest {
     @Autowired
     private UserContactSecurityService userContactSecurityService;
 
+    @Autowired
+    private UserRecipientLookupService userRecipientLookupService;
+
     @BeforeEach
     void setUp() {
-        reset(userService, domainSecurityService, userContactSecurityService);
+        reset(userService, domainSecurityService, userContactSecurityService, userRecipientLookupService);
+    }
+
+    // ================================
+    // GET /api/v1/users/lookup
+    // ================================
+
+    @Test
+    @DisplayName("lookup answers the uuid and masked name only, never email or phone")
+    void lookupReturnsMaskedRecipientOnly() throws Exception {
+        UUID recipient = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        when(userRecipientLookupService.lookupByUserNo("123456789"))
+                .thenReturn(new UserRecipientDTO(recipient, "Wilfred N."));
+
+        mockMvc.perform(get("/api/v1/users/lookup").param("user_no", "123456789")
+                        .with(jwt().jwt(token -> token.subject("lookup-shape"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.user_uuid").value(recipient.toString()))
+                .andExpect(jsonPath("$.data.display_name").value("Wilfred N."))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data.email").doesNotExist())
+                .andExpect(jsonPath("$.data.phone_number").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("lookup answers 404 when the service finds no active exact match")
+    void lookupNotFoundIs404() throws Exception {
+        when(userRecipientLookupService.lookupByUserNo("12345"))
+                .thenThrow(new ResourceNotFoundException("No active user with that user number"));
+
+        mockMvc.perform(get("/api/v1/users/lookup").param("user_no", "12345")
+                        .with(jwt().jwt(token -> token.subject("lookup-404"))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("lookup is rate limited per caller with 429")
+    void lookupIsRateLimited() throws Exception {
+        when(userRecipientLookupService.lookupByUserNo(any()))
+                .thenThrow(new ResourceNotFoundException("No active user with that user number"));
+
+        for (int i = 0; i < UserLookupRateLimiter.DEFAULT_LIMIT; i++) {
+            mockMvc.perform(get("/api/v1/users/lookup").param("user_no", String.format("%09d", i))
+                            .with(jwt().jwt(token -> token.subject("lookup-flood"))))
+                    .andExpect(status().isNotFound());
+        }
+        mockMvc.perform(get("/api/v1/users/lookup").param("user_no", "999999999")
+                        .with(jwt().jwt(token -> token.subject("lookup-flood"))))
+                .andExpect(status().isTooManyRequests());
+        // Another caller still has their own allowance.
+        mockMvc.perform(get("/api/v1/users/lookup").param("user_no", "999999999")
+                        .with(jwt().jwt(token -> token.subject("lookup-other"))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("lookup refuses anonymous callers")
+    void lookupRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/users/lookup").param("user_no", "123456789"))
+                .andExpect(status().is4xxClientError());
+        verify(userRecipientLookupService, never()).lookupByUserNo(any());
     }
 
     // ================================
@@ -452,6 +519,16 @@ class UserControllerTest {
         @Bean
         UserManagementService userManagementService() {
             return Mockito.mock(UserManagementService.class);
+        }
+
+        @Bean
+        UserRecipientLookupService userRecipientLookupService() {
+            return Mockito.mock(UserRecipientLookupService.class);
+        }
+
+        @Bean
+        UserLookupRateLimiter userLookupRateLimiter() {
+            return new UserLookupRateLimiter();
         }
     }
 }

@@ -18,6 +18,9 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     Optional<User> findByUuid(UUID uuid);
 
+    /** Exact user-number match; {@code users.user_no} is unique. */
+    Optional<User> findByUserNo(String userNo);
+
     /**
      * Every user whose email equals the given one, ignoring case. Uses {@code lower(email)} so the
      * {@code idx_users_email_lower} expression index applies.
