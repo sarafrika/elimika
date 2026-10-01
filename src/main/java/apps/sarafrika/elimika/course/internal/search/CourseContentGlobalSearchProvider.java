@@ -43,7 +43,10 @@ class CourseContentGlobalSearchProvider implements GlobalSearchProvider {
         return entitlement.scope();
     }
 
-    /** Title is the item's; subtitle is "Lesson {n} · {course}". */
+    /**
+     * Title is the item's; subtitle is "Lesson {n} · {course}"; the context carries the course and
+     * lesson so the palette can open the hit inside its lesson.
+     */
     @Override
     public GlobalSearchHit toHit(SearchHit hit) {
         Map<String, Object> document = hit.document();
@@ -56,7 +59,10 @@ class CourseContentGlobalSearchProvider implements GlobalSearchProvider {
             subtitle = "Lesson " + lessonNumber + (courseName == null ? "" : " · " + courseName);
         }
         return new GlobalSearchHit(type(), hit.uuid(), GlobalSearchHit.text(document, "title"), subtitle, null,
-                CourseContentSearchService.highlight(hit));
+                CourseContentSearchService.highlight(hit))
+                .withContext(new GlobalSearchHit.Context(
+                        GlobalSearchHit.uuid(document, CourseContentSearchSource.COURSE_UUID),
+                        GlobalSearchHit.uuid(document, "lesson_uuid")));
     }
 
     @Override

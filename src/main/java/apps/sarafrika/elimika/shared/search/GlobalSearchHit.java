@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
  * @param highlight the matched text with the engine's {@code <em>} markers, or {@code null}
  * @param distanceBand on a near-me search only, how far away the result is as a coarse band
  *                     ({@code "<2 km"} ... {@code ">25 km"}, see {@link NearMe#distanceBand}); never metres
+ * @param context   where the hit lives, for types the UI links inside a parent (a lesson item inside
+ *                  its course, a class of a course), or {@code null}; built from stored attributes
  */
 public record GlobalSearchHit(
         @JsonProperty("type") String type,
@@ -30,16 +32,70 @@ public record GlobalSearchHit(
         @JsonProperty("image_url") String imageUrl,
         @JsonProperty("highlight") String highlight,
         @JsonInclude(JsonInclude.Include.NON_NULL)
-        @JsonProperty("distance_band") String distanceBand
+        @JsonProperty("distance_band") String distanceBand,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("context") Context context
 ) {
 
     public GlobalSearchHit(String type, UUID uuid, String title, String subtitle, String imageUrl, String highlight) {
-        this(type, uuid, title, subtitle, imageUrl, highlight, null);
+        this(type, uuid, title, subtitle, imageUrl, highlight, null, null);
+    }
+
+    public GlobalSearchHit(String type, UUID uuid, String title, String subtitle, String imageUrl, String highlight,
+                           String distanceBand) {
+        this(type, uuid, title, subtitle, imageUrl, highlight, distanceBand, null);
     }
 
     /** This hit carrying the given distance band. */
     public GlobalSearchHit withDistanceBand(String band) {
-        return new GlobalSearchHit(type, uuid, title, subtitle, imageUrl, highlight, band);
+        return new GlobalSearchHit(type, uuid, title, subtitle, imageUrl, highlight, band, context);
+    }
+
+    /** This hit carrying the given context; an empty context is dropped. */
+    public GlobalSearchHit withContext(Context newContext) {
+        Context kept = newContext == null || newContext.isEmpty() ? null : newContext;
+        return new GlobalSearchHit(type, uuid, title, subtitle, imageUrl, highlight, distanceBand, kept);
+    }
+
+    /**
+     * Where a hit sits, so the UI can deep-link it: {@code course_content} carries its course and
+     * lesson, a class its course. Absent fields are left out of the JSON.
+     *
+     * @param courseUuid the course the hit belongs to
+     * @param lessonUuid the lesson the hit belongs to (a lesson's own uuid for a lesson hit)
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Context(
+            @JsonProperty("course_uuid") UUID courseUuid,
+            @JsonProperty("lesson_uuid") UUID lessonUuid
+    ) {
+
+        public static Context ofCourse(UUID courseUuid) {
+            return new Context(courseUuid, null);
+        }
+
+        boolean isEmpty() {
+            return courseUuid == null && lessonUuid == null;
+        }
+    }
+
+    /** A stored attribute as a UUID, or {@code null} when it is absent or not a UUID. */
+    public static UUID uuid(Map<String, Object> document, String attribute) {
+        if (document == null) {
+            return null;
+        }
+        Object value = document.get(attribute);
+        if (value instanceof UUID id) {
+            return id;
+        }
+        if (value == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.toString());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private static final String MARK = "<em>";

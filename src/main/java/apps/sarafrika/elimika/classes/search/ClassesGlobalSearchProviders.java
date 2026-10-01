@@ -100,7 +100,8 @@ public final class ClassesGlobalSearchProviders {
                     subtitle,
                     null,
                     GlobalSearchHit.highlight(hit, "title", "course_name", "program_title", "organisation_name",
-                            "instructor_name", "description"));
+                            "instructor_name", "description"))
+                    .withContext(GlobalSearchHit.Context.ofCourse(GlobalSearchHit.uuid(document, "course_uuid")));
         }
     }
 
