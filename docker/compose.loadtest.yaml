@@ -37,6 +37,8 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: local
+      # Pool size under test; defaults to the application.yaml default (20).
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
       SERVER_PORT: "38080"
       # Actuator on its own port so Prometheus can scrape without a token; the main port keeps
       # /actuator/prometheus authenticated (see SecurityConfiguration).
