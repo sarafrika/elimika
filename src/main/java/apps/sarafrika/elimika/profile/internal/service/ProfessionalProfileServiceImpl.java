@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,8 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
     private final UserCompetencySection competencySection;
     private final UserAchievementSection achievementSection;
     private final UserDocumentSection documentSection;
-    private final DomainSecurityService domainSecurityService;
+    // Lazy: DomainSecurityService reaches the instructor lookup, which reads the basics from here.
+    private final ObjectProvider<DomainSecurityService> domainSecurityService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -184,10 +186,11 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
         if (section == null || !section.verifiable()) {
             throw new IllegalArgumentException("Items in this section are not verified: " + section);
         }
-        domainSecurityService.enforceNotSelfApprovingProfile(userUuid, "profile");
+        DomainSecurityService security = domainSecurityService.getObject();
+        security.enforceNotSelfApprovingProfile(userUuid, "profile");
         String verifier = verifiedBy;
         if (verifier == null || verifier.isBlank()) {
-            UUID caller = domainSecurityService.getCurrentUserUuid();
+            UUID caller = security.getCurrentUserUuid();
             verifier = caller == null ? "system" : caller.toString();
         }
         support(section).verify(userUuid, itemUuid, request.status(), request.notes(), verifier);
