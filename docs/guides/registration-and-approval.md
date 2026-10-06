@@ -5,7 +5,8 @@
 People register in Elimika, not on the Keycloak sign-up page. They pick the domain they want (student,
 instructor, course creator or organisation), the backend creates their Keycloak account, and
 Keycloak emails a link to set a password and verify the address. Students are active at once,
-and parents never register: they get access through the guardian details given in student onboarding.
+and parents never register: they get access through the guardian details given in student onboarding
+(see [Student Guardians](student-guardians.md)).
 Instructors, course creators and organisations wait on the pending-approval screen until
 a platform admin approves the domain.
 
