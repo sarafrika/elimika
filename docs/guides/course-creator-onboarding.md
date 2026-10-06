@@ -45,7 +45,8 @@ Course creator UI (signed in, account_state PENDING_APPROVAL)
 Elimika storage
   | course_creators.verification_status and review timestamps
   | course_creator_category_preferences
-  | course_creator_skills | _portfolio_items | _certifications | _competencies | _experience | _achievements
+  | user_skills | user_portfolio_items | user_certifications | user_competencies | user_experience | user_achievements
+  |   (the user's shared wallet, see user-profile-and-wallet.md)
   v
 Platform admin
   | POST /api/v1/admin/course-creators/{uuid}/wallet/{skills|competencies|certifications}/{itemUuid}/verification
@@ -72,4 +73,4 @@ approve -> APPROVED, reject -> REJECTED, revoke -> SUSPENDED
 
 Wallet progress counts the seven tabs that hold at least one item; the Verification tab counts once an
 admin has verified any skill, competency or certification. Changing a skill's name or evidence, or a
-competency's evidence, sends it back to `PENDING`. The wallet builds on the existing qualification tables. `course_creator_skills.skill_name` remains the submitted free text, while `skill_uuid` points to the curated `skills` taxonomy when the name resolves by slug or alias.
+competency's evidence, sends it back to `PENDING`. The wallet is the user's shared professional profile (see [user-profile-and-wallet.md](user-profile-and-wallet.md)), so items an instructor domain added count too. `user_skills.skill_name` remains the submitted free text, while `skill_uuid` points to the curated `skills` taxonomy when the name resolves by slug or alias.
