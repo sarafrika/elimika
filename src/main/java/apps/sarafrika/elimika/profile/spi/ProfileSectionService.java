@@ -9,10 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Reads and writes one section of the user-owned profile. Writes are scoped to the owning user, so a
- * caller cannot reach another user's item by its UUID; an identical claim is updated, never duplicated.
- */
+/** One profile section; writes are owner-scoped and an identical claim updates rather than duplicates. */
 public interface ProfileSectionService<D> {
 
     List<D> list(UUID userUuid);

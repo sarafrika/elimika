@@ -10,10 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/**
- * Lets whoever is deciding an application the user lodged as an instructor (training, marketplace)
- * read that user's shared credentials. Fails closed.
- */
+/** Lets the decider of a user's instructor application read that user's shared credentials; fails closed. */
 @Slf4j
 @Component
 @RequiredArgsConstructor

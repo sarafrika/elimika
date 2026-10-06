@@ -10,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Keeps the instructor row's copy of the shared basics in step, and re-indexes the instructor when the
- * skills or experience on their shared profile change. Runs inside the writing transaction.
- */
+/** Keeps the instructor row's basics in step with the shared profile and re-indexes on skill or experience changes. */
 @Component
 @RequiredArgsConstructor
 class InstructorProfileSync {

@@ -20,10 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Builds the schema up to the empty user_* tables, seeds overlapping instructor and course creator
- * qualifications for one user, then runs the backfill and checks what each user ends up with.
- */
+/** Seeds overlapping instructor and course creator qualifications, runs the backfill and checks the merged result. */
 @Testcontainers
 @DisplayName("The professional profile backfill")
 class ProfessionalProfileBackfillMigrationTest {

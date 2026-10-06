@@ -30,10 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * The self-service, viewer and admin profile APIs end to end, and the legacy instructor and course
- * creator routes reading what they wrote.
- */
+/** Self, viewer and admin profile APIs end to end, and the legacy routes reading what they wrote. */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc

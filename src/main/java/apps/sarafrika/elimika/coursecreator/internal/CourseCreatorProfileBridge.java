@@ -15,10 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Maps course creator profiles onto the user-owned professional profile: the course creator
- * qualification and wallet endpoints keep their shapes while using the shared user_* tables.
- */
+/** Serves the course creator qualification and wallet endpoints, unchanged in shape, from the shared user_* tables. */
 @Component
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

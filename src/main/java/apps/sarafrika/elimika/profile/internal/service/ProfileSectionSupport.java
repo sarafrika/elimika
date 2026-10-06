@@ -26,10 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * CRUD, search and verification for one user-owned section. Subclasses map fields; this class keeps
- * every write scoped to the owner, collapses identical claims and resets verification on a changed claim.
- */
+/** Owner-scoped CRUD, search and verification for one section; identical claims merge, changed claims re-verify. */
 @Transactional
 public abstract class ProfileSectionSupport<E extends UserOwnedEntity, D> implements ProfileSectionService<D> {
 

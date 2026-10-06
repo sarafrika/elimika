@@ -41,10 +41,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The signed-in user's own professional profile: one copy shared by every domain they hold, so an
- * instructor who is also a course creator fills it in once.
- */
+/** The caller's own professional profile, one copy shared by every domain they hold. */
 @RestController
 @RequestMapping(MyProfessionalProfileController.API_ROOT_PATH)
 @RequiredArgsConstructor

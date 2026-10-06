@@ -27,10 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Reads another user's professional profile. Credential material is in every section, so all of it
- * sits behind the one rule in {@code profileCredentialSecurityService}.
- */
+/** Reads another user's professional profile, all of it behind {@code profileCredentialSecurityService}. */
 @RestController
 @RequestMapping(UserProfessionalProfileController.API_ROOT_PATH)
 @RequiredArgsConstructor

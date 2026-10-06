@@ -59,10 +59,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * A user who is both an instructor and a course creator: what one domain writes through its legacy
- * endpoints' services is what the other reads, verification included, against the real schema.
- */
+/** An instructor who is also a course creator: what one domain writes, the other reads, verification included. */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

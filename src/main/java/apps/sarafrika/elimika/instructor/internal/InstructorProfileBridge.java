@@ -15,10 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Maps instructor profiles onto the user-owned professional profile: the instructor qualification
- * endpoints keep their shapes while reading and writing the shared user_* tables.
- */
+/** Serves the instructor qualification endpoints, unchanged in shape, from the shared user_* tables. */
 @Component
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -61,10 +58,7 @@ public class InstructorProfileBridge {
         return result;
     }
 
-    /**
-     * Rewrites an {@code instructorUuid} filter into the owning user; without one, bounds the search to
-     * users who hold an instructor profile. Other instructor-key operators are rejected, not widened.
-     */
+    /** Turns an instructorUuid filter into its user; without one, limits to instructors. Other instructor-key filters are rejected. */
     public ScopedSearch scope(Map<String, String> searchParams) {
         Map<String, String> params = new HashMap<>();
         UUID instructorUuid = null;

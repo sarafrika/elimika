@@ -10,11 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
-/**
- * The single credential-read rule for every domain: checked against the user being read, never a role
- * the caller holds platform-wide. Owner, platform admin, staff of an organisation the user belongs to,
- * or a party a {@link ProfileAccessGrant} vouches for (such as a reviewer of the user's application).
- */
+/** One credential-read rule: owner, platform admin, staff of the user's organisation, or a {@link ProfileAccessGrant}. */
 @Slf4j
 @Service("profileCredentialSecurityService")
 @RequiredArgsConstructor

@@ -6,10 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * The user-owned professional profile: basics, the wallet sections, and admin verification.
- * Every domain profile (instructor, course creator, ...) reads and writes through this one store.
- */
+/** The user-owned professional profile (basics, wallet sections, verification) every domain reads and writes. */
 public interface ProfessionalProfileService {
 
     /** The user's basics; all fields null when nothing was saved yet. */
