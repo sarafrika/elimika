@@ -206,6 +206,11 @@ public class SecurityConfiguration {
                             // who has no account yet; acting on them still requires a sign-in.
                             .requestMatchers(HttpMethod.GET, "/api/v1/invitations/token/*").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/guardian-invitations/token/*").permitAll()
+                            // A student-named guardian may have no account: the emailed token alone
+                            // lets them read, decline, or create the account for the invited address.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/student-guardian-invitations/token/*").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/v1/student-guardian-invitations/token/*/decline",
+                                    "/api/v1/student-guardian-invitations/token/*/register").permitAll()
                             .requestMatchers(HttpMethod.OPTIONS).permitAll() // Allow preflight requests
                             .anyRequest()
                             .authenticated();

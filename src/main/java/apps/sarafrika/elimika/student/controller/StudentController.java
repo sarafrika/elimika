@@ -106,9 +106,10 @@ public class StudentController {
      * @param studentDTO The updated student data.
      * @return The updated student DTO.
      */
-    @Operation(summary = "Update a student", description = "Updates an existing student record. Restricted to the learner, an active guardian, a manager of one of the learner's organisations, or a platform admin; the record cannot be re-pointed at a different user account.", responses = {@ApiResponse(responseCode = "200", description = "Student updated successfully", content = @Content(schema = @Schema(implementation = StudentDTO.class))), @ApiResponse(responseCode = "403", description = "Caller is not related to this student, or is re-pointing the record"), @ApiResponse(responseCode = "404", description = "Student not found")})
+    @Operation(summary = "Update a student", description = "Updates an existing student record. Restricted to the learner, an active guardian, a manager of one of the learner's organisations, or a platform admin; the record cannot be re-pointed at a different user account. Sending `guardians` (linking or inviting parents) is not open to existing guardians.", responses = {@ApiResponse(responseCode = "200", description = "Student updated successfully", content = @Content(schema = @Schema(implementation = StudentDTO.class))), @ApiResponse(responseCode = "403", description = "Caller is not related to this student, or is re-pointing the record"), @ApiResponse(responseCode = "404", description = "Student not found")})
     @PutMapping("/{uuid}")
-    @PreAuthorize("@studentDirectorySecurityService.canUpdateStudent(#uuid, #studentDTO.userUuid())")
+    @PreAuthorize("@studentDirectorySecurityService.canUpdateStudent(#uuid, #studentDTO.userUuid())"
+            + " and (#studentDTO.guardians() == null or @studentDirectorySecurityService.canManageGuardianLinksFor(#uuid))")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<StudentDTO>> updateStudent(@PathVariable UUID uuid, @Valid @RequestBody StudentDTO studentDTO) {
         StudentDTO updatedStudent = studentService.updateStudent(uuid, studentDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(updatedStudent, "Information updated successfully"));
