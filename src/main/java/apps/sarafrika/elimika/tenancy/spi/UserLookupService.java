@@ -111,10 +111,7 @@ public interface UserLookupService {
      */
     boolean userHasGlobalDomain(UUID userUuid, UserDomain domain);
 
-    /**
-     * Whether the user holds a domain that still awaits a platform admin's approval. Used to tell
-     * a pending registrant apart from a caller who simply lacks the role an endpoint asks for.
-     */
+    /** Whether the user holds a domain still awaiting a platform admin's approval. */
     boolean hasPendingDomainApproval(UUID userUuid);
 
     /**

@@ -153,12 +153,7 @@ class UserController {
         return ResponseEntity.ok(ApiResponse.success(user, "Current user retrieved successfully"));
     }
 
-    /**
-     * Answers the question the UI asks right after sign-in: may this person use a dashboard yet?
-     * {@code user_domain} on {@code /me} lists approved domains only, so a newly registered user
-     * shows none there; this endpoint says whether that is because their request is still pending,
-     * was turned down, or was never made.
-     */
+    /** Tells the UI whether the caller may use a dashboard yet, and why not when they may not. */
     @Operation(operationId = "getCurrentAccountStatus", summary = "Get the caller's account approval status",
             description = "Returns ACTIVE once any domain is approved, PENDING_APPROVAL while every requested " +
                     "domain awaits a platform admin, and the state of each requested domain.")

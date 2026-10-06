@@ -178,10 +178,7 @@ public class UserLookupServiceImpl implements UserLookupService {
         return domains;
     }
 
-    /**
-     * The global domains that grant access. A pending, rejected or suspended mapping is a request,
-     * not a role, so every access question answered here sees approved mappings only.
-     */
+    /** Global domains that grant access: approved mappings only. */
     private List<UserDomainMapping> approvedMappings(UUID userUuid) {
         return userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED);
     }

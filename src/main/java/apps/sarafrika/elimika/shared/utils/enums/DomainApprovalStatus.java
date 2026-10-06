@@ -5,10 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.Locale;
 
-/**
- * Whether a user may act in a domain they hold. A domain mapping grants access only once it is
- * {@link #APPROVED}; every other state keeps the user on the pending-approval screen.
- */
+/** Approval state of a domain mapping; only {@link #APPROVED} grants access. */
 public enum DomainApprovalStatus {
 
     /** Requested at registration or by creating a profile, awaiting a platform admin. */

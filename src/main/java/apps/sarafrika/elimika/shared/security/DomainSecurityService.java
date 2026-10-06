@@ -619,10 +619,7 @@ public class DomainSecurityService {
         return false;
     }
 
-    /**
-     * Whether the caller holds a domain still awaiting approval. Lets an access denial tell a
-     * pending registrant to wait rather than report a missing role.
-     */
+    /** Whether the caller holds a domain still awaiting approval. */
     public boolean isAwaitingDomainApproval() {
         try {
             UUID currentUserUuid = getCurrentUserUuid();

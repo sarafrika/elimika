@@ -41,10 +41,7 @@ public class UserDomainMapping {
             insertable = false, updatable = false)
     private UserDomain userDomain;
 
-    /**
-     * Fails closed: a mapping created without a decision is pending, so only flows that are
-     * meant to grant access outright set {@link DomainApprovalStatus#APPROVED} themselves.
-     */
+    /** Fails closed: flows that grant access outright set APPROVED themselves. */
     @Column(name = "status")
     private DomainApprovalStatus status = DomainApprovalStatus.PENDING;
 

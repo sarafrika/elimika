@@ -4,10 +4,7 @@ import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-/**
- * JPA AttributeConverter for {@link DomainApprovalStatus}. Reads normalise case-insensitively so
- * legacy or hand-edited rows keep working.
- */
+/** JPA converter for {@link DomainApprovalStatus}; reads are case-insensitive. */
 @Converter(autoApply = true)
 public class DomainApprovalStatusConverter implements AttributeConverter<DomainApprovalStatus, String> {
 

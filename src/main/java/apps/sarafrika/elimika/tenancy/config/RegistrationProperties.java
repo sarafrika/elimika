@@ -9,13 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.EnumSet;
 import java.util.Set;
 
-/**
- * Self-registration and domain approval settings.
- * <p>
- * Registration starts in Elimika: the backend creates the Keycloak account and Keycloak emails
- * the set-password link. A domain listed in {@code approvalRequiredDomains} is held as pending
- * until a platform admin approves it; any other domain is granted outright.
- */
+/** Self-registration settings; domains in {@code approvalRequiredDomains} stay pending until an admin approves. */
 @Getter
 @Setter
 @Configuration

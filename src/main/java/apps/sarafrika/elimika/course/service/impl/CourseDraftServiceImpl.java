@@ -1020,11 +1020,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
-    /**
-     * Snapshots written before line items recorded their type, links and weights still restore:
-     * the type falls back to the linked quiz or assignment, then to manual, and absent values keep
-     * the entity defaults. Quiz and assignment links resolve to the restored draft rows.
-     */
+    /** Restores older snapshots too: a missing item type falls back to the linked quiz or assignment, then manual. */
     private void restoreAssessments(UUID draftCourseUuid, UUID liveCourseUuid, JsonNode assessments) {
         ContentIdMap restoredContent = restoredContentIds(draftCourseUuid);
         for (JsonNode node : assessments) {
@@ -1857,11 +1853,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setActive(from.getActive() == null ? Boolean.TRUE : from.getActive());
     }
 
-    /**
-     * Quiz and assignment links point at rows in the lesson tree, which has its own copy on each
-     * side of a draft. Each link is translated through {@code contentIds}, otherwise the copy would
-     * reuse the other side's quiz or assignment and collide with its unique line-item index.
-     */
+    /** Links are translated through {@code contentIds} so a copy never reuses the other side's quiz or assignment. */
     private void copyLineItemFields(CourseAssessmentLineItem from, CourseAssessmentLineItem to, ContentIdMap contentIds) {
         to.setTitle(from.getTitle());
         to.setDescription(from.getDescription());
@@ -1941,10 +1933,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         return node == null || node.isNull() ? null : node.asText();
     }
 
-    /**
-     * Old-to-new uuids for the lesson tree rows copied between a live course and its draft. A link
-     * to a row outside the copied tree resolves to {@code null} rather than to the original row.
-     */
+    /** Old-to-new uuids of lesson-tree rows copied between a course and its draft; unknown links map to null. */
     private record ContentIdMap(Map<UUID, UUID> lessons, Map<UUID, UUID> quizzes, Map<UUID, UUID> assignments) {
 
         private ContentIdMap() {

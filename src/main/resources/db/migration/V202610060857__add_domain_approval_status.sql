@@ -1,7 +1,5 @@
--- A domain mapping now grants access only once a platform admin has approved it. Every mapping
--- that exists today was already granting access, so it is backfilled as APPROVED; the column
--- default keeps rows inserted outside the application (fixtures, manual repairs) behaving the
--- same way, while the application itself always writes an explicit status.
+-- Only APPROVED mappings grant access. Existing mappings already granted access, so they are backfilled
+-- as APPROVED; the default covers rows inserted outside the application, which always sets a status.
 ALTER TABLE user_domain_mapping
     ADD COLUMN IF NOT EXISTS status        VARCHAR(20),
     ADD COLUMN IF NOT EXISTS reviewed_at   TIMESTAMP,
