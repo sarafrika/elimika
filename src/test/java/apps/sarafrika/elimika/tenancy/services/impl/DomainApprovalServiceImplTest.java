@@ -1,10 +1,12 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.shared.event.user.DomainApprovalRequestedEvent;
+import apps.sarafrika.elimika.shared.event.user.DomainModeratedEvent;
 import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.config.RegistrationProperties;
 import apps.sarafrika.elimika.tenancy.dto.AccountStatusDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminDomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import apps.sarafrika.elimika.tenancy.internal.DomainApprovalNotifier;
@@ -176,6 +178,77 @@ class DomainApprovalServiceImplTest {
                 .thenReturn(List.of(UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.SUSPENDED)));
 
         assertThat(service.accountStatus(userUuid).accountState()).isEqualTo(AccountState.SUSPENDED);
+    }
+
+    @Test
+    void moderatePublishesTheDecisionForDomainModulesToMirror() {
+        UUID admin = UUID.randomUUID();
+        UserDomainMapping pending = UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.PENDING);
+        when(mappingRepository.findByUserUuidAndUserDomainUuid(userUuid, STUDENT_DOMAIN)).thenReturn(List.of(pending));
+
+        service.moderate(userUuid, UserDomain.student, "approve", "ok", admin);
+
+        verify(eventPublisher).publishEvent(new DomainModeratedEvent(userUuid, "student", DomainApprovalStatus.APPROVED,
+                "ok", admin));
+    }
+
+    @Test
+    void recordSubmissionStampsAPendingDomainAndTellsAdminsOnce() {
+        UserDomainMapping pending = UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.PENDING);
+        when(mappingRepository.findByUserUuidAndUserDomainUuid(userUuid, STUDENT_DOMAIN)).thenReturn(List.of(pending));
+
+        DomainApplicationDTO submitted = service.recordSubmission(userUuid, UserDomain.student);
+
+        assertThat(submitted.submittedAt()).isNotNull();
+        verify(notifier).submitted(userUuid, "student", pending.getSubmittedAt());
+        assertThatThrownBy(() -> service.recordSubmission(userUuid, UserDomain.student))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already awaiting review");
+    }
+
+    @Test
+    void recordSubmissionReopensARejectionAndRefusesAnApprovedDomain() {
+        UserDomainMapping rejected = UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.REJECTED);
+        rejected.setReviewReason("Add a photo");
+        when(mappingRepository.findByUserUuidAndUserDomainUuid(userUuid, STUDENT_DOMAIN)).thenReturn(List.of(rejected));
+
+        DomainApplicationDTO resubmitted = service.recordSubmission(userUuid, UserDomain.student);
+        assertThat(resubmitted.status()).isEqualTo(DomainApprovalStatus.PENDING);
+        assertThat(resubmitted.reviewReason()).isNull();
+
+        UserDomainMapping approved = UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.APPROVED);
+        when(mappingRepository.findByUserUuidAndUserDomainUuid(userUuid, STUDENT_DOMAIN)).thenReturn(List.of(approved));
+        assertThatThrownBy(() -> service.recordSubmission(userUuid, UserDomain.student))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already approved");
+    }
+
+    @Test
+    void recordSubmissionOnlyStampsADomainWithoutReview() {
+        UserDomainMapping approved = UserDomainMapping.of(userUuid, ADMIN_DOMAIN, DomainApprovalStatus.APPROVED);
+        when(mappingRepository.findByUserUuidAndUserDomainUuid(userUuid, ADMIN_DOMAIN)).thenReturn(List.of(approved));
+
+        DomainApplicationDTO completed = service.recordSubmission(userUuid, UserDomain.admin);
+
+        assertThat(completed.status()).isEqualTo(DomainApprovalStatus.APPROVED);
+        assertThat(completed.submittedAt()).isNotNull();
+        verify(notifier, never()).submitted(any(), any(), any());
+    }
+
+    @Test
+    void queueFiltersSubmittedApplications() {
+        UserDomainMapping waiting = UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.PENDING);
+        UserDomainMapping submitted = UserDomainMapping.of(UUID.randomUUID(), STUDENT_DOMAIN, DomainApprovalStatus.PENDING);
+        submitted.setSubmittedAt(java.time.LocalDateTime.now());
+        when(mappingRepository.findByStatusOrderByCreatedAtAsc(DomainApprovalStatus.PENDING))
+                .thenReturn(List.of(waiting, submitted));
+        when(userRepository.findByUuidIn(any())).thenReturn(List.of());
+
+        assertThat(service.queue(DomainApprovalStatus.PENDING, null, true))
+                .extracting(AdminDomainApplicationDTO::userUuid).containsExactly(submitted.getUserUuid());
+        assertThat(service.queue(DomainApprovalStatus.PENDING, null, false))
+                .extracting(AdminDomainApplicationDTO::userUuid).containsExactly(userUuid);
+        assertThat(service.queue(DomainApprovalStatus.PENDING, UserDomain.student, null)).hasSize(2);
     }
 
     private static apps.sarafrika.elimika.tenancy.entity.UserDomain domain(UUID uuid, String name) {

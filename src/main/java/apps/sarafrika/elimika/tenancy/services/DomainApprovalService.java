@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.tenancy.dto.AdminDomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainApplicationDTO;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Owns every write to {@code user_domain_mapping}, so pending versus granted is decided in one place. */
@@ -31,8 +32,18 @@ public interface DomainApprovalService {
     /** Approves the organisation_user domain of every admin of an approved organisation. */
     void approveOrganisationAdmins(UUID organisationUuid, UUID reviewedBy);
 
-    /** The admin approval queue, newest requests last, with names for display. */
-    List<AdminDomainApplicationDTO> queue(DomainApprovalStatus status, UserDomain domain);
+    /** The admin approval queue, oldest first; {@code submitted} narrows to submitted (true) or unsubmitted (false). */
+    List<AdminDomainApplicationDTO> queue(DomainApprovalStatus status, UserDomain domain, Boolean submitted);
+
+    /** Records an onboarding submission: back to PENDING with submitted_at, admins told; no-review domains just stamp it. */
+    DomainApplicationDTO recordSubmission(UUID userUuid, UserDomain domain);
+
+    /** Stamps submitted_at on the pending organisation_user domain of every admin of the organisation. */
+    void markOrganisationAdminsSubmitted(UUID organisationUuid);
+
+    Optional<DomainApplicationDTO> application(UUID userUuid, UserDomain domain);
+
+    boolean requiresApproval(UserDomain domain);
 
     long countWithStatus(DomainApprovalStatus status);
 

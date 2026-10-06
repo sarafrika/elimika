@@ -28,6 +28,10 @@ public record AdminDomainApplicationDTO(
         @JsonProperty("requested_at")
         LocalDateTime requestedAt,
 
+        @Schema(description = "When the user submitted their onboarding for review; null while they are still filling it in")
+        @JsonProperty("submitted_at")
+        LocalDateTime submittedAt,
+
         @JsonProperty("reviewed_at")
         LocalDateTime reviewedAt,
 

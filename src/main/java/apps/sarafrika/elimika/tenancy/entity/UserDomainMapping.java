@@ -54,6 +54,10 @@ public class UserDomainMapping {
     @Column(name = "review_reason")
     private String reviewReason;
 
+    /** When the user submitted this domain's onboarding (finished it, for domains without review). */
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;

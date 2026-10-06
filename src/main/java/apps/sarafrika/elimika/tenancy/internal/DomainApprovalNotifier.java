@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -56,6 +57,32 @@ public class DomainApprovalNotifier {
             }
         } catch (Exception e) {
             log.warn("Failed to notify admins that user {} awaits {} approval: {}", userUuid, domain, e.getMessage());
+        }
+    }
+
+    /** Tells platform admins a user submitted their onboarding; one notice per submission. */
+    public void submitted(UUID userUuid, String domain, LocalDateTime submittedAt) {
+        try {
+            String who = userRepository.findByUuid(userUuid).map(DomainApprovalNotifier::fullName).orElse("A user");
+            UUID adminDomain = domainRepository.findByDomainName("admin").map(d -> d.getUuid()).orElse(null);
+            if (adminDomain == null) {
+                return;
+            }
+            for (UserDomainMapping admin : mappingRepository.findByUserDomainUuid(adminDomain)) {
+                if (!admin.isApproved() || admin.getUserUuid().equals(userUuid)) {
+                    continue;
+                }
+                eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
+                        admin.getUserUuid(), REQUESTED, "INBOX",
+                        "Application ready for review",
+                        who + " submitted their " + label(domain) + " onboarding for review.",
+                        ADMIN_QUEUE_URL,
+                        Map.of("user_uuid", userUuid, "domain", domain, "submitted", true),
+                        "domain-review-submitted:" + userUuid + ":" + domain + ":" + submittedAt + ":"
+                                + admin.getUserUuid()));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to notify admins that user {} submitted {} onboarding: {}", userUuid, domain, e.getMessage());
         }
     }
 

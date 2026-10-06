@@ -23,6 +23,9 @@ public record DomainApplicationDTO(
         @JsonProperty("requested_at")
         LocalDateTime requestedAt,
 
+        @JsonProperty("submitted_at")
+        LocalDateTime submittedAt,
+
         @JsonProperty("reviewed_at")
         LocalDateTime reviewedAt,
 

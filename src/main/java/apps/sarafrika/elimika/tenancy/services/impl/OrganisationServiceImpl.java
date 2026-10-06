@@ -612,6 +612,7 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         organisation.setVerificationRequestedAt(LocalDateTime.now(ZoneOffset.UTC));
         organisation = organisationRepository.save(organisation);
+        domainApprovalService.markOrganisationAdminsSubmitted(organisationUuid);
         log.info("Organisation {} submitted for admin verification", organisationUuid);
 
         return OrganisationFactory.toDTO(organisation);

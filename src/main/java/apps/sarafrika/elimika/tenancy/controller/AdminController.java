@@ -81,20 +81,25 @@ public class AdminController {
 
     @Operation(operationId = "getRegistrationQueue", summary = "List domain requests awaiting review",
             description = "Self-registrations and domain applications by approval status, oldest first. "
+                    + "`submitted=true` lists only applications whose onboarding was submitted for review, "
+                    + "`submitted=false` only those still being filled in. "
                     + "Course creator and organisation requests are decided through their own profile review.")
     @GetMapping("/registrations")
     public ResponseEntity<ApiResponse<List<AdminDomainApplicationDTO>>> getRegistrationQueue(
             @RequestParam(defaultValue = "PENDING") DomainApprovalStatus status,
             @Parameter(description = "Optional domain filter, e.g. student")
-            @RequestParam(required = false) String domain) {
+            @RequestParam(required = false) String domain,
+            @Parameter(description = "Optional: true for submitted onboarding only, false for not yet submitted")
+            @RequestParam(required = false) Boolean submitted) {
         return ResponseEntity.ok(ApiResponse.success(
-                domainApprovalService.queue(status, domain == null ? null : parseDomain(domain)),
+                domainApprovalService.queue(status, domain == null ? null : parseDomain(domain), submitted),
                 "Registration queue retrieved successfully"));
     }
 
     @Operation(operationId = "moderateUserDomain", summary = "Approve, reject or revoke a user's domain",
             description = "For domains without a profile review (instructor; students and parents need no approval). Approval opens the "
-                    + "domain's dashboard; reject and revoke keep the user on the pending-approval screen.")
+                    + "domain's dashboard; reject and revoke keep the user on the pending-approval screen. For the instructor "
+                    + "domain the instructor profile's admin_verified follows the decision.")
     @PostMapping("/users/{userUuid}/domains/{domain}/moderate")
     public ResponseEntity<ApiResponse<DomainApplicationDTO>> moderateUserDomain(
             @PathVariable UUID userUuid,
