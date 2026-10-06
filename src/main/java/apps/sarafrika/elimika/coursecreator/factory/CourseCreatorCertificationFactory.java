@@ -22,6 +22,7 @@ public final class CourseCreatorCertificationFactory {
                 certification.getCredentialId(),
                 certification.getCredentialUrl(),
                 certification.getDescription(),
+                certification.getCredentialType(),
                 certification.getIsVerified(),
                 certification.getCreatedDate(),
                 certification.getCreatedBy(),
@@ -44,7 +45,7 @@ public final class CourseCreatorCertificationFactory {
         certification.setCredentialId(dto.credentialId());
         certification.setCredentialUrl(dto.credentialUrl());
         certification.setDescription(dto.description());
-        certification.setIsVerified(dto.isVerified());
+        certification.setCredentialType(dto.credentialType());
         certification.setCreatedDate(dto.createdDate());
         certification.setCreatedBy(dto.createdBy());
         certification.setLastModifiedDate(dto.updatedDate());

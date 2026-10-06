@@ -4,7 +4,9 @@ import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDTO;
 import apps.sarafrika.elimika.coursecreator.factory.CourseCreatorFactory;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
+import apps.sarafrika.elimika.coursecreator.service.CourseCreatorOnboardingService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
+import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
@@ -21,6 +23,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,6 +38,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final GenericSpecificationBuilder<CourseCreator> specificationBuilder;
     private final DomainSecurityService domainSecurityService;
+    private final CourseCreatorOnboardingService courseCreatorOnboardingService;
 
     private static final String COURSE_CREATOR_NOT_FOUND_TEMPLATE = "Course creator with ID %s not found";
 
@@ -43,6 +48,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
                 .orElseGet(CourseCreator::new);
         applyCourseCreatorProfile(courseCreator, courseCreatorDTO);
         courseCreator.setAdminVerified(false);
+        applyOnboardingDefaults(courseCreator);
 
         CourseCreator savedCourseCreator = courseCreatorRepository.save(courseCreator);
 
@@ -104,43 +110,15 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
 
     @Override
     public CourseCreatorDTO verifyCourseCreator(UUID courseCreatorUuid, String reason) {
-        log.info("Verifying course creator {} for reason: {}", courseCreatorUuid, reason);
-
-        CourseCreator courseCreator = courseCreatorRepository.findByUuid(courseCreatorUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_CREATOR_NOT_FOUND_TEMPLATE, courseCreatorUuid)));
-
-        domainSecurityService.enforceNotSelfApprovingProfile(
-                courseCreator.getUserUuid(),
-                "course creator"
-        );
-
-        boolean wasVerified = Boolean.TRUE.equals(courseCreator.getAdminVerified());
-        courseCreator.setAdminVerified(true);
-        CourseCreator verifiedCourseCreator = courseCreatorRepository.save(courseCreator);
-        if (!wasVerified) {
-            publishVerificationNotification(verifiedCourseCreator, true);
-        }
-
-        log.info("Successfully verified course creator {}", courseCreatorUuid);
-        return CourseCreatorFactory.toDTO(verifiedCourseCreator);
+        // Same path as the moderation endpoint, so the review status and domain approval stay in step.
+        courseCreatorOnboardingService.moderate(courseCreatorUuid, "approve", reason);
+        return getCourseCreatorByUuid(courseCreatorUuid);
     }
 
     @Override
     public CourseCreatorDTO unverifyCourseCreator(UUID courseCreatorUuid, String reason) {
-        log.info("Removing verification from course creator {} for reason: {}", courseCreatorUuid, reason);
-
-        CourseCreator courseCreator = courseCreatorRepository.findByUuid(courseCreatorUuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(COURSE_CREATOR_NOT_FOUND_TEMPLATE, courseCreatorUuid)));
-
-        boolean wasVerified = Boolean.TRUE.equals(courseCreator.getAdminVerified());
-        courseCreator.setAdminVerified(false);
-        CourseCreator unverifiedCourseCreator = courseCreatorRepository.save(courseCreator);
-        if (wasVerified) {
-            publishVerificationNotification(unverifiedCourseCreator, false);
-        }
-
-        log.info("Successfully removed verification from course creator {}", courseCreatorUuid);
-        return CourseCreatorFactory.toDTO(unverifiedCourseCreator);
+        courseCreatorOnboardingService.moderate(courseCreatorUuid, "revoke", reason);
+        return getCourseCreatorByUuid(courseCreatorUuid);
     }
 
     @Override
@@ -225,38 +203,17 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         if (courseCreatorDTO.professionalHeadline() != null) {
             courseCreator.setProfessionalHeadline(courseCreatorDTO.professionalHeadline());
         }
+        applyOnboardingDefaults(courseCreator);
     }
 
-    private void publishVerificationNotification(CourseCreator courseCreator, boolean approved) {
-        if (courseCreator.getUserUuid() == null || courseCreator.getUuid() == null) {
-            return;
+    private void applyOnboardingDefaults(CourseCreator courseCreator) {
+        if (courseCreator.getVerificationStatus() == null) {
+            courseCreator.setVerificationStatus(Boolean.TRUE.equals(courseCreator.getAdminVerified())
+                    ? CourseCreatorVerificationStatus.APPROVED
+                    : CourseCreatorVerificationStatus.DRAFT);
         }
-
-        String notificationType = approved
-                ? "COURSE_CREATOR_VERIFICATION_APPROVED"
-                : "COURSE_CREATOR_VERIFICATION_REVOKED";
-        String title = approved
-                ? "Course creator profile approved"
-                : "Course creator verification removed";
-        String body = approved
-                ? "Your course creator profile has been approved."
-                : "Your course creator profile verification has been removed.";
-
-        applicationEventPublisher.publishEvent(NotificationRequestedEvent.inApp(
-                courseCreator.getUserUuid(),
-                notificationType,
-                "POPUP",
-                title,
-                body,
-                "/dashboard/course-creator/profile",
-                Map.of(
-                        "course_creator_uuid", courseCreator.getUuid(),
-                        "profile_type", "course_creator",
-                        "admin_verified", approved
-                ),
-                "course-creator-verification:" + courseCreator.getUuid() + ":" + notificationType
-        ));
     }
+
 
     /**
      * A single profile at full coordinate precision for its owner or a platform admin, and at town

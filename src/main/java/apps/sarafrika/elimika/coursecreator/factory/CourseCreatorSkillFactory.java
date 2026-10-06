@@ -16,7 +16,13 @@ public final class CourseCreatorSkillFactory {
                 skill.getUuid(),
                 skill.getCourseCreatorUuid(),
                 skill.getSkillName(),
+                skill.getSkillUuid(),
                 skill.getProficiencyLevel(),
+                skill.getEvidence(),
+                skill.getLastAssessedOn(),
+                skill.getVerificationStatus(),
+                skill.getVerifiedAt(),
+                skill.getVerificationNotes(),
                 skill.getCreatedDate(),
                 skill.getCreatedBy(),
                 skill.getLastModifiedDate(),
@@ -32,7 +38,10 @@ public final class CourseCreatorSkillFactory {
         skill.setUuid(dto.uuid());
         skill.setCourseCreatorUuid(dto.courseCreatorUuid());
         skill.setSkillName(dto.skillName());
+        skill.setSkillUuid(dto.skillUuid());
         skill.setProficiencyLevel(dto.proficiencyLevel());
+        skill.setEvidence(dto.evidence());
+        skill.setLastAssessedOn(dto.lastAssessedOn());
         skill.setCreatedDate(dto.createdDate());
         skill.setCreatedBy(dto.createdBy());
         skill.setLastModifiedDate(dto.updatedDate());

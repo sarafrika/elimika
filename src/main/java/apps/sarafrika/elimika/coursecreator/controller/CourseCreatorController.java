@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorCertificationDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDocumentDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorEducationDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorExperienceDTO;
+import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorCategoriesRequest;
+import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorOnboardingStateDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorProfessionalMembershipDTO;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorSkillDTO;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorCertificationService;
@@ -13,6 +15,7 @@ import apps.sarafrika.elimika.coursecreator.service.CourseCreatorDocumentService
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorEducationService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorExperienceService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorProfessionalMembershipService;
+import apps.sarafrika.elimika.coursecreator.service.CourseCreatorOnboardingService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorService;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
@@ -75,6 +78,7 @@ public class CourseCreatorController {
             "@courseCreatorCredentialSecurityService.canReadCredentials(#courseCreatorUuid)";
 
     private final CourseCreatorService courseCreatorService;
+    private final CourseCreatorOnboardingService courseCreatorOnboardingService;
     private final CourseCreatorSkillService courseCreatorSkillService;
     private final CourseCreatorEducationService courseCreatorEducationService;
     private final CourseCreatorExperienceService courseCreatorExperienceService;
@@ -103,6 +107,31 @@ public class CourseCreatorController {
     // credential records by courseCreatorUuid. Document bytes stay owner-or-admin on this controller.
 
     // ===== COURSE CREATOR BASIC OPERATIONS =====
+
+    @Operation(summary = "Get current user's course creator onboarding state")
+    @GetMapping("/me/onboarding")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorOnboardingStateDTO>> getCurrentOnboarding() {
+        CourseCreatorOnboardingStateDTO state = courseCreatorOnboardingService.getCurrentOnboarding();
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(state, "Course creator onboarding state retrieved successfully"));
+    }
+
+    @Operation(summary = "Save categories for current user's course creator onboarding")
+    @PutMapping("/me/onboarding/categories")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorOnboardingStateDTO>> updateCategories(
+            @Valid @RequestBody CourseCreatorCategoriesRequest request) {
+        CourseCreatorOnboardingStateDTO state = courseCreatorOnboardingService.updateCategories(request);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(state, "Course creator categories saved successfully"));
+    }
+
+    @Operation(summary = "Submit current user's course creator onboarding for verification")
+    @PostMapping("/me/onboarding/submit")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorOnboardingStateDTO>> submitCurrentForVerification() {
+        CourseCreatorOnboardingStateDTO state = courseCreatorOnboardingService.submitCurrentForVerification();
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(state, "Course creator submitted for verification"));
+    }
 
     @Operation(
             summary = "Create a new course creator",

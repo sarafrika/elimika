@@ -15,6 +15,8 @@ public interface CourseCreatorDocumentRepository extends JpaRepository<CourseCre
 
     List<CourseCreatorDocument> findByCourseCreatorUuid(UUID courseCreatorUuid);
 
+    long countByCourseCreatorUuid(UUID courseCreatorUuid);
+
     boolean existsByUuid(UUID uuid);
 
     boolean existsByEducationUuidAndCourseCreatorUuidAndDocumentTypeUuid(UUID educationUuid,

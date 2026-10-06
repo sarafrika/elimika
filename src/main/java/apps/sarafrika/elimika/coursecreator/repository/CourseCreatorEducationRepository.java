@@ -12,6 +12,8 @@ public interface CourseCreatorEducationRepository extends JpaRepository<CourseCr
 
     Optional<CourseCreatorEducation> findByUuid(UUID uuid);
 
+    long countByCourseCreatorUuid(UUID courseCreatorUuid);
+
     boolean existsByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);

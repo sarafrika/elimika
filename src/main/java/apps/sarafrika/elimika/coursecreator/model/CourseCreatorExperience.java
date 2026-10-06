@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
+import apps.sarafrika.elimika.coursecreator.util.enums.ExperienceType;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
@@ -47,6 +48,9 @@ public class CourseCreatorExperience extends BaseEntity {
     @Column(name = "end_date")
     @Filterable
     private LocalDate endDate;
+
+    @Column(name = "experience_type")
+    private ExperienceType experienceType;
 
     @Column(name = "is_current_position")
     @Filterable

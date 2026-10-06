@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.coursecreator.repository;
 
 import apps.sarafrika.elimika.coursecreator.model.CourseCreatorSkill;
+import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -12,7 +13,11 @@ public interface CourseCreatorSkillRepository extends JpaRepository<CourseCreato
 
     Optional<CourseCreatorSkill> findByUuid(UUID uuid);
 
+    long countByCourseCreatorUuid(UUID courseCreatorUuid);
+
     boolean existsByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByCourseCreatorUuidAndVerificationStatus(UUID courseCreatorUuid, WalletVerificationStatus status);
 }

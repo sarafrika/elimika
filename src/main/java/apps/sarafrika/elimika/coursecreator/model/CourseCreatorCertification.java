@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
+import apps.sarafrika.elimika.coursecreator.util.enums.CredentialType;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
@@ -49,6 +50,9 @@ public class CourseCreatorCertification extends BaseEntity {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "credential_type")
+    private CredentialType credentialType;
 
     @Column(name = "is_verified")
     @Filterable

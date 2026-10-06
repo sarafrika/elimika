@@ -77,8 +77,8 @@ public class CourseCreatorCertificationServiceImpl implements CourseCreatorCerti
         if (dto.description() != null) {
             existing.setDescription(dto.description());
         }
-        if (dto.isVerified() != null) {
-            existing.setIsVerified(dto.isVerified());
+        if (dto.credentialType() != null) {
+            existing.setCredentialType(dto.credentialType());
         }
 
         return CourseCreatorCertificationFactory.toDTO(certificationRepository.save(existing));

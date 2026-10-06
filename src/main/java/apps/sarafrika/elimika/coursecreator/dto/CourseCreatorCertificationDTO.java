@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
+import apps.sarafrika.elimika.coursecreator.util.enums.CredentialType;
 import apps.sarafrika.elimika.shared.utils.validation.ValidUrl;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -69,7 +70,11 @@ public record CourseCreatorCertificationDTO(
         @JsonProperty("description")
         String description,
 
-        @JsonProperty("is_verified")
+        @JsonProperty("credential_type")
+        CredentialType credentialType,
+
+        @Schema(description = "Set by a platform admin when the credential is checked")
+        @JsonProperty(value = "is_verified", access = JsonProperty.Access.READ_ONLY)
         Boolean isVerified,
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)

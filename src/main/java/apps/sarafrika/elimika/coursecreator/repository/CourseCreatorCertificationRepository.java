@@ -12,7 +12,11 @@ public interface CourseCreatorCertificationRepository extends JpaRepository<Cour
 
     Optional<CourseCreatorCertification> findByUuid(UUID uuid);
 
+    long countByCourseCreatorUuid(UUID courseCreatorUuid);
+
     boolean existsByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);
+
+    boolean existsByCourseCreatorUuidAndIsVerifiedTrue(UUID courseCreatorUuid);
 }

@@ -22,7 +22,11 @@
  * @since 2.17.0
  */
 @ApplicationModule(
-    allowedDependencies = {"shared", "notifications::events-api"}
+    allowedDependencies = {
+            "shared",
+            "notifications::events-api",
+            "skills :: skills-spi"
+    }
 )
 package apps.sarafrika.elimika.coursecreator;
 

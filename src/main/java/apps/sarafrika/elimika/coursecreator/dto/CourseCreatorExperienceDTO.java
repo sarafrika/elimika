@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
+import apps.sarafrika.elimika.coursecreator.util.enums.ExperienceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -67,6 +68,9 @@ public record CourseCreatorExperienceDTO(
 
         @JsonProperty("is_current_position")
         Boolean isCurrentPosition,
+
+        @JsonProperty("experience_type")
+        ExperienceType experienceType,
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate,

@@ -1,12 +1,16 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
+import apps.sarafrika.elimika.coursecreator.util.converter.CourseCreatorVerificationStatusConverter;
+import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -47,4 +51,21 @@ public class CourseCreator extends BaseEntity {
     @Column(name = "admin_verified")
     @Filterable
     private Boolean adminVerified;
+
+    @Column(name = "verification_status")
+    @Convert(converter = CourseCreatorVerificationStatusConverter.class)
+    @Filterable
+    private CourseCreatorVerificationStatus verificationStatus;
+
+    @Column(name = "verification_requested_at")
+    private LocalDateTime verificationRequestedAt;
+
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "review_reason")
+    private String reviewReason;
 }

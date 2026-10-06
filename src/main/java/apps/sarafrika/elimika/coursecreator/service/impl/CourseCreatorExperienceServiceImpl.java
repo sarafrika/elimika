@@ -77,6 +77,9 @@ public class CourseCreatorExperienceServiceImpl implements CourseCreatorExperien
         if (dto.isCurrentPosition() != null) {
             existing.setIsCurrentPosition(dto.isCurrentPosition());
         }
+        if (dto.experienceType() != null) {
+            existing.setExperienceType(dto.experienceType());
+        }
 
         return CourseCreatorExperienceFactory.toDTO(experienceRepository.save(existing));
     }

@@ -12,6 +12,8 @@ public interface CourseCreatorProfessionalMembershipRepository extends JpaReposi
 
     Optional<CourseCreatorProfessionalMembership> findByUuid(UUID uuid);
 
+    long countByCourseCreatorUuid(UUID courseCreatorUuid);
+
     boolean existsByUuid(UUID uuid);
 
     void deleteByUuid(UUID uuid);

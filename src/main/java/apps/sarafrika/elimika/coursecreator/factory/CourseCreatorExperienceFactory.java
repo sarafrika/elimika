@@ -22,6 +22,7 @@ public final class CourseCreatorExperienceFactory {
                 experience.getStartDate(),
                 experience.getEndDate(),
                 experience.getIsCurrentPosition(),
+                experience.getExperienceType(),
                 experience.getCreatedDate(),
                 experience.getCreatedBy(),
                 experience.getLastModifiedDate(),
@@ -43,6 +44,7 @@ public final class CourseCreatorExperienceFactory {
         experience.setStartDate(dto.startDate());
         experience.setEndDate(dto.endDate());
         experience.setIsCurrentPosition(dto.isCurrentPosition());
+        experience.setExperienceType(dto.experienceType());
         experience.setCreatedDate(dto.createdDate());
         experience.setCreatedBy(dto.createdBy());
         experience.setLastModifiedDate(dto.updatedDate());

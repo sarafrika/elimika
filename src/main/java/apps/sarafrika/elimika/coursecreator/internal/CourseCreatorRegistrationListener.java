@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.coursecreator.internal;
 
 import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
+import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -32,6 +33,7 @@ public class CourseCreatorRegistrationListener {
         courseCreator.setUserUuid(event.userUuid());
         courseCreator.setFullName("Unknown");
         courseCreator.setAdminVerified(false);
+        courseCreator.setVerificationStatus(CourseCreatorVerificationStatus.DRAFT);
         courseCreatorRepository.save(courseCreator);
     }
 

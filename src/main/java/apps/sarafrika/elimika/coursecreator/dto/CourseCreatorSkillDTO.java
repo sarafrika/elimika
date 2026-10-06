@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
+import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -21,6 +23,7 @@ import java.util.UUID;
             "uuid": "skill123-4567-89ab-cdef-0123456789ab",
             "course_creator_uuid": "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
             "skill_name": "Instructional Design",
+            "skill_uuid": "8e63c021-f640-4e7f-9f89-4d219f2d1ef0",
             "proficiency_level": "EXPERT",
             "created_date": "2024-06-15T14:30:22",
             "created_by": "creator@example.com",
@@ -43,9 +46,29 @@ public record CourseCreatorSkillDTO(
         @JsonProperty("skill_name")
         String skillName,
 
+        @JsonProperty(value = "skill_uuid", access = JsonProperty.Access.READ_ONLY)
+        UUID skillUuid,
+
         @NotNull(message = "Proficiency level is required")
         @JsonProperty("proficiency_level")
         ProficiencyLevel proficiencyLevel,
+
+        @Schema(description = "Link to or description of evidence for the skill")
+        @JsonProperty("evidence")
+        String evidence,
+
+        @JsonProperty("last_assessed_on")
+        LocalDate lastAssessedOn,
+
+        @Schema(description = "Set by a platform admin when the skill is checked")
+        @JsonProperty(value = "verification_status", access = JsonProperty.Access.READ_ONLY)
+        WalletVerificationStatus verificationStatus,
+
+        @JsonProperty(value = "verified_at", access = JsonProperty.Access.READ_ONLY)
+        LocalDateTime verifiedAt,
+
+        @JsonProperty(value = "verification_notes", access = JsonProperty.Access.READ_ONLY)
+        String verificationNotes,
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate,
