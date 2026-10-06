@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import java.util.Optional;
 import java.util.UUID;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileDTO;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatcher;
@@ -24,6 +26,9 @@ class InstructorRegistrationListenerTest {
     @Mock
     private InstructorRepository instructorRepository;
 
+    @Mock
+    private ProfessionalProfileService professionalProfileService;
+
     @InjectMocks
     private InstructorRegistrationListener listener;
 
@@ -31,10 +36,14 @@ class InstructorRegistrationListenerTest {
     void shouldCreateInstructorProfileWhenInstructorDomainAssigned() {
         UUID userUuid = UUID.randomUUID();
         when(instructorRepository.existsByUserUuid(userUuid)).thenReturn(false);
+        when(professionalProfileService.getBasics(userUuid)).thenReturn(new ProfessionalProfileDTO(userUuid,
+                "Shared bio", "Shared headline", null, "Kisumu", null, null, null));
 
         listener.onUserDomainAssigned(new UserDomainMappingEvent(userUuid, "instructor"));
 
         verify(instructorRepository).save(argThat(matchesInstructor(userUuid)));
+        verify(instructorRepository).save(argThat(instructor -> "Shared headline".equals(instructor.getProfessionalHeadline())
+                && "Kisumu".equals(instructor.getLocationName())));
     }
 
     @Test

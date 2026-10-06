@@ -109,7 +109,7 @@ class InstructorSearchIntegrationTest {
 
     @BeforeEach
     void seed() {
-        jdbc.execute("TRUNCATE instructor_skills, instructor_experience, instructor_reviews, instructors, "
+        jdbc.execute("TRUNCATE user_skills, user_experience, instructor_reviews, instructors, "
                 + "user_domain_mapping, users RESTART IDENTITY CASCADE");
 
         UUID adminUserUuid = user(ADMIN_SUBJECT, "admin@test.local", "Platform", "Admin");
@@ -123,8 +123,8 @@ class InstructorSearchIntegrationTest {
         unverifiedInstructorUuid = instructor(unverifiedUserUuid, "Nakuru", false);
         skill(verifiedInstructorUuid, "Kubernetes", "EXPERT");
         skill(unverifiedInstructorUuid, "Kubernetes", "BEGINNER");
-        jdbc.update("INSERT INTO instructor_experience (uuid, instructor_uuid, position, organization_name, created_by) "
-                + "VALUES (?, ?, 'Platform Engineer', 'Safaricom', 'test')", UUID.randomUUID(), verifiedInstructorUuid);
+        jdbc.update("INSERT INTO user_experience (uuid, user_uuid, position, organization_name, created_by) "
+                + "VALUES (?, ?, 'Platform Engineer', 'Safaricom', 'test')", UUID.randomUUID(), verifiedUserUuid);
 
         rebuilder.rebuild(InstructorSearchSource.INDEX);
     }
@@ -433,8 +433,10 @@ class InstructorSearchIntegrationTest {
     }
 
     private void skill(UUID instructorUuid, String name, String level) {
-        jdbc.update("INSERT INTO instructor_skills (uuid, instructor_uuid, skill_name, proficiency_level, created_by) "
-                + "VALUES (?, ?, ?, ?, 'test')", UUID.randomUUID(), instructorUuid, name, level);
+        // Skills live on the instructor owner's shared profile.
+        jdbc.update("INSERT INTO user_skills (uuid, user_uuid, skill_name, proficiency_level, created_by) "
+                + "VALUES (?, (SELECT user_uuid FROM instructors WHERE uuid = ?), ?, ?, 'test')",
+                UUID.randomUUID(), instructorUuid, name, level);
     }
 
     private static void awaitTrue(BooleanSupplier condition) {
