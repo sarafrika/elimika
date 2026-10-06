@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -179,23 +180,35 @@ public class RequestAuditWriter implements SmartLifecycle {
             return;
         }
         try {
-            Map<String, UUID> userUuids = resolveUserUuids(batch);
-            jdbcTemplate.batchUpdate(INSERT_SQL, new BatchPreparedStatementSetter() {
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    bind(ps, batch.get(i), userUuids);
-                }
-
-                @Override
-                public int getBatchSize() {
-                    return batch.size();
-                }
-            });
+            insert(batch, resolveUserUuids(batch));
+            writtenCounter.increment(batch.size());
+        } catch (DataIntegrityViolationException stale) {
+            // A cached user uuid can outlive its user row; re-resolve, and keep the rows without it if that fails.
+            userUuidCache.clear();
+            try {
+                insert(batch, resolveUserUuids(batch));
+            } catch (DataIntegrityViolationException stillStale) {
+                insert(batch, Map.of());
+            }
             writtenCounter.increment(batch.size());
         } catch (Exception ex) {
             failedCounter.increment(batch.size());
             log.error("Failed to write {} request audit entries", batch.size(), ex);
         }
+    }
+
+    private void insert(List<RequestAuditEntry> batch, Map<String, UUID> userUuids) {
+        jdbcTemplate.batchUpdate(INSERT_SQL, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                bind(ps, batch.get(i), userUuids);
+            }
+
+            @Override
+            public int getBatchSize() {
+                return batch.size();
+            }
+        });
     }
 
     private Map<String, UUID> resolveUserUuids(List<RequestAuditEntry> batch) {
