@@ -17,6 +17,8 @@ import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
@@ -42,6 +44,13 @@ import java.util.UUID;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    /** Error code a client checks to show the pending-approval screen instead of a generic denial. */
+    public static final String DOMAIN_PENDING_APPROVAL = "DOMAIN_PENDING_APPROVAL";
+
+    // Optional so the handler can still be constructed directly in standalone MockMvc tests.
+    @Autowired(required = false)
+    private DomainSecurityService domainSecurityService;
 
     /** Seconds a client should wait before retrying when no database connection could be acquired. */
     private static final String DATABASE_BUSY_RETRY_AFTER_SECONDS = "2";
@@ -315,6 +324,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
         log.debug("Access denied", ex);
+        if (domainSecurityService != null && domainSecurityService.isAwaitingDomainApproval()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Your account is awaiting approval by an Elimika administrator",
+                            Map.of("code", DOMAIN_PENDING_APPROVAL)));
+        }
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("Access denied", ex.getMessage()));
     }

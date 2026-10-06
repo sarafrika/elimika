@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventSummary;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
@@ -93,6 +94,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserSpecificationBuilder userSpecificationBuilder;
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
+    private final DomainApprovalService domainApprovalService;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final OrganisationRepository organisationRepository;
     private final UserService userService;
@@ -135,11 +137,8 @@ public class AdminServiceImpl implements AdminService {
             throw new IllegalStateException("User already has " + request.domainName() + " domain assigned");
         }
 
-        // Add domain mapping for global admin access
-        UserDomainMapping mapping = new UserDomainMapping();
-        mapping.setUserUuid(userUuid);
-        mapping.setUserDomainUuid(adminDomain.getUuid());
-        userDomainMappingRepository.save(mapping);
+        // A platform admin assigning the domain is itself the approval.
+        domainApprovalService.grant(userUuid, apps.sarafrika.elimika.shared.utils.enums.UserDomain.admin);
 
         log.info("Successfully assigned {} domain to user {} for reason: {}",
                 request.domainName(), userUuid, request.reason());

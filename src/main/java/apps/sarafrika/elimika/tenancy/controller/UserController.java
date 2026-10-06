@@ -7,7 +7,9 @@ import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.UserContactSecurityService;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
+import apps.sarafrika.elimika.tenancy.dto.AccountStatusDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.tenancy.dto.UserRecipientDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.internal.UserLookupRateLimiter;
@@ -81,6 +83,7 @@ class UserController {
     static final int MAX_DIRECTORY_UUIDS = 100;
 
     private final UserService userService;
+    private final DomainApprovalService domainApprovalService;
     private final MediaServeService mediaServeService;
     private final StorageProperties storageProperties;
     private final DomainSecurityService domainSecurityService;
@@ -148,6 +151,26 @@ class UserController {
         }
         UserDTO user = userService.getUserByUuid(currentUserUuid);
         return ResponseEntity.ok(ApiResponse.success(user, "Current user retrieved successfully"));
+    }
+
+    /**
+     * Answers the question the UI asks right after sign-in: may this person use a dashboard yet?
+     * {@code user_domain} on {@code /me} lists approved domains only, so a newly registered user
+     * shows none there; this endpoint says whether that is because their request is still pending,
+     * was turned down, or was never made.
+     */
+    @Operation(operationId = "getCurrentAccountStatus", summary = "Get the caller's account approval status",
+            description = "Returns ACTIVE once any domain is approved, PENDING_APPROVAL while every requested " +
+                    "domain awaits a platform admin, and the state of each requested domain.")
+    @GetMapping("me/account-status")
+    @PreAuthorize(AUTHENTICATED)
+    public ResponseEntity<ApiResponse<AccountStatusDTO>> getCurrentAccountStatus() {
+        UUID currentUserUuid = domainSecurityService.getCurrentUserUuid();
+        if (currentUserUuid == null) {
+            throw new ResourceNotFoundException("No user record for the authenticated caller");
+        }
+        return ResponseEntity.ok(ApiResponse.success(domainApprovalService.accountStatus(currentUserUuid),
+                "Account status retrieved successfully"));
     }
 
     /**

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.util;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import apps.sarafrika.elimika.tenancy.entity.UserOrganisationDomainMapping;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
@@ -131,7 +132,8 @@ public class UserSpecificationBuilder {
                             criteriaBuilder.equal(
                                     criteriaBuilder.lower(domainJoin.get("domainName")),
                                     domainName.toLowerCase()
-                            )
+                            ),
+                            criteriaBuilder.equal(mappingRoot.get("status"), DomainApprovalStatus.APPROVED)
                     );
 
             // Subquery to check organization domains

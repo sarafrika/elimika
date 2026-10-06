@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.internal;
 
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.tenancy.config.AdminBootstrapProperties;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomain;
@@ -159,10 +160,8 @@ public class AdminBootstrapRunner implements ApplicationRunner {
             return;
         }
 
-        UserDomainMapping mapping = new UserDomainMapping();
-        mapping.setUserUuid(user.getUuid());
-        mapping.setUserDomainUuid(adminDomain.getUuid());
-        userDomainMappingRepository.save(mapping);
+        userDomainMappingRepository.save(
+                UserDomainMapping.of(user.getUuid(), adminDomain.getUuid(), DomainApprovalStatus.APPROVED));
     }
 
     private String required(String value, String propertyName) {

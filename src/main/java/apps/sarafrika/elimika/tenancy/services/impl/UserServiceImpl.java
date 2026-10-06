@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.event.user.*;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -53,6 +55,7 @@ public class UserServiceImpl implements UserService {
     private final OrganisationRepository organisationRepository;
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
+    private final DomainApprovalService domainApprovalService;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final TrainingBranchRepository trainingBranchRepository;
 
@@ -471,8 +474,10 @@ public class UserServiceImpl implements UserService {
         Set<String> allDomains = new HashSet<>();
         boolean hasSystemAdminDomain = false;
 
-        // Get standalone domains (from user_domain_mapping)
-        List<UserDomainMapping> standaloneMappings = userDomainMappingRepository.findByUserUuid(userUuid);
+        // Get standalone domains (from user_domain_mapping); a pending or withdrawn domain is not
+        // a role yet, so only approved mappings are reported.
+        List<UserDomainMapping> standaloneMappings = userDomainMappingRepository
+                .findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED);
         for (UserDomainMapping mapping : standaloneMappings) {
             UserDomain domain = userDomainRepository.findByUuid(mapping.getUserDomainUuid())
                     .orElse(null);
@@ -531,23 +536,8 @@ public class UserServiceImpl implements UserService {
 
         for (String domainName : requestedDomains) {
             if (!currentDomains.contains(domainName)) {
-                UserDomain domain = findDomainByNameOrThrow(domainName);
-                addStandaloneDomainToUser(user, domain);
+                domainApprovalService.request(user.getUuid(), parseDomain(domainName));
             }
-        }
-    }
-
-    /**
-     * Adds a standalone domain to a user (not organisation-specific)
-     */
-    private void addStandaloneDomainToUser(User user, UserDomain domain) {
-        // Check if mapping already exists
-        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domain.getUuid())) {
-            UserDomainMapping mapping = new UserDomainMapping();
-            mapping.setUserUuid(user.getUuid());
-            mapping.setUserDomainUuid(domain.getUuid());
-            userDomainMappingRepository.save(mapping);
-            log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
         }
     }
 
@@ -555,8 +545,17 @@ public class UserServiceImpl implements UserService {
      * Ensures the umbrella organisation_user domain exists for organisation members without elevating privileges.
      */
     private void ensureOrganisationUserDomain(User user) {
-        UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
-        addStandaloneDomainToUser(user, organisationUserDomain);
+        // The organisation vouches for its member, so the umbrella domain is granted outright.
+        domainApprovalService.grant(user.getUuid(), apps.sarafrika.elimika.shared.utils.enums.UserDomain.organisation_user);
+    }
+
+    private static apps.sarafrika.elimika.shared.utils.enums.UserDomain parseDomain(String domainName) {
+        try {
+            return apps.sarafrika.elimika.shared.utils.enums.UserDomain.valueOf(
+                    domainName.trim().toLowerCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new IllegalArgumentException("No known domain with the provided name");
+        }
     }
 
     // Event Listeners
@@ -740,16 +739,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     void assignUserTheirDomain(UserDomainMappingEvent event) {
 
-        UUID domainUuid = userDomainRepository.findByDomainName(event.userDomain())
-                .orElseThrow(() -> new IllegalArgumentException("No known domain with the provided name"))
-                .getUuid();
-
-        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(event.userUuid(), domainUuid)) {
-            UserDomainMapping userDomainMapping = new UserDomainMapping();
-            userDomainMapping.setUserUuid(event.userUuid());
-            userDomainMapping.setUserDomainUuid(domainUuid);
-            userDomainMappingRepository.save(userDomainMapping);
-        }
+        // Creating a profile is a request for its domain: it is held pending when the domain
+        // needs a platform admin's approval.
+        domainApprovalService.request(event.userUuid(), parseDomain(event.userDomain()));
     }
 
     @EventListener

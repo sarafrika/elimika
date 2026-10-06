@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -42,6 +43,7 @@ public class OrganisationServiceImpl implements OrganisationService {
     private final UserRepository userRepository;
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
+    private final DomainApprovalService domainApprovalService;
     private final UserOrganisationDomainMappingRepository userOrganisationDomainMappingRepository;
     private final TrainingBranchRepository trainingBranchRepository;
     private final GenericSpecificationBuilder<Organisation> specificationBuilder;
@@ -404,8 +406,10 @@ public class OrganisationServiceImpl implements OrganisationService {
 
             userOrganisationDomainMappingRepository.save(mapping);
 
-            // Add umbrella organisation_user domain to standalone domains (no platform admin escalation)
-            ensureOrganisationUserDomain(creator);
+            // The creator asks for the umbrella organisation_user domain; it is approved together
+            // with the organisation, not by creating it (no platform admin escalation either way).
+            domainApprovalService.request(creator.getUuid(),
+                    apps.sarafrika.elimika.shared.utils.enums.UserDomain.organisation_user);
 
             log.info("Successfully assigned creator {} as admin for organisation {}", creatorUuid, organisationUuid);
         } catch (Exception e) {
@@ -415,25 +419,11 @@ public class OrganisationServiceImpl implements OrganisationService {
     }
 
     /**
-     * Adds a standalone domain to a user (not organisation-specific)
-     */
-    private void addStandaloneDomainToUser(User user, UserDomain domain) {
-        // Check if mapping already exists
-        if (!userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), domain.getUuid())) {
-            UserDomainMapping mapping = new UserDomainMapping();
-            mapping.setUserUuid(user.getUuid());
-            mapping.setUserDomainUuid(domain.getUuid());
-            userDomainMappingRepository.save(mapping);
-            log.info("Added standalone domain {} to user {}", domain.getDomainName(), user.getUuid());
-        }
-    }
-
-    /**
      * Ensures the umbrella organisation_user domain is present on the user without adding platform admin scope.
      */
     private void ensureOrganisationUserDomain(User user) {
-        UserDomain organisationUserDomain = findDomainByNameOrThrow("organisation_user");
-        addStandaloneDomainToUser(user, organisationUserDomain);
+        // The organisation vouches for the member it adds, so the umbrella domain is granted outright.
+        domainApprovalService.grant(user.getUuid(), apps.sarafrika.elimika.shared.utils.enums.UserDomain.organisation_user);
     }
 
     private Organisation findOrganisationOrThrow(UUID uuid) {

@@ -108,6 +108,7 @@ class PeopleSearchSource implements SearchDocumentSource<PeopleSearchDocument> {
                         FROM user_domain_mapping udm
                         JOIN user_domain ud ON ud.uuid = udm.domain_uuid
                         WHERE udm.user_uuid IN (:uuids)
+                          AND udm.status = 'APPROVED'
                         """, params,
                 rs -> {
                     Memberships member = memberships.computeIfAbsent(rs.getObject("user_uuid", UUID.class),

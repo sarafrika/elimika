@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.User;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
@@ -112,8 +113,14 @@ public class UserLookupServiceImpl implements UserLookupService {
 
     @Override
     public boolean userHasGlobalDomain(UUID userUuid, UserDomain domain) {
-        return userDomainMappingRepository.findByUserUuid(userUuid).stream()
+        return approvedMappings(userUuid).stream()
                 .anyMatch(mapping -> matchesDomain(mapping.getUserDomain().getDomainName(), domain));
+    }
+
+    @Override
+    public boolean hasPendingDomainApproval(UUID userUuid) {
+        return userUuid != null
+                && userDomainMappingRepository.existsByUserUuidAndStatus(userUuid, DomainApprovalStatus.PENDING);
     }
 
     private boolean matchesDomain(String domainName, UserDomain domain) {
@@ -126,7 +133,7 @@ public class UserLookupServiceImpl implements UserLookupService {
 
     @Override
     public List<UserDomain> getUserDomains(UUID userUuid) {
-        List<UserDomainMapping> mappings = userDomainMappingRepository.findByUserUuid(userUuid);
+        List<UserDomainMapping> mappings = approvedMappings(userUuid);
         return mappings.stream()
                 .map(mapping -> {
                     String domainName = mapping.getUserDomain().getDomainName();
@@ -159,7 +166,7 @@ public class UserLookupServiceImpl implements UserLookupService {
     public Set<UserDomain> getEffectiveUserDomains(UUID userUuid) {
         Set<UserDomain> domains = EnumSet.noneOf(UserDomain.class);
 
-        for (UserDomainMapping mapping : userDomainMappingRepository.findByUserUuid(userUuid)) {
+        for (UserDomainMapping mapping : approvedMappings(userUuid)) {
             addIfKnown(domains, mapping.getUserDomain().getDomainName());
         }
         // Org members carry only the organisation_user umbrella globally; their real role lives in
@@ -169,6 +176,14 @@ public class UserLookupServiceImpl implements UserLookupService {
             addIfKnown(domains, mapping.getDomain().getDomainName());
         }
         return domains;
+    }
+
+    /**
+     * The global domains that grant access. A pending, rejected or suspended mapping is a request,
+     * not a role, so every access question answered here sees approved mappings only.
+     */
+    private List<UserDomainMapping> approvedMappings(UUID userUuid) {
+        return userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED);
     }
 
     private void addIfKnown(Set<UserDomain> domains, String domainName) {

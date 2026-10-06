@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.repository;
 
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,7 +12,15 @@ import java.util.UUID;
 public interface UserDomainMappingRepository extends JpaRepository<UserDomainMapping, Long> {
     List<UserDomainMapping> findByUserUuid(UUID useruuid);
 
+    List<UserDomainMapping> findByUserUuidAndStatus(UUID userUuid, DomainApprovalStatus status);
+
+    List<UserDomainMapping> findByStatusOrderByCreatedAtAsc(DomainApprovalStatus status);
+
+    long countByStatus(DomainApprovalStatus status);
+
     boolean existsByUserUuidAndUserDomainUuid(UUID useruuid, UUID domainuuid);
+
+    boolean existsByUserUuidAndStatus(UUID userUuid, DomainApprovalStatus status);
 
     List<UserDomainMapping> findByUserDomainUuid(UUID domainUuid);
 

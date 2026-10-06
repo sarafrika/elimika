@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.search.SearchIndexingEntityListener;
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -40,6 +41,22 @@ public class UserDomainMapping {
             insertable = false, updatable = false)
     private UserDomain userDomain;
 
+    /**
+     * Fails closed: a mapping created without a decision is pending, so only flows that are
+     * meant to grant access outright set {@link DomainApprovalStatus#APPROVED} themselves.
+     */
+    @Column(name = "status")
+    private DomainApprovalStatus status = DomainApprovalStatus.PENDING;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "reviewed_by")
+    private UUID reviewedBy;
+
+    @Column(name = "review_reason")
+    private String reviewReason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -47,4 +64,16 @@ public class UserDomainMapping {
     @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public static UserDomainMapping of(UUID userUuid, UUID domainUuid, DomainApprovalStatus status) {
+        UserDomainMapping mapping = new UserDomainMapping();
+        mapping.setUserUuid(userUuid);
+        mapping.setUserDomainUuid(domainUuid);
+        mapping.setStatus(status);
+        return mapping;
+    }
+
+    public boolean isApproved() {
+        return status == DomainApprovalStatus.APPROVED;
+    }
 }

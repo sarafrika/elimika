@@ -620,6 +620,20 @@ public class DomainSecurityService {
     }
 
     /**
+     * Whether the caller holds a domain still awaiting approval. Lets an access denial tell a
+     * pending registrant to wait rather than report a missing role.
+     */
+    public boolean isAwaitingDomainApproval() {
+        try {
+            UUID currentUserUuid = getCurrentUserUuid();
+            return currentUserUuid != null && userLookupService.hasPendingDomainApproval(currentUserUuid);
+        } catch (Exception e) {
+            log.debug("Could not resolve pending domain approval for the caller", e);
+            return false;
+        }
+    }
+
+    /**
      * The current caller's effective domains, loaded once per request.
      * <p>
      * Every {@code @PreAuthorize} on a request funnels through here, so this is the hottest path in

@@ -126,6 +126,20 @@ app:
       attributes:
         - user_domain
 
+  # Self-registration starts in Elimika (Keycloak self-registration is off). Domains listed under
+  # approval-required-domains stay pending until a platform admin approves them. See
+  # docs/guides/registration-and-approval.md.
+  registration:
+    redirect-uri: ${APP_REGISTRATION_REDIRECT_URI:${app.email.frontend.url}/login}
+    client-id: ${APP_REGISTRATION_CLIENT_ID:elimika-ui}
+    actions-email-lifespan-seconds: ${APP_REGISTRATION_ACTIONS_EMAIL_LIFESPAN_SECONDS:259200}
+    approval-required-domains: ${APP_REGISTRATION_APPROVAL_REQUIRED_DOMAINS:student,instructor,course_creator,parent,organisation_user}
+    max-attempts-per-ip-per-hour: ${APP_REGISTRATION_MAX_ATTEMPTS_PER_IP_PER_HOUR:10}
+    max-attempts-per-email-per-hour: ${APP_REGISTRATION_MAX_ATTEMPTS_PER_EMAIL_PER_HOUR:3}
+    captcha:
+      enabled: ${APP_REGISTRATION_CAPTCHA_ENABLED:false}
+      secret: ${APP_REGISTRATION_CAPTCHA_SECRET:}
+
   email:
     from: no-reply@sarafrika.com
     from-name: Elimika
