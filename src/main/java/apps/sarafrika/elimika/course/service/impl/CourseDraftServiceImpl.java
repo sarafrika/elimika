@@ -45,6 +45,8 @@ import apps.sarafrika.elimika.course.service.CourseDraftService;
 import apps.sarafrika.elimika.course.util.CourseRevenueShareValidator;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
+import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
+import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType;
 import apps.sarafrika.elimika.course.util.enums.PracticeActivityGrouping;
 import apps.sarafrika.elimika.course.util.enums.PracticeActivityType;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
@@ -158,8 +160,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         draft = courseRepository.save(draft);
 
         cloneCategories(live.getUuid(), draft.getUuid());
-        cloneLessonTree(live.getUuid(), draft.getUuid());
-        cloneAssessments(live.getUuid(), draft.getUuid());
+        ContentIdMap clonedContent = cloneLessonTree(live.getUuid(), draft.getUuid());
+        cloneAssessments(live.getUuid(), draft.getUuid(), clonedContent);
         cloneRequirements(live.getUuid(), draft.getUuid());
         cloneTrainingRequirements(live.getUuid(), draft.getUuid());
         clonePrerequisites(live.getUuid(), draft.getUuid());
@@ -187,8 +189,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         courseRepository.save(live);
 
         promoteCategories(draft.getUuid(), live.getUuid());
-        promoteLessons(draft.getUuid(), live.getUuid());
-        promoteAssessments(draft.getUuid(), live.getUuid());
+        ContentIdMap promotedContent = promoteLessons(draft.getUuid(), live.getUuid());
+        promoteAssessments(draft.getUuid(), live.getUuid(), promotedContent);
         promoteRequirements(draft.getUuid(), live.getUuid());
         promoteTrainingRequirements(draft.getUuid(), live.getUuid());
         promotePrerequisites(draft.getUuid(), live.getUuid());
@@ -220,19 +222,22 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
-    private void cloneLessonTree(UUID liveCourseUuid, UUID draftCourseUuid) {
+    private ContentIdMap cloneLessonTree(UUID liveCourseUuid, UUID draftCourseUuid) {
+        ContentIdMap clonedContent = new ContentIdMap();
         for (Lesson liveLesson : lessonRepository.findByCourseUuidOrderByLessonNumberAsc(liveCourseUuid)) {
             Lesson draftLesson = new Lesson();
             copyLessonFields(liveLesson, draftLesson);
             draftLesson.setCourseUuid(draftCourseUuid);
             draftLesson.setSourceLessonUuid(liveLesson.getUuid());
             draftLesson = lessonRepository.save(draftLesson);
+            clonedContent.lessons().put(liveLesson.getUuid(), draftLesson.getUuid());
 
             cloneLessonContent(liveLesson.getUuid(), draftLesson.getUuid());
-            cloneQuizzes(liveLesson.getUuid(), draftLesson.getUuid());
-            cloneAssignments(liveLesson.getUuid(), draftLesson.getUuid());
+            cloneQuizzes(liveLesson.getUuid(), draftLesson.getUuid(), clonedContent);
+            cloneAssignments(liveLesson.getUuid(), draftLesson.getUuid(), clonedContent);
             clonePracticeActivities(liveLesson.getUuid(), draftLesson.getUuid());
         }
+        return clonedContent;
     }
 
     private void cloneLessonContent(UUID liveLessonUuid, UUID draftLessonUuid) {
@@ -245,13 +250,14 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
-    private void cloneQuizzes(UUID liveLessonUuid, UUID draftLessonUuid) {
+    private void cloneQuizzes(UUID liveLessonUuid, UUID draftLessonUuid, ContentIdMap clonedContent) {
         for (Quiz liveQuiz : quizRepository.findByLessonUuid(liveLessonUuid)) {
             Quiz draftQuiz = new Quiz();
             copyQuizFields(liveQuiz, draftQuiz);
             draftQuiz.setLessonUuid(draftLessonUuid);
             draftQuiz.setSourceQuizUuid(liveQuiz.getUuid());
             draftQuiz = quizRepository.save(draftQuiz);
+            clonedContent.quizzes().put(liveQuiz.getUuid(), draftQuiz.getUuid());
 
             for (QuizQuestion liveQuestion : quizQuestionRepository.findByQuizUuidOrderByDisplayOrderAsc(liveQuiz.getUuid())) {
                 QuizQuestion draftQuestion = new QuizQuestion();
@@ -272,13 +278,14 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
-    private void cloneAssignments(UUID liveLessonUuid, UUID draftLessonUuid) {
+    private void cloneAssignments(UUID liveLessonUuid, UUID draftLessonUuid, ContentIdMap clonedContent) {
         for (Assignment liveAssignment : assignmentRepository.findByLessonUuid(liveLessonUuid)) {
             Assignment draftAssignment = new Assignment();
             copyAssignmentFields(liveAssignment, draftAssignment);
             draftAssignment.setLessonUuid(draftLessonUuid);
             draftAssignment.setSourceAssignmentUuid(liveAssignment.getUuid());
             draftAssignment = assignmentRepository.save(draftAssignment);
+            clonedContent.assignments().put(liveAssignment.getUuid(), draftAssignment.getUuid());
 
             // Attachments carry no learner references, so they are copied wholesale and
             // replaced wholesale on promotion.
@@ -302,7 +309,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
-    private void cloneAssessments(UUID liveCourseUuid, UUID draftCourseUuid) {
+    private void cloneAssessments(UUID liveCourseUuid, UUID draftCourseUuid, ContentIdMap clonedContent) {
         for (CourseAssessment liveAssessment :
                 assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(liveCourseUuid)) {
             CourseAssessment draftAssessment = new CourseAssessment();
@@ -314,7 +321,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             for (CourseAssessmentLineItem liveItem :
                     lineItemRepository.findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(liveAssessment.getUuid())) {
                 CourseAssessmentLineItem draftItem = new CourseAssessmentLineItem();
-                copyLineItemFields(liveItem, draftItem);
+                copyLineItemFields(liveItem, draftItem, clonedContent);
                 draftItem.setCourseAssessmentUuid(draftAssessment.getUuid());
                 draftItem.setSourceLineItemUuid(liveItem.getUuid());
                 lineItemRepository.save(draftItem);
@@ -381,7 +388,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
      * removed is deactivated instead, because lesson_progress and content_progress reference
      * these rows with RESTRICT and learners keep their completion history.
      */
-    private void promoteLessons(UUID draftCourseUuid, UUID liveCourseUuid) {
+    private ContentIdMap promoteLessons(UUID draftCourseUuid, UUID liveCourseUuid) {
+        ContentIdMap promotedContent = new ContentIdMap();
         List<Lesson> draftLessons = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draftCourseUuid);
         Map<UUID, Lesson> liveLessons = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(liveCourseUuid).stream()
                 .collect(Collectors.toMap(Lesson::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
@@ -402,14 +410,16 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             target.setSourceLessonUuid(null);
             target = lessonRepository.save(target);
             retained.add(target.getUuid());
+            promotedContent.lessons().put(draftLesson.getUuid(), target.getUuid());
 
             promoteContent(draftLesson.getUuid(), target.getUuid());
-            promoteQuizzes(draftLesson.getUuid(), target.getUuid());
-            promoteAssignments(draftLesson.getUuid(), target.getUuid());
+            promoteQuizzes(draftLesson.getUuid(), target.getUuid(), promotedContent);
+            promoteAssignments(draftLesson.getUuid(), target.getUuid(), promotedContent);
             promotePracticeActivities(draftLesson.getUuid(), target.getUuid());
         }
 
         deactivateRemoved(liveLessons.values(), retained);
+        return promotedContent;
     }
 
     private void deactivateRemoved(Iterable<Lesson> liveLessons, Set<UUID> retained) {
@@ -454,7 +464,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 });
     }
 
-    private void promoteQuizzes(UUID draftLessonUuid, UUID liveLessonUuid) {
+    private void promoteQuizzes(UUID draftLessonUuid, UUID liveLessonUuid, ContentIdMap promotedContent) {
         List<Quiz> draftQuizzes = quizRepository.findByLessonUuid(draftLessonUuid);
         Map<UUID, Quiz> liveQuizzes = quizRepository.findByLessonUuid(liveLessonUuid).stream()
                 .collect(Collectors.toMap(Quiz::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
@@ -470,6 +480,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             target.setSourceQuizUuid(null);
             target = quizRepository.save(target);
             retained.add(target.getUuid());
+            promotedContent.quizzes().put(draft.getUuid(), target.getUuid());
 
             promoteQuestions(draft.getUuid(), target.getUuid());
         }
@@ -535,7 +546,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
-    private void promoteAssignments(UUID draftLessonUuid, UUID liveLessonUuid) {
+    private void promoteAssignments(UUID draftLessonUuid, UUID liveLessonUuid, ContentIdMap promotedContent) {
         List<Assignment> draftAssignments = assignmentRepository.findByLessonUuid(draftLessonUuid);
         Map<UUID, Assignment> liveAssignments = assignmentRepository.findByLessonUuid(liveLessonUuid).stream()
                 .collect(Collectors.toMap(Assignment::getUuid, Function.identity(), (a, b) -> a, HashMap::new));
@@ -553,6 +564,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             target.setSourceAssignmentUuid(null);
             target = assignmentRepository.save(target);
             retained.add(target.getUuid());
+            promotedContent.assignments().put(draft.getUuid(), target.getUuid());
 
             replaceAttachments(draft.getUuid(), target.getUuid());
         }
@@ -593,7 +605,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
      * Reconciles assessments and their line items in place. Like lessons, removed rows are
      * deactivated rather than deleted because assessment and line-item scores reference them.
      */
-    private void promoteAssessments(UUID draftCourseUuid, UUID liveCourseUuid) {
+    private void promoteAssessments(UUID draftCourseUuid, UUID liveCourseUuid, ContentIdMap promotedContent) {
         List<CourseAssessment> draftAssessments =
                 assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draftCourseUuid);
         Map<UUID, CourseAssessment> liveAssessments =
@@ -614,7 +626,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             target = assessmentRepository.save(target);
             retained.add(target.getUuid());
 
-            promoteLineItems(draft.getUuid(), target.getUuid());
+            promoteLineItems(draft.getUuid(), target.getUuid(), promotedContent);
         }
 
         liveAssessments.values().stream()
@@ -625,7 +637,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 });
     }
 
-    private void promoteLineItems(UUID draftAssessmentUuid, UUID liveAssessmentUuid) {
+    private void promoteLineItems(UUID draftAssessmentUuid, UUID liveAssessmentUuid, ContentIdMap promotedContent) {
         List<CourseAssessmentLineItem> draftItems =
                 lineItemRepository.findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(draftAssessmentUuid);
         Map<UUID, CourseAssessmentLineItem> liveItems =
@@ -640,7 +652,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             if (target == null) {
                 target = new CourseAssessmentLineItem();
             }
-            copyLineItemFields(draft, target);
+            copyLineItemFields(draft, target, promotedContent);
             target.setCourseAssessmentUuid(liveAssessmentUuid);
             target.setSourceLineItemUuid(null);
             target = lineItemRepository.save(target);
@@ -811,8 +823,11 @@ public class CourseDraftServiceImpl implements CourseDraftService {
      * Deleting a draft lesson cascades to its content, quizzes, assignments and practice activities.
      */
     private void wipeDraftChildren(UUID draftCourseUuid) {
-        lessonRepository.deleteAll(lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draftCourseUuid));
+        // Assessments go first: their line items reference the draft's quizzes and assignments,
+        // which the lesson delete would otherwise try to cascade away underneath them.
         assessmentRepository.deleteAll(assessmentRepository.findByCourseUuidOrderByCreatedDateAsc(draftCourseUuid));
+        assessmentRepository.flush();
+        lessonRepository.deleteAll(lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draftCourseUuid));
         requirementRepository.deleteAll(requirementRepository.findByCourseUuid(draftCourseUuid));
         trainingRequirementRepository.deleteAll(trainingRequirementRepository.findByCourseUuid(draftCourseUuid));
         mappingRepository.deleteAll(mappingRepository.findByCourseUuid(draftCourseUuid));
@@ -1005,13 +1020,32 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         }
     }
 
+    /**
+     * Snapshots written before line items recorded their type, links and weights still restore:
+     * the type falls back to the linked quiz or assignment, then to manual, and absent values keep
+     * the entity defaults. Quiz and assignment links resolve to the restored draft rows.
+     */
     private void restoreAssessments(UUID draftCourseUuid, UUID liveCourseUuid, JsonNode assessments) {
+        ContentIdMap restoredContent = restoredContentIds(draftCourseUuid);
         for (JsonNode node : assessments) {
             CourseAssessment assessment = new CourseAssessment();
             assessment.setCourseUuid(draftCourseUuid);
             assessment.setTitle(text(node, "title"));
             assessment.setAssessmentType(text(node, "assessment_type"));
+            assessment.setDescription(text(node, "description"));
             assessment.setWeightPercentage(decimal(node, "weight_percentage"));
+            String aggregation = text(node, "aggregation_strategy");
+            if (aggregation != null) {
+                assessment.setAggregationStrategy(CourseAssessmentAggregationStrategy.fromValue(aggregation));
+            }
+            Boolean syncAttendance = bool(node, "sync_class_attendance");
+            if (syncAttendance != null) {
+                assessment.setSyncClassAttendance(syncAttendance);
+            }
+            Boolean required = bool(node, "is_required");
+            if (required != null) {
+                assessment.setIsRequired(required);
+            }
             assessment.setRubricUuid(uuid(node, "rubric_uuid"));
             assessment.setActive(bool(node, "active"));
             CourseAssessment saved = assessmentRepository.save(assessment);
@@ -1020,12 +1054,51 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 CourseAssessmentLineItem item = new CourseAssessmentLineItem();
                 item.setCourseAssessmentUuid(saved.getUuid());
                 item.setTitle(text(itemNode, "title"));
+                item.setDescription(text(itemNode, "description"));
+                item.setQuizUuid(restoredContent.quiz(uuid(itemNode, "quiz_uuid")));
+                item.setAssignmentUuid(restoredContent.assignment(uuid(itemNode, "assignment_uuid")));
+                item.setItemType(restoredItemType(text(itemNode, "item_type"), item));
+                item.setMaxScore(decimal(itemNode, "max_score"));
+                item.setWeightPercentage(decimal(itemNode, "weight_percentage"));
+                String dueAt = text(itemNode, "due_at");
+                item.setDueAt(dueAt == null ? null : LocalDateTime.parse(dueAt));
                 item.setDisplayOrder(integer(itemNode, "display_order"));
                 item.setRubricUuid(uuid(itemNode, "rubric_uuid"));
                 item.setActive(bool(itemNode, "active"));
                 lineItemRepository.save(item);
             }
         }
+    }
+
+    /** Maps the uuids a snapshot recorded for quizzes and assignments onto the restored draft rows. */
+    private ContentIdMap restoredContentIds(UUID draftCourseUuid) {
+        ContentIdMap restoredContent = new ContentIdMap();
+        for (Lesson lesson : lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draftCourseUuid)) {
+            for (Quiz quiz : quizRepository.findByLessonUuid(lesson.getUuid())) {
+                if (quiz.getSourceQuizUuid() != null) {
+                    restoredContent.quizzes().put(quiz.getSourceQuizUuid(), quiz.getUuid());
+                }
+            }
+            for (Assignment assignment : assignmentRepository.findByLessonUuid(lesson.getUuid())) {
+                if (assignment.getSourceAssignmentUuid() != null) {
+                    restoredContent.assignments().put(assignment.getSourceAssignmentUuid(), assignment.getUuid());
+                }
+            }
+        }
+        return restoredContent;
+    }
+
+    private static CourseAssessmentLineItemType restoredItemType(String recorded, CourseAssessmentLineItem item) {
+        if (recorded != null) {
+            return CourseAssessmentLineItemType.fromValue(recorded);
+        }
+        if (item.getQuizUuid() != null) {
+            return CourseAssessmentLineItemType.QUIZ;
+        }
+        if (item.getAssignmentUuid() != null) {
+            return CourseAssessmentLineItemType.ASSIGNMENT;
+        }
+        return CourseAssessmentLineItemType.MANUAL;
     }
 
     private void restoreRequirements(UUID draftCourseUuid, JsonNode requirements) {
@@ -1181,7 +1254,12 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             an.put("uuid", str(assessment.getUuid()));
             an.put("title", assessment.getTitle());
             an.put("assessment_type", assessment.getAssessmentType());
+            an.put("description", assessment.getDescription());
             an.put("weight_percentage", dec(assessment.getWeightPercentage()));
+            an.put("aggregation_strategy", assessment.getAggregationStrategy() == null
+                    ? null : assessment.getAggregationStrategy().getValue());
+            an.put("sync_class_attendance", assessment.getSyncClassAttendance());
+            an.put("is_required", assessment.getIsRequired());
             an.put("rubric_uuid", str(assessment.getRubricUuid()));
             note(referencedRubrics, assessment.getRubricUuid());
             an.put("active", assessment.getActive());
@@ -1191,6 +1269,13 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 ObjectNode inode = items.addObject();
                 inode.put("uuid", str(item.getUuid()));
                 inode.put("title", item.getTitle());
+                inode.put("description", item.getDescription());
+                inode.put("item_type", item.getItemType() == null ? null : item.getItemType().getValue());
+                inode.put("quiz_uuid", str(item.getQuizUuid()));
+                inode.put("assignment_uuid", str(item.getAssignmentUuid()));
+                inode.put("max_score", dec(item.getMaxScore()));
+                inode.put("weight_percentage", dec(item.getWeightPercentage()));
+                inode.put("due_at", item.getDueAt() == null ? null : item.getDueAt().toString());
                 inode.put("display_order", item.getDisplayOrder());
                 inode.put("rubric_uuid", str(item.getRubricUuid()));
                 note(referencedRubrics, item.getRubricUuid());
@@ -1772,12 +1857,17 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setActive(from.getActive() == null ? Boolean.TRUE : from.getActive());
     }
 
-    private void copyLineItemFields(CourseAssessmentLineItem from, CourseAssessmentLineItem to) {
+    /**
+     * Quiz and assignment links point at rows in the lesson tree, which has its own copy on each
+     * side of a draft. Each link is translated through {@code contentIds}, otherwise the copy would
+     * reuse the other side's quiz or assignment and collide with its unique line-item index.
+     */
+    private void copyLineItemFields(CourseAssessmentLineItem from, CourseAssessmentLineItem to, ContentIdMap contentIds) {
         to.setTitle(from.getTitle());
         to.setDescription(from.getDescription());
         to.setItemType(from.getItemType());
-        to.setAssignmentUuid(from.getAssignmentUuid());
-        to.setQuizUuid(from.getQuizUuid());
+        to.setAssignmentUuid(contentIds.assignment(from.getAssignmentUuid()));
+        to.setQuizUuid(contentIds.quiz(from.getQuizUuid()));
         to.setRubricUuid(from.getRubricUuid());
         to.setScheduledInstanceUuid(from.getScheduledInstanceUuid());
         to.setMaxScore(from.getMaxScore());
@@ -1849,5 +1939,28 @@ public class CourseDraftServiceImpl implements CourseDraftService {
 
     private static String text(JsonNode node) {
         return node == null || node.isNull() ? null : node.asText();
+    }
+
+    /**
+     * Old-to-new uuids for the lesson tree rows copied between a live course and its draft. A link
+     * to a row outside the copied tree resolves to {@code null} rather than to the original row.
+     */
+    private record ContentIdMap(Map<UUID, UUID> lessons, Map<UUID, UUID> quizzes, Map<UUID, UUID> assignments) {
+
+        private ContentIdMap() {
+            this(new HashMap<>(), new HashMap<>(), new HashMap<>());
+        }
+
+        UUID lesson(UUID uuid) {
+            return uuid == null ? null : lessons.get(uuid);
+        }
+
+        UUID quiz(UUID uuid) {
+            return uuid == null ? null : quizzes.get(uuid);
+        }
+
+        UUID assignment(UUID uuid) {
+            return uuid == null ? null : assignments.get(uuid);
+        }
     }
 }

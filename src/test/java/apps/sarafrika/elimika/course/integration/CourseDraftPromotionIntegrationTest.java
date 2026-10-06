@@ -101,6 +101,10 @@ class CourseDraftPromotionIntegrationTest {
     @Autowired
     private apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository trainingRequirementRepository;
     @Autowired
+    private apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository lineItemRepository;
+    @Autowired
+    private apps.sarafrika.elimika.course.repository.QuizRepository quizRepository;
+    @Autowired
     private JdbcTemplate jdbc;
 
     private UUID courseCreatorUuid;
@@ -469,7 +473,85 @@ class CourseDraftPromotionIntegrationTest {
         assertThat(requirementRepository.findByUuid(requirement.getUuid())).isPresent();
     }
 
+    @Test
+    @DisplayName("a quiz-linked line item points at the draft quiz in the draft and back at the live quiz after promotion")
+    void quizLinkedLineItemFollowsTheDraftQuiz() {
+        Course live = publishedApprovedCourse("Course");
+        Lesson liveLesson = addLesson(live.getUuid(), 1, "Lesson 1");
+        apps.sarafrika.elimika.course.model.Quiz liveQuiz = addQuiz(liveLesson.getUuid(), "Quiz 1");
+        CourseAssessment liveAssessment = addAssessment(live.getUuid(), "Quizzes");
+        apps.sarafrika.elimika.course.model.CourseAssessmentLineItem liveItem =
+                addQuizLineItem(liveAssessment.getUuid(), liveQuiz.getUuid());
+
+        Course draft = draftService.openDraft(live.getUuid());
+
+        CourseAssessment draftAssessment = assessmentRepository
+                .findByCourseUuidOrderByCreatedDateAsc(draft.getUuid()).get(0);
+        apps.sarafrika.elimika.course.model.CourseAssessmentLineItem draftItem = lineItemRepository
+                .findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(draftAssessment.getUuid()).get(0);
+        Lesson draftLesson = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draft.getUuid()).get(0);
+        UUID draftQuizUuid = quizRepository.findByLessonUuid(draftLesson.getUuid()).get(0).getUuid();
+        assertThat(draftItem.getQuizUuid()).isEqualTo(draftQuizUuid).isNotEqualTo(liveQuiz.getUuid());
+
+        draftService.promote(live.getUuid(), null);
+
+        apps.sarafrika.elimika.course.model.CourseAssessmentLineItem promoted =
+                lineItemRepository.findByUuid(liveItem.getUuid()).orElseThrow();
+        assertThat(promoted.getQuizUuid()).isEqualTo(liveQuiz.getUuid());
+        assertThat(promoted.getItemType())
+                .isEqualTo(apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType.QUIZ);
+    }
+
+    @Test
+    @DisplayName("restoring a version keeps line-item type and quiz links, pointed at the restored quiz")
+    void restoreKeepsLineItemTypeAndQuizLink() {
+        Course live = publishedApprovedCourse("Course");
+        Lesson liveLesson = addLesson(live.getUuid(), 1, "Lesson 1");
+        apps.sarafrika.elimika.course.model.Quiz liveQuiz = addQuiz(liveLesson.getUuid(), "Quiz 1");
+        CourseAssessment liveAssessment = addAssessment(live.getUuid(), "Quizzes");
+        addQuizLineItem(liveAssessment.getUuid(), liveQuiz.getUuid());
+        draftService.openDraft(live.getUuid());
+        draftService.promote(live.getUuid(), null);
+
+        Course draft = draftService.restore(live.getUuid(), 1);
+
+        CourseAssessment restoredAssessment = assessmentRepository
+                .findByCourseUuidOrderByCreatedDateAsc(draft.getUuid()).get(0);
+        assertThat(restoredAssessment.getAggregationStrategy())
+                .isEqualTo(apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy.WEIGHTED_AVERAGE);
+        apps.sarafrika.elimika.course.model.CourseAssessmentLineItem restoredItem = lineItemRepository
+                .findByCourseAssessmentUuidOrderByDisplayOrderAscCreatedDateAsc(restoredAssessment.getUuid()).get(0);
+        Lesson restoredLesson = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draft.getUuid()).get(0);
+        UUID restoredQuizUuid = quizRepository.findByLessonUuid(restoredLesson.getUuid()).get(0).getUuid();
+        assertThat(restoredItem.getItemType())
+                .isEqualTo(apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType.QUIZ);
+        assertThat(restoredItem.getQuizUuid()).isEqualTo(restoredQuizUuid);
+        assertThat(restoredItem.getWeightPercentage()).isEqualByComparingTo("100.00");
+    }
+
     // ---------------------------------------------------------------- fixtures
+
+    private apps.sarafrika.elimika.course.model.Quiz addQuiz(UUID lessonUuid, String title) {
+        apps.sarafrika.elimika.course.model.Quiz quiz = new apps.sarafrika.elimika.course.model.Quiz();
+        quiz.setLessonUuid(lessonUuid);
+        quiz.setTitle(title);
+        quiz.setStatus(ContentStatus.PUBLISHED);
+        quiz.setActive(true);
+        return quizRepository.saveAndFlush(quiz);
+    }
+
+    private apps.sarafrika.elimika.course.model.CourseAssessmentLineItem addQuizLineItem(UUID assessmentUuid, UUID quizUuid) {
+        apps.sarafrika.elimika.course.model.CourseAssessmentLineItem item =
+                new apps.sarafrika.elimika.course.model.CourseAssessmentLineItem();
+        item.setCourseAssessmentUuid(assessmentUuid);
+        item.setTitle("Quiz 1");
+        item.setItemType(apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType.QUIZ);
+        item.setQuizUuid(quizUuid);
+        item.setWeightPercentage(new BigDecimal("100.00"));
+        item.setDisplayOrder(1);
+        item.setActive(true);
+        return lineItemRepository.saveAndFlush(item);
+    }
 
     private Course publishedApprovedCourse(String name) {
         Course course = new Course();

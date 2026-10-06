@@ -1061,7 +1061,10 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
 
     private BigDecimal recalculateCourseFinalGrade(UUID courseUuid, UUID enrollmentUuid) {
         CourseEnrollment enrollment = getEnrollmentOrThrow(courseUuid, enrollmentUuid);
-        List<CourseAssessment> assessments = courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid);
+        List<CourseAssessment> assessments = courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid)
+                .stream()
+                .filter(assessment -> !Boolean.FALSE.equals(assessment.getActive()))
+                .toList();
         if (assessments.isEmpty()) {
             enrollment.setFinalGrade(null);
             courseEnrollmentRepository.save(enrollment);
