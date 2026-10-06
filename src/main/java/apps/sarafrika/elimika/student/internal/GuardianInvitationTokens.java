@@ -10,10 +10,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
 
-/**
- * Issues guardian invitation tokens and the links that carry them. Only the SHA-256 hash is
- * persisted, so a database read cannot be turned into someone else's guardian access.
- */
+/** Issues guardian invitation tokens and links; only the SHA-256 hash is stored. */
 @Component
 public class GuardianInvitationTokens {
 

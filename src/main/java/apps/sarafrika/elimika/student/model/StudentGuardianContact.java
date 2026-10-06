@@ -16,10 +16,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * A guardian a student named during onboarding: either already linked, or holding an emailed
- * invitation (only its token hash is stored) that the guardian claims to gain the parent domain.
- */
+/** A guardian a student named: linked, or holding an emailed invitation (only its token hash is stored). */
 @Entity
 @Table(name = "student_guardian_contacts")
 @Getter

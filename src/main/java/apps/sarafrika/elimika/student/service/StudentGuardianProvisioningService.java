@@ -11,10 +11,7 @@ import apps.sarafrika.elimika.student.model.Student;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Turns the guardians a student names into access: known accounts are linked at once (granting
- * {@code parent}), unknown emails are invited, and removed guardians lose any pending invitation.
- */
+/** Links named guardians with accounts, invites the rest, and withdraws invitations of removed guardians. */
 public interface StudentGuardianProvisioningService {
 
     /** Reconciles the student's guardians with {@code guardians}; null leaves them untouched. */

@@ -24,10 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The guardian's side of a student's guardian details: the only route by which a parent gains
- * access. Accepting links the guardian to the student and grants {@code parent} without approval.
- */
+/** The guardian's side of student guardian invitations; accepting grants {@code parent} without approval. */
 @RestController
 @RequestMapping(StudentGuardianInvitationController.API_ROOT_PATH)
 @RequiredArgsConstructor
