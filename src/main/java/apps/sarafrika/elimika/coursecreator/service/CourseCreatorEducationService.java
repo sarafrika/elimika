@@ -10,8 +10,7 @@ import java.util.UUID;
 public interface CourseCreatorEducationService {
     CourseCreatorEducationDTO createCourseCreatorEducation(CourseCreatorEducationDTO dto);
     CourseCreatorEducationDTO getCourseCreatorEducationByUuid(UUID uuid);
-    Page<CourseCreatorEducationDTO> getAllCourseCreatorEducation(Pageable pageable);
     CourseCreatorEducationDTO updateCourseCreatorEducation(UUID uuid, CourseCreatorEducationDTO dto);
-    void deleteCourseCreatorEducation(UUID uuid);
+    void deleteCourseCreatorEducation(UUID courseCreatorUuid, UUID uuid);
     Page<CourseCreatorEducationDTO> search(Map<String, String> searchParams, Pageable pageable);
 }

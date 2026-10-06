@@ -433,7 +433,8 @@ public class InstructorController {
         String expectedPrefix = storageProperties.getFolders().getProfileDocuments()
                 + "/instructors/" + instructorUuid + "/";
 
-        if (!normalizedFilePath.startsWith(expectedPrefix)) {
+        if (!normalizedFilePath.startsWith(expectedPrefix)
+                && !instructorDocumentService.isDocumentFileOf(instructorUuid, normalizedFilePath)) {
             return ResponseEntity.notFound().build();
         }
 

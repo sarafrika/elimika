@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreatorCategoryPreference;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorCategoryPreferenceRepository;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
-import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorSkillRepository;
 import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.event.user.ProfileModerationDecidedEvent;
 import apps.sarafrika.elimika.shared.event.user.ProfileReviewRequestedEvent;
@@ -46,8 +45,6 @@ class CourseCreatorOnboardingServiceImplTest {
     @Mock
     private CourseCreatorCategoryPreferenceRepository categoryPreferenceRepository;
     @Mock
-    private CourseCreatorSkillRepository skillRepository;
-    @Mock
     private CourseCreatorSkillsWallet skillsWallet;
     @Mock
     private UserContextService userContextService;
@@ -64,7 +61,7 @@ class CourseCreatorOnboardingServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CourseCreatorOnboardingServiceImpl(courseCreatorRepository, categoryPreferenceRepository,
-                skillRepository, skillsWallet, userContextService, domainSecurityService, applicationEventPublisher);
+                skillsWallet, userContextService, domainSecurityService, applicationEventPublisher);
         creator = new CourseCreator();
         creator.setUuid(creatorUuid);
         creator.setUserUuid(userUuid);
@@ -162,7 +159,7 @@ class CourseCreatorOnboardingServiceImplTest {
 
     private void readyToSubmit() {
         when(categoryPreferenceRepository.findByCourseCreatorUuid(creatorUuid)).thenReturn(List.of(preference(UUID.randomUUID())));
-        when(skillRepository.countByCourseCreatorUuid(creatorUuid)).thenReturn(1L);
+        when(skillsWallet.hasSkills(creatorUuid)).thenReturn(true);
     }
 
     private CourseCreatorCategoryPreference preference(UUID categoryUuid) {

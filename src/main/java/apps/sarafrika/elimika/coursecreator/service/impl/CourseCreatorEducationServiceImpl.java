@@ -1,123 +1,81 @@
 package apps.sarafrika.elimika.coursecreator.service.impl;
 
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorEducationDTO;
-import apps.sarafrika.elimika.coursecreator.factory.CourseCreatorEducationFactory;
-import apps.sarafrika.elimika.coursecreator.model.CourseCreatorEducation;
-import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorDocumentRepository;
-import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorEducationRepository;
+import apps.sarafrika.elimika.coursecreator.internal.CourseCreatorProfileBridge;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorEducationService;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.ProfileRecords;
+import apps.sarafrika.elimika.profile.spi.UserEducationDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.model.DocumentType;
-import apps.sarafrika.elimika.shared.repository.DocumentTypeRepository;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 import java.util.UUID;
 
+/** Course creator education records, kept on the user-owned professional profile shared by every domain. */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class CourseCreatorEducationServiceImpl implements CourseCreatorEducationService {
 
-    private final CourseCreatorEducationRepository educationRepository;
-    private final GenericSpecificationBuilder<CourseCreatorEducation> specificationBuilder;
-    private final CourseCreatorDocumentRepository documentRepository;
-    private final DocumentTypeRepository documentTypeRepository;
+    private static final String NOT_FOUND = "Course creator education with ID %s not found";
 
-    private static final String EDUCATION_NOT_FOUND_TEMPLATE = "Course creator education with ID %s not found";
-    private static final String CERTIFICATE_DOCUMENT_TYPE = "CERTIFICATE";
-    private static final String CERTIFICATE_REQUIRED_MESSAGE = "Supporting certificate document is required for education updates";
+    private final ProfessionalProfileService profileService;
+    private final CourseCreatorProfileBridge bridge;
 
     @Override
     public CourseCreatorEducationDTO createCourseCreatorEducation(CourseCreatorEducationDTO dto) {
-        CourseCreatorEducation education = CourseCreatorEducationFactory.toEntity(dto);
-        return CourseCreatorEducationFactory.toDTO(educationRepository.save(education));
+        UUID userUuid = bridge.requireUserUuid(dto.courseCreatorUuid());
+        return toDto(profileService.education().create(userUuid, toUser(dto)), dto.courseCreatorUuid());
     }
 
     @Override
     @Transactional(readOnly = true)
     public CourseCreatorEducationDTO getCourseCreatorEducationByUuid(UUID uuid) {
-        return educationRepository.findByUuid(uuid)
-                .map(CourseCreatorEducationFactory::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(EDUCATION_NOT_FOUND_TEMPLATE, uuid)));
+        UserEducationDTO item = require(uuid);
+        return toDto(item, bridge.findCourseCreatorUuid(item.userUuid()).orElse(null));
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<CourseCreatorEducationDTO> getAllCourseCreatorEducation(Pageable pageable) {
-        specificationBuilder.validateSortProperties(CourseCreatorEducation.class, pageable);
-        return educationRepository.findAll(pageable).map(CourseCreatorEducationFactory::toDTO);
-    }
-
+    /** Scoped to the course creator named in the payload, so a foreign item reads as not found. */
     @Override
     public CourseCreatorEducationDTO updateCourseCreatorEducation(UUID uuid, CourseCreatorEducationDTO dto) {
-        CourseCreatorEducation existing = educationRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(EDUCATION_NOT_FOUND_TEMPLATE, uuid)));
-
-        enforceCertificateRequirement(existing.getCourseCreatorUuid(), uuid);
-
-        if (dto.courseCreatorUuid() != null) {
-            existing.setCourseCreatorUuid(dto.courseCreatorUuid());
-        }
-        if (dto.qualification() != null) {
-            existing.setQualification(dto.qualification());
-        }
-        if (dto.schoolName() != null) {
-            existing.setSchoolName(dto.schoolName());
-        }
-        if (dto.fieldOfStudy() != null) {
-            existing.setFieldOfStudy(dto.fieldOfStudy());
-        }
-        if (dto.startYear() != null) {
-            existing.setStartYear(dto.startYear());
-        }
-        if (dto.yearCompleted() != null) {
-            existing.setYearCompleted(dto.yearCompleted());
-        }
-        if (dto.certificateNumber() != null) {
-            existing.setCertificateNumber(dto.certificateNumber());
-        }
-
-        return CourseCreatorEducationFactory.toDTO(educationRepository.save(existing));
+        UUID userUuid = bridge.requireUserUuid(dto.courseCreatorUuid());
+        UserEducationDTO existing = require(uuid);
+        UserEducationDTO saved = profileService.education().update(userUuid, uuid, ProfileRecords.overlay(toUser(dto), existing));
+        return toDto(saved, dto.courseCreatorUuid());
     }
 
     @Override
-    public void deleteCourseCreatorEducation(UUID uuid) {
-        if (!educationRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(String.format(EDUCATION_NOT_FOUND_TEMPLATE, uuid));
-        }
-        educationRepository.deleteByUuid(uuid);
+    public void deleteCourseCreatorEducation(UUID courseCreatorUuid, UUID uuid) {
+        profileService.education().delete(bridge.requireUserUuid(courseCreatorUuid), uuid);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseCreatorEducationDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        specificationBuilder.validateSortProperties(CourseCreatorEducation.class, pageable);
-        Specification<CourseCreatorEducation> spec = specificationBuilder.buildSpecification(CourseCreatorEducation.class, searchParams);
-        return educationRepository.findAll(spec, pageable).map(CourseCreatorEducationFactory::toDTO);
+        CourseCreatorProfileBridge.ScopedSearch scoped = bridge.scope(searchParams);
+        Page<UserEducationDTO> page = profileService.education().search(scoped.params(), scoped.userUuids(), pageable);
+        Map<UUID, UUID> creators = bridge.courseCreatorUuidsByUser(page.map(UserEducationDTO::userUuid).toSet());
+        return page.map(item -> toDto(item, creators.get(item.userUuid())));
     }
 
-    private void enforceCertificateRequirement(UUID courseCreatorUuid, UUID educationUuid) {
-        UUID certificateTypeUuid = documentTypeRepository.findByNameIgnoreCase(CERTIFICATE_DOCUMENT_TYPE)
-                .map(DocumentType::getUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("Certificate document type is not configured"));
+    private UserEducationDTO require(UUID uuid) {
+        return profileService.education().find(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(NOT_FOUND, uuid)));
+    }
 
-        boolean hasCertificate = documentRepository.existsByEducationUuidAndCourseCreatorUuidAndDocumentTypeUuid(
-                educationUuid,
-                courseCreatorUuid,
-                certificateTypeUuid
-        );
+    static UserEducationDTO toUser(CourseCreatorEducationDTO d) {
+        return new UserEducationDTO(null, null, d.qualification(), d.fieldOfStudy(), d.schoolName(), d.startYear(),
+                d.yearCompleted(), d.certificateNumber(), null, null, null, null);
+    }
 
-        if (!hasCertificate) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, CERTIFICATE_REQUIRED_MESSAGE);
-        }
+    static CourseCreatorEducationDTO toDto(UserEducationDTO u, UUID courseCreatorUuid) {
+        return new CourseCreatorEducationDTO(u.uuid(), courseCreatorUuid, u.qualification(), u.fieldOfStudy(), u.schoolName(),
+                u.startYear(), u.yearCompleted(), u.certificateNumber(), u.createdDate(), u.createdBy(), u.updatedDate(),
+                u.updatedBy());
     }
 }

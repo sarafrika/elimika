@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.Locale;
 
-/** Kind of work shown in a course creator portfolio. */
+/** Kind of work shown in the user portfolio. */
 public enum PortfolioItemType {
     PROJECT,
     PERFORMANCE,

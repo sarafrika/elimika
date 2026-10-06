@@ -1,272 +1,115 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
-import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorDocumentDTO;
-import apps.sarafrika.elimika.instructor.factory.InstructorDocumentFactory;
-import apps.sarafrika.elimika.instructor.model.InstructorDocument;
-import apps.sarafrika.elimika.instructor.repository.InstructorDocumentRepository;
+import apps.sarafrika.elimika.instructor.internal.InstructorProfileBridge;
 import apps.sarafrika.elimika.instructor.service.InstructorDocumentService;
-import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
-import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
-import apps.sarafrika.elimika.shared.security.DomainSecurityService;
-import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.ProfileRecords;
+import apps.sarafrika.elimika.profile.spi.ProfileSection;
+import apps.sarafrika.elimika.profile.spi.ProfileVerificationRequest;
+import apps.sarafrika.elimika.profile.spi.UserDocumentDTO;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+/** Instructor credential documents, kept on the user-owned professional profile. */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class InstructorDocumentServiceImpl implements InstructorDocumentService {
 
-    private final InstructorDocumentRepository instructorDocumentRepository;
-    private final GenericSpecificationBuilder<InstructorDocument> specificationBuilder;
-    private final InstructorLookupService instructorLookupService;
-    private final ApplicationEventPublisher eventPublisher;
-    private final MediaStorageService mediaStorageService;
-    private final DomainSecurityService domainSecurityService;
+    private static final String NOT_FOUND = "Instructor document with ID %s not found";
 
-    private static final String INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE = "Instructor document with ID %s not found";
+    private final ProfessionalProfileService profileService;
+    private final InstructorProfileBridge bridge;
 
     @Override
-    public InstructorDocumentDTO createInstructorDocument(InstructorDocumentDTO instructorDocumentDTO) {
-        InstructorDocument instructorDocument = InstructorDocumentFactory.toEntity(instructorDocumentDTO);
-        instructorDocument.setCreatedDate(LocalDateTime.now());
-        instructorDocument.setUploadDate(LocalDateTime.now());
-
-        // Set default values
-        if (instructorDocument.getStatus() == null) {
-            instructorDocument.setStatus(DocumentStatus.PENDING);
-        }
-        if (instructorDocument.getIsVerified() == null) {
-            instructorDocument.setIsVerified(false);
-        }
-
-        InstructorDocument savedDocument = instructorDocumentRepository.save(instructorDocument);
-        return InstructorDocumentFactory.toDTO(savedDocument);
+    public InstructorDocumentDTO createInstructorDocument(InstructorDocumentDTO dto) {
+        UUID userUuid = bridge.requireUserUuid(dto.instructorUuid());
+        return toDto(profileService.documents().create(userUuid, toUser(dto)), dto.instructorUuid());
     }
 
     @Override
     @Transactional(readOnly = true)
     public InstructorDocumentDTO getInstructorDocumentByUuid(UUID uuid) {
-        return instructorDocumentRepository.findByUuid(uuid)
-                .map(InstructorDocumentFactory::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
+        UserDocumentDTO document = require(uuid);
+        return toDto(document, bridge.findInstructorUuid(document.userUuid()).orElse(null));
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Page<InstructorDocumentDTO> getAllInstructorDocuments(Pageable pageable) {
-        specificationBuilder.validateSortProperties(InstructorDocument.class, pageable);
-        return instructorDocumentRepository.findAll(pageable).map(InstructorDocumentFactory::toDTO);
-    }
-
-    @Override
-    public InstructorDocumentDTO updateInstructorDocument(UUID uuid, InstructorDocumentDTO instructorDocumentDTO) {
-        InstructorDocument existingDocument = instructorDocumentRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
-
-        // Update fields from DTO
-        updateDocumentFields(existingDocument, instructorDocumentDTO);
-
-        InstructorDocument updatedDocument = instructorDocumentRepository.save(existingDocument);
-        return InstructorDocumentFactory.toDTO(updatedDocument);
+    public InstructorDocumentDTO updateInstructorDocument(UUID uuid, InstructorDocumentDTO dto) {
+        UserDocumentDTO existing = require(uuid);
+        UserDocumentDTO saved = profileService.documents()
+                .update(existing.userUuid(), uuid, ProfileRecords.overlay(toUser(dto), existing));
+        return toDto(saved, bridge.findInstructorUuid(saved.userUuid()).orElse(dto.instructorUuid()));
     }
 
     @Override
     public void deleteInstructorDocument(UUID uuid) {
-        InstructorDocument document = instructorDocumentRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
-        mediaStorageService.delete(document.getFilePath() != null
-                ? document.getFilePath() : document.getStoredFilename());
-        instructorDocumentRepository.deleteByUuid(uuid);
+        profileService.documents().delete(require(uuid).userUuid(), uuid);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorDocumentDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        specificationBuilder.validateSortProperties(InstructorDocument.class, pageable);
-        Specification<InstructorDocument> spec = specificationBuilder.buildSpecification(InstructorDocument.class, searchParams);
-        return instructorDocumentRepository.findAll(spec, pageable).map(InstructorDocumentFactory::toDTO);
+        InstructorProfileBridge.ScopedSearch scoped = bridge.scope(searchParams);
+        Page<UserDocumentDTO> page = profileService.documents().search(scoped.params(), scoped.userUuids(), pageable);
+        Map<UUID, UUID> instructors = bridge.instructorUuidsByUser(page.map(UserDocumentDTO::userUuid).toSet());
+        return page.map(document -> toDto(document, instructors.get(document.userUuid())));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<InstructorDocumentDTO> getDocumentsByInstructorUuid(UUID instructorUuid) {
-        return instructorDocumentRepository.findByInstructorUuid(instructorUuid)
-                .stream()
-                .map(InstructorDocumentFactory::toDTO)
-                .collect(Collectors.toList());
+        return bridge.findUserUuid(instructorUuid)
+                .map(userUuid -> profileService.documents().list(userUuid).stream()
+                        .map(document -> toDto(document, instructorUuid)).toList())
+                .orElse(List.of());
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<InstructorDocumentDTO> getDocumentsByDocumentTypeUuid(UUID documentTypeUuid) {
-        return instructorDocumentRepository.findByDocumentTypeUuid(documentTypeUuid)
-                .stream()
-                .map(InstructorDocumentFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<InstructorDocumentDTO> getDocumentsByInstructorAndDocumentType(UUID instructorUuid, UUID documentTypeUuid) {
-        return instructorDocumentRepository.findByInstructorUuidAndDocumentTypeUuid(instructorUuid, documentTypeUuid)
-                .stream()
-                .map(InstructorDocumentFactory::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Approving a credential document is the same act as approving the profile it backs, so it
-     * carries the same restraint: an administrator who also holds another domain cannot sign off
-     * their own papers. Mirrors the guard {@code InstructorServiceImpl#verifyInstructor} applies.
-     */
+    /** The verdict lands on the shared document, so it holds for every domain of its owner. */
     @Override
     public InstructorDocumentDTO verifyDocument(UUID uuid, String verifiedBy, String verificationNotes) {
-        InstructorDocument document = instructorDocumentRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
-
-        instructorLookupService.getInstructorUserUuid(document.getInstructorUuid())
-                .ifPresent(ownerUserUuid -> domainSecurityService
-                        .enforceNotSelfApprovingProfile(ownerUserUuid, "instructor"));
-
-        document.setIsVerified(true);
-        document.setVerifiedBy(verifiedBy);
-        document.setVerifiedAt(LocalDateTime.now());
-        document.setVerificationNotes(verificationNotes);
-        document.setStatus(DocumentStatus.APPROVED);
-
-        InstructorDocument updatedDocument = instructorDocumentRepository.save(document);
-        publishDocumentVerifiedNotification(updatedDocument);
-        return InstructorDocumentFactory.toDTO(updatedDocument);
+        UserDocumentDTO document = require(uuid);
+        profileService.verify(document.userUuid(), ProfileSection.DOCUMENTS, uuid,
+                new ProfileVerificationRequest(WalletVerificationStatus.VERIFIED, verificationNotes), verifiedBy);
+        return getInstructorDocumentByUuid(uuid);
     }
 
-    @Override
-    public void markDocumentAsExpired(UUID uuid) {
-        InstructorDocument document = instructorDocumentRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_DOCUMENT_NOT_FOUND_TEMPLATE, uuid)));
-
-        document.setStatus(DocumentStatus.EXPIRED);
-        instructorDocumentRepository.save(document);
-    }
-
+    /** Whether the stored file belongs to one of the instructor's documents, wherever it was uploaded. */
     @Override
     @Transactional(readOnly = true)
-    public List<InstructorDocumentDTO> getExpiringDocuments(int daysBeforeExpiry) {
-        LocalDate cutoffDate = LocalDate.now().plusDays(daysBeforeExpiry);
-        return instructorDocumentRepository.findByExpiryDateBeforeAndStatusNot(cutoffDate, DocumentStatus.EXPIRED)
-                .stream()
-                .map(InstructorDocumentFactory::toDTO)
-                .collect(Collectors.toList());
+    public boolean isDocumentFileOf(UUID instructorUuid, String filePath) {
+        return bridge.findUserUuid(instructorUuid)
+                .map(userUuid -> profileService.ownsDocumentFile(userUuid, filePath))
+                .orElse(false);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<InstructorDocumentDTO> getUnverifiedDocuments() {
-        return instructorDocumentRepository.findByIsVerifiedFalse()
-                .stream()
-                .map(InstructorDocumentFactory::toDTO)
-                .collect(Collectors.toList());
+    private UserDocumentDTO require(UUID uuid) {
+        return profileService.documents().find(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(NOT_FOUND, uuid)));
     }
 
-    private void updateDocumentFields(InstructorDocument existingDocument, InstructorDocumentDTO dto) {
-        if (dto.instructorUuid() != null) {
-            existingDocument.setInstructorUuid(dto.instructorUuid());
-        }
-        if (dto.documentTypeUuid() != null) {
-            existingDocument.setDocumentTypeUuid(dto.documentTypeUuid());
-        }
-        if (dto.educationUuid() != null) {
-            existingDocument.setEducationUuid(dto.educationUuid());
-        }
-        if (dto.experienceUuid() != null) {
-            existingDocument.setExperienceUuid(dto.experienceUuid());
-        }
-        if (dto.membershipUuid() != null) {
-            existingDocument.setMembershipUuid(dto.membershipUuid());
-        }
-        if (dto.originalFilename() != null) {
-            existingDocument.setOriginalFilename(dto.originalFilename());
-        }
-        if (dto.storedFilename() != null) {
-            existingDocument.setStoredFilename(dto.storedFilename());
-        }
-        if (dto.filePath() != null) {
-            existingDocument.setFilePath(dto.filePath());
-        }
-        if (dto.fileSizeBytes() != null) {
-            existingDocument.setFileSizeBytes(dto.fileSizeBytes());
-        }
-        if (dto.mimeType() != null) {
-            existingDocument.setMimeType(dto.mimeType());
-        }
-        if (dto.fileHash() != null) {
-            existingDocument.setFileHash(dto.fileHash());
-        }
-        if (dto.title() != null) {
-            existingDocument.setTitle(dto.title());
-        }
-        if (dto.description() != null) {
-            existingDocument.setDescription(dto.description());
-        }
-        if (dto.status() != null) {
-            existingDocument.setStatus(dto.status());
-        }
-        if (dto.expiryDate() != null) {
-            existingDocument.setExpiryDate(dto.expiryDate());
-        }
-        if (dto.isVerified() != null) {
-            existingDocument.setIsVerified(dto.isVerified());
-        }
-        if (dto.verifiedBy() != null) {
-            existingDocument.setVerifiedBy(dto.verifiedBy());
-        }
-        if (dto.verifiedAt() != null) {
-            existingDocument.setVerifiedAt(dto.verifiedAt());
-        }
-        if (dto.verificationNotes() != null) {
-            existingDocument.setVerificationNotes(dto.verificationNotes());
-        }
+    static UserDocumentDTO toUser(InstructorDocumentDTO d) {
+        return new UserDocumentDTO(null, null, d.documentTypeUuid(), d.educationUuid(), d.experienceUuid(),
+                d.membershipUuid(), d.originalFilename(), d.storedFilename(), d.filePath(), d.fileSizeBytes(),
+                d.mimeType(), d.fileHash(), d.title(), d.description(), null, null, null, null, null, null,
+                d.expiryDate(), null, null, null, null);
     }
 
-    private void publishDocumentVerifiedNotification(InstructorDocument document) {
-        if (document.getInstructorUuid() == null) {
-            return;
-        }
-        UUID recipientUserUuid = instructorLookupService.getInstructorUserUuid(document.getInstructorUuid())
-                .orElse(null);
-        if (recipientUserUuid == null) {
-            return;
-        }
-
-        String documentTitle = document.getTitle() == null ? "Your document" : document.getTitle();
-        eventPublisher.publishEvent(NotificationRequestedEvent.inApp(
-                recipientUserUuid,
-                "PROFILE_DOCUMENT_VERIFIED",
-                "POPUP",
-                "Document verified",
-                documentTitle + " has been verified.",
-                "/dashboard/profile/documents",
-                Map.of(
-                        "document_uuid", document.getUuid(),
-                        "document_title", documentTitle,
-                        "profile_type", "instructor"
-                ),
-                "profile-document-verified:instructor:" + document.getUuid()
-        ));
+    static InstructorDocumentDTO toDto(UserDocumentDTO d, UUID instructorUuid) {
+        return new InstructorDocumentDTO(d.uuid(), instructorUuid, d.documentTypeUuid(), d.educationUuid(),
+                d.experienceUuid(), d.membershipUuid(), d.originalFilename(), d.storedFilename(), d.filePath(),
+                d.fileSizeBytes(), d.mimeType(), d.fileHash(), d.title(), d.description(), d.uploadDate(),
+                d.isVerified(), d.verifiedBy(), d.verifiedAt(), d.verificationNotes(), d.status(), d.expiryDate(),
+                d.createdDate(), d.createdBy(), d.updatedDate(), d.updatedBy());
     }
 }

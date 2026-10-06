@@ -1,116 +1,90 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorEducationDTO;
-import apps.sarafrika.elimika.instructor.factory.InstructorEducationFactory;
-import apps.sarafrika.elimika.instructor.model.InstructorEducation;
-import apps.sarafrika.elimika.instructor.repository.InstructorEducationRepository;
+import apps.sarafrika.elimika.instructor.internal.InstructorProfileBridge;
 import apps.sarafrika.elimika.instructor.service.InstructorEducationService;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.ProfileRecords;
+import apps.sarafrika.elimika.profile.spi.UserEducationDTO;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+/** Instructor education, kept on the user-owned professional profile. */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class InstructorEducationServiceImpl implements InstructorEducationService {
 
-    private final InstructorEducationRepository instructorEducationRepository;
-    private final GenericSpecificationBuilder<InstructorEducation> specificationBuilder;
+    private static final String NOT_FOUND = "Instructor education with ID %s not found";
 
-    private static final String INSTRUCTOR_EDUCATION_NOT_FOUND_TEMPLATE = "Instructor education with ID %s not found";
+    private final ProfessionalProfileService profileService;
+    private final InstructorProfileBridge bridge;
 
     @Override
-    public InstructorEducationDTO createInstructorEducation(InstructorEducationDTO instructorEducationDTO) {
-        InstructorEducation instructorEducation = InstructorEducationFactory.toEntity(instructorEducationDTO);
-        instructorEducation.setCreatedDate(LocalDateTime.now());
-
-        InstructorEducation savedEducation = instructorEducationRepository.save(instructorEducation);
-        return InstructorEducationFactory.toDTO(savedEducation);
+    public InstructorEducationDTO createInstructorEducation(InstructorEducationDTO dto) {
+        UUID userUuid = bridge.requireUserUuid(dto.instructorUuid());
+        return toDto(profileService.education().create(userUuid, toUser(dto)), dto.instructorUuid());
     }
 
     @Override
     @Transactional(readOnly = true)
     public InstructorEducationDTO getInstructorEducationByUuid(UUID uuid) {
-        return instructorEducationRepository.findByUuid(uuid)
-                .map(InstructorEducationFactory::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_EDUCATION_NOT_FOUND_TEMPLATE, uuid)));
+        UserEducationDTO education = require(uuid);
+        return toDto(education, bridge.findInstructorUuid(education.userUuid()).orElse(null));
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Page<InstructorEducationDTO> getAllInstructorEducation(Pageable pageable) {
-        specificationBuilder.validateSortProperties(InstructorEducation.class, pageable);
-        return instructorEducationRepository.findAll(pageable).map(InstructorEducationFactory::toDTO);
-    }
-
-    @Override
-    public InstructorEducationDTO updateInstructorEducation(UUID uuid, InstructorEducationDTO instructorEducationDTO) {
-        InstructorEducation existingEducation = instructorEducationRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_EDUCATION_NOT_FOUND_TEMPLATE, uuid)));
-
-        updateEducationFields(existingEducation, instructorEducationDTO);
-
-        InstructorEducation updatedEducation = instructorEducationRepository.save(existingEducation);
-        return InstructorEducationFactory.toDTO(updatedEducation);
+    public InstructorEducationDTO updateInstructorEducation(UUID uuid, InstructorEducationDTO dto) {
+        UserEducationDTO existing = require(uuid);
+        UserEducationDTO saved = profileService.education()
+                .update(existing.userUuid(), uuid, ProfileRecords.overlay(toUser(dto), existing));
+        return toDto(saved, bridge.findInstructorUuid(saved.userUuid()).orElse(dto.instructorUuid()));
     }
 
     @Override
     public void deleteInstructorEducation(UUID uuid) {
-        if (!instructorEducationRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(String.format(INSTRUCTOR_EDUCATION_NOT_FOUND_TEMPLATE, uuid));
-        }
-        instructorEducationRepository.deleteByUuid(uuid);
+        profileService.education().delete(require(uuid).userUuid(), uuid);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorEducationDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        specificationBuilder.validateSortProperties(InstructorEducation.class, pageable);
-        Specification<InstructorEducation> spec = specificationBuilder.buildSpecification(InstructorEducation.class, searchParams);
-        return instructorEducationRepository.findAll(spec, pageable).map(InstructorEducationFactory::toDTO);
+        InstructorProfileBridge.ScopedSearch scoped = bridge.scope(searchParams);
+        Page<UserEducationDTO> page = profileService.education().search(scoped.params(), scoped.userUuids(), pageable);
+        Map<UUID, UUID> instructors = bridge.instructorUuidsByUser(page.map(UserEducationDTO::userUuid).toSet());
+        return page.map(education -> toDto(education, instructors.get(education.userUuid())));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<InstructorEducationDTO> getEducationByInstructorUuid(UUID instructorUuid) {
-        return instructorEducationRepository.findByInstructorUuid(instructorUuid)
-                .stream()
-                .map(InstructorEducationFactory::toDTO)
-                .collect(Collectors.toList());
+        return bridge.findUserUuid(instructorUuid)
+                .map(userUuid -> profileService.education().list(userUuid).stream()
+                        .map(education -> toDto(education, instructorUuid)).toList())
+                .orElse(List.of());
     }
 
-    private void updateEducationFields(InstructorEducation existingEducation, InstructorEducationDTO dto) {
-        if (dto.instructorUuid() != null) {
-            existingEducation.setInstructorUuid(dto.instructorUuid());
-        }
-        if (dto.qualification() != null) {
-            existingEducation.setQualification(dto.qualification());
-        }
-        if (dto.schoolName() != null) {
-            existingEducation.setSchoolName(dto.schoolName());
-        }
-        if (dto.fieldOfStudy() != null) {
-            existingEducation.setFieldOfStudy(dto.fieldOfStudy());
-        }
-        if (dto.startYear() != null) {
-            existingEducation.setStartYear(dto.startYear());
-        }
-        if (dto.yearCompleted() != null) {
-            existingEducation.setYearCompleted(dto.yearCompleted());
-        }
-        if (dto.certificateNumber() != null) {
-            existingEducation.setCertificateNumber(dto.certificateNumber());
-        }
+    private UserEducationDTO require(UUID uuid) {
+        return profileService.education().find(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(NOT_FOUND, uuid)));
+    }
+
+    private static UserEducationDTO toUser(InstructorEducationDTO dto) {
+        return new UserEducationDTO(null, null, dto.qualification(), dto.fieldOfStudy(), dto.schoolName(),
+                dto.startYear(), dto.yearCompleted(), dto.certificateNumber(), null, null, null, null);
+    }
+
+    private static InstructorEducationDTO toDto(UserEducationDTO e, UUID instructorUuid) {
+        return new InstructorEducationDTO(e.uuid(), instructorUuid, e.qualification(), e.fieldOfStudy(), e.schoolName(),
+                e.startYear(), e.yearCompleted(), e.certificateNumber(), e.createdDate(), e.createdBy(),
+                e.updatedDate(), e.updatedBy());
     }
 }

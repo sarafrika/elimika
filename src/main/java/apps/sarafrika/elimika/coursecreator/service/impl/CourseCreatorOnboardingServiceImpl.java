@@ -7,7 +7,6 @@ import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreatorCategoryPreference;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorCategoryPreferenceRepository;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
-import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorSkillRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorOnboardingService;
 import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.event.user.ProfileModerationDecidedEvent;
@@ -38,7 +37,6 @@ public class CourseCreatorOnboardingServiceImpl implements CourseCreatorOnboardi
 
     private final CourseCreatorRepository courseCreatorRepository;
     private final CourseCreatorCategoryPreferenceRepository categoryPreferenceRepository;
-    private final CourseCreatorSkillRepository skillRepository;
     private final CourseCreatorSkillsWallet skillsWallet;
     private final UserContextService userContextService;
     private final DomainSecurityService domainSecurityService;
@@ -154,7 +152,7 @@ public class CourseCreatorOnboardingServiceImpl implements CourseCreatorOnboardi
     private CourseCreatorOnboardingStateDTO toState(CourseCreator creator) {
         List<CourseCreatorCategoryPreferenceDTO> categories = categoriesFor(creator.getUuid());
         boolean readyForSubmission = !categories.isEmpty()
-                && skillRepository.countByCourseCreatorUuid(creator.getUuid()) > 0;
+                && skillsWallet.hasSkills(creator.getUuid());
 
         return new CourseCreatorOnboardingStateDTO(
                 creator.getUuid(),

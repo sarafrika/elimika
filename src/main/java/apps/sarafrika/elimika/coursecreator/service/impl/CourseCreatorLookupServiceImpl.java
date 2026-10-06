@@ -28,6 +28,7 @@ import java.util.UUID;
 public class CourseCreatorLookupServiceImpl implements CourseCreatorLookupService {
 
     private final CourseCreatorRepository courseCreatorRepository;
+    private final apps.sarafrika.elimika.profile.spi.ProfessionalProfileService professionalProfileService;
 
     @Override
     public Optional<UUID> findCourseCreatorUuidByUserUuid(UUID userUuid) {
@@ -48,12 +49,9 @@ public class CourseCreatorLookupServiceImpl implements CourseCreatorLookupServic
 
     @Override
     public Optional<Boolean> getCourseCreatorProfileCompleteByUserUuid(UUID userUuid) {
+        // Completeness is judged on the shared profile basics, whichever domain filled them in.
         return courseCreatorRepository.findByUserUuid(userUuid)
-                .map(courseCreator -> hasText(courseCreator.getBio()) && hasText(courseCreator.getProfessionalHeadline()));
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.trim().isEmpty();
+                .map(courseCreator -> professionalProfileService.getBasics(userUuid).isBasicsComplete());
     }
 
     @Override

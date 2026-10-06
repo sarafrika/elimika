@@ -20,6 +20,11 @@ public interface CourseCreatorRepository extends JpaRepository<CourseCreator, Lo
 
     Optional<CourseCreator> findByUserUuid(UUID userUuid);
 
+    List<CourseCreator> findByUserUuidIn(Collection<UUID> userUuids);
+
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT c.userUuid FROM CourseCreator c WHERE c.userUuid IS NOT NULL")
+    List<UUID> findAllUserUuids();
+
     boolean existsByUserUuid(UUID userUuid);
 
     boolean existsByUuid(UUID uuid);

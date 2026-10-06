@@ -1,132 +1,81 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
-import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.instructor.dto.InstructorExperienceDTO;
-import apps.sarafrika.elimika.instructor.factory.InstructorExperienceFactory;
-import apps.sarafrika.elimika.instructor.model.InstructorExperience;
-import apps.sarafrika.elimika.instructor.repository.InstructorExperienceRepository;
+import apps.sarafrika.elimika.instructor.internal.InstructorProfileBridge;
 import apps.sarafrika.elimika.instructor.service.InstructorExperienceService;
-import apps.sarafrika.elimika.instructor.search.InstructorSearchSource;
-import apps.sarafrika.elimika.shared.search.SearchIndexRequests;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.ProfileRecords;
+import apps.sarafrika.elimika.profile.spi.UserExperienceDTO;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
+/** Instructor experience, kept on the user-owned professional profile. */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class InstructorExperienceServiceImpl implements InstructorExperienceService {
 
-    private final InstructorExperienceRepository instructorExperienceRepository;
-    private final GenericSpecificationBuilder<InstructorExperience> specificationBuilder;
-    private final SearchIndexRequests searchIndexRequests;
+    private static final String NOT_FOUND = "Instructor experience with ID %s not found";
 
-    private static final String INSTRUCTOR_EXPERIENCE_NOT_FOUND_TEMPLATE = "Instructor experience with ID %s not found";
+    private final ProfessionalProfileService profileService;
+    private final InstructorProfileBridge bridge;
 
     @Override
-    public InstructorExperienceDTO createInstructorExperience(InstructorExperienceDTO instructorExperienceDTO) {
-        InstructorExperience instructorExperience = InstructorExperienceFactory.toEntity(instructorExperienceDTO);
-        instructorExperience.setCreatedDate(LocalDateTime.now());
-
-        // Set default values
-        if (instructorExperience.getIsCurrentPosition() == null) {
-            instructorExperience.setIsCurrentPosition(false);
-        }
-
-        // If it's a current position, ensure end date is null
-        if (Boolean.TRUE.equals(instructorExperience.getIsCurrentPosition())) {
-            instructorExperience.setEndDate(null);
-        }
-
-        InstructorExperience savedExperience = instructorExperienceRepository.save(instructorExperience);
-        return InstructorExperienceFactory.toDTO(savedExperience);
+    public InstructorExperienceDTO createInstructorExperience(InstructorExperienceDTO dto) {
+        UUID userUuid = bridge.requireUserUuid(dto.instructorUuid());
+        return toDto(profileService.experience().create(userUuid, toUser(dto)), dto.instructorUuid());
     }
 
     @Override
     @Transactional(readOnly = true)
     public InstructorExperienceDTO getInstructorExperienceByUuid(UUID uuid) {
-        return instructorExperienceRepository.findByUuid(uuid)
-                .map(InstructorExperienceFactory::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_EXPERIENCE_NOT_FOUND_TEMPLATE, uuid)));
+        UserExperienceDTO experience = require(uuid);
+        return toDto(experience, bridge.findInstructorUuid(experience.userUuid()).orElse(null));
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Page<InstructorExperienceDTO> getAllInstructorExperience(Pageable pageable) {
-        specificationBuilder.validateSortProperties(InstructorExperience.class, pageable);
-        return instructorExperienceRepository.findAll(pageable).map(InstructorExperienceFactory::toDTO);
-    }
-
-    @Override
-    public InstructorExperienceDTO updateInstructorExperience(UUID uuid, InstructorExperienceDTO instructorExperienceDTO) {
-        InstructorExperience existingExperience = instructorExperienceRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(INSTRUCTOR_EXPERIENCE_NOT_FOUND_TEMPLATE, uuid)));
-
-        // Update fields from DTO
-        updateExperienceFields(existingExperience, instructorExperienceDTO);
-
-        // Business logic: if it's a current position, ensure end date is null
-        if (Boolean.TRUE.equals(existingExperience.getIsCurrentPosition())) {
-            existingExperience.setEndDate(null);
-        }
-
-        InstructorExperience updatedExperience = instructorExperienceRepository.save(existingExperience);
-        return InstructorExperienceFactory.toDTO(updatedExperience);
+    public InstructorExperienceDTO updateInstructorExperience(UUID uuid, InstructorExperienceDTO dto) {
+        UserExperienceDTO existing = require(uuid);
+        UserExperienceDTO saved = profileService.experience()
+                .update(existing.userUuid(), uuid, ProfileRecords.overlay(toUser(dto), existing));
+        return toDto(saved, bridge.findInstructorUuid(saved.userUuid()).orElse(dto.instructorUuid()));
     }
 
     @Override
     public void deleteInstructorExperience(UUID uuid) {
-        if (!instructorExperienceRepository.existsByUuid(uuid)) {
-            throw new ResourceNotFoundException(String.format(INSTRUCTOR_EXPERIENCE_NOT_FOUND_TEMPLATE, uuid));
-        }
-        instructorExperienceRepository.deleteByUuid(uuid);
+        profileService.experience().delete(require(uuid).userUuid(), uuid);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<InstructorExperienceDTO> search(Map<String, String> searchParams, Pageable pageable) {
-        specificationBuilder.validateSortProperties(InstructorExperience.class, pageable);
-        Specification<InstructorExperience> spec = specificationBuilder.buildSpecification(InstructorExperience.class, searchParams);
-        return instructorExperienceRepository.findAll(spec, pageable).map(InstructorExperienceFactory::toDTO);
+        InstructorProfileBridge.ScopedSearch scoped = bridge.scope(searchParams);
+        Page<UserExperienceDTO> page = profileService.experience().search(scoped.params(), scoped.userUuids(), pageable);
+        Map<UUID, UUID> instructors = bridge.instructorUuidsByUser(page.map(UserExperienceDTO::userUuid).toSet());
+        return page.map(experience -> toDto(experience, instructors.get(experience.userUuid())));
     }
 
-    private void updateExperienceFields(InstructorExperience existingExperience, InstructorExperienceDTO dto) {
-        if (dto.instructorUuid() != null) {
-            UUID previousInstructorUuid = existingExperience.getInstructorUuid();
-            existingExperience.setInstructorUuid(dto.instructorUuid());
-            if (previousInstructorUuid != null && !previousInstructorUuid.equals(dto.instructorUuid())) {
-                // The entity trigger only sees the new owner; the old owner's search document still lists this row.
-                searchIndexRequests.enqueue(InstructorSearchSource.INDEX, previousInstructorUuid);
-            }
-        }
-        if (dto.position() != null) {
-            existingExperience.setPosition(dto.position());
-        }
-        if (dto.organizationName() != null) {
-            existingExperience.setOrganizationName(dto.organizationName());
-        }
-        if (dto.responsibilities() != null) {
-            existingExperience.setResponsibilities(dto.responsibilities());
-        }
-        if (dto.yearsOfExperience() != null) {
-            existingExperience.setYearsOfExperience(dto.yearsOfExperience());
-        }
-        if (dto.startDate() != null) {
-            existingExperience.setStartDate(dto.startDate());
-        }
-        if (dto.endDate() != null) {
-            existingExperience.setEndDate(dto.endDate());
-        }
-        if (dto.isCurrentPosition() != null) {
-            existingExperience.setIsCurrentPosition(dto.isCurrentPosition());
-        }
+    private UserExperienceDTO require(UUID uuid) {
+        return profileService.experience().find(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(NOT_FOUND, uuid)));
+    }
+
+    private static UserExperienceDTO toUser(InstructorExperienceDTO dto) {
+        return new UserExperienceDTO(null, null, dto.position(), dto.organizationName(), dto.responsibilities(),
+                dto.yearsOfExperience(), dto.startDate(), dto.endDate(), dto.isCurrentPosition(), null,
+                null, null, null, null);
+    }
+
+    private static InstructorExperienceDTO toDto(UserExperienceDTO e, UUID instructorUuid) {
+        return new InstructorExperienceDTO(e.uuid(), instructorUuid, e.position(), e.organizationName(),
+                e.responsibilities(), e.yearsOfExperience(), e.startDate(), e.endDate(), e.isCurrentPosition(),
+                e.createdDate(), e.createdBy(), e.updatedDate(), e.updatedBy());
     }
 }

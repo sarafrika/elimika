@@ -1,5 +1,8 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
+import apps.sarafrika.elimika.instructor.internal.InstructorBasics;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileDTO;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.user.ProfileModerationDecidedEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
@@ -52,6 +55,7 @@ public class InstructorServiceImpl implements InstructorService {
     private final InstructorSearchReader instructorSearchReader;
     private final InstructorVisibility instructorVisibility;
     private final InstructorReviewRepository instructorReviewRepository;
+    private final ProfessionalProfileService professionalProfileService;
 
     private static final String INSTRUCTOR_NOT_FOUND_TEMPLATE = "Instructor with ID %s not found";
     private static final String QUERY_PARAM = "q";
@@ -264,24 +268,12 @@ public class InstructorServiceImpl implements InstructorService {
      * clear it — and take the guard with it.
      */
     private void applyInstructorProfile(Instructor instructor, InstructorDTO instructorDTO) {
-        if (instructorDTO.locationName() != null) {
-            instructor.setLocationName(instructorDTO.locationName());
-        }
-        if (instructorDTO.latitude() != null) {
-            instructor.setLatitude(instructorDTO.latitude());
-        }
-        if (instructorDTO.longitude() != null) {
-            instructor.setLongitude(instructorDTO.longitude());
-        }
-        if (instructorDTO.website() != null) {
-            instructor.setWebsite(instructorDTO.website());
-        }
-        if (instructorDTO.bio() != null) {
-            instructor.setBio(instructorDTO.bio());
-        }
-        if (instructorDTO.professionalHeadline() != null) {
-            instructor.setProfessionalHeadline(instructorDTO.professionalHeadline());
-        }
+        // The basics live on the user's shared profile; the row keeps a synced copy.
+        ProfessionalProfileDTO saved = professionalProfileService.mergeBasics(instructor.getUserUuid(),
+                new ProfessionalProfileDTO(null, instructorDTO.bio(), instructorDTO.professionalHeadline(),
+                        instructorDTO.website(), instructorDTO.locationName(), instructorDTO.latitude(),
+                        instructorDTO.longitude(), null));
+        InstructorBasics.copy(saved, instructor);
     }
 
     private void publishVerificationNotification(Instructor instructor, boolean approved) {

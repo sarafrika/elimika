@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.profile.internal.model.UserOwnedEntity;
 import apps.sarafrika.elimika.profile.internal.model.VerifiableItem;
 import apps.sarafrika.elimika.profile.internal.repository.UserOwnedRepository;
 import apps.sarafrika.elimika.profile.spi.ProfessionalProfileChangedEvent;
+import apps.sarafrika.elimika.profile.spi.ProfileRecords;
 import apps.sarafrika.elimika.profile.spi.ProfileSection;
 import apps.sarafrika.elimika.profile.spi.ProfileSectionService;
 import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
@@ -104,7 +105,8 @@ public abstract class ProfileSectionSupport<E extends UserOwnedEntity, D> implem
                     .filter(existing -> key.equals(naturalKeyOf(existing)))
                     .findFirst();
             if (identical.isPresent()) {
-                return save(identical.get(), item);
+                // Re-adding a claim fills in what it leaves blank from the existing item.
+                return save(identical.get(), fillFrom(item, identical.get()));
             }
         }
         E entity = newEntity();
@@ -186,6 +188,15 @@ public abstract class ProfileSectionSupport<E extends UserOwnedEntity, D> implem
         E saved = repository.save(entity);
         publish(saved.getUserUuid());
         return toDto(saved);
+    }
+
+    @SuppressWarnings("unchecked")
+    private D fillFrom(D item, E existing) {
+        D current = toDto(existing);
+        if (item instanceof Record changes && current instanceof Record base) {
+            return (D) ProfileRecords.overlay(changes, base);
+        }
+        return item;
     }
 
     private void publish(UUID userUuid) {

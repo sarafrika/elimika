@@ -10,8 +10,7 @@ import java.util.UUID;
 public interface CourseCreatorCertificationService {
     CourseCreatorCertificationDTO createCourseCreatorCertification(CourseCreatorCertificationDTO dto);
     CourseCreatorCertificationDTO getCourseCreatorCertificationByUuid(UUID uuid);
-    Page<CourseCreatorCertificationDTO> getAllCourseCreatorCertifications(Pageable pageable);
     CourseCreatorCertificationDTO updateCourseCreatorCertification(UUID uuid, CourseCreatorCertificationDTO dto);
-    void deleteCourseCreatorCertification(UUID uuid);
+    void deleteCourseCreatorCertification(UUID courseCreatorUuid, UUID uuid);
     Page<CourseCreatorCertificationDTO> search(Map<String, String> searchParams, Pageable pageable);
 }

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.Locale;
 
-/** Kind of achievement in a course creator skills wallet. */
+/** Kind of achievement in the user skills wallet. */
 public enum AchievementType {
     AWARD,
     MILESTONE,

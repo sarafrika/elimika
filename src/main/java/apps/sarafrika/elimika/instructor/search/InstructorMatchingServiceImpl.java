@@ -1,12 +1,11 @@
 package apps.sarafrika.elimika.instructor.search;
 
 import apps.sarafrika.elimika.instructor.model.Instructor;
-import apps.sarafrika.elimika.instructor.model.InstructorExperience;
-import apps.sarafrika.elimika.instructor.model.InstructorSkill;
-import apps.sarafrika.elimika.instructor.repository.InstructorExperienceRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorReviewRepository;
-import apps.sarafrika.elimika.instructor.repository.InstructorSkillRepository;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.UserExperienceDTO;
+import apps.sarafrika.elimika.profile.spi.UserSkillDTO;
 import apps.sarafrika.elimika.instructor.spi.InstructorMatchProfile;
 import apps.sarafrika.elimika.instructor.spi.InstructorMatchingService;
 import apps.sarafrika.elimika.shared.search.NearMe;
@@ -50,8 +49,7 @@ public class InstructorMatchingServiceImpl implements InstructorMatchingService 
     static final int MAX_FILTER_UUIDS = 1000;
 
     private final InstructorRepository instructorRepository;
-    private final InstructorSkillRepository skillRepository;
-    private final InstructorExperienceRepository experienceRepository;
+    private final ProfessionalProfileService profileService;
     private final InstructorReviewRepository reviewRepository;
     private final SearchAvailability searchAvailability;
     private final SearchGateway searchGateway;
@@ -67,21 +65,22 @@ public class InstructorMatchingServiceImpl implements InstructorMatchingService 
             return Map.of();
         }
         List<UUID> uuids = instructors.stream().map(Instructor::getUuid).toList();
+        // Skills and experience live on the owner's shared profile, keyed by user.
+        List<UUID> userUuids = instructors.stream().map(Instructor::getUserUuid).filter(Objects::nonNull).toList();
 
         Map<UUID, Map<UUID, ProficiencyLevel>> skills = new HashMap<>();
-        for (InstructorSkill skill : skillRepository.findByInstructorUuidInOrderByIdAsc(uuids)) {
-            if (skill.getSkillUuid() == null) {
+        for (UserSkillDTO skill : profileService.skills().listForUsers(userUuids)) {
+            if (skill.skillUuid() == null) {
                 continue;
             }
-            ProficiencyLevel level = skill.getProficiencyLevel() == null
-                    ? ProficiencyLevel.BEGINNER : skill.getProficiencyLevel();
-            skills.computeIfAbsent(skill.getInstructorUuid(), key -> new HashMap<>())
-                    .merge(skill.getSkillUuid(), level, (a, b) -> a.ordinal() >= b.ordinal() ? a : b);
+            ProficiencyLevel level = skill.proficiencyLevel() == null ? ProficiencyLevel.BEGINNER : skill.proficiencyLevel();
+            skills.computeIfAbsent(skill.userUuid(), key -> new HashMap<>())
+                    .merge(skill.skillUuid(), level, (a, b) -> a.ordinal() >= b.ordinal() ? a : b);
         }
         Map<UUID, Double> years = new HashMap<>();
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        for (InstructorExperience experience : experienceRepository.findByInstructorUuidInOrderByIdAsc(uuids)) {
-            years.merge(experience.getInstructorUuid(), yearsOf(experience, today), Double::sum);
+        for (UserExperienceDTO experience : profileService.experience().listForUsers(userUuids)) {
+            years.merge(experience.userUuid(), yearsOf(experience, today), Double::sum);
         }
         Map<UUID, InstructorRatingAggregate> ratings = new HashMap<>();
         reviewRepository.aggregateRatingsByInstructorUuidIn(uuids)
@@ -98,8 +97,8 @@ public class InstructorMatchingServiceImpl implements InstructorMatchingService 
                     instructor.getFullName(),
                     instructor.getLocationName(),
                     Boolean.TRUE.equals(instructor.getAdminVerified()),
-                    skills.getOrDefault(instructor.getUuid(), Map.of()),
-                    years.getOrDefault(instructor.getUuid(), 0d),
+                    instructor.getUserUuid() == null ? Map.of() : skills.getOrDefault(instructor.getUserUuid(), Map.of()),
+                    instructor.getUserUuid() == null ? 0d : years.getOrDefault(instructor.getUserUuid(), 0d),
                     average,
                     count,
                     bayesian(average, count, platformMean),
@@ -118,16 +117,16 @@ public class InstructorMatchingServiceImpl implements InstructorMatchingService 
     }
 
     /** The stated years, else the span of the dates (to today for a current role), never negative. */
-    static double yearsOf(InstructorExperience experience, LocalDate today) {
-        BigDecimal stated = experience.getYearsOfExperience();
+    static double yearsOf(UserExperienceDTO experience, LocalDate today) {
+        BigDecimal stated = experience.yearsOfExperience();
         if (stated != null) {
             return Math.max(0d, stated.doubleValue());
         }
-        if (experience.getStartDate() == null) {
+        if (experience.startDate() == null) {
             return 0d;
         }
-        LocalDate end = experience.getEndDate() != null ? experience.getEndDate() : today;
-        long days = ChronoUnit.DAYS.between(experience.getStartDate(), end);
+        LocalDate end = experience.endDate() != null ? experience.endDate() : today;
+        long days = ChronoUnit.DAYS.between(experience.startDate(), end);
         return Math.max(0d, days / 365.25d);
     }
 

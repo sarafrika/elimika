@@ -10,7 +10,6 @@ import java.util.UUID;
 public interface InstructorSkillService {
     InstructorSkillDTO createInstructorSkill(InstructorSkillDTO instructorSkillDTO);
     InstructorSkillDTO getInstructorSkillByUuid(UUID uuid);
-    Page<InstructorSkillDTO> getAllInstructorSkills(Pageable pageable);
     InstructorSkillDTO updateInstructorSkill(UUID uuid, InstructorSkillDTO instructorSkillDTO);
     void deleteInstructorSkill(UUID uuid);
     Page<InstructorSkillDTO> search(Map<String, String> searchParams, Pageable pageable);

@@ -25,7 +25,8 @@
     allowedDependencies = {
             "shared",
             "notifications::events-api",
-            "skills :: skills-spi"
+            "skills :: skills-spi",
+            "profile :: profile-spi"
     }
 )
 package apps.sarafrika.elimika.coursecreator;

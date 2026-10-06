@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.coursecreator.internal;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CourseCreatorRegistrationListener {
 
     private final CourseCreatorRepository courseCreatorRepository;
+    private final ProfessionalProfileService professionalProfileService;
 
     @ApplicationModuleListener
     void onUserDomainAssigned(UserDomainMappingEvent event) {
@@ -34,6 +36,8 @@ public class CourseCreatorRegistrationListener {
         courseCreator.setFullName("Unknown");
         courseCreator.setAdminVerified(false);
         courseCreator.setVerificationStatus(CourseCreatorVerificationStatus.DRAFT);
+        // A user who already filled in their shared profile under another domain starts with it.
+        CourseCreatorBasics.copy(professionalProfileService.getBasics(event.userUuid()), courseCreator);
         courseCreatorRepository.save(courseCreator);
     }
 

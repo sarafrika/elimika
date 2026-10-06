@@ -11,11 +11,8 @@ import java.util.UUID;
 public interface InstructorEducationService {
     InstructorEducationDTO createInstructorEducation(InstructorEducationDTO instructorEducationDTO);
     InstructorEducationDTO getInstructorEducationByUuid(UUID uuid);
-    Page<InstructorEducationDTO> getAllInstructorEducation(Pageable pageable);
     InstructorEducationDTO updateInstructorEducation(UUID uuid, InstructorEducationDTO instructorEducationDTO);
     void deleteInstructorEducation(UUID uuid);
     Page<InstructorEducationDTO> search(Map<String, String> searchParams, Pageable pageable);
-
-    // Additional methods specific to InstructorEducation
     List<InstructorEducationDTO> getEducationByInstructorUuid(UUID instructorUuid);
 }

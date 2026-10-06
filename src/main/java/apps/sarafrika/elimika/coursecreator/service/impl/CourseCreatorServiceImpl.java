@@ -1,5 +1,8 @@
 package apps.sarafrika.elimika.coursecreator.service.impl;
 
+import apps.sarafrika.elimika.coursecreator.internal.CourseCreatorBasics;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileDTO;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
 import apps.sarafrika.elimika.coursecreator.dto.CourseCreatorDTO;
 import apps.sarafrika.elimika.coursecreator.factory.CourseCreatorFactory;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreator;
@@ -39,6 +42,7 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
     private final GenericSpecificationBuilder<CourseCreator> specificationBuilder;
     private final DomainSecurityService domainSecurityService;
     private final CourseCreatorOnboardingService courseCreatorOnboardingService;
+    private final ProfessionalProfileService professionalProfileService;
 
     private static final String COURSE_CREATOR_NOT_FOUND_TEMPLATE = "Course creator with ID %s not found";
 
@@ -185,23 +189,13 @@ public class CourseCreatorServiceImpl implements CourseCreatorService {
         if (courseCreatorDTO.fullName() != null) {
             courseCreator.setFullName(courseCreatorDTO.fullName());
         }
-        if (courseCreatorDTO.locationName() != null) {
-            courseCreator.setLocationName(courseCreatorDTO.locationName());
-        }
-        if (courseCreatorDTO.latitude() != null) {
-            courseCreator.setLatitude(courseCreatorDTO.latitude());
-        }
-        if (courseCreatorDTO.longitude() != null) {
-            courseCreator.setLongitude(courseCreatorDTO.longitude());
-        }
-        if (courseCreatorDTO.website() != null) {
-            courseCreator.setWebsite(courseCreatorDTO.website());
-        }
-        if (courseCreatorDTO.bio() != null) {
-            courseCreator.setBio(courseCreatorDTO.bio());
-        }
-        if (courseCreatorDTO.professionalHeadline() != null) {
-            courseCreator.setProfessionalHeadline(courseCreatorDTO.professionalHeadline());
+        // The basics live on the user's shared profile; the row keeps a synced copy.
+        if (courseCreator.getUserUuid() != null) {
+            ProfessionalProfileDTO saved = professionalProfileService.mergeBasics(courseCreator.getUserUuid(),
+                    new ProfessionalProfileDTO(null, courseCreatorDTO.bio(), courseCreatorDTO.professionalHeadline(),
+                            courseCreatorDTO.website(), courseCreatorDTO.locationName(), courseCreatorDTO.latitude(),
+                            courseCreatorDTO.longitude(), null));
+            CourseCreatorBasics.copy(saved, courseCreator);
         }
         applyOnboardingDefaults(courseCreator);
     }

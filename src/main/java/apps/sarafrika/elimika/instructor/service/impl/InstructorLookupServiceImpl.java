@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class InstructorLookupServiceImpl implements InstructorLookupService {
 
     private final InstructorRepository instructorRepository;
+    private final apps.sarafrika.elimika.profile.spi.ProfessionalProfileService professionalProfileService;
 
     @Override
     public Optional<UUID> findInstructorUuidByUserUuid(UUID userUuid) {
@@ -52,8 +53,9 @@ public class InstructorLookupServiceImpl implements InstructorLookupService {
 
     @Override
     public Optional<Boolean> getInstructorProfileCompleteByUserUuid(UUID userUuid) {
+        // Completeness is judged on the shared profile basics, whichever domain filled them in.
         return instructorRepository.findByUserUuid(userUuid)
-                .map(instructor -> hasText(instructor.getBio()) && hasText(instructor.getProfessionalHeadline()));
+                .map(instructor -> professionalProfileService.getBasics(userUuid).isBasicsComplete());
     }
 
     @Override
@@ -82,9 +84,5 @@ public class InstructorLookupServiceImpl implements InstructorLookupService {
             }
         }
         return entries;
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.trim().isEmpty();
     }
 }

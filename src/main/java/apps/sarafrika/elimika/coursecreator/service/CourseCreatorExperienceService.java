@@ -10,8 +10,7 @@ import java.util.UUID;
 public interface CourseCreatorExperienceService {
     CourseCreatorExperienceDTO createCourseCreatorExperience(CourseCreatorExperienceDTO dto);
     CourseCreatorExperienceDTO getCourseCreatorExperienceByUuid(UUID uuid);
-    Page<CourseCreatorExperienceDTO> getAllCourseCreatorExperience(Pageable pageable);
     CourseCreatorExperienceDTO updateCourseCreatorExperience(UUID uuid, CourseCreatorExperienceDTO dto);
-    void deleteCourseCreatorExperience(UUID uuid);
+    void deleteCourseCreatorExperience(UUID courseCreatorUuid, UUID uuid);
     Page<CourseCreatorExperienceDTO> search(Map<String, String> searchParams, Pageable pageable);
 }

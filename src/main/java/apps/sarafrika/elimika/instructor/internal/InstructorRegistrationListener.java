@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.instructor.model.Instructor;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InstructorRegistrationListener {
     private final InstructorRepository instructorRepository;
+    private final ProfessionalProfileService professionalProfileService;
 
     @ApplicationModuleListener
     void onInstructorRegistration(RegisterInstructor event) {
@@ -50,6 +52,8 @@ public class InstructorRegistrationListener {
         instructor.setUserUuid(userUuid);
         instructor.setFullName(fullName);
         instructor.setAdminVerified(false);
+        // A user who already filled in their shared profile under another domain starts with it.
+        InstructorBasics.copy(professionalProfileService.getBasics(userUuid), instructor);
         instructorRepository.save(instructor);
     }
 }

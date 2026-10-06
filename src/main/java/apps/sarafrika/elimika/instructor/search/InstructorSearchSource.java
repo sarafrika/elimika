@@ -1,13 +1,13 @@
 package apps.sarafrika.elimika.instructor.search;
 
 import apps.sarafrika.elimika.instructor.model.Instructor;
-import apps.sarafrika.elimika.instructor.model.InstructorExperience;
 import apps.sarafrika.elimika.instructor.model.InstructorReview;
-import apps.sarafrika.elimika.instructor.model.InstructorSkill;
-import apps.sarafrika.elimika.instructor.repository.InstructorExperienceRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorReviewRepository;
-import apps.sarafrika.elimika.instructor.repository.InstructorSkillRepository;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileDTO;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.UserExperienceDTO;
+import apps.sarafrika.elimika.profile.spi.UserSkillDTO;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
 import apps.sarafrika.elimika.shared.search.SearchDocumentAttributes;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
@@ -39,6 +39,7 @@ import org.springframework.stereotype.Component;
  * Schema v3 adds {@code _geo} for near-me search: only for an instructor who opted in, is verified
  * and has coordinates, and always rounded to about 1 km. Verification and the opt-in are columns of
  * the instructor row, so the entity trigger re-indexes the profile when either changes.
+ * Skills, experience and basics come from the owner's shared professional profile.
  */
 @Component
 @RequiredArgsConstructor
@@ -58,8 +59,7 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
     static final int BIO_MAX_LENGTH = 1500;
 
     private final InstructorRepository instructorRepository;
-    private final InstructorSkillRepository skillRepository;
-    private final InstructorExperienceRepository experienceRepository;
+    private final ProfessionalProfileService profileService;
     private final InstructorReviewRepository reviewRepository;
 
     @Override
@@ -88,8 +88,6 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
     public List<SearchIndexTrigger<?>> triggers() {
         return List.of(
                 SearchIndexTrigger.direct(Instructor.class, Instructor::getUuid),
-                SearchIndexTrigger.direct(InstructorSkill.class, InstructorSkill::getInstructorUuid),
-                SearchIndexTrigger.direct(InstructorExperience.class, InstructorExperience::getInstructorUuid),
                 SearchIndexTrigger.direct(InstructorReview.class, InstructorReview::getInstructorUuid));
     }
 
@@ -103,52 +101,56 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
             return List.of();
         }
         List<UUID> uuids = instructors.stream().map(Instructor::getUuid).toList();
-        Map<UUID, List<InstructorSkill>> skills = skillRepository.findByInstructorUuidInOrderByIdAsc(uuids).stream()
-                .collect(Collectors.groupingBy(InstructorSkill::getInstructorUuid));
-        Map<UUID, List<InstructorExperience>> experience = experienceRepository
-                .findByInstructorUuidInOrderByIdAsc(uuids).stream()
-                .collect(Collectors.groupingBy(InstructorExperience::getInstructorUuid));
+        List<UUID> userUuids = instructors.stream().map(Instructor::getUserUuid).filter(Objects::nonNull).toList();
+        Map<UUID, List<UserSkillDTO>> skills = profileService.skills().listForUsers(userUuids).stream()
+                .collect(Collectors.groupingBy(UserSkillDTO::userUuid));
+        Map<UUID, List<UserExperienceDTO>> experience = profileService.experience().listForUsers(userUuids).stream()
+                .collect(Collectors.groupingBy(UserExperienceDTO::userUuid));
+        Map<UUID, ProfessionalProfileDTO> basics = profileService.getBasics(userUuids);
         Map<UUID, InstructorRatingAggregate> ratings = new HashMap<>();
         reviewRepository.aggregateRatingsByInstructorUuidIn(uuids)
                 .forEach(aggregate -> ratings.put(aggregate.instructorUuid(), aggregate));
 
         return instructors.stream()
                 .map(instructor -> toDocument(instructor,
-                        skills.getOrDefault(instructor.getUuid(), List.of()),
-                        experience.getOrDefault(instructor.getUuid(), List.of()),
+                        basics.get(instructor.getUserUuid()),
+                        skills.getOrDefault(instructor.getUserUuid(), List.of()),
+                        experience.getOrDefault(instructor.getUserUuid(), List.of()),
                         ratings.get(instructor.getUuid())))
                 .toList();
     }
 
     private static InstructorSearchDocument toDocument(
             Instructor instructor,
-            List<InstructorSkill> skills,
-            List<InstructorExperience> experience,
+            ProfessionalProfileDTO basics,
+            List<UserSkillDTO> skills,
+            List<UserExperienceDTO> experience,
             InstructorRatingAggregate rating
     ) {
+        ProfessionalProfileDTO profile = basics == null ? ProfessionalProfileDTO.empty(instructor.getUserUuid()) : basics;
         List<String> skillNames = new ArrayList<>();
         List<String> skillLevels = new ArrayList<>();
         List<UUID> skillUuids = new ArrayList<>();
-        for (InstructorSkill skill : skills) {
-            if (skill.getSkillUuid() != null && !skillUuids.contains(skill.getSkillUuid())) {
-                skillUuids.add(skill.getSkillUuid());
+        for (UserSkillDTO skill : skills) {
+            if (skill.skillUuid() != null && !skillUuids.contains(skill.skillUuid())) {
+                skillUuids.add(skill.skillUuid());
             }
-            if (skill.getSkillName() == null || skill.getSkillName().isBlank()) {
+            if (skill.skillName() == null || skill.skillName().isBlank()) {
                 continue;
             }
-            skillNames.add(skill.getSkillName().trim());
-            skillLevels.add(skill.getProficiencyLevel() == null ? "" : skill.getProficiencyLevel().name());
+            skillNames.add(skill.skillName().trim());
+            skillLevels.add(skill.proficiencyLevel() == null ? "" : skill.proficiencyLevel().name());
         }
         return new InstructorSearchDocument(
                 instructor.getUuid(),
                 instructor.getFullName(),
-                instructor.getProfessionalHeadline(),
-                truncate(instructor.getBio()),
-                instructor.getLocationName(),
+                profile.professionalHeadline() != null ? profile.professionalHeadline() : instructor.getProfessionalHeadline(),
+                truncate(profile.bio() != null ? profile.bio() : instructor.getBio()),
+                profile.locationName() != null ? profile.locationName() : instructor.getLocationName(),
                 skillNames,
                 skillLevels,
-                distinctNonBlank(experience, InstructorExperience::getPosition),
-                distinctNonBlank(experience, InstructorExperience::getOrganizationName),
+                distinctNonBlank(experience, UserExperienceDTO::position),
+                distinctNonBlank(experience, UserExperienceDTO::organizationName),
                 Boolean.TRUE.equals(instructor.getAdminVerified()),
                 true,
                 rating == null || rating.average() == null ? null
@@ -177,8 +179,8 @@ public class InstructorSearchSource implements SearchDocumentSource<InstructorSe
                 && instructor.getLongitude() != null;
     }
 
-    private static List<String> distinctNonBlank(List<InstructorExperience> rows,
-                                                 Function<InstructorExperience, String> field) {
+    private static List<String> distinctNonBlank(List<UserExperienceDTO> rows,
+                                                 Function<UserExperienceDTO, String> field) {
         return rows.stream()
                 .map(field)
                 .filter(Objects::nonNull)

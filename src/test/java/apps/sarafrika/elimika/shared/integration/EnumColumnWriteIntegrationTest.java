@@ -1,8 +1,8 @@
 package apps.sarafrika.elimika.shared.integration;
 
-import apps.sarafrika.elimika.coursecreator.model.CourseCreatorSkill;
-import apps.sarafrika.elimika.instructor.model.InstructorDocument;
-import apps.sarafrika.elimika.instructor.model.InstructorSkill;
+import apps.sarafrika.elimika.profile.internal.model.UserDocument;
+import apps.sarafrika.elimika.profile.internal.model.UserSkill;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
@@ -98,10 +98,10 @@ class EnumColumnWriteIntegrationTest {
     }
 
     @Test
-    @DisplayName("an instructor skill is inserted with its proficiency level")
-    void instructorSkillInsert() {
-        InstructorSkill skill = new InstructorSkill();
-        skill.setInstructorUuid(instructorUuid);
+    @DisplayName("a profile skill is inserted with its proficiency level and verification status")
+    void userSkillInsert() {
+        UserSkill skill = new UserSkill();
+        skill.setUserUuid(userUuid);
         skill.setSkillName("Kubernetes");
         skill.setProficiencyLevel(ProficiencyLevel.ADVANCED);
         audit(skill);
@@ -109,51 +109,34 @@ class EnumColumnWriteIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(jdbc.queryForObject("SELECT proficiency_level FROM instructor_skills WHERE instructor_uuid = ?",
-                String.class, instructorUuid)).isEqualTo("ADVANCED");
-        assertThat(entityManager.find(InstructorSkill.class, skill.getId()).getProficiencyLevel())
-                .isEqualTo(ProficiencyLevel.ADVANCED);
+        assertThat(jdbc.queryForObject("SELECT proficiency_level FROM user_skills WHERE user_uuid = ?",
+                String.class, userUuid)).isEqualTo("ADVANCED");
+        UserSkill reloaded = entityManager.find(UserSkill.class, skill.getId());
+        assertThat(reloaded.getProficiencyLevel()).isEqualTo(ProficiencyLevel.ADVANCED);
+        assertThat(reloaded.getVerificationStatus()).isEqualTo(WalletVerificationStatus.PENDING);
     }
 
     @Test
-    @DisplayName("a course-creator skill is inserted with its proficiency level")
-    void courseCreatorSkillInsert() {
-        CourseCreatorSkill skill = new CourseCreatorSkill();
-        skill.setCourseCreatorUuid(courseCreatorUuid);
-        skill.setSkillName("Curriculum design");
-        skill.setProficiencyLevel(ProficiencyLevel.EXPERT);
-        audit(skill);
-        entityManager.persist(skill);
-        entityManager.flush();
-        entityManager.clear();
-
-        assertThat(jdbc.queryForObject("SELECT proficiency_level FROM course_creator_skills WHERE course_creator_uuid = ?",
-                String.class, courseCreatorUuid)).isEqualTo("EXPERT");
-        assertThat(entityManager.find(CourseCreatorSkill.class, skill.getId()).getProficiencyLevel())
-                .isEqualTo(ProficiencyLevel.EXPERT);
-    }
-
-    @Test
-    @DisplayName("an instructor document status is updated")
-    void instructorDocumentStatusUpdate() {
+    @DisplayName("a profile document status is updated")
+    void userDocumentStatusUpdate() {
         UUID documentUuid = UUID.randomUUID();
-        jdbc.update("INSERT INTO instructor_documents (uuid, instructor_uuid, document_type_uuid, original_filename, "
+        jdbc.update("INSERT INTO user_documents (uuid, user_uuid, document_type_uuid, original_filename, "
                         + "stored_filename, file_path, file_size_bytes, mime_type, title, created_by) "
                         + "VALUES (?, ?, (SELECT uuid FROM document_types ORDER BY id LIMIT 1), 'cv.pdf', 'cv.pdf', "
                         + "'docs/cv.pdf', 10, 'application/pdf', 'CV', 'test')",
-                documentUuid, instructorUuid);
-        assertThat(jdbc.queryForObject("SELECT status FROM instructor_documents WHERE uuid = ?", String.class,
+                documentUuid, userUuid);
+        assertThat(jdbc.queryForObject("SELECT status FROM user_documents WHERE uuid = ?", String.class,
                 documentUuid)).isEqualTo("PENDING");
 
-        InstructorDocument document = entityManager
-                .createQuery("SELECT d FROM InstructorDocument d WHERE d.uuid = :uuid", InstructorDocument.class)
+        UserDocument document = entityManager
+                .createQuery("SELECT d FROM UserDocument d WHERE d.uuid = :uuid", UserDocument.class)
                 .setParameter("uuid", documentUuid).getSingleResult();
         assertThat(document.getStatus()).isEqualTo(DocumentStatus.PENDING);
         document.setStatus(DocumentStatus.APPROVED);
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(jdbc.queryForObject("SELECT status FROM instructor_documents WHERE uuid = ?", String.class,
+        assertThat(jdbc.queryForObject("SELECT status FROM user_documents WHERE uuid = ?", String.class,
                 documentUuid)).isEqualTo("APPROVED");
     }
 

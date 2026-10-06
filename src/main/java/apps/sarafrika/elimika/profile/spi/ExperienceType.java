@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.Locale;
 
-/** Kind of experience in a course creator skills wallet. */
+/** Kind of experience in the user skills wallet. */
 public enum ExperienceType {
     TRAINING,
     WORK,

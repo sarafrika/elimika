@@ -10,8 +10,7 @@ import java.util.UUID;
 public interface CourseCreatorProfessionalMembershipService {
     CourseCreatorProfessionalMembershipDTO createCourseCreatorProfessionalMembership(CourseCreatorProfessionalMembershipDTO dto);
     CourseCreatorProfessionalMembershipDTO getCourseCreatorProfessionalMembershipByUuid(UUID uuid);
-    Page<CourseCreatorProfessionalMembershipDTO> getAllCourseCreatorProfessionalMemberships(Pageable pageable);
     CourseCreatorProfessionalMembershipDTO updateCourseCreatorProfessionalMembership(UUID uuid, CourseCreatorProfessionalMembershipDTO dto);
-    void deleteCourseCreatorProfessionalMembership(UUID uuid);
+    void deleteCourseCreatorProfessionalMembership(UUID courseCreatorUuid, UUID uuid);
     Page<CourseCreatorProfessionalMembershipDTO> search(Map<String, String> searchParams, Pageable pageable);
 }

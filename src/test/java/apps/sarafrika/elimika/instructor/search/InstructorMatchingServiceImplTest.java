@@ -1,11 +1,12 @@
 package apps.sarafrika.elimika.instructor.search;
 
 import apps.sarafrika.elimika.instructor.model.Instructor;
-import apps.sarafrika.elimika.instructor.model.InstructorSkill;
-import apps.sarafrika.elimika.instructor.repository.InstructorExperienceRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorRepository;
 import apps.sarafrika.elimika.instructor.repository.InstructorReviewRepository;
-import apps.sarafrika.elimika.instructor.repository.InstructorSkillRepository;
+import apps.sarafrika.elimika.profile.spi.ProfessionalProfileService;
+import apps.sarafrika.elimika.profile.spi.ProfileSectionService;
+import apps.sarafrika.elimika.profile.spi.UserExperienceDTO;
+import apps.sarafrika.elimika.profile.spi.UserSkillDTO;
 import apps.sarafrika.elimika.instructor.spi.InstructorMatchProfile;
 import apps.sarafrika.elimika.shared.search.NearMe;
 import apps.sarafrika.elimika.shared.search.SearchAvailability;
@@ -34,13 +35,16 @@ import static org.mockito.Mockito.when;
 class InstructorMatchingServiceImplTest {
 
     private final InstructorRepository instructorRepository = mock(InstructorRepository.class);
-    private final InstructorSkillRepository skillRepository = mock(InstructorSkillRepository.class);
-    private final InstructorExperienceRepository experienceRepository = mock(InstructorExperienceRepository.class);
+    private final ProfessionalProfileService profileService = mock(ProfessionalProfileService.class);
+    @SuppressWarnings("unchecked")
+    private final ProfileSectionService<UserSkillDTO> skills = mock(ProfileSectionService.class);
+    @SuppressWarnings("unchecked")
+    private final ProfileSectionService<UserExperienceDTO> experience = mock(ProfileSectionService.class);
     private final InstructorReviewRepository reviewRepository = mock(InstructorReviewRepository.class);
     private final SearchAvailability searchAvailability = mock(SearchAvailability.class);
     private final SearchGateway searchGateway = mock(SearchGateway.class);
     private final InstructorMatchingServiceImpl service = new InstructorMatchingServiceImpl(instructorRepository,
-            skillRepository, experienceRepository, reviewRepository, searchAvailability, searchGateway);
+            profileService, reviewRepository, searchAvailability, searchGateway);
 
     @Test
     void theBayesianRatingShrinksTowardsThePlatformMean() {
@@ -54,16 +58,13 @@ class InstructorMatchingServiceImplTest {
         Instructor optedIn = instructor(true, true);
         Instructor optedOut = instructor(false, true);
         UUID python = UUID.randomUUID();
-        InstructorSkill linked = new InstructorSkill();
-        linked.setInstructorUuid(optedIn.getUuid());
-        linked.setSkillUuid(python);
-        linked.setSkillName("Python");
-        linked.setProficiencyLevel(ProficiencyLevel.ADVANCED);
-        InstructorSkill freeText = new InstructorSkill();
-        freeText.setInstructorUuid(optedIn.getUuid());
-        freeText.setSkillName("Juggling");
+        UserSkillDTO linked = skill(optedIn.getUserUuid(), "Python", python, ProficiencyLevel.ADVANCED);
+        UserSkillDTO freeText = skill(optedIn.getUserUuid(), "Juggling", null, null);
         when(instructorRepository.findByUuidIn(anyCollection())).thenReturn(List.of(optedIn, optedOut));
-        when(skillRepository.findByInstructorUuidInOrderByIdAsc(anyCollection())).thenReturn(List.of(linked, freeText));
+        when(profileService.skills()).thenReturn(skills);
+        when(profileService.experience()).thenReturn(experience);
+        when(skills.listForUsers(anyCollection())).thenReturn(List.of(linked, freeText));
+        when(experience.listForUsers(anyCollection())).thenReturn(List.of());
 
         Map<UUID, InstructorMatchProfile> profiles = service.findMatchProfiles(List.of(optedIn.getUuid(), optedOut.getUuid()));
 
@@ -99,9 +100,15 @@ class InstructorMatchingServiceImplTest {
                 uuids.length, 0, 100, Map.of());
     }
 
+    private static UserSkillDTO skill(UUID userUuid, String name, UUID skillUuid, ProficiencyLevel level) {
+        return new UserSkillDTO(UUID.randomUUID(), userUuid, name, skillUuid, level, null, null, null, null, null,
+                null, null, null, null);
+    }
+
     private static Instructor instructor(boolean optedIn, boolean verified) {
         Instructor instructor = new Instructor();
         instructor.setUuid(UUID.randomUUID());
+        instructor.setUserUuid(UUID.randomUUID());
         instructor.setFullName("Jane Doe");
         instructor.setAdminVerified(verified);
         instructor.setLocationSearchOptIn(optedIn);

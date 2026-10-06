@@ -11,17 +11,10 @@ import java.util.UUID;
 public interface InstructorDocumentService {
     InstructorDocumentDTO createInstructorDocument(InstructorDocumentDTO instructorDocumentDTO);
     InstructorDocumentDTO getInstructorDocumentByUuid(UUID uuid);
-    Page<InstructorDocumentDTO> getAllInstructorDocuments(Pageable pageable);
     InstructorDocumentDTO updateInstructorDocument(UUID uuid, InstructorDocumentDTO instructorDocumentDTO);
     void deleteInstructorDocument(UUID uuid);
     Page<InstructorDocumentDTO> search(Map<String, String> searchParams, Pageable pageable);
-
-    // Additional methods specific to InstructorDocument
     List<InstructorDocumentDTO> getDocumentsByInstructorUuid(UUID instructorUuid);
-    List<InstructorDocumentDTO> getDocumentsByDocumentTypeUuid(UUID documentTypeUuid);
-    List<InstructorDocumentDTO> getDocumentsByInstructorAndDocumentType(UUID instructorUuid, UUID documentTypeUuid);
     InstructorDocumentDTO verifyDocument(UUID uuid, String verifiedBy, String verificationNotes);
-    void markDocumentAsExpired(UUID uuid);
-    List<InstructorDocumentDTO> getExpiringDocuments(int daysBeforeExpiry);
-    List<InstructorDocumentDTO> getUnverifiedDocuments();
+    boolean isDocumentFileOf(UUID instructorUuid, String filePath);
 }

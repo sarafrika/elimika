@@ -22,8 +22,9 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
      * Aggregated instructor directory rows for a single organisation.
      * <p>
      * Joins the tenancy org-domain mapping (active, non-deleted, domain = 'instructor')
-     * to the instructor profile, then LEFT JOINs the most recent qualification, a
-     * representative skill, aggregate review metrics, and the class-definition count.
+     * to the instructor profile, then LEFT JOINs the most recent qualification and a representative
+     * skill from the owner's shared professional profile, aggregate review metrics, and the
+     * class-definition count.
      * Column order matches {@code apps.sarafrika.elimika.instructor.dto.OrgInstructorSummaryDTO}.
      */
     @Query(value = """
@@ -47,15 +48,16 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
                 ON u.uuid = i.user_uuid
             LEFT JOIN LATERAL (
                 SELECT e.qualification, e.field_of_study
-                FROM instructor_education e
-                WHERE e.instructor_uuid = i.uuid
+                FROM user_education e
+                WHERE e.user_uuid = i.user_uuid
                 ORDER BY e.year_completed DESC NULLS LAST
                 LIMIT 1
             ) edu ON true
             LEFT JOIN LATERAL (
                 SELECT s.skill_name
-                FROM instructor_skills s
-                WHERE s.instructor_uuid = i.uuid
+                FROM user_skills s
+                WHERE s.user_uuid = i.user_uuid
+                ORDER BY s.id
                 LIMIT 1
             ) sk ON true
             LEFT JOIN (
@@ -92,6 +94,12 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long>, J
     boolean existsByUserUuid(UUID userUuid);
 
     Optional<Instructor> findByUserUuid(UUID userUuid);
+
+    List<Instructor> findByUserUuidIn(Collection<UUID> userUuids);
+
+    /** Owners of every instructor profile: bounds cross-instructor searches of the shared profile tables. */
+    @Query("SELECT DISTINCT instructor.userUuid FROM Instructor instructor WHERE instructor.userUuid IS NOT NULL")
+    List<UUID> findAllUserUuids();
 
     /**
      * Directory identity for several instructors at once, as a projection.

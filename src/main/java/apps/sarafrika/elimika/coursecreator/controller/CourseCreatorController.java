@@ -420,7 +420,7 @@ public class CourseCreatorController {
     public ResponseEntity<Void> deleteCourseCreatorSkill(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID skillUuid) {
-        courseCreatorSkillService.deleteCourseCreatorSkill(skillUuid);
+        courseCreatorSkillService.deleteCourseCreatorSkill(courseCreatorUuid, skillUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -468,7 +468,7 @@ public class CourseCreatorController {
     public ResponseEntity<Void> deleteCourseCreatorEducation(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID educationUuid) {
-        courseCreatorEducationService.deleteCourseCreatorEducation(educationUuid);
+        courseCreatorEducationService.deleteCourseCreatorEducation(courseCreatorUuid, educationUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -515,7 +515,7 @@ public class CourseCreatorController {
     public ResponseEntity<Void> deleteCourseCreatorExperience(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID experienceUuid) {
-        courseCreatorExperienceService.deleteCourseCreatorExperience(experienceUuid);
+        courseCreatorExperienceService.deleteCourseCreatorExperience(courseCreatorUuid, experienceUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -563,7 +563,7 @@ public class CourseCreatorController {
     public ResponseEntity<Void> deleteCourseCreatorMembership(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID membershipUuid) {
-        courseCreatorProfessionalMembershipService.deleteCourseCreatorProfessionalMembership(membershipUuid);
+        courseCreatorProfessionalMembershipService.deleteCourseCreatorProfessionalMembership(courseCreatorUuid, membershipUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -611,7 +611,7 @@ public class CourseCreatorController {
     public ResponseEntity<Void> deleteCourseCreatorCertification(
             @PathVariable UUID courseCreatorUuid,
             @PathVariable UUID certificationUuid) {
-        courseCreatorCertificationService.deleteCourseCreatorCertification(certificationUuid);
+        courseCreatorCertificationService.deleteCourseCreatorCertification(courseCreatorUuid, certificationUuid);
         return ResponseEntity.noContent().build();
     }
 
@@ -733,7 +733,8 @@ public class CourseCreatorController {
         String expectedPrefix = storageProperties.getFolders().getProfileDocuments()
                 + "/course-creators/" + courseCreatorUuid + "/";
 
-        if (!normalizedFilePath.startsWith(expectedPrefix)) {
+        if (!normalizedFilePath.startsWith(expectedPrefix)
+                && !courseCreatorDocumentService.isDocumentFileOf(courseCreatorUuid, normalizedFilePath)) {
             return ResponseEntity.notFound().build();
         }
 
