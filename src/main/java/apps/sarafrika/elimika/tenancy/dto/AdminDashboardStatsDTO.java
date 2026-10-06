@@ -84,7 +84,10 @@ public record AdminDashboardStatsDTO(
         @JsonProperty("new_registrations_7d")
         long newRegistrations7d,
         @JsonProperty("suspended_accounts")
-        long suspendedAccounts
+        long suspendedAccounts,
+        @Schema(description = "Domain requests awaiting platform admin approval")
+        @JsonProperty("pending_domain_approvals")
+        long pendingDomainApprovals
     ) {}
 
     @Schema(description = "Organisation metrics for dashboard")

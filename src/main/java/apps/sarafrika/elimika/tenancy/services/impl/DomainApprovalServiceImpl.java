@@ -4,7 +4,12 @@ import apps.sarafrika.elimika.shared.event.user.DomainApprovalRequestedEvent;
 import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.config.RegistrationProperties;
+import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.dto.AccountStatusDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminDomainApplicationDTO;
+import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.tenancy.internal.DomainApprovalNotifier;
+import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.dto.DomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainMappingRepository;
@@ -38,6 +43,8 @@ public class DomainApprovalServiceImpl implements DomainApprovalService {
     private final UserOrganisationDomainMappingRepository organisationMappingRepository;
     private final RegistrationProperties registrationProperties;
     private final ApplicationEventPublisher eventPublisher;
+    private final DomainApprovalNotifier notifier;
+    private final UserRepository userRepository;
 
     @Override
     public DomainApplicationDTO request(UUID userUuid, UserDomain domain) {
@@ -52,6 +59,7 @@ public class DomainApprovalServiceImpl implements DomainApprovalService {
                     if (status == DomainApprovalStatus.PENDING) {
                         log.info("User {} requested domain {}; awaiting approval", userUuid, domain);
                         eventPublisher.publishEvent(new DomainApprovalRequestedEvent(userUuid, domain.name()));
+                        notifier.requested(userUuid, domain.name());
                     }
                     return toDTO(saved, domain.name());
                 });
@@ -83,7 +91,80 @@ public class DomainApprovalServiceImpl implements DomainApprovalService {
         mapping.setReviewedBy(reviewedBy);
         mapping.setReviewReason(reason);
         log.info("Domain {} for user {} is now {}", domain, userUuid, status);
-        return toDTO(mappingRepository.save(mapping), domain.name());
+        UserDomainMapping saved = mappingRepository.save(mapping);
+        notifier.decided(userUuid, domain.name(), status, reason);
+        return toDTO(saved, domain.name());
+    }
+
+    @Override
+    public DomainApplicationDTO moderate(UUID userUuid, UserDomain domain, String action, String reason,
+                                         UUID reviewedBy) {
+        if (domain == UserDomain.course_creator || domain == UserDomain.organisation_user) {
+            throw new IllegalStateException("The " + domain + " domain is approved through its profile review");
+        }
+        if (userUuid.equals(reviewedBy)) {
+            throw new IllegalStateException("Administrators cannot approve their own account");
+        }
+        if (existing(userUuid, domainUuid(domain)).isEmpty()) {
+            throw new ResourceNotFoundException("User " + userUuid + " has not requested the " + domain + " domain");
+        }
+        DomainApprovalStatus status = switch (action == null ? "" : action.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "approve" -> DomainApprovalStatus.APPROVED;
+            case "reject" -> DomainApprovalStatus.REJECTED;
+            case "revoke" -> DomainApprovalStatus.SUSPENDED;
+            default -> throw new IllegalArgumentException("Unsupported moderation action: " + action);
+        };
+        return decide(userUuid, domain, status, reason, reviewedBy);
+    }
+
+    @Override
+    public void approveReviewedProfile(UUID userUuid, UserDomain domain, UUID reviewedBy) {
+        boolean alreadyApproved = existing(userUuid, domainUuid(domain))
+                .map(UserDomainMapping::isApproved)
+                .orElse(false);
+        if (!alreadyApproved) {
+            decide(userUuid, domain, DomainApprovalStatus.APPROVED, null, reviewedBy);
+        }
+    }
+
+    @Override
+    public void approveOrganisationAdmins(UUID organisationUuid, UUID reviewedBy) {
+        UUID adminDomain = domainUuid(UserDomain.admin);
+        organisationMappingRepository.findActiveByOrganisationAndDomain(organisationUuid, adminDomain)
+                .forEach(member -> approveReviewedProfile(member.getUserUuid(), UserDomain.organisation_user, reviewedBy));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminDomainApplicationDTO> queue(DomainApprovalStatus status, UserDomain domain) {
+        Map<UUID, String> names = domainNames();
+        UUID domainUuid = domain == null ? null : domainUuid(domain);
+        List<UserDomainMapping> mappings = mappingRepository.findByStatusOrderByCreatedAtAsc(status).stream()
+                .filter(mapping -> domainUuid == null || domainUuid.equals(mapping.getUserDomainUuid()))
+                .toList();
+        Map<UUID, User> users = userRepository.findByUuidIn(mappings.stream().map(UserDomainMapping::getUserUuid)
+                        .distinct().toList()).stream()
+                .collect(Collectors.toMap(User::getUuid, user -> user, (first, second) -> first));
+        return mappings.stream()
+                .map(mapping -> {
+                    User user = users.get(mapping.getUserUuid());
+                    return new AdminDomainApplicationDTO(mapping.getUserUuid(),
+                            user == null ? null : (nullToEmpty(user.getFirstName()) + " " + nullToEmpty(user.getLastName())).trim(),
+                            user == null ? null : user.getEmail(),
+                            names.get(mapping.getUserDomainUuid()), mapping.getStatus(), mapping.getCreatedAt(),
+                            mapping.getReviewedAt(), mapping.getReviewReason());
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countWithStatus(DomainApprovalStatus status) {
+        return mappingRepository.countByStatus(status);
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     @Override
@@ -93,17 +174,6 @@ public class DomainApprovalServiceImpl implements DomainApprovalService {
         return mappingRepository.findByUserUuid(userUuid).stream()
                 .sorted(Comparator.comparing(UserDomainMapping::getCreatedAt,
                         Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(mapping -> toDTO(mapping, names.get(mapping.getUserDomainUuid())))
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<DomainApplicationDTO> applicationsWithStatus(DomainApprovalStatus status, UserDomain domain) {
-        Map<UUID, String> names = domainNames();
-        UUID domainUuid = domain == null ? null : domainUuid(domain);
-        return mappingRepository.findByStatusOrderByCreatedAtAsc(status).stream()
-                .filter(mapping -> domainUuid == null || domainUuid.equals(mapping.getUserDomainUuid()))
                 .map(mapping -> toDTO(mapping, names.get(mapping.getUserDomainUuid())))
                 .toList();
     }

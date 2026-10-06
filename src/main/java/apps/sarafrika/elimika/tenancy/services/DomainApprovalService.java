@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.services;
 import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.dto.AccountStatusDTO;
+import apps.sarafrika.elimika.tenancy.dto.AdminDomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainApplicationDTO;
 
 import java.util.List;
@@ -21,9 +22,21 @@ public interface DomainApprovalService {
     DomainApplicationDTO decide(UUID userUuid, UserDomain domain, DomainApprovalStatus status,
                                 String reason, UUID reviewedBy);
 
-    List<DomainApplicationDTO> applicationsFor(UUID userUuid);
+    /** Admin moderation of a domain without its own profile review; action is approve, reject or revoke. */
+    DomainApplicationDTO moderate(UUID userUuid, UserDomain domain, String action, String reason, UUID reviewedBy);
 
-    List<DomainApplicationDTO> applicationsWithStatus(DomainApprovalStatus status, UserDomain domain);
+    /** Approves the domain because its profile review passed (e.g. an instructor was verified). */
+    void approveReviewedProfile(UUID userUuid, UserDomain domain, UUID reviewedBy);
+
+    /** Approves the organisation_user domain of every admin of an approved organisation. */
+    void approveOrganisationAdmins(UUID organisationUuid, UUID reviewedBy);
+
+    /** The admin approval queue, newest requests last, with names for display. */
+    List<AdminDomainApplicationDTO> queue(DomainApprovalStatus status, UserDomain domain);
+
+    long countWithStatus(DomainApprovalStatus status);
+
+    List<DomainApplicationDTO> applicationsFor(UUID userUuid);
 
     AccountStatusDTO accountStatus(UUID userUuid);
 }

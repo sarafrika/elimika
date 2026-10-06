@@ -11,7 +11,12 @@ import apps.sarafrika.elimika.tenancy.dto.OrganisationUserCreateRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserDTO;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
+import apps.sarafrika.elimika.tenancy.dto.AdminDomainApplicationDTO;
+import apps.sarafrika.elimika.tenancy.dto.DomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import apps.sarafrika.elimika.instructor.spi.InstructorDTO;
 import apps.sarafrika.elimika.instructor.spi.InstructorManagementService;
@@ -67,6 +72,48 @@ public class AdminController {
     private final AdminService adminService;
     private final OrganisationService organisationService;
     private final InstructorManagementService instructorManagementService;
+    private final DomainApprovalService domainApprovalService;
+    private final DomainSecurityService domainSecurityService;
+
+    // ================================
+    // REGISTRATION APPROVAL
+    // ================================
+
+    @Operation(operationId = "getRegistrationQueue", summary = "List domain requests awaiting review",
+            description = "Self-registrations and domain applications by approval status, oldest first. "
+                    + "Course creator and organisation requests are decided through their own profile review.")
+    @GetMapping("/registrations")
+    public ResponseEntity<ApiResponse<List<AdminDomainApplicationDTO>>> getRegistrationQueue(
+            @RequestParam(defaultValue = "PENDING") DomainApprovalStatus status,
+            @Parameter(description = "Optional domain filter, e.g. student")
+            @RequestParam(required = false) String domain) {
+        return ResponseEntity.ok(ApiResponse.success(
+                domainApprovalService.queue(status, domain == null ? null : parseDomain(domain)),
+                "Registration queue retrieved successfully"));
+    }
+
+    @Operation(operationId = "moderateUserDomain", summary = "Approve, reject or revoke a user's domain",
+            description = "For domains without a profile review (student, parent, instructor). Approval opens the "
+                    + "domain's dashboard; reject and revoke keep the user on the pending-approval screen.")
+    @PostMapping("/users/{userUuid}/domains/{domain}/moderate")
+    public ResponseEntity<ApiResponse<DomainApplicationDTO>> moderateUserDomain(
+            @PathVariable UUID userUuid,
+            @PathVariable String domain,
+            @Parameter(schema = @Schema(allowableValues = {"approve", "reject", "revoke"}), required = true)
+            @RequestParam("action") String action,
+            @RequestParam(required = false) String reason) {
+        DomainApplicationDTO decided = domainApprovalService.moderate(userUuid, parseDomain(domain), action, reason,
+                domainSecurityService.getCurrentUserUuid());
+        return ResponseEntity.ok(ApiResponse.success(decided, "Domain moderation completed successfully"));
+    }
+
+    private static apps.sarafrika.elimika.shared.utils.enums.UserDomain parseDomain(String domain) {
+        try {
+            return apps.sarafrika.elimika.shared.utils.enums.UserDomain.valueOf(domain.trim().toLowerCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown domain: " + domain);
+        }
+    }
 
     // ================================
     // ADMIN DOMAIN MANAGEMENT

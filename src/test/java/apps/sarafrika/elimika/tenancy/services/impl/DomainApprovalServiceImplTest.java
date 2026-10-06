@@ -7,6 +7,8 @@ import apps.sarafrika.elimika.tenancy.config.RegistrationProperties;
 import apps.sarafrika.elimika.tenancy.dto.AccountStatusDTO;
 import apps.sarafrika.elimika.tenancy.dto.DomainApplicationDTO;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
+import apps.sarafrika.elimika.tenancy.internal.DomainApprovalNotifier;
+import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainMappingRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
@@ -47,6 +49,10 @@ class DomainApprovalServiceImplTest {
     private UserOrganisationDomainMappingRepository organisationMappingRepository;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private DomainApprovalNotifier notifier;
+    @Mock
+    private UserRepository userRepository;
 
     private RegistrationProperties properties;
     private DomainApprovalServiceImpl service;
@@ -57,7 +63,7 @@ class DomainApprovalServiceImplTest {
         properties = new RegistrationProperties();
         properties.setApprovalRequiredDomains(EnumSet.of(UserDomain.student));
         service = new DomainApprovalServiceImpl(mappingRepository, domainRepository, organisationMappingRepository,
-                properties, eventPublisher);
+                properties, eventPublisher, notifier, userRepository);
         when(domainRepository.findByDomainName("student")).thenReturn(Optional.of(domain(STUDENT_DOMAIN, "student")));
         when(domainRepository.findByDomainName("admin")).thenReturn(Optional.of(domain(ADMIN_DOMAIN, "admin")));
         when(domainRepository.findAll()).thenReturn(List.of(domain(STUDENT_DOMAIN, "student"), domain(ADMIN_DOMAIN, "admin")));
@@ -73,6 +79,7 @@ class DomainApprovalServiceImplTest {
 
         assertThat(application.status()).isEqualTo(DomainApprovalStatus.PENDING);
         verify(eventPublisher).publishEvent(new DomainApprovalRequestedEvent(userUuid, "student"));
+        verify(notifier).requested(userUuid, "student");
     }
 
     @Test
@@ -120,6 +127,25 @@ class DomainApprovalServiceImplTest {
         assertThat(decided.reviewReason()).isEqualTo("Incomplete details");
         assertThat(pending.getReviewedBy()).isEqualTo(admin);
         assertThat(decided.reviewedAt()).isNotNull();
+        verify(notifier).decided(userUuid, "student", DomainApprovalStatus.REJECTED, "Incomplete details");
+    }
+
+    @Test
+    void moderateMapsRevokeToSuspended() {
+        UserDomainMapping approved = UserDomainMapping.of(userUuid, STUDENT_DOMAIN, DomainApprovalStatus.APPROVED);
+        when(mappingRepository.findByUserUuidAndUserDomainUuid(userUuid, STUDENT_DOMAIN)).thenReturn(List.of(approved));
+
+        DomainApplicationDTO decided = service.moderate(userUuid, UserDomain.student, "revoke", null, UUID.randomUUID());
+
+        assertThat(decided.status()).isEqualTo(DomainApprovalStatus.SUSPENDED);
+    }
+
+    @Test
+    void moderateRefusesProfileReviewedDomainsAndSelfApproval() {
+        assertThatThrownBy(() -> service.moderate(userUuid, UserDomain.course_creator, "approve", null, UUID.randomUUID()))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.moderate(userUuid, UserDomain.student, "approve", null, userUuid))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

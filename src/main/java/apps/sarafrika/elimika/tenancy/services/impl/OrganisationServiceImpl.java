@@ -574,6 +574,7 @@ public class OrganisationServiceImpl implements OrganisationService {
             publishOrganisationVerificationNotification(organisation, true);
             log.info("Successfully verified organisation: {} for reason: {}", organisationUuid, reason);
         }
+        domainApprovalService.approveOrganisationAdmins(organisationUuid, domainSecurityService.getCurrentUserUuid());
 
         return OrganisationFactory.toDTO(organisation);
     }

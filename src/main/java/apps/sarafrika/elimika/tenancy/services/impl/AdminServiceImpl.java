@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventService;
 import apps.sarafrika.elimika.authentication.spi.KeycloakAdminEventSummary;
@@ -457,7 +458,8 @@ public class AdminServiceImpl implements AdminService {
                         totalUsers,
                         activeUsers24h,
                         newRegistrations7d,
-                        suspendedUsers
+                        suspendedUsers,
+                        domainApprovalService.countWithStatus(DomainApprovalStatus.PENDING)
                 ),
                 new AdminDashboardStatsDTO.OrganizationMetrics(
                         totalOrganizations,

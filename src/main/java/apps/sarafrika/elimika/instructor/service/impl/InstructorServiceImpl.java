@@ -1,7 +1,9 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.shared.event.user.ProfileModerationDecidedEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
@@ -184,6 +186,9 @@ public class InstructorServiceImpl implements InstructorService {
         if (!wasVerified) {
             publishVerificationNotification(verifiedInstructor, true);
         }
+        // Verifying an instructor also approves their instructor domain if it was still pending.
+        applicationEventPublisher.publishEvent(new ProfileModerationDecidedEvent(verifiedInstructor.getUserUuid(),
+                UserDomain.instructor.name(), DomainApprovalStatus.APPROVED, reason, domainSecurityService.getCurrentUserUuid()));
 
         log.info("Successfully verified instructor {}", instructorUuid);
         return InstructorFactory.toDTO(verifiedInstructor);

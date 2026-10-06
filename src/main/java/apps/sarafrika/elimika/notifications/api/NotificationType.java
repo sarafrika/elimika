@@ -89,6 +89,9 @@ public enum NotificationType {
     GUARDIAN_CONSENT_REQUEST("GUARDIAN_CONSENT_REQUEST", "guardian-consent-request", "Guardian Consent Request", NotificationCategory.SYSTEM_ADMIN),
     ORGANISATION_INVITATION_ACCEPTED("ORGANISATION_INVITATION_ACCEPTED", "invitation-accepted", "Invitation Accepted", NotificationCategory.SYSTEM_ADMIN),
     ORGANISATION_ANNOUNCEMENT("ORGANISATION_ANNOUNCEMENT", "organisation-announcement", "Announcement", NotificationCategory.SYSTEM_ADMIN),
+    DOMAIN_APPROVAL_REQUESTED("DOMAIN_APPROVAL_REQUESTED", "domain-approval-requested", "Account Awaiting Approval", NotificationCategory.SYSTEM_ADMIN),
+    DOMAIN_APPROVAL_GRANTED("DOMAIN_APPROVAL_GRANTED", "domain-approval-decision", "Account Approved", NotificationCategory.SYSTEM_ADMIN),
+    DOMAIN_APPROVAL_DECLINED("DOMAIN_APPROVAL_DECLINED", "domain-approval-decision", "Account Not Approved", NotificationCategory.SYSTEM_ADMIN),
 
     // Engagement & Motivation
     WEEKLY_PROGRESS_SUMMARY("WEEKLY_PROGRESS_SUMMARY", "weekly-progress-summary", "Progress Summary", NotificationCategory.LEARNING_PROGRESS),
@@ -258,7 +261,10 @@ public enum NotificationType {
                  PROFILE_COMPLETION_REMINDER,
                  ORGANISATION_INVITATION,
                  GUARDIAN_CONSENT_REQUEST,
-                 ORGANISATION_ANNOUNCEMENT -> null;
+                 ORGANISATION_ANNOUNCEMENT,
+                 DOMAIN_APPROVAL_REQUESTED,
+                 DOMAIN_APPROVAL_GRANTED,
+                 DOMAIN_APPROVAL_DECLINED -> null;
         };
     }
 }
