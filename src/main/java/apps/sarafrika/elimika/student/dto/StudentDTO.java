@@ -3,10 +3,12 @@ package apps.sarafrika.elimika.student.dto;
 import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,6 +35,9 @@ import java.util.UUID;
             "second_guardian_name": "Jane Doe",
             "second_guardian_mobile": "+254787654321",
             "bio": "Curious learner who loves science and robotics clubs.",
+            "guardians": [
+                {"name": "John Doe", "email": "john@example.com", "phone": "+254712345678", "relationship_type": "PARENT"}
+            ],
             "created_date": "2024-04-01T12:00:00",
             "created_by": "admin@sarafrika.com",
             "updated_date": "2024-04-15T15:30:00",
@@ -137,6 +142,19 @@ public record StudentDTO(
         String bio,
 
         @Schema(
+                description = "**[OPTIONAL, WRITE-ONLY]** Parents or guardians, at most two. A guardian whose email "
+                        + "already has an account is linked at once; anyone else is emailed an invitation. Omit to leave "
+                        + "guardians unchanged; send an empty list to withdraw pending invitations. Read them back from "
+                        + "GET /api/v1/students/{uuid}/guardians. The first two also fill the legacy guardian name/mobile fields.",
+                accessMode = Schema.AccessMode.WRITE_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Valid
+        @Size(max = 2, message = "A student can name at most 2 guardians")
+        @JsonProperty(value = "guardians", access = JsonProperty.Access.WRITE_ONLY)
+        List<StudentGuardianRequestDTO> guardians,
+
+        @Schema(
                 description = "**[READ-ONLY]** Timestamp when the student profile was first created. Automatically set by the system.",
                 example = "2024-04-01T12:00:00Z",
                 format = "date-time",
@@ -204,6 +222,7 @@ public record StudentDTO(
                 null,
                 null,
                 bio,
+                null,
                 createdDate,
                 null,
                 updatedDate,

@@ -19,6 +19,7 @@ public abstract class StudentFactory {
                 student.getSecondGuardianName(),
                 student.getSecondGuardianMobile(),
                 student.getBio(),
+                null,
                 student.getCreatedDate(),
                 student.getCreatedBy(),
                 student.getLastModifiedDate(),

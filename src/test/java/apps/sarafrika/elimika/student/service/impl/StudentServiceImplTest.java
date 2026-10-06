@@ -2,7 +2,10 @@ package apps.sarafrika.elimika.student.service.impl;
 
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
+import apps.sarafrika.elimika.student.dto.StudentGuardianRequestDTO;
+import apps.sarafrika.elimika.student.service.StudentGuardianProvisioningService;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import apps.sarafrika.elimika.student.factory.StudentFactory;
 import apps.sarafrika.elimika.student.model.Student;
@@ -20,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -49,6 +55,12 @@ class StudentServiceImplTest {
     @Mock
     private UserLookupService userLookupService;
 
+    @Mock
+    private StudentGuardianProvisioningService guardianProvisioningService;
+
+    @Mock
+    private DomainSecurityService domainSecurityService;
+
     @InjectMocks
     private StudentServiceImpl studentService;
 
@@ -66,6 +78,7 @@ class StudentServiceImplTest {
                 "Guardian Two",
                 "+254711111111",
                 "Student Bio",
+                null,
                 LocalDateTime.now(),
                 "system",
                 LocalDateTime.now(),
@@ -146,5 +159,36 @@ class StudentServiceImplTest {
                 event instanceof UserDomainRemovedEvent removedEvent
                         && request.userUuid().equals(removedEvent.userUuid())
                         && "student".equals(removedEvent.userDomain())));
+    }
+
+    @Test
+    void shouldLeaveGuardiansAloneWhenRequestOmitsThem() {
+        when(ruleEvaluationService.evaluateAgeGate(any(), any())).thenReturn(AgeGateDecision.allow());
+        when(studentRepository.findByUserUuid(request.userUuid())).thenReturn(Optional.empty());
+        when(studentRepository.save(any(Student.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        studentService.createStudent(request);
+
+        verify(guardianProvisioningService, never()).syncGuardians(any(), any(), any());
+    }
+
+    @Test
+    void shouldMirrorStructuredGuardiansIntoLegacyColumnsAndProvisionThem() {
+        UUID actor = UUID.randomUUID();
+        List<StudentGuardianRequestDTO> guardians = List.of(
+                new StudentGuardianRequestDTO("Mary Doe", "mary@example.com", "+254722000000", "PARENT"));
+        StudentDTO withGuardians = new StudentDTO(null, request.userUuid(), null, null, "Ignored", "+254700000000",
+                "Ignored Too", "+254711111111", null, guardians, null, null, null, null);
+        when(ruleEvaluationService.evaluateAgeGate(any(), any())).thenReturn(AgeGateDecision.allow());
+        when(studentRepository.findByUserUuid(request.userUuid())).thenReturn(Optional.empty());
+        when(studentRepository.save(any(Student.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(actor);
+
+        StudentDTO response = studentService.createStudent(withGuardians);
+
+        assertThat(response.firstGuardianName()).isEqualTo("Mary Doe");
+        assertThat(response.firstGuardianMobile()).isEqualTo("+254722000000");
+        assertThat(response.secondGuardianName()).isNull();
+        verify(guardianProvisioningService).syncGuardians(any(Student.class), eq(guardians), eq(actor));
     }
 }

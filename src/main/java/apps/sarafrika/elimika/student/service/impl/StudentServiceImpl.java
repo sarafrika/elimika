@@ -3,13 +3,16 @@ package apps.sarafrika.elimika.student.service.impl;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainRemovedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
+import apps.sarafrika.elimika.student.dto.StudentGuardianRequestDTO;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
 import apps.sarafrika.elimika.student.factory.StudentFactory;
 import apps.sarafrika.elimika.student.model.Student;
 import apps.sarafrika.elimika.student.repository.StudentRepository;
+import apps.sarafrika.elimika.student.service.StudentGuardianProvisioningService;
 import apps.sarafrika.elimika.student.service.StudentService;
 import apps.sarafrika.elimika.systemconfig.dto.AgeGateDecision;
 import apps.sarafrika.elimika.systemconfig.dto.RuleContext;
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +45,8 @@ public class StudentServiceImpl implements StudentService {
 
     private final RuleEvaluationService ruleEvaluationService;
     private final UserLookupService userLookupService;
+    private final StudentGuardianProvisioningService guardianProvisioningService;
+    private final DomainSecurityService domainSecurityService;
 
     public static final String STUDENT_NOT_FOUND_TEMPLATE = "Student with ID %s not found";
     private static final String AGE_GATE_RULE_KEY = "student.onboarding.age_gate";
@@ -56,6 +62,7 @@ public class StudentServiceImpl implements StudentService {
         applicationEventPublisher.publishEvent(
                 new UserDomainMappingEvent(savedStudent.getUserUuid(), UserDomain.student.name())
         );
+        syncGuardians(savedStudent, studentDTO);
         return StudentFactory.toDTO(savedStudent);
     }
 
@@ -83,6 +90,7 @@ public class StudentServiceImpl implements StudentService {
         applyStudentProfile(existingStudent, studentDTO);
 
         Student updatedStudent = studentRepository.save(existingStudent);
+        syncGuardians(updatedStudent, studentDTO);
         return StudentFactory.toDTO(updatedStudent);
     }
 
@@ -138,10 +146,28 @@ public class StudentServiceImpl implements StudentService {
     private void applyStudentProfile(Student student, StudentDTO studentDTO) {
         student.setUserUuid(studentDTO.userUuid());
         student.setDemographicTag(studentDTO.demographicTag());
-        student.setFirstGuardianName(studentDTO.firstGuardianName());
-        student.setFirstGuardianMobile(studentDTO.firstGuardianMobile());
-        student.setSecondGuardianName(studentDTO.secondGuardianName());
-        student.setSecondGuardianMobile(studentDTO.secondGuardianMobile());
         student.setBio(studentDTO.bio());
+        List<StudentGuardianRequestDTO> guardians = studentDTO.guardians();
+        if (guardians == null) {
+            student.setFirstGuardianName(studentDTO.firstGuardianName());
+            student.setFirstGuardianMobile(studentDTO.firstGuardianMobile());
+            student.setSecondGuardianName(studentDTO.secondGuardianName());
+            student.setSecondGuardianMobile(studentDTO.secondGuardianMobile());
+            return;
+        }
+        // Structured guardians win; the legacy free-text columns mirror them for older screens.
+        StudentGuardianRequestDTO first = guardians.isEmpty() ? null : guardians.get(0);
+        StudentGuardianRequestDTO second = guardians.size() < 2 ? null : guardians.get(1);
+        student.setFirstGuardianName(first == null ? null : first.name());
+        student.setFirstGuardianMobile(first == null ? null : first.phone());
+        student.setSecondGuardianName(second == null ? null : second.name());
+        student.setSecondGuardianMobile(second == null ? null : second.phone());
+    }
+
+    private void syncGuardians(Student student, StudentDTO studentDTO) {
+        if (studentDTO.guardians() != null) {
+            guardianProvisioningService.syncGuardians(
+                    student, studentDTO.guardians(), domainSecurityService.getCurrentUserUuid());
+        }
     }
 }
