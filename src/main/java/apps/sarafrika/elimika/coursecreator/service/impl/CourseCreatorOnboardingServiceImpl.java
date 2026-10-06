@@ -10,9 +10,9 @@ import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorOnboardingService;
 import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.event.user.ProfileModerationDecidedEvent;
-import apps.sarafrika.elimika.shared.event.user.ProfileReviewRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.spi.onboarding.OnboardingSubmissionService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -41,6 +41,7 @@ public class CourseCreatorOnboardingServiceImpl implements CourseCreatorOnboardi
     private final UserContextService userContextService;
     private final DomainSecurityService domainSecurityService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final OnboardingSubmissionService onboardingSubmissionService;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,28 +74,9 @@ public class CourseCreatorOnboardingServiceImpl implements CourseCreatorOnboardi
     @Override
     public CourseCreatorOnboardingStateDTO submitCurrentForVerification() {
         CourseCreator creator = currentCreator();
-        if (creator.getVerificationStatus() == CourseCreatorVerificationStatus.SUBMITTED) {
-            throw new IllegalStateException("Course creator profile is already awaiting review.");
-        }
-        if (creator.getVerificationStatus() == CourseCreatorVerificationStatus.APPROVED) {
-            throw new IllegalStateException("Course creator profile is already approved.");
-        }
-        if (!toState(creator).readyForSubmission()) {
-            throw new IllegalStateException("Select at least one category and add at least one skill before submitting.");
-        }
-
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        creator.setVerificationStatus(CourseCreatorVerificationStatus.SUBMITTED);
-        creator.setVerificationRequestedAt(now);
-        creator.setSubmittedAt(now);
-        creator.setReviewedAt(null);
-        creator.setReviewReason(null);
-        creator.setAdminVerified(false);
-        CourseCreator saved = courseCreatorRepository.save(creator);
-        applicationEventPublisher.publishEvent(
-                new ProfileReviewRequestedEvent(saved.getUserUuid(), UserDomain.course_creator.name()));
-        log.info("Course creator {} submitted for verification", saved.getUuid());
-        return toState(saved);
+        // Same rules and side effects as POST /api/v1/onboarding/course_creator/submit.
+        onboardingSubmissionService.submitOnboarding(creator.getUserUuid(), UserDomain.course_creator);
+        return toState(currentCreator());
     }
 
     @Override

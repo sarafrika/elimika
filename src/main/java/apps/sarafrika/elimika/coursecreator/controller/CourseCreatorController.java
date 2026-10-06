@@ -108,7 +108,8 @@ public class CourseCreatorController {
 
     // ===== COURSE CREATOR BASIC OPERATIONS =====
 
-    @Operation(summary = "Get current user's course creator onboarding state")
+    @Operation(summary = "Get current user's course creator onboarding state", deprecated = true,
+            description = "Superseded by GET /api/v1/onboarding/course_creator; kept for one release.")
     @GetMapping("/me/onboarding")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorOnboardingStateDTO>> getCurrentOnboarding() {
         CourseCreatorOnboardingStateDTO state = courseCreatorOnboardingService.getCurrentOnboarding();
@@ -125,7 +126,8 @@ public class CourseCreatorController {
                 .success(state, "Course creator categories saved successfully"));
     }
 
-    @Operation(summary = "Submit current user's course creator onboarding for verification")
+    @Operation(summary = "Submit current user's course creator onboarding for verification", deprecated = true,
+            description = "Delegates to POST /api/v1/onboarding/course_creator/submit (same rules and 409s); kept for one release.")
     @PostMapping("/me/onboarding/submit")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseCreatorOnboardingStateDTO>> submitCurrentForVerification() {
         CourseCreatorOnboardingStateDTO state = courseCreatorOnboardingService.submitCurrentForVerification();

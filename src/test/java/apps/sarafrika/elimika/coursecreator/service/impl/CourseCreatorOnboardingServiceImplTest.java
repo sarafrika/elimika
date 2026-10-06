@@ -9,10 +9,11 @@ import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorCategoryPref
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.util.enums.CourseCreatorVerificationStatus;
 import apps.sarafrika.elimika.shared.event.user.ProfileModerationDecidedEvent;
-import apps.sarafrika.elimika.shared.event.user.ProfileReviewRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
+import apps.sarafrika.elimika.shared.spi.onboarding.OnboardingSubmissionService;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,6 +54,8 @@ class CourseCreatorOnboardingServiceImplTest {
     private DomainSecurityService domainSecurityService;
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
+    @Mock
+    private OnboardingSubmissionService onboardingSubmissionService;
 
     private CourseCreatorOnboardingServiceImpl service;
     private final UUID userUuid = UUID.randomUUID();
@@ -61,7 +65,7 @@ class CourseCreatorOnboardingServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CourseCreatorOnboardingServiceImpl(courseCreatorRepository, categoryPreferenceRepository,
-                skillsWallet, userContextService, domainSecurityService, applicationEventPublisher);
+                skillsWallet, userContextService, domainSecurityService, applicationEventPublisher, onboardingSubmissionService);
         creator = new CourseCreator();
         creator.setUuid(creatorUuid);
         creator.setUserUuid(userUuid);
@@ -101,28 +105,16 @@ class CourseCreatorOnboardingServiceImplTest {
     }
 
     @Test
-    void submitRequiresACategoryAndASkill() {
-        assertThatThrownBy(() -> service.submitCurrentForVerification())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("at least one category");
-        verify(courseCreatorRepository, never()).save(any());
+    void submitDelegatesToTheGenericOnboardingSubmit() {
+        service.submitCurrentForVerification();
+
+        verify(onboardingSubmissionService).submitOnboarding(userUuid, UserDomain.course_creator);
     }
 
     @Test
-    void submitMarksTheProfileSubmittedAndAsksAdminsToReview() {
-        readyToSubmit();
-
-        CourseCreatorOnboardingStateDTO state = service.submitCurrentForVerification();
-
-        assertThat(state.verificationStatus()).isEqualTo(CourseCreatorVerificationStatus.SUBMITTED);
-        assertThat(state.submittedAt()).isNotNull();
-        verify(applicationEventPublisher).publishEvent(new ProfileReviewRequestedEvent(userUuid, "course_creator"));
-    }
-
-    @Test
-    void submitRejectsAProfileAlreadyAwaitingReview() {
-        readyToSubmit();
-        creator.setVerificationStatus(CourseCreatorVerificationStatus.SUBMITTED);
+    void submitSurfacesTheGenericRefusal() {
+        doThrow(new IllegalStateException("The course_creator onboarding is already awaiting review"))
+                .when(onboardingSubmissionService).submitOnboarding(userUuid, UserDomain.course_creator);
 
         assertThatThrownBy(() -> service.submitCurrentForVerification())
                 .isInstanceOf(IllegalStateException.class)
@@ -155,11 +147,6 @@ class CourseCreatorOnboardingServiceImplTest {
         verify(applicationEventPublisher).publishEvent(event.capture());
         assertThat(event.getValue().status()).isEqualTo(DomainApprovalStatus.SUSPENDED);
         assertThat(creator.getVerificationStatus()).isEqualTo(CourseCreatorVerificationStatus.REVOKED);
-    }
-
-    private void readyToSubmit() {
-        when(categoryPreferenceRepository.findByCourseCreatorUuid(creatorUuid)).thenReturn(List.of(preference(UUID.randomUUID())));
-        when(skillsWallet.hasSkills(creatorUuid)).thenReturn(true);
     }
 
     private CourseCreatorCategoryPreference preference(UUID categoryUuid) {
