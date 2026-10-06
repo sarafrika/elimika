@@ -130,8 +130,11 @@ class RegistrationServiceImplTest {
     }
 
     @Test
-    void adminIsNeverSelfRegisterable() {
+    void adminAndParentAreNeverSelfRegisterable() {
         assertThatThrownBy(() -> service.register(request("admin"), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot be self-registered");
+        assertThatThrownBy(() -> service.register(request("parent"), null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot be self-registered");
         verify(keycloakUserService, never()).registerUser(any(), any());

@@ -93,7 +93,7 @@ public class AdminController {
     }
 
     @Operation(operationId = "moderateUserDomain", summary = "Approve, reject or revoke a user's domain",
-            description = "For domains without a profile review (student, parent, instructor). Approval opens the "
+            description = "For domains without a profile review (instructor; students and parents need no approval). Approval opens the "
                     + "domain's dashboard; reject and revoke keep the user on the pending-approval screen.")
     @PostMapping("/users/{userUuid}/domains/{domain}/moderate")
     public ResponseEntity<ApiResponse<DomainApplicationDTO>> moderateUserDomain(

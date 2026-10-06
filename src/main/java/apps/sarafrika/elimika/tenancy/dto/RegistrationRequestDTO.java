@@ -53,7 +53,7 @@ public record RegistrationRequestDTO(
 
         @NotBlank
         @Schema(description = "The domain to register into", example = "course_creator",
-                allowableValues = {"student", "instructor", "course_creator", "parent", "organisation_user"})
+                allowableValues = {"student", "instructor", "course_creator", "organisation_user"})
         @JsonProperty("domain")
         String domain,
 

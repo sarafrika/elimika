@@ -16,10 +16,9 @@ import java.util.Set;
 @ConfigurationProperties(prefix = "app.registration")
 public class RegistrationProperties {
 
-    /** Domains a person may choose when registering. Admin is never self-registerable. */
+    /** Domains a person may choose when registering; parents get access only through a student's guardian details. */
     private Set<UserDomain> selfRegisterableDomains = EnumSet.of(
-            UserDomain.student, UserDomain.instructor, UserDomain.course_creator,
-            UserDomain.parent, UserDomain.organisation_user);
+            UserDomain.student, UserDomain.instructor, UserDomain.course_creator, UserDomain.organisation_user);
 
     /** Domains that stay pending until a platform admin approves them. */
     private Set<UserDomain> approvalRequiredDomains = EnumSet.of(

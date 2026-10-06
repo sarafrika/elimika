@@ -9,7 +9,7 @@ public record DomainApplicationRequestDTO(
 
         @NotBlank
         @Schema(example = "instructor",
-                allowableValues = {"student", "instructor", "course_creator", "parent", "organisation_user"})
+                allowableValues = {"student", "instructor", "course_creator", "organisation_user"})
         @JsonProperty("domain")
         String domain
 ) {
