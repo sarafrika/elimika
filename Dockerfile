@@ -34,8 +34,8 @@ COPY src ./src
 # survived only because "-plain.jar" happens to sort before ".jar" and is therefore overwritten.
 RUN ./gradlew clean bootJar --no-daemon
 
-# Use a smaller JRE image for the runtime stage
-FROM eclipse-temurin:21-jre
+# Runtime is JRE 25 for compact object headers (JEP 519); the bytecode stays Java 21 from the build stage.
+FROM eclipse-temurin:25-jre
 
 # Pin the container (and therefore the JVM default) time zone to UTC. Elimika
 # stores every instant in UTC and relies on this for correct timestamp handling.
@@ -86,7 +86,7 @@ LABEL maintainer="Wilfred Njuguna"
 # This app carries ~18 Spring Modulith modules, so metaspace runs large — hence the explicit cap,
 # which turns a slow unbounded leak into a fast, legible failure.
 #
-# G1 is selected explicitly, NOT because it is the JDK 21 default. The default only applies on a
+# G1 is selected explicitly, NOT because it is the JDK default. The default only applies on a
 # "server class" machine, which requires >=1792MB visible memory — below that the JVM silently picks
 # SerialGC, and our 1536m limit is below it. Verified: at --memory=1536m the JVM reports
 # UseSerialGC=true, at 1792m it reports UseG1GC=true. Naming G1 makes the collector independent of
@@ -94,7 +94,10 @@ LABEL maintainer="Wilfred Njuguna"
 #
 # Deliberately absent: -XX:+UseContainerSupport (default since JDK 10) and -Djava.security.egd
 # (a workaround for a blocking /dev/random that modern JDKs on Linux no longer need).
+#
+# Compact object headers shrink every object header from 12-16 to 8 bytes, cutting heap use and GC work.
 ENTRYPOINT ["java", \
+  "-XX:+UseCompactObjectHeaders", \
   "-XX:MaxRAMPercentage=70.0", \
   "-XX:MaxMetaspaceSize=256m", \
   "-XX:+UseG1GC", \
