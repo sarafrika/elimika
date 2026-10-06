@@ -5,8 +5,12 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentDTO;
 import apps.sarafrika.elimika.course.factory.CourseAssessmentFactory;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
+import apps.sarafrika.elimika.course.model.ProgramAssessment;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentLineItemRepository;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
+import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.ProgramAssessmentRepository;
+import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.service.CourseAssessmentService;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
@@ -31,6 +35,9 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
     private final CourseAssessmentLineItemRepository courseAssessmentLineItemRepository;
     private final GenericSpecificationBuilder<CourseAssessment> specificationBuilder;
     private final CourseGradeBookService courseGradeBookService;
+    private final CourseRepository courseRepository;
+    private final ProgramAssessmentRepository programAssessmentRepository;
+    private final ProgramCourseRepository programCourseRepository;
 
     private static final String COURSE_ASSESSMENT_NOT_FOUND_TEMPLATE = "Course assessment with ID %s not found";
 
@@ -42,6 +49,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
             courseAssessment.setAggregationStrategy(CourseAssessmentAggregationStrategy.POINTS_SUM);
         }
         validateCourseWeight(courseUuid, null, courseAssessment.getWeightPercentage());
+        validateProgramLink(courseUuid, courseAssessment.getProgramAssessmentUuid());
         validateAttendanceConfiguration(courseUuid, null, courseAssessment);
 
         // Set defaults
@@ -84,6 +92,7 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         updateCourseAssessmentFields(existingCourseAssessment, courseAssessmentDTO);
         existingCourseAssessment.setCourseUuid(courseUuid);
         validateCourseWeight(courseUuid, uuid, existingCourseAssessment.getWeightPercentage());
+        validateProgramLink(courseUuid, existingCourseAssessment.getProgramAssessmentUuid());
         validateAttendanceConfiguration(courseUuid, uuid, existingCourseAssessment);
         validateAggregationConfiguration(existingCourseAssessment);
 
@@ -140,6 +149,25 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         }
         if (dto.perLesson() != null) {
             existingCourseAssessment.setPerLesson(dto.perLesson());
+        }
+        if (dto.programAssessmentUuid() != null) {
+            existingCourseAssessment.setProgramAssessmentUuid(dto.programAssessmentUuid());
+        }
+    }
+
+    /** A course component may only feed a component of a program that contains the (live) course. */
+    private void validateProgramLink(UUID courseUuid, UUID programAssessmentUuid) {
+        if (programAssessmentUuid == null) {
+            return;
+        }
+        UUID liveCourseUuid = courseRepository.findByUuid(courseUuid)
+                .map(course -> course.getParentCourseUuid() != null ? course.getParentCourseUuid() : course.getUuid())
+                .orElse(courseUuid);
+        UUID programUuid = programAssessmentRepository.findByUuid(programAssessmentUuid)
+                .map(ProgramAssessment::getProgramUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Program assessment not found for UUID: " + programAssessmentUuid));
+        if (!programCourseRepository.existsByProgramUuidAndCourseUuid(programUuid, liveCourseUuid)) {
+            throw new IllegalArgumentException("The course is not part of the program that owns this assessment component");
         }
     }
 

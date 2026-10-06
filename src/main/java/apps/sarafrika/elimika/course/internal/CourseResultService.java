@@ -43,6 +43,7 @@ public class CourseResultService {
         CourseResultStatus previous = enrollment.getResultStatus();
         CourseResultStatus result = resultFor(enrollment, activeAssessments);
         if (result == previous) {
+            publishRecalculated(enrollment, result);
             return result;
         }
 
@@ -60,9 +61,13 @@ public class CourseResultService {
         }
         courseEnrollmentRepository.save(enrollment);
         log.info("Course enrolment {} result is now {}", enrollment.getUuid(), result);
-        eventPublisher.publishEvent(new CourseResultDecidedEvent(enrollment.getUuid(), enrollment.getStudentUuid(),
-                enrollment.getCourseUuid(), result));
+        publishRecalculated(enrollment, result);
         return result;
+    }
+
+    private void publishRecalculated(CourseEnrollment enrollment, CourseResultStatus result) {
+        eventPublisher.publishEvent(new CourseGradeRecalculatedEvent(enrollment.getUuid(), enrollment.getStudentUuid(),
+                enrollment.getCourseUuid(), result));
     }
 
     public BigDecimal passMarkOf(UUID courseUuid) {

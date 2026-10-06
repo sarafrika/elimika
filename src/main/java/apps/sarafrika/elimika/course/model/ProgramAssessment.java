@@ -1,0 +1,44 @@
+package apps.sarafrika.elimika.course.model;
+
+import apps.sarafrika.elimika.shared.model.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+@Entity
+@Table(name = "program_assessments")
+@Getter
+@Setter
+@NoArgsConstructor
+public class ProgramAssessment extends BaseEntity {
+
+    @Column(name = "program_uuid")
+    private UUID programUuid;
+
+    @Column(name = "title")
+    private String title;
+
+    @Column(name = "assessment_type")
+    private String assessmentType;
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "weight_percentage")
+    private BigDecimal weightPercentage;
+
+    @Column(name = "rubric_uuid")
+    private UUID rubricUuid;
+
+    @Column(name = "is_required")
+    private Boolean isRequired = Boolean.TRUE;
+
+    @Column(name = "active")
+    private Boolean active = Boolean.TRUE;
+}

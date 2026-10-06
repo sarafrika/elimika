@@ -4,8 +4,8 @@ import apps.sarafrika.elimika.course.util.enums.CourseResultStatus;
 
 import java.util.UUID;
 
-/** A course enrolment's pass/fail result changed; program results are recomputed from it. */
-public record CourseResultDecidedEvent(
+/** A course enrolment's grade was recalculated; programs containing the course recompute theirs. */
+public record CourseGradeRecalculatedEvent(
         UUID enrollmentUuid,
         UUID studentUuid,
         UUID courseUuid,

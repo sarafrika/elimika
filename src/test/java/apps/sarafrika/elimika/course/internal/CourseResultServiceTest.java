@@ -88,6 +88,7 @@ class CourseResultServiceTest {
 
         assertThat(service.decide(enrollment, List.of(component))).isEqualTo(CourseResultStatus.IN_PROGRESS);
         verify(courseEnrollmentRepository, never()).save(any());
+        verify(eventPublisher).publishEvent(any(CourseGradeRecalculatedEvent.class));
     }
 
     @Test
@@ -98,7 +99,7 @@ class CourseResultServiceTest {
         assertThat(service.decide(enrollment, List.of(component))).isEqualTo(CourseResultStatus.PASSED);
         assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.COMPLETED);
         assertThat(enrollment.getCompletionDate()).isNotNull();
-        verify(eventPublisher).publishEvent(any(CourseResultDecidedEvent.class));
+        verify(eventPublisher).publishEvent(any(CourseGradeRecalculatedEvent.class));
     }
 
     @Test

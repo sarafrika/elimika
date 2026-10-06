@@ -36,4 +36,8 @@ public interface ProgramCourseRepository extends JpaRepository<ProgramCourse, Lo
      */
     @Query("SELECT pc.courseUuid FROM ProgramCourse pc WHERE pc.programUuid IN :programUuids")
     List<UUID> findCourseUuidsByProgramUuidIn(@Param("programUuids") Collection<UUID> programUuids);
+
+    boolean existsByProgramUuidAndCourseUuid(UUID programUuid, UUID courseUuid);
+
+    List<ProgramCourse> findByCourseUuid(UUID courseUuid);
 }

@@ -56,6 +56,7 @@ public class TrainingProgramController {
     public static final String API_ROOT_PATH = "/api/v1/programs";
 
     private final TrainingProgramService trainingProgramService;
+    private final ProgramAssessmentService programAssessmentService;
     private final ProgramCourseService programCourseService;
     private final ProgramEnrollmentService programEnrollmentService;
     private final ProgramRequirementService programRequirementService;
@@ -138,6 +139,41 @@ public class TrainingProgramController {
         TrainingProgramDTO updatedProgram = trainingProgramService.updateTrainingProgram(uuid, programDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedProgram, "Training program updated successfully"));
+    }
+
+    @Operation(operationId = "createProgramAssessment", summary = "Add a weighted assessment component to a program",
+            description = "Active component weights may not exceed 100% and must total exactly 100% before publishing.")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PostMapping("/{uuid}/assessments")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramAssessmentDTO>> createProgramAssessment(
+            @PathVariable UUID uuid, @Valid @RequestBody ProgramAssessmentDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programAssessmentService.create(uuid, request), "Program assessment created successfully"));
+    }
+
+    @Operation(operationId = "getProgramAssessments", summary = "List a program's assessment components")
+    @GetMapping("/{uuid}/assessments")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<ProgramAssessmentDTO>>> getProgramAssessments(
+            @PathVariable UUID uuid) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programAssessmentService.list(uuid), "Program assessments retrieved successfully"));
+    }
+
+    @Operation(operationId = "updateProgramAssessment", summary = "Update a program assessment component")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PutMapping("/{uuid}/assessments/{assessmentUuid}")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramAssessmentDTO>> updateProgramAssessment(
+            @PathVariable UUID uuid, @PathVariable UUID assessmentUuid, @Valid @RequestBody ProgramAssessmentDTO request) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programAssessmentService.update(uuid, assessmentUuid, request), "Program assessment updated successfully"));
+    }
+
+    @Operation(operationId = "deleteProgramAssessment", summary = "Delete a program assessment component")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @DeleteMapping("/{uuid}/assessments/{assessmentUuid}")
+    public ResponseEntity<Void> deleteProgramAssessment(@PathVariable UUID uuid, @PathVariable UUID assessmentUuid) {
+        programAssessmentService.delete(uuid, assessmentUuid);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(operationId = "uploadProgramThumbnail", summary = "Upload the program thumbnail image",

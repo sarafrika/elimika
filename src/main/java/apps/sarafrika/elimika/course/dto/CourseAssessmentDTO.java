@@ -183,7 +183,11 @@ public record CourseAssessmentDTO(
 
         @Schema(description = "**[OPTIONAL]** Graded lesson by lesson: each lesson gets its own cell in the evaluation plan.")
         @JsonProperty("per_lesson")
-        Boolean perLesson
+        Boolean perLesson,
+
+        @Schema(description = "**[OPTIONAL]** Program component this course component feeds, for a course inside a program")
+        @JsonProperty("program_assessment_uuid")
+        UUID programAssessmentUuid
 
 ) {
 

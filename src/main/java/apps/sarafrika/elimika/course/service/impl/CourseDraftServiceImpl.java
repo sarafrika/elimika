@@ -104,6 +104,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     private final LessonPracticeActivityRepository practiceActivityRepository;
     private final CourseAssessmentRepository assessmentRepository;
     private final CourseAssessmentLineItemRepository lineItemRepository;
+    private final apps.sarafrika.elimika.course.repository.ProgramAssessmentRepository programAssessmentRepository;
     private final CourseRequirementRepository requirementRepository;
     private final CourseTrainingRequirementRepository trainingRequirementRepository;
     private final CoursePrerequisiteRepository prerequisiteRepository;
@@ -1044,6 +1045,10 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             if (required != null) {
                 assessment.setIsRequired(required);
             }
+            UUID programAssessmentUuid = uuid(node, "program_assessment_uuid");
+            if (programAssessmentUuid != null && programAssessmentRepository.existsByUuid(programAssessmentUuid)) {
+                assessment.setProgramAssessmentUuid(programAssessmentUuid);
+            }
             Boolean perLesson = bool(node, "per_lesson");
             if (perLesson != null) {
                 assessment.setPerLesson(perLesson);
@@ -1271,6 +1276,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             an.put("sync_class_attendance", assessment.getSyncClassAttendance());
             an.put("is_required", assessment.getIsRequired());
             an.put("per_lesson", assessment.getPerLesson());
+            an.put("program_assessment_uuid", str(assessment.getProgramAssessmentUuid()));
             an.put("rubric_uuid", str(assessment.getRubricUuid()));
             note(referencedRubrics, assessment.getRubricUuid());
             an.put("active", assessment.getActive());
@@ -1872,6 +1878,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setSyncClassAttendance(from.getSyncClassAttendance());
         to.setIsRequired(from.getIsRequired());
         to.setPerLesson(from.getPerLesson());
+        to.setProgramAssessmentUuid(from.getProgramAssessmentUuid());
         to.setActive(from.getActive() == null ? Boolean.TRUE : from.getActive());
     }
 

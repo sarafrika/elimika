@@ -59,4 +59,6 @@ public interface ProgramEnrollmentRepository extends JpaRepository<ProgramEnroll
     @Query("SELECT DISTINCT pe.studentUuid FROM ProgramEnrollment pe, TrainingProgram tp " +
            "WHERE pe.programUuid = tp.uuid AND tp.courseCreatorUuid = :courseCreatorUuid")
     List<UUID> findDistinctStudentUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
+
+    Optional<ProgramEnrollment> findFirstByStudentUuidAndProgramUuidOrderByCreatedDateDesc(UUID studentUuid, UUID programUuid);
 }
