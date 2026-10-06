@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.authentication.services.impl;
 
+import apps.sarafrika.elimika.authentication.spi.KeycloakRegistration;
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
@@ -123,6 +124,57 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         } catch (Exception e) {
             log.error("Failed to send action email", e);
             throw new KeycloakException("Failed to send email: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void sendRequiredActionEmail(String userId, List<String> actions, String realm,
+                                        String clientId, String redirectUri, Integer lifespanSeconds) {
+        try {
+            getUsersResource(realm).get(userId).executeActionsEmail(clientId, redirectUri, lifespanSeconds, actions);
+        } catch (Exception e) {
+            log.error("Failed to send action email to Keycloak user {}", userId, e);
+            throw new KeycloakException("Failed to send email: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public String registerUser(KeycloakRegistration registration, String realm) {
+        UserRepresentation user = new UserRepresentation();
+        user.setUsername(registration.email());
+        user.setEmail(registration.email());
+        user.setFirstName(registration.firstName());
+        user.setLastName(registration.lastName());
+        user.setEnabled(true);
+        user.setEmailVerified(false);
+        user.setRequiredActions(DEFAULT_REQUIRED_ACTIONS);
+
+        // Attribute names match the ones UserEventsListener keeps in sync on profile updates.
+        Map<String, List<String>> attributes = new HashMap<>();
+        putIfPresent(attributes, "middleName", registration.middleName());
+        putIfPresent(attributes, "primaryPhoneNumber", registration.phoneNumber());
+        putIfPresent(attributes, "dob", registration.dateOfBirth() == null ? null : registration.dateOfBirth().toString());
+        putIfPresent(attributes, "gender", registration.gender());
+        user.setAttributes(attributes);
+
+        try (Response response = getUsersResource(realm).create(user)) {
+            handleResponse(response, registration.email());
+            return extractCreatedUserId(response);
+        }
+    }
+
+    @Override
+    public void deleteUser(String userId, String realm) {
+        try (Response response = getUsersResource(realm).delete(userId)) {
+            if (response.getStatus() >= 300 && response.getStatus() != Response.Status.NOT_FOUND.getStatusCode()) {
+                throw new KeycloakException("Delete failed with status " + response.getStatus());
+            }
+        }
+    }
+
+    private static void putIfPresent(Map<String, List<String>> attributes, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            attributes.put(key, List.of(value));
         }
     }
 

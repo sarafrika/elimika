@@ -64,6 +64,18 @@ public interface KeycloakUserService {
      */
     void sendRequiredActionEmail(String userId, List<String> actions, String realm);
 
+    /** Sends required action emails whose link returns the user to {@code clientId} at {@code redirectUri}. */
+    void sendRequiredActionEmail(String userId, List<String> actions, String realm,
+                                 String clientId, String redirectUri, Integer lifespanSeconds);
+
+    /** Creates a self-registered Keycloak account with actions pending; sends no email. Returns the user id. */
+    String registerUser(KeycloakRegistration registration, String realm);
+
+    /**
+     * Deletes a Keycloak user. Used to undo a registration whose Elimika side failed to commit.
+     */
+    void deleteUser(String userId, String realm);
+
     /**
      * Logs out a user from Keycloak, invalidating all their sessions.
      *

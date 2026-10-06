@@ -81,7 +81,7 @@ public class SecurityConfiguration {
      * sandbox or staging box while the frontend client is regenerated from the spec.
      * <p>
      * Where it is false the documentation is not merely "authenticated": anyone can self-register
-     * ({@code POST /api/v1/users} is permitAll below), so a signed-in caller is not a
+     * ({@code POST /api/v1/registrations} is permitAll below), so a signed-in caller is not a
      * confidentiality boundary. It is restricted to platform administrators instead. A browser
      * cannot satisfy that — this service is a bearer-only resource server with no login redirect —
      * so outside an opted-in environment the Swagger UI is unusable by design and the spec is
@@ -149,7 +149,8 @@ public class SecurityConfiguration {
                         req.requestMatchers(apiDocumentationPaths).access(platformAdministrator());
                     }
 
-                    req.requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/organisations").permitAll()
+                    req.requestMatchers(HttpMethod.POST, "/api/v1/registrations", "/api/v1/registrations/resend",
+                                    "/api/v1/organisations").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
                             // Credential/profile documents stay authenticated; all other
                             // stored media is public (UUID-named, unguessable keys)
