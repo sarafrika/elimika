@@ -839,6 +839,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         draft.setObjectives(text(node, "objectives"));
         draft.setPrerequisites(text(node, "prerequisites"));
         draft.setDifficultyUuid(uuid(node, "difficulty_uuid"));
+        draft.setCourseCode(text(node, "course_code"));
+        draft.setPassMark(decimal(node, "pass_mark"));
         draft.setDurationHours(integer(node, "duration_hours"));
         draft.setDurationMinutes(integer(node, "duration_minutes"));
         draft.setClassLimit(integer(node, "class_limit"));
@@ -1389,6 +1391,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         node.put("objectives", course.getObjectives());
         node.put("prerequisites", course.getPrerequisites());
         node.put("difficulty_uuid", str(course.getDifficultyUuid()));
+        node.put("course_code", course.getCourseCode());
+        node.put("pass_mark", dec(course.getPassMark()));
         node.put("duration_hours", course.getDurationHours());
         node.put("duration_minutes", course.getDurationMinutes());
         node.put("class_limit", course.getClassLimit());
@@ -1757,6 +1761,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setDescription(from.getDescription());
         to.setObjectives(from.getObjectives());
         to.setPrerequisites(from.getPrerequisites());
+        to.setCourseCode(from.getCourseCode());
+        to.setPassMark(from.getPassMark());
         to.setDurationHours(from.getDurationHours());
         to.setDurationMinutes(from.getDurationMinutes());
         to.setClassLimit(from.getClassLimit());

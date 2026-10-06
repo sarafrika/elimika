@@ -49,6 +49,7 @@ public class CourseFactory {
         return new CourseDTO(
                 course.getUuid(),
                 course.getName(),
+                course.getCourseCode(),
                 course.getCourseCreatorUuid(),
                 categoryUuids.isEmpty() ? null : categoryUuids,
                 course.getDifficultyUuid(),
@@ -57,6 +58,7 @@ public class CourseFactory {
                 course.getPrerequisites(),
                 course.getDurationHours(),
                 course.getDurationMinutes(),
+                course.getPassMark(),
                 course.getClassLimit(),
                 course.getPrice(),
                 course.getMinimumTrainingFee(),
@@ -96,8 +98,11 @@ public class CourseFactory {
         course.setDescription(dto.description());
         course.setObjectives(dto.objectives());
         course.setPrerequisites(dto.prerequisites());
-        course.setDurationHours(dto.durationHours());
-        course.setDurationMinutes(dto.durationMinutes());
+        course.setCourseCode(normalizeCode(dto.courseCode()));
+        course.setPassMark(dto.passMark());
+        // Creators no longer give a duration; the columns stay for legacy rows and default to zero.
+        course.setDurationHours(dto.durationHours() == null ? 0 : dto.durationHours());
+        course.setDurationMinutes(dto.durationMinutes() == null ? 0 : dto.durationMinutes());
         course.setClassLimit(dto.classLimit());
         course.setPrice(dto.price());
         course.setMinimumTrainingFee(dto.minimumTrainingFee());
@@ -149,5 +154,10 @@ public class CourseFactory {
                         .map(apps.sarafrika.elimika.course.model.Category::getName)
                         .sorted()
                         .collect(Collectors.toList()) : List.of();
+    }
+
+    /** Course codes are stored trimmed and upper case so uniqueness ignores case. */
+    public static String normalizeCode(String code) {
+        return code == null || code.isBlank() ? null : code.trim().toUpperCase(java.util.Locale.ROOT);
     }
 }

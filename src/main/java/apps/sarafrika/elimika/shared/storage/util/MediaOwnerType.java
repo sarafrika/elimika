@@ -14,6 +14,9 @@ public final class MediaOwnerType {
     public static final String COURSE_THUMBNAIL = "COURSE_THUMBNAIL";
     public static final String COURSE_BANNER = "COURSE_BANNER";
     public static final String COURSE_INTRO_VIDEO = "COURSE_INTRO_VIDEO";
+    public static final String PROGRAM_THUMBNAIL = "PROGRAM_THUMBNAIL";
+    public static final String PROGRAM_BANNER = "PROGRAM_BANNER";
+    public static final String PROGRAM_INTRO_VIDEO = "PROGRAM_INTRO_VIDEO";
     public static final String LESSON_CONTENT = "LESSON_CONTENT";
     public static final String ASSIGNMENT_ATTACHMENT = "ASSIGNMENT_ATTACHMENT";
     public static final String ASSIGNMENT_SUBMISSION_ATTACHMENT = "ASSIGNMENT_SUBMISSION_ATTACHMENT";

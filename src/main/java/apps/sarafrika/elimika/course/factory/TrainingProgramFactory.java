@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.factory;
 
 import apps.sarafrika.elimika.course.dto.TrainingProgramDTO;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -16,6 +17,7 @@ public class TrainingProgramFactory {
         return new TrainingProgramDTO(
                 trainingProgram.getUuid(),
                 trainingProgram.getTitle(),
+                trainingProgram.getProgramCode(),
                 trainingProgram.getCourseCreatorUuid(),
                 trainingProgram.getCategoryUuid(),
                 trainingProgram.getDescription(),
@@ -26,6 +28,10 @@ public class TrainingProgramFactory {
                 trainingProgram.getTotalDurationMinutes(),
                 trainingProgram.getClassLimit(),
                 trainingProgram.getPrice(),
+                trainingProgram.getPassMark(),
+                FileUrlResolver.publicUrl(trainingProgram.getThumbnailUrl()),
+                FileUrlResolver.publicUrl(trainingProgram.getBannerUrl()),
+                FileUrlResolver.publicUrl(trainingProgram.getIntroVideoUrl()),
                 trainingProgram.getActive(),
                 trainingProgram.getAdminApproved(),
                 trainingProgram.getIsPublished(),
@@ -53,6 +59,11 @@ public class TrainingProgramFactory {
         trainingProgram.setTotalDurationMinutes(dto.totalDurationMinutes());
         trainingProgram.setClassLimit(dto.classLimit());
         trainingProgram.setPrice(dto.price());
+        trainingProgram.setProgramCode(CourseFactory.normalizeCode(dto.programCode()));
+        trainingProgram.setPassMark(dto.passMark());
+        trainingProgram.setThumbnailUrl(FileUrlResolver.toStorableValue(dto.thumbnailUrl()));
+        trainingProgram.setBannerUrl(FileUrlResolver.toStorableValue(dto.bannerUrl()));
+        trainingProgram.setIntroVideoUrl(FileUrlResolver.toStorableValue(dto.introVideoUrl()));
         trainingProgram.setActive(dto.active());
         trainingProgram.setAdminApproved(dto.adminApproved());
         trainingProgram.setCreatedDate(dto.createdDate());

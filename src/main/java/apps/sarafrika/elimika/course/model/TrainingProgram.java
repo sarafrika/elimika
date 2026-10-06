@@ -45,6 +45,22 @@ public class TrainingProgram extends BaseEntity {
     @Column(name = "prerequisites")
     private String prerequisites;
 
+    @Column(name = "program_code")
+    @Filterable
+    private String programCode;
+
+    @Column(name = "pass_mark")
+    private BigDecimal passMark;
+
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
+    @Column(name = "banner_url")
+    private String bannerUrl;
+
+    @Column(name = "intro_video_url")
+    private String introVideoUrl;
+
     @Column(name = "total_duration_hours")
     private Integer totalDurationHours;
 

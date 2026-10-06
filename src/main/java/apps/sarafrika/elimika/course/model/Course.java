@@ -45,6 +45,13 @@ public class Course extends BaseEntity {
     @Column(name = "prerequisites")
     private String prerequisites;
 
+    @Column(name = "course_code")
+    @Filterable
+    private String courseCode;
+
+    @Column(name = "pass_mark")
+    private BigDecimal passMark;
+
     @Column(name = "duration_hours")
     private Integer durationHours;
 

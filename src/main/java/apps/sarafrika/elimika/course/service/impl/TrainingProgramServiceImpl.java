@@ -24,12 +24,19 @@ import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
+import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
+import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
+import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
+import apps.sarafrika.elimika.shared.storage.util.MediaOwnerType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -57,6 +64,8 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final DomainSecurityService domainSecurityService;
     private final CourseSecuritySpi courseSecurityService;
     private final CatalogueSearchRouter catalogueSearchRouter;
+    private final MediaStorageService mediaStorageService;
+    private final StorageProperties storageProperties;
 
     /** How program list params map onto the {@code programs} index. */
     private static final CatalogueSearchRouter.Route PROGRAM_SEARCH_ROUTE = new CatalogueSearchRouter.Route(
@@ -78,6 +87,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         program.setIsPublished(false);
         program.setActive(false);
         program.setAdminApproved(false);
+        ensureProgramCodeAvailable(program.getProgramCode(), null);
 
         TrainingProgram savedProgram = trainingProgramRepository.save(program);
         return TrainingProgramFactory.toDTO(savedProgram);
@@ -512,6 +522,55 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         return (int) programCourseRepository.countByProgramUuidAndIsRequiredTrue(programUuid);
     }
 
+    @Override
+    public TrainingProgramDTO uploadThumbnail(UUID programUuid, MultipartFile thumbnail) {
+        TrainingProgram program = findProgram(programUuid);
+        program.setThumbnailUrl(storeProgramMedia(thumbnail, MediaCategory.THUMBNAIL,
+                storageProperties.getFolders().getCourseThumbnails(), MediaOwnerType.PROGRAM_THUMBNAIL, program,
+                program.getThumbnailUrl()));
+        return TrainingProgramFactory.toDTO(trainingProgramRepository.save(program));
+    }
+
+    @Override
+    public TrainingProgramDTO uploadBanner(UUID programUuid, MultipartFile banner) {
+        TrainingProgram program = findProgram(programUuid);
+        program.setBannerUrl(storeProgramMedia(banner, MediaCategory.BANNER,
+                storageProperties.getFolders().getCourseBanners(), MediaOwnerType.PROGRAM_BANNER, program,
+                program.getBannerUrl()));
+        return TrainingProgramFactory.toDTO(trainingProgramRepository.save(program));
+    }
+
+    @Override
+    public TrainingProgramDTO uploadIntroVideo(UUID programUuid, MultipartFile introVideo) {
+        TrainingProgram program = findProgram(programUuid);
+        program.setIntroVideoUrl(storeProgramMedia(introVideo, MediaCategory.VIDEO,
+                storageProperties.getFolders().getCourseMaterials(), MediaOwnerType.PROGRAM_INTRO_VIDEO, program,
+                program.getIntroVideoUrl()));
+        return TrainingProgramFactory.toDTO(trainingProgramRepository.save(program));
+    }
+
+    /** Stores the upload as a bare key, replacing the previous file; a null file clears the field. */
+    private String storeProgramMedia(MultipartFile file, MediaCategory category, String folder, String ownerType,
+                                     TrainingProgram program, String previousValue) {
+        if (file == null) {
+            mediaStorageService.delete(previousValue);
+            return null;
+        }
+        return mediaStorageService.store(new MediaUploadRequest(
+                file, category, folder, ownerType, program.getUuid(), previousValue)).key();
+    }
+
+    private void ensureProgramCodeAvailable(String code, UUID programUuid) {
+        if (code == null) {
+            return;
+        }
+        trainingProgramRepository.findFirstByProgramCodeIgnoreCase(code)
+                .filter(other -> !other.getUuid().equals(programUuid))
+                .ifPresent(other -> {
+                    throw new DuplicateResourceException("Program code " + code + " is already in use");
+                });
+    }
+
     private void updateProgramFields(TrainingProgram existingProgram, TrainingProgramDTO dto) {
         if (dto.title() != null) {
             existingProgram.setTitle(dto.title());
@@ -540,6 +599,14 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
         }
         if (dto.price() != null) {
             existingProgram.setPrice(dto.price());
+        }
+        if (dto.programCode() != null) {
+            String code = CourseFactory.normalizeCode(dto.programCode());
+            ensureProgramCodeAvailable(code, existingProgram.getUuid());
+            existingProgram.setProgramCode(code);
+        }
+        if (dto.passMark() != null) {
+            existingProgram.setPassMark(dto.passMark());
         }
         // status, published and active are deliberately not settable here. Lifecycle changes go
         // through publishProgram/unpublishProgram/archiveProgram, as they do for courses.

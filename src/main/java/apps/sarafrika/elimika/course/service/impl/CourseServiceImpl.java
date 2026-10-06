@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.internal.CourseAssessmentWeightRule;
+import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
@@ -82,6 +84,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseCreatorLookupService courseCreatorLookupService;
     private final ContentModerationHistoryService contentModerationHistoryService;
     private final CourseDraftService courseDraftService;
+    private final CourseAssessmentWeightRule courseAssessmentWeightRule;
     private final CoursePendingEditService coursePendingEditService;
     private final DomainSecurityService domainSecurityService;
     private final CourseSecuritySpi courseSecurityService;
@@ -119,6 +122,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         validateRevenueShare(course);
+        ensureCourseCodeAvailable(course.getCourseCode(), null);
 
         Course savedCourse = courseRepository.save(course);
 
@@ -305,6 +309,8 @@ public class CourseServiceImpl implements CourseService {
                 || differs(dto.difficultyUuid(), baseline.getDifficultyUuid())
                 || differs(dto.durationHours(), baseline.getDurationHours())
                 || differs(dto.durationMinutes(), baseline.getDurationMinutes())
+                || differs(CourseFactory.normalizeCode(dto.courseCode()), baseline.getCourseCode())
+                || differsNumerically(dto.passMark(), baseline.getPassMark())
                 || differs(dto.classLimit(), baseline.getClassLimit())
                 || differs(dto.revenueShareNotes(), baseline.getRevenueShareNotes())
                 || differs(dto.ageLowerLimit(), baseline.getAgeLowerLimit())
@@ -334,6 +340,22 @@ public class CourseServiceImpl implements CourseService {
     }
 
     /** A null incoming value means "not supplied", never "clear it". */
+    /** A code is unique across live courses; a draft shares its live course's code. */
+    private void ensureCourseCodeAvailable(String code, UUID liveCourseUuid) {
+        if (code == null) {
+            return;
+        }
+        courseRepository.findFirstByCourseCodeIgnoreCaseAndParentCourseUuidIsNull(code)
+                .filter(other -> !other.getUuid().equals(liveCourseUuid))
+                .ifPresent(other -> {
+                    throw new DuplicateResourceException("Course code " + code + " is already in use");
+                });
+    }
+
+    private static UUID liveUuidOf(Course course) {
+        return course.getParentCourseUuid() != null ? course.getParentCourseUuid() : course.getUuid();
+    }
+
     private boolean differs(Object incoming, Object current) {
         return incoming != null && !incoming.equals(current);
     }
@@ -502,6 +524,7 @@ public class CourseServiceImpl implements CourseService {
         if (!isCourseReadyForPublishing(uuid)) {
             throw new IllegalStateException("Course is not ready for publishing");
         }
+        courseAssessmentWeightRule.enforce(uuid);
 
         course.setStatus(ContentStatus.PUBLISHED);
         course.setActive(true);
@@ -794,6 +817,14 @@ public class CourseServiceImpl implements CourseService {
         }
         if (dto.prerequisites() != null) {
             existingCourse.setPrerequisites(dto.prerequisites());
+        }
+        if (dto.courseCode() != null) {
+            String code = CourseFactory.normalizeCode(dto.courseCode());
+            ensureCourseCodeAvailable(code, liveUuidOf(existingCourse));
+            existingCourse.setCourseCode(code);
+        }
+        if (dto.passMark() != null) {
+            existingCourse.setPassMark(dto.passMark());
         }
         if (dto.durationHours() != null) {
             existingCourse.setDurationHours(dto.durationHours());

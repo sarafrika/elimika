@@ -57,11 +57,12 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
      * Schema 2 adds the nightly aggregates from {@code course_learning_stats} ({@code completion_rate},
      * {@code popularity_30d}, {@code rating_bayes}), {@code level_order}, {@code prerequisite_uuids} and the
      * age band, and ranks ties by the Bayesian rating instead of the raw average. Schema 3 adds the
-     * owner-tagged {@code skill_uuids}.
+     * owner-tagged {@code skill_uuids}. Schema 4 adds the searchable, filterable {@code course_code}.
      */
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 3,
-                    List.of("name", "category_names", "creator_name", "difficulty_name", "description", "objectives"),
-                    List.of("status", "active", "admin_approved", IS_PUBLIC, COURSE_CREATOR_UUID, "category_uuids",
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 4,
+                    List.of("name", "course_code", "category_names", "creator_name", "difficulty_name", "description",
+                            "objectives"),
+                    List.of("status", "active", "admin_approved", IS_PUBLIC, COURSE_CREATOR_UUID, "category_uuids", "course_code",
                             "difficulty_uuid", "is_free", "price", UUID_ATTRIBUTE, "created_at", "level_order",
                             "prerequisite_uuids", "age_lower_limit", "age_upper_limit", "skill_uuids"),
                     List.of("name", "created_at", "price", "rating_avg", "enrolment_count", "completion_rate",
@@ -71,7 +72,7 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
             .withSynonymSources(List.of(SearchSynonymSource.SKILLS));
 
     private static final String COURSE_COLUMNS = """
-            SELECT c.id, c.uuid, c.parent_course_uuid, c.name, c.description, c.objectives, c.difficulty_uuid,
+            SELECT c.id, c.uuid, c.parent_course_uuid, c.name, c.course_code, c.description, c.objectives, c.difficulty_uuid,
                    d.name AS difficulty_name, c.course_creator_uuid, c.status, c.active, c.admin_approved,
                    c.price, c.thumbnail_url, d.level_order, c.age_lower_limit, c.age_upper_limit,
                    EXTRACT(EPOCH FROM c.created_date)::bigint AS created_at,
@@ -233,6 +234,7 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
             documents.add(new CourseSearchDocument(
                     row.uuid(),
                     row.name(),
+                    row.courseCode(),
                     SearchRows.truncate(row.description()),
                     SearchRows.truncate(row.objectives()),
                     categoryUuids.getOrDefault(row.uuid(), List.of()),
@@ -271,6 +273,7 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                 SearchRows.uuid(rs, "uuid"),
                 SearchRows.uuid(rs, "parent_course_uuid"),
                 rs.getString("name"),
+                rs.getString("course_code"),
                 rs.getString("description"),
                 rs.getString("objectives"),
                 SearchRows.uuid(rs, "difficulty_uuid"),
@@ -305,6 +308,7 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
             UUID uuid,
             UUID parentCourseUuid,
             String name,
+            String courseCode,
             String description,
             String objectives,
             UUID difficultyUuid,

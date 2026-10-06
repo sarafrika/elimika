@@ -98,6 +98,17 @@ public record CourseDTO(
         String name,
 
         @Schema(
+                description = "**[OPTIONAL]** Short unique code for the course, stored upper case.",
+                example = "MUS-101",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9-]{1,29}$",
+                message = "Course code must be 2-30 letters, digits or hyphens")
+        @JsonProperty("course_code")
+        String courseCode,
+
+        @Schema(
                 description = "**[REQUIRED]** Reference to the course creator's UUID who created and owns this course.",
                 example = "c1r2e3a4-5t6o-7r89-0abc-defghijklmno",
                 requiredMode = Schema.RequiredMode.REQUIRED
@@ -154,28 +165,39 @@ public record CourseDTO(
         String prerequisites,
 
         @Schema(
-                description = "**[REQUIRED]** Course duration in hours.",
+                description = "**[OPTIONAL]** Legacy course duration in hours; course creators no longer set it.",
                 example = "40",
-                requiredMode = Schema.RequiredMode.REQUIRED,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 minimum = "0"
         )
-        @NotNull(message = "Duration hours is required")
         @Min(value = 0, message = "Duration hours cannot be negative")
         @JsonProperty("duration_hours")
         Integer durationHours,
 
         @Schema(
-                description = "**[REQUIRED]** Additional course duration in minutes (0-59).",
+                description = "**[OPTIONAL]** Legacy additional duration in minutes (0-59); course creators no longer set it.",
                 example = "30",
-                requiredMode = Schema.RequiredMode.REQUIRED,
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 minimum = "0",
                 maximum = "59"
         )
-        @NotNull(message = "Duration minutes is required")
         @Min(value = 0, message = "Duration minutes cannot be negative")
         @Max(value = 59, message = "Duration minutes cannot exceed 59")
         @JsonProperty("duration_minutes")
         Integer durationMinutes,
+
+        @Schema(
+                description = "**[OPTIONAL]** Final grade percentage a learner needs to pass the course.",
+                example = "80",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Pass mark cannot be negative")
+        @DecimalMax(value = "100.00", message = "Pass mark cannot exceed 100")
+        @JsonProperty("pass_mark")
+        BigDecimal passMark,
 
         @Schema(
                 description = "**[OPTIONAL]** Maximum number of students that can enroll in the course.",
@@ -399,8 +421,8 @@ public record CourseDTO(
      * left out. Everything the public catalogue already shows stays.
      */
     public CourseDTO publicView() {
-        return new CourseDTO(uuid, name, courseCreatorUuid, categoryUuids, difficultyUuid, description, objectives,
-                prerequisites, durationHours, durationMinutes, classLimit, price,
+        return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
+                objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
                 null, null, null, null,
                 ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
                 trainingRequirements, categoryNames, createdDate, null, updatedDate, null);

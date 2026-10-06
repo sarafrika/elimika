@@ -71,6 +71,17 @@ public record TrainingProgramDTO(
         String title,
 
         @Schema(
+                description = "**[OPTIONAL]** Short unique code for the program, stored upper case.",
+                example = "PRG-MUSIC-01",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9-]{1,29}$",
+                message = "Program code must be 2-30 letters, digits or hyphens")
+        @JsonProperty("program_code")
+        String programCode,
+
+        @Schema(
                 description = "**[REQUIRED]** Reference to the course creator UUID who created and manages this program.",
                 example = "c1r2e3a4-5t6o-7r8u-9u10-abcdefghijkl",
                 requiredMode = Schema.RequiredMode.REQUIRED
@@ -171,6 +182,32 @@ public record TrainingProgramDTO(
         @DecimalMin(value = "0.00", message = "Price cannot be negative")
         @JsonProperty("price")
         BigDecimal price,
+
+        @Schema(
+                description = "**[OPTIONAL]** Final grade percentage a learner needs to pass the program.",
+                example = "80",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @DecimalMin(value = "0.00", message = "Pass mark cannot be negative")
+        @DecimalMax(value = "100.00", message = "Pass mark cannot exceed 100")
+        @JsonProperty("pass_mark")
+        BigDecimal passMark,
+
+        @Schema(description = "**[OPTIONAL]** Program thumbnail; upload through POST /{uuid}/thumbnail.", nullable = true)
+        @Size(max = 500)
+        @JsonProperty("thumbnail_url")
+        String thumbnailUrl,
+
+        @Schema(description = "**[OPTIONAL]** Program banner; upload through POST /{uuid}/banner.", nullable = true)
+        @Size(max = 500)
+        @JsonProperty("banner_url")
+        String bannerUrl,
+
+        @Schema(description = "**[OPTIONAL]** Program intro video; upload through POST /{uuid}/intro-video.", nullable = true)
+        @Size(max = 500)
+        @JsonProperty("intro_video_url")
+        String introVideoUrl,
 
         @Schema(
                 description = "**[OPTIONAL]** Indicates if the program is actively available to students. Can only be true for published programs.",

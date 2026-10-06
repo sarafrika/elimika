@@ -31,6 +31,8 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     /** The open draft holding an unapproved edit of the given live course, if any. */
     Optional<Course> findByParentCourseUuid(UUID parentCourseUuid);
 
+    Optional<Course> findFirstByCourseCodeIgnoreCaseAndParentCourseUuidIsNull(String courseCode);
+
     @Query("select c.uuid from Course c where c.courseCreatorUuid = :courseCreatorUuid")
     List<UUID> findUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 }

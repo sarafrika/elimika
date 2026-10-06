@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.TrainingProgramDTO;
 import apps.sarafrika.elimika.course.util.enums.ModerationAction;
 import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -67,6 +68,12 @@ public interface TrainingProgramService {
      * @throws apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException if program not found
      */
     TrainingProgramDTO updateTrainingProgram(UUID uuid, TrainingProgramDTO trainingProgramDTO);
+
+    TrainingProgramDTO uploadThumbnail(UUID programUuid, MultipartFile thumbnail);
+
+    TrainingProgramDTO uploadBanner(UUID programUuid, MultipartFile banner);
+
+    TrainingProgramDTO uploadIntroVideo(UUID programUuid, MultipartFile introVideo);
 
     /**
      * Permanently deletes a training program and its associated data.

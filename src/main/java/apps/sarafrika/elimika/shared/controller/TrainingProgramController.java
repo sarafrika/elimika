@@ -19,7 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -136,6 +138,39 @@ public class TrainingProgramController {
         TrainingProgramDTO updatedProgram = trainingProgramService.updateTrainingProgram(uuid, programDTO);
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
                 .success(updatedProgram, "Training program updated successfully"));
+    }
+
+    @Operation(operationId = "uploadProgramThumbnail", summary = "Upload the program thumbnail image",
+            description = "Replaces the program's thumbnail image; the file is stored once and served through /api/v1/files.")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PostMapping(value = "/{uuid}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> uploadProgramThumbnail(
+            @PathVariable UUID uuid,
+            @RequestParam("thumbnail") MultipartFile file) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                trainingProgramService.uploadThumbnail(uuid, file), "Program thumbnail image uploaded successfully"));
+    }
+
+    @Operation(operationId = "uploadProgramBanner", summary = "Upload the program banner image",
+            description = "Replaces the program's banner image; the file is stored once and served through /api/v1/files.")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PostMapping(value = "/{uuid}/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> uploadProgramBanner(
+            @PathVariable UUID uuid,
+            @RequestParam("banner") MultipartFile file) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                trainingProgramService.uploadBanner(uuid, file), "Program banner image uploaded successfully"));
+    }
+
+    @Operation(operationId = "uploadProgramIntroVideo", summary = "Upload the program intro video",
+            description = "Replaces the program's intro video; the file is stored once and served through /api/v1/files.")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#uuid) or @domainSecurityService.isPlatformAdmin()")
+    @PostMapping(value = "/{uuid}/intro-video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<TrainingProgramDTO>> uploadProgramIntroVideo(
+            @PathVariable UUID uuid,
+            @RequestParam("intro_video") MultipartFile file) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                trainingProgramService.uploadIntroVideo(uuid, file), "Program intro video uploaded successfully"));
     }
 
     @Operation(

@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.dto.CourseVersionSnapshotDTO;
 import apps.sarafrika.elimika.course.factory.CoursePendingEditFactory;
 import apps.sarafrika.elimika.course.factory.CourseVersionSnapshotFactory;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.internal.CourseAssessmentWeightRule;
 import apps.sarafrika.elimika.course.model.CoursePendingEdit;
 import apps.sarafrika.elimika.course.repository.CoursePendingEditRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
@@ -38,6 +39,7 @@ public class CoursePendingEditServiceImpl implements CoursePendingEditService {
     private final CourseVersionSnapshotRepository snapshotRepository;
     private final CourseRepository courseRepository;
     private final CourseDraftService courseDraftService;
+    private final CourseAssessmentWeightRule courseAssessmentWeightRule;
     private final UserContextService userContextService;
 
     private static final String COURSE_NOT_FOUND = "Course not found with UUID: %s";
@@ -85,6 +87,9 @@ public class CoursePendingEditServiceImpl implements CoursePendingEditService {
     @Override
     public CoursePendingEditDTO approve(UUID courseUuid, String reason) {
         CoursePendingEdit edit = requirePending(courseUuid);
+        if (edit.getDraftCourseUuid() != null) {
+            courseAssessmentWeightRule.enforce(edit.getDraftCourseUuid());
+        }
 
         courseDraftService.promote(courseUuid, edit.getUuid());
 

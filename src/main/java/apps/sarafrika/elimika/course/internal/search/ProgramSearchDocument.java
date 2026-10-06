@@ -14,8 +14,8 @@ import java.util.UUID;
  * <p>
  * Schema 2 adds what a public catalogue card and the merged catalogue ranking need:
  * {@code category_uuids}/{@code category_names} (the program's one category, shaped like the
- * course document's lists), {@code thumbnail_url} (the first member course's, since programs carry
- * no image of their own), {@code course_count}, {@code difficulty_uuids} and the
+ * course document's lists), {@code thumbnail_url} (the program's own, else its first member course's),
+ * {@code course_count}, {@code difficulty_uuids} and the
  * {@code level_min}/{@code level_max} names over the member courses, review figures
  * ({@code rating_avg}, {@code review_count}, {@code rating_bayes}) and {@code popularity_30d}
  * (enrolments in the last 30 days), named like the course document's so the two indexes sort alike.
@@ -23,6 +23,7 @@ import java.util.UUID;
 public record ProgramSearchDocument(
         @JsonProperty("uuid") UUID uuid,
         @JsonProperty("title") String title,
+        @JsonProperty("program_code") String programCode,
         @JsonProperty("description") String description,
         @JsonProperty("category_uuid") UUID categoryUuid,
         @JsonProperty("category_name") String categoryName,

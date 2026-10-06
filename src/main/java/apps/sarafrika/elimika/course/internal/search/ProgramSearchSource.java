@@ -49,17 +49,18 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
      * Schema 2 adds the catalogue card fields and the sort attributes shared with {@code courses}
      * ({@code rating_bayes}, {@code popularity_30d}), makes {@code difficulty_uuids} filterable, and
      * ranks with the course index's rules so the two can be merged into one federated ranking.
+     * Schema 3 adds {@code program_code} and prefers the program's own thumbnail over its first course's.
      */
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 2,
-                    List.of("title", "course_names", "category_name", "creator_name", "description"),
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 3,
+                    List.of("title", "program_code", "course_names", "category_name", "creator_name", "description"),
                     List.of("status", "is_published", "admin_approved", "active", IS_PUBLIC, COURSE_CREATOR_UUID,
-                            "category_uuid", "is_free", "uuid", "created_at", "difficulty_uuids"),
+                            "category_uuid", "is_free", "uuid", "created_at", "difficulty_uuids", "program_code"),
                     List.of("title", "created_at", "rating_avg", "rating_bayes", "popularity_30d", "enrolment_count"))
             .withRankingRules(CourseSearchSource.DEFINITION.rankingRules())
             .withTypoDisabledAttributes(List.of("status"));
 
     private static final String PROGRAM_COLUMNS = """
-            SELECT p.id, p.uuid, p.title, p.description, p.category_uuid, cat.name AS category_name,
+            SELECT p.id, p.uuid, p.title, p.program_code, p.thumbnail_url, p.description, p.category_uuid, cat.name AS category_name,
                    p.course_creator_uuid, p.status, p.is_published, p.admin_approved, p.is_active, p.price,
                    EXTRACT(EPOCH FROM p.created_date)::bigint AS created_at
             FROM training_programs p
@@ -219,6 +220,7 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
             documents.add(new ProgramSearchDocument(
                     row.uuid(),
                     row.title(),
+                    row.programCode(),
                     SearchRows.truncate(row.description()),
                     row.categoryUuid(),
                     row.categoryName(),
@@ -235,7 +237,8 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
                     row.createdAt(),
                     row.categoryUuid() == null ? List.of() : List.of(row.categoryUuid()),
                     row.categoryName() == null ? List.of() : List.of(row.categoryName()),
-                    thumbnails.get(row.uuid()),
+                    row.thumbnailUrl() != null && !row.thumbnailUrl().isBlank()
+                            ? row.thumbnailUrl() : thumbnails.get(row.uuid()),
                     members.size(),
                     List.copyOf(difficultyUuids.getOrDefault(row.uuid(), Set.of())),
                     range == null ? null : range[0].name(),
@@ -259,6 +262,8 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
                 rs.getLong("id"),
                 SearchRows.uuid(rs, "uuid"),
                 rs.getString("title"),
+                rs.getString("program_code"),
+                rs.getString("thumbnail_url"),
                 rs.getString("description"),
                 SearchRows.uuid(rs, "category_uuid"),
                 rs.getString("category_name"),
@@ -275,6 +280,8 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
             long id,
             UUID uuid,
             String title,
+            String programCode,
+            String thumbnailUrl,
             String description,
             UUID categoryUuid,
             String categoryName,

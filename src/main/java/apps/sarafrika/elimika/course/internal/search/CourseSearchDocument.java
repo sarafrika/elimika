@@ -19,6 +19,7 @@ import java.util.UUID;
 public record CourseSearchDocument(
         @JsonProperty("uuid") UUID uuid,
         @JsonProperty("name") String name,
+        @JsonProperty("course_code") String courseCode,
         @JsonProperty("description") String description,
         @JsonProperty("objectives") String objectives,
         @JsonProperty("category_uuids") List<UUID> categoryUuids,

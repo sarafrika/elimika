@@ -47,4 +47,6 @@ public interface TrainingProgramRepository extends JpaRepository<TrainingProgram
     long countByIsPublishedTrue();
 
     long countByStatus(ContentStatus status);
+
+    Optional<TrainingProgram> findFirstByProgramCodeIgnoreCase(String programCode);
 }
