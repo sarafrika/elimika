@@ -22,6 +22,7 @@ import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.tenancy.services.RegistrationService;
 import apps.sarafrika.elimika.tenancy.services.UserNumberService;
+import apps.sarafrika.elimika.tenancy.spi.GuardianAccountService;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,7 +42,7 @@ import java.util.UUID;
 
 @Service
 @Slf4j
-public class RegistrationServiceImpl implements RegistrationService {
+public class RegistrationServiceImpl implements RegistrationService, GuardianAccountService {
 
     private static final List<String> ACCOUNT_ACTIONS = List.of("VERIFY_EMAIL", "UPDATE_PASSWORD");
     private static final String STUDENT_AGE_GATE_RULE_KEY = "student.onboarding.age_gate";
@@ -127,6 +128,39 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
+    public Optional<UUID> registerInvitedGuardian(InvitedGuardianAccount account) {
+        String email = account.email().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()
+                || keycloakUserService.getUserByUsername(email, realm).isPresent()) {
+            return Optional.empty();
+        }
+
+        String keycloakId;
+        try {
+            keycloakId = keycloakUserService.registerUser(new KeycloakRegistration(email,
+                    account.firstName().trim(), null, account.lastName().trim(),
+                    blankToNull(account.phoneNumber()), null, null), realm);
+        } catch (KeycloakException e) {
+            if (e.getMessage() != null && e.getMessage().startsWith("User exists")) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+
+        try {
+            return Optional.ofNullable(transaction.execute(status -> recordGuardianAccount(account, email, keycloakId)));
+        } catch (RuntimeException e) {
+            log.error("Guardian account creation failed after the Keycloak account was created; removing it", e);
+            try {
+                keycloakUserService.deleteUser(keycloakId, realm);
+            } catch (RuntimeException cleanup) {
+                log.error("Could not remove Keycloak user {} after a failed guardian registration", keycloakId, cleanup);
+            }
+            throw e;
+        }
+    }
+
+    @Override
     @Transactional
     public void resendActionsEmail(String email) {
         Optional<User> user = userRepository.findByEmailIgnoreCase(email.trim().toLowerCase(Locale.ROOT))
@@ -182,6 +216,32 @@ public class RegistrationServiceImpl implements RegistrationService {
         eventPublisher.publishEvent(new UserDomainMappingEvent(saved.getUuid(), domain.name()));
         requestActionsEmail(keycloakId, ACCOUNT_ACTIONS);
         log.info("Registered user {} requesting domain {}", saved.getUuid(), domain);
+    }
+
+    /** No domain is requested here: linking the guardian to the student grants {@code parent}. */
+    private UUID recordGuardianAccount(InvitedGuardianAccount account, String email, String keycloakId) {
+        User user = new User();
+        user.setFirstName(account.firstName().trim());
+        user.setLastName(account.lastName().trim());
+        user.setEmail(email);
+        user.setUsername(email);
+        user.setPhoneNumber(blankToNull(account.phoneNumber()));
+        user.setUserNo(userNumberService.nextUserNo());
+        user.setKeycloakId(keycloakId);
+        user.setActive(true);
+        User saved = userRepository.save(user);
+
+        AccountRegistration registration = new AccountRegistration();
+        registration.setUserUuid(saved.getUuid());
+        registration.setRequestedDomain(UserDomain.parent.name());
+        registration.setTermsAcceptedAt(now());
+        registration.setActionsEmailSentAt(now());
+        registrationRepository.save(registration);
+
+        notificationPreferencesService.initializeUserPreferences(saved.getUuid());
+        requestActionsEmail(keycloakId, ACCOUNT_ACTIONS);
+        log.info("Registered invited guardian {}", saved.getUuid());
+        return saved.getUuid();
     }
 
     private void requestActionsEmail(String keycloakId, List<String> actions) {
