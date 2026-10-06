@@ -41,6 +41,9 @@ FROM eclipse-temurin:25-jre
 # stores every instant in UTC and relies on this for correct timestamp handling.
 ENV TZ=UTC
 
+# The compose healthcheck probes actuator with curl, which the JRE 25 base image no longer ships.
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 # Use existing user with UID 1000 or create elimika user
 RUN existing_user=$(getent passwd 1000 | cut -d: -f1) && \
     if [ -n "$existing_user" ]; then \
