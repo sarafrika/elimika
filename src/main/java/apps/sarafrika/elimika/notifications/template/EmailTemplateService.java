@@ -95,6 +95,14 @@ public class EmailTemplateService {
                 String.format("Your approval is needed for %s to join %s",
                         event.getTemplateVariables().getOrDefault("studentName", "your child"),
                         event.getTemplateVariables().getOrDefault("organisationName", "an organisation"));
+            case "guardian-link-invitation" ->
+                String.format("%s named you as their parent or guardian on %s",
+                        event.getTemplateVariables().getOrDefault("studentName", "A learner"),
+                        applicationName);
+            case "guardian-link-established" ->
+                String.format("You can now follow %s's learning on %s",
+                        event.getTemplateVariables().getOrDefault("studentName", "your child"),
+                        applicationName);
             case "invitation-accepted" ->
                 String.format("%s accepted your invitation",
                         event.getTemplateVariables().getOrDefault("recipientName", "Someone"));
