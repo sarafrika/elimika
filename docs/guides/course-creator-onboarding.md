@@ -25,8 +25,11 @@ The local `users` table is a read-only mirror of Keycloak identity. `course_crea
 ## UI To API To Storage Flow
 
 Registration and approval of the `course_creator` domain are described in
-[registration-and-approval.md](registration-and-approval.md). Once registered, the creator fills in the
-onboarding steps while their domain is pending:
+[registration-and-approval.md](registration-and-approval.md). New UI should drive the wizard through the generic
+onboarding API in [onboarding.md](onboarding.md) (`GET /api/v1/onboarding/course_creator`,
+`POST /api/v1/onboarding/course_creator/submit`), which also shows the account, profile and wallet steps another
+domain already completed. The routes below still work; the submit route delegates to the generic one. Once
+registered, the creator fills in the onboarding steps while their domain is pending:
 
 ```text
 Course creator UI (signed in, account_state PENDING_APPROVAL)
@@ -41,6 +44,7 @@ Course creator UI (signed in, account_state PENDING_APPROVAL)
   |   Achievements       /achievements
   |   Verification       read-only: verification_status / is_verified set by admins
   | POST /api/v1/course-creators/me/onboarding/submit      -> SUBMITTED, admins notified
+  |      (same as POST /api/v1/onboarding/course_creator/submit; also stamps user_domain_mapping.submitted_at)
   v
 Elimika storage
   | course_creators.verification_status and review timestamps

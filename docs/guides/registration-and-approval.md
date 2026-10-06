@@ -41,15 +41,16 @@ RegistrationService
   v
 202 "If the address can be registered, a link is on its way" (same answer for known emails)
 
-User sets password from the email, signs in (JWT)
+User sets password from the email, signs in (JWT), works through the onboarding wizard
+  | GET /api/v1/onboarding[/{domain}], POST /api/v1/onboarding/{domain}/submit   (see onboarding.md)
   | GET /api/v1/users/me/account-status   -> account_state PENDING_APPROVAL | ACTIVE | REJECTED | SUSPENDED | NO_DOMAIN
   | any domain endpoint while pending     -> 403 { error: { code: "DOMAIN_PENDING_APPROVAL" } }
   | own onboarding/wallet endpoints        -> allowed (they check profile ownership, not the domain)
   v
 Platform admin
-  | GET  /api/v1/admin/registrations?status=PENDING&domain=
+  | GET  /api/v1/admin/registrations?status=PENDING&domain=&submitted=true|false   (submitted_at per row)
   | POST /api/v1/admin/users/{userUuid}/domains/{domain}/moderate?action=approve|reject|revoke
-  |        instructor (students and parents need no approval)
+  |        instructor (students and parents need no approval); instructors.admin_verified follows
   | POST /api/v1/admin/course-creators/{uuid}/moderate?action=approve|reject|revoke
   | POST /api/v1/admin/instructors/{uuid}/verify            (also approves the instructor domain)
   | POST /api/v1/admin/organizations/{uuid}/moderate?action=approve   (approves the org admins' domain)
