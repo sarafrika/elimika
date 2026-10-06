@@ -1,3 +1,13 @@
+# [2.161.0](https://github.com/sarafrika/elimika/compare/v2.160.2...v2.161.0) (2026-10-06)
+
+
+### Features
+
+* **notifications:** add guardian link invitation and established notification types with email templates ([e035b5d](https://github.com/sarafrika/elimika/commit/e035b5d6824f702654d4a0da26996a20985ef14a))
+* **student:** add student guardian status, resend and invitation claim endpoints ([140f10c](https://github.com/sarafrika/elimika/commit/140f10ca7c8af07b74a2ba8d657660a71aaf65dc))
+* **student:** link or invite the guardians a student names during onboarding ([2bb2603](https://github.com/sarafrika/elimika/commit/2bb2603a46bf1f06eaf9324255a1cef14866c593))
+* **tenancy:** expose a guardian account SPI that registers invited guardians without self-registration ([5b01284](https://github.com/sarafrika/elimika/commit/5b0128435384d376854bff1ebdcaf9ee622b42e9))
+
 ## [2.160.2](https://github.com/sarafrika/elimika/compare/v2.160.1...v2.160.2) (2026-10-06)
 
 
