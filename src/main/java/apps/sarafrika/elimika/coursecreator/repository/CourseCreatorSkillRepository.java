@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.coursecreator.repository;
 
 import apps.sarafrika.elimika.coursecreator.model.CourseCreatorSkill;
-import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 

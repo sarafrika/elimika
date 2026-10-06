@@ -29,4 +29,5 @@ public final class MediaOwnerType {
     public static final String INSTRUCTOR_DOCUMENT = "INSTRUCTOR_DOCUMENT";
     public static final String COURSE_CREATOR_DOCUMENT = "COURSE_CREATOR_DOCUMENT";
     public static final String ORGANISATION_DOCUMENT = "ORGANISATION_DOCUMENT";
+    public static final String USER_DOCUMENT = "USER_DOCUMENT";
 }

@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.ExperienceType;
+import apps.sarafrika.elimika.profile.spi.ExperienceType;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;

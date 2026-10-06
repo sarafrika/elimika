@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.coursecreator.util.converter;
+package apps.sarafrika.elimika.profile.internal.converter;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.PortfolioItemType;
+import apps.sarafrika.elimika.profile.spi.PortfolioItemType;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

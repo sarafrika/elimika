@@ -6,7 +6,7 @@ import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorCompetencyRe
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorExperienceRepository;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorPortfolioItemRepository;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorSkillRepository;
-import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

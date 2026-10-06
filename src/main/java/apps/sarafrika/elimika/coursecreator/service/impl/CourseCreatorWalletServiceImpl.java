@@ -16,7 +16,7 @@ import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorPortfolioIte
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorRepository;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorSkillRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorWalletService;
-import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.coursecreator.util.converter;
+package apps.sarafrika.elimika.profile.internal.converter;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

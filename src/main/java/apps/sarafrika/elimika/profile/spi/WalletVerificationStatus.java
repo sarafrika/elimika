@@ -1,4 +1,4 @@
-package apps.sarafrika.elimika.coursecreator.util.enums;
+package apps.sarafrika.elimika.profile.spi;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

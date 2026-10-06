@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.converter.ProficiencyLevelConverter;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;

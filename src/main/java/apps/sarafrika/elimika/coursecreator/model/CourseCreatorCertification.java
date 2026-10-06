@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.model;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.CredentialType;
+import apps.sarafrika.elimika.profile.spi.CredentialType;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.Column;

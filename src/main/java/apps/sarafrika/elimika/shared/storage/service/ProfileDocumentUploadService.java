@@ -176,7 +176,9 @@ public class ProfileDocumentUploadService {
         COURSE_CREATOR("course-creators", "course creator", "Course Creator Document",
                 apps.sarafrika.elimika.shared.storage.util.MediaOwnerType.COURSE_CREATOR_DOCUMENT),
         ORGANISATION("organisations", "organisation", "Organisation Document",
-                apps.sarafrika.elimika.shared.storage.util.MediaOwnerType.ORGANISATION_DOCUMENT);
+                apps.sarafrika.elimika.shared.storage.util.MediaOwnerType.ORGANISATION_DOCUMENT),
+        USER("users", "profile", "Profile Document",
+                apps.sarafrika.elimika.shared.storage.util.MediaOwnerType.USER_DOCUMENT);
 
         private final String folderName;
         private final String documentLabel;

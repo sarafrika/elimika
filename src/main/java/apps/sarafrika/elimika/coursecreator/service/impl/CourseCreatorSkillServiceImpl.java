@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.coursecreator.factory.CourseCreatorSkillFactory;
 import apps.sarafrika.elimika.coursecreator.model.CourseCreatorSkill;
 import apps.sarafrika.elimika.coursecreator.repository.CourseCreatorSkillRepository;
 import apps.sarafrika.elimika.coursecreator.service.CourseCreatorSkillService;
-import apps.sarafrika.elimika.coursecreator.util.enums.WalletVerificationStatus;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;

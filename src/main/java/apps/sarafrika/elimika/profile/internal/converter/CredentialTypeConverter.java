@@ -1,6 +1,6 @@
-package apps.sarafrika.elimika.coursecreator.util.converter;
+package apps.sarafrika.elimika.profile.internal.converter;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.CredentialType;
+import apps.sarafrika.elimika.profile.spi.CredentialType;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

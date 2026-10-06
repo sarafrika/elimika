@@ -54,7 +54,8 @@ public class MediaReconciliationService {
             new MediaColumn("assignment_attachments", "file_url", false),
             new MediaColumn("assignment_submission_attachments", "file_url", false),
             new MediaColumn("instructor_documents", "file_path", false),
-            new MediaColumn("course_creator_documents", "file_path", false)
+            new MediaColumn("course_creator_documents", "file_path", false),
+            new MediaColumn("user_documents", "file_path", false)
     );
 
     private record MediaColumn(String table, String column, boolean nullable) {

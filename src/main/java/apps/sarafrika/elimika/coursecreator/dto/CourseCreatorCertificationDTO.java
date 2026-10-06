@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.coursecreator.dto;
 
-import apps.sarafrika.elimika.coursecreator.util.enums.CredentialType;
+import apps.sarafrika.elimika.profile.spi.CredentialType;
 import apps.sarafrika.elimika.shared.utils.validation.ValidUrl;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
