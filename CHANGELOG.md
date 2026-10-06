@@ -1,3 +1,10 @@
+## [2.160.2](https://github.com/sarafrika/elimika/compare/v2.160.1...v2.160.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* **docker:** install curl in the Java 25 runtime image so the compose healthcheck can probe actuator ([25c8df7](https://github.com/sarafrika/elimika/commit/25c8df74d51547819aa20bcade8f87bc5eeefecc))
+
 ## [2.160.1](https://github.com/sarafrika/elimika/compare/v2.160.0...v2.160.1) (2026-10-06)
 
 
