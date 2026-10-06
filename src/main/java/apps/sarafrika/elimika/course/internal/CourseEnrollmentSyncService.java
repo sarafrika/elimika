@@ -3,9 +3,11 @@ package apps.sarafrika.elimika.course.internal;
 import apps.sarafrika.elimika.course.dto.CourseEnrollmentDTO;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
+import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.service.CourseEnrollmentService;
+import apps.sarafrika.elimika.course.util.enums.CourseResultStatus;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
@@ -30,6 +32,7 @@ public class CourseEnrollmentSyncService {
     private final ProgramCourseRepository programCourseRepository;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
     private final CourseEnrollmentService courseEnrollmentService;
+    private final CourseAssessmentRepository courseAssessmentRepository;
 
     public void syncFromClassDefinition(UUID studentUuid, UUID classDefinitionUuid) {
         if (studentUuid == null || classDefinitionUuid == null) {
@@ -141,10 +144,18 @@ public class CourseEnrollmentSyncService {
         if (status == null) {
             return;
         }
+        boolean graded = courseAssessmentRepository.existsByCourseUuidAndActiveTrue(courseUuid);
+        if (graded && (status == EnrollmentStatus.COMPLETED || status == EnrollmentStatus.DROPPED)) {
+            // A graded course completes on its result, not on one session's attendance.
+            status = EnrollmentStatus.ACTIVE;
+        }
 
         Optional<CourseEnrollment> existingOpt = courseEnrollmentRepository.findByStudentUuidAndCourseUuid(studentUuid, courseUuid);
         if (existingOpt.isPresent()) {
             CourseEnrollment existing = existingOpt.get();
+            if (graded && existing.getResultStatus() == CourseResultStatus.PASSED && status == EnrollmentStatus.ACTIVE) {
+                return;
+            }
             if (status.equals(existing.getStatus())) {
                 return;
             }

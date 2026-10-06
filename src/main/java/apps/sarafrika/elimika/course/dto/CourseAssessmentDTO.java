@@ -179,7 +179,11 @@ public record CourseAssessmentDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(description = "**[OPTIONAL]** Graded lesson by lesson: each lesson gets its own cell in the evaluation plan.")
+        @JsonProperty("per_lesson")
+        Boolean perLesson
 
 ) {
 

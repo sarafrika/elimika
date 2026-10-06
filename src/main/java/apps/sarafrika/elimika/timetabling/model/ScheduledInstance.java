@@ -46,6 +46,9 @@ public class ScheduledInstance extends BaseEntity {
     @Column(name = "timezone")
     private String timezone;
     
+    @Column(name = "lesson_uuid")
+    private UUID lessonUuid;
+
     @Column(name = "title")
     private String title;
     

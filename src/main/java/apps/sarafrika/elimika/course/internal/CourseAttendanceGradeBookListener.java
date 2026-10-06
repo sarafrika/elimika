@@ -32,7 +32,9 @@ public class CourseAttendanceGradeBookListener {
                 event.studentUuid(),
                 event.classTitle(),
                 event.markedAt(),
-                attendanceStatus
+                attendanceStatus,
+                event.sessionNumber(),
+                event.lessonUuid()
         );
     }
 

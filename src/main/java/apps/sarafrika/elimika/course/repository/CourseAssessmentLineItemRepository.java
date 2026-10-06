@@ -27,4 +27,8 @@ public interface CourseAssessmentLineItemRepository extends JpaRepository<Course
     Optional<CourseAssessmentLineItem> findByQuizUuid(UUID quizUuid);
 
     void deleteByUuid(UUID uuid);
+
+    Optional<CourseAssessmentLineItem> findByCourseAssessmentUuidAndLessonUuid(UUID courseAssessmentUuid, UUID lessonUuid);
+
+    List<CourseAssessmentLineItem> findByCourseAssessmentUuidInAndLessonUuidIsNotNull(Collection<UUID> courseAssessmentUuids);
 }

@@ -14,5 +14,7 @@ public record AttendanceMarkedEventDTO(
         UUID instructorUuid,
         String attendanceStatus,
         LocalDateTime markedAt,
-        String classTitle
+        String classTitle,
+        Integer sessionNumber,
+        UUID lessonUuid
 ) { }

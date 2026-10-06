@@ -81,6 +81,8 @@ public interface CourseGradeBookService {
             UUID studentUuid,
             String classTitle,
             LocalDateTime markedAt,
-            CourseAttendanceStatus attendanceStatus
+            CourseAttendanceStatus attendanceStatus,
+            Integer sessionNumber,
+            UUID lessonUuid
     );
 }

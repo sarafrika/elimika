@@ -80,6 +80,32 @@ public class RubricScoringLevelController {
     }
 
     @Operation(
+            summary = "Add the standard five scoring levels to a rubric",
+            description = "Distinction (5), Merit (4), Pass (3), Fail (2) and No Effort (1); the first three count as passing."
+    )
+    @PreAuthorize(WRITE_ACCESS)
+    @PostMapping(value = "/standard", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<List<RubricScoringLevelDTO>>> createStandardRubricScoringLevels(
+            @Parameter(description = "UUID of the rubric", required = true)
+            @PathVariable UUID rubricUuid) {
+        List<RubricScoringLevelDTO> levels = List.of(
+                standardLevel(rubricUuid, "Distinction", 5, 1, "#2E7D32", true),
+                standardLevel(rubricUuid, "Merit", 4, 2, "#558B2F", true),
+                standardLevel(rubricUuid, "Pass", 3, 3, "#F9A825", true),
+                standardLevel(rubricUuid, "Fail", 2, 4, "#EF6C00", false),
+                standardLevel(rubricUuid, "No Effort", 1, 5, "#C62828", false));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                rubricScoringLevelService.createRubricScoringLevelsBatch(rubricUuid, levels),
+                "Standard scoring levels created successfully"));
+    }
+
+    private static RubricScoringLevelDTO standardLevel(UUID rubricUuid, String name, int points, int order,
+                                                       String colour, boolean passing) {
+        return new RubricScoringLevelDTO(null, rubricUuid, name, null, java.math.BigDecimal.valueOf(points), order,
+                colour, passing, null, null, null, null);
+    }
+
+    @Operation(
             summary = "Get all scoring levels for a rubric",
             description = "Retrieves all custom scoring levels for the specified rubric, ordered by level order."
     )

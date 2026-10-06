@@ -160,7 +160,7 @@ class NotNullColumnDefaultsIntegrationTest {
         CourseAssessmentDTO request = new CourseAssessmentDTO(
                 null, course.getUuid(), "Attendance", "Attendance & Participation",
                 "Student's participation in class discussions", new BigDecimal("10.00"),
-                null, null, null, true, null, null, null, null);
+                null, null, null, true, null, null, null, null, null);
 
         CourseAssessmentDTO created = courseAssessmentService.createCourseAssessment(course.getUuid(), request);
 

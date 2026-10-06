@@ -138,6 +138,9 @@ public class CourseAssessmentServiceImpl implements CourseAssessmentService {
         if (dto.isRequired() != null) {
             existingCourseAssessment.setIsRequired(dto.isRequired());
         }
+        if (dto.perLesson() != null) {
+            existingCourseAssessment.setPerLesson(dto.perLesson());
+        }
     }
 
     private void validateCourseWeight(UUID courseUuid, UUID assessmentUuid, BigDecimal assessmentWeight) {

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.dto;
 
+import apps.sarafrika.elimika.course.util.enums.CourseResultStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -21,6 +22,14 @@ public record CourseGradeBookDTO(
 
         @JsonProperty("final_grade")
         BigDecimal finalGrade,
+
+        @Schema(description = "Final grade needed to pass; null means completing every required item passes")
+        @JsonProperty("pass_mark")
+        BigDecimal passMark,
+
+        @Schema(description = "IN_PROGRESS until every required item is graded, then PASSED or FAILED")
+        @JsonProperty("result_status")
+        CourseResultStatus resultStatus,
 
         @JsonProperty("graded_weight_percentage")
         BigDecimal gradedWeightPercentage,

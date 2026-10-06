@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.course.factory.CourseAssessmentLineItemScoreFactor
 import apps.sarafrika.elimika.course.factory.CourseAssessmentScoreFactory;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Assignment;
+import apps.sarafrika.elimika.course.internal.CourseResultService;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItem;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItemRubricEvaluation;
@@ -95,6 +96,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
     private final RubricCriteriaRepository rubricCriteriaRepository;
     private final RubricScoringLevelRepository rubricScoringLevelRepository;
     private final ClassDefinitionLookupService classDefinitionLookupService;
+    private final CourseResultService courseResultService;
 
     @Override
     public CourseAssessmentLineItemDTO createLineItem(UUID courseUuid, UUID assessmentUuid, CourseAssessmentLineItemDTO lineItemDTO) {
@@ -343,6 +345,8 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 enrollment.getCourseUuid(),
                 enrollment.getUuid(),
                 enrollment.getFinalGrade(),
+                courseResultService.passMarkOf(enrollment.getCourseUuid()),
+                enrollment.getResultStatus(),
                 gradedWeightPercentage,
                 configuredWeightPercentage,
                 components
@@ -402,7 +406,9 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             UUID studentUuid,
             String classTitle,
             LocalDateTime markedAt,
-            CourseAttendanceStatus attendanceStatus
+            CourseAttendanceStatus attendanceStatus,
+            Integer sessionNumber,
+            UUID lessonUuid
     ) {
         if (scheduledInstanceUuid == null || classDefinitionUuid == null || studentUuid == null || attendanceStatus == null) {
             return;
@@ -430,12 +436,26 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             return;
         }
 
-        CourseAssessmentLineItem attendanceLineItem = resolveOrCreateAttendanceLineItem(
-                attendanceAssessment,
-                scheduledInstanceUuid,
-                classTitle,
-                markedAt
-        );
+        CourseAssessmentLineItem attendanceLineItem;
+        if (Boolean.TRUE.equals(attendanceAssessment.getPerLesson())) {
+            Lesson lesson = resolveSessionLesson(courseUuid, lessonUuid, sessionNumber);
+            attendanceLineItem = lesson == null ? null : resolveLessonAttendanceCell(attendanceAssessment, lesson);
+            // No cell means the evaluation plan does not grade attendance for this lesson.
+            if (attendanceLineItem == null) {
+                return;
+            }
+            // Attending any session of a lesson counts, so a later absence never undoes it.
+            if (attendanceStatus == CourseAttendanceStatus.ABSENT && attendedLesson(attendanceLineItem, enrollment.getUuid())) {
+                return;
+            }
+        } else {
+            attendanceLineItem = resolveOrCreateAttendanceLineItem(
+                    attendanceAssessment,
+                    scheduledInstanceUuid,
+                    classTitle,
+                    markedAt
+            );
+        }
 
         UUID effectiveRubricUuid = resolveEffectiveRubricUuid(attendanceAssessment, attendanceLineItem);
         if (effectiveRubricUuid == null) {
@@ -525,6 +545,55 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         score.setGradedByUuid(gradedByUuid);
         applyScoreValues(score, scoreValue, maxScoreValue, lineItem.getMaxScore());
         return lineItemScoreRepository.save(score);
+    }
+
+    /** The session's named lesson when it belongs to the course, else the lesson at the session's position. */
+    private Lesson resolveSessionLesson(UUID courseUuid, UUID lessonUuid, Integer sessionNumber) {
+        List<Lesson> lessons = lessonRepository.findByCourseUuidOrderByLessonNumberAsc(courseUuid).stream()
+                .filter(lesson -> !Boolean.FALSE.equals(lesson.getActive()))
+                .toList();
+        if (lessonUuid != null) {
+            Optional<Lesson> named = lessons.stream().filter(lesson -> lessonUuid.equals(lesson.getUuid())).findFirst();
+            if (named.isPresent()) {
+                return named.get();
+            }
+        }
+        if (sessionNumber == null || sessionNumber < 1 || sessionNumber > lessons.size()) {
+            return null;
+        }
+        return lessons.get(sessionNumber - 1);
+    }
+
+    /** The lesson's attendance cell; created on first use only while the component has no cells planned yet. */
+    private CourseAssessmentLineItem resolveLessonAttendanceCell(CourseAssessment assessment, Lesson lesson) {
+        Optional<CourseAssessmentLineItem> cell = lineItemRepository.findByCourseAssessmentUuidAndLessonUuid(
+                assessment.getUuid(), lesson.getUuid());
+        if (cell.isPresent()) {
+            return Boolean.FALSE.equals(cell.get().getActive()) ? null : cell.get();
+        }
+        if (!lineItemRepository.findByCourseAssessmentUuidInAndLessonUuidIsNotNull(List.of(assessment.getUuid())).isEmpty()) {
+            return null;
+        }
+        CourseAssessmentLineItem lineItem = new CourseAssessmentLineItem();
+        lineItem.setCourseAssessmentUuid(assessment.getUuid());
+        lineItem.setLessonUuid(lesson.getUuid());
+        lineItem.setTitle("Lesson " + lesson.getLessonNumber() + " attendance");
+        lineItem.setDescription("Attendance for " + lesson.getTitle());
+        lineItem.setItemType(CourseAssessmentLineItemType.ATTENDANCE);
+        lineItem.setRubricUuid(assessment.getRubricUuid());
+        lineItem.setMaxScore(resolveAttendanceLineItemMaxScore(assessment.getRubricUuid()));
+        lineItem.setDisplayOrder(lesson.getLessonNumber() == null ? nextDisplayOrder(assessment.getUuid()) : lesson.getLessonNumber());
+        lineItem.setActive(Boolean.TRUE);
+        return lineItemRepository.save(lineItem);
+    }
+
+    private boolean attendedLesson(CourseAssessmentLineItem cell, UUID enrollmentUuid) {
+        boolean scoredPresent = lineItemScoreRepository.findByLineItemUuidAndEnrollmentUuid(cell.getUuid(), enrollmentUuid)
+                .map(score -> score.getScore() != null && score.getScore().compareTo(BigDecimal.ZERO) > 0)
+                .orElse(false);
+        return scoredPresent || rubricEvaluationRepository.findByLineItemUuidAndEnrollmentUuid(cell.getUuid(), enrollmentUuid)
+                .map(evaluation -> evaluation.getAttendanceStatus() == CourseAttendanceStatus.ATTENDED)
+                .orElse(false);
     }
 
     private CourseAssessmentLineItem resolveOrCreateAttendanceLineItem(
@@ -1106,6 +1175,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
 
         enrollment.setFinalGrade(finalGrade);
         courseEnrollmentRepository.save(enrollment);
+        courseResultService.decide(enrollment, assessments);
         return finalGrade;
     }
 
@@ -1224,6 +1294,9 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         lineItem.setQuizUuid(dto.quizUuid());
         lineItem.setRubricUuid(dto.rubricUuid());
         lineItem.setScheduledInstanceUuid(dto.scheduledInstanceUuid());
+        if (dto.lessonUuid() != null) {
+            lineItem.setLessonUuid(dto.lessonUuid());
+        }
         if (dto.maxScore() != null) {
             lineItem.setMaxScore(dto.maxScore());
         }
@@ -1285,6 +1358,10 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                     });
         }
 
+        if (lineItem.getLessonUuid() != null) {
+            validateLessonCell(assessment, courseUuid, lineItem, existingLineItemUuid);
+        }
+
         if (lineItem.getAssignmentUuid() != null && lineItem.getQuizUuid() != null) {
             throw new IllegalArgumentException("A gradebook line item cannot reference both an assignment and a quiz");
         }
@@ -1293,6 +1370,27 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         }
         if (lineItem.getQuizUuid() != null) {
             validateQuizLineItem(courseUuid, lineItem, existingLineItemUuid);
+        }
+    }
+
+    /** A lesson cell belongs to a lesson of this course, is unique per component, and links only that lesson's work. */
+    private void validateLessonCell(CourseAssessment assessment, UUID courseUuid, CourseAssessmentLineItem lineItem,
+                                    UUID existingLineItemUuid) {
+        Lesson lesson = lessonRepository.findByUuid(lineItem.getLessonUuid())
+                .filter(found -> Objects.equals(found.getCourseUuid(), courseUuid))
+                .orElseThrow(() -> new IllegalArgumentException("The line item's lesson must belong to the same course"));
+        lineItemRepository.findByCourseAssessmentUuidAndLessonUuid(assessment.getUuid(), lesson.getUuid())
+                .filter(existing -> !Objects.equals(existing.getUuid(), existingLineItemUuid))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("This component already has a cell for lesson " + lesson.getLessonNumber());
+                });
+        if (lineItem.getQuizUuid() != null && quizRepository.findByUuid(lineItem.getQuizUuid())
+                .map(quiz -> !lesson.getUuid().equals(quiz.getLessonUuid())).orElse(false)) {
+            throw new IllegalArgumentException("A lesson cell can only link a quiz from that lesson");
+        }
+        if (lineItem.getAssignmentUuid() != null && assignmentRepository.findByUuid(lineItem.getAssignmentUuid())
+                .map(assignment -> !lesson.getUuid().equals(assignment.getLessonUuid())).orElse(false)) {
+            throw new IllegalArgumentException("A lesson cell can only link an assignment from that lesson");
         }
     }
 

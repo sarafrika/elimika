@@ -85,6 +85,19 @@ public class TimetableController {
         return ResponseEntity.ok(ApiResponse.success(null, "Status updated successfully"));
     }
 
+    @Operation(summary = "Set the lesson a scheduled class instance teaches",
+            description = "Attendance for the session is graded on that lesson. Without one, the session's position "
+                    + "in the class schedule picks the lesson with the same number.")
+    @PreAuthorize("@enrollmentVisibilityService.canManageClassOfInstance(#instanceUuid)")
+    @PatchMapping("/schedule/{instanceUuid}/lesson")
+    public ResponseEntity<ApiResponse<Void>> assignScheduledInstanceLesson(
+            @PathVariable UUID instanceUuid,
+            @Parameter(description = "Lesson UUID; omit to clear")
+            @RequestParam(required = false) UUID lessonUuid) {
+        timetableService.assignLesson(instanceUuid, lessonUuid);
+        return ResponseEntity.ok(ApiResponse.success(null, "Session lesson updated successfully"));
+    }
+
     @Operation(summary = "Reschedule a scheduled class instance")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Scheduled instance rescheduled successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid time range, scheduling conflict, or instance is not reschedulable")

@@ -31,7 +31,8 @@ public class CourseAssessmentLineItemFactory {
                 entity.getCreatedDate(),
                 entity.getCreatedBy(),
                 entity.getLastModifiedDate(),
-                entity.getLastModifiedBy()
+                entity.getLastModifiedBy(),
+                entity.getLessonUuid()
         );
     }
 
@@ -50,6 +51,7 @@ public class CourseAssessmentLineItemFactory {
         entity.setQuizUuid(dto.quizUuid());
         entity.setRubricUuid(dto.rubricUuid());
         entity.setScheduledInstanceUuid(dto.scheduledInstanceUuid());
+        entity.setLessonUuid(dto.lessonUuid());
         entity.setMaxScore(dto.maxScore());
         entity.setWeightPercentage(dto.weightPercentage());
         entity.setDisplayOrder(dto.displayOrder());

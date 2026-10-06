@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Assignment;
+import apps.sarafrika.elimika.course.internal.CourseResultService;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItem;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItemRubricEvaluation;
@@ -113,6 +114,8 @@ class CourseGradeBookServiceImplTest {
 
     @Mock
     private ClassDefinitionLookupService classDefinitionLookupService;
+    @Mock
+    private CourseResultService courseResultService;
 
     private CourseGradeBookServiceImpl service;
 
@@ -132,7 +135,8 @@ class CourseGradeBookServiceImplTest {
                 assessmentRubricRepository,
                 rubricCriteriaRepository,
                 rubricScoringLevelRepository,
-                classDefinitionLookupService
+                classDefinitionLookupService,
+                courseResultService
         );
     }
 
@@ -351,6 +355,7 @@ class CourseGradeBookServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 
@@ -402,6 +407,7 @@ class CourseGradeBookServiceImplTest {
                 null,
                 null,
                 true,
+                null,
                 null,
                 null,
                 null,
@@ -509,7 +515,9 @@ class CourseGradeBookServiceImplTest {
                 studentUuid,
                 "Monday Studio",
                 LocalDateTime.of(2026, 3, 16, 10, 0),
-                CourseAttendanceStatus.ATTENDED
+                CourseAttendanceStatus.ATTENDED,
+                null,
+                null
         );
 
         assertThat(lineItems).hasSize(1);
@@ -585,7 +593,9 @@ class CourseGradeBookServiceImplTest {
                 studentUuid,
                 "Ensemble Rehearsal",
                 LocalDateTime.of(2026, 3, 16, 15, 0),
-                CourseAttendanceStatus.ATTENDED
+                CourseAttendanceStatus.ATTENDED,
+                null,
+                null
         );
 
         assertThat(lineItems).hasSize(1);

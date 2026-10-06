@@ -27,7 +27,8 @@ public class CourseAssessmentFactory {
                 courseAssessment.getCreatedDate(),
                 courseAssessment.getCreatedBy(),
                 courseAssessment.getLastModifiedDate(),
-                courseAssessment.getLastModifiedBy()
+                courseAssessment.getLastModifiedBy(),
+                courseAssessment.getPerLesson()
         );
     }
 
@@ -47,6 +48,7 @@ public class CourseAssessmentFactory {
         courseAssessment.setRubricUuid(dto.rubricUuid());
         courseAssessment.setSyncClassAttendance(dto.syncClassAttendance());
         courseAssessment.setIsRequired(dto.isRequired());
+        courseAssessment.setPerLesson(dto.perLesson() == null ? Boolean.FALSE : dto.perLesson());
         courseAssessment.setCreatedDate(dto.createdDate());
         courseAssessment.setCreatedBy(dto.createdBy());
         courseAssessment.setLastModifiedDate(dto.updatedDate());

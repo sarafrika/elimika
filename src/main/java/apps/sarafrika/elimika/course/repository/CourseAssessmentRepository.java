@@ -27,6 +27,8 @@ public interface CourseAssessmentRepository extends JpaRepository<CourseAssessme
 
     boolean existsByUuid(UUID uuid);
 
+    boolean existsByCourseUuidAndActiveTrue(UUID courseUuid);
+
     @Query("""
             SELECT COALESCE(SUM(ca.weightPercentage), 0)
             FROM CourseAssessment ca

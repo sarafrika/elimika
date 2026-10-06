@@ -64,6 +64,9 @@ public interface TimetableService {
      */
     void updateScheduledInstanceStatus(UUID instanceUuid, String newStatus);
 
+    /** Names the course lesson a session teaches, so attendance grades that lesson; null clears it. */
+    void assignLesson(UUID instanceUuid, UUID lessonUuid);
+
     /**
      * Reschedules a scheduled class instance while keeping the same UUID and enrollments.
      *

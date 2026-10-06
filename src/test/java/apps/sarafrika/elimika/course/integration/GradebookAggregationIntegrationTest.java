@@ -61,7 +61,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import({CourseGradeBookServiceImpl.class, GradebookAggregationIntegrationTest.TestConfig.class})
+@Import({CourseGradeBookServiceImpl.class, apps.sarafrika.elimika.course.internal.CourseResultService.class,
+        GradebookAggregationIntegrationTest.TestConfig.class})
 @DisplayName("Gradebook aggregation of graded quizzes and assignments")
 class GradebookAggregationIntegrationTest {
 

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.model;
 
+import apps.sarafrika.elimika.course.util.enums.CourseResultStatus;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.course.util.converter.EnrollmentStatusConverter;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
@@ -59,6 +60,12 @@ public class CourseEnrollment extends BaseEntity {
 
     @Column(name = "progress_percentage")
     private BigDecimal progressPercentage;
+
+    @Column(name = "result_status")
+    private CourseResultStatus resultStatus = CourseResultStatus.IN_PROGRESS;
+
+    @Column(name = "result_decided_at")
+    private LocalDateTime resultDecidedAt;
 
     @Column(name = "final_grade")
     private BigDecimal finalGrade;

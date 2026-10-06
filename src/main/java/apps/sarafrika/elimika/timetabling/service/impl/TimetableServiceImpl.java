@@ -683,7 +683,9 @@ public class TimetableServiceImpl implements TimetableService {
                             instance.getInstructorUuid(),
                             savedEntity.getStatus().getValue(),
                             savedEntity.getAttendanceMarkedAt(),
-                            instance.getTitle()
+                            instance.getTitle(),
+                            sessionNumber(instance),
+                            instance.getLessonUuid()
                     );
                     eventPublisher.publishEvent(event);
                 });
@@ -691,6 +693,31 @@ public class TimetableServiceImpl implements TimetableService {
                 .ifPresent(instance -> publishEnrollmentStatusChanged(savedEntity, instance));
 
         log.debug("Marked attendance for enrollment: {} as: {}", enrollmentUuid, entity.getStatus());
+    }
+
+    @Override
+    public void assignLesson(UUID instanceUuid, UUID lessonUuid) {
+        ScheduledInstance instance = scheduledInstanceRepository.findByUuid(instanceUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
+        instance.setLessonUuid(lessonUuid);
+        scheduledInstanceRepository.save(instance);
+    }
+
+    /** 1-based position of the session among its class's sessions that were not cancelled, by start time. */
+    private int sessionNumber(ScheduledInstance instance) {
+        List<ScheduledInstance> sessions = scheduledInstanceRepository.findByClassDefinitionUuid(instance.getClassDefinitionUuid())
+                .stream()
+                .filter(session -> session.getStatus() != SchedulingStatus.CANCELLED)
+                .sorted(java.util.Comparator.comparing(ScheduledInstance::getStartTime,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .toList();
+        for (int i = 0; i < sessions.size(); i++) {
+            if (sessions.get(i).getUuid().equals(instance.getUuid())) {
+                return i + 1;
+            }
+        }
+        return sessions.size() + 1;
     }
 
     // ===== Query Operations =====

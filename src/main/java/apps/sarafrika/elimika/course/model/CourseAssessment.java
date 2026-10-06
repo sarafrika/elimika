@@ -59,6 +59,9 @@ public class CourseAssessment extends BaseEntity {
 
     // NOT NULL in the schema with a DB default. Hibernate emits every mapped column on insert, so a
     // null here would be sent explicitly and defeat that default — initialise it on the Java side.
+    @Column(name = "per_lesson")
+    private Boolean perLesson = Boolean.FALSE;
+
     @Column(name = "active", nullable = false)
     @Filterable
     private Boolean active = Boolean.TRUE;

@@ -1044,6 +1044,10 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             if (required != null) {
                 assessment.setIsRequired(required);
             }
+            Boolean perLesson = bool(node, "per_lesson");
+            if (perLesson != null) {
+                assessment.setPerLesson(perLesson);
+            }
             assessment.setRubricUuid(uuid(node, "rubric_uuid"));
             assessment.setActive(bool(node, "active"));
             CourseAssessment saved = assessmentRepository.save(assessment);
@@ -1055,6 +1059,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 item.setDescription(text(itemNode, "description"));
                 item.setQuizUuid(restoredContent.quiz(uuid(itemNode, "quiz_uuid")));
                 item.setAssignmentUuid(restoredContent.assignment(uuid(itemNode, "assignment_uuid")));
+                Integer lessonNumber = integer(itemNode, "lesson_number");
+                item.setLessonUuid(lessonNumber == null ? null : restoredContent.lessons().get(lessonKey(lessonNumber)));
                 item.setItemType(restoredItemType(text(itemNode, "item_type"), item));
                 item.setMaxScore(decimal(itemNode, "max_score"));
                 item.setWeightPercentage(decimal(itemNode, "weight_percentage"));
@@ -1072,6 +1078,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     private ContentIdMap restoredContentIds(UUID draftCourseUuid) {
         ContentIdMap restoredContent = new ContentIdMap();
         for (Lesson lesson : lessonRepository.findByCourseUuidOrderByLessonNumberAsc(draftCourseUuid)) {
+            restoredContent.lessons().put(lessonKey(lesson.getLessonNumber()), lesson.getUuid());
             for (Quiz quiz : quizRepository.findByLessonUuid(lesson.getUuid())) {
                 if (quiz.getSourceQuizUuid() != null) {
                     restoredContent.quizzes().put(quiz.getSourceQuizUuid(), quiz.getUuid());
@@ -1084,6 +1091,11 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             }
         }
         return restoredContent;
+    }
+
+    /** Restored lessons are keyed by number, since a snapshot's lesson uuids may no longer exist. */
+    private static UUID lessonKey(Integer lessonNumber) {
+        return new UUID(0L, lessonNumber == null ? 0L : lessonNumber);
     }
 
     private static CourseAssessmentLineItemType restoredItemType(String recorded, CourseAssessmentLineItem item) {
@@ -1258,6 +1270,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                     ? null : assessment.getAggregationStrategy().getValue());
             an.put("sync_class_attendance", assessment.getSyncClassAttendance());
             an.put("is_required", assessment.getIsRequired());
+            an.put("per_lesson", assessment.getPerLesson());
             an.put("rubric_uuid", str(assessment.getRubricUuid()));
             note(referencedRubrics, assessment.getRubricUuid());
             an.put("active", assessment.getActive());
@@ -1271,6 +1284,8 @@ public class CourseDraftServiceImpl implements CourseDraftService {
                 inode.put("item_type", item.getItemType() == null ? null : item.getItemType().getValue());
                 inode.put("quiz_uuid", str(item.getQuizUuid()));
                 inode.put("assignment_uuid", str(item.getAssignmentUuid()));
+                inode.put("lesson_number", item.getLessonUuid() == null ? null
+                        : lessonRepository.findByUuid(item.getLessonUuid()).map(Lesson::getLessonNumber).orElse(null));
                 inode.put("max_score", dec(item.getMaxScore()));
                 inode.put("weight_percentage", dec(item.getWeightPercentage()));
                 inode.put("due_at", item.getDueAt() == null ? null : item.getDueAt().toString());
@@ -1856,6 +1871,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setRubricUuid(from.getRubricUuid());
         to.setSyncClassAttendance(from.getSyncClassAttendance());
         to.setIsRequired(from.getIsRequired());
+        to.setPerLesson(from.getPerLesson());
         to.setActive(from.getActive() == null ? Boolean.TRUE : from.getActive());
     }
 
@@ -1866,6 +1882,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setItemType(from.getItemType());
         to.setAssignmentUuid(contentIds.assignment(from.getAssignmentUuid()));
         to.setQuizUuid(contentIds.quiz(from.getQuizUuid()));
+        to.setLessonUuid(contentIds.lesson(from.getLessonUuid()));
         to.setRubricUuid(from.getRubricUuid());
         to.setScheduledInstanceUuid(from.getScheduledInstanceUuid());
         to.setMaxScore(from.getMaxScore());

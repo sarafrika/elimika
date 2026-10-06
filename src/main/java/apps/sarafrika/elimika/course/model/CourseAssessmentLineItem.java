@@ -33,6 +33,9 @@ public class CourseAssessmentLineItem extends BaseEntity {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "lesson_uuid")
+    private UUID lessonUuid;
+
     @Column(name = "item_type")
     @Convert(converter = CourseAssessmentLineItemTypeConverter.class)
     private CourseAssessmentLineItemType itemType;

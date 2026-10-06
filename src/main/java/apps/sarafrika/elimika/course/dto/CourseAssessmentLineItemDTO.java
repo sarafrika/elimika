@@ -94,7 +94,11 @@ public record CourseAssessmentLineItemDTO(
         LocalDateTime updatedDate,
 
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(description = "**[OPTIONAL]** Lesson this item grades, for a per-lesson component.")
+        @JsonProperty("lesson_uuid")
+        UUID lessonUuid
 ) {
 
     @JsonProperty(value = "item_type_display", access = JsonProperty.Access.READ_ONLY)
