@@ -23,8 +23,7 @@ public class RegistrationProperties {
 
     /** Domains that stay pending until a platform admin approves them. */
     private Set<UserDomain> approvalRequiredDomains = EnumSet.of(
-            UserDomain.student, UserDomain.instructor, UserDomain.course_creator,
-            UserDomain.parent, UserDomain.organisation_user);
+            UserDomain.instructor, UserDomain.course_creator, UserDomain.organisation_user);
 
     /** Keycloak client the set-password link returns to. */
     private String clientId = "elimika-ui";

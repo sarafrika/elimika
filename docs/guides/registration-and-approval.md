@@ -4,8 +4,9 @@
 
 People register in Elimika, not on the Keycloak sign-up page. They pick the domain they want (student,
 instructor, course creator, parent or organisation), the backend creates their Keycloak account, and
-Keycloak emails a link to set a password and verify the address. Nobody reaches a domain dashboard
-until a platform admin approves that domain; until then the UI shows a pending-approval screen.
+Keycloak emails a link to set a password and verify the address. Students and parents are
+active at once; instructors, course creators and organisations wait on the pending-approval screen until
+a platform admin approves the domain.
 
 ## Identity Boundary
 
@@ -31,7 +32,7 @@ RegistrationService
   | 2. one local transaction:
   |      users (mirror, keycloak_id linked)
   |      account_registrations (domain, terms_accepted_at)
-  |      user_domain_mapping (status PENDING)       -> admins notified (DOMAIN_APPROVAL_REQUESTED)
+  |      user_domain_mapping (PENDING if approval needed) -> admins notified
   |      UserDomainMappingEvent                     -> empty student/instructor/course creator profile
   |      RegistrationActionsEmailRequestedEvent     -> Keycloak executeActionsEmail after commit
   | 3. local transaction fails -> the Keycloak user is deleted again
@@ -46,7 +47,7 @@ User sets password from the email, signs in (JWT)
 Platform admin
   | GET  /api/v1/admin/registrations?status=PENDING&domain=
   | POST /api/v1/admin/users/{userUuid}/domains/{domain}/moderate?action=approve|reject|revoke
-  |        student, parent, instructor
+  |        instructor (students and parents need no approval)
   | POST /api/v1/admin/course-creators/{uuid}/moderate?action=approve|reject|revoke
   | POST /api/v1/admin/instructors/{uuid}/verify            (also approves the instructor domain)
   | POST /api/v1/admin/organizations/{uuid}/moderate?action=approve   (approves the org admins' domain)
@@ -62,7 +63,7 @@ Existing Sarafrika accounts (another app on the shared realm) sign in and call
 
 | Property | Env var | Default |
 |---|---|---|
-| `app.registration.approval-required-domains` | `APP_REGISTRATION_APPROVAL_REQUIRED_DOMAINS` | all self-registerable domains |
+| `app.registration.approval-required-domains` | `APP_REGISTRATION_APPROVAL_REQUIRED_DOMAINS` | `instructor,course_creator,organisation_user` |
 | `app.registration.redirect-uri` | `APP_REGISTRATION_REDIRECT_URI` | `${app.email.frontend.url}/login` |
 | `app.registration.client-id` | `APP_REGISTRATION_CLIENT_ID` | `elimika-ui` |
 | `app.registration.actions-email-lifespan-seconds` | `APP_REGISTRATION_ACTIONS_EMAIL_LIFESPAN_SECONDS` | `259200` (72 h) |
