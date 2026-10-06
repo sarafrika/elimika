@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
@@ -48,6 +49,7 @@ class OrganisationVerificationServiceTest {
     @Mock private GenericSpecificationBuilder<Organisation> specificationBuilder;
     @Mock private UserContextService userContextService;
     @Mock private DomainSecurityService domainSecurityService;
+    @Mock private DomainApprovalService domainApprovalService;
 
     @InjectMocks private OrganisationServiceImpl service;
 

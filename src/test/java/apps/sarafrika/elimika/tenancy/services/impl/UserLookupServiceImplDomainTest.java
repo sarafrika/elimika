@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.entity.UserDomainMapping;
 import apps.sarafrika.elimika.tenancy.entity.UserOrganisationDomainMapping;
@@ -54,7 +55,7 @@ class UserLookupServiceImplDomainTest {
 
     @Test
     void matchesWhenUserHasGlobalDomain() {
-        when(userDomainMappingRepository.findByUserUuid(userUuid))
+        when(userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED))
                 .thenReturn(List.of(globalMapping("instructor")));
         lenient().when(userOrganisationDomainMappingRepository.findByUserUuidAndActiveTrueAndDeletedFalse(userUuid))
                 .thenReturn(List.of());
@@ -65,7 +66,7 @@ class UserLookupServiceImplDomainTest {
     @Test
     void matchesWhenUserHasOnlyOrgScopedRole() {
         // Org member: globally only the organisation_user umbrella, org-scoped admin.
-        when(userDomainMappingRepository.findByUserUuid(userUuid))
+        when(userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED))
                 .thenReturn(List.of(globalMapping("organisation_user")));
         when(userOrganisationDomainMappingRepository.findByUserUuidAndActiveTrueAndDeletedFalse(userUuid))
                 .thenReturn(List.of(orgMapping("admin")));
@@ -77,7 +78,7 @@ class UserLookupServiceImplDomainTest {
     void doesNotMatchInactiveOrDeletedOrgMapping() {
         // The active/deleted filtering is done by the repository query; an inactive
         // mapping is simply not returned, so it never counts toward the check.
-        when(userDomainMappingRepository.findByUserUuid(userUuid))
+        when(userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED))
                 .thenReturn(List.of(globalMapping("organisation_user")));
         when(userOrganisationDomainMappingRepository.findByUserUuidAndActiveTrueAndDeletedFalse(userUuid))
                 .thenReturn(List.of());
@@ -87,7 +88,7 @@ class UserLookupServiceImplDomainTest {
 
     @Test
     void doesNotMatchUnrelatedDomain() {
-        when(userDomainMappingRepository.findByUserUuid(userUuid))
+        when(userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED))
                 .thenReturn(List.of(globalMapping("organisation_user")));
         when(userOrganisationDomainMappingRepository.findByUserUuidAndActiveTrueAndDeletedFalse(userUuid))
                 .thenReturn(List.of(orgMapping("student")));
@@ -98,7 +99,7 @@ class UserLookupServiceImplDomainTest {
     @Test
     void globalDomainCheckIgnoresOrgScopedRoles() {
         // Platform-admin rail: org-scoped admin must NOT satisfy the global check.
-        when(userDomainMappingRepository.findByUserUuid(userUuid))
+        when(userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED))
                 .thenReturn(List.of(globalMapping("organisation_user")));
 
         assertThat(service.userHasGlobalDomain(userUuid, UserDomain.admin)).isFalse();
@@ -106,7 +107,7 @@ class UserLookupServiceImplDomainTest {
 
     @Test
     void globalDomainCheckMatchesGlobalAdmin() {
-        when(userDomainMappingRepository.findByUserUuid(userUuid))
+        when(userDomainMappingRepository.findByUserUuidAndStatus(userUuid, DomainApprovalStatus.APPROVED))
                 .thenReturn(List.of(globalMapping("admin")));
 
         assertThat(service.userHasGlobalDomain(userUuid, UserDomain.admin)).isTrue();

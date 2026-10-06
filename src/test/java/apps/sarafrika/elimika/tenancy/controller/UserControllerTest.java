@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.tenancy.dto.UserRecipientDTO;
 import apps.sarafrika.elimika.tenancy.dto.UserSummaryDTO;
 import apps.sarafrika.elimika.tenancy.internal.UserLookupRateLimiter;
 import apps.sarafrika.elimika.tenancy.services.UserRecipientLookupService;
+import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import org.junit.jupiter.api.BeforeEach;
@@ -486,6 +487,11 @@ class UserControllerTest {
     }
 
     static class MockConfig {
+        @Bean
+        DomainApprovalService domainApprovalService() {
+            return Mockito.mock(DomainApprovalService.class);
+        }
+
         @Bean
         UserService userService() {
             return Mockito.mock(UserService.class);
