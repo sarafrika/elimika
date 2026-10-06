@@ -1,3 +1,15 @@
+# [2.162.0](https://github.com/sarafrika/elimika/compare/v2.161.0...v2.162.0) (2026-10-06)
+
+
+### Bug Fixes
+
+* **profile:** resolve domain security lazily to break the bean cycle through the instructor lookup ([4df6ce6](https://github.com/sarafrika/elimika/commit/4df6ce6e6e200e346004eb2065b8e3642329d3a3))
+
+
+### Features
+
+* **profile:** add user-owned professional profile and skills wallet module with self, viewer and admin APIs ([241c622](https://github.com/sarafrika/elimika/commit/241c622a7b9ebfd58dbb44561371c1dc69131140))
+
 # [2.161.0](https://github.com/sarafrika/elimika/compare/v2.160.2...v2.161.0) (2026-10-06)
 
 
