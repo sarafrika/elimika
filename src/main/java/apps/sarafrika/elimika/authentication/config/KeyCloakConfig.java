@@ -8,9 +8,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class KeyCloakConfig {
-    @Value("${app.keycloak.admin.clientId}")
+    // The admin client falls back to the backend client, which application.yaml always defines,
+    // so an environment only needs app.keycloak.admin.* when it uses a separate admin client.
+    @Value("${app.keycloak.admin.clientId:${app.keycloak.clientId}}")
     private String clientId;
-    @Value("${app.keycloak.admin.clientSecret}")
+    @Value("${app.keycloak.admin.clientSecret:${app.keycloak.clientSecret}}")
     private String clientSecret;
     @Value("${app.keycloak.realm}")
     private String realm;
