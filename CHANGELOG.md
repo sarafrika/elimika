@@ -1,3 +1,10 @@
+## [2.160.1](https://github.com/sarafrika/elimika/compare/v2.160.0...v2.160.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **tenancy:** stop parents self-registering so they only gain access through student guardian details ([11861ca](https://github.com/sarafrika/elimika/commit/11861ca9d5a5898b0962644a484a2d8f8b7faec9))
+
 # [2.160.0](https://github.com/sarafrika/elimika/compare/v2.159.0...v2.160.0) (2026-10-06)
 
 
