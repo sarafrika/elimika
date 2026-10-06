@@ -1,3 +1,33 @@
+# [2.160.0](https://github.com/sarafrika/elimika/compare/v2.159.0...v2.160.0) (2026-10-06)
+
+
+### Bug Fixes
+
+* **authentication:** fall back to the backend Keycloak client when no separate admin client is configured ([9bdae1d](https://github.com/sarafrika/elimika/commit/9bdae1d244f35ae5ab1604c865396f7734636189))
+* **course:** exclude inactive assessments from final grades and remap quiz and assignment links across course drafts and restores ([7e67e82](https://github.com/sarafrika/elimika/commit/7e67e82d2db478aa6f264bef9b77effff4838b0c))
+* **docker:** probe actuator liveness in the backend healthcheck and enable health probes ([eec8b9f](https://github.com/sarafrika/elimika/commit/eec8b9fcc5d6aa59f506e2f0fbf92550b8e464b2))
+* **tenancy:** let students and parents in without admin approval and release any held pending ([94de1be](https://github.com/sarafrika/elimika/commit/94de1bea46a6cd52b1fe840d0b7b0cb9fc9e7658))
+* **tracking:** move request audit off the request path into a bounded queue with a batched background writer ([8b4c77a](https://github.com/sarafrika/elimika/commit/8b4c77a277a57ffcad29d6c9b74dd4425cc963be))
+* **tracking:** retry request audit batches without stale user uuids instead of dropping the whole batch ([3e4df91](https://github.com/sarafrika/elimika/commit/3e4df91bd6c1e326006e269131c6055bcb04e06e))
+
+
+### Features
+
+* **course:** add course and program codes and pass marks, program media uploads, a 100% assessment weight rule at go-live and optional course duration ([17afa0f](https://github.com/sarafrika/elimika/commit/17afa0fd6726fbe504bc86967767699793f3c5ac))
+* **course:** add per-lesson evaluation plans, lesson-based attendance grading, standard rubric levels and pass/fail course results ([6866c0a](https://github.com/sarafrika/elimika/commit/6866c0ac15ca02fb807b3a967a350ce3448f1b44))
+* **course:** add weighted program assessments linked to course components with computed program grades and results ([6ae5597](https://github.com/sarafrika/elimika/commit/6ae5597cf8037b51d5977449a9a9b43008a36d78))
+* **coursecreator:** add course creator onboarding with category choices, a seven-tab skills wallet and moderation tied to domain approval ([113e30a](https://github.com/sarafrika/elimika/commit/113e30a614043724bad657ffbc5e78bc4bdd71a7))
+* **tenancy:** add Elimika-led self-registration that creates the Keycloak account and holds the chosen domain for approval ([af55b08](https://github.com/sarafrika/elimika/commit/af55b0841b1bbf143136c0305016c2880d81be32))
+* **tenancy:** add the admin registration queue, domain moderation and approval notifications ([bf8420a](https://github.com/sarafrika/elimika/commit/bf8420ae4f4a1ff62b094e74db2edafda0374029))
+* **tenancy:** gate domain access on platform admin approval and expose the caller's account status ([b820a69](https://github.com/sarafrika/elimika/commit/b820a69f0ef77c15a5578ac1b2120a544761d849))
+
+
+### Performance Improvements
+
+* **datasource:** tune the Hikari pool with a 3s acquire timeout, 20 connections and leak detection, overridable by env ([f4fe411](https://github.com/sarafrika/elimika/commit/f4fe411da77d34cf6b77ae3f76d8fcb27a517e67))
+* **jpa:** disable open-in-view and keep lazy reads for commerce access and wallet transactions inside a session ([7a6c60f](https://github.com/sarafrika/elimika/commit/7a6c60fd83f64439ad1757a8180b4f6859b16e4a))
+* **server:** bound Tomcat threads and accept queue and answer database pool timeouts with 503 and Retry-After ([bcbc039](https://github.com/sarafrika/elimika/commit/bcbc0392c1b42cb319eb382f3d00e4eb59cf6cf3))
+
 # [2.159.0](https://github.com/sarafrika/elimika/compare/v2.158.1...v2.159.0) (2026-10-01)
 
 
