@@ -7,20 +7,24 @@ import jakarta.validation.Payload;
 
 import java.lang.annotation.*;
 
+/** Accepts only E.164 numbers (e.g. {@code +254712345678}) that libphonenumber validates. */
 @Target({ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = PhoneNumberValidator.class)
 @Schema(
         type = "string",
         format = "phone",
-        pattern = "^(\\+254|0)?[17]\\d{8}$",
+        pattern = ValidPhoneNumber.E164_PATTERN,
         example = "+254712345678"
 )
 @Documented
 public @interface ValidPhoneNumber {
-    String message() default "Invalid phone number format";
+
+    /** Documents the E.164 shape for API clients; validation itself is libphonenumber's. */
+    String E164_PATTERN = "^\\+[1-9]\\d{6,14}$";
+
+    String message() default "Phone number must be in E.164 format, e.g. +254712345678";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
-    String defaultCountry() default "KE";
     boolean mobileOnly() default false;
 }
