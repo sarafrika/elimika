@@ -1,3 +1,19 @@
+# [2.164.0](https://github.com/sarafrika/elimika/compare/v2.163.0...v2.164.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **infra:** move the SES MAIL FROM to bounce.sarafrika.com and stop emitting a duplicate DMARC record ([17992fd](https://github.com/sarafrika/elimika/commit/17992fd7b2efe0d32055d2af094a9bb7a1fbd967))
+* **notifications:** keep image alt text such as Sarafrika in the plain-text part of emails ([48a30cf](https://github.com/sarafrika/elimika/commit/48a30cfcc94a2ddbe173da2f3aa3dcac6b91d2b0))
+* **notifications:** render assignment due and submission emails and test every email template in CI ([de29b22](https://github.com/sarafrika/elimika/commit/de29b2218eb09014549dc0c3d59f8d319c3c305d))
+
+
+### Features
+
+* **notifications:** let platform admins send sample copies of every email to a test address ([297bf9b](https://github.com/sarafrika/elimika/commit/297bf9b54e204da9ca77c538236cba9d817860be))
+* **notifications:** redesign every email on a shared branded layout with PNG logos, plain-text parts and staging links on dev ([f7d3fea](https://github.com/sarafrika/elimika/commit/f7d3fea611e3453416c19f879c88394a2bd61217))
+* **shared:** validate phone numbers with libphonenumber and persist them in E.164 across users, guardians, branches and Keycloak ([f00fbdb](https://github.com/sarafrika/elimika/commit/f00fbdbd47f1df461018ca2ce411629fb0ac8ceb))
+
 # [2.163.0](https://github.com/sarafrika/elimika/compare/v2.162.0...v2.163.0) (2026-10-08)
 
 
