@@ -23,6 +23,7 @@ final class EmailPlainText {
         }
         String text = html.replaceAll("(?is)<head\\b.*?</head>", "")
                 .replaceAll("(?is)<div[^>]*display:none[^>]*>.*?</div>", "")
+                .replaceAll("(?is)<img\\b[^>]*\\balt=\"([^\"]*)\"[^>]*>", "$1")
                 .replaceAll("(?is)<img\\b[^>]*>", "");
         Matcher links = LINK.matcher(text);
         StringBuilder withLinks = new StringBuilder();
