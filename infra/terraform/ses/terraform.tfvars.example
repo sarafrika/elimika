@@ -1,4 +1,0 @@
-aws_profile    = "sarafrika"
-aws_region     = "eu-west-1"
-domain         = "sarafrika.com"
-from_addresses = ["no-reply@sarafrika.com"]
