@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,5 +45,37 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
             @Param("unreadStatus") UserNotificationStatus unreadStatus,
             @Param("readStatus") UserNotificationStatus readStatus,
             @Param("readAt") LocalDateTime readAt
+    );
+
+    @Modifying
+    @Query("""
+            UPDATE UserNotification n
+               SET n.popupSeenAt = :seenAt
+             WHERE n.recipientUuid = :recipientUuid
+               AND n.popupSeenAt IS NULL
+               AND n.uuid IN :uuids
+            """)
+    int markPopupSeenByUuids(
+            @Param("recipientUuid") UUID recipientUuid,
+            @Param("uuids") Collection<UUID> uuids,
+            @Param("seenAt") LocalDateTime seenAt
+    );
+
+    @Modifying
+    @Query("""
+            UPDATE UserNotification n
+               SET n.popupSeenAt = :seenAt
+             WHERE n.recipientUuid = :recipientUuid
+               AND n.popupSeenAt IS NULL
+               AND n.presentation = :presentation
+               AND (:domain IS NULL OR n.recipientDomain = :domain OR n.recipientDomain IS NULL)
+               AND (:type IS NULL OR n.notificationType = :type)
+            """)
+    int markUnseenPopupsSeen(
+            @Param("recipientUuid") UUID recipientUuid,
+            @Param("domain") String domain,
+            @Param("type") NotificationType type,
+            @Param("presentation") NotificationPresentation presentation,
+            @Param("seenAt") LocalDateTime seenAt
     );
 }

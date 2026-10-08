@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -91,13 +92,18 @@ public class NotificationController {
     }
 
     @PostMapping
-    @Operation(summary = "Apply a bulk notification action")
+    @Operation(
+            summary = "Apply a bulk notification action",
+            description = "read_all marks matching unread notifications read; popup_seen marks the given uuids "
+                    + "(or every unseen POPUP for the domain when none are given) as popup seen, caller-owned only"
+    )
     public ResponseEntity<ApiResponse<NotificationActionResultDTO>> applyBulkAction(
             @RequestParam("action") String action,
             @RequestParam(required = false) String domain,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String presentation,
-            @RequestParam(required = false) String type
+            @RequestParam(required = false) String type,
+            @RequestParam(name = "uuids", required = false) List<UUID> uuids
     ) {
         NotificationActionResultDTO result = userNotificationService.applyBulkAction(
                 userContextService.getCurrentUserUuid(),
@@ -105,7 +111,8 @@ public class NotificationController {
                 action,
                 parseStatus(status),
                 parsePresentation(presentation),
-                parseType(type)
+                parseType(type),
+                uuids
         );
         return ResponseEntity.ok(ApiResponse.success(result, "Notification bulk action completed successfully"));
     }
