@@ -344,11 +344,11 @@
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Submitted:</span>
-                    <span class="detail-value" th:text="${#temporals.format(submittedAt, 'MMM dd, yyyy \'at\' h:mm a')}"></span>
+                    <span class="detail-value" th:text="${#temporals.format(submittedAt, 'MMM dd, yyyy ''at'' h:mm a')}"></span>
                 </div>
                 <div class="detail-row" th:if="${dueDate != null}">
                     <span class="detail-label">Due Date:</span>
-                    <span class="detail-value" th:text="${#temporals.format(dueDate, 'MMM dd, yyyy \'at\' h:mm a')}"></span>
+                    <span class="detail-value" th:text="${#temporals.format(dueDate, 'MMM dd, yyyy ''at'' h:mm a')}"></span>
                 </div>
                 <div class="detail-row" th:if="${isLate}">
                     <span class="detail-label">Status:</span>
