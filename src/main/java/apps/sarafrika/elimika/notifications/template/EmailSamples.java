@@ -44,17 +44,57 @@ public final class EmailSamples {
     public static Map<String, Object> sampleVariables() {
         LocalDateTime soon = LocalDateTime.now().plusDays(2);
         Map<String, Object> v = new HashMap<>();
-        for (String text : List.of("contextName", "reviewNotes", "courseName", "assignmentTitle", "organisationName",
-                "organizationName", "instructorName", "statusLabel", "contextType", "studentName", "roleName",
-                "orderDisplayId", "orderId", "gradeLevel", "currencyCode", "actionPath", "actionLink", "guardianName",
-                "domainLabel", "courseImageUrl", "changeTypeLabel", "assignmentId", "title", "timezone",
-                "submissionText", "releaseStrategy", "relationshipLabel", "platformFeeCurrency", "personalMessage",
-                "notes", "invitationLink", "instructor", "dashboard", "consentLink", "changedBy", "branchName",
-                "assessmentType", "assessmentTitle", "welcomeMessage", "submissionId", "studentEmail", "paymentStatus",
-                "loginUrl", "inviterName", "instructorComments", "decisionLabel", "courseId", "courseDescription",
-                "body", "reason")) {
-            v.put(text, "Sample " + text);
-        }
+        Map<String, String> text = Map.ofEntries(
+                Map.entry("contextName", "Piano Foundations: Grade 1"),
+                Map.entry("reviewNotes", "Great work on the practical evidence. Keep the rhythm steady."),
+                Map.entry("courseName", "Piano Foundations: Grade 1"),
+                Map.entry("assignmentTitle", "Week 3 Scales Recording"),
+                Map.entry("organisationName", "Nairobi Music Academy"),
+                Map.entry("organizationName", "Nairobi Music Academy"),
+                Map.entry("instructorName", "Brian Kamau"),
+                Map.entry("statusLabel", "Approved"),
+                Map.entry("contextType", "course"),
+                Map.entry("studentName", "Amina Otieno"),
+                Map.entry("roleName", "Instructor"),
+                Map.entry("orderDisplayId", "ELM-10482"),
+                Map.entry("orderId", "ELM-10482"),
+                Map.entry("gradeLevel", "Merit"),
+                Map.entry("currencyCode", "KES"),
+                Map.entry("actionLink", "https://elimika.sarafrika.com/dashboard"),
+                Map.entry("guardianName", "Grace Otieno"),
+                Map.entry("domainLabel", "course creator"),
+                Map.entry("courseImageUrl", "https://elimika.sarafrika.com/assets/course-cover.jpg"),
+                Map.entry("changeTypeLabel", "rescheduled"),
+                Map.entry("assignmentId", "a1b2c3"),
+                Map.entry("title", "Studio closed on Friday"),
+                Map.entry("timezone", "Africa/Nairobi"),
+                Map.entry("submissionText", "Attached is my recording of the C major and G major scales, hands together."),
+                Map.entry("releaseStrategy", "Released immediately"),
+                Map.entry("relationshipLabel", "parent"),
+                Map.entry("platformFeeCurrency", "KES"),
+                Map.entry("personalMessage", "We would love to have you teach our weekend piano classes."),
+                Map.entry("notes", "Bring your own headphones."),
+                Map.entry("invitationLink", "https://elimika.sarafrika.com/invitations/abc123"),
+                Map.entry("instructor", "Brian Kamau"),
+                Map.entry("dashboard", "https://elimika.sarafrika.com/dashboard"),
+                Map.entry("consentLink", "https://elimika.sarafrika.com/guardian-consent/abc123"),
+                Map.entry("changedBy", "Nairobi Music Academy"),
+                Map.entry("branchName", "Westlands Studio"),
+                Map.entry("assessmentType", "Practical"),
+                Map.entry("assessmentTitle", "Saturday Piano Class"),
+                Map.entry("welcomeMessage", "Welcome aboard! Your first lesson starts this Saturday."),
+                Map.entry("submissionId", "s-204"),
+                Map.entry("studentEmail", "amina.otieno@example.com"),
+                Map.entry("paymentStatus", "Paid"),
+                Map.entry("loginUrl", "https://elimika.sarafrika.com/login"),
+                Map.entry("inviterName", "Wanjiru Mwangi"),
+                Map.entry("instructorComments", "Clean technique and good tone. Work on the left hand evenness."),
+                Map.entry("decisionLabel", "approved"),
+                Map.entry("courseId", "c-101"),
+                Map.entry("courseDescription", "A friendly introduction to piano technique, reading and performance."),
+                Map.entry("body", "The studio will be closed this Friday for maintenance. Classes resume on Saturday."),
+                Map.entry("reason", "Overlaps another class on Monday at 10:00"));
+        v.putAll(text);
         v.put("actionPath", "/dashboard");
         v.put("approved", true);
         v.put("isUrgent", true);
