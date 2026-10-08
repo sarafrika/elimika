@@ -1,3 +1,12 @@
+# [2.163.0](https://github.com/sarafrika/elimika/compare/v2.162.0...v2.163.0) (2026-10-08)
+
+
+### Features
+
+* **instructor:** keep admin_verified in step with generic instructor domain moderation ([594743d](https://github.com/sarafrika/elimika/commit/594743dbe3e3fb43af104b5bc9ae319b019f5a5a))
+* **onboarding:** add one onboarding API for every domain built from per-module step providers ([e936262](https://github.com/sarafrika/elimika/commit/e9362623c5f80dff2434dd1fd0746204614ff658))
+* **tenancy:** record onboarding submission on domain mappings, filter the admin queue by it and publish generic moderation decisions ([e7ddd3d](https://github.com/sarafrika/elimika/commit/e7ddd3d26295e6422bbe89540d96d3bcabef4e8b))
+
 # [2.162.0](https://github.com/sarafrika/elimika/compare/v2.161.0...v2.162.0) (2026-10-06)
 
 
