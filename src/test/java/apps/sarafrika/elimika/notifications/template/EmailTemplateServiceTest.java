@@ -43,7 +43,7 @@ class EmailTemplateServiceTest {
         String subject = emailTemplateService.generateSubject(event);
 
         // Assert
-        assertThat(subject).isEqualTo("Class schedule rescheduled: Midterm Exam");
+        assertThat(subject).isEqualTo("Rescheduled: Midterm Exam");
     }
 
     @Test
@@ -75,7 +75,7 @@ class EmailTemplateServiceTest {
         when(event.getNotificationType()).thenReturn(NotificationType.TRAINING_RATE_UPDATE_REJECTED);
         when(event.getTemplateVariables()).thenReturn(Map.of("contextName", "Welding", "decisionLabel", "not accepted"));
 
-        assertThat(emailTemplateService.generateSubject(event)).isEqualTo("Your rate update for Welding was not accepted");
+        assertThat(emailTemplateService.generateSubject(event)).isEqualTo("Your rate change for Welding was not approved");
     }
 
     @Test
@@ -83,6 +83,7 @@ class EmailTemplateServiceTest {
         org.thymeleaf.templateresolver.ClassLoaderTemplateResolver resolver =
                 new org.thymeleaf.templateresolver.ClassLoaderTemplateResolver();
         resolver.setPrefix("templates/");
+        resolver.setSuffix(".html");
         resolver.setTemplateMode(org.thymeleaf.templatemode.TemplateMode.HTML);
         TemplateEngine realEngine = new org.thymeleaf.spring6.SpringTemplateEngine();
         realEngine.setTemplateResolver(resolver);
@@ -101,7 +102,7 @@ class EmailTemplateServiceTest {
             String html = realService.generateEmailContent(event);
 
             assertThat(html).contains("Welding").contains("See you next term").contains("/dashboard/instructor/rate-card");
-            assertThat(html).contains(approved ? "were approved" : "was not accepted");
+            assertThat(html).contains(approved ? "Your updated rate is approved" : "Your rate change was not approved");
         }
     }
 }
