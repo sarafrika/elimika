@@ -7,7 +7,9 @@ import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.CoursePrerequisite;
 import apps.sarafrika.elimika.course.model.CourseReview;
 import apps.sarafrika.elimika.course.model.CourseSkill;
+import apps.sarafrika.elimika.course.model.CourseTrainingRequirement;
 import apps.sarafrika.elimika.course.model.DifficultyLevel;
+import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.shared.search.SearchBatch;
 import apps.sarafrika.elimika.shared.search.SearchDocumentSource;
@@ -58,8 +60,9 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
      * {@code popularity_30d}, {@code rating_bayes}), {@code level_order}, {@code prerequisite_uuids} and the
      * age band, and ranks ties by the Bayesian rating instead of the raw average. Schema 3 adds the
      * owner-tagged {@code skill_uuids}. Schema 4 adds the searchable, filterable {@code course_code}.
+     * Schema 5 adds {@code lesson_count} (active lessons) and {@code requirement_count} for apply-to-train.
      */
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 4,
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 5,
                     List.of("name", "course_code", "category_names", "creator_name", "difficulty_name", "description",
                             "objectives"),
                     List.of("status", "active", "admin_approved", IS_PUBLIC, COURSE_CREATOR_UUID, "category_uuids", "course_code",
@@ -135,6 +138,9 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                 // A draft's rows name the draft course, which loadByUuids ignores; promotion rewrites the live rows.
                 SearchIndexTrigger.direct(CoursePrerequisite.class, CoursePrerequisite::getCourseUuid),
                 SearchIndexTrigger.direct(CourseSkill.class, CourseSkill::getCourseUuid),
+                // lesson_count and requirement_count.
+                SearchIndexTrigger.direct(Lesson.class, Lesson::getCourseUuid),
+                SearchIndexTrigger.direct(CourseTrainingRequirement.class, CourseTrainingRequirement::getCourseUuid),
                 SearchIndexTrigger.fanOut(Category.class, category -> keyOf("category", category.getUuid())),
                 SearchIndexTrigger.fanOut(DifficultyLevel.class, level -> keyOf("difficulty", level.getUuid())));
     }
@@ -222,6 +228,18 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                     .add(SearchRows.uuid(rs, "prerequisite_course_uuid"));
         });
 
+        Map<UUID, long[]> contentCounts = new HashMap<>();
+        jdbc.query("""
+                SELECT c.uuid,
+                       (SELECT COUNT(*) FROM lessons l WHERE l.course_uuid = c.uuid AND l.active = true) AS lesson_count,
+                       (SELECT COUNT(*) FROM course_training_requirements r WHERE r.course_uuid = c.uuid)
+                           AS requirement_count
+                FROM courses c WHERE c.uuid IN (:uuids)
+                """, byCourse, rs -> {
+            contentCounts.put(SearchRows.uuid(rs, "uuid"),
+                    new long[]{rs.getLong("lesson_count"), rs.getLong("requirement_count")});
+        });
+
         Set<UUID> creatorUuids = new LinkedHashSet<>();
         rows.stream().map(CourseRow::courseCreatorUuid).filter(Objects::nonNull).forEach(creatorUuids::add);
         Map<UUID, String> creatorNames = creatorUuids.isEmpty()
@@ -230,6 +248,7 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
         List<CourseSearchDocument> documents = new ArrayList<>(rows.size());
         for (CourseRow row : rows) {
             double[] review = reviews.get(row.uuid());
+            long[] content = contentCounts.getOrDefault(row.uuid(), new long[]{0, 0});
             boolean isPublic = "published".equals(row.status()) && row.adminApproved() && row.active();
             documents.add(new CourseSearchDocument(
                     row.uuid(),
@@ -261,7 +280,9 @@ public class CourseSearchSource implements SearchDocumentSource<CourseSearchDocu
                     prerequisites.getOrDefault(row.uuid(), List.of()),
                     row.ageLowerLimit(),
                     row.ageUpperLimit(),
-                    skillUuids.getOrDefault(row.uuid(), List.of())));
+                    skillUuids.getOrDefault(row.uuid(), List.of()),
+                    content[0],
+                    content[1]));
         }
         return documents;
     }

@@ -19,6 +19,10 @@ import java.util.UUID;
  * {@code level_min}/{@code level_max} names over the member courses, review figures
  * ({@code rating_avg}, {@code review_count}, {@code rating_bayes}) and {@code popularity_30d}
  * (enrolments in the last 30 days), named like the course document's so the two indexes sort alike.
+ * <p>
+ * Schema 4 adds {@code skill_uuids} (union of member courses' skills), the age band every member course
+ * accepts ({@code age_lower_limit}/{@code age_upper_limit}, null when unbounded), {@code lesson_count}
+ * (active lessons over member courses) and {@code requirement_count} (program requirements).
  */
 public record ProgramSearchDocument(
         @JsonProperty("uuid") UUID uuid,
@@ -49,6 +53,11 @@ public record ProgramSearchDocument(
         @JsonProperty("review_count") long reviewCount,
         @JsonProperty("rating_bayes") Double ratingBayes,
         @JsonProperty("enrolment_count") long enrolmentCount,
-        @JsonProperty("popularity_30d") long popularity30d
+        @JsonProperty("popularity_30d") long popularity30d,
+        @JsonProperty("skill_uuids") List<UUID> skillUuids,
+        @JsonProperty("age_lower_limit") Integer ageLowerLimit,
+        @JsonProperty("age_upper_limit") Integer ageUpperLimit,
+        @JsonProperty("lesson_count") long lessonCount,
+        @JsonProperty("requirement_count") long requirementCount
 ) implements SearchDocument {
 }

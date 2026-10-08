@@ -2,9 +2,12 @@ package apps.sarafrika.elimika.course.internal.search;
 
 import apps.sarafrika.elimika.course.model.Category;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseSkill;
+import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.model.DifficultyLevel;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramEnrollment;
+import apps.sarafrika.elimika.course.model.ProgramRequirement;
 import apps.sarafrika.elimika.course.model.ProgramReview;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
@@ -50,11 +53,14 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
      * ({@code rating_bayes}, {@code popularity_30d}), makes {@code difficulty_uuids} filterable, and
      * ranks with the course index's rules so the two can be merged into one federated ranking.
      * Schema 3 adds {@code program_code} and prefers the program's own thumbnail over its first course's.
+     * Schema 4 adds the apply-to-train fields: filterable {@code skill_uuids}, the member courses' age-band
+     * intersection, {@code lesson_count} and {@code requirement_count}.
      */
-    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 3,
+    public static final SearchIndexDefinition DEFINITION = SearchIndexDefinition.of(INDEX, 4,
                     List.of("title", "program_code", "course_names", "category_name", "creator_name", "description"),
                     List.of("status", "is_published", "admin_approved", "active", IS_PUBLIC, COURSE_CREATOR_UUID,
-                            "category_uuid", "is_free", "uuid", "created_at", "difficulty_uuids", "program_code"),
+                            "category_uuid", "is_free", "uuid", "created_at", "difficulty_uuids", "program_code",
+                            "skill_uuids"),
                     List.of("title", "created_at", "rating_avg", "rating_bayes", "popularity_30d", "enrolment_count"))
             .withRankingRules(CourseSearchSource.DEFINITION.rankingRules())
             .withTypoDisabledAttributes(List.of("status"));
@@ -109,9 +115,14 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
                 SearchIndexTrigger.direct(ProgramCourse.class, ProgramCourse::getProgramUuid),
                 SearchIndexTrigger.direct(ProgramReview.class, ProgramReview::getProgramUuid),
                 SearchIndexTrigger.direct(ProgramEnrollment.class, ProgramEnrollment::getProgramUuid),
-                // A member course's name is part of the document.
+                SearchIndexTrigger.direct(ProgramRequirement.class, ProgramRequirement::getProgramUuid),
+                // A member course's name, age band, lessons and skills are part of the document.
                 SearchIndexTrigger.fanOut(Course.class, course -> course.getUuid() == null
                         || course.getParentCourseUuid() != null ? null : "course:" + course.getUuid()),
+                SearchIndexTrigger.fanOut(Lesson.class, lesson -> lesson.getCourseUuid() == null
+                        ? null : "course:" + lesson.getCourseUuid()),
+                SearchIndexTrigger.fanOut(CourseSkill.class, skill -> skill.getCourseUuid() == null
+                        ? null : "course:" + skill.getCourseUuid()),
                 SearchIndexTrigger.fanOut(Category.class, category -> category.getUuid() == null
                         ? null : "category:" + category.getUuid()),
                 SearchIndexTrigger.fanOut(DifficultyLevel.class, level -> level.getUuid() == null
@@ -182,6 +193,43 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
             }
         });
 
+        // Apply-to-train: the union of member skills, the intersection of member age bands, active lessons.
+        Map<UUID, Set<UUID>> skillUuids = new HashMap<>();
+        jdbc.query("""
+                SELECT DISTINCT pc.program_uuid, cs.skill_uuid
+                FROM program_courses pc JOIN course_skills cs ON cs.course_uuid = pc.course_uuid
+                WHERE pc.program_uuid IN (:uuids) AND cs.skill_uuid IS NOT NULL
+                """, byProgram, rs -> {
+            skillUuids.computeIfAbsent(SearchRows.uuid(rs, "program_uuid"), key -> new LinkedHashSet<>())
+                    .add(SearchRows.uuid(rs, "skill_uuid"));
+        });
+        Map<UUID, Integer[]> ageBands = new HashMap<>();
+        Map<UUID, Long> lessonCounts = new HashMap<>();
+        jdbc.query("""
+                SELECT pc.program_uuid, MAX(c.age_lower_limit) AS age_lower_limit,
+                       MIN(c.age_upper_limit) AS age_upper_limit,
+                       (SELECT COUNT(*) FROM program_courses pc2
+                        JOIN lessons l ON l.course_uuid = pc2.course_uuid AND l.active = true
+                        WHERE pc2.program_uuid = pc.program_uuid) AS lesson_count
+                FROM program_courses pc JOIN courses c ON c.uuid = pc.course_uuid
+                WHERE pc.program_uuid IN (:uuids) GROUP BY pc.program_uuid
+                """, byProgram, rs -> {
+            UUID programUuid = SearchRows.uuid(rs, "program_uuid");
+            int lower = rs.getInt("age_lower_limit");
+            Integer lowerLimit = rs.wasNull() ? null : lower;
+            int upper = rs.getInt("age_upper_limit");
+            Integer upperLimit = rs.wasNull() ? null : upper;
+            ageBands.put(programUuid, new Integer[]{lowerLimit, upperLimit});
+            lessonCounts.put(programUuid, rs.getLong("lesson_count"));
+        });
+        Map<UUID, Long> requirementCounts = new HashMap<>();
+        jdbc.query("""
+                SELECT program_uuid, COUNT(*) AS requirement_count FROM program_requirements
+                WHERE program_uuid IN (:uuids) GROUP BY program_uuid
+                """, byProgram, rs -> {
+            requirementCounts.put(SearchRows.uuid(rs, "program_uuid"), rs.getLong("requirement_count"));
+        });
+
         // Same Bayesian shrinkage as course_learning_stats.rating_bayes: (C*m + sum) / (C + n), C = 5,
         // m = the mean of every program review.
         Map<UUID, double[]> reviews = new HashMap<>();
@@ -217,6 +265,7 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
             double[] review = reviews.get(row.uuid());
             long[] enrolment = enrolments.getOrDefault(row.uuid(), new long[]{0, 0});
             Level[] range = levelRange.get(row.uuid());
+            Integer[] ageBand = ageBands.getOrDefault(row.uuid(), new Integer[]{null, null});
             documents.add(new ProgramSearchDocument(
                     row.uuid(),
                     row.title(),
@@ -247,7 +296,12 @@ public class ProgramSearchSource implements SearchDocumentSource<ProgramSearchDo
                     review == null ? 0 : (long) review[1],
                     review == null ? null : review[2],
                     enrolment[0],
-                    enrolment[1]));
+                    enrolment[1],
+                    List.copyOf(skillUuids.getOrDefault(row.uuid(), Set.of())),
+                    ageBand[0],
+                    ageBand[1],
+                    lessonCounts.getOrDefault(row.uuid(), 0L),
+                    requirementCounts.getOrDefault(row.uuid(), 0L)));
         }
         return documents;
     }

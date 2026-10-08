@@ -15,6 +15,7 @@ import java.util.UUID;
  * revenue-share fields, rate cards and lesson content.
  * {@code status} is the lower-case value the API serialises; instants are UTC epoch seconds.
  * {@code skill_uuids} (schema v2) are the skills-taxonomy entries the creator tagged the course with.
+ * {@code lesson_count} (active lessons) and {@code requirement_count} (training requirements) are schema v5.
  */
 public record CourseSearchDocument(
         @JsonProperty("uuid") UUID uuid,
@@ -47,6 +48,8 @@ public record CourseSearchDocument(
         @JsonProperty("prerequisite_uuids") List<UUID> prerequisiteUuids,
         @JsonProperty("age_lower_limit") Integer ageLowerLimit,
         @JsonProperty("age_upper_limit") Integer ageUpperLimit,
-        @JsonProperty("skill_uuids") List<UUID> skillUuids
+        @JsonProperty("skill_uuids") List<UUID> skillUuids,
+        @JsonProperty("lesson_count") long lessonCount,
+        @JsonProperty("requirement_count") long requirementCount
 ) implements SearchDocument {
 }
