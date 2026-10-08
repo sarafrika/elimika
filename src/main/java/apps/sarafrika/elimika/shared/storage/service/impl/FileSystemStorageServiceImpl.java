@@ -112,6 +112,22 @@ public class FileSystemStorageServiceImpl implements StorageService {
     }
 
     @Override
+    public void write(String fileName, byte[] content) {
+        Path target = resolveSafely(fileName);
+        if (target == null) {
+            throw new StorageException("Invalid file name: " + fileName);
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            Path staging = Files.createTempFile(target.getParent(), ".write-", ".tmp");
+            Files.write(staging, content);
+            Files.move(staging, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException e) {
+            throw new StorageException("Failed to write file: " + fileName, e);
+        }
+    }
+
+    @Override
     public Resource load(String fileName) {
         try {
             Resource resource = getResource(fileName);
@@ -156,6 +172,7 @@ public class FileSystemStorageServiceImpl implements StorageService {
             return paths.filter(Files::isRegularFile)
                     .map(p -> root.relativize(p).toString().replace('\\', '/'))
                     .filter(key -> !key.startsWith(tempFolder + "/"))
+                    .filter(key -> !key.startsWith(StoragePathUtils.VARIANTS_FOLDER + "/"))
                     .sorted()
                     .toList();
         } catch (IOException e) {

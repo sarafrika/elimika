@@ -62,13 +62,18 @@ public class FilesController {
     }
 
     @Operation(summary = "Get a stored file by its storage key",
-            description = "Serves any stored file (images, videos, documents, certificates) by its canonical storage key.")
+            description = "Serves any stored file (images, videos, documents, certificates) by its canonical storage key. "
+                    + "Responses are immutable and carry an ETag. For JPEG/PNG/BMP images, w=320|640|1280 "
+                    + "returns a downscaled variant (never upscaled), generated once and cached.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "File retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Unsupported variant width")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "File not found")
     @GetMapping("/{*key}")
     public ResponseEntity<Resource> getFile(
             @Parameter(description = "Canonical storage key, e.g. course_thumbnails/uuid.jpg", required = true)
-            @PathVariable String key) {
-        return mediaServeService.serve(key);
+            @PathVariable String key,
+            @Parameter(description = "Optional variant width in pixels: 320, 640 or 1280")
+            @RequestParam(name = "w", required = false) Integer width) {
+        return mediaServeService.serveSized(key, width);
     }
 }

@@ -20,6 +20,11 @@ public interface StorageService {
      */
     String store(MultipartFile file, String folder);
 
+    /**
+     * Writes bytes to an exact relative key, replacing any existing file atomically.
+     */
+    void write(String fileName, byte[] content);
+
     Resource load(String fileName);
 
     /**
