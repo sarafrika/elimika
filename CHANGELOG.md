@@ -1,3 +1,13 @@
+# [2.165.0](https://github.com/sarafrika/elimika/compare/v2.164.0...v2.165.0) (2026-10-08)
+
+
+### Features
+
+* **course:** add apply-to-train catalogue over courses and programs ([a7ca57a](https://github.com/sarafrika/elimika/commit/a7ca57a09285bb995c511580d6d3a9f08660adc1))
+* **course:** add learner groups and lesson plans to instructor training applications ([63f81ae](https://github.com/sarafrika/elimika/commit/63f81ae1ec89602319435f9ba9873059a719f9ed))
+* **course:** drop session rates from rate cards and retire the per-session basis ([04fed0f](https://github.com/sarafrika/elimika/commit/04fed0f6d707dbe8d2315f16be6d3a1baca392b1))
+* **search:** index lesson, requirement, skill and age-band fields on courses and programs ([d971d04](https://github.com/sarafrika/elimika/commit/d971d0425600b381f5c862a8d488f36b542d5ea6))
+
 # [2.164.0](https://github.com/sarafrika/elimika/compare/v2.163.0...v2.164.0) (2026-10-08)
 
 
