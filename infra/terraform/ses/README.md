@@ -16,6 +16,7 @@ DNS (cPanel): DKIM CNAMEs + MAIL FROM MX/SPF + DMARC ─▶ SES verifies the dom
 ## Apply
 
 Terraform uses the `sarafrika` AWS CLI profile. Create it once with `aws configure --profile sarafrika` (region `eu-west-1`).
+The profile's IAM user needs `deployer-policy.json` attached; it covers SES and only the `elimika-ses-smtp` IAM user.
 
 ```bash
 cd infra/terraform/ses
