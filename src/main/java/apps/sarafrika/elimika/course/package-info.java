@@ -64,6 +64,7 @@
             "shared",
             "coursecreator :: coursecreator-spi",
             "instructor :: instructor-spi",
+            "profile :: profile-spi",
             "resourcing :: resourcing-spi",
             "skills :: skills-spi",
             "tenancy :: tenancy-spi",

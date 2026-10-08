@@ -230,7 +230,7 @@ public class CatalogueSearchService {
     private record Hit(Index index, UUID uuid, Map<String, Object> document, Map<String, Object> formatted) {
     }
 
-    private static List<SearchSort> sortFor(Sort sort) {
+    static List<SearchSort> sortFor(Sort sort) {
         return switch (sort) {
             case RELEVANCE -> List.of();
             case NEWEST -> List.of(SearchSort.desc("created_at"));
@@ -580,23 +580,23 @@ public class CatalogueSearchService {
         return text.isEmpty() ? null : text;
     }
 
-    private static String text(Map<String, Object> document, String key) {
+    static String text(Map<String, Object> document, String key) {
         Object value = document.get(key);
         return value == null ? null : value.toString();
     }
 
-    private static List<String> texts(Object value) {
+    static List<String> texts(Object value) {
         if (!(value instanceof Collection<?> values)) {
             return List.of();
         }
         return values.stream().filter(java.util.Objects::nonNull).map(Object::toString).toList();
     }
 
-    private static List<UUID> uuids(Object value) {
+    static List<UUID> uuids(Object value) {
         return texts(value).stream().map(CatalogueSearchService::parseUuid).filter(java.util.Objects::nonNull).toList();
     }
 
-    private static UUID parseUuid(String value) {
+    static UUID parseUuid(String value) {
         if (value == null) {
             return null;
         }
@@ -607,7 +607,7 @@ public class CatalogueSearchService {
         }
     }
 
-    private static BigDecimal decimal(Object value) {
+    static BigDecimal decimal(Object value) {
         if (value == null) {
             return null;
         }
@@ -618,12 +618,12 @@ public class CatalogueSearchService {
         }
     }
 
-    private static Integer integer(Object value) {
+    static Integer integer(Object value) {
         BigDecimal number = decimal(value);
         return number == null ? null : number.intValue();
     }
 
-    private static long longValue(Object value) {
+    static long longValue(Object value) {
         BigDecimal number = decimal(value);
         return number == null ? 0L : number.longValue();
     }

@@ -1,6 +1,9 @@
 package apps.sarafrika.elimika.course.controller;
 
+import apps.sarafrika.elimika.course.dto.ApplyCatalogueResponse;
 import apps.sarafrika.elimika.course.dto.CatalogueSearchResponse;
+import apps.sarafrika.elimika.course.internal.search.ApplyCatalogueSearchService;
+import apps.sarafrika.elimika.course.internal.search.ApplyCatalogueSearchService.Fit;
 import apps.sarafrika.elimika.course.internal.search.CatalogueSearchService;
 import apps.sarafrika.elimika.course.internal.search.CatalogueSearchService.Level;
 import apps.sarafrika.elimika.course.internal.search.CatalogueSearchService.Price;
@@ -15,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,7 +28,8 @@ import java.util.List;
 
 /**
  * The public catalogue page: one search across courses and programmes, ranked together. Open to
- * anonymous callers; every caller sees the public catalogue only.
+ * anonymous callers; every caller sees the public catalogue only. The apply-to-train view of the same
+ * catalogue is for approved instructors.
  */
 @RestController
 @RequestMapping("/api/v1/catalogue")
@@ -33,6 +38,7 @@ import java.util.List;
 public class CatalogueSearchController {
 
     private final CatalogueSearchService catalogueSearchService;
+    private final ApplyCatalogueSearchService applyCatalogueSearchService;
 
     @GetMapping("/search")
     @Operation(operationId = "searchCoursesAndProgrammes", summary = "Search the public catalogue",
@@ -88,5 +94,51 @@ public class CatalogueSearchController {
                 size);
         return ResponseEntity.ok(ApiResponse.success(catalogueSearchService.search(query),
                 "Catalogue retrieved successfully"));
+    }
+
+    @GetMapping("/apply-to-train")
+    @PreAuthorize("@domainSecurityService.isInstructor()")
+    @Operation(operationId = "searchApplyToTrainCatalogue", summary = "Search courses and programmes to apply to train",
+            description = "For instructors whose instructor domain is approved (403 with code DOMAIN_PENDING_APPROVAL "
+                    + "while it awaits approval). The public catalogue's courses and programmes in one ranking, "
+                    + "filtered by fit: open (not yet applied to, the default), skills (not yet applied to and "
+                    + "sharing a skill with the caller's skills wallet) or applied (any application status). Applied "
+                    + "items and wallet skills are always the caller's own. Facets: show, category and fit counts, "
+                    + "each under every other active filter. my_application and minimum_training_fee are read live; "
+                    + "hits no longer public are dropped and the total restated. 503 \"Search is unavailable\" "
+                    + "when search is disabled or unavailable; there is no database fallback.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "A page of catalogue items with facets")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "An unknown show, fit or sort value, a malformed UUID, or page/size out of range")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Not an approved instructor")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Search is disabled or unavailable")
+    public ResponseEntity<ApiResponse<ApplyCatalogueResponse>> searchApplyToTrainCatalogue(
+            @Parameter(description = "Free-text query; empty or absent browses the catalogue")
+            @RequestParam(value = "q", required = false) String q,
+            @Parameter(description = "Which types to list (default all)",
+                    schema = @Schema(allowableValues = {"all", "courses", "programmes"}, defaultValue = "all"))
+            @RequestParam(value = "show", required = false) String show,
+            @Parameter(description = "Category UUIDs; repeat the parameter or pass a comma-separated list.",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "uuid")))
+            @RequestParam(value = "category_uuid", required = false) List<String> categoryUuids,
+            @Parameter(description = "How results fit the caller (default open)",
+                    schema = @Schema(allowableValues = {"open", "skills", "applied"}, defaultValue = "open"))
+            @RequestParam(value = "fit", required = false) String fit,
+            @Parameter(description = "Ordering (default relevance with q, popular without)",
+                    schema = @Schema(allowableValues = {"relevance", "newest", "rating", "popular"}))
+            @RequestParam(value = "sort", required = false) String sort,
+            @Parameter(description = "0-based page number", schema = @Schema(defaultValue = "0", minimum = "0"))
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @Parameter(description = "Page size, 1-48", schema = @Schema(defaultValue = "24", minimum = "1", maximum = "48"))
+            @RequestParam(value = "size", required = false, defaultValue = "24") int size) {
+        ApplyCatalogueSearchService.Query query = new ApplyCatalogueSearchService.Query(
+                q,
+                CatalogueSearchService.parseEnum("show", show, Show.class),
+                CatalogueSearchService.parseUuids("category_uuid", categoryUuids),
+                CatalogueSearchService.parseEnum("fit", fit, Fit.class),
+                CatalogueSearchService.parseEnum("sort", sort, Sort.class),
+                page,
+                size);
+        return ResponseEntity.ok(ApiResponse.success(applyCatalogueSearchService.search(query),
+                "Apply-to-train catalogue retrieved successfully"));
     }
 }
