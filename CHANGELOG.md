@@ -1,3 +1,10 @@
+## [2.167.1](https://github.com/sarafrika/elimika/compare/v2.167.0...v2.167.1) (2026-10-08)
+
+
+### Performance Improvements
+
+* **storage:** serve files with public immutable caching, ETag and resized variants ([81a3d4d](https://github.com/sarafrika/elimika/commit/81a3d4de63f4ab0ed8b4000875e181b0d21f2aaf))
+
 # [2.167.0](https://github.com/sarafrika/elimika/compare/v2.166.0...v2.167.0) (2026-10-08)
 
 
