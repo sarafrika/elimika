@@ -30,8 +30,10 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -42,6 +44,8 @@ public class UserNotificationServiceImpl implements UserNotificationService {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
+
+    static final int MAX_BULK_UUIDS = 200;
 
     private final UserNotificationRepository userNotificationRepository;
     private final NotificationPreferencesService preferencesService;
@@ -137,23 +141,50 @@ public class UserNotificationServiceImpl implements UserNotificationService {
             String action,
             UserNotificationStatus status,
             NotificationPresentation presentation,
-            NotificationType type
+            NotificationType type,
+            List<UUID> notificationUuids
     ) {
         String normalizedAction = normalizeAction(action);
-        if (!"read_all".equals(normalizedAction)) {
-            throw new IllegalArgumentException("Unsupported bulk notification action: " + action + ". Allowed values: read_all");
-        }
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        int affected = switch (normalizedAction) {
+            case "read_all" -> userNotificationRepository.markUnreadAsRead(
+                    recipientUuid,
+                    normalizeDomain(domain),
+                    type,
+                    presentation,
+                    UserNotificationStatus.UNREAD,
+                    UserNotificationStatus.READ,
+                    now
+            );
+            case "popup_seen" -> markPopupsSeen(recipientUuid, domain, type, notificationUuids, now);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported bulk notification action: " + action + ". Allowed values: read_all, popup_seen");
+        };
+        return new NotificationActionResultDTO(normalizedAction, affected);
+    }
 
-        int affected = userNotificationRepository.markUnreadAsRead(
+    // Explicit uuids are always scoped to the caller; without them every unseen POPUP for the domain is stamped.
+    private int markPopupsSeen(
+            UUID recipientUuid,
+            String domain,
+            NotificationType type,
+            List<UUID> notificationUuids,
+            LocalDateTime now
+    ) {
+        if (notificationUuids != null && !notificationUuids.isEmpty()) {
+            if (notificationUuids.size() > MAX_BULK_UUIDS) {
+                throw new IllegalArgumentException(
+                        "At most " + MAX_BULK_UUIDS + " notification uuids may be marked in one request");
+            }
+            return userNotificationRepository.markPopupSeenByUuids(recipientUuid, Set.copyOf(notificationUuids), now);
+        }
+        return userNotificationRepository.markUnseenPopupsSeen(
                 recipientUuid,
                 normalizeDomain(domain),
                 type,
-                presentation,
-                UserNotificationStatus.UNREAD,
-                UserNotificationStatus.READ,
-                LocalDateTime.now(ZoneOffset.UTC)
+                NotificationPresentation.POPUP,
+                now
         );
-        return new NotificationActionResultDTO(normalizedAction, affected);
     }
 
     private Specification<UserNotification> filter(
