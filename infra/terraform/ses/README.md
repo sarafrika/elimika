@@ -10,7 +10,7 @@ DNS for `sarafrika.com` is hosted in cPanel, not Route 53, so Terraform prints t
 Spring Boot (JavaMailSender) ─┐
                               ├─ SMTP :587 STARTTLS ─▶ email-smtp.<region>.amazonaws.com ─▶ recipient
 Keycloak realm email ─────────┘        (IAM SMTP user, scoped to no-reply@sarafrika.com)
-DNS (cPanel): DKIM CNAMEs + MAIL FROM MX/SPF + DMARC ─▶ SES verifies the domain and signs mail
+DNS (cPanel): DKIM CNAMEs + MAIL FROM (bounce.) MX/SPF ─▶ SES verifies the domain and signs mail
 ```
 
 ## Apply
@@ -31,7 +31,7 @@ The state file contains the SMTP password. It stays local and is gitignored, so 
 
 ## After apply
 
-1. Add the `dns_records` in cPanel. If `sarafrika.com` already has an SPF record, keep one record and add `include:amazonses.com` to it. The MAIL FROM SPF is on `mail.sarafrika.com`, so it doesn't conflict with the root SPF.
+1. Add the `dns_records` in cPanel. Leave the root SPF and the existing `_dmarc` record alone: SES mail aligns through DKIM and the `bounce.sarafrika.com` MAIL FROM, which has its own SPF.
 2. Wait until SES shows the identity as **Verified**.
 3. Request production access from the SES console (Account dashboard). Terraform doesn't do this step.
 4. Set the backend env vars and restart the `elimika` container:

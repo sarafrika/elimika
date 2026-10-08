@@ -17,11 +17,6 @@ output "dns_records" {
         name  = local.mail_from_domain
         value = "v=spf1 include:amazonses.com ~all"
       },
-      {
-        type  = "TXT"
-        name  = "_dmarc.${var.domain}"
-        value = "v=DMARC1; p=none; rua=mailto:dmarc@${var.domain}"
-      },
     ],
   )
 }

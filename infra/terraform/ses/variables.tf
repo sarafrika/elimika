@@ -17,9 +17,9 @@ variable "domain" {
 }
 
 variable "mail_from_subdomain" {
-  description = "Custom MAIL FROM subdomain, so SPF aligns with the sending domain."
+  description = "Custom MAIL FROM subdomain; mail.sarafrika.com is the cPanel mail host, so use a free name."
   type        = string
-  default     = "mail"
+  default     = "bounce"
 }
 
 variable "from_addresses" {
