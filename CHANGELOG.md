@@ -1,3 +1,10 @@
+# [2.166.0](https://github.com/sarafrika/elimika/compare/v2.165.0...v2.166.0) (2026-10-08)
+
+
+### Features
+
+* **course:** generalise learner groups into age groups that instructors and organisations can save ([431a3ba](https://github.com/sarafrika/elimika/commit/431a3ba290856dbb6deacdb896183f7a94834b43))
+
 # [2.165.0](https://github.com/sarafrika/elimika/compare/v2.164.0...v2.165.0) (2026-10-08)
 
 
