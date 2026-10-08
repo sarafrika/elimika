@@ -1,8 +1,10 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.converter.E164PhoneNumberConverter;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -100,6 +102,7 @@ public class OrganisationInvitation extends BaseEntity {
     @Column(name = "guardian_relationship_type")
     private String guardianRelationshipType;
 
+    @Convert(converter = E164PhoneNumberConverter.class)
     @Column(name = "guardian_phone")
     private String guardianPhone;
 

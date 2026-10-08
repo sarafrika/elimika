@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.shared.event.user.SuccessfulUserUpdateEvent;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.shared.event.user.UserUpdateEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.utils.PhoneNumbers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -61,7 +62,7 @@ class UserEventsListener {
         
         // Sync custom attributes from the event using hardcoded attribute names
         updateAttributeIfNotNull(attributes, "middleName", event.middleName());
-        updateAttributeIfNotNull(attributes, "primaryPhoneNumber", event.phoneNumber());
+        updateAttributeIfNotNull(attributes, "primaryPhoneNumber", PhoneNumbers.toE164(event.phoneNumber()));
         updateAttributeIfNotNull(attributes, "dob", event.dob() != null ? event.dob().toString() : null);
         updateAttributeIfNotNull(attributes, "gender", event.gender() != null ? event.gender().name() : null);
         updateAttributeIfNotNull(attributes, "profileImageUrl", event.profileImageUrl());

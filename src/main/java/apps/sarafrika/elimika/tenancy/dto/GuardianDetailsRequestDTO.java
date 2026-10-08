@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -46,6 +47,7 @@ public record GuardianDetailsRequestDTO(
 
         @Schema(description = "**[OPTIONAL]** Guardian's phone number, used only if the email bounces.",
                 example = "+254700000000", nullable = true)
+        @ValidPhoneNumber(mobileOnly = true, message = "Guardian phone must be a valid mobile number")
         @Size(max = 50, message = "Guardian phone cannot exceed 50 characters")
         @JsonProperty("guardian_phone")
         String guardianPhone

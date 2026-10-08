@@ -2,7 +2,9 @@ package apps.sarafrika.elimika.student.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
+import apps.sarafrika.elimika.shared.utils.converter.E164PhoneNumberConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -27,12 +29,14 @@ public class Student extends BaseEntity {
     @Column(name = "guardian_1_name")
     private String firstGuardianName;
 
+    @Convert(converter = E164PhoneNumberConverter.class)
     @Column(name = "guardian_1_mobile")
     private String firstGuardianMobile;
 
     @Column(name = "guardian_2_name")
     private String secondGuardianName;
 
+    @Convert(converter = E164PhoneNumberConverter.class)
     @Column(name = "guardian_2_mobile")
     private String secondGuardianMobile;
 

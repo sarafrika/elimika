@@ -1,8 +1,9 @@
 package apps.sarafrika.elimika.tenancy.entity;
 
-import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.enums.Gender;
+import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
+import apps.sarafrika.elimika.shared.utils.converter.E164PhoneNumberConverter;
 import apps.sarafrika.elimika.shared.utils.converter.GenderConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -44,6 +45,7 @@ public class User extends BaseEntity {
     @Column(name = "dob")
     private LocalDate dob;
 
+    @Convert(converter = E164PhoneNumberConverter.class)
     @Column(name = "phone_number")
     private String phoneNumber;
 

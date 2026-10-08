@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -38,6 +39,7 @@ public record OrganisationUserCreateRequestDTO(
         String email,
 
         @Schema(description = "Optional phone number", example = "+254700000000")
+        @ValidPhoneNumber(mobileOnly = true, message = "Phone number must be a valid mobile number")
         @Size(max = 50, message = "Phone number cannot exceed 50 characters")
         @JsonProperty("phone_number")
         String phoneNumber,

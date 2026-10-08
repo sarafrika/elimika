@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.student.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import apps.sarafrika.elimika.shared.utils.converter.E164PhoneNumberConverter;
 import apps.sarafrika.elimika.student.util.converter.GuardianContactStatusConverter;
 import apps.sarafrika.elimika.student.util.converter.GuardianRelationshipTypeConverter;
 import apps.sarafrika.elimika.student.util.enums.GuardianContactStatus;
@@ -33,6 +34,7 @@ public class StudentGuardianContact extends BaseEntity {
     @Column(name = "guardian_name")
     private String guardianName;
 
+    @Convert(converter = E164PhoneNumberConverter.class)
     @Column(name = "guardian_phone")
     private String guardianPhone;
 

@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.shared.event.user.SuccessfulUserCreation;
 import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.shared.exceptions.KeycloakException;
+import apps.sarafrika.elimika.shared.utils.PhoneNumbers;
 import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -152,7 +153,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         // Attribute names match the ones UserEventsListener keeps in sync on profile updates.
         Map<String, List<String>> attributes = new HashMap<>();
         putIfPresent(attributes, "middleName", registration.middleName());
-        putIfPresent(attributes, "primaryPhoneNumber", registration.phoneNumber());
+        putIfPresent(attributes, "primaryPhoneNumber", PhoneNumbers.toE164(registration.phoneNumber()));
         putIfPresent(attributes, "dob", registration.dateOfBirth() == null ? null : registration.dateOfBirth().toString());
         putIfPresent(attributes, "gender", registration.gender());
         user.setAttributes(attributes);

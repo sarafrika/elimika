@@ -1,12 +1,12 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -39,7 +39,7 @@ public record RegistrationRequestDTO(
         String email,
 
         @NotBlank
-        @Pattern(regexp = "^\\+?[0-9 ]{7,20}$", message = "Phone number must contain 7 to 20 digits")
+        @ValidPhoneNumber(mobileOnly = true, message = "Phone number must be a valid mobile number")
         @JsonProperty("phone_number")
         String phoneNumber,
 

@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
+import apps.sarafrika.elimika.shared.utils.converter.E164PhoneNumberConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -44,6 +45,7 @@ public class TrainingBranch extends BaseEntity {
     @Column(name = "poc_email")
     private String pocEmail;
 
+    @Convert(converter = E164PhoneNumberConverter.class)
     @Column(name = "poc_telephone")
     private String pocTelephone;
 
