@@ -932,6 +932,7 @@ public class InstructorController {
                     
                     **Common Experience Search Examples:**
                     - `instructorUuid=uuid` - All experience for specific instructor
+                    - `instructor_uuid_in=uuid1,uuid2` - Experience for several instructors in one request
                     - `isCurrentPosition=true` - Current positions only
                     - `yearsOfExperience_gte=5` - 5+ years experience
                     - `startDate_gte=2020-01-01` - Started in 2020 or later
@@ -1016,6 +1017,7 @@ public class InstructorController {
                     
                     **Common Skills Search Examples:**
                     - `instructorUuid=uuid` - All skills for specific instructor
+                    - `instructor_uuid_in=uuid1,uuid2` - Skills for several instructors in one request
                     - `proficiencyLevel=EXPERT` - Expert level skills only
                     - `proficiencyLevel_in=ADVANCED,EXPERT` - Advanced or expert skills
                     - `proficiencyLevel_noteq=BEGINNER` - Non-beginner skills
