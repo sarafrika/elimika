@@ -143,8 +143,10 @@ app:
   email:
     from: no-reply@sarafrika.com
     from-name: Elimika
+    # Times in emails are shown in this zone; stored values stay UTC.
+    display-zone: ${APP_EMAIL_DISPLAY_ZONE:Africa/Nairobi}
     frontend:
-      url: https://elimika.sarafrika.com
+      url: ${APP_EMAIL_FRONTEND_URL:https://elimika.sarafrika.com}
 
 storage:
   location: ${STORAGE_PATH:${user.home}/elimika-storage}

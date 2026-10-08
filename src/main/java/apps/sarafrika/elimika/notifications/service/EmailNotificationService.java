@@ -101,7 +101,7 @@ public class EmailNotificationService {
             }
             helper.setTo(event.getRecipientEmail());
             helper.setSubject(subject);
-            helper.setText(htmlContent, true);
+            helper.setText(EmailPlainText.from(htmlContent), htmlContent);
             
             // Add reply-to if organization context exists
             if (event.getOrganizationId() != null) {
@@ -161,34 +161,27 @@ public class EmailNotificationService {
     }
     
     /**
-     * Attach logos as inline content for email templates
+     * Attach logos as inline PNGs; Gmail and Outlook do not render SVG images.
      */
     private void attachLogos(MimeMessageHelper helper) {
+        attachLogo(helper, "elimikaLogo", "static/logos/elimika/elimika-logo-email.png");
+        attachLogo(helper, "sarafrikaLogo", "static/logos/sarafrika/sarafrika-logo-email.png");
+    }
+
+    private void attachLogo(MimeMessageHelper helper, String contentId, String path) {
+        Resource logo = new ClassPathResource(path);
+        if (!logo.exists()) {
+            log.warn("Email logo not found at: {}", path);
+            return;
+        }
         try {
-            // Attach Elimika full color logo
-            Resource elimikaLogo = new ClassPathResource("static/logos/elimika/elimika-logo-full-color.svg");
-            if (elimikaLogo.exists()) {
-                helper.addInline("elimikaLogo", elimikaLogo, "image/svg+xml");
-                log.debug("Attached Elimika logo to email");
-            } else {
-                log.warn("Elimika logo not found at: static/logos/elimika/elimika-logo-full-color.svg");
-            }
-            
-            // Attach Sarafrika full color logo
-            Resource sarafrikaLogo = new ClassPathResource("static/logos/sarafrika/sarafrika-logo-full-color.svg");
-            if (sarafrikaLogo.exists()) {
-                helper.addInline("sarafrikaLogo", sarafrikaLogo, "image/svg+xml");
-                log.debug("Attached Sarafrika logo to email");
-            } else {
-                log.warn("Sarafrika logo not found at: static/logos/sarafrika/sarafrika-logo-full-color.svg");
-            }
-            
+            helper.addInline(contentId, logo, "image/png");
         } catch (MessagingException e) {
-            log.error("Failed to attach logos to email: {}", e.getMessage());
-            // Don't throw exception - email can still be sent without logos
+            // The email still reads fine without the logo.
+            log.error("Failed to attach {} to email: {}", path, e.getMessage());
         }
     }
-    
+
     /**
      * Check if email service is available
      */

@@ -40,6 +40,47 @@ public final class EmailSamples {
         };
     }
 
+    /** Sample values shaped for one type, so previews read like the real email. */
+    public static Map<String, Object> sampleVariables(NotificationType type) {
+        Map<String, Object> v = sampleVariables();
+        String status = switch (type) {
+            case CLASS_MARKETPLACE_JOB_APPLICATION_SHORTLISTED -> "has been shortlisted";
+            case CLASS_MARKETPLACE_JOB_APPLICATION_INTERVIEWING -> "has moved to the interview stage";
+            case CLASS_MARKETPLACE_JOB_APPLICATION_OFFERED -> "has received an offer";
+            case CLASS_MARKETPLACE_JOB_APPLICATION_ASSIGNED -> "has been assigned";
+            case CLASS_MARKETPLACE_JOB_APPLICATION_NOT_SELECTED -> "was not selected";
+            case CLASS_MARKETPLACE_JOB_EXPIRED -> "closed because the job expired";
+            case CLASS_MARKETPLACE_JOB_APPLICATION_CANCELLED -> "closed because the job was cancelled";
+            default -> "was not successful";
+        };
+        v.put("statusLabel", status);
+        switch (type) {
+            case COURSE_TRAINING_APPLICATION_REJECTED -> v.put("contextType", "course");
+            case PROGRAM_TRAINING_APPLICATION_REJECTED -> {
+                v.put("contextType", "programme");
+                v.put("contextName", "Junior Musicianship Programme");
+            }
+            case DOMAIN_APPROVAL_DECLINED -> {
+                v.put("approved", false);
+                v.put("reviewNotes", "We couldn't read the teaching certificate you uploaded. Please add a clear scan of it.");
+            }
+            case TRAINING_RATE_UPDATE_REJECTED -> {
+                v.put("approved", false);
+                v.put("decisionLabel", "not accepted");
+                v.put("reviewNotes", "This course is priced for beginners; we can revisit the rate next term.");
+            }
+            case ORGANISATION_INVITATION_ACCEPTED -> v.put("recipientName", "Brian Kamau");
+            case NEW_ASSIGNMENT_SUBMISSION, CLASS_SCHEDULE_UPDATED, CLASS_MARKETPLACE_JOB_APPLICATION_WITHDRAWN,
+                 CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION -> v.put("instructorName", "Brian Kamau");
+            default -> {
+            }
+        }
+        if (type.name().startsWith("CLASS_MARKETPLACE")) {
+            v.put("contextType", "class");
+        }
+        return v;
+    }
+
     /** One value per variable any template reads, typed the way publishers send them. */
     public static Map<String, Object> sampleVariables() {
         LocalDateTime soon = LocalDateTime.now().plusDays(2);
@@ -58,7 +99,7 @@ public final class EmailSamples {
                 Map.entry("roleName", "Instructor"),
                 Map.entry("orderDisplayId", "ELM-10482"),
                 Map.entry("orderId", "ELM-10482"),
-                Map.entry("gradeLevel", "Merit"),
+                Map.entry("gradeLevel", "excellent"),
                 Map.entry("currencyCode", "KES"),
                 Map.entry("actionLink", "https://elimika.sarafrika.com/dashboard"),
                 Map.entry("guardianName", "Grace Otieno"),
@@ -69,7 +110,7 @@ public final class EmailSamples {
                 Map.entry("title", "Studio closed on Friday"),
                 Map.entry("timezone", "Africa/Nairobi"),
                 Map.entry("submissionText", "Attached is my recording of the C major and G major scales, hands together."),
-                Map.entry("releaseStrategy", "Released immediately"),
+                Map.entry("releaseStrategy", "AFTER_LESSON"),
                 Map.entry("relationshipLabel", "parent"),
                 Map.entry("platformFeeCurrency", "KES"),
                 Map.entry("personalMessage", "We would love to have you teach our weekend piano classes."),
@@ -78,10 +119,10 @@ public final class EmailSamples {
                 Map.entry("instructor", "Brian Kamau"),
                 Map.entry("dashboard", "https://elimika.sarafrika.com/dashboard"),
                 Map.entry("consentLink", "https://elimika.sarafrika.com/guardian-consent/abc123"),
-                Map.entry("changedBy", "Nairobi Music Academy"),
+                Map.entry("changedBy", "Wanjiru Mwangi"),
                 Map.entry("branchName", "Westlands Studio"),
-                Map.entry("assessmentType", "Practical"),
-                Map.entry("assessmentTitle", "Saturday Piano Class"),
+                Map.entry("assessmentType", "ASSIGNMENT"),
+                Map.entry("assessmentTitle", "Week 3 Scales Recording"),
                 Map.entry("welcomeMessage", "Welcome aboard! Your first lesson starts this Saturday."),
                 Map.entry("submissionId", "s-204"),
                 Map.entry("studentEmail", "amina.otieno@example.com"),
@@ -97,24 +138,29 @@ public final class EmailSamples {
         v.putAll(text);
         v.put("actionPath", "/dashboard");
         v.put("approved", true);
-        v.put("isUrgent", true);
+        v.put("isUrgent", false);
         v.put("isLate", false);
         v.put("isStartingSoon", true);
         v.put("hasFeedback", true);
         v.put("hasAttachments", true);
         v.put("daysUntilDue", 2);
-        v.put("clashCount", 1);
+        v.put("clashCount", 2);
         v.put("estimatedDurationWeeks", 6);
         for (String date : List.of("dueDate", "dueAt", "createdAt", "visibleAt", "expiresAt", "firstClashAt",
                 "changedAt", "submittedAt", "courseStartDate")) {
             v.put(date, soon);
         }
-        for (String amount : List.of("score", "maxScore", "percentage", "total", "subtotal", "platformFeeAmount")) {
-            v.put(amount, new BigDecimal("85.50"));
-        }
-        v.put("items", List.of(Map.of("title", "Piano Basics", "quantity", 1, "total", new BigDecimal("1500.00"))));
-        v.put("clashReasons", List.of("Overlaps another class on Monday 10:00"));
-        v.put("attachmentFileNames", List.of("essay.pdf"));
+        v.put("score", 17);
+        v.put("maxScore", 20);
+        v.put("percentage", 85);
+        v.put("subtotal", new BigDecimal("13500.00"));
+        v.put("platformFeeAmount", new BigDecimal("270.00"));
+        v.put("total", new BigDecimal("13770.00"));
+        v.put("items", List.of(
+                Map.of("title", "Piano Foundations: Grade 1", "quantity", 1, "total", new BigDecimal("12000.00")),
+                Map.of("title", "Grade 1 practice pack", "quantity", 1, "total", new BigDecimal("1500.00"))));
+        v.put("clashReasons", List.of("Sat 10:00-12:00: overlaps Violin Basics at Kilimani Strings", "Sat 25 Oct 10:00-12:00: overlaps Violin Basics at Kilimani Strings"));
+        v.put("attachmentFileNames", List.of("c-major-scale.m4a", "hands-together.mp4"));
         return v;
     }
 }

@@ -1,151 +1,39 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your schedule blocked a hire - [[${companyName}]]</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f7fafc;
-            margin: 0;
-            padding: 30px;
-            color: #2d3748;
-        }
-
-        .container {
-            max-width: 640px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #c05621 0%, #dd6b20 100%);
-            padding: 36px 32px;
-            color: #ffffff;
-        }
-
-        .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 26px;
-            font-weight: 700;
-        }
-
-        .header p {
-            margin: 0;
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 32px;
-        }
-
-        .greeting {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-
-        .card {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-            background: linear-gradient(180deg, rgba(237,242,247,0.6) 0%, rgba(255,255,255,0.8) 100%);
-            margin-bottom: 20px;
-        }
-
-        .detail-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #718096;
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-        }
-
-        .detail-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .notes {
-            margin-top: 16px;
-            padding: 16px;
-            border-left: 4px solid #dd6b20;
-            background: #f8fafc;
-            border-radius: 0 12px 12px 0;
-        }
-
-        .footer {
-            padding: 24px 32px 32px 32px;
-            font-size: 13px;
-            color: #718096;
-            border-top: 1px solid #edf2f7;
-            background: #fafbff;
-        }
-
-        .button {
-            display: inline-block;
-            background: linear-gradient(135deg, #c05621 0%, #dd6b20 100%);
-            color: #ffffff !important;
-            text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 999px;
-            font-weight: 600;
-            margin-top: 16px;
-        }
-    </style>
-</head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Hire blocked',
+                    ${clashCount + (clashCount == 1 ? ' session overlaps' : ' sessions overlap') + ' with classes you already teach. Nothing has changed yet.'},
+                    'Action needed', 'amber', ~{::hero}, ~{::content},
+                    'You’re receiving this because you applied for a class job on Elimika.')}">
 <body>
-<div class="container">
-    <div class="header">
-        <h1>Your schedule blocked a hire</h1>
-        <p><strong>[[${organisationName}]]</strong> tried to hire you for "<strong>[[${contextName}]]</strong>".</p>
-    </div>
-    <div class="content">
-        <p class="greeting">Hi [[${recipientName}]],</p>
-        <p>
-            [[${organisationName}]] could not hire you because your schedule clashes with
-            [[${clashCount}]] of the class's sessions.
-        </p>
+<th:block th:fragment="hero">
+    <h1 th:replace="~{email/fragments/layout :: h1('Your timetable blocked this hire')}"></h1>
+    <p th:replace="~{email/fragments/layout :: lead(${'Hi ' + fmt.firstName(recipientName) + ', ' + organisationName + ' tried to hire you for ' + contextName + ', but some of its sessions overlap with classes you already teach.'})}"></p>
+</th:block>
+<th:block th:fragment="content">
+    <p th:replace="~{email/fragments/layout :: label(${'Clashing sessions · ' + clashCount})}"></p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid #F5D9B5;border-radius:14px;border-collapse:separate;border-spacing:0;background:#FFFCF6;overflow:hidden;">
+        <tr>
+            <td style="padding:14px 18px;font-size:14px;color:#5B6474;">First clash</td>
+            <td align="right" style="padding:14px 18px;font-size:14px;font-weight:700;color:#0B1736;" th:text="${fmt.dateTime(firstClashAt)}">When</td>
+        </tr>
+        <tr th:each="reason : ${clashReasons}">
+            <td colspan="2" style="padding:12px 18px;border-top:1px solid #F5D9B5;font-size:14px;line-height:1.5;color:#344054;" th:text="${reason}">Reason</td>
+        </tr>
+    </table>
 
-        <div class="card">
-            <div class="detail-label">Class</div>
-            <div class="detail-value">[[${contextName}]]</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
+        <tr>
+            <td style="padding:16px 18px;border-radius:14px;background:#F7F9FC;font-size:14px;line-height:1.55;color:#344054;">
+                Nothing has changed: your application is still open and your other classes are untouched.
+            </td>
+        </tr>
+    </table>
 
-            <div class="detail-label" style="margin-top: 16px;">Clashing sessions</div>
-            <div class="detail-value">[[${clashCount}]]</div>
+    <p th:replace="~{email/fragments/layout :: label('How to fix it')}"></p>
+    <table th:replace="~{email/fragments/layout :: step('1', 'Free up the time', 'Move or hand over the clashing classes, if you can.', false)}"></table>
+    <table th:replace="~{email/fragments/layout :: step('2', 'Let the organisation know', 'They can try the hire again, or adjust the class schedule.', false)}"></table>
 
-            <div class="detail-label" style="margin-top: 16px;">First clash</div>
-            <div class="detail-value">[[${firstClashAt}]]</div>
-
-            <div class="notes">
-                <strong>What clashes:</strong>
-                <ul>
-                    <li th:each="reason : ${clashReasons}">[[${reason}]]</li>
-                </ul>
-            </div>
-        </div>
-
-        <p>
-            Free up those times (reschedule or release the other commitment) so [[${organisationName}]]
-            can hire you.
-        </p>
-
-        <a th:href="${frontendUrl + actionPath}" class="button">View my applications</a>
-    </div>
-
-    <div class="footer">
-        <p>
-            You're receiving this email because an organisation tried to hire you on [[${applicationName}]].
-            If you believe this is an error, please contact <a th:href="'mailto:' + ${supportEmail}">[[${supportEmail}]]</a>.
-        </p>
-        <p>&copy; [[${currentYear}]] [[${companyName}]]. All rights reserved.</p>
-    </div>
-</div>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + actionPath}, 'View my applications')}"></table>
+</th:block>
 </body>
 </html>

@@ -1,345 +1,45 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assignment Graded - [[${companyName}]]</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            padding: 40px 30px;
-            text-align: center;
-            position: relative;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)"/></svg>');
-        }
-
-        .logo {
-            position: relative;
-            z-index: 1;
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .logo img {
-            width: 50px;
-            height: 50px;
-            object-fit: contain;
-        }
-
-        .header h1 {
-            color: white;
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header p {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 16px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .content {
-            padding: 40px 30px;
-        }
-
-        .greeting {
-            font-size: 24px;
-            color: #2d3748;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
-
-        .grade-card {
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            border-radius: 15px;
-            padding: 30px;
-            margin: 30px 0;
-            border: 1px solid #e2e8f0;
-            text-align: center;
-        }
-
-        .grade-display {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .grade-display.excellent { color: #38a169; }
-        .grade-display.good { color: #4299e1; }
-        .grade-display.satisfactory { color: #ed8936; }
-        .grade-display.needs-improvement { color: #e53e3e; }
-        .grade-display.below-expectations { color: #9f1239; }
-
-        .grade-percentage {
-            font-size: 24px;
-            color: #718096;
-            margin-bottom: 20px;
-        }
-
-        .assignment-details {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            border: 1px solid #e2e8f0;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #f7fafc;
-        }
-
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-
-        .detail-label {
-            font-weight: 600;
-            color: #4a5568;
-        }
-
-        .detail-value {
-            color: #2d3748;
-        }
-
-        .feedback-section {
-            background: #f8f9fa;
-            border-left: 4px solid #48bb78;
-            padding: 20px;
-            margin: 30px 0;
-            border-radius: 0 10px 10px 0;
-        }
-
-        .feedback-section h3 {
-            color: #2d3748;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .instructor-comments {
-            color: #4a5568;
-            font-style: italic;
-            line-height: 1.6;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .actions {
-            text-align: center;
-            margin: 40px 0;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            margin: 10px;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
-        }
-
-        .footer {
-            background: #f7fafc;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .footer p {
-            color: #718096;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        @media (max-width: 600px) {
-            .email-container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-
-            .header, .content {
-                padding: 30px 20px;
-            }
-
-            .grade-card, .assignment-details {
-                padding: 20px;
-            }
-
-            .greeting {
-                font-size: 20px;
-            }
-
-            .grade-display {
-                font-size: 36px;
-            }
-        }
-    </style>
-</head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Assignment graded',
+                    ${(fmt.has(instructorName) ? instructorName : 'Your instructor') + ' marked your work' + (hasFeedback != null and hasFeedback ? ' and left feedback.' : '.')},
+                    'Graded', 'green', ~{::hero}, ~{::content},
+                    ${'You’re receiving this because you’re enrolled in ' + courseName + '.'})}">
 <body>
-<div class="email-container">
-    <!-- Header -->
-    <div class="header">
-        <div class="logo">
-            <img src="cid:elimikaLogo" alt="Elimika Logo" />
-        </div>
-        <h1>🎉 Assignment Graded!</h1>
-        <p>Your work on [[${assignmentTitle}]] has been reviewed</p>
-    </div>
+<th:block th:fragment="hero">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td width="124" style="vertical-align:middle;padding-right:22px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td align="center" width="104" height="104"
+                            style="width:104px;height:104px;border:8px solid #0E7A4F;border-radius:999px;background:#FFFFFF;text-align:center;vertical-align:middle;">
+                            <div style="font-size:28px;line-height:1;font-weight:800;color:#0B1736;" th:text="${percentage} + '%'">85%</div>
+                            <div style="margin-top:4px;font-size:13px;font-weight:600;color:#5B6474;" th:text="${score} + ' / ' + ${maxScore}">17 / 20</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td style="vertical-align:middle;">
+                <p th:replace="~{email/fragments/layout :: eyebrow(${(gradeLevel == 'excellent' ? 'Great work, ' : (gradeLevel == 'good' ? 'Good work, ' : 'Keep going, ')) + fmt.firstName(recipientName)}, 'green')}"></p>
+                <h1 th:replace="~{email/fragments/layout :: h1(${assignmentTitle + ' is graded'})}"></h1>
+                <p style="margin:8px 0 0;font-size:14px;color:#5B6474;" th:text="${courseName}">Course</p>
+            </td>
+        </tr>
+    </table>
+</th:block>
+<th:block th:fragment="content">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid #E4E9F2;border-radius:14px;border-collapse:separate;border-spacing:0;overflow:hidden;">
+        <tr th:replace="~{email/fragments/layout :: factHead('Your result')}"></tr>
+        <tr th:replace="~{email/fragments/layout :: fact('Score', ${score + ' out of ' + maxScore})}"></tr>
+        <tr th:replace="~{email/fragments/layout :: fact('Percentage', ${percentage + '%'})}"></tr>
+        <th:block th:if="${fmt.has(instructorName)}"><tr th:replace="~{email/fragments/layout :: fact('Marked by', ${instructorName})}"></tr></th:block>
+    </table>
 
-    <!-- Content -->
-    <div class="content">
-        <div class="greeting">
-            Hello [[${recipientName}]]! 📊
-        </div>
+    <th:block th:if="${hasFeedback != null and hasFeedback and fmt.has(instructorComments)}">
+        <table th:replace="~{email/fragments/layout :: note(${fmt.has(instructorName) ? 'Feedback from ' + instructorName : 'Feedback from your instructor'}, ${instructorComments})}"></table>
+    </th:block>
 
-        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            Great news! Your assignment <strong>[[${assignmentTitle}]]</strong> 
-            in <strong>[[${courseName}]]</strong> has been graded by <strong>[[${instructorName}]]</strong>.
-        </p>
-
-        <!-- Grade Display -->
-        <div class="grade-card">
-            <div th:class="'grade-display ' + ${gradeLevel}" th:text="${score} + '/' + ${maxScore}"></div>
-            <div class="grade-percentage" th:text="${percentage} + '%'"></div>
-            
-            <div class="assignment-details">
-                <div class="detail-row">
-                    <span class="detail-label">Assignment:</span>
-                    <span class="detail-value" th:text="${assignmentTitle}"></span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Course:</span>
-                    <span class="detail-value" th:text="${courseName}"></span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Instructor:</span>
-                    <span class="detail-value" th:text="${instructorName}"></span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Score:</span>
-                    <span class="detail-value" th:text="${score} + ' out of ' + ${maxScore} + ' (' + ${percentage} + '%)'"></span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Feedback Section -->
-        <div th:if="${hasFeedback}" class="feedback-section">
-            <h3>💬 Instructor Feedback</h3>
-            <p>Your instructor has provided the following feedback on your work:</p>
-            <div class="instructor-comments" th:text="${instructorComments}"></div>
-        </div>
-
-        <!-- Motivational Message -->
-        <div th:if="${gradeLevel == 'excellent'}" style="background: #c6f6d5; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-            <h3 style="color: #38a169; margin-bottom: 10px;">🌟 Outstanding Work!</h3>
-            <p style="color: #22543d;">You've demonstrated excellent understanding and skill. Keep up the amazing work!</p>
-        </div>
-
-        <div th:if="${gradeLevel == 'good'}" style="background: #bee3f8; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-            <h3 style="color: #4299e1; margin-bottom: 10px;">👍 Good Job!</h3>
-            <p style="color: #2a4365;">You're doing well! Consider the feedback to reach even higher levels.</p>
-        </div>
-
-        <div th:if="${gradeLevel == 'needs-improvement'}" style="background: #fed7d7; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-            <h3 style="color: #e53e3e; margin-bottom: 10px;">💪 Keep Improving!</h3>
-            <p style="color: #742a2a;">Review the feedback carefully and don't hesitate to ask for help. You've got this!</p>
-        </div>
-
-        <!-- Call to Action -->
-        <div class="actions">
-            <a th:href="${frontendUrl + '/assignments/' + assignmentId}" class="btn btn-primary">
-                📝 View Full Feedback
-            </a>
-        </div>
-
-        <p style="color: #718096; font-size: 14px; text-align: center; margin-top: 20px;">
-            Questions about your grade? Contact your instructor or visit our 
-            <a th:href="${frontendUrl + '/help'}" style="color: #667eea;">support center</a>.
-        </p>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-        <p>This notification was sent by [[${companyName}]]</p>
-        <p>
-            Need help? Contact us at
-            <a href="mailto:support@sarafrika.com">support@sarafrika.com</a>
-        </p>
-        <p style="margin-top: 20px; font-size: 12px;">
-            © [[${currentYear}]] [[${companyName}]]. All rights reserved.
-        </p>
-        <div style="margin-top: 20px;">
-            <p style="font-size: 12px; color: #718096;">Powered by</p>
-            <a href="https://sarafrika.com" target="_blank">
-                <img src="cid:sarafrikaLogo" alt="Sarafrika Logo" style="width: 100px; height: auto;" />
-            </a>
-        </div>
-    </div>
-</div>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/student/assessment/assignments'}, 'See my grades')}"></table>
+</th:block>
 </body>
 </html>

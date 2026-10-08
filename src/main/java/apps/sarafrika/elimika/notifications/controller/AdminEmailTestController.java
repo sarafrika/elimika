@@ -67,7 +67,7 @@ public class AdminEmailTestController {
         List<EmailTestResult> results = new ArrayList<>();
         for (NotificationType type : types) {
             NotificationResult result = emailNotificationService
-                    .sendEmail(EmailSamples.event(type, request.to(), EmailSamples.sampleVariables()))
+                    .sendEmail(EmailSamples.event(type, request.to(), EmailSamples.sampleVariables(type)))
                     .join();
             results.add(new EmailTestResult(type.getValue(), type.getTemplateName(), result.isSuccessful(),
                     result.isSuccessful() ? null : result.errorMessage()));

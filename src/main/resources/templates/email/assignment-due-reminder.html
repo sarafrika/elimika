@@ -1,351 +1,46 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assignment Due Reminder - [[${companyName}]]</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 40px 30px;
-            text-align: center;
-            position: relative;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)"/></svg>');
-        }
-
-        .logo {
-            position: relative;
-            z-index: 1;
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .logo img {
-            width: 50px;
-            height: 50px;
-            object-fit: contain;
-        }
-
-        .header h1 {
-            color: white;
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header p {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 16px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .content {
-            padding: 40px 30px;
-        }
-
-        .greeting {
-            font-size: 24px;
-            color: #2d3748;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
-
-        .assignment-details {
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            border-radius: 15px;
-            padding: 30px;
-            margin: 30px 0;
-            border: 1px solid #e2e8f0;
-        }
-
-        .detail-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            padding: 10px 0;
-        }
-
-        .detail-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .detail-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-
-        .detail-icon svg {
-            width: 20px;
-            height: 20px;
-            fill: white;
-        }
-
-        .detail-content {
-            flex-grow: 1;
-        }
-
-        .detail-label {
-            font-size: 12px;
-            color: #718096;
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
-        }
-
-        .detail-value {
-            font-size: 16px;
-            color: #2d3748;
-            font-weight: 600;
-        }
-
-        .urgency-alert {
-            background: #fed7d7;
-            border: 1px solid #feb2b2;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .urgency-alert.critical {
-            background: #ff6b6b;
-            color: white;
-            border-color: #ff5252;
-        }
-
-        .urgency-alert h3 {
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .actions {
-            text-align: center;
-            margin: 40px 0;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            margin: 10px;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .footer {
-            background: #f7fafc;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .footer p {
-            color: #718096;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        @media (max-width: 600px) {
-            .email-container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-
-            .header {
-                padding: 30px 20px;
-            }
-
-            .content {
-                padding: 30px 20px;
-            }
-
-            .assignment-details {
-                padding: 20px;
-            }
-
-            .greeting {
-                font-size: 20px;
-            }
-        }
-    </style>
-</head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Assignment due',
+                    ${courseName + (fmt.has(dueDate) ? ' · due ' + fmt.dateTime(dueDate) : '')},
+                    'Due soon', 'amber', ~{::hero}, ~{::content},
+                    ${'You’re receiving this because you’re enrolled in ' + courseName + '.'})}">
 <body>
-<div class="email-container">
-    <!-- Header -->
-    <div class="header">
-        <div class="logo">
-            <img src="cid:elimikaLogo" alt="Elimika Logo" />
-        </div>
-        <h1 th:if="${isUrgent}">⚠️ Urgent Reminder!</h1>
-        <h1 th:unless="${isUrgent}">Assignment Due Soon</h1>
-        <p>Don't miss your deadline for [[${assignmentTitle}]]</p>
-    </div>
+<th:block th:fragment="hero">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td width="112" style="vertical-align:middle;padding-right:22px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td align="center" width="104" height="104"
+                            th:style="'width:104px;height:104px;border-radius:20px;text-align:center;vertical-align:middle;background:' + ((${isUrgent != null and isUrgent} or ${daysUntilDue != null and daysUntilDue <= 1}) ? '#B42318' : '#B4540A') + ';'">
+                            <th:block th:if="${daysUntilDue != null and daysUntilDue > 0}">
+                                <div style="font-size:42px;line-height:1;font-weight:800;color:#FFFFFF;" th:text="${daysUntilDue}">2</div>
+                                <div style="margin-top:4px;font-size:13px;font-weight:700;color:#FFFFFF;" th:text="${daysUntilDue == 1} ? 'day left' : 'days left'">days left</div>
+                            </th:block>
+                            <div th:unless="${daysUntilDue != null and daysUntilDue > 0}" style="font-size:20px;line-height:1.2;font-weight:800;color:#FFFFFF;">Due<br>today</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td style="vertical-align:middle;">
+                <p th:replace="~{email/fragments/layout :: eyebrow(${'Hi ' + fmt.firstName(recipientName) + ', this is due soon'}, 'amber')}"></p>
+                <h1 th:replace="~{email/fragments/layout :: h1(${assignmentTitle})}"></h1>
+                <p style="margin:8px 0 0;font-size:14px;color:#5B6474;" th:text="${courseName}">Course</p>
+            </td>
+        </tr>
+    </table>
+</th:block>
+<th:block th:fragment="content">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid #E4E9F2;border-radius:14px;border-collapse:separate;border-spacing:0;overflow:hidden;">
+        <tr th:replace="~{email/fragments/layout :: factHead('Assignment')}"></tr>
+        <th:block th:if="${fmt.has(dueDate)}"><tr th:replace="~{email/fragments/layout :: fact('Due', ${fmt.dateTime(dueDate)})}"></tr></th:block>
+        <tr th:replace="~{email/fragments/layout :: fact('Course', ${courseName})}"></tr>
+        <tr th:replace="~{email/fragments/layout :: factChip('Your status', 'Not submitted', 'amber')}"></tr>
+    </table>
 
-    <!-- Content -->
-    <div class="content">
-        <div class="greeting">
-            Hello [[${recipientName}]]! 📚
-        </div>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/student/assessment/assignments'}, 'Submit assignment')}"></table>
 
-        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;" th:if="${daysUntilDue > 1}">
-            This is a friendly reminder that your assignment <strong>[[${assignmentTitle}]]</strong> 
-            in <strong>[[${courseName}]]</strong> is due in <strong>[[${daysUntilDue}]] days</strong>.
-        </p>
-
-        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;" th:if="${daysUntilDue == 1}">
-            <strong>Important:</strong> Your assignment <strong>[[${assignmentTitle}]]</strong> 
-            in <strong>[[${courseName}]]</strong> is due <strong>tomorrow</strong>!
-        </p>
-
-        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;" th:if="${daysUntilDue == 0}">
-            <strong>URGENT:</strong> Your assignment <strong>[[${assignmentTitle}]]</strong> 
-            in <strong>[[${courseName}]]</strong> is due <strong>today</strong>!
-        </p>
-
-        <!-- Urgency Alert -->
-        <div th:if="${isUrgent}" th:class="${daysUntilDue == 0} ? 'urgency-alert critical' : 'urgency-alert'">
-            <h3 th:if="${daysUntilDue == 0}">⏰ Due Today!</h3>
-            <h3 th:if="${daysUntilDue == 1}">⏰ Due Tomorrow!</h3>
-            <p>Don't let this deadline slip by. Submit your work as soon as possible.</p>
-        </div>
-
-        <!-- Assignment Details -->
-        <div class="assignment-details">
-            <div class="detail-item">
-                <div class="detail-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                    </svg>
-                </div>
-                <div class="detail-content">
-                    <div class="detail-label">Assignment</div>
-                    <div class="detail-value">[[${assignmentTitle}]]</div>
-                </div>
-            </div>
-
-            <div class="detail-item">
-                <div class="detail-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12,3L1,9L12,15L21,12V17H23V9M5,13.18V17.18L12,21L19,17.18V13.18L12,17L5,13.18Z"/>
-                    </svg>
-                </div>
-                <div class="detail-content">
-                    <div class="detail-label">Course</div>
-                    <div class="detail-value">[[${courseName}]]</div>
-                </div>
-            </div>
-
-            <div class="detail-item">
-                <div class="detail-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V8H19V19M19,6H5V5H19V6Z"/>
-                    </svg>
-                </div>
-                <div class="detail-content">
-                    <div class="detail-label">Due Date</div>
-                    <div class="detail-value" th:text="${#temporals.format(dueDate, 'MMM dd, yyyy ''at'' h:mm a')}"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Call to Action -->
-        <div class="actions">
-            <a th:href="${frontendUrl + '/assignments/' + assignmentId}" class="btn btn-primary">
-                📝 Submit Assignment
-            </a>
-        </div>
-
-        <p style="color: #718096; font-size: 14px; text-align: center; margin-top: 20px;">
-            Need help? Contact your instructor or visit our 
-            <a th:href="${frontendUrl + '/help'}" style="color: #667eea;">support center</a>.
-        </p>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-        <p>This reminder was sent by [[${companyName}]]</p>
-        <p>
-            Need help? Contact us at
-            <a href="mailto:support@sarafrika.com">support@sarafrika.com</a>
-        </p>
-        <p style="margin-top: 20px; font-size: 12px;">
-            © [[${currentYear}]] [[${companyName}]]. All rights reserved.
-        </p>
-        <div style="margin-top: 20px;">
-            <p style="font-size: 12px; color: #718096;">Powered by</p>
-            <a href="https://sarafrika.com" target="_blank">
-                <img src="cid:sarafrikaLogo" alt="Sarafrika Logo" style="width: 100px; height: auto;" />
-            </a>
-        </div>
-    </div>
-</div>
+    <p th:replace="~{email/fragments/layout :: small('Late work may lose marks. If you need more time, message your instructor from the class page before the deadline.')}"></p>
+</th:block>
 </body>
 </html>

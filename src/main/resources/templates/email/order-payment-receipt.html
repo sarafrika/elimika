@@ -1,54 +1,72 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8"/>
-    <title>Order Receipt</title>
-</head>
-<body style="font-family: 'Times New Roman', serif; color: #111827; background: #ffffff; padding: 32px; line-height: 1.6;">
-<article style="max-width: 720px; margin: 0 auto;">
-    <header style="border-bottom: 1px solid #d1d5db; margin-bottom: 16px; padding-bottom: 8px;">
-        <h1 style="margin: 0; font-size: 24px;">Receipt (Harvard Style)</h1>
-        <p style="margin: 4px 0 0 0; font-size: 14px;">Order <span th:text="${orderDisplayId != null ? orderDisplayId : orderId}">#12345</span> · <span th:text="${#temporals.format(createdAt, 'yyyy-MM-dd HH:mm ''UTC''')}">2025-11-18 09:00 UTC</span></p>
-    </header>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Payment receipt',
+                    ${currencyCode + ' ' + fmt.money(total) + ' paid' + (fmt.has(createdAt) ? ' on ' + fmt.date(createdAt) : '') + '. Keep this for your records.'},
+                    'Receipt', 'blue', ~{::hero}, ~{::content},
+                    'This receipt was sent because you made a payment on Elimika.')}">
+<body>
+<th:block th:fragment="hero">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center" style="text-align:center;">
+                <span th:style="'display:inline-block;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;' + (${paymentStatus != null and #strings.equalsIgnoreCase(paymentStatus, 'PAID')} ? 'color:#0B6B45;background:#E8F6EF;' : 'color:#344054;background:#EEF0F3;')"
+                      th:text="${fmt.capitalize(#strings.toLowerCase(paymentStatus))}">Paid</span>
+                <p style="margin:14px 0 4px;font-size:14px;color:#5B6474;">Amount paid</p>
+                <p class="h1" style="margin:0;font-size:38px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;color:#0B1736;"
+                   th:text="${currencyCode + ' ' + fmt.money(total)}">KES 0.00</p>
+                <p style="margin:10px 0 0;font-size:14px;color:#5B6474;"
+                   th:text="${(fmt.has(createdAt) ? fmt.dateTime(createdAt) + ' · ' : '') + 'Order ' + (orderDisplayId != null ? orderDisplayId : orderId)}">Date · Order</p>
+            </td>
+        </tr>
+    </table>
+</th:block>
+<th:block th:fragment="content">
+    <p th:replace="~{email/fragments/layout :: para(${'Thanks, ' + fmt.firstName(recipientName) + '. Your payment went through and your access is ready.'})}"></p>
 
-    <section style="margin-bottom: 16px;">
-        <p style="margin: 0;">Recipient: <strong th:text="${recipientName}">Learner</strong> (<span th:text="${recipientEmail}">student@example.com</span>)</p>
-        <p style="margin: 4px 0 0 0;">Payment status: <strong th:text="${paymentStatus}">PAID</strong></p>
-    </section>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
+        <tr>
+            <td style="padding:0 0 10px;border-bottom:1px solid #E4E9F2;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5B6474;">Item</td>
+            <td align="right" style="padding:0 0 10px;border-bottom:1px solid #E4E9F2;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5B6474;">Amount</td>
+        </tr>
+        <tr th:each="item : ${items}">
+            <td style="padding:14px 0;border-bottom:1px solid #EEF1F6;">
+                <p style="margin:0 0 3px;font-size:15px;font-weight:700;color:#0B1736;" th:text="${item.title}">Item</p>
+                <p style="margin:0;font-size:13px;color:#5B6474;" th:text="${'Qty ' + item.quantity}">Qty 1</p>
+            </td>
+            <td align="right" style="padding:14px 0;border-bottom:1px solid #EEF1F6;font-size:15px;font-weight:600;color:#0B1736;vertical-align:top;"
+                th:text="${fmt.money(item.total)}">0.00</td>
+        </tr>
+        <tr th:if="${subtotal != null}">
+            <td style="padding:14px 0 6px;font-size:14px;color:#5B6474;">Subtotal</td>
+            <td align="right" style="padding:14px 0 6px;font-size:14px;color:#0B1736;" th:text="${fmt.money(subtotal)}">0.00</td>
+        </tr>
+        <tr th:if="${platformFeeAmount != null}">
+            <td style="padding:6px 0 14px;font-size:14px;color:#5B6474;">Platform fee</td>
+            <td align="right" style="padding:6px 0 14px;font-size:14px;color:#0B1736;" th:text="${fmt.money(platformFeeAmount)}">0.00</td>
+        </tr>
+        <tr>
+            <td style="padding:14px 0 0;border-top:1px solid #E4E9F2;font-size:16px;font-weight:800;color:#0B1736;" th:text="${'Total paid (' + currencyCode + ')'}">Total paid</td>
+            <td align="right" style="padding:14px 0 0;border-top:1px solid #E4E9F2;font-size:16px;font-weight:800;color:#0B1736;" th:text="${fmt.money(total)}">0.00</td>
+        </tr>
+    </table>
 
-    <section style="margin-bottom: 16px;">
-        <h2 style="margin: 0 0 8px 0; font-size: 18px;">Line items</h2>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
-            <thead>
-            <tr>
-                <th align="left" style="border-bottom: 1px solid #e5e7eb; padding: 6px 0;">Item</th>
-                <th align="center" style="border-bottom: 1px solid #e5e7eb; padding: 6px 0;">Qty</th>
-                <th align="right" style="border-bottom: 1px solid #e5e7eb; padding: 6px 0;">Total</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="item : ${items}">
-                <td style="padding: 6px 0; border-bottom: 1px solid #f3f4f6;" th:text="${item.title}">Course/Class Access</td>
-                <td style="padding: 6px 0; border-bottom: 1px solid #f3f4f6;" align="center" th:text="${item.quantity}">1</td>
-                <td style="padding: 6px 0; border-bottom: 1px solid #f3f4f6;" align="right">
-                    <span th:text="${#numbers.formatDecimal(item.total, 1, 'COMMA', 2, 'POINT')}"></span>
-                    <span th:text="${currencyCode}">KES</span>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-    </section>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
+        <tr>
+            <td style="padding:14px 16px;background:#F7F9FC;border-radius:12px;">
+                <p style="margin:0 0 4px;font-size:12px;color:#5B6474;">Billed to</p>
+                <p style="margin:0;font-size:14px;font-weight:700;color:#0B1736;" th:text="${recipientName}">Name</p>
+                <p style="margin:2px 0 0;font-size:13px;color:#5B6474;" th:text="${recipientEmail}">email</p>
+            </td>
+        </tr>
+    </table>
 
-    <section style="margin-bottom: 16px;">
-        <h2 style="margin: 0 0 8px 0; font-size: 18px;">Totals</h2>
-        <p style="margin: 0;">Subtotal: <span th:text="${#numbers.formatDecimal(subtotal, 1, 'COMMA', 2, 'POINT')}">0.00</span> <span th:text="${currencyCode}">KES</span></p>
-        <p style="margin: 4px 0 0 0;" th:if="${platformFeeAmount != null}">Platform fee: <span th:text="${#numbers.formatDecimal(platformFeeAmount, 1, 'COMMA', 2, 'POINT')}">0.00</span> <span th:text="${platformFeeCurrency != null ? platformFeeCurrency : currencyCode}">KES</span></p>
-        <p style="margin: 8px 0 0 0; font-weight: 700;">Total paid: <span th:text="${#numbers.formatDecimal(total, 1, 'COMMA', 2, 'POINT')}">0.00</span> <span th:text="${currencyCode}">KES</span></p>
-    </section>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/student/courses'}, 'Go to my courses')}"></table>
 
-    <section style="border-top: 1px solid #d1d5db; padding-top: 8px; font-size: 13px; color: #4b5563;">
-        <p style="margin: 0;">Please retain this receipt for your records. For references, cite as: “Elimika Order <span th:text="${orderDisplayId != null ? orderDisplayId : orderId}">#12345</span>, payment confirmed <span th:text="${#temporals.format(createdAt, 'yyyy-MM-dd')}">2025-11-18</span>.”</p>
-    </section>
-</article>
+    <p style="margin:0;font-size:14px;line-height:1.6;color:#5B6474;">
+        Something wrong with this charge? Write to
+        <a th:href="${'mailto:' + supportEmail}" style="color:#0061ED;font-weight:600;" th:text="${supportEmail}">support</a>
+        with your order number.
+    </p>
+</th:block>
 </body>
 </html>

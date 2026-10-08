@@ -6,6 +6,10 @@
 # CommerceAccessServiceImpl is @Profile("!dev") and enforces the paywall. Anything that should be
 # open on staging and closed in production belongs in this file, for the same reason.
 app:
+  email:
+    frontend:
+      # Links in emails (and the registration redirect) point at the staging UI on dev/staging.
+      url: ${APP_EMAIL_FRONTEND_URL:https://elimika.staging.sarafrika.com}
   api-docs:
     # Serve /v3/api-docs, its .yaml and grouped aliases, and the Swagger UI anonymously.
     #

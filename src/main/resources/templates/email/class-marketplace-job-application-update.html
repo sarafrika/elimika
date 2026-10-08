@@ -1,144 +1,46 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your application moved forward - [[${companyName}]]</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f7fafc;
-            margin: 0;
-            padding: 30px;
-            color: #2d3748;
-        }
-
-        .container {
-            max-width: 640px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #3182ce 0%, #6a62d2 100%);
-            padding: 36px 32px;
-            color: #ffffff;
-        }
-
-        .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 26px;
-            font-weight: 700;
-        }
-
-        .header p {
-            margin: 0;
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 32px;
-        }
-
-        .greeting {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-
-        .card {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-            background: linear-gradient(180deg, rgba(237,242,247,0.6) 0%, rgba(255,255,255,0.8) 100%);
-            margin-bottom: 20px;
-        }
-
-        .detail-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #718096;
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-        }
-
-        .detail-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .notes {
-            margin-top: 16px;
-            padding: 16px;
-            border-left: 4px solid #667eea;
-            background: #f8fafc;
-            border-radius: 0 12px 12px 0;
-        }
-
-        .footer {
-            padding: 24px 32px 32px 32px;
-            font-size: 13px;
-            color: #718096;
-            border-top: 1px solid #edf2f7;
-            background: #fafbff;
-        }
-
-        .button {
-            display: inline-block;
-            background: linear-gradient(135deg, #3182ce 0%, #6a62d2 100%);
-            color: #ffffff !important;
-            text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 999px;
-            font-weight: 600;
-            margin-top: 16px;
-        }
-    </style>
-</head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Application update',
+                    ${'Your application to train ' + contextName + ' ' + statusLabel + '.'},
+                    'Application update', 'blue', ~{::hero}, ~{::content},
+                    'You’re receiving this because you applied for a class job on Elimika.')}">
 <body>
-<div class="container">
-    <div class="header">
-        <h1>Your application moved forward</h1>
-        <p>Your application to train "<strong>[[${contextName}]]</strong>" [[${statusLabel}]].</p>
-    </div>
-    <div class="content">
-        <p class="greeting">Hi [[${recipientName}]],</p>
-        <p>
-            Good news - the organisation reviewing your application for the [[${contextType}]]
-            "<strong>[[${contextName}]]</strong>" has moved it along. Your application [[${statusLabel}]].
-        </p>
+<th:block th:fragment="hero">
+    <p th:replace="~{email/fragments/layout :: eyebrow(${'Good news, ' + fmt.firstName(recipientName)}, 'blue')}"></p>
+    <h1 th:replace="~{email/fragments/layout :: h1(${'Your application ' + statusLabel})}"></h1>
+    <p th:replace="~{email/fragments/layout :: lead(${'Here’s where your application to train ' + contextName + ' stands.'})}"></p>
+</th:block>
+<th:block th:fragment="content"
+          th:with="stage=${#strings.contains(statusLabel, 'offer') ? 3 : (#strings.contains(statusLabel, 'interview') ? 2 : (#strings.contains(statusLabel, 'shortlist') ? 1 : 4))}">
+    <p th:replace="~{email/fragments/layout :: label('Your application')}"></p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
+        <tr>
+            <td th:each="name, it : ${ {'Applied', 'Shortlisted', 'Interview', 'Offer', 'Hired'} }"
+                width="20%" style="padding:0 3px;vertical-align:top;">
+                <div th:style="'height:8px;border-radius:999px;background:' + (${it.index <= stage} ? '#0061ED' : '#E4E9F2') + ';'"></div>
+                <p th:style="'margin:8px 0 0;font-size:12px;font-weight:' + (${it.index == stage} ? '800' : '600') + ';color:' + (${it.index <= stage} ? '#0B1736' : '#5B6474') + ';'"
+                   th:text="${name}">Step</p>
+            </td>
+        </tr>
+    </table>
 
-        <div class="card">
-            <div class="detail-label">Class</div>
-            <div class="detail-value">[[${contextName}]]</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid #E4E9F2;border-radius:14px;border-collapse:separate;border-spacing:0;overflow:hidden;">
+        <tr th:replace="~{email/fragments/layout :: factHead('Class job')}"></tr>
+        <tr th:replace="~{email/fragments/layout :: fact(${fmt.capitalize(contextType)}, ${contextName})}"></tr>
+        <th:block th:if="${fmt.has(interviewAt)}"><tr th:replace="~{email/fragments/layout :: fact('Interview', ${fmt.dateTime(interviewAt)})}"></tr></th:block>
+    </table>
 
-            <div class="notes" th:if="${reviewNotes != null and !reviewNotes.isEmpty()}">
-                <strong>Notes from the organisation:</strong>
-                <p>[[${reviewNotes}]]</p>
-            </div>
-        </div>
+    <th:block th:if="${fmt.has(reviewNotes)}">
+        <table th:replace="~{email/fragments/layout :: note('Note from the organisation', ${reviewNotes})}"></table>
+    </th:block>
 
-        <p>
-            There is nothing you need to do right now. If the organisation needs anything further from you,
-            they will reach out. You can follow the progress of this and every other application from your
-            dashboard.
-        </p>
+    <table th:replace="~{email/fragments/layout :: note('What happens next',
+        ${stage == 1 ? 'The organisation may contact you to arrange an interview. Keep your availability up to date so they can find a time.'
+        : (stage == 2 ? 'Look out for a message from the organisation with the interview details. You can reply from your application page.'
+        : (stage == 3 ? 'Review the offer and accept or decline it from your application page. The organisation is waiting on your answer.'
+        : 'Your sessions are on your timetable. Look over the course outline before the first class.'))})}"></table>
 
-        <a th:href="${frontendUrl}" class="button">View my applications</a>
-    </div>
-
-    <div class="footer">
-        <p>
-            You're receiving this email because you applied to teach a class on [[${applicationName}]].
-            If you believe this is an error, please contact <a th:href="'mailto:' + ${supportEmail}">[[${supportEmail}]]</a>.
-        </p>
-        <p>&copy; [[${currentYear}]] [[${companyName}]]. All rights reserved.</p>
-    </div>
-</div>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/instructor/opportunities/my-applications'}, ${stage == 3} ? 'Review offer' : 'View application')}"></table>
+</th:block>
 </body>
 </html>

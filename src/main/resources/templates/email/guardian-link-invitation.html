@@ -1,148 +1,53 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns:th="http://www.thymeleaf.org" dir="ltr" lang="en">
-  <head>
-    <link rel="preload" as="image" href="cid:elimikaLogo" />
-    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
-    <meta name="x-apple-disable-message-reformatting" />
-    <title>You have been named as a parent or guardian on Elimika.</title>
-  </head>
-  <body dir="ltr" lang="en" style="background-color:#f4f7fb;margin:0">
-    <!--$--><!--html--><!--head--><!--body-->
-    <table
-      border="0"
-      width="100%"
-      cellpadding="0"
-      cellspacing="0"
-      role="presentation"
-      align="center">
-      <tbody>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Parent invitation',
+                    ${'Accept to follow ' + studentName + '’s classes, grades and attendance.' + (fmt.has(expiresAt) ? ' Link expires ' + fmt.date(expiresAt) + '.' : '')},
+                    'For parents', 'violet', ~{::hero}, ~{::content},
+                    'You’re receiving this because a learner gave this address as their parent or guardian.')}">
+<body>
+<th:block th:fragment="hero">
+    <h1 th:replace="~{email/fragments/layout :: h1(${studentName + ' added you as their ' + #strings.toLowerCase(relationshipLabel)})}"></h1>
+    <p th:replace="~{email/fragments/layout :: lead(${'Hi ' + guardianName + ', ' + studentName + ' named you as their ' + #strings.toLowerCase(relationshipLabel) + ' on Elimika. Accept to link your accounts and follow their learning.'})}"></p>
+</th:block>
+<th:block th:fragment="content">
+    <p th:replace="~{email/fragments/layout :: label('Once linked, you can see')}"></p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
         <tr>
-          <td
-            dir="ltr"
-            lang="en"
-            style="margin:0;background-color:#f4f7fb;color:#172033;font-family:Arial, Helvetica, sans-serif">
-            <table
-              align="center"
-              width="100%"
-              border="0"
-              cellpadding="0"
-              cellspacing="0"
-              role="presentation"
-              style="max-width:640px;width:100%;margin:0 auto">
-              <tbody>
-                <tr style="width:100%">
-                  <td style="padding:32px 16px">
-                    <table
-                      align="center"
-                      width="100%"
-                      border="0"
-                      cellpadding="0"
-                      cellspacing="0"
-                      role="presentation"
-                      style="background-color:#ffffff;border-top-left-radius:8px;border-top-right-radius:8px;border:1px solid #dfe7f2;border-bottom:0">
-                      <tbody>
-                        <tr>
-                          <td style="padding:24px 32px 18px">
-                            <img
-                              alt="Elimika"
-                              height="112"
-                              src="cid:elimikaLogo"
-                              style="display:block;outline:none;border:none;text-decoration:none;width:112px;height:112px;object-fit:contain"
-                              width="112" />
-                            <p
-                              style="font-size:12px;line-height:18px;margin:8px 0 0;color:#5f6b7a;letter-spacing:0;margin-top:8px;margin-right:0;margin-bottom:0;margin-left:0">
-                              Powered by Sarafrika
-                            </p>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <table
-                      align="center"
-                      width="100%"
-                      border="0"
-                      cellpadding="0"
-                      cellspacing="0"
-                      role="presentation"
-                      style="background-color:#0061ed;background-image:linear-gradient(135deg, #0061ed 0%, #0645b8 100%)">
-                      <tbody>
-                        <tr>
-                          <td style="padding:30px 32px">
-                            <p
-                              style="font-size:12px;line-height:18px;margin:0 0 10px;color:#dbeafe;font-weight:700;text-transform:uppercase;letter-spacing:0;margin-top:0;margin-right:0;margin-bottom:10px;margin-left:0">
-                              Guardian invitation
-                            </p>
-                            <h1
-                              style="margin:0;color:#ffffff;font-size:28px;line-height:36px;font-weight:700;letter-spacing:0">
-                              You have been named as a guardian
-                            </h1>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <table
-                      align="center"
-                      width="100%"
-                      border="0"
-                      cellpadding="0"
-                      cellspacing="0"
-                      role="presentation"
-                      style="background-color:#ffffff;border-left:1px solid #dfe7f2;border-right:1px solid #dfe7f2">
-                      <tbody>
-                        <tr>
-                          <td style="padding:30px 32px 8px">
-<p style="font-size:15px;line-height:24px;margin:0 0 16px;color:#314155">Hello [[${guardianName}]],</p>
-<p style="font-size:15px;line-height:24px;margin:0 0 16px;color:#314155"><strong>[[${studentName}]]</strong> named you as their [[${relationshipLabel}]] on Elimika.</p>
-<p style="font-size:15px;line-height:24px;margin:0 0 16px;color:#314155">Accepting links your account to theirs so you can follow their learning. If you do not have an Elimika account yet, you can create one from the same link using this email address.</p>
-<a href="[[${actionLink}]]" th:href="${actionLink}" target="_blank" style="line-height:20px;text-decoration:none;display:inline-block;max-width:100%;margin:8px 0 22px;background-color:#0061ed;border-radius:6px;color:#ffffff;font-size:14px;font-weight:700;padding:13px 20px">Review the invitation</a>
-<p style="font-size:13px;line-height:20px;margin:2px 0 18px;color:#5f6b7a">This invitation expires on [[${expiresAt}]]. If you do not know this learner, you can decline from the link or simply ignore this email: nothing is shared unless you accept.</p>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <hr
-                      style="width:100%;border:none;border-color:#dfe7f2;border-top:1px solid #eaeaea;margin:0;border-style:solid;border-width:1px 0 0" />
-                    <table
-                      align="center"
-                      width="100%"
-                      border="0"
-                      cellpadding="0"
-                      cellspacing="0"
-                      role="presentation"
-                      style="background-color:#eef3f9;border-bottom-left-radius:8px;border-bottom-right-radius:8px;border:1px solid #dfe7f2;border-top:0">
-                      <tbody>
-                        <tr>
-                          <td style="padding:20px 32px 24px">
-                            <p
-                              style="font-size:12px;line-height:18px;margin:0 0 8px;color:#5f6b7a;margin-top:0;margin-right:0;margin-bottom:8px;margin-left:0">
-                              Need help? Contact<!-- -->
-                              <a
-                                href="mailto:[[${supportEmail}]]"
-                                style="color:#0061ed;text-decoration:none;font-weight:700"
-                                th:href="${'mailto:' + supportEmail}"
-                                >[[${supportEmail}]]</a
-                              >.
-                            </p>
-                            <p
-                              style="font-size:12px;line-height:18px;margin:0 0 8px;color:#5f6b7a;margin-top:0;margin-right:0;margin-bottom:8px;margin-left:0">
-                              Copyright
-                              <!-- -->[[${currentYear}]]<!-- -->
-                              <!-- -->[[${companyName}]]<!-- -->. All rights
-                              reserved.
-                            </p>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </td>
+            <td class="stack" width="50%" style="padding:0 6px 12px 0;vertical-align:top;">
+                <div style="padding:14px 16px;border:1px solid #E4E9F2;border-radius:14px;font-size:14px;font-weight:600;color:#0B1736;">Courses and progress</div>
+            </td>
+            <td class="stack" width="50%" style="padding:0 0 12px 6px;vertical-align:top;">
+                <div style="padding:14px 16px;border:1px solid #E4E9F2;border-radius:14px;font-size:14px;font-weight:600;color:#0B1736;">Grades and feedback</div>
+            </td>
         </tr>
-      </tbody>
+        <tr>
+            <td class="stack" width="50%" style="padding:0 6px 0 0;vertical-align:top;">
+                <div style="padding:14px 16px;border:1px solid #E4E9F2;border-radius:14px;font-size:14px;font-weight:600;color:#0B1736;">Attendance</div>
+            </td>
+            <td class="stack" width="50%" style="padding:0 0 0 6px;vertical-align:top;">
+                <div style="padding:14px 16px;border:1px solid #E4E9F2;border-radius:14px;font-size:14px;font-weight:600;color:#0B1736;">Class timetable</div>
+            </td>
+        </tr>
     </table>
-    <!--/$-->
-  </body>
-</html>
 
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid #E4E9F2;border-radius:14px;border-collapse:separate;border-spacing:0;overflow:hidden;">
+        <tr th:replace="~{email/fragments/layout :: factHead('Link details')}"></tr>
+        <tr th:replace="~{email/fragments/layout :: fact('Learner', ${studentName})}"></tr>
+        <tr th:replace="~{email/fragments/layout :: fact('Your relationship', ${fmt.capitalize(relationshipLabel)})}"></tr>
+        <th:block th:if="${fmt.has(expiresAt)}"><tr th:replace="~{email/fragments/layout :: fact('Link expires', ${fmt.date(expiresAt)})}"></tr></th:block>
+    </table>
+
+    <table th:replace="~{email/fragments/layout :: button(${actionLink}, 'Accept and link accounts')}"></table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="padding:16px 18px;border-radius:14px;background:#F7F9FC;font-size:14px;line-height:1.55;color:#344054;">
+                You don’t need to register separately; accepting sets up your parent access.
+                Not this learner’s parent or guardian? Ignore this email, or tell us at
+                <a th:href="${'mailto:' + supportEmail}" style="color:#0061ED;font-weight:600;" th:text="${supportEmail}">support</a>.
+            </td>
+        </tr>
+    </table>
+</th:block>
+</body>
+</html>

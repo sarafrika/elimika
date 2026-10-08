@@ -1,143 +1,33 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>You've been hired - [[${companyName}]]</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f7fafc;
-            margin: 0;
-            padding: 30px;
-            color: #2d3748;
-        }
-
-        .container {
-            max-width: 640px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #2f855a 0%, #38a169 100%);
-            padding: 36px 32px;
-            color: #ffffff;
-        }
-
-        .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 26px;
-            font-weight: 700;
-        }
-
-        .header p {
-            margin: 0;
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 32px;
-        }
-
-        .greeting {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-
-        .card {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-            background: linear-gradient(180deg, rgba(237,242,247,0.6) 0%, rgba(255,255,255,0.8) 100%);
-            margin-bottom: 20px;
-        }
-
-        .detail-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #718096;
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-        }
-
-        .detail-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .notes {
-            margin-top: 16px;
-            padding: 16px;
-            border-left: 4px solid #38a169;
-            background: #f8fafc;
-            border-radius: 0 12px 12px 0;
-        }
-
-        .footer {
-            padding: 24px 32px 32px 32px;
-            font-size: 13px;
-            color: #718096;
-            border-top: 1px solid #edf2f7;
-            background: #fafbff;
-        }
-
-        .button {
-            display: inline-block;
-            background: linear-gradient(135deg, #2f855a 0%, #38a169 100%);
-            color: #ffffff !important;
-            text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 999px;
-            font-weight: 600;
-            margin-top: 16px;
-        }
-    </style>
-</head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:replace="~{email/fragments/layout :: email('Hired',
+                    ${'You’ve been hired to train ' + contextName + '. The class is now yours to teach.'},
+                    'Hired', 'green', ~{::hero}, ~{::content},
+                    'You’re receiving this because you applied for a class job on Elimika.')}">
 <body>
-<div class="container">
-    <div class="header">
-        <h1>Congratulations - you've been hired</h1>
-        <p>You have been selected to train "<strong>[[${contextName}]]</strong>".</p>
-    </div>
-    <div class="content">
-        <p class="greeting">Hi [[${recipientName}]],</p>
-        <p>
-            Your application to train the [[${contextType}]] "<strong>[[${contextName}]]</strong>"
-            [[${statusLabel}]]. You are now part of the organisation's teaching team.
-        </p>
+<th:block th:fragment="hero">
+    <h1 th:replace="~{email/fragments/layout :: h1(${'Congratulations, ' + fmt.firstName(recipientName) + '. You’re hired!'})}"></h1>
+    <p th:replace="~{email/fragments/layout :: lead(${'You’ve been hired to train ' + contextName + '. The class is now yours to teach.'})}"></p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 0;">
+        <tr>
+            <td th:each="name, it : ${ {'Applied', 'Shortlisted', 'Interview', 'Offer', 'Hired'} }" width="20%" style="padding:0 3px;vertical-align:top;">
+                <div style="height:8px;border-radius:999px;background:#0E7A4F;"></div>
+                <p th:style="'margin:8px 0 0;font-size:12px;color:#0B1736;font-weight:' + (${it.last} ? '800' : '600') + ';'" th:text="${name}">Step</p>
+            </td>
+        </tr>
+    </table>
+</th:block>
+<th:block th:fragment="content">
+    <th:block th:if="${fmt.has(reviewNotes)}">
+        <table th:replace="~{email/fragments/layout :: note('Note from the organisation', ${reviewNotes})}"></table>
+    </th:block>
 
-        <div class="card">
-            <div class="detail-label">Class</div>
-            <div class="detail-value">[[${contextName}]]</div>
+    <p th:replace="~{email/fragments/layout :: label('Get ready to teach')}"></p>
+    <table th:replace="~{email/fragments/layout :: step('1', 'Read the course outline', 'See every lesson, assessment and how grades are weighted.', true)}"></table>
+    <table th:replace="~{email/fragments/layout :: step('2', 'Check your timetable', 'Your sessions are on your calendar as soon as they’re scheduled.', false)}"></table>
+    <table th:replace="~{email/fragments/layout :: step('3', 'Meet your class', 'Your class list and attendance register are ready.', false)}"></table>
 
-            <div class="notes" th:if="${reviewNotes != null and !reviewNotes.isEmpty()}">
-                <strong>Notes from the organisation:</strong>
-                <p>[[${reviewNotes}]]</p>
-            </div>
-        </div>
-
-        <p>
-            The organisation is now creating the class itself. We will email you again the moment it exists
-            and lands on your timetable - until then, your hire is tracked alongside your applications.
-        </p>
-
-        <a th:href="${frontendUrl + '/dashboard/instructor/opportunities/my-applications'}" class="button">View my applications</a>
-    </div>
-
-    <div class="footer">
-        <p>
-            You're receiving this email because you applied to teach a class on [[${applicationName}]].
-            If you believe this is an error, please contact <a th:href="'mailto:' + ${supportEmail}">[[${supportEmail}]]</a>.
-        </p>
-        <p>&copy; [[${currentYear}]] [[${companyName}]]. All rights reserved.</p>
-    </div>
-</div>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/instructor/opportunities/hired'}, 'Open my classes')}"></table>
+</th:block>
 </body>
 </html>

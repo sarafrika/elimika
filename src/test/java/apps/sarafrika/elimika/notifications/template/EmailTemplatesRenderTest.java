@@ -25,7 +25,7 @@ class EmailTemplatesRenderTest {
         int rendered = 0;
         for (NotificationType type : EmailSamples.typesWithTemplates()) {
             try {
-                NotificationEvent event = EmailSamples.event(type, "learner@example.com", EmailSamples.sampleVariables());
+                NotificationEvent event = EmailSamples.event(type, "learner@example.com", EmailSamples.sampleVariables(type));
                 assertThat(emailTemplateService.generateSubject(event)).isNotBlank();
                 assertThat(emailTemplateService.generateEmailContent(event)).contains("</html>");
                 rendered++;
