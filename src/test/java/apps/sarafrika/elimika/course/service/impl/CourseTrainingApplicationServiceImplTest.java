@@ -7,7 +7,7 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
-import apps.sarafrika.elimika.course.internal.training.TrainingApplicationLearnerGroups;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAgeGroups;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationRequirementAnswerRepository;
@@ -74,7 +74,7 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 class CourseTrainingApplicationServiceImplTest {
 
     @Mock
-    private TrainingApplicationLearnerGroups learnerGroups;
+    private TrainingApplicationAgeGroups learnerGroups;
 
     @Mock
     private CourseRepository courseRepository;

@@ -10,8 +10,8 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Hours one learner group spends on one lesson. */
-@Schema(name = "LessonHoursRequest", description = "Hours a learner group spends on one lesson of the course or program")
+/** Hours one age group spends on one lesson. */
+@Schema(name = "LessonHoursRequest", description = "Hours an age group spends on one lesson of the course or program")
 public record LessonHoursRequest(
 
         @Schema(description = "**[REQUIRED]** An active lesson of the course (for programs, of one of its courses).",

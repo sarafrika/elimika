@@ -75,7 +75,7 @@ class TrainingApplicationReviewIntegrationTest {
 
     @BeforeEach
     void seed() {
-        jdbc.execute("TRUNCATE training_application_events, training_application_venues, training_application_learner_groups, "
+        jdbc.execute("TRUNCATE training_application_events, training_application_venues, age_groups, "
                 + "training_application_requirement_answers, course_training_rate_updates, course_training_applications, "
                 + "course_training_requirements, organisation_resources, training_branches, courses, course_creators, "
                 + "instructors, user_organisation_domain_mapping, user_domain_mapping, organisation, users RESTART IDENTITY CASCADE");
@@ -282,11 +282,11 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         String withGroups = organisationApplication(organisationUuid, venueUuid, requirementUuid, "\"hire\"")
-                .replace("}]}", "}], \"learner_groups\": [{\"name\": \"Juniors\", \"min_age\": 3, \"max_age\": 5, "
+                .replace("}]}", "}], \"age_groups\": [{\"name\": \"Juniors\", \"min_age\": 3, \"max_age\": 5, "
                         + "\"lesson_hours\": []}]}");
         mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON).content(withGroups))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Only instructor applicants")));
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Only instructor applicants can define age groups")));
 
         String created = mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
                         .content(organisationApplication(organisationUuid, venueUuid, requirementUuid, "\"hire\"")))
@@ -358,7 +358,7 @@ class TrainingApplicationReviewIntegrationTest {
     }
 
     @Test
-    @DisplayName("an instructor's learner groups and lesson plans are validated, round-trip, and go when withdrawn")
+    @DisplayName("an instructor's age groups and lesson plans are validated, round-trip, and go when withdrawn")
     void learnerGroupsRoundTrip() throws Exception {
         UUID creatorUuid = jdbc.queryForObject("SELECT uuid FROM course_creators LIMIT 1", UUID.class);
         UUID instructorUuid = jdbc.queryForObject("SELECT uuid FROM instructors LIMIT 1", UUID.class);
@@ -378,36 +378,88 @@ class TrainingApplicationReviewIntegrationTest {
         String created = mockMvc.perform(post(url).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON)
                         .content(instructorApplication(instructorUuid, first, second, 9, 12)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.learner_groups.length()").value(2))
-                .andExpect(jsonPath("$.data.learner_groups[0].name").value("Juniors"))
-                .andExpect(jsonPath("$.data.learner_groups[0].total_hours").value(0.75))
-                .andExpect(jsonPath("$.data.learner_groups[0].lesson_hours[1].lesson_title").value("Charts that tell the truth"))
-                .andExpect(jsonPath("$.data.learner_groups[1].min_age").value(9))
+                .andExpect(jsonPath("$.data.age_groups.length()").value(2))
+                .andExpect(jsonPath("$.data.age_groups[0].name").value("Juniors"))
+                .andExpect(jsonPath("$.data.age_groups[0].total_hours").value(0.75))
+                .andExpect(jsonPath("$.data.age_groups[0].lesson_hours[1].lesson_title").value("Charts that tell the truth"))
+                .andExpect(jsonPath("$.data.age_groups[1].min_age").value(9))
                 .andReturn().getResponse().getContentAsString();
         String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asText();
 
         mockMvc.perform(get(applicationUrl).with(jwt(CREATOR)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.learner_groups[1].name").value("Seniors"));
+                .andExpect(jsonPath("$.data.age_groups[1].name").value("Seniors"));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(applicationUrl)
                         .with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"rate_card\": {\"group_online_hourly_rate\": 900, \"group_online_daily_rate\": 900}}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.learner_groups.length()").value(2));
+                .andExpect(jsonPath("$.data.age_groups.length()").value(2));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(applicationUrl)
                         .with(jwt(INSTRUCTOR)))
                 .andExpect(status().is2xxSuccessful());
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM training_application_learner_groups", Integer.class)).isZero();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM training_application_lesson_hours", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM age_groups", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM age_group_lesson_hours", Integer.class)).isZero();
+    }
+
+    @Test
+    @DisplayName("saved age groups: owners write, organisation members read them as presets, outsiders are refused")
+    void savedAgeGroupsAccessAndPresets() throws Exception {
+        UUID instructorUser = jdbc.queryForObject("SELECT uuid FROM users WHERE keycloak_id = ?", UUID.class, INSTRUCTOR);
+        UUID managerUser = user(MANAGER, "manager@test.local", "Njeri", "Kamau");
+        UUID organisationUuid = organisation("Westlands Institute");
+        grantOrganisationDomain(managerUser, organisationUuid, "organisation_user");
+        String juniors = "{\"name\": \"Juniors\", \"min_age\": 3, \"max_age\": 5}";
+
+        String mine = mockMvc.perform(post("/api/v1/instructors/me/age-groups").with(jwt(INSTRUCTOR))
+                        .contentType(MediaType.APPLICATION_JSON).content(juniors))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.owner_type").value("instructor"))
+                .andReturn().getResponse().getContentAsString();
+        String mineUuid = objectMapper.readTree(mine).at("/data/uuid").asText();
+        mockMvc.perform(post("/api/v1/instructors/me/age-groups").with(jwt(INSTRUCTOR))
+                        .contentType(MediaType.APPLICATION_JSON).content(juniors.replace("Juniors", "juniors")))
+                .andExpect(status().isConflict());
+        mockMvc.perform(get("/api/v1/instructors/me/age-groups").with(jwt(OUTSIDER)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/organisations/" + organisationUuid + "/age-groups").with(jwt(INSTRUCTOR))
+                        .contentType(MediaType.APPLICATION_JSON).content(juniors))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/organisations/" + organisationUuid + "/age-groups").with(jwt(MANAGER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Grade 4 band\", \"min_age\": 9, \"max_age\": 10}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.owner_name").value("Westlands Institute"));
+
+        mockMvc.perform(get("/api/v1/instructors/me/age-group-presets").with(jwt(INSTRUCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1));
+        grantOrganisationDomain(instructorUser, organisationUuid, "instructor");
+        mockMvc.perform(get("/api/v1/instructors/me/age-group-presets").with(jwt(INSTRUCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[1].owner_type").value("organisation"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/age-groups/" + mineUuid)
+                        .with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON).content(juniors))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/age-groups/" + mineUuid)
+                        .with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Little ones\", \"min_age\": 3, \"max_age\": 4}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Little ones"));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/age-groups/" + mineUuid)
+                        .with(jwt(INSTRUCTOR)))
+                .andExpect(status().isNoContent());
     }
 
     private String instructorApplication(UUID instructorUuid, UUID first, UUID second, int seniorMin, int seniorMax) {
         return """
                 {"applicant_type": "instructor", "applicant_uuid": "%s",
                  "rate_card": {"group_online_hourly_rate": 800, "group_online_daily_rate": 4000},
-                 "learner_groups": [
+                 "age_groups": [
                    {"name": "Juniors", "min_age": 3, "max_age": 5,
                     "lesson_hours": [{"lesson_uuid": "%s", "hours": 0.5}, {"lesson_uuid": "%s", "hours": 0.25}]},
                    {"name": "Seniors", "min_age": %d, "max_age": %d,

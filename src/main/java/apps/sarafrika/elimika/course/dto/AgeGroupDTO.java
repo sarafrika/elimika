@@ -7,9 +7,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-/** A stored learner group with its lesson plan, in the order the applicant listed them. */
-@Schema(name = "LearnerGroup", description = "An instructor's learner group: a named age band with its own lesson plan")
-public record LearnerGroupDTO(
+/** An application's age group with its lesson plan, in the order the applicant listed them. */
+@Schema(name = "AgeGroup", description = "An application age group: a named age band with its own lesson plan")
+public record AgeGroupDTO(
         @JsonProperty("uuid") UUID uuid,
         @JsonProperty("name") String name,
         @JsonProperty("min_age") Integer minAge,

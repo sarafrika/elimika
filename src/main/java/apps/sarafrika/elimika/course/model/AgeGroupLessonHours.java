@@ -11,16 +11,16 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** How many hours one learner group spends on one lesson. */
+/** How many hours one application age group spends on one lesson. */
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "training_application_lesson_hours")
-public class TrainingApplicationLessonHours extends BaseEntity {
+@Table(name = "age_group_lesson_hours")
+public class AgeGroupLessonHours extends BaseEntity {
 
-    @Column(name = "learner_group_uuid")
-    private UUID learnerGroupUuid;
+    @Column(name = "age_group_uuid")
+    private UUID ageGroupUuid;
 
     @Column(name = "lesson_uuid")
     private UUID lessonUuid;

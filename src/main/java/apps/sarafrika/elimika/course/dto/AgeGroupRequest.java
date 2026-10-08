@@ -11,15 +11,15 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/** A named age band an instructor would teach, with hours for every lesson. */
-@Schema(name = "LearnerGroupRequest", description = "An instructor's learner group: a named age band with its own lesson plan")
-public record LearnerGroupRequest(
+/** An age group in a training application: a named age band with hours for every lesson. */
+@Schema(name = "AgeGroupRequest", description = "An age group in an instructor's training application: a named age band with its own lesson plan")
+public record AgeGroupRequest(
 
         @Schema(description = "**[REQUIRED]** Group name, unique within the application.", example = "Juniors", maxLength = 80,
                 requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("name")
-        @NotBlank(message = "Learner group name is required")
-        @Size(max = 80, message = "Learner group name must not exceed 80 characters")
+        @NotBlank(message = "Age group name is required")
+        @Size(max = 80, message = "Age group name must not exceed 80 characters")
         String name,
 
         @Schema(description = "**[REQUIRED]** Youngest age in the group, within the course's age range.", example = "3",

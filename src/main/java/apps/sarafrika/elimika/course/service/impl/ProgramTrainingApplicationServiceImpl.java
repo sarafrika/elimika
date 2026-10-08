@@ -12,7 +12,7 @@ import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtras;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
-import apps.sarafrika.elimika.course.internal.training.TrainingApplicationLearnerGroups;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAgeGroups;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.internal.training.TrainingFeeFloors;
 import apps.sarafrika.elimika.course.internal.training.TrainingSubmitters;
@@ -131,7 +131,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
     private final TrainingFeeFloors feeFloors;
     private final TrainingApplicationHistory history;
     private final TrainingApplicationOffers offers;
-    private final TrainingApplicationLearnerGroups learnerGroups;
+    private final TrainingApplicationAgeGroups trainingAgeGroups;
     private final TrainingApplicationExtrasResolver extrasResolver;
     private final ProgramTrainingRateUpdateService rateUpdateService;
     private final TrainingSubmitters submitters;
@@ -158,8 +158,8 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         List<UUID> venues = offers.validateVenues(request.applicantType(), request.applicantUuid(), request.offeredVenueUuids());
         offers.validateAnswers(courseUuids, request.requirementAnswers(), "a course in this program");
-        if (request.learnerGroups() != null) {
-            learnerGroups.validate(request.applicantType(), learnerGroups.forProgram(programUuid), request.learnerGroups());
+        if (request.ageGroups() != null) {
+            trainingAgeGroups.validate(request.applicantType(), trainingAgeGroups.forProgram(programUuid), request.ageGroups());
         }
 
         PlatformCurrency resolvedCurrency = currencyService.resolveCurrencyOrDefault(rateCardRequest.currency());
@@ -176,7 +176,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
             offers.replaceVenues(TrainingApplicationType.PROGRAM, saved.getUuid(), venues == null ? List.of() : venues);
             offers.replaceAnswers(TrainingApplicationType.PROGRAM, saved.getUuid(),
                     request.requirementAnswers() == null ? List.of() : request.requirementAnswers());
-            learnerGroups.replace(TrainingApplicationType.PROGRAM, saved.getUuid(), request.learnerGroups());
+            trainingAgeGroups.replace(TrainingApplicationType.PROGRAM, saved.getUuid(), request.ageGroups());
             history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.SUBMITTED,
                     request.applicationNotes());
             publishProgramTrainingApplicationSubmitted(program, saved);
@@ -221,9 +221,9 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         List<UUID> venues = offers.validateVenues(
                 application.getApplicantType(), application.getApplicantUuid(), request.offeredVenueUuids());
         offers.validateAnswers(courseUuids, request.requirementAnswers(), "a course in this program");
-        if (request.learnerGroups() != null) {
-            learnerGroups.validate(application.getApplicantType(), learnerGroups.forProgram(programUuid),
-                    request.learnerGroups());
+        if (request.ageGroups() != null) {
+            trainingAgeGroups.validate(application.getApplicantType(), trainingAgeGroups.forProgram(programUuid),
+                    request.ageGroups());
         }
 
         application.setApplicationNotes(request.applicationNotes());
@@ -232,7 +232,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
         ProgramTrainingApplication saved = applicationRepository.save(application);
         offers.replaceVenues(TrainingApplicationType.PROGRAM, saved.getUuid(), venues);
         offers.replaceAnswers(TrainingApplicationType.PROGRAM, saved.getUuid(), request.requirementAnswers());
-        learnerGroups.replace(TrainingApplicationType.PROGRAM, saved.getUuid(), request.learnerGroups());
+        trainingAgeGroups.replace(TrainingApplicationType.PROGRAM, saved.getUuid(), request.ageGroups());
         history.record(TrainingApplicationType.PROGRAM, saved.getUuid(), TrainingApplicationEventType.EDITED,
                 request.applicationNotes());
         return toDTO(saved);
@@ -251,7 +251,7 @@ public class ProgramTrainingApplicationServiceImpl implements ProgramTrainingApp
 
         history.record(TrainingApplicationType.PROGRAM, application.getUuid(), TrainingApplicationEventType.WITHDRAWN, null);
         offers.deleteFor(TrainingApplicationType.PROGRAM, application.getUuid());
-        learnerGroups.deleteFor(TrainingApplicationType.PROGRAM, application.getUuid());
+        trainingAgeGroups.deleteFor(TrainingApplicationType.PROGRAM, application.getUuid());
         applicationRepository.delete(application);
     }
 
