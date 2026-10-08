@@ -38,7 +38,8 @@ public final class ProgramTrainingApplicationFactory {
                 extras == null ? null : extras.rateFloorFlags(),
                 extras == null ? null : extras.firstOpenedAt(),
                 extras == null ? List.of() : extras.offeredVenues(),
-                extras == null ? List.of() : extras.requirementAnswers()
+                extras == null ? List.of() : extras.requirementAnswers(),
+                extras == null ? List.of() : extras.learnerGroups()
         );
     }
 }

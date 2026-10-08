@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationLearnerGroups;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationRequirementAnswerRepository;
@@ -72,6 +73,7 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProgramTrainingApplicationServiceImplTest {
 
+    @Mock private TrainingApplicationLearnerGroups learnerGroups;
     @Mock private TrainingProgramRepository programRepository;
     @Mock private ProgramTrainingApplicationRepository applicationRepository;
     @Mock private CourseTrainingApplicationRepository courseApplicationRepository;
@@ -113,7 +115,8 @@ class ProgramTrainingApplicationServiceImplTest {
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 history,
                 offers,
-                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers),
+                learnerGroups,
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers, learnerGroups),
                 rateUpdateService,
                 new TrainingSubmitters(userLookupService));
 

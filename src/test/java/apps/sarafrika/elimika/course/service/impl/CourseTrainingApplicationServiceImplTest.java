@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.course.internal.security.CourseFootingCap;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationAccess;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationExtrasResolver;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationHistory;
+import apps.sarafrika.elimika.course.internal.training.TrainingApplicationLearnerGroups;
 import apps.sarafrika.elimika.course.internal.training.TrainingApplicationOffers;
 import apps.sarafrika.elimika.course.repository.CourseTrainingRequirementRepository;
 import apps.sarafrika.elimika.course.repository.TrainingApplicationRequirementAnswerRepository;
@@ -71,6 +72,9 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 
 @ExtendWith(MockitoExtension.class)
 class CourseTrainingApplicationServiceImplTest {
+
+    @Mock
+    private TrainingApplicationLearnerGroups learnerGroups;
 
     @Mock
     private CourseRepository courseRepository;
@@ -159,11 +163,12 @@ class CourseTrainingApplicationServiceImplTest {
                 userLookupService,
                 applicationEventPublisher,
                 new TrainingApplicationAccess(domainSecurityService, footingCap, courseSecurity),
-                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers),
+                new TrainingApplicationExtrasResolver(courseRateUpdates, programRateUpdates, history, offers, learnerGroups),
                 rateUpdateService,
                 new TrainingFeeFloors(courseRepository, programCourseRepository),
                 history,
                 offers,
+                learnerGroups,
                 new TrainingSubmitters(userLookupService)
         );
     }
@@ -183,7 +188,7 @@ class CourseTrainingApplicationServiceImplTest {
                 applicantUuid,
                 rateCard("KES", "2000.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -207,7 +212,7 @@ class CourseTrainingApplicationServiceImplTest {
                 organisationUuid,
                 rateCard("KES", "3200.00", "2500.00", "3600.00", "4100.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -248,7 +253,7 @@ class CourseTrainingApplicationServiceImplTest {
                 applicantUuid,
                 rateCard("usd", "2800.1254"),
                 "Ready to deliver evening cohorts", null, null
-        );
+        , null);
 
         service.submitApplication(courseUuid, request);
 
@@ -275,7 +280,7 @@ class CourseTrainingApplicationServiceImplTest {
                 applicantUuid,
                 rateCard("KES", "2500.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(AccessDeniedException.class)
@@ -294,7 +299,7 @@ class CourseTrainingApplicationServiceImplTest {
                 organisationUuid,
                 rateCard("KES", "2500.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(AccessDeniedException.class)
@@ -331,7 +336,7 @@ class CourseTrainingApplicationServiceImplTest {
                 organisationUuid,
                 rateCard("KES", "2500.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.submitApplication(courseUuid, request))
                 .isInstanceOf(DuplicateResourceException.class)
@@ -366,7 +371,7 @@ class CourseTrainingApplicationServiceImplTest {
         CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
                 rateCard("KES", "2500.00"),
                 "Updated notes", null, null
-        );
+        , null);
 
         service.updateApplication(courseUuid, applicationUuid, request);
 
@@ -396,7 +401,7 @@ class CourseTrainingApplicationServiceImplTest {
         CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
                 rateCard("KES", "2500.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.updateApplication(courseUuid, applicationUuid, request))
                 .isInstanceOf(IllegalStateException.class)
@@ -421,7 +426,7 @@ class CourseTrainingApplicationServiceImplTest {
         CourseTrainingApplicationUpdateRequest request = new CourseTrainingApplicationUpdateRequest(
                 rateCard("KES", "2500.00"),
                 null, null, null
-        );
+        , null);
 
         assertThatThrownBy(() -> service.updateApplication(courseUuid, applicationUuid, request))
                 .isInstanceOf(AccessDeniedException.class);
@@ -617,7 +622,7 @@ class CourseTrainingApplicationServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         service.submitApplication(courseUuid, new CourseTrainingApplicationRequest(
-                CourseTrainingApplicantType.INSTRUCTOR, applicantUuid, rateCard("KES", "2500.00"), "Trying again", null, null));
+                CourseTrainingApplicantType.INSTRUCTOR, applicantUuid, rateCard("KES", "2500.00"), "Trying again", null, null, null));
 
         TrainingApplicationEvent event = recordedEvents().getFirst();
         assertThat(event.getEventType()).isEqualTo(TrainingApplicationEventType.SUBMITTED);
@@ -642,7 +647,7 @@ class CourseTrainingApplicationServiceImplTest {
 
         application.setStatus(CourseTrainingApplicationStatus.PENDING);
         service.updateApplication(courseUuid, application.getUuid(),
-                new CourseTrainingApplicationUpdateRequest(rateCard("KES", "3000.00"), "New notes", null, null));
+                new CourseTrainingApplicationUpdateRequest(rateCard("KES", "3000.00"), "New notes", null, null, null));
         service.approveApplication(courseUuid, application.getUuid(), notes);
         service.revokeApplication(courseUuid, application.getUuid(), notes);
         application.setStatus(CourseTrainingApplicationStatus.PENDING);

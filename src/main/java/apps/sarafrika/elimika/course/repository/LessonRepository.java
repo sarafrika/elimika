@@ -24,6 +24,8 @@ public interface LessonRepository extends JpaRepository<Lesson, Long>, JpaSpecif
 
     List<Lesson> findByCourseUuidOrderByLessonNumberAsc(UUID courseUuid);
 
+    List<Lesson> findByUuidIn(Collection<UUID> uuids);
+
     /**
      * Resolves the owning course and publish state of a lesson in one query, matching the shape used
      * for quizzes and assignments.

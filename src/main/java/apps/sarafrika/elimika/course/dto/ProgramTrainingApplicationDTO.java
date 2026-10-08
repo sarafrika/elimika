@@ -193,6 +193,14 @@ public record ProgramTrainingApplicationDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty(value = "requirement_answers", access = JsonProperty.Access.READ_ONLY)
-        List<TrainingRequirementAnswerDTO> requirementAnswers
+        List<TrainingRequirementAnswerDTO> requirementAnswers,
+
+        @Schema(
+                description = "**[READ-ONLY]** An instructor applicant's learner groups and lesson plans, in their order. Null for non-parties.",
+                nullable = true,
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty(value = "learner_groups", access = JsonProperty.Access.READ_ONLY)
+        List<LearnerGroupDTO> learnerGroups
 ) {
 }

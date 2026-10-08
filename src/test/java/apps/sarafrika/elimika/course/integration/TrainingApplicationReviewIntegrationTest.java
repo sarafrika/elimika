@@ -75,7 +75,7 @@ class TrainingApplicationReviewIntegrationTest {
 
     @BeforeEach
     void seed() {
-        jdbc.execute("TRUNCATE training_application_events, training_application_venues, "
+        jdbc.execute("TRUNCATE training_application_events, training_application_venues, training_application_learner_groups, "
                 + "training_application_requirement_answers, course_training_rate_updates, course_training_applications, "
                 + "course_training_requirements, organisation_resources, training_branches, courses, course_creators, "
                 + "instructors, user_organisation_domain_mapping, user_domain_mapping, organisation, users RESTART IDENTITY CASCADE");
@@ -281,6 +281,13 @@ class TrainingApplicationReviewIntegrationTest {
                         .content(organisationApplication(organisationUuid, venueUuid, UUID.randomUUID(), "\"hire\"")))
                 .andExpect(status().isBadRequest());
 
+        String withGroups = organisationApplication(organisationUuid, venueUuid, requirementUuid, "\"hire\"")
+                .replace("}]}", "}], \"learner_groups\": [{\"name\": \"Juniors\", \"min_age\": 3, \"max_age\": 5, "
+                        + "\"lesson_hours\": []}]}");
+        mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON).content(withGroups))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Only instructor applicants")));
+
         String created = mockMvc.perform(post(url).with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON)
                         .content(organisationApplication(organisationUuid, venueUuid, requirementUuid, "\"hire\"")))
                 .andExpect(status().isCreated())
@@ -348,6 +355,71 @@ class TrainingApplicationReviewIntegrationTest {
     private RequestPostProcessor jwt(String subject) {
         return org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
                 .jwt().jwt(builder -> builder.subject(subject).claim("sub", subject));
+    }
+
+    @Test
+    @DisplayName("an instructor's learner groups and lesson plans are validated, round-trip, and go when withdrawn")
+    void learnerGroupsRoundTrip() throws Exception {
+        UUID creatorUuid = jdbc.queryForObject("SELECT uuid FROM course_creators LIMIT 1", UUID.class);
+        UUID instructorUuid = jdbc.queryForObject("SELECT uuid FROM instructors LIMIT 1", UUID.class);
+        UUID kidsCourse = UUID.randomUUID();
+        jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, minimum_training_fee, "
+                + "age_lower_limit, age_upper_limit, created_by) VALUES (?, 'Data Literacy', ?, 'published', true, 500, 3, 12, 'test')",
+                kidsCourse, creatorUuid);
+        UUID first = lesson(kidsCourse, 1, "Understanding data types");
+        UUID second = lesson(kidsCourse, 2, "Charts that tell the truth");
+        String url = "/api/v1/courses/" + kidsCourse + "/training-applications";
+
+        mockMvc.perform(post(url).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON)
+                        .content(instructorApplication(instructorUuid, first, second, 10, 14)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("must stay within the ages")));
+
+        String created = mockMvc.perform(post(url).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON)
+                        .content(instructorApplication(instructorUuid, first, second, 9, 12)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.learner_groups.length()").value(2))
+                .andExpect(jsonPath("$.data.learner_groups[0].name").value("Juniors"))
+                .andExpect(jsonPath("$.data.learner_groups[0].total_hours").value(0.75))
+                .andExpect(jsonPath("$.data.learner_groups[0].lesson_hours[1].lesson_title").value("Charts that tell the truth"))
+                .andExpect(jsonPath("$.data.learner_groups[1].min_age").value(9))
+                .andReturn().getResponse().getContentAsString();
+        String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asText();
+
+        mockMvc.perform(get(applicationUrl).with(jwt(CREATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.learner_groups[1].name").value("Seniors"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(applicationUrl)
+                        .with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rate_card\": {\"group_online_hourly_rate\": 900, \"group_online_daily_rate\": 900}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.learner_groups.length()").value(2));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(applicationUrl)
+                        .with(jwt(INSTRUCTOR)))
+                .andExpect(status().is2xxSuccessful());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM training_application_learner_groups", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM training_application_lesson_hours", Integer.class)).isZero();
+    }
+
+    private String instructorApplication(UUID instructorUuid, UUID first, UUID second, int seniorMin, int seniorMax) {
+        return """
+                {"applicant_type": "instructor", "applicant_uuid": "%s",
+                 "rate_card": {"group_online_hourly_rate": 800, "group_online_daily_rate": 4000},
+                 "learner_groups": [
+                   {"name": "Juniors", "min_age": 3, "max_age": 5,
+                    "lesson_hours": [{"lesson_uuid": "%s", "hours": 0.5}, {"lesson_uuid": "%s", "hours": 0.25}]},
+                   {"name": "Seniors", "min_age": %d, "max_age": %d,
+                    "lesson_hours": [{"lesson_uuid": "%s", "hours": 1}, {"lesson_uuid": "%s", "hours": 1}]}]}
+                """.formatted(instructorUuid, first, second, seniorMin, seniorMax, first, second);
+    }
+
+    private UUID lesson(UUID courseUuid, int number, String title) {
+        UUID uuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO lessons (uuid, course_uuid, lesson_number, title, status, active, created_by) "
+                + "VALUES (?, ?, ?, ?, 'published', true, 'test')", uuid, courseUuid, number, title);
+        return uuid;
     }
 
     private String organisationApplication(UUID organisationUuid, UUID venueUuid, UUID requirementUuid, String acquisition) {

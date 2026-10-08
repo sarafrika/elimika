@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.internal.training;
 
 import apps.sarafrika.elimika.course.dto.TrainingRateFloorFlagsDTO;
 
+import apps.sarafrika.elimika.course.dto.LearnerGroupDTO;
 import apps.sarafrika.elimika.course.dto.TrainingApplicationVenueDTO;
 import apps.sarafrika.elimika.course.dto.TrainingRequirementAnswerDTO;
 
@@ -14,11 +15,13 @@ public record TrainingApplicationExtras(UUID pendingRateUpdateUuid,
                                         TrainingRateFloorFlagsDTO rateFloorFlags,
                                         LocalDateTime firstOpenedAt,
                                         List<TrainingApplicationVenueDTO> offeredVenues,
-                                        List<TrainingRequirementAnswerDTO> requirementAnswers) {
+                                        List<TrainingRequirementAnswerDTO> requirementAnswers,
+                                        List<LearnerGroupDTO> learnerGroups) {
 
-    public static final TrainingApplicationExtras NONE = new TrainingApplicationExtras(null, null, null, List.of(), List.of());
+    public static final TrainingApplicationExtras NONE = new TrainingApplicationExtras(null, null, null, List.of(), List.of(), List.of());
 
     public TrainingApplicationExtras withRateFloorFlags(TrainingRateFloorFlagsDTO flags) {
-        return new TrainingApplicationExtras(pendingRateUpdateUuid, flags, firstOpenedAt, offeredVenues, requirementAnswers);
+        return new TrainingApplicationExtras(pendingRateUpdateUuid, flags, firstOpenedAt, offeredVenues, requirementAnswers,
+                learnerGroups);
     }
 }

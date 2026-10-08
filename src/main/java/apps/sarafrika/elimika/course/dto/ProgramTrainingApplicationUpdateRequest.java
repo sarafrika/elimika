@@ -63,6 +63,14 @@ public record ProgramTrainingApplicationUpdateRequest(
         )
         @JsonProperty("requirement_answers")
         @Valid
-        List<TrainingRequirementAnswerRequest> requirementAnswers
+        List<TrainingRequirementAnswerRequest> requirementAnswers,
+
+        @Schema(
+                description = "Instructor applicants only: learner groups, each a named age band with hours for every active lesson. Omit to keep what is stored. Organisations must omit it.",
+                nullable = true
+        )
+        @JsonProperty("learner_groups")
+        @Valid
+        List<LearnerGroupRequest> learnerGroups
 ) {
 }
