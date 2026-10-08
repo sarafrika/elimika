@@ -1,3 +1,10 @@
+# [2.167.0](https://github.com/sarafrika/elimika/compare/v2.166.0...v2.167.0) (2026-10-08)
+
+
+### Features
+
+* **shared:** accept only E.164 phone numbers via libphonenumber and normalise stored numbers ([4977073](https://github.com/sarafrika/elimika/commit/4977073902e0d2cc023090056df784b645b1e9bd))
+
 # [2.166.0](https://github.com/sarafrika/elimika/compare/v2.165.0...v2.166.0) (2026-10-08)
 
 
