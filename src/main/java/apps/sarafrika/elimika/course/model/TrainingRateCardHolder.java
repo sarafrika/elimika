@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.course.model;
 
 import java.math.BigDecimal;
 
-/** A stored rate card: the currency plus twelve rates, one per format, location and basis; null means not offered. */
+/** A stored rate card: the currency plus eight rates, one per format, location and basis (hourly or daily); null means not offered. */
 public interface TrainingRateCardHolder {
 
     String getRateCurrency();
@@ -24,22 +24,6 @@ public interface TrainingRateCardHolder {
     BigDecimal getGroupInpersonHourlyRate();
 
     void setGroupInpersonHourlyRate(BigDecimal rate);
-
-    BigDecimal getPrivateOnlineSessionRate();
-
-    void setPrivateOnlineSessionRate(BigDecimal rate);
-
-    BigDecimal getPrivateInpersonSessionRate();
-
-    void setPrivateInpersonSessionRate(BigDecimal rate);
-
-    BigDecimal getGroupOnlineSessionRate();
-
-    void setGroupOnlineSessionRate(BigDecimal rate);
-
-    BigDecimal getGroupInpersonSessionRate();
-
-    void setGroupInpersonSessionRate(BigDecimal rate);
 
     BigDecimal getPrivateOnlineDailyRate();
 

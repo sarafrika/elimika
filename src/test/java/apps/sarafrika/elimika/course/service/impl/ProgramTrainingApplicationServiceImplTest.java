@@ -130,7 +130,7 @@ class ProgramTrainingApplicationServiceImplTest {
         application.setApplicantUuid(UUID.randomUUID());
         application.setStatus(CourseTrainingApplicationStatus.APPROVED);
         application.setPrivateInpersonHourlyRate(new BigDecimal("2000"));
-        application.setPrivateInpersonSessionRate(new BigDecimal("4000"));
+        application.setPrivateInpersonDailyRate(new BigDecimal("4000"));
         when(applicationRepository.findByUuid(application.getUuid())).thenReturn(Optional.of(application));
     }
 
@@ -143,7 +143,7 @@ class ProgramTrainingApplicationServiceImplTest {
 
         assertThat(dto.rateFloorFlags().minimumTrainingFee()).isEqualByComparingTo("3000");
         assertThat(dto.rateFloorFlags().privateInpersonHourlyRate()).isTrue();
-        assertThat(dto.rateFloorFlags().privateInpersonSessionRate()).isFalse();
+        assertThat(dto.rateFloorFlags().privateInpersonDailyRate()).isFalse();
         org.mockito.Mockito.verify(eventRepository).insertFirstOpenIfAbsent(
                 org.mockito.ArgumentMatchers.eq("PROGRAM"), org.mockito.ArgumentMatchers.eq(application.getUuid()),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),

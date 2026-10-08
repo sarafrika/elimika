@@ -172,8 +172,6 @@ public interface CourseTrainingApplicationRepository extends JpaRepository<Cours
                        application.rateCurrency,
                        application.privateOnlineHourlyRate, application.privateInpersonHourlyRate,
                        application.groupOnlineHourlyRate, application.groupInpersonHourlyRate,
-                       application.privateOnlineSessionRate, application.privateInpersonSessionRate,
-                       application.groupOnlineSessionRate, application.groupInpersonSessionRate,
                        application.privateOnlineDailyRate, application.privateInpersonDailyRate,
                        application.groupOnlineDailyRate, application.groupInpersonDailyRate)
             FROM CourseTrainingApplication application

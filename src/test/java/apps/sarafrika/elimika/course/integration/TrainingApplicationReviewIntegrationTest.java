@@ -98,8 +98,8 @@ class TrainingApplicationReviewIntegrationTest {
 
         applicationUuid = UUID.randomUUID();
         jdbc.update("INSERT INTO course_training_applications (uuid, course_uuid, applicant_type, applicant_uuid, status, "
-                + "rate_currency, group_online_hourly_rate, group_online_session_rate, group_online_daily_rate, reviewed_at, "
-                + "created_by) VALUES (?, ?, 'instructor', ?, 'approved', 'KES', 2500, 4000, 9000, now(), 'instructor@test.local')",
+                + "rate_currency, group_online_hourly_rate, group_online_daily_rate, reviewed_at, "
+                + "created_by) VALUES (?, ?, 'instructor', ?, 'approved', 'KES', 2500, 9000, now(), 'instructor@test.local')",
                 applicationUuid, courseUuid, instructorUuid);
     }
 
@@ -192,7 +192,6 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(jsonPath("$.data.rate_card.group_online_hourly_rate").value(2500.0))
                 .andExpect(jsonPath("$.data.rate_floor_flags.minimum_training_fee").value(3000.0))
                 .andExpect(jsonPath("$.data.rate_floor_flags.group_online_hourly_rate").value(true))
-                .andExpect(jsonPath("$.data.rate_floor_flags.group_online_session_rate").value(false))
                 .andExpect(jsonPath("$.data.rate_floor_flags.private_online_hourly_rate").value(false));
         mockMvc.perform(get("/api/v1/courses/" + courseUuid + "/training-applications").with(jwt(CREATOR)))
                 .andExpect(status().isOk())
@@ -305,7 +304,7 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(jsonPath("$.data.requirement_answers[0].acquisition").value("hire"));
 
         String keepOffers = """
-                {"rate_card": {"group_online_hourly_rate": 2600, "group_online_session_rate": 2600, "group_online_daily_rate": 2600}}
+                {"rate_card": {"group_online_hourly_rate": 2600, "group_online_daily_rate": 2600}}
                 """;
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(applicationUrl)
                         .with(jwt(MANAGER)).contentType(MediaType.APPLICATION_JSON).content(keepOffers))
@@ -313,7 +312,7 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(jsonPath("$.data.offered_venues.length()").value(1))
                 .andExpect(jsonPath("$.data.requirement_answers.length()").value(1));
         String clearOffers = """
-                {"rate_card": {"group_online_hourly_rate": 2600, "group_online_session_rate": 2600, "group_online_daily_rate": 2600},
+                {"rate_card": {"group_online_hourly_rate": 2600, "group_online_daily_rate": 2600},
                  "offered_venue_uuids": [], "requirement_answers": []}
                 """;
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(applicationUrl)
@@ -333,9 +332,9 @@ class TrainingApplicationReviewIntegrationTest {
     private String proposal(String rate) {
         return """
                 {"rate_card": {"currency": "KES",
-                  "group_online_hourly_rate": %s, "group_online_session_rate": %s, "group_online_daily_rate": %s},
+                  "group_online_hourly_rate": %s, "group_online_daily_rate": %s},
                  "note": "Costs rose"}
-                """.formatted(rate, rate, rate);
+                """.formatted(rate, rate);
     }
 
     private String applicationUrl() {
@@ -354,7 +353,7 @@ class TrainingApplicationReviewIntegrationTest {
     private String organisationApplication(UUID organisationUuid, UUID venueUuid, UUID requirementUuid, String acquisition) {
         return """
                 {"applicant_type": "organisation", "applicant_uuid": "%s",
-                 "rate_card": {"group_online_hourly_rate": 2500, "group_online_session_rate": 2500, "group_online_daily_rate": 2500},
+                 "rate_card": {"group_online_hourly_rate": 2500, "group_online_daily_rate": 2500},
                  "offered_venue_uuids": ["%s"],
                  "requirement_answers": [{"requirement_uuid": "%s", "has_it": false, "acquisition": %s}]}
                 """.formatted(organisationUuid, venueUuid, requirementUuid, acquisition);

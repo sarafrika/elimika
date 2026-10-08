@@ -28,17 +28,9 @@ public record TrainingRateFloorFlagsDTO(
         @JsonProperty("group_inperson_hourly_rate")
         boolean groupInpersonHourlyRate,
 
-        @JsonProperty("private_online_session_rate")
-        boolean privateOnlineSessionRate,
 
-        @JsonProperty("private_inperson_session_rate")
-        boolean privateInpersonSessionRate,
 
-        @JsonProperty("group_online_session_rate")
-        boolean groupOnlineSessionRate,
 
-        @JsonProperty("group_inperson_session_rate")
-        boolean groupInpersonSessionRate,
 
         @JsonProperty("private_online_daily_rate")
         boolean privateOnlineDailyRate,

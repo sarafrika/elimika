@@ -81,7 +81,7 @@ public class ClassDefinitionFactory {
         entity.setSalePrice(dto.salePrice());
         entity.setInstructorPay(dto.instructorPay());
         // Hibernate writes every column, so the documented per-hour default for an omitted basis is set here.
-        entity.setRateBasis(Objects.requireNonNullElse(dto.rateBasis(), RateBasis.PER_HOUR));
+        entity.setRateBasis(Objects.requireNonNullElse(RateBasis.requireSelectable(dto.rateBasis()), RateBasis.PER_HOUR));
         entity.setClassVisibility(dto.classVisibility());
         entity.setSessionFormat(dto.sessionFormat());
         entity.setDefaultStartTime(dto.defaultStartTime());
@@ -173,8 +173,9 @@ public class ClassDefinitionFactory {
         if (dto.salePrice() != null) {
             entity.setSalePrice(dto.salePrice());
         }
-        if (dto.rateBasis() != null) {
-            entity.setRateBasis(dto.rateBasis());
+        // A legacy per-session class may keep its basis, but no class may switch to it.
+        if (dto.rateBasis() != null && dto.rateBasis() != entity.getRateBasis()) {
+            entity.setRateBasis(RateBasis.requireSelectable(dto.rateBasis()));
         }
         if (dto.instructorPay() != null) {
             entity.setInstructorPay(dto.instructorPay());

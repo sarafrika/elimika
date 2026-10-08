@@ -115,7 +115,7 @@ class BookingServiceImplTest {
     }
 
     @Test
-    void createBooking_perSession_chargesTheRateWhateverTheLength() {
+    void createBooking_perSession_isRefusedBecauseTheBasisIsRetired() {
         UUID instructorUuid = UUID.randomUUID();
         UUID courseUuid = UUID.randomUUID();
         LocalDateTime start = LocalDate.now(ZoneOffset.UTC).plusDays(7).atTime(9, 0);
@@ -123,17 +123,9 @@ class BookingServiceImplTest {
         CreateBookingRequestDTO request = request(UUID.randomUUID(), courseUuid, instructorUuid, start, end,
                 SessionFormat.GROUP, LocationType.IN_PERSON, RateBasis.PER_SESSION, "Africa/Nairobi");
 
-        allowBooking(instructorUuid, courseUuid, start, end);
-        approvedRate(courseUuid, instructorUuid, SessionFormat.GROUP, LocationType.IN_PERSON, RateBasis.PER_SESSION, "1800");
-        savesInMemory();
-        when(paymentGatewayClient.initiatePayment(any(Booking.class)))
-                .thenReturn(new PaymentSession("sess_1", "https://pay.local/sess_1", "placeholder"));
-
-        var response = bookingService.createBooking(request);
-
-        assertThat(response.priceAmount()).isEqualByComparingTo("1800.00");
-        assertThat(response.rateBasis()).isEqualTo(RateBasis.PER_SESSION);
-        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_REQUIRED);
+        assertThatThrownBy(() -> bookingService.createBooking(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Per-session pricing has been retired");
     }
 
     @Test
@@ -143,11 +135,11 @@ class BookingServiceImplTest {
         LocalDateTime start = LocalDate.now(ZoneOffset.UTC).plusDays(7).atTime(9, 0);
         LocalDateTime end = start.plusHours(1);
         CreateBookingRequestDTO request = request(UUID.randomUUID(), courseUuid, instructorUuid, start, end,
-                SessionFormat.INDIVIDUAL, LocationType.HYBRID, RateBasis.PER_SESSION, null);
+                SessionFormat.INDIVIDUAL, LocationType.HYBRID, RateBasis.PER_HOUR, null);
 
         allowBooking(instructorUuid, courseUuid, start, end);
         // The course SPI owns the hybrid -> in-person mapping; the booking must ask for HYBRID, not guess a cell.
-        approvedRate(courseUuid, instructorUuid, SessionFormat.INDIVIDUAL, LocationType.HYBRID, RateBasis.PER_SESSION, "4000");
+        approvedRate(courseUuid, instructorUuid, SessionFormat.INDIVIDUAL, LocationType.HYBRID, RateBasis.PER_HOUR, "4000");
         savesInMemory();
         when(paymentGatewayClient.initiatePayment(any(Booking.class)))
                 .thenReturn(new PaymentSession("sess_2", "https://pay.local/sess_2", "placeholder"));
@@ -285,7 +277,7 @@ class BookingServiceImplTest {
         LocalDateTime start = LocalDateTime.of(2024, 10, 15, 9, 0);
         LocalDateTime end = LocalDateTime.of(2024, 10, 15, 10, 0);
         CreateBookingRequestDTO request = request(UUID.randomUUID(), UUID.randomUUID(), instructorUuid, start, end,
-                SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_SESSION, null);
+                SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_HOUR, null);
         InstructorTimeHoldDTO firmHold = new InstructorTimeHoldDTO(
                 UUID.randomUUID(), instructorUuid, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
                 "Grade 5 Piano", start.minusMinutes(30), end.plusMinutes(30), "UTC",
@@ -481,7 +473,7 @@ class BookingServiceImplTest {
         LocalDateTime end = LocalDateTime.of(2024, 10, 15, 10, 0);
 
         CreateBookingRequestDTO request = request(studentUuid, courseUuid, instructorUuid, start, end,
-                SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_SESSION, null);
+                SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_HOUR, null);
 
         when(availabilityService.isInstructorAvailable(instructorUuid, start, end)).thenReturn(true);
         when(courseInfoService.isCourseApproved(courseUuid)).thenReturn(false);

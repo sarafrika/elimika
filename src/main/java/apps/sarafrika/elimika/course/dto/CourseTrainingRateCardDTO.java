@@ -30,73 +30,53 @@ public record CourseTrainingRateCardDTO(
         @JsonProperty("currency")
         String currency,
 
-        @Schema(description = "Private (1:1) online rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Private (1:1) online rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "private_online_hourly_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "private_online_hourly_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("private_online_hourly_rate")
         BigDecimal privateOnlineHourlyRate,
 
-        @Schema(description = "Private (1:1) in-person rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Private (1:1) in-person rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "private_inperson_hourly_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "private_inperson_hourly_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("private_inperson_hourly_rate")
         BigDecimal privateInpersonHourlyRate,
 
-        @Schema(description = "Group online rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Group online rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "group_online_hourly_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "group_online_hourly_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("group_online_hourly_rate")
         BigDecimal groupOnlineHourlyRate,
 
-        @Schema(description = "Group in-person rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Group in-person rate per learner per hour. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "group_inperson_hourly_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "group_inperson_hourly_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("group_inperson_hourly_rate")
         BigDecimal groupInpersonHourlyRate,
 
-        @Schema(description = "Private (1:1) online rate per learner per session, whatever its length. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
-        @DecimalMin(value = "0", inclusive = false, message = "private_online_session_rate must be greater than zero")
-        @Digits(integer = 8, fraction = 4, message = "private_online_session_rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("private_online_session_rate")
-        BigDecimal privateOnlineSessionRate,
 
-        @Schema(description = "Private (1:1) in-person rate per learner per session, whatever its length. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
-        @DecimalMin(value = "0", inclusive = false, message = "private_inperson_session_rate must be greater than zero")
-        @Digits(integer = 8, fraction = 4, message = "private_inperson_session_rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("private_inperson_session_rate")
-        BigDecimal privateInpersonSessionRate,
 
-        @Schema(description = "Group online rate per learner per session, whatever its length. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
-        @DecimalMin(value = "0", inclusive = false, message = "group_online_session_rate must be greater than zero")
-        @Digits(integer = 8, fraction = 4, message = "group_online_session_rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("group_online_session_rate")
-        BigDecimal groupOnlineSessionRate,
 
-        @Schema(description = "Group in-person rate per learner per session, whatever its length. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
-        @DecimalMin(value = "0", inclusive = false, message = "group_inperson_session_rate must be greater than zero")
-        @Digits(integer = 8, fraction = 4, message = "group_inperson_session_rate must have at most 8 digits and 4 decimals")
-        @JsonProperty("group_inperson_session_rate")
-        BigDecimal groupInpersonSessionRate,
 
-        @Schema(description = "Private (1:1) online rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Private (1:1) online rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "private_online_daily_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "private_online_daily_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("private_online_daily_rate")
         BigDecimal privateOnlineDailyRate,
 
-        @Schema(description = "Private (1:1) in-person rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Private (1:1) in-person rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "private_inperson_daily_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "private_inperson_daily_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("private_inperson_daily_rate")
         BigDecimal privateInpersonDailyRate,
 
-        @Schema(description = "Group online rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Group online rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "group_online_daily_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "group_online_daily_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("group_online_daily_rate")
         BigDecimal groupOnlineDailyRate,
 
-        @Schema(description = "Group in-person rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices all three bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
+        @Schema(description = "Group in-person rate per learner per calendar day, however many sessions fall in it. Null when this method is not offered; an offered method (format x location) prices both bases, each above zero and at least the minimum training fee.", example = "3500.0000", nullable = true)
         @DecimalMin(value = "0", inclusive = false, message = "group_inperson_daily_rate must be greater than zero")
         @Digits(integer = 8, fraction = 4, message = "group_inperson_daily_rate must have at most 8 digits and 4 decimals")
         @JsonProperty("group_inperson_daily_rate")
@@ -119,10 +99,8 @@ public record CourseTrainingRateCardDTO(
                 case INDIVIDUAL -> online ? privateOnlineHourlyRate : privateInpersonHourlyRate;
                 case GROUP -> online ? groupOnlineHourlyRate : groupInpersonHourlyRate;
             };
-            case PER_SESSION -> switch (format) {
-                case INDIVIDUAL -> online ? privateOnlineSessionRate : privateInpersonSessionRate;
-                case GROUP -> online ? groupOnlineSessionRate : groupInpersonSessionRate;
-            };
+            // Per-session pricing is retired; legacy per-session classes carry their own pay.
+            case PER_SESSION -> null;
             case PER_DAY -> switch (format) {
                 case INDIVIDUAL -> online ? privateOnlineDailyRate : privateInpersonDailyRate;
                 case GROUP -> online ? groupOnlineDailyRate : groupInpersonDailyRate;

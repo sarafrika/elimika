@@ -50,7 +50,6 @@ class CourseTrainingRateCardValidatorTest {
     void notOfferedRowsAreIgnored() {
         Map<TrainingRateCell, BigDecimal> cells = new EnumMap<>(TrainingRateCell.class);
         cells.put(TrainingRateCell.GROUP_ONLINE_HOURLY, new BigDecimal("2000"));
-        cells.put(TrainingRateCell.GROUP_ONLINE_SESSION, new BigDecimal("3000"));
         cells.put(TrainingRateCell.GROUP_ONLINE_DAILY, new BigDecimal("9000"));
 
         assertThatCode(() -> validator.validateAgainstMinimum(card(cells), FLOOR)).doesNotThrowAnyException();
@@ -116,7 +115,7 @@ class CourseTrainingRateCardValidatorTest {
     @Test
     @DisplayName("a rate equal to the minimum is accepted")
     void theFloorItselfIsAccepted() {
-        Map<TrainingRateCell, BigDecimal> cells = fullMethodOf(TrainingRateCell.PRIVATE_INPERSON_SESSION, "2000");
+        Map<TrainingRateCell, BigDecimal> cells = fullMethodOf(TrainingRateCell.PRIVATE_INPERSON_DAILY, "2000");
 
         assertThatCode(() -> validator.validateAgainstMinimum(card(cells), FLOOR)).doesNotThrowAnyException();
     }
@@ -146,10 +145,6 @@ class CourseTrainingRateCardValidatorTest {
                 cells.get(TrainingRateCell.PRIVATE_INPERSON_HOURLY),
                 cells.get(TrainingRateCell.GROUP_ONLINE_HOURLY),
                 cells.get(TrainingRateCell.GROUP_INPERSON_HOURLY),
-                cells.get(TrainingRateCell.PRIVATE_ONLINE_SESSION),
-                cells.get(TrainingRateCell.PRIVATE_INPERSON_SESSION),
-                cells.get(TrainingRateCell.GROUP_ONLINE_SESSION),
-                cells.get(TrainingRateCell.GROUP_INPERSON_SESSION),
                 cells.get(TrainingRateCell.PRIVATE_ONLINE_DAILY),
                 cells.get(TrainingRateCell.PRIVATE_INPERSON_DAILY),
                 cells.get(TrainingRateCell.GROUP_ONLINE_DAILY),

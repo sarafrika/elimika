@@ -183,12 +183,12 @@ class NotNullColumnDefaultsIntegrationTest {
     @DisplayName("a class created with an explicit rate basis keeps it — the field is writable, not ignored")
     void classDefinitionHonoursExplicitRateBasis() {
         ClassDefinition saved = classDefinitionRepository.saveAndFlush(
-                ClassDefinitionFactory.toEntity(createRequest(RateBasis.PER_SESSION).toClassDefinitionDTO()));
+                ClassDefinitionFactory.toEntity(createRequest(RateBasis.PER_DAY).toClassDefinitionDTO()));
 
         // Before the fix this could not be expressed: rate_basis was absent from the create request
-        // and hardcoded to null on the way through, so per-session pricing was unreachable.
-        assertThat(readRateBasis(saved.getUuid())).isEqualTo("PER_SESSION");
-        assertThat(saved.getRateBasis()).isEqualTo(RateBasis.PER_SESSION);
+        // and hardcoded to null on the way through, so only the per-hour default was reachable.
+        assertThat(readRateBasis(saved.getUuid())).isEqualTo("PER_DAY");
+        assertThat(saved.getRateBasis()).isEqualTo(RateBasis.PER_DAY);
     }
 
     // --- the same bug shape, caught before anyone hit it ----------------------------------------

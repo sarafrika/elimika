@@ -193,7 +193,6 @@ class ProgramTrainingRateUpdateServiceImplTest {
         BigDecimal rate = new BigDecimal(amount);
         return new CourseTrainingRateCardDTO("KES",
                 null, rate, null, null,
-                null, rate, null, null,
                 null, rate, null, null);
     }
 

@@ -15,10 +15,8 @@ import jakarta.validation.constraints.Size;
           "rate_card": {
             "currency": "KES",
             "private_online_hourly_rate": null,
-            "private_online_session_rate": null,
             "private_online_daily_rate": null,
             "group_online_hourly_rate": 3000.0000,
-            "group_online_session_rate": 5000.0000,
             "group_online_daily_rate": 12000.0000
           },
           "note": "Venue costs rose this term."

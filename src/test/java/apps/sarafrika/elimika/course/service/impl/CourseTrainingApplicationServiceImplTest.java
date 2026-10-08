@@ -547,7 +547,6 @@ class CourseTrainingApplicationServiceImplTest {
         assertThat(dto.rateFloorFlags()).isNotNull();
         assertThat(dto.rateFloorFlags().minimumTrainingFee()).isEqualByComparingTo("3000");
         assertThat(dto.rateFloorFlags().groupOnlineHourlyRate()).isTrue();
-        assertThat(dto.rateFloorFlags().groupOnlineSessionRate()).isFalse();
         assertThat(dto.rateFloorFlags().groupOnlineDailyRate()).as("an unset cell is never flagged").isFalse();
         assertThat(dto.rateFloorFlags().privateOnlineHourlyRate()).isFalse();
     }
@@ -756,7 +755,6 @@ class CourseTrainingApplicationServiceImplTest {
         application.setStatus(CourseTrainingApplicationStatus.APPROVED);
         application.setRateCurrency("KES");
         application.setGroupOnlineHourlyRate(new BigDecimal("2500"));
-        application.setGroupOnlineSessionRate(new BigDecimal("3500"));
         lenient().when(applicationRepository.findByUuid(application.getUuid())).thenReturn(Optional.of(application));
         return application;
     }
@@ -769,7 +767,6 @@ class CourseTrainingApplicationServiceImplTest {
         CourseTrainingRateCardDTO card = new CourseTrainingRateCardDTO(
                 "KES",
                 new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"),
-                null, null, null, null,
                 null, null, null, null);
 
         assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.IN_PERSON,
@@ -788,13 +785,12 @@ class CourseTrainingApplicationServiceImplTest {
         CourseTrainingRateCardDTO card = new CourseTrainingRateCardDTO(
                 "KES",
                 new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"), new BigDecimal("2000"),
-                new BigDecimal("3500"), new BigDecimal("3500"), new BigDecimal("3500"), new BigDecimal("3500"),
                 new BigDecimal("9000"), new BigDecimal("9000"), new BigDecimal("9000"), new BigDecimal("9000"));
 
         assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.ONLINE,
                 apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR)).isEqualByComparingTo("2000");
         assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.ONLINE,
-                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_SESSION)).isEqualByComparingTo("3500");
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_SESSION)).as("per-session is retired").isNull();
         assertThat(card.resolveRate(SessionFormat.GROUP, LocationType.ONLINE,
                 apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_DAY)).isEqualByComparingTo("9000");
     }
@@ -803,7 +799,6 @@ class CourseTrainingApplicationServiceImplTest {
         BigDecimal normalized = new BigDecimal(amount);
         return new CourseTrainingRateCardDTO(
                 currency,
-                normalized, normalized, normalized, normalized,
                 normalized, normalized, normalized, normalized,
                 normalized, normalized, normalized, normalized
         );
@@ -816,10 +811,6 @@ class CourseTrainingApplicationServiceImplTest {
                                                String groupInperson) {
         return new CourseTrainingRateCardDTO(
                 currency,
-                new BigDecimal(privateOnline),
-                new BigDecimal(privateInperson),
-                new BigDecimal(groupOnline),
-                new BigDecimal(groupInperson),
                 new BigDecimal(privateOnline),
                 new BigDecimal(privateInperson),
                 new BigDecimal(groupOnline),

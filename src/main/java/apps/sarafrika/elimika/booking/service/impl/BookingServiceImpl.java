@@ -19,6 +19,7 @@ import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.shared.enums.BookingStatus;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.utils.SortAllowList;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
@@ -332,6 +333,7 @@ public class BookingServiceImpl implements BookingService {
         if (request.trainingFormat() == null || request.deliveryMode() == null || request.rateBasis() == null) {
             throw new IllegalArgumentException("Training format, delivery mode and rate basis are required");
         }
+        RateBasis.requireSelectable(request.rateBasis());
     }
 
     private static ZoneId resolveClassZone(String timezone) {

@@ -37,4 +37,15 @@ class RateBasisTest {
         assertThat(objectMapper.readValue("{\"rate_basis\":\"per_day\"}", Priced.class).rateBasis())
                 .isEqualTo(RateBasis.PER_DAY);
     }
+
+    @Test
+    @DisplayName("per session still loads from legacy rows but is refused for new pricing")
+    void perSessionIsRetired() {
+        assertThat(RateBasis.PER_SESSION.isRetired()).isTrue();
+        assertThat(RateBasis.requireSelectable(RateBasis.PER_DAY)).isEqualTo(RateBasis.PER_DAY);
+        assertThat(RateBasis.requireSelectable(null)).isNull();
+        assertThatThrownBy(() -> RateBasis.requireSelectable(RateBasis.PER_SESSION))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retired");
+    }
 }

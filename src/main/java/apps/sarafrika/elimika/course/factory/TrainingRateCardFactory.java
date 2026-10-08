@@ -22,10 +22,6 @@ public final class TrainingRateCardFactory {
                 holder.getPrivateInpersonHourlyRate(),
                 holder.getGroupOnlineHourlyRate(),
                 holder.getGroupInpersonHourlyRate(),
-                holder.getPrivateOnlineSessionRate(),
-                holder.getPrivateInpersonSessionRate(),
-                holder.getGroupOnlineSessionRate(),
-                holder.getGroupInpersonSessionRate(),
                 holder.getPrivateOnlineDailyRate(),
                 holder.getPrivateInpersonDailyRate(),
                 holder.getGroupOnlineDailyRate(),
@@ -43,10 +39,6 @@ public final class TrainingRateCardFactory {
                 below.test(holder.getPrivateInpersonHourlyRate()),
                 below.test(holder.getGroupOnlineHourlyRate()),
                 below.test(holder.getGroupInpersonHourlyRate()),
-                below.test(holder.getPrivateOnlineSessionRate()),
-                below.test(holder.getPrivateInpersonSessionRate()),
-                below.test(holder.getGroupOnlineSessionRate()),
-                below.test(holder.getGroupInpersonSessionRate()),
                 below.test(holder.getPrivateOnlineDailyRate()),
                 below.test(holder.getPrivateInpersonDailyRate()),
                 below.test(holder.getGroupOnlineDailyRate()),
@@ -64,10 +56,6 @@ public final class TrainingRateCardFactory {
         target.setPrivateInpersonHourlyRate(rateCard.privateInpersonHourlyRate());
         target.setGroupOnlineHourlyRate(rateCard.groupOnlineHourlyRate());
         target.setGroupInpersonHourlyRate(rateCard.groupInpersonHourlyRate());
-        target.setPrivateOnlineSessionRate(rateCard.privateOnlineSessionRate());
-        target.setPrivateInpersonSessionRate(rateCard.privateInpersonSessionRate());
-        target.setGroupOnlineSessionRate(rateCard.groupOnlineSessionRate());
-        target.setGroupInpersonSessionRate(rateCard.groupInpersonSessionRate());
         target.setPrivateOnlineDailyRate(rateCard.privateOnlineDailyRate());
         target.setPrivateInpersonDailyRate(rateCard.privateInpersonDailyRate());
         target.setGroupOnlineDailyRate(rateCard.groupOnlineDailyRate());

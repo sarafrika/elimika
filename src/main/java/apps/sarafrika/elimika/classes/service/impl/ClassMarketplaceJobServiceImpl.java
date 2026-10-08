@@ -1376,7 +1376,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     // Price and pay share one basis: the price may not undercut the organisation's approved rate
     // for it, and the pay may not exceed the price. The difference is the organisation's margin.
     private void applyJobPricing(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
-        RateBasis basis = request.rateBasis();
+        RateBasis basis = RateBasis.requireSelectable(request.rateBasis());
         if (basis == null) {
             throw new IllegalArgumentException("rate_basis is required");
         }

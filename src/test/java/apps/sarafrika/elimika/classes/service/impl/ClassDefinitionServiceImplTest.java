@@ -717,7 +717,7 @@ class ClassDefinitionServiceImplTest {
     // ── A price left off is filled from the organisation's rate in the class's own basis ──────
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createFillsTheSalePriceFromTheOrganisationsRateInTheClassBasis(RateBasis basis) {
         UUID organisationUuid = UUID.randomUUID();
         UUID courseUuid = UUID.randomUUID();
@@ -735,7 +735,7 @@ class ClassDefinitionServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createFillsAProgramClassSalePriceFromTheOrganisationsRateInTheClassBasis(RateBasis basis) {
         UUID organisationUuid = UUID.randomUUID();
         UUID programUuid = UUID.randomUUID();

@@ -18,7 +18,10 @@ public enum RateBasis {
     /** Billed on total scheduled time. */
     PER_HOUR("per_hour"),
 
-    /** Billed once per scheduled session, whatever its length. */
+    /**
+     * Retired: billed once per scheduled session. Kept only so legacy classes, jobs and bookings
+     * still load and settle; nothing new may be priced per session.
+     */
     PER_SESSION("per_session"),
 
     /** Billed once per calendar day that holds any session, so two sessions in a day bill once. */
@@ -42,6 +45,19 @@ public enum RateBasis {
     @JsonValue
     public String getValue() {
         return value;
+    }
+
+    /** True for a basis that legacy rows may hold but new pricing may not use. */
+    public boolean isRetired() {
+        return this == PER_SESSION;
+    }
+
+    /** Rejects a retired basis on a new write; null passes through for the caller's own required check. */
+    public static RateBasis requireSelectable(RateBasis basis) {
+        if (basis != null && basis.isRetired()) {
+            throw new IllegalArgumentException("Per-session pricing has been retired; price per hour or per day instead");
+        }
+        return basis;
     }
 
     @JsonCreator

@@ -82,10 +82,8 @@ class UnofferedTrainingMethodMigrationTest {
                 assertThat(row.getBigDecimal("private_online_hourly_rate")).isNull();
                 assertThat(row.getBigDecimal("private_inperson_hourly_rate")).isNull();
                 assertThat(row.getBigDecimal("group_inperson_hourly_rate")).isNull();
-                assertThat(row.getBigDecimal("private_online_session_rate")).isNull();
                 assertThat(row.getBigDecimal("private_inperson_daily_rate")).isNull();
                 assertThat(row.getBigDecimal("group_online_hourly_rate")).isEqualByComparingTo(new BigDecimal("2500"));
-                assertThat(row.getBigDecimal("group_online_session_rate")).isEqualByComparingTo(new BigDecimal("4000"));
                 assertThat(row.getBigDecimal("group_online_daily_rate")).isEqualByComparingTo(new BigDecimal("9000"));
             }
         }
@@ -104,7 +102,6 @@ class UnofferedTrainingMethodMigrationTest {
                 assertThat(row.getBigDecimal("private_inperson_hourly_rate")).isNull();
                 assertThat(row.getBigDecimal("group_online_hourly_rate")).isNull();
                 assertThat(row.getBigDecimal("group_inperson_hourly_rate")).isNull();
-                assertThat(row.getBigDecimal("group_inperson_session_rate")).isNull();
             }
         }
     }
@@ -144,6 +141,21 @@ class UnofferedTrainingMethodMigrationTest {
                 statement.setObject(i + 1, parameters[i]);
             }
             statement.executeUpdate();
+        }
+    }
+
+    @Test
+    @DisplayName("the retired per-session rate columns are dropped from every rate card table")
+    void sessionRateColumnsAreDropped() throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement query = connection.prepareStatement(
+                     "SELECT COUNT(*) FROM information_schema.columns WHERE column_name LIKE '%\\_session\\_rate' "
+                             + "AND table_name IN ('course_training_applications', 'program_training_applications', "
+                             + "'course_training_rate_updates', 'program_training_rate_updates')")) {
+            try (ResultSet row = query.executeQuery()) {
+                assertThat(row.next()).isTrue();
+                assertThat(row.getInt(1)).isZero();
+            }
         }
     }
 }

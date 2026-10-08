@@ -39,18 +39,6 @@ public abstract class TrainingRateUpdate extends BaseEntity implements TrainingR
     @Column(name = "group_inperson_hourly_rate")
     private BigDecimal groupInpersonHourlyRate;
 
-    @Column(name = "private_online_session_rate")
-    private BigDecimal privateOnlineSessionRate;
-
-    @Column(name = "private_inperson_session_rate")
-    private BigDecimal privateInpersonSessionRate;
-
-    @Column(name = "group_online_session_rate")
-    private BigDecimal groupOnlineSessionRate;
-
-    @Column(name = "group_inperson_session_rate")
-    private BigDecimal groupInpersonSessionRate;
-
     @Column(name = "private_online_daily_rate")
     private BigDecimal privateOnlineDailyRate;
 

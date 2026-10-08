@@ -589,7 +589,7 @@ class ClassMarketplaceJobServiceImplTest {
     // ===== pricing against the organisation's approved rate for the job's basis =====
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createJobPricesAtOrAboveTheOrganisationsRateForTheJobsBasis(RateBasis basis) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -606,7 +606,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    @CsvSource({"PER_HOUR, per hour", "PER_DAY, per day"})
     void createJobRefusesWhenTheRateCardHasNoRateForTheJobsBasis(RateBasis basis, String phrase) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -624,7 +624,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    @CsvSource({"PER_HOUR, per hour", "PER_DAY, per day"})
     void createJobTreatsAZeroRateAsNotOffered(RateBasis basis, String phrase) {
         UUID courseUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO base = withLocation(sampleRequest(courseUuid, null),
@@ -644,7 +644,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    @CsvSource({"PER_HOUR, per hour", "PER_DAY, per day"})
     void createJobRefusesASalePriceBelowTheOrganisationsApprovedRate(RateBasis basis, String phrase) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -659,7 +659,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createJobRequiresASalePrice(RateBasis basis) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -674,7 +674,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createJobRequiresInstructorPay(RateBasis basis) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -689,7 +689,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createJobRefusesZeroInstructorPay(RateBasis basis) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -704,7 +704,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createJobRefusesInstructorPayAboveTheSalePriceOnEveryBasis(RateBasis basis) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -719,7 +719,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(RateBasis.class)
+    @EnumSource(value = RateBasis.class, names = "PER_SESSION", mode = EnumSource.Mode.EXCLUDE)
     void createJobStillHoldsTheSalePriceToTheCourseMinimum(RateBasis basis) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPricing(
@@ -748,7 +748,7 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"PER_HOUR, per hour", "PER_SESSION, per session", "PER_DAY, per day"})
+    @CsvSource({"PER_HOUR, per hour", "PER_DAY, per day"})
     void updateJobRefusesASalePriceBelowTheOrganisationsApprovedRate(RateBasis basis, String phrase) {
         UUID programUuid = UUID.randomUUID();
         ClassMarketplaceJob job = sampleProgramJob();
@@ -3226,18 +3226,18 @@ class ClassMarketplaceJobServiceImplTest {
         UUID instructorUuid = UUID.randomUUID();
         ClassMarketplaceJobRequestDTO request = withPreferredInstructor(withPricing(
                 sampleRequest(null, programUuid), new BigDecimal("300.00"), new BigDecimal("180.00"),
-                RateBasis.PER_SESSION), instructorUuid);
+                RateBasis.PER_DAY), instructorUuid);
         allowProgramJob(request, programUuid);
-        stubOrganisationProgramRate(request, programUuid, RateBasis.PER_SESSION, "300.00");
+        stubOrganisationProgramRate(request, programUuid, RateBasis.PER_DAY, "300.00");
         stubJobSaves();
         stubInstructorName(instructorUuid, "Jane Mwangi");
         when(courseTrainingApprovalSpi.resolveInstructorProgramRate(
-                programUuid, instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
+                programUuid, instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_DAY))
                 .thenReturn(Optional.of(new BigDecimal("200.00")));
 
         assertThatThrownBy(() -> service.createJob(request))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Jane Mwangi's approved rate of KES 200.00 per session is above this job's pay of KES 180.00.");
+                .hasMessage("Jane Mwangi's approved rate of KES 200.00 per day is above this job's pay of KES 180.00.");
         verifyNoInteractions(organisationAffiliationService);
         verify(classDefinitionService, never()).createClassDefinition(any(ClassDefinitionDTO.class));
     }

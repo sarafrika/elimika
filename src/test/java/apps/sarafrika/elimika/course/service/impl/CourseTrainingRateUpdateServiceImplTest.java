@@ -246,13 +246,12 @@ class CourseTrainingRateUpdateServiceImplTest {
         actAsInstructor();
         CourseTrainingRateCardDTO partial = new CourseTrainingRateCardDTO("KES",
                 null, null, new BigDecimal("3000"), null,
-                null, null, null, null,
-                null, null, new BigDecimal("3000"), null);
+                null, null, null, null);
 
         assertThatThrownBy(() -> service.submitRateUpdate(courseUuid, application.getUuid(),
                 new TrainingRateUpdateRequest(partial, null)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("group_online_session_rate");
+                .hasMessageContaining("group_online_daily_rate");
         assertThatThrownBy(() -> service.submitRateUpdate(courseUuid, application.getUuid(),
                 new TrainingRateUpdateRequest(groupOnlineCard("1500"), null)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -273,7 +272,7 @@ class CourseTrainingRateUpdateServiceImplTest {
 
         verify(applicationRepository).save(application);
         assertThat(application.getGroupOnlineHourlyRate()).isEqualByComparingTo("3200");
-        assertThat(application.getGroupOnlineSessionRate()).isEqualByComparingTo("3200");
+        assertThat(application.getGroupOnlineDailyRate()).isEqualByComparingTo("3200");
         assertThat(application.getStatus()).isEqualTo(CourseTrainingApplicationStatus.APPROVED);
         assertThat(update.getStatus()).isEqualTo(TrainingRateUpdateStatus.APPROVED);
         assertThat(update.getReviewNotes()).isEqualTo("Fair");
@@ -475,7 +474,6 @@ class CourseTrainingRateUpdateServiceImplTest {
         approved.setStatus(CourseTrainingApplicationStatus.APPROVED);
         approved.setRateCurrency("KES");
         approved.setGroupOnlineHourlyRate(new BigDecimal("2500"));
-        approved.setGroupOnlineSessionRate(new BigDecimal("4000"));
         approved.setGroupOnlineDailyRate(new BigDecimal("9000"));
         when(applicationRepository.findByUuid(approved.getUuid())).thenReturn(Optional.of(approved));
         return approved;
@@ -494,7 +492,6 @@ class CourseTrainingRateUpdateServiceImplTest {
     private static CourseTrainingRateCardDTO groupOnlineCard(String amount) {
         BigDecimal rate = new BigDecimal(amount);
         return new CourseTrainingRateCardDTO("KES",
-                null, null, rate, null,
                 null, null, rate, null,
                 null, null, rate, null);
     }

@@ -110,16 +110,16 @@ class CourseTrainingApprovalSpiImplTest {
     @DisplayName("hybrid and in-person delivery read the in-person cell")
     void hybridReadsInPerson() {
         CourseTrainingApplication application = new CourseTrainingApplication();
-        application.setPrivateOnlineSessionRate(new BigDecimal("1000"));
-        application.setPrivateInpersonSessionRate(new BigDecimal("4000"));
+        application.setPrivateOnlineHourlyRate(new BigDecimal("1000"));
+        application.setPrivateInpersonHourlyRate(new BigDecimal("4000"));
         when(courseApplications.findByCourseUuidAndApplicantTypeAndApplicantUuidAndStatus(
                 courseUuid, CourseTrainingApplicantType.ORGANISATION, instructorUuid, CourseTrainingApplicationStatus.APPROVED))
                 .thenReturn(Optional.of(application));
 
         assertThat(spi.resolveOrganisationRate(courseUuid, instructorUuid, SessionFormat.INDIVIDUAL, LocationType.HYBRID,
-                RateBasis.PER_SESSION)).contains(new BigDecimal("4000"));
+                RateBasis.PER_HOUR)).contains(new BigDecimal("4000"));
         assertThat(spi.resolveOrganisationRate(courseUuid, instructorUuid, SessionFormat.INDIVIDUAL, null,
-                RateBasis.PER_SESSION)).contains(new BigDecimal("1000"));
+                RateBasis.PER_HOUR)).contains(new BigDecimal("1000"));
     }
 
     @Test
@@ -127,8 +127,8 @@ class CourseTrainingApprovalSpiImplTest {
     void approvalsLoadOnceAndPriceLikeTheSingleLookups() {
         CourseTrainingApplication course = new CourseTrainingApplication();
         course.setCourseUuid(courseUuid);
-        course.setGroupOnlineSessionRate(new BigDecimal("3000"));
-        course.setGroupInpersonSessionRate(BigDecimal.ZERO);
+        course.setGroupOnlineHourlyRate(new BigDecimal("3000"));
+        course.setGroupInpersonHourlyRate(BigDecimal.ZERO);
         ProgramTrainingApplication program = new ProgramTrainingApplication();
         program.setProgramUuid(programUuid);
         program.setPrivateInpersonDailyRate(new BigDecimal("9000"));
@@ -144,11 +144,11 @@ class CourseTrainingApprovalSpiImplTest {
         assertThat(approvals.approvedForCourse(courseUuid)).isTrue();
         assertThat(approvals.approvedForCourse(UUID.randomUUID())).isFalse();
         assertThat(approvals.approvedForProgram(programUuid)).isTrue();
-        assertThat(approvals.courseRate(courseUuid, SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_SESSION))
+        assertThat(approvals.courseRate(courseUuid, SessionFormat.GROUP, LocationType.ONLINE, RateBasis.PER_HOUR))
                 .contains(new BigDecimal("3000"));
-        assertThat(approvals.courseRate(courseUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
+        assertThat(approvals.courseRate(courseUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
                 .as("a legacy zero is not a price").isEmpty();
-        assertThat(approvals.courseRate(courseUuid, null, LocationType.ONLINE, RateBasis.PER_SESSION)).isEmpty();
+        assertThat(approvals.courseRate(courseUuid, null, LocationType.ONLINE, RateBasis.PER_HOUR)).isEmpty();
         assertThat(approvals.programRate(programUuid, SessionFormat.INDIVIDUAL, LocationType.IN_PERSON, RateBasis.PER_DAY))
                 .contains(new BigDecimal("9000"));
         assertThat(approvals.programRate(UUID.randomUUID(), SessionFormat.INDIVIDUAL, LocationType.IN_PERSON,

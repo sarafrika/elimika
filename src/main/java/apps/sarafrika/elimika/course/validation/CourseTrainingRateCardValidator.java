@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * A method is offered when any of its three bases is priced; an offered method prices all three at or above the minimum fee.
+ * A method is offered when either basis is priced; an offered method prices both hourly and daily at or above the minimum fee.
  */
 @Component
 public class CourseTrainingRateCardValidator {
@@ -31,14 +31,14 @@ public class CourseTrainingRateCardValidator {
         }
         if (!offersAMethod) {
             throw new IllegalArgumentException(
-                    "At least one training method must be offered, with its hourly, session and daily rates");
+                    "At least one training method must be offered, with its hourly and daily rates");
         }
     }
 
     private void validateOfferedCell(TrainingRateCell cell, BigDecimal value, BigDecimal floor) {
         if (value == null) {
             throw new IllegalArgumentException(String.format(
-                    "%s is required because %s training is offered; price all three bases or leave all three empty",
+                    "%s is required because %s training is offered; price both bases or leave both empty",
                     cell.fieldName(), cell.methodLabel()));
         }
         if (value.signum() <= 0) {
