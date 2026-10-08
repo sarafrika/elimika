@@ -26,6 +26,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.LearnerProfileLookupService;
+import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import apps.sarafrika.elimika.shared.tracking.discovery.DiscoveryImpression;
 import apps.sarafrika.elimika.shared.tracking.discovery.DiscoveryTracker;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
@@ -188,7 +189,8 @@ public class CourseRecommendationServiceImpl implements CourseRecommendationServ
         return name == null || name.isBlank() ? "Offered where you learn" : "Offered by " + name;
     }
 
-    private List<RecommendedCourseDTO> respond(List<ScoredCourse> ranked, Surface surface, UUID viewerUuid) {
+    /** Stored thumbnail keys are published as /api/v1/files/ URLs, as CourseFactory does. */
+    List<RecommendedCourseDTO> respond(List<ScoredCourse> ranked, Surface surface, UUID viewerUuid) {
         if (ranked.isEmpty()) {
             return List.of();
         }
@@ -202,7 +204,7 @@ public class CourseRecommendationServiceImpl implements CourseRecommendationServ
                     .toList();
             CandidateCourse course = item.course();
             response.add(new RecommendedCourseDTO(course.uuid(), course.name(), course.description(),
-                    course.thumbnailUrl(), reasons.getFirst().text(), item.score(), reasons, recommendationId,
+                    FileUrlResolver.publicUrl(course.thumbnailUrl()), reasons.getFirst().text(), item.score(), reasons, recommendationId,
                     surface.value(), RecommendationTypes.MODEL_VERSION));
             impressions.add(new DiscoveryImpression(RecommendationTypes.ITEM_TYPE, course.uuid(), position,
                     item.reasons().stream().map(Reason::code).map(Enum::name).distinct().toList()));
