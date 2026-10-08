@@ -9,10 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Serves the instructor qualification endpoints, unchanged in shape, from the shared user_* tables. */
@@ -58,26 +61,60 @@ public class InstructorProfileBridge {
         return result;
     }
 
-    /** Turns an instructorUuid filter into its user; without one, limits to instructors. Other instructor-key filters are rejected. */
+    /** Turns instructorUuid / instructorUuid_in filters into their users; without one, bounds to instructors. */
     public ScopedSearch scope(Map<String, String> searchParams) {
         Map<String, String> params = new HashMap<>();
-        UUID instructorUuid = null;
+        Set<UUID> instructorUuids = null;
         if (searchParams != null) {
             for (Map.Entry<String, String> entry : searchParams.entrySet()) {
                 String key = entry.getKey().toLowerCase(Locale.ROOT).replace("_", "");
                 if (key.equals("instructoruuid")) {
-                    instructorUuid = parse(entry.getValue());
+                    instructorUuids = narrow(instructorUuids, Set.of(parse(entry.getValue())));
+                } else if (key.equals("instructoruuidin")) {
+                    instructorUuids = narrow(instructorUuids, parseAll(entry.getValue()));
                 } else if (key.startsWith("instructoruuid")) {
-                    throw new IllegalArgumentException("Only an exact instructorUuid filter is supported");
+                    throw new IllegalArgumentException("Only instructorUuid and instructorUuid_in filters are supported");
                 } else {
                     params.put(entry.getKey(), entry.getValue());
                 }
             }
         }
-        if (instructorUuid != null) {
-            return new ScopedSearch(params, findUserUuid(instructorUuid).map(List::of).orElse(List.of()));
+        if (instructorUuids != null) {
+            return new ScopedSearch(params, userUuidsOf(instructorUuids));
         }
         return new ScopedSearch(params, instructorRepository.findAllUserUuids());
+    }
+
+    private List<UUID> userUuidsOf(Set<UUID> instructorUuids) {
+        if (instructorUuids.isEmpty()) {
+            return List.of();
+        }
+        return instructorRepository.findByUuidIn(instructorUuids).stream()
+                .map(Instructor::getUserUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private static Set<UUID> narrow(Set<UUID> current, Set<UUID> next) {
+        if (current == null) {
+            return new HashSet<>(next);
+        }
+        current.retainAll(next);
+        return current;
+    }
+
+    private static Set<UUID> parseAll(String value) {
+        Set<UUID> result = new HashSet<>();
+        if (value == null) {
+            return result;
+        }
+        for (String part : value.split(",")) {
+            if (!part.isBlank()) {
+                result.add(parse(part));
+            }
+        }
+        return result;
     }
 
     private static UUID parse(String value) {
