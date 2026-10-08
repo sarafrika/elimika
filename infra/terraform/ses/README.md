@@ -15,6 +15,8 @@ DNS (cPanel): DKIM CNAMEs + MAIL FROM MX/SPF + DMARC ─▶ SES verifies the dom
 
 ## Apply
 
+Terraform uses the `sarafrika` AWS CLI profile. Create it once with `aws configure --profile sarafrika` (region `eu-west-1`).
+
 ```bash
 cd infra/terraform/ses
 cp terraform.tfvars.example terraform.tfvars   # adjust region if needed

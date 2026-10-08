@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "eu-west-1"
 }
 
+variable "aws_profile" {
+  description = "AWS CLI profile for the Sarafrika account; pinned so a stray AWS_PROFILE can't target another client."
+  type        = string
+  default     = "sarafrika"
+}
+
 variable "domain" {
   description = "Sending domain verified in SES."
   type        = string
