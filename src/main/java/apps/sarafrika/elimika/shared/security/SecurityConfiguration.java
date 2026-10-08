@@ -151,6 +151,8 @@ public class SecurityConfiguration {
 
                     req.requestMatchers(HttpMethod.POST, "/api/v1/registrations", "/api/v1/registrations/resend",
                                     "/api/v1/organisations").permitAll()
+                            // Real-user timing beacons; the controller rate-limits anonymous callers per IP.
+                            .requestMatchers(HttpMethod.POST, "/api/v1/perf/rum").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
                             // Credential/profile documents stay authenticated; all other
                             // stored media is public (UUID-named, unguessable keys)
