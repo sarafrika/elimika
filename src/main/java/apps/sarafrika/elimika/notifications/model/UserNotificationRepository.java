@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,4 +79,28 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
             @Param("presentation") NotificationPresentation presentation,
             @Param("seenAt") LocalDateTime seenAt
     );
+
+    /** Unread totals grouped by recipient domain; the null-domain row holds account-level notifications. */
+    @Query("""
+            SELECT n.recipientDomain AS domain,
+                   COUNT(n) AS unreadCount,
+                   SUM(CASE WHEN n.presentation = :popup AND n.popupSeenAt IS NULL THEN 1 ELSE 0 END) AS popupCount
+              FROM UserNotification n
+             WHERE n.recipientUuid = :recipientUuid
+               AND n.status = :unreadStatus
+             GROUP BY n.recipientDomain
+            """)
+    List<UnreadCountsByDomain> countUnreadByDomain(
+            @Param("recipientUuid") UUID recipientUuid,
+            @Param("unreadStatus") UserNotificationStatus unreadStatus,
+            @Param("popup") NotificationPresentation popup
+    );
+
+    interface UnreadCountsByDomain {
+        String getDomain();
+
+        Long getUnreadCount();
+
+        Long getPopupCount();
+    }
 }
