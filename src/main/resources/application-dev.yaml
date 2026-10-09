@@ -21,3 +21,6 @@ app:
     #
     # APP_API_DOCS_PUBLIC still overrides this in either direction if an environment needs it.
     public: true
+  media:
+    # On for staging: clear media references whose files are missing (APP_MEDIA_SWEEP_DANGLING_REFS).
+    sweep-dangling-refs: ${APP_MEDIA_SWEEP_DANGLING_REFS:true}
