@@ -1,3 +1,13 @@
+# [2.169.0](https://github.com/sarafrika/elimika/compare/v2.168.2...v2.169.0) (2026-10-09)
+
+
+### Features
+
+* **bootstrap:** add GET /api/v1/me/bootstrap session bootstrap ([cb96e5a](https://github.com/sarafrika/elimika/commit/cb96e5ab847facb8cae61ca09ba2e30fd9c275cc))
+* **notifications:** count unread badges for every domain in one query ([f38af72](https://github.com/sarafrika/elimika/commit/f38af72db9363865c1bbb29f8eeef4d48e98a146))
+* **tenancy:** expose the users/me record through a profile lookup spi ([c4d57d9](https://github.com/sarafrika/elimika/commit/c4d57d9d818e4077ecc1470c36292a5341a7483d))
+* **wallet:** add a lock-free read-only balance summary ([b4783a7](https://github.com/sarafrika/elimika/commit/b4783a703b85f74355205cdbdd129fe8aae9fd2b))
+
 ## [2.168.2](https://github.com/sarafrika/elimika/compare/v2.168.1...v2.168.2) (2026-10-09)
 
 
