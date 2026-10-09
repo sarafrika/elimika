@@ -1,3 +1,11 @@
+## [2.168.1](https://github.com/sarafrika/elimika/compare/v2.168.0...v2.168.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **course:** answer signed-in prospects with an empty payload instead of 404 ([0b53ce2](https://github.com/sarafrika/elimika/commit/0b53ce22125e2d964a50d32fda2eddf5a09a57f3))
+* **media:** clear course media references whose files are missing ([d48bf3f](https://github.com/sarafrika/elimika/commit/d48bf3fcd5b8d4ad8588d9161d0a63517dc00d2c))
+
 # [2.168.0](https://github.com/sarafrika/elimika/compare/v2.167.1...v2.168.0) (2026-10-09)
 
 
