@@ -1,3 +1,10 @@
+## [2.168.2](https://github.com/sarafrika/elimika/compare/v2.168.1...v2.168.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **files:** keep legacy media private and bound variant generation ([5d51a84](https://github.com/sarafrika/elimika/commit/5d51a84b5c816a5e30953e7d68452d454a2cb5da))
+
 ## [2.168.1](https://github.com/sarafrika/elimika/compare/v2.168.0...v2.168.1) (2026-10-09)
 
 
