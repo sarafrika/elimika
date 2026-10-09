@@ -26,7 +26,7 @@ import java.util.Optional;
 final class ImageVariantGenerator {
 
     /** Refuse to decode anything larger than this, to bound heap use per request. */
-    static final long MAX_SOURCE_PIXELS = 40_000_000L;
+    static final long MAX_SOURCE_PIXELS = 24_000_000L;
     private static final float JPEG_QUALITY = 0.82f;
 
     record Variant(byte[] bytes, String extension) {
@@ -40,7 +40,7 @@ final class ImageVariantGenerator {
         int[] dimensions = readDimensions(source);
         if (dimensions == null
                 || (long) dimensions[0] * dimensions[1] > MAX_SOURCE_PIXELS
-                || Math.max(dimensions[0], dimensions[1]) <= width) {
+                || dimensions[0] <= width) {
             return Optional.empty();
         }
         BufferedImage scaled = Thumbnails.of(new ByteArrayInputStream(source))

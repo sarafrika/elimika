@@ -863,7 +863,7 @@ class ClassDefinitionControllerTest {
 
         @Bean
         apps.sarafrika.elimika.shared.storage.service.MediaServeService mediaServeService(StorageService storageService) {
-            return new apps.sarafrika.elimika.shared.storage.service.MediaServeService(storageService);
+            return new apps.sarafrika.elimika.shared.storage.service.MediaServeService(storageService, new StorageProperties());
         }
 
         @Bean
