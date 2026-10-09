@@ -1,3 +1,23 @@
+# [2.168.0](https://github.com/sarafrika/elimika/compare/v2.167.1...v2.168.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **profile:** accept instructor_uuid_in and course_creator_uuid_in in profile bridges ([6ed1634](https://github.com/sarafrika/elimika/commit/6ed163456ae0400befa41e36f405c2f958142f75))
+* **recommend:** publish recommendation thumbnails as file URLs ([7e78e54](https://github.com/sarafrika/elimika/commit/7e78e54c34fbcdfc1bd9295a67ecdcb05880beb5))
+
+
+### Features
+
+* **notifications:** add bulk popup_seen action for listed or all unseen popups ([57e459f](https://github.com/sarafrika/elimika/commit/57e459f0f47c4d243321ce57e440c32309418385))
+* **perf:** add perf_rum_event table and repository with percentile summary ([515c303](https://github.com/sarafrika/elimika/commit/515c30322b3ca18ed3c6a4a8cf1e07ffd48a0179))
+* **perf:** add RUM ingest, admin percentile summary and 30-day retention job ([8100dc1](https://github.com/sarafrika/elimika/commit/8100dc1b452e02d14560740a48f783a780d74674))
+
+
+### Performance Improvements
+
+* **security:** make the bearer API filter chain stateless ([5f0b6b6](https://github.com/sarafrika/elimika/commit/5f0b6b6efe450ac69f3d602140574e21bc24b128))
+
 ## [2.167.1](https://github.com/sarafrika/elimika/compare/v2.167.0...v2.167.1) (2026-10-08)
 
 
