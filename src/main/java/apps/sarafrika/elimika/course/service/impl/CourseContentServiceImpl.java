@@ -19,6 +19,7 @@ import apps.sarafrika.elimika.course.service.LessonContentService;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,7 @@ public class CourseContentServiceImpl implements CourseContentService {
     private final LessonContentService lessonContentService;
     private final CourseReviewService courseReviewService;
     private final CourseContentAccessResolver courseContentAccessResolver;
+    private final DomainSecurityService domainSecurityService;
 
     @Override
     @Transactional(readOnly = true)
@@ -63,10 +65,12 @@ public class CourseContentServiceImpl implements CourseContentService {
      */
     private OrganisationCourseContentDTO assemble(UUID courseUuid, CourseContentAccess access) {
         if (access == CourseContentAccess.PROSPECT && !isInPublicCatalogue(courseUuid)) {
-            // A prospect is shown "the same public summary the catalogue already shows"; a course the
-            // catalogue does not show (a draft, one awaiting approval, an inactive or archived course, or a
-            // shadow draft carrying an unreviewed edit) has no public summary, so it answers as absent.
-            throw new ResourceNotFoundException("Course with UUID " + courseUuid + " not found");
+            // Outside the catalogue there is no public summary: anonymous callers get 404, signed-in
+            // ones an empty prospect payload, so a page they can already open stops logging a 404.
+            if (domainSecurityService.getCurrentUserUuid() == null) {
+                throw new ResourceNotFoundException("Course with UUID " + courseUuid + " not found");
+            }
+            return emptyProspect(courseUuid);
         }
         final boolean fullAccess = access.grantsFullContent();
         final boolean seesDrafts = access.seesDrafts();
@@ -90,6 +94,12 @@ public class CourseContentServiceImpl implements CourseContentService {
                 reviews.size(),
                 lessonViews,
                 courseProfile(courseUuid));
+    }
+
+    /** Nothing beyond the uuid and the footing: no title, outline, counts or reviews. */
+    private static OrganisationCourseContentDTO emptyProspect(UUID courseUuid) {
+        return new OrganisationCourseContentDTO(
+                courseUuid, CourseContentAccess.PROSPECT, false, 0, null, 0, List.of(), null);
     }
 
     /**

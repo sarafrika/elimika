@@ -176,7 +176,7 @@ class CourseContentAccessIntegrationTest {
     }
 
     @Test
-    @DisplayName("A course the catalogue does not show has no public summary: drafts and shadow drafts are 404")
+    @DisplayName("A course outside the catalogue is 404 anonymously and an empty prospect when signed in")
     void prospectGetsNothingForACourseOutsideTheCatalogue() throws Exception {
         UUID creatorUuid = UUID.fromString(jdbc.queryForObject(
                 "SELECT course_creator_uuid::text FROM courses WHERE uuid = ?", String.class, courseUuid));
@@ -191,6 +191,22 @@ class CourseContentAccessIntegrationTest {
 
         mockMvc.perform(get("/api/v1/courses/" + draftUuid + "/content")).andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/courses/" + shadowUuid + "/content")).andExpect(status().isNotFound());
+        // A signed-in stranger gets an empty prospect payload that leaks nothing.
+        user("keycloak-stranger", "stranger@test.local");
+        String body = mockMvc.perform(get("/api/v1/courses/" + draftUuid + "/content")
+                        .with(jwt("keycloak-stranger")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.course_uuid").value(draftUuid.toString()))
+                .andExpect(jsonPath("$.data.access").value("prospect"))
+                .andExpect(jsonPath("$.data.full_access").value(false))
+                .andExpect(jsonPath("$.data.total_lessons").value(0))
+                .andExpect(jsonPath("$.data.total_reviews").value(0))
+                .andExpect(jsonPath("$.data.lessons").isEmpty())
+                .andExpect(jsonPath("$.data.course").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(body)
+                .doesNotContain("Unannounced draft course")
+                .doesNotContain("Draft outline nobody should read");
         // The owner still reads their own draft in full.
         mockMvc.perform(get("/api/v1/courses/" + draftUuid + "/content").with(jwt(CREATOR_SUBJECT)))
                 .andExpect(status().isOk())
