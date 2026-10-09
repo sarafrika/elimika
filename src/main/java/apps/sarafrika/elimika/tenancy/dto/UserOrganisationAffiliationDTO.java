@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.modulith.NamedInterface;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ import java.util.UUID;
  * @author Elimika Team
  * @since 1.1
  */
+@NamedInterface("user-dto")
 public record UserOrganisationAffiliationDTO(
         @JsonProperty("organisation_uuid")
         UUID organisationUuid,

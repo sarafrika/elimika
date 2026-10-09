@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.dto;
 import apps.sarafrika.elimika.shared.utils.validation.ValidPhoneNumber;
 import apps.sarafrika.elimika.shared.enums.Gender;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.modulith.NamedInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,7 @@ import java.util.UUID;
  * @version 1.0
  * @since 2025-07-09
  */
+@NamedInterface("user-dto")
 @Schema(
         name = "User",
         description = "Complete user profile information including personal details, authentication, and organizational data",
