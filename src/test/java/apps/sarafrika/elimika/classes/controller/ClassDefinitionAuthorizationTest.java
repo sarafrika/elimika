@@ -182,7 +182,7 @@ class ClassDefinitionAuthorizationTest {
 
         @Bean
         MediaServeService mediaServeService(StorageService storageService) {
-            return new MediaServeService(storageService);
+            return new MediaServeService(storageService, new StorageProperties());
         }
 
         @Bean

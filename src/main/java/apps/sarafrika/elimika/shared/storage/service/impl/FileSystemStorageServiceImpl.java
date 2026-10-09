@@ -157,8 +157,24 @@ public class FileSystemStorageServiceImpl implements StorageService {
         try {
             Files.deleteIfExists(path);
             pruneEmptyParents(path.getParent());
+            deleteVariants(StoragePathUtils.normalizeRelativePath(fileName));
         } catch (IOException e) {
             throw new StorageException("Failed to delete file: " + fileName, e);
+        }
+    }
+
+    /** Resized variants are public and immutable, so they must go with their original. */
+    private void deleteVariants(String key) throws IOException {
+        if (key.startsWith(StoragePathUtils.VARIANTS_FOLDER + "/")) {
+            return;
+        }
+        for (int width : StoragePathUtils.VARIANT_WIDTHS) {
+            for (String variantKey : StoragePathUtils.variantKeys(key, width)) {
+                Path variant = resolveSafely(variantKey);
+                if (variant != null && Files.deleteIfExists(variant)) {
+                    pruneEmptyParents(variant.getParent());
+                }
+            }
         }
     }
 

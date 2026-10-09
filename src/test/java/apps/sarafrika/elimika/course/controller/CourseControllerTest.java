@@ -107,7 +107,7 @@ class CourseControllerTest {
                 storageService,
                 storageProperties,
                 mediaStorageService,
-                new MediaServeService(storageService)
+                new MediaServeService(storageService, storageProperties)
         );
     }
 
