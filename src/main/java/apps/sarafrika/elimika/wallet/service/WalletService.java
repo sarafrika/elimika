@@ -11,6 +11,9 @@ public interface WalletService {
 
     UserWallet getOrCreateWallet(UUID userUuid, String currencyCode);
 
+    /** Reads the balance without locking or creating a wallet; a missing wallet reads as zero. */
+    WalletBalanceSummary getBalanceSummary(UUID userUuid, String currencyCode);
+
     Page<UserWalletTransaction> getTransactions(UUID userUuid, String currencyCode, Pageable pageable);
 
     UserWallet deposit(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description);

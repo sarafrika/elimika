@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.wallet.ledger.LedgerPostingRequest;
 import apps.sarafrika.elimika.wallet.ledger.LedgerService;
 import apps.sarafrika.elimika.wallet.repository.UserWalletRepository;
 import apps.sarafrika.elimika.wallet.repository.UserWalletTransactionRepository;
+import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import java.math.BigDecimal;
@@ -60,6 +61,15 @@ public class WalletServiceImpl implements WalletService {
     public UserWallet getOrCreateWallet(UUID userUuid, String currencyCode) {
         String resolvedCurrency = resolveCurrencyCode(currencyCode);
         return lockOrCreateWallet(userUuid, resolvedCurrency);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public WalletBalanceSummary getBalanceSummary(UUID userUuid, String currencyCode) {
+        String resolvedCurrency = resolveCurrencyCode(currencyCode);
+        return userWalletRepository.findByUserUuidAndCurrencyCode(userUuid, resolvedCurrency)
+                .map(wallet -> new WalletBalanceSummary(wallet.getUuid(), resolvedCurrency, wallet.getBalanceAmount()))
+                .orElseGet(() -> new WalletBalanceSummary(null, resolvedCurrency, ZERO));
     }
 
     @Override
