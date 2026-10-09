@@ -1138,6 +1138,12 @@ public class CourseController {
 
                     Open to anonymous callers, who resolve to `prospect` and receive the same public
                     summary the catalogue already shows.
+
+                    A course the public catalogue does not show (a draft, unapproved, inactive or a
+                    shadow draft) has no public summary. A signed-in `prospect` then receives 200 with
+                    an empty payload — `course_uuid`, `access=prospect`, `full_access=false`,
+                    `total_lessons=0`, no lessons, no reviews and no `course` profile. An anonymous
+                    caller receives 404.
                     """
     )
     @PreAuthorize("permitAll()")

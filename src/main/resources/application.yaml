@@ -108,6 +108,12 @@ app:
   api-docs:
     public: ${APP_API_DOCS_PUBLIC:false}
 
+  # Startup sweep that NULLs course/programme/class media columns whose stored file is missing.
+  # Skipped when more than sweep-max-missing-ratio of references look missing (unmounted volume).
+  media:
+    sweep-dangling-refs: ${APP_MEDIA_SWEEP_DANGLING_REFS:false}
+    sweep-max-missing-ratio: ${APP_MEDIA_SWEEP_MAX_MISSING_RATIO:0.5}
+
   bootstrap:
     admin:
       enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
