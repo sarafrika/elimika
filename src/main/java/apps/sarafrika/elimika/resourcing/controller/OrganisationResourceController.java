@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.resourcing.controller;
 
+import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceCalendarDTO;
 import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceAvailabilityRuleDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceBookingDTO;
@@ -72,6 +73,21 @@ public class OrganisationResourceController {
         String baseUrl = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
         return ResponseEntity.ok(ApiResponse.success(PagedDTO.from(page, baseUrl),
                 "Organisation resources retrieved successfully"));
+    }
+
+    @Operation(summary = "Merged calendar view of every active resource of the organisation",
+            description = "The per-resource calendar for all active resources in one request, ordered by resource name. "
+                    + "entry_types (comma-separated OPEN_HOURS, BLACKOUT, HOLD, CONFIRMED) optionally filters the entries. "
+                    + "Same access rule and date-range cap as the single-resource calendar.")
+    @GetMapping("/calendar")
+    public ResponseEntity<ApiResponse<List<OrganisationResourceCalendarDTO>>> getResourceCalendars(
+            @PathVariable UUID organisationUuid,
+            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "entry_types", required = false) List<String> entryTypes) {
+        return ResponseEntity.ok(ApiResponse.success(
+                resourceService.getCalendars(organisationUuid, startDate, endDate, entryTypes),
+                "Resource calendars retrieved successfully"));
     }
 
     @Operation(summary = "Get one resource")

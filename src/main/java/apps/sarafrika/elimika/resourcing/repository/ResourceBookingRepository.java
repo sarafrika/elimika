@@ -53,6 +53,12 @@ public interface ResourceBookingRepository extends JpaRepository<ResourceBooking
             LocalDateTime endTime,
             LocalDateTime startTime);
 
+    List<ResourceBooking> findByResourceUuidInAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+            Collection<UUID> resourceUuids,
+            Collection<ResourceBookingStatus> statuses,
+            LocalDateTime endTime,
+            LocalDateTime startTime);
+
     boolean existsByResourceUuidAndStatusInAndEndTimeAfter(UUID resourceUuid,
                                                            Collection<ResourceBookingStatus> statuses,
                                                            LocalDateTime after);
