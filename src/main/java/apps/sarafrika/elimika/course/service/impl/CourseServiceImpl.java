@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.internal.CourseAssessmentWeightRule;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
+import apps.sarafrika.elimika.course.dto.CourseRatingSummary;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
 import apps.sarafrika.elimika.course.internal.search.CatalogueSearchRouter;
@@ -13,6 +14,9 @@ import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
+import apps.sarafrika.elimika.course.repository.CourseReviewRepository;
+import apps.sarafrika.elimika.course.repository.projection.CourseLessonCountView;
+import apps.sarafrika.elimika.course.repository.projection.CourseRatingAggregateView;
 import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
 import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
@@ -72,6 +76,7 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final LessonRepository lessonRepository;
+    private final CourseReviewRepository courseReviewRepository;
     private final CourseCategoryMappingRepository mappingRepository;
     private final CourseSpecificationBuilder courseSpecificationBuilder;
     private final LessonService lessonService;
@@ -217,21 +222,50 @@ public class CourseServiceImpl implements CourseService {
     }
 
     /**
-     * Maps a page of courses to DTOs, loading every row's category names in one query rather than
-     * one query per course.
+     * Maps a page of courses to list items. Category names, lesson counts, ratings and creator names
+     * each load in one batch query for the whole page, and the lazy category mappings are never touched.
      */
     private Page<CourseDTO> toDtoPage(Page<Course> coursePage) {
         List<UUID> courseUuids = coursePage.getContent().stream()
                 .map(Course::getUuid)
                 .toList();
+        if (courseUuids.isEmpty()) {
+            return coursePage.map(course -> CourseFactory.toDTO(course, List.of()));
+        }
+        Map<UUID, Set<UUID>> categoryUuidsByCourse = new HashMap<>();
         Map<UUID, List<String>> categoryNamesByCourse = new HashMap<>();
-        if (!courseUuids.isEmpty()) {
-            for (Object[] row : mappingRepository.findCategoryNamesByCourseUuidIn(courseUuids)) {
-                categoryNamesByCourse.computeIfAbsent((UUID) row[0], key -> new ArrayList<>()).add((String) row[1]);
+        for (Object[] row : mappingRepository.findCategoryRowsByCourseUuidIn(courseUuids)) {
+            categoryUuidsByCourse.computeIfAbsent((UUID) row[0], key -> new HashSet<>()).add((UUID) row[1]);
+            if (row[2] != null) {
+                categoryNamesByCourse.computeIfAbsent((UUID) row[0], key -> new ArrayList<>()).add((String) row[2]);
             }
         }
+        Map<UUID, Long> lessonCounts = new HashMap<>();
+        for (CourseLessonCountView view : lessonRepository.countByCourseUuidIn(courseUuids)) {
+            lessonCounts.put(view.courseUuid(), view.lessonCount());
+        }
+        Map<UUID, CourseRatingSummary> ratings = new HashMap<>();
+        for (CourseRatingAggregateView view : courseReviewRepository.aggregateByCourseUuidIn(courseUuids)) {
+            ratings.put(view.courseUuid(), new CourseRatingSummary(roundRating(view.averageRating()), view.reviewCount()));
+        }
+        Set<UUID> creatorUuids = new HashSet<>();
+        coursePage.getContent().forEach(course -> {
+            if (course.getCourseCreatorUuid() != null) {
+                creatorUuids.add(course.getCourseCreatorUuid());
+            }
+        });
+        Map<UUID, String> creatorNames = creatorUuids.isEmpty()
+                ? Map.of() : courseCreatorLookupService.findFullNamesByUuids(creatorUuids);
         return coursePage.map(course -> CourseFactory.toDTO(course,
-                categoryNamesByCourse.getOrDefault(course.getUuid(), List.of())));
+                        categoryUuidsByCourse.get(course.getUuid()),
+                        categoryNamesByCourse.getOrDefault(course.getUuid(), List.of()), null)
+                .withListFacts(lessonCounts.getOrDefault(course.getUuid(), 0L),
+                        ratings.getOrDefault(course.getUuid(), CourseRatingSummary.NONE),
+                        course.getCourseCreatorUuid() == null ? null : creatorNames.get(course.getCourseCreatorUuid())));
+    }
+
+    private static Double roundRating(Double average) {
+        return average == null ? null : Math.round(average * 10) / 10.0;
     }
 
     /**

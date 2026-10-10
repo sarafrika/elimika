@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.repository;
 
 import apps.sarafrika.elimika.course.model.Lesson;
+import apps.sarafrika.elimika.course.repository.projection.CourseLessonCountView;
 import apps.sarafrika.elimika.course.repository.projection.MaterialCourseView;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -48,4 +49,14 @@ public interface LessonRepository extends JpaRepository<Lesson, Long>, JpaSpecif
             """)
     List<UUID> findVisibleLessonUuidsByCourseUuidIn(@Param("courseUuids") Collection<UUID> courseUuids,
                                                     @Param("status") ContentStatus status);
+
+    /** Lesson counts for a page of courses in one grouped query; courses with no lessons are absent. */
+    @Query("""
+            SELECT new apps.sarafrika.elimika.course.repository.projection.CourseLessonCountView(
+                       l.courseUuid, COUNT(l))
+            FROM Lesson l
+            WHERE l.courseUuid IN :courseUuids
+            GROUP BY l.courseUuid
+            """)
+    List<CourseLessonCountView> countByCourseUuidIn(@Param("courseUuids") Collection<UUID> courseUuids);
 }

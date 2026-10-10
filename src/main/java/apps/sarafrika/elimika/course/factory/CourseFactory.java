@@ -43,15 +43,24 @@ public class CourseFactory {
         if (course == null) {
             return null;
         }
+        return toDTO(course, extractCategoryUuids(course), categoryNames, trainingRequirements);
+    }
 
-        Set<UUID> categoryUuids = extractCategoryUuids(course);
+    /** Like the others, but with category uuids loaded in a page batch so the lazy mappings stay untouched. */
+    public static CourseDTO toDTO(Course course,
+                                  Set<UUID> categoryUuids,
+                                  List<String> categoryNames,
+                                  List<CourseTrainingRequirementDTO> trainingRequirements) {
+        if (course == null) {
+            return null;
+        }
 
         return new CourseDTO(
                 course.getUuid(),
                 course.getName(),
                 course.getCourseCode(),
                 course.getCourseCreatorUuid(),
-                categoryUuids.isEmpty() ? null : categoryUuids,
+                categoryUuids == null || categoryUuids.isEmpty() ? null : categoryUuids,
                 course.getDifficultyUuid(),
                 course.getDescription(),
                 course.getObjectives(),
@@ -78,7 +87,10 @@ public class CourseFactory {
                 course.getCreatedDate(),
                 course.getCreatedBy(),
                 course.getLastModifiedDate(),
-                course.getLastModifiedBy()
+                course.getLastModifiedBy(),
+                null,
+                null,
+                null
         );
     }
 
