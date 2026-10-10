@@ -1,3 +1,25 @@
+# [2.170.0](https://github.com/sarafrika/elimika/compare/v2.169.0...v2.170.0) (2026-10-10)
+
+
+### Features
+
+* **classes:** add GET /api/v1/classes/batch lookup with course, instructor and seats ([07d954e](https://github.com/sarafrika/elimika/commit/07d954e1da01f9370cb25e36e9096f47b0a1b08b))
+* **course:** add lesson count, rating summary and creator name to course list items ([bcf632c](https://github.com/sarafrika/elimika/commit/bcf632c55ee0ab13a87fe168b12a257a2eccd038))
+* **course:** batch learner progress and submitted-assessment lookups ([ead6906](https://github.com/sarafrika/elimika/commit/ead6906e22bf68d49ddb2fa0700213e99189d8e3))
+* **enrollment:** add student course-overview composite endpoint ([6281bb1](https://github.com/sarafrika/elimika/commit/6281bb18dbaec78e78ffde2e9a10fa374a83d069))
+* **spi:** add batch class snapshot and course name lookups ([02a6c5f](https://github.com/sarafrika/elimika/commit/02a6c5f4c99d5a4187e982776e657394df9c23a9))
+* **timetabling:** add GET /api/v1/timetable/organisations/{uuid} range endpoint ([a95834d](https://github.com/sarafrika/elimika/commit/a95834de0618d894287185993254bd28cbc98fb9))
+* **timetabling:** count active enrolments for many classes in one query ([c813a0e](https://github.com/sarafrika/elimika/commit/c813a0ed9d9756d48d439800addbd6b1e991a797))
+* **timetabling:** look up a learner's next session per class in one query ([98c380f](https://github.com/sarafrika/elimika/commit/98c380fdeb443de2d602056c0108acb0fe716cff))
+* **timetabling:** query an organisation's sessions in a date range in one statement ([fb12883](https://github.com/sarafrika/elimika/commit/fb12883752c2b5eae025569c66b8d0a5f89cc28a))
+
+
+### Performance Improvements
+
+* **catalogue:** attach class and course titles to catalogue items ([ffa3fa9](https://github.com/sarafrika/elimika/commit/ffa3fa9ce24c6e6f9ec444b12bcb8d93d7d91627))
+* **course:** batch list-item category uuids instead of lazy-loading per row ([10ce66b](https://github.com/sarafrika/elimika/commit/10ce66b7dd33cefc6faef0f4fe6a0c2e2c87d31b))
+* **db:** index class timetables, unseen popups and applicant lookups ([e879095](https://github.com/sarafrika/elimika/commit/e8790958a10003fc75fc93343b4cf8a6f5b4ea74))
+
 # [2.169.0](https://github.com/sarafrika/elimika/compare/v2.168.2...v2.169.0) (2026-10-09)
 
 
