@@ -1,3 +1,11 @@
+## [2.171.1](https://github.com/sarafrika/elimika/compare/v2.171.0...v2.171.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **notifications:** link class and assignment reminders to role dashboards ([1bd9dd0](https://github.com/sarafrika/elimika/commit/1bd9dd026fef6d5315eab513ffb7602b57eee92b))
+* **notifications:** send payment receipts to the wallet or billing page ([98374f0](https://github.com/sarafrika/elimika/commit/98374f089a6f32223d52f12d2e225d332748fa77))
+
 # [2.171.0](https://github.com/sarafrika/elimika/compare/v2.170.0...v2.171.0) (2026-10-10)
 
 
