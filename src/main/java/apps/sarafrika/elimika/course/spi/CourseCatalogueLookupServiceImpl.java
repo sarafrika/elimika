@@ -80,6 +80,24 @@ public class CourseCatalogueLookupServiceImpl implements CourseCatalogueLookupSe
         return snapshots;
     }
 
+    @Override
+    public Map<UUID, String> findNamesByUuids(Collection<UUID> courseUuids) {
+        if (courseUuids == null || courseUuids.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> distinct = courseUuids.stream().filter(Objects::nonNull).distinct().toList();
+        if (distinct.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> names = new LinkedHashMap<>();
+        for (Course course : courseRepository.findByUuidIn(distinct)) {
+            if (course.getName() != null) {
+                names.put(course.getUuid(), course.getName());
+            }
+        }
+        return names;
+    }
+
     private Map<UUID, List<String>> categoriesFor(List<Course> courses) {
         List<UUID> uuids = courses.stream().map(Course::getUuid).toList();
         Map<UUID, List<String>> byCourse = new HashMap<>();
