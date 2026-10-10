@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.resourcing.service.impl;
 
+import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceCalendarDTO;
 import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceAvailabilityRuleDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceBookingDTO;
@@ -36,10 +37,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +59,8 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
     private static final List<ResourceBookingStatus> ACTIVE_STATUSES =
             List.of(ResourceBookingStatus.HOLD, ResourceBookingStatus.CONFIRMED);
     private static final int MAX_CALENDAR_DAYS = 400;
+    private static final Set<String> RULE_ENTRY_TYPES = Set.of("OPEN_HOURS", "BLACKOUT");
+    private static final Set<String> BOOKING_ENTRY_TYPES = Set.of("HOLD", "CONFIRMED");
 
     private final OrganisationResourceRepository resourceRepository;
     private final ResourceAvailabilityRuleRepository ruleRepository;
@@ -209,6 +218,58 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
                                                       LocalDate startDate, LocalDate endDate) {
         requireOrganisationManagerAccess(organisationUuid);
         requireOrganisationResource(organisationUuid, resourceUuid);
+        validateCalendarRange(startDate, endDate);
+        LocalDateTime rangeStart = startDate.atStartOfDay();
+        LocalDateTime rangeEnd = endDate.plusDays(1).atStartOfDay();
+        return buildCalendar(startDate, endDate,
+                ruleRepository.findByResourceUuidOrderByCreatedDateAsc(resourceUuid),
+                bookingRepository.findByResourceUuidAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+                        resourceUuid, ACTIVE_STATUSES, rangeEnd, rangeStart));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrganisationResourceCalendarDTO> getCalendars(UUID organisationUuid, LocalDate startDate,
+                                                              LocalDate endDate, Collection<String> entryTypes) {
+        requireOrganisationManagerAccess(organisationUuid);
+        validateCalendarRange(startDate, endDate);
+        Set<String> wanted = resolveEntryTypes(entryTypes);
+
+        List<OrganisationResource> resources =
+                resourceRepository.findByOrganisationUuidAndIsActiveTrueOrderByNameAsc(organisationUuid);
+        if (resources.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> resourceUuids = resources.stream().map(OrganisationResource::getUuid).toList();
+        LocalDateTime rangeStart = startDate.atStartOfDay();
+        LocalDateTime rangeEnd = endDate.plusDays(1).atStartOfDay();
+
+        // Two queries for the whole organisation, skipped entirely when the filter excludes their kind.
+        Map<UUID, List<ResourceAvailabilityRule>> rulesByResource = wanted.stream().anyMatch(RULE_ENTRY_TYPES::contains)
+                ? ruleRepository.findByResourceUuidInOrderByCreatedDateAsc(resourceUuids).stream()
+                        .collect(Collectors.groupingBy(ResourceAvailabilityRule::getResourceUuid))
+                : Map.of();
+        Map<UUID, List<ResourceBooking>> bookingsByResource = wanted.stream().anyMatch(BOOKING_ENTRY_TYPES::contains)
+                ? bookingRepository.findByResourceUuidInAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+                                resourceUuids, ACTIVE_STATUSES, rangeEnd, rangeStart).stream()
+                        .collect(Collectors.groupingBy(ResourceBooking::getResourceUuid))
+                : Map.of();
+
+        return resources.stream()
+                .map(resource -> new OrganisationResourceCalendarDTO(
+                        resource.getUuid(),
+                        resource.getName(),
+                        resource.getResourceType(),
+                        buildCalendar(startDate, endDate,
+                                rulesByResource.getOrDefault(resource.getUuid(), List.of()),
+                                bookingsByResource.getOrDefault(resource.getUuid(), List.of()))
+                                .stream()
+                                .filter(entry -> wanted.contains(entry.entryType()))
+                                .toList()))
+                .toList();
+    }
+
+    private void validateCalendarRange(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null || endDate.isBefore(startDate)) {
             throw new IllegalArgumentException("A valid start_date and end_date (start_date <= end_date) are required");
         }
@@ -216,12 +277,39 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
             throw new IllegalArgumentException(String.format(
                     "Calendar range cannot exceed %d days", MAX_CALENDAR_DAYS));
         }
+    }
 
+    private Set<String> resolveEntryTypes(Collection<String> entryTypes) {
+        Set<String> all = new HashSet<>(RULE_ENTRY_TYPES);
+        all.addAll(BOOKING_ENTRY_TYPES);
+        if (entryTypes == null) {
+            return all;
+        }
+        Set<String> requested = entryTypes.stream()
+                .filter(Objects::nonNull)
+                .map(value -> value.trim().toUpperCase(Locale.ROOT))
+                .filter(value -> !value.isEmpty())
+                .collect(Collectors.toSet());
+        if (requested.isEmpty()) {
+            return all;
+        }
+        for (String value : requested) {
+            if (!all.contains(value)) {
+                throw new IllegalArgumentException(String.format(
+                        "Unknown entry_type '%s'; expected one of OPEN_HOURS, BLACKOUT, HOLD, CONFIRMED", value));
+            }
+        }
+        return requested;
+    }
+
+    private List<ResourceCalendarEntryDTO> buildCalendar(LocalDate startDate, LocalDate endDate,
+                                                         List<ResourceAvailabilityRule> rules,
+                                                         List<ResourceBooking> bookings) {
         List<ResourceCalendarEntryDTO> entries = new ArrayList<>();
         LocalDateTime rangeStart = startDate.atStartOfDay();
         LocalDateTime rangeEnd = endDate.plusDays(1).atStartOfDay();
 
-        for (ResourceAvailabilityRule rule : ruleRepository.findByResourceUuidOrderByCreatedDateAsc(resourceUuid)) {
+        for (ResourceAvailabilityRule rule : rules) {
             if (rule.getSpecificStart() != null && rule.getSpecificEnd() != null) {
                 if (rule.getSpecificStart().isBefore(rangeEnd) && rule.getSpecificEnd().isAfter(rangeStart)) {
                     entries.add(ruleEntry(rule, rule.getSpecificStart(), rule.getSpecificEnd()));
@@ -238,9 +326,6 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
             }
         }
 
-        List<ResourceBooking> bookings = bookingRepository
-                .findByResourceUuidAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                        resourceUuid, ACTIVE_STATUSES, rangeEnd, rangeStart);
         for (ResourceBooking booking : bookings) {
             entries.add(new ResourceCalendarEntryDTO(
                     booking.getStatus() == ResourceBookingStatus.HOLD ? "HOLD" : "CONFIRMED",

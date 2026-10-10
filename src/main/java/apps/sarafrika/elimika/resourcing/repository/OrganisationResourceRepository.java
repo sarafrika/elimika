@@ -20,6 +20,8 @@ public interface OrganisationResourceRepository extends JpaRepository<Organisati
 
     List<OrganisationResource> findByUuidIn(Collection<UUID> uuids);
 
+    List<OrganisationResource> findByOrganisationUuidAndIsActiveTrueOrderByNameAsc(UUID organisationUuid);
+
     boolean existsByOrganisationUuidAndNameIgnoreCase(UUID organisationUuid, String name);
 
     /**

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.resourcing.service.impl;
 
+import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceCalendarDTO;
 import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceAvailabilityRuleDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceCalendarEntryDTO;
@@ -485,6 +486,103 @@ class OrganisationResourceServiceImplTest {
         assertThat(entries.get(1).jobUuid()).isEqualTo(hold.getJobUuid());
         assertThat(entries.get(2).entryType()).isEqualTo("BLACKOUT");
         assertThat(entries.get(2).notes()).isEqualTo("Maintenance");
+    }
+
+    @Test
+    void organisationCalendarsBatchEveryActiveResourceInTwoQueries() {
+        OrganisationResource lab = venueEntity("Physics Lab", 30);
+        OrganisationResource hall = venueEntity("Main Hall", 200);
+        when(resourceRepository.findByOrganisationUuidAndIsActiveTrueOrderByNameAsc(ORG_UUID))
+                .thenReturn(List.of(hall, lab));
+
+        ResourceAvailabilityRule labHours = new ResourceAvailabilityRule();
+        labHours.setUuid(UUID.randomUUID());
+        labHours.setResourceUuid(lab.getUuid());
+        labHours.setRuleType(AvailabilityRuleType.OPEN_HOURS);
+        labHours.setStartTime(LocalTime.of(8, 0));
+        labHours.setEndTime(LocalTime.of(18, 0));
+        labHours.setDaysOfWeek("MONDAY");
+        when(ruleRepository.findByResourceUuidInOrderByCreatedDateAsc(List.of(hall.getUuid(), lab.getUuid())))
+                .thenReturn(List.of(labHours));
+
+        ResourceBooking hallHold = new ResourceBooking();
+        hallHold.setUuid(UUID.randomUUID());
+        hallHold.setResourceUuid(hall.getUuid());
+        hallHold.setStatus(ResourceBookingStatus.HOLD);
+        hallHold.setStartTime(LocalDateTime.of(2026, 1, 5, 10, 0));
+        hallHold.setEndTime(LocalDateTime.of(2026, 1, 5, 12, 0));
+        when(bookingRepository.findByResourceUuidInAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+                eq(List.of(hall.getUuid(), lab.getUuid())), anyCollection(), any(), any()))
+                .thenReturn(List.of(hallHold));
+
+        List<OrganisationResourceCalendarDTO> calendars = service.getCalendars(ORG_UUID,
+                LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 6), null);
+
+        assertThat(calendars).hasSize(2);
+        assertThat(calendars.get(0).resourceName()).isEqualTo("Main Hall");
+        assertThat(calendars.get(0).resourceType()).isEqualTo(ResourceType.VENUE);
+        assertThat(calendars.get(0).entries()).singleElement()
+                .satisfies(entry -> assertThat(entry.entryType()).isEqualTo("HOLD"));
+        assertThat(calendars.get(1).resourceUuid()).isEqualTo(lab.getUuid());
+        assertThat(calendars.get(1).entries()).singleElement()
+                .satisfies(entry -> assertThat(entry.entryType()).isEqualTo("OPEN_HOURS"));
+        verify(ruleRepository, never()).findByResourceUuidOrderByCreatedDateAsc(any());
+    }
+
+    @Test
+    void organisationCalendarsFilterByEntryTypeAndSkipRuleQueryForBookingOnlyFilters() {
+        OrganisationResource lab = venueEntity("Physics Lab", 30);
+        when(resourceRepository.findByOrganisationUuidAndIsActiveTrueOrderByNameAsc(ORG_UUID))
+                .thenReturn(List.of(lab));
+        ResourceBooking hold = new ResourceBooking();
+        hold.setUuid(UUID.randomUUID());
+        hold.setResourceUuid(lab.getUuid());
+        hold.setStatus(ResourceBookingStatus.HOLD);
+        hold.setStartTime(LocalDateTime.of(2026, 1, 5, 10, 0));
+        hold.setEndTime(LocalDateTime.of(2026, 1, 5, 12, 0));
+        ResourceBooking confirmed = new ResourceBooking();
+        confirmed.setUuid(UUID.randomUUID());
+        confirmed.setResourceUuid(lab.getUuid());
+        confirmed.setStatus(ResourceBookingStatus.CONFIRMED);
+        confirmed.setStartTime(LocalDateTime.of(2026, 1, 6, 10, 0));
+        confirmed.setEndTime(LocalDateTime.of(2026, 1, 6, 12, 0));
+        when(bookingRepository.findByResourceUuidInAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyCollection(), anyCollection(), any(), any()))
+                .thenReturn(List.of(hold, confirmed));
+
+        List<OrganisationResourceCalendarDTO> calendars = service.getCalendars(ORG_UUID,
+                LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 6), List.of("confirmed"));
+
+        assertThat(calendars.get(0).entries()).singleElement()
+                .satisfies(entry -> assertThat(entry.bookingUuid()).isEqualTo(confirmed.getUuid()));
+        verify(ruleRepository, never()).findByResourceUuidInOrderByCreatedDateAsc(any());
+    }
+
+    @Test
+    void organisationCalendarsRejectUnknownEntryType() {
+        assertThatThrownBy(() -> service.getCalendars(ORG_UUID,
+                LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 6), List.of("BOGUS")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("BOGUS");
+    }
+
+    @Test
+    void organisationCalendarsShareTheSingleResourceRangeCap() {
+        assertThatThrownBy(() -> service.getCalendars(ORG_UUID,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2028, 1, 1), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot exceed");
+        verify(resourceRepository, never()).findByOrganisationUuidAndIsActiveTrueOrderByNameAsc(any());
+    }
+
+    @Test
+    void organisationCalendarsRequireOrganisationManagerAccess() {
+        UUID otherOrg = UUID.randomUUID();
+
+        assertThatThrownBy(() -> service.getCalendars(otherOrg,
+                LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 6), null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(resourceRepository, never()).findByOrganisationUuidAndIsActiveTrueOrderByNameAsc(any());
     }
 
     // ===== helpers =====

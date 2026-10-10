@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.resourcing.service;
 
+import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceCalendarDTO;
 import apps.sarafrika.elimika.resourcing.dto.OrganisationResourceDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceAvailabilityRuleDTO;
 import apps.sarafrika.elimika.resourcing.dto.ResourceBookingDTO;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,6 +45,10 @@ public interface OrganisationResourceServiceInterface {
 
     List<ResourceCalendarEntryDTO> getCalendar(UUID organisationUuid, UUID resourceUuid,
                                                LocalDate startDate, LocalDate endDate);
+
+    /** Calendars of every active resource of the organisation; entryTypes, when non-empty, filters the entries. */
+    List<OrganisationResourceCalendarDTO> getCalendars(UUID organisationUuid, LocalDate startDate, LocalDate endDate,
+                                                       Collection<String> entryTypes);
 
     Page<ResourceBookingDTO> listBookings(UUID organisationUuid, UUID resourceUuid,
                                           ResourceBookingStatus status,

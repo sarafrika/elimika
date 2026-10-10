@@ -15,4 +15,6 @@ public interface ResourceAvailabilityRuleRepository extends JpaRepository<Resour
     List<ResourceAvailabilityRule> findByResourceUuidOrderByCreatedDateAsc(UUID resourceUuid);
 
     List<ResourceAvailabilityRule> findByResourceUuidIn(Collection<UUID> resourceUuids);
+
+    List<ResourceAvailabilityRule> findByResourceUuidInOrderByCreatedDateAsc(Collection<UUID> resourceUuids);
 }

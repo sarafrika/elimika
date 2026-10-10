@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.service.impl;
 
+import apps.sarafrika.elimika.classes.dto.ClassAssessmentSchedulesDTO;
 import apps.sarafrika.elimika.classes.dto.ClassAssignmentScheduleDTO;
 import apps.sarafrika.elimika.classes.dto.ClassQuizScheduleDTO;
 import apps.sarafrika.elimika.classes.factory.ClassAssignmentScheduleFactory;
@@ -18,6 +19,7 @@ import apps.sarafrika.elimika.shared.event.classes.ClassAssessmentScheduleChange
 import apps.sarafrika.elimika.shared.event.classes.ClassAssignmentScheduleChangedEventDTO;
 import apps.sarafrika.elimika.shared.event.classes.ClassQuizScheduleChangedEventDTO;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +29,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,6 +56,37 @@ public class ClassAssessmentScheduleServiceImpl implements ClassAssessmentSchedu
     private final InstructorLookupService instructorLookupService;
     private final UserLookupService userLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DomainSecurityService domainSecurityService;
+
+    @Override
+    @Transactional(readOnly = true)
+    public ClassAssessmentSchedulesDTO getAssessmentSchedules(Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            throw new IllegalArgumentException("At least one class uuid must be requested");
+        }
+        if (classDefinitionUuids.size() > MAX_BATCH_SIZE) {
+            throw new IllegalArgumentException("At most " + MAX_BATCH_SIZE + " class uuids may be requested at once");
+        }
+        // Same read rule as the per-class listings; classes the caller cannot view are dropped, not refused.
+        List<UUID> visible = new LinkedHashSet<>(classDefinitionUuids).stream()
+                .filter(Objects::nonNull)
+                .filter(domainSecurityService::canViewClassSchedule)
+                .toList();
+        if (visible.isEmpty()) {
+            return new ClassAssessmentSchedulesDTO(List.of(), List.of());
+        }
+        List<ClassAssignmentScheduleDTO> assignments = classAssignmentScheduleRepository
+                .findByClassDefinitionUuidIn(visible)
+                .stream()
+                .map(ClassAssignmentScheduleFactory::toDTO)
+                .toList();
+        List<ClassQuizScheduleDTO> quizzes = classQuizScheduleRepository
+                .findByClassDefinitionUuidIn(visible)
+                .stream()
+                .map(ClassQuizScheduleFactory::toDTO)
+                .toList();
+        return new ClassAssessmentSchedulesDTO(assignments, quizzes);
+    }
 
     // Assignment schedules
     @Override
