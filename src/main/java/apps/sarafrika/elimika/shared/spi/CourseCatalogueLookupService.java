@@ -28,4 +28,9 @@ public interface CourseCatalogueLookupService {
      * @return public attributes by course uuid, never null
      */
     Map<UUID, CourseCatalogueSnapshot> findPublicByUuids(Collection<UUID> courseUuids);
+
+    /**
+     * Display name of each course that exists, keyed by uuid, in one query; missing uuids are absent.
+     */
+    Map<UUID, String> findNamesByUuids(Collection<UUID> courseUuids);
 }

@@ -18,6 +18,11 @@ public interface ClassDefinitionLookupService {
     Optional<ClassDefinitionSnapshot> findByUuid(UUID classDefinitionUuid);
 
     /**
+     * Snapshots of several class definitions in one query, keyed by uuid; missing and null uuids are absent.
+     */
+    Map<UUID, ClassDefinitionSnapshot> findByUuids(Collection<UUID> classDefinitionUuids);
+
+    /**
      * Resolves the default instructor UUID configured on a class definition.
      *
      * @param classDefinitionUuid the class definition UUID

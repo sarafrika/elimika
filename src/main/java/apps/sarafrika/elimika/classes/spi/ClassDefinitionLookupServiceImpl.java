@@ -46,6 +46,24 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
     }
 
     @Override
+    public Map<UUID, ClassDefinitionSnapshot> findByUuids(Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            return Map.of();
+        }
+        Collection<UUID> requested = classDefinitionUuids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (requested.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, ClassDefinitionSnapshot> snapshots = new LinkedHashMap<>();
+        for (ClassDefinition classDefinition : classDefinitionRepository.findByUuidIn(requested)) {
+            snapshots.put(classDefinition.getUuid(), toSnapshot(classDefinition));
+        }
+        return snapshots;
+    }
+
+    @Override
     public Optional<UUID> findDefaultInstructorUuid(UUID classDefinitionUuid) {
         if (classDefinitionUuid == null) {
             return Optional.empty();
