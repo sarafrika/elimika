@@ -1,12 +1,19 @@
 package apps.sarafrika.elimika.classes.service;
 
+import apps.sarafrika.elimika.classes.dto.ClassAssessmentSchedulesDTO;
 import apps.sarafrika.elimika.classes.dto.ClassAssignmentScheduleDTO;
 import apps.sarafrika.elimika.classes.dto.ClassQuizScheduleDTO;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface ClassAssessmentScheduleService {
+
+    int MAX_BATCH_SIZE = 100;
+
+    /** Assignment and quiz schedules of the given classes the caller may view; others are omitted. */
+    ClassAssessmentSchedulesDTO getAssessmentSchedules(Collection<UUID> classDefinitionUuids);
 
     // Assignment schedules
     List<ClassAssignmentScheduleDTO> getAssignmentSchedules(UUID classDefinitionUuid);
