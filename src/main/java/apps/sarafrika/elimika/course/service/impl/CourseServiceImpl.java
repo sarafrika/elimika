@@ -223,7 +223,7 @@ public class CourseServiceImpl implements CourseService {
 
     /**
      * Maps a page of courses to list items. Category names, lesson counts, ratings and creator names
-     * each load in one batch query for the whole page, so the page costs four queries, not 4 x N.
+     * each load in one batch query for the whole page, and the lazy category mappings are never touched.
      */
     private Page<CourseDTO> toDtoPage(Page<Course> coursePage) {
         List<UUID> courseUuids = coursePage.getContent().stream()
@@ -232,9 +232,13 @@ public class CourseServiceImpl implements CourseService {
         if (courseUuids.isEmpty()) {
             return coursePage.map(course -> CourseFactory.toDTO(course, List.of()));
         }
+        Map<UUID, Set<UUID>> categoryUuidsByCourse = new HashMap<>();
         Map<UUID, List<String>> categoryNamesByCourse = new HashMap<>();
-        for (Object[] row : mappingRepository.findCategoryNamesByCourseUuidIn(courseUuids)) {
-            categoryNamesByCourse.computeIfAbsent((UUID) row[0], key -> new ArrayList<>()).add((String) row[1]);
+        for (Object[] row : mappingRepository.findCategoryRowsByCourseUuidIn(courseUuids)) {
+            categoryUuidsByCourse.computeIfAbsent((UUID) row[0], key -> new HashSet<>()).add((UUID) row[1]);
+            if (row[2] != null) {
+                categoryNamesByCourse.computeIfAbsent((UUID) row[0], key -> new ArrayList<>()).add((String) row[2]);
+            }
         }
         Map<UUID, Long> lessonCounts = new HashMap<>();
         for (CourseLessonCountView view : lessonRepository.countByCourseUuidIn(courseUuids)) {
@@ -253,7 +257,8 @@ public class CourseServiceImpl implements CourseService {
         Map<UUID, String> creatorNames = creatorUuids.isEmpty()
                 ? Map.of() : courseCreatorLookupService.findFullNamesByUuids(creatorUuids);
         return coursePage.map(course -> CourseFactory.toDTO(course,
-                        categoryNamesByCourse.getOrDefault(course.getUuid(), List.of()))
+                        categoryUuidsByCourse.get(course.getUuid()),
+                        categoryNamesByCourse.getOrDefault(course.getUuid(), List.of()), null)
                 .withListFacts(lessonCounts.getOrDefault(course.getUuid(), 0L),
                         ratings.getOrDefault(course.getUuid(), CourseRatingSummary.NONE),
                         course.getCourseCreatorUuid() == null ? null : creatorNames.get(course.getCourseCreatorUuid())));

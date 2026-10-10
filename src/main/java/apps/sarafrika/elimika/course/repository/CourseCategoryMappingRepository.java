@@ -92,6 +92,16 @@ public interface CourseCategoryMappingRepository extends JpaRepository<CourseCat
         """)
     List<Object[]> findCategoryNamesByCourseUuidIn(@Param("courseUuids") Collection<UUID> courseUuids);
 
+    /** Category uuid and name (null when the category is gone) for many courses, as list-item rows. */
+    @Query("""
+        SELECT ccm.courseUuid, ccm.categoryUuid, c.name
+        FROM CourseCategoryMapping ccm
+        LEFT JOIN Category c ON ccm.categoryUuid = c.uuid
+        WHERE ccm.courseUuid IN :courseUuids
+        ORDER BY c.name
+        """)
+    List<Object[]> findCategoryRowsByCourseUuidIn(@Param("courseUuids") Collection<UUID> courseUuids);
+
     /**
      * Get course UUIDs for a specific category
      */
