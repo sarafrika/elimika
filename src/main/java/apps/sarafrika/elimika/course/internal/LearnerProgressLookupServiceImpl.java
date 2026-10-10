@@ -4,13 +4,17 @@ import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.ProgramEnrollment;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
+import apps.sarafrika.elimika.course.repository.AssignmentSubmissionRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
+import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgramProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
+import apps.sarafrika.elimika.course.util.enums.AttemptStatus;
+import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +35,8 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
     private final ProgramEnrollmentRepository programEnrollmentRepository;
     private final CourseRepository courseRepository;
     private final TrainingProgramRepository trainingProgramRepository;
+    private final AssignmentSubmissionRepository assignmentSubmissionRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
 
     @Override
     public Page<LearnerCourseProgressView> findCourseProgress(UUID studentUuid, Pageable pageable) {
@@ -75,6 +81,53 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
                 .map(enrollment -> toProgramView(enrollment, programNameCache))
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    @Override
+    public Map<UUID, LearnerCourseProgressView> findCourseProgressByCourse(UUID studentUuid, Collection<UUID> courseUuids) {
+        List<UUID> courses = distinctNonNull(courseUuids);
+        if (studentUuid == null || courses.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> names = new HashMap<>();
+        courseRepository.findByUuidIn(courses).forEach(course ->
+                names.put(course.getUuid(), course.getName() != null ? course.getName() : "Unknown Course"));
+        Map<UUID, LearnerCourseProgressView> progress = new LinkedHashMap<>();
+        for (CourseEnrollment enrollment : courseEnrollmentRepository.findByStudentUuidAndCourseUuidIn(studentUuid, courses)) {
+            progress.merge(enrollment.getCourseUuid(), toCourseView(enrollment, names), this::moreRecent);
+        }
+        return progress;
+    }
+
+    @Override
+    public Set<UUID> findSubmittedAssignmentUuids(UUID studentUuid, Collection<UUID> assignmentUuids) {
+        List<UUID> assignments = distinctNonNull(assignmentUuids);
+        if (studentUuid == null || assignments.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(assignmentSubmissionRepository.findSubmittedAssignmentUuids(
+                studentUuid, assignments, SubmissionStatus.DRAFT));
+    }
+
+    @Override
+    public Set<UUID> findSubmittedQuizUuids(UUID studentUuid, Collection<UUID> quizUuids) {
+        List<UUID> quizzes = distinctNonNull(quizUuids);
+        if (studentUuid == null || quizzes.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(quizAttemptRepository.findSubmittedQuizUuids(
+                studentUuid, quizzes, AttemptStatus.IN_PROGRESS));
+    }
+
+    private static List<UUID> distinctNonNull(Collection<UUID> uuids) {
+        return uuids == null ? List.of() : uuids.stream().filter(Objects::nonNull).distinct().toList();
+    }
+
+    private LearnerCourseProgressView moreRecent(LearnerCourseProgressView a, LearnerCourseProgressView b) {
+        if (a.updatedDate() == null) {
+            return b;
+        }
+        return b.updatedDate() != null && b.updatedDate().isAfter(a.updatedDate()) ? b : a;
     }
 
     private Pageable buildPageable(int limit) {

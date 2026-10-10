@@ -150,4 +150,18 @@ public interface AssignmentSubmissionRepository extends JpaRepository<Assignment
         WHERE s.assignmentUuid = :assignmentUuid
         """)
     Object[] getSubmissionStatistics(@Param("assignmentUuid") UUID assignmentUuid);
+
+    /**
+     * Which of these assignments the learner has handed in through any of their course enrolments.
+     * A draft is not handed in.
+     */
+    @Query("""
+        SELECT DISTINCT s.assignmentUuid FROM AssignmentSubmission s
+        WHERE s.assignmentUuid IN :assignmentUuids
+        AND s.status <> :draft
+        AND s.enrollmentUuid IN (SELECT ce.uuid FROM CourseEnrollment ce WHERE ce.studentUuid = :studentUuid)
+        """)
+    List<UUID> findSubmittedAssignmentUuids(@Param("studentUuid") UUID studentUuid,
+                                            @Param("assignmentUuids") Collection<UUID> assignmentUuids,
+                                            @Param("draft") SubmissionStatus draft);
 }

@@ -1,6 +1,9 @@
 package apps.sarafrika.elimika.course.spi;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,4 +39,20 @@ public interface LearnerProgressLookupService {
      * @return ordered list (newest first) of program progress snapshots
      */
     List<LearnerProgramProgressView> findRecentProgramProgress(UUID studentUuid, int limit);
+
+    /**
+     * The learner's enrolment on each of the given courses, keyed by course UUID, in one query.
+     * Courses the learner is not enrolled on are absent.
+     */
+    Map<UUID, LearnerCourseProgressView> findCourseProgressByCourse(UUID studentUuid, Collection<UUID> courseUuids);
+
+    /**
+     * The subset of the given assignments the learner has handed in (drafts excluded).
+     */
+    Set<UUID> findSubmittedAssignmentUuids(UUID studentUuid, Collection<UUID> assignmentUuids);
+
+    /**
+     * The subset of the given quizzes the learner has submitted an attempt at.
+     */
+    Set<UUID> findSubmittedQuizUuids(UUID studentUuid, Collection<UUID> quizUuids);
 }
