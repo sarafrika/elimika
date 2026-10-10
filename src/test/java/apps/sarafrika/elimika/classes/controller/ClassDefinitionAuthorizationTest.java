@@ -176,6 +176,11 @@ class ClassDefinitionAuthorizationTest {
         }
 
         @Bean
+        apps.sarafrika.elimika.classes.service.ClassBatchLookupService classBatchLookupService() {
+            return Mockito.mock(apps.sarafrika.elimika.classes.service.ClassBatchLookupService.class);
+        }
+
+        @Bean
         StorageService storageService() {
             return Mockito.mock(StorageService.class);
         }

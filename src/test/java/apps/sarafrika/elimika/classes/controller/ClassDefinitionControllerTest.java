@@ -96,10 +96,49 @@ class ClassDefinitionControllerTest {
     @Autowired
     private ClassReviewService classReviewService;
 
+    @Autowired
+    private apps.sarafrika.elimika.classes.service.ClassBatchLookupService classBatchLookupService;
+
     @BeforeEach
     void setUp() {
         reset(classDefinitionService, timetableService, userManagementService, requestAuditService, storageService,
-                classReviewService);
+                classReviewService, classBatchLookupService);
+    }
+
+    @Test
+    void batchLookupParsesCommaSeparatedUuidsAndReturnsSummaries() throws Exception {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        apps.sarafrika.elimika.classes.dto.ClassBatchSummaryDTO summary =
+                new apps.sarafrika.elimika.classes.dto.ClassBatchSummaryDTO(
+                        first, "Evening Piano", null, UUID.randomUUID(), "Piano Basics", null, null,
+                        UUID.randomUUID(), instructorUuid,
+                        new apps.sarafrika.elimika.classes.dto.ClassBatchSummaryDTO.InstructorSummary(
+                                instructorUuid, "Jane Doe", true),
+                        true, ClassVisibility.PUBLIC, LocationType.ONLINE, SessionFormat.GROUP,
+                        null, null, new BigDecimal("1500.00"), 20, true, 12L, 8L);
+        when(classBatchLookupService.findByUuids(List.of(first, second))).thenReturn(List.of(summary));
+
+        mockMvc.perform(get("/api/v1/classes/batch").param("uuids", first + "," + second))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].uuid").value(first.toString()))
+                .andExpect(jsonPath("$.data[0].course_title").value("Piano Basics"))
+                .andExpect(jsonPath("$.data[0].instructor.display_name").value("Jane Doe"))
+                .andExpect(jsonPath("$.data[0].max_participants").value(20))
+                .andExpect(jsonPath("$.data[0].enrolled_count").value(12))
+                .andExpect(jsonPath("$.data[0].seats_remaining").value(8))
+                .andExpect(jsonPath("$.data[0].program_title").doesNotExist());
+    }
+
+    @Test
+    void batchLookupRejectsOversizedBatchWithBadRequest() throws Exception {
+        when(classBatchLookupService.findByUuids(any()))
+                .thenThrow(new IllegalArgumentException("At most 100 class uuids may be requested at once"));
+
+        mockMvc.perform(get("/api/v1/classes/batch").param("uuids", UUID.randomUUID().toString()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -869,6 +908,11 @@ class ClassDefinitionControllerTest {
         @Bean
         ClassReviewService classReviewService() {
             return Mockito.mock(ClassReviewService.class);
+        }
+
+        @Bean
+        apps.sarafrika.elimika.classes.service.ClassBatchLookupService classBatchLookupService() {
+            return Mockito.mock(apps.sarafrika.elimika.classes.service.ClassBatchLookupService.class);
         }
 
         @Bean

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.controller;
 
+import apps.sarafrika.elimika.classes.dto.ClassBatchSummaryDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionUpdateRequestDTO;
@@ -10,6 +11,7 @@ import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSessionTemplateScheduleResponseDTO;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
+import apps.sarafrika.elimika.classes.service.ClassBatchLookupService;
 import apps.sarafrika.elimika.classes.service.ClassDefinitionServiceInterface;
 import apps.sarafrika.elimika.classes.service.ClassReviewService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -92,6 +94,7 @@ public class ClassDefinitionController {
     private final ClassReviewService classReviewService;
     private final ClassAccessSecurityService classAccessSecurityService;
     private final EnrollmentVisibilityService enrollmentVisibilityService;
+    private final ClassBatchLookupService classBatchLookupService;
 
     // ================================
     // CORE CLASS DEFINITION MANAGEMENT
@@ -264,6 +267,23 @@ public class ClassDefinitionController {
             @PathVariable UUID uuid) {
         ClassRatingSummaryDTO summary = classReviewService.getRatingSummary(uuid);
         return ResponseEntity.ok(ApiResponse.success(summary, "Class rating summary fetched successfully"));
+    }
+
+    @Operation(summary = "Look up several classes by UUID in one request",
+            description = "Returns the visible classes among uuids (comma-separated or repeated, at most "
+                    + ClassBatchLookupService.MAX_BATCH_SIZE + "), in request order, each with its course or program "
+                    + "title, an instructor summary and its seat capacity (max_participants). Visibility is the class "
+                    + "listing's; unknown or hidden ids are omitted. enrolled_count and seats_remaining are present "
+                    + "only for the class's instructor, managers of its organisation and platform admins. "
+                    + "Costs a fixed number of queries regardless of batch size.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Classes retrieved successfully")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "More than the maximum number of uuids requested")
+    @GetMapping("/batch")
+    public ResponseEntity<ApiResponse<List<ClassBatchSummaryDTO>>> getClassesBatch(
+            @Parameter(description = "Class definition UUIDs, comma-separated", required = true)
+            @RequestParam("uuids") List<UUID> uuids) {
+        List<ClassBatchSummaryDTO> result = classBatchLookupService.findByUuids(uuids);
+        return ResponseEntity.ok(ApiResponse.success(result, "Classes retrieved successfully"));
     }
 
     @Operation(summary = "Get a class definition by UUID",
