@@ -69,6 +69,8 @@ public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollme
 
     Page<CourseEnrollment> findByStudentUuid(UUID studentUuid, Pageable pageable);
 
+    List<CourseEnrollment> findByStudentUuidAndCourseUuidIn(UUID studentUuid, Collection<UUID> courseUuids);
+
     @Query("SELECT ce.uuid FROM CourseEnrollment ce WHERE ce.studentUuid = :studentUuid")
     List<UUID> findEnrollmentUuidsByStudentUuid(@Param("studentUuid") UUID studentUuid);
 

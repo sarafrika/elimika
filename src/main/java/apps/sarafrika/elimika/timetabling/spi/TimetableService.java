@@ -211,6 +211,12 @@ public interface TimetableService {
     Page<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid, Pageable pageable);
 
     /**
+     * The learner's current or next sitting of each given class, keyed by class definition UUID.
+     * Classes with nothing left to attend are absent. Costs one query regardless of class count.
+     */
+    Map<UUID, ScheduledInstanceDTO> getNextSessionsForStudent(UUID studentUuid, Collection<UUID> classDefinitionUuids);
+
+    /**
      * Retrieves the schedule for a specific student within a date range.
      * This includes enrollment information and attendance status.
      *

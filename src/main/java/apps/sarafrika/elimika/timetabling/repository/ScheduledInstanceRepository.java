@@ -75,6 +75,24 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
                                                                 @Param("startTime") LocalDateTime startTime,
                                                                 @Param("endTime") LocalDateTime endTime);
 
+    /**
+     * The learner's current or next sitting of each class, one statement for any number of classes.
+     * Ties on start time can return two rows for a class; callers keep the first.
+     */
+    @Query("SELECT si FROM ScheduledInstance si " +
+           "WHERE si.classDefinitionUuid IN :classDefinitionUuids " +
+           "AND si.status NOT IN ('CANCELLED', 'COMPLETED') " +
+           "AND EXISTS (SELECT 1 FROM Enrollment e WHERE e.scheduledInstanceUuid = si.uuid " +
+           "AND e.studentUuid = :studentUuid AND e.status <> 'CANCELLED') " +
+           "AND si.startTime = (SELECT MIN(si2.startTime) FROM ScheduledInstance si2, Enrollment e2 " +
+           "WHERE e2.scheduledInstanceUuid = si2.uuid AND e2.studentUuid = :studentUuid " +
+           "AND e2.status <> 'CANCELLED' AND si2.classDefinitionUuid = si.classDefinitionUuid " +
+           "AND si2.endTime >= :from AND si2.status NOT IN ('CANCELLED', 'COMPLETED')) " +
+           "ORDER BY si.startTime ASC, si.uuid ASC")
+    List<ScheduledInstance> findNextSessionsForStudent(@Param("studentUuid") UUID studentUuid,
+                                                       @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids,
+                                                       @Param("from") LocalDateTime from);
+
     @Query("SELECT si FROM ScheduledInstance si WHERE si.status = 'SCHEDULED' AND si.startTime <= :currentTime")
     List<ScheduledInstance> findScheduledInstancesPastStartTime(@Param("currentTime") LocalDateTime currentTime);
 
