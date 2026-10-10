@@ -1,3 +1,11 @@
+# [2.171.0](https://github.com/sarafrika/elimika/compare/v2.170.0...v2.171.0) (2026-10-10)
+
+
+### Features
+
+* **classes:** batch-read assessment schedules for many classes ([2ac9c4f](https://github.com/sarafrika/elimika/commit/2ac9c4f942068bb5f626e2411e391c31b91b1716))
+* **resourcing:** read every org resource calendar in one request ([15cfcf3](https://github.com/sarafrika/elimika/commit/15cfcf356c0445dfda77be9d2622e4002795941d))
+
 # [2.170.0](https://github.com/sarafrika/elimika/compare/v2.169.0...v2.170.0) (2026-10-10)
 
 
