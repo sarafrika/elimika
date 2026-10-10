@@ -78,7 +78,10 @@ public class CourseFactory {
                 course.getCreatedDate(),
                 course.getCreatedBy(),
                 course.getLastModifiedDate(),
-                course.getLastModifiedBy()
+                course.getLastModifiedBy(),
+                null,
+                null,
+                null
         );
     }
 

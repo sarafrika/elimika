@@ -411,9 +411,45 @@ public record CourseDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(
+                description = "**[READ-ONLY]** Number of lessons in the course. Populated on list and search responses.",
+                example = "12",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true
+        )
+        @JsonProperty(value = "lesson_count", access = JsonProperty.Access.READ_ONLY)
+        Long lessonCount,
+
+        @Schema(
+                description = "**[READ-ONLY]** Review average and count. Populated on list and search responses.",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true
+        )
+        @JsonProperty(value = "rating_summary", access = JsonProperty.Access.READ_ONLY)
+        CourseRatingSummary ratingSummary,
+
+        @Schema(
+                description = "**[READ-ONLY]** Display name of the course creator. Populated on list and search responses.",
+                example = "Jane Wanjiku",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                nullable = true
+        )
+        @JsonProperty(value = "course_creator_name", access = JsonProperty.Access.READ_ONLY)
+        String courseCreatorName
 
 ) {
+
+    /** This course with the list-item facts that are computed per page rather than stored on the row. */
+    public CourseDTO withListFacts(Long lessonCount, CourseRatingSummary ratingSummary, String courseCreatorName) {
+        return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
+                objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
+                minimumTrainingFee, creatorSharePercentage, instructorSharePercentage, revenueShareNotes,
+                ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
+                trainingRequirements, categoryNames, createdDate, createdBy, updatedDate, updatedBy,
+                lessonCount, ratingSummary, courseCreatorName);
+    }
 
     /**
      * The form an anonymous caller reads: the commercial terms between the platform, the creator and
@@ -425,7 +461,8 @@ public record CourseDTO(
                 objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
                 null, null, null, null,
                 ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
-                trainingRequirements, categoryNames, createdDate, null, updatedDate, null);
+                trainingRequirements, categoryNames, createdDate, null, updatedDate, null,
+                lessonCount, ratingSummary, courseCreatorName);
     }
 
     /**
