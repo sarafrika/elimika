@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -208,6 +209,12 @@ public interface TimetableService {
      * @throws IllegalArgumentException if studentUuid is null
      */
     Page<StudentCourseEnrollmentSummaryDTO> getCourseEnrollmentsForStudent(UUID studentUuid, Pageable pageable);
+
+    /**
+     * The learner's current or next sitting of each given class, keyed by class definition UUID.
+     * Classes with nothing left to attend are absent. Costs one query regardless of class count.
+     */
+    Map<UUID, ScheduledInstanceDTO> getNextSessionsForStudent(UUID studentUuid, Collection<UUID> classDefinitionUuids);
 
     /**
      * Retrieves the schedule for a specific student within a date range.

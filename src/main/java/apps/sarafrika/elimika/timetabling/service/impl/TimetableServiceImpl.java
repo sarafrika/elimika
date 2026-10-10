@@ -67,6 +67,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -849,6 +850,24 @@ public class TimetableServiceImpl implements TimetableService {
 
         return learnerProgressLookupService.findCourseProgress(studentUuid, pageable)
                 .map(this::toCourseEnrollmentSummary);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, ScheduledInstanceDTO> getNextSessionsForStudent(UUID studentUuid,
+                                                                     Collection<UUID> classDefinitionUuids) {
+        Set<UUID> classes = classDefinitionUuids == null ? Set.of() : classDefinitionUuids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (studentUuid == null || classes.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, ScheduledInstanceDTO> nextByClass = new LinkedHashMap<>();
+        scheduledInstanceRepository
+                .findNextSessionsForStudent(studentUuid, classes, currentUtcTime())
+                .forEach(instance -> nextByClass.putIfAbsent(
+                        instance.getClassDefinitionUuid(), ScheduledInstanceFactory.toDTO(instance)));
+        return nextByClass;
     }
 
     @Override
