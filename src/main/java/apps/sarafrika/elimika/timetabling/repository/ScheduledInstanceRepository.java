@@ -108,4 +108,25 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
     long countByStatusAndEndTimeBetween(SchedulingStatus status, LocalDateTime start, LocalDateTime end);
 
     long countByClassDefinitionUuid(UUID classDefinitionUuid);
+
+    /** Non-cancelled sessions of the organisation's classes overlapping [rangeStart, rangeEnd) with the class title
+     *  and active enrolment count; one row per session, columns in SELECT order. */
+    @Query(value = """
+            SELECT si.uuid, si.class_definition_uuid, cd.title, si.instructor_uuid, si.start_time, si.end_time,
+                   si.timezone, si.location_type, si.location_name, si.max_participants, si.status,
+                   (SELECT COUNT(*) FROM class_enrollments ce
+                    WHERE ce.scheduled_instance_uuid = si.uuid
+                      AND ce.status NOT IN ('CANCELLED', 'WAITLISTED'))
+            FROM scheduled_instances si
+            JOIN class_definitions cd ON cd.uuid = si.class_definition_uuid
+            WHERE cd.organisation_uuid = :organisationUuid
+              AND si.start_time < :rangeEnd
+              AND si.end_time > :rangeStart
+              AND si.status <> 'CANCELLED'
+            ORDER BY si.start_time, si.uuid
+            """,
+            nativeQuery = true)
+    List<Object[]> findOrganisationSessionsInRange(@Param("organisationUuid") UUID organisationUuid,
+                                                   @Param("rangeStart") LocalDateTime rangeStart,
+                                                   @Param("rangeEnd") LocalDateTime rangeEnd);
 }
