@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.timetabling.internal;
 
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.event.notification.DashboardLinks;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
@@ -79,9 +80,10 @@ class UpcomingClassReminderScheduler {
                 "POPUP",
                 "Class starts soon",
                 classTitle + " starts in " + reminderMinutes + " minutes.",
-                resolveClassActionUrl(instance),
+                DashboardLinks.instructorClass(instance.getClassDefinitionUuid()),
                 reminderMetadata(instance, reminderMinutes, "instructor"),
-                "upcoming-class-reminder:instructor:" + instance.getUuid() + ":" + reminderMinutes
+                "upcoming-class-reminder:instructor:" + instance.getUuid() + ":" + reminderMinutes,
+                "instructor"
         ));
     }
 
@@ -107,7 +109,7 @@ class UpcomingClassReminderScheduler {
                     "POPUP",
                     "Class starts soon",
                     classTitle + " starts in " + reminderMinutes + " minutes.",
-                    resolveClassActionUrl(instance),
+                    DashboardLinks.studentClass(instance.getClassDefinitionUuid()),
                     reminderMetadata(instance, reminderMinutes, "student"),
                     "upcoming-class-reminder:student:" + instance.getUuid() + ":" + enrollment.getStudentUuid() + ":" + reminderMinutes
             ));
@@ -133,12 +135,5 @@ class UpcomingClassReminderScheduler {
             return instance.getTitle();
         }
         return "Your class";
-    }
-
-    private String resolveClassActionUrl(ScheduledInstance instance) {
-        if (instance.getClassDefinitionUuid() != null) {
-            return "/dashboard/classes/" + instance.getClassDefinitionUuid();
-        }
-        return "/dashboard/classes/schedule/" + instance.getUuid();
     }
 }

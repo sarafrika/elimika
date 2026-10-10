@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.spi.LearnerCourseProgressView;
 import apps.sarafrika.elimika.course.spi.LearnerProgressLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.resourcing.spi.ResourceBookingService;
+import apps.sarafrika.elimika.shared.event.notification.DashboardLinks;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.timetabling.ClassSessionCompletedEvent;
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
@@ -1916,7 +1917,7 @@ public class TimetableServiceImpl implements TimetableService {
                 "POPUP",
                 "Class enrollment confirmed",
                 "You have been enrolled in " + classTitle + ".",
-                resolveClassActionUrl(instance),
+                DashboardLinks.studentClass(instance.getClassDefinitionUuid()),
                 enrollmentMetadata(enrollment, instance, 0),
                 "class-enrollment-student:" + classEnrollmentScope(instance) + ":" + enrollment.getStudentUuid()
         ));
@@ -1945,7 +1946,7 @@ public class TimetableServiceImpl implements TimetableService {
                 milestone ? "POPUP" : "INBOX",
                 milestone ? "Enrollment milestone reached" : "New class enrollment",
                 enrollmentNoticeBody(classTitle, enrollmentCount, milestone),
-                resolveClassActionUrl(instance),
+                DashboardLinks.instructorClass(instance.getClassDefinitionUuid()),
                 enrollmentMetadata(enrollment, instance, enrollmentCount),
                 "class-enrollment-instructor:" + classEnrollmentScope(instance) + ":" + type + ":" + enrollmentCount
         ));
@@ -1971,7 +1972,7 @@ public class TimetableServiceImpl implements TimetableService {
                 milestone ? "POPUP" : "INBOX",
                 milestone ? "Enrollment milestone reached" : "New course enrollment",
                 enrollmentNoticeBody(classTitle, enrollmentCount, milestone),
-                resolveClassActionUrl(instance),
+                DashboardLinks.courseCreatorCourse(snapshot == null ? null : snapshot.courseUuid()),
                 enrollmentMetadata(enrollment, instance, enrollmentCount),
                 "class-enrollment-creator:" + classEnrollmentScope(instance) + ":" + type + ":" + enrollmentCount
         ));
@@ -2041,13 +2042,6 @@ public class TimetableServiceImpl implements TimetableService {
             return instance.getTitle();
         }
         return "your class";
-    }
-
-    private String resolveClassActionUrl(ScheduledInstance instance) {
-        if (instance.getClassDefinitionUuid() != null) {
-            return "/dashboard/classes/" + instance.getClassDefinitionUuid();
-        }
-        return "/dashboard/classes/schedule/" + instance.getUuid();
     }
 
     private String classEnrollmentScope(ScheduledInstance instance) {
