@@ -2,7 +2,9 @@ package apps.sarafrika.elimika.commerce.order.service;
 
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
+import apps.sarafrika.elimika.shared.event.notification.DashboardLinks;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -58,7 +60,7 @@ public class OrderReceiptNotifier {
                 "POPUP",
                 "Payment received",
                 receiptBody(variables),
-                "/dashboard/transactions",
+                receiptActionUrl(resolvedUserId),
                 variables,
                 Set.of("email", "in_app"),
                 "order-payment-receipt:" + variables.getOrDefault("orderId", order.getId()),
@@ -68,6 +70,17 @@ public class OrderReceiptNotifier {
         );
 
         eventPublisher.publishEvent(event);
+    }
+
+    /** Payments surface in the student wallet or the parent billing page; others use the dashboard entry. */
+    private String receiptActionUrl(UUID userId) {
+        if (userLookupService.userHasDomain(userId, UserDomain.student)) {
+            return DashboardLinks.STUDENT_WALLET;
+        }
+        if (userLookupService.userHasDomain(userId, UserDomain.parent)) {
+            return DashboardLinks.PARENT_BILLING;
+        }
+        return DashboardLinks.DASHBOARD;
     }
 
     private UUID findOrganization(UUID userId) {

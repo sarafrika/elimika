@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.internal;
 
 import apps.sarafrika.elimika.classes.model.ClassAssignmentSchedule;
 import apps.sarafrika.elimika.classes.repository.ClassAssignmentScheduleRepository;
+import apps.sarafrika.elimika.shared.event.notification.DashboardLinks;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -75,7 +76,7 @@ class AssignmentDeadlineReminderScheduler {
                     "POPUP",
                     title,
                     buildBody(phase),
-                    "/dashboard/classes/" + schedule.getClassDefinitionUuid() + "/assignments/" + schedule.getAssignmentUuid(),
+                    DashboardLinks.studentAssignment(schedule.getAssignmentUuid()),
                     deadlineMetadata(schedule, phase, studentUuid),
                     "assignment-deadline-reminder:" + phase + ":" + schedule.getUuid() + ":" + studentUuid
             ));
