@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationPresentation;
 import apps.sarafrika.elimika.notifications.api.NotificationPriority;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
+import apps.sarafrika.elimika.shared.event.notification.DashboardLinks;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -141,7 +142,8 @@ public record OrderPaymentReceiptEvent(
 
     @Override
     public String getActionUrl() {
-        return "/dashboard/transactions";
+        // Role-neutral entry: the dashboard route redirects to the viewer's active dashboard.
+        return DashboardLinks.DASHBOARD;
     }
 
     @Override
