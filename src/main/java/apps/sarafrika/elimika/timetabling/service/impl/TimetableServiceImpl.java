@@ -2118,6 +2118,24 @@ public class TimetableServiceImpl implements TimetableService {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getActiveEnrolmentCounts(java.util.Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> ids = classDefinitionUuids.stream().filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Long> counts = new LinkedHashMap<>();
+        ids.forEach(id -> counts.put(id, 0L));
+        enrollmentRepository.findClassEnrolmentCountsForClasses(ids)
+                .forEach(row -> counts.put((UUID) row[0], ((Number) row[1]).longValue()));
+        return counts;
+    }
+
     /**
      * The feed's {@code PAYOUT} rows carry what the organisation settled with a named instructor — a
      * private figure between those two parties — so the amount and its currency are filled in only

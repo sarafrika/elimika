@@ -146,6 +146,27 @@ class TimetableServiceImplTest {
     }
 
     @Test
+    void activeEnrolmentCountsReadEveryClassInOneQueryAndZeroFillMissing() {
+        UUID enrolled = UUID.randomUUID();
+        UUID empty = UUID.randomUUID();
+        List<Object[]> rows = new java.util.ArrayList<>();
+        rows.add(new Object[]{enrolled, 7L});
+        when(enrollmentRepository.findClassEnrolmentCountsForClasses(anyCollection())).thenReturn(rows);
+
+        java.util.Map<UUID, Long> counts = timetableService.getActiveEnrolmentCounts(
+                java.util.Arrays.asList(enrolled, null, empty, enrolled));
+
+        assertThat(counts).containsExactly(java.util.Map.entry(enrolled, 7L), java.util.Map.entry(empty, 0L));
+        verify(enrollmentRepository).findClassEnrolmentCountsForClasses(Set.of(enrolled, empty));
+    }
+
+    @Test
+    void activeEnrolmentCountsSkipTheQueryForAnEmptyRequest() {
+        assertThat(timetableService.getActiveEnrolmentCounts(List.of())).isEmpty();
+        verify(enrollmentRepository, never()).findClassEnrolmentCountsForClasses(anyCollection());
+    }
+
+    @Test
     void startScheduledInstanceSetsOngoingStatusAndActualStartTime() {
         UUID instanceUuid = UUID.randomUUID();
         ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(), SchedulingStatus.SCHEDULED);

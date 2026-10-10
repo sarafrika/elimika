@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -407,6 +408,9 @@ public interface TimetableService {
      * @return one {@link ClassEnrolmentCountDTO} per class definition that has enrolments
      */
     List<ClassEnrolmentCountDTO> getClassEnrolmentCountsForOrganisation(UUID organisationUuid);
+
+    /** Distinct active-enrolment counts for several classes in one query; classes with none map to zero. */
+    Map<UUID, Long> getActiveEnrolmentCounts(Collection<UUID> classDefinitionUuids);
 
     /**
      * Recent activity for an organisation — students enrolling, classes opening and instructors

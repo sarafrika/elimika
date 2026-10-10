@@ -308,6 +308,17 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<Object[]> findClassEnrolmentCountsForOrganisation(@Param("organisationUuid") UUID organisationUuid);
 
+    /** Distinct active-enrolment counts for the given classes as {@code [uuid, enrolled]} rows; zeros absent. */
+    @Query(value = "SELECT si.class_definition_uuid AS class_uuid, COUNT(DISTINCT ce.student_uuid) AS enrolled " +
+                   "FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "WHERE si.class_definition_uuid IN (:classDefinitionUuids) " +
+                   "AND ce.status NOT IN ('CANCELLED', 'WAITLISTED') " +
+                   "GROUP BY si.class_definition_uuid",
+           nativeQuery = true)
+    List<Object[]> findClassEnrolmentCountsForClasses(
+            @Param("classDefinitionUuids") Collection<UUID> classDefinitionUuids);
+
     /**
      * Recent, human-meaningful activity for an organisation, newest first: students enrolling,
      * classes being opened, and instructors being paid. Returns rows of
