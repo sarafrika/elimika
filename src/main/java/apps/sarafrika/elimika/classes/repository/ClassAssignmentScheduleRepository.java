@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,8 @@ public interface ClassAssignmentScheduleRepository extends JpaRepository<ClassAs
     Optional<ClassAssignmentSchedule> findByClassDefinitionUuidAndAssignmentUuid(UUID classDefinitionUuid, UUID assignmentUuid);
 
     List<ClassAssignmentSchedule> findByClassDefinitionUuid(UUID classDefinitionUuid);
+
+    List<ClassAssignmentSchedule> findByClassDefinitionUuidIn(Collection<UUID> classDefinitionUuids);
 
     List<ClassAssignmentSchedule> findByClassDefinitionUuidAndLessonUuid(UUID classDefinitionUuid, UUID lessonUuid);
 
