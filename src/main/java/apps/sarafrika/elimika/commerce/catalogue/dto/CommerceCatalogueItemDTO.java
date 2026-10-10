@@ -28,6 +28,14 @@ public record CommerceCatalogueItemDTO(
         @JsonProperty("class_definition_uuid")
         UUID classDefinitionUuid,
 
+        @Schema(description = "Title of the class definition, on class-backed entries")
+        @JsonProperty("class_definition_title")
+        String classDefinitionTitle,
+
+        @Schema(description = "Title of the course this entry sells, or of the course its class delivers")
+        @JsonProperty("course_title")
+        String courseTitle,
+
         @Schema(description = "Associated training program UUID when mapping is program scoped")
         @JsonProperty("program_uuid")
         UUID programUuid,

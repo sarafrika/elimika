@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 import apps.sarafrika.elimika.shared.spi.CourseCatalogueLookupService;
 import apps.sarafrika.elimika.shared.spi.CourseCatalogueSnapshot;
 import lombok.RequiredArgsConstructor;
@@ -136,7 +137,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
         List<CommerceCatalogueItem> entities = spec == null
                 ? catalogItemRepository.findAll()
                 : catalogItemRepository.findAll(spec);
-        return entities.stream().map(this::toDto).toList();
+        return toDtos(entities, Map.of());
     }
 
     @Override
@@ -166,7 +167,8 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                         .filter(Objects::nonNull)
                         .toList());
 
-        return page.map(entity -> toDto(entity, courses.get(entity.getCourseUuid())));
+        Titles titles = resolveTitles(page.getContent(), courses);
+        return page.map(entity -> toDto(entity, lookup(courses, entity.getCourseUuid()), titles));
     }
 
     private void applyRequest(CommerceCatalogueItem entity, UpsertCommerceCatalogueItemRequest request) {
@@ -203,19 +205,72 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
 
     /** Without a course projection: the shape every endpoint but {@code /search} returns. */
     private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity) {
-        return toDto(entity, null);
+        return toDtos(List.of(entity), Map.of()).getFirst();
     }
 
-    private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity, CourseCatalogueSnapshot course) {
+    private List<CommerceCatalogueItemDTO> toDtos(
+            List<CommerceCatalogueItem> entities,
+            Map<UUID, CourseCatalogueSnapshot> courses) {
+        Titles titles = resolveTitles(entities, courses);
+        return entities.stream()
+                .map(entity -> toDto(entity, lookup(courses, entity.getCourseUuid()), titles))
+                .toList();
+    }
+
+    /** Class snapshots and course names for a batch of rows: two queries however many rows there are. */
+    private record Titles(Map<UUID, ClassDefinitionLookupService.ClassDefinitionSnapshot> classes,
+                          Map<UUID, String> courseNames) {
+    }
+
+    private Titles resolveTitles(List<CommerceCatalogueItem> entities, Map<UUID, CourseCatalogueSnapshot> courses) {
+        Map<UUID, ClassDefinitionLookupService.ClassDefinitionSnapshot> classes =
+                classDefinitionLookupService.findByUuids(entities.stream()
+                        .map(CommerceCatalogueItem::getClassDefinitionUuid)
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .toList());
+
+        Map<UUID, String> courseNames = new HashMap<>();
+        courses.forEach((uuid, course) -> {
+            if (course != null && course.name() != null) {
+                courseNames.put(uuid, course.name());
+            }
+        });
+        List<UUID> missing = Stream.concat(
+                        entities.stream().map(CommerceCatalogueItem::getCourseUuid),
+                        classes.values().stream().map(ClassDefinitionLookupService.ClassDefinitionSnapshot::courseUuid))
+                .filter(Objects::nonNull)
+                .filter(uuid -> !courseNames.containsKey(uuid))
+                .distinct()
+                .toList();
+        if (!missing.isEmpty()) {
+            courseNames.putAll(courseCatalogueLookupService.findNamesByUuids(missing));
+        }
+        return new Titles(classes, courseNames);
+    }
+
+    /** Null-safe get: lookups may hand back immutable maps, which reject a null key. */
+    private static <V> V lookup(Map<UUID, V> map, UUID key) {
+        return key == null ? null : map.get(key);
+    }
+
+    private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity, CourseCatalogueSnapshot course, Titles titles) {
+        ClassDefinitionLookupService.ClassDefinitionSnapshot classDefinition =
+                lookup(titles.classes(), entity.getClassDefinitionUuid());
+        UUID titleCourseUuid = entity.getCourseUuid() != null
+                ? entity.getCourseUuid()
+                : classDefinition == null ? null : classDefinition.courseUuid();
         return CommerceCatalogueItemDTO.builder()
                 .course(course)
                 .uuid(entity.getUuid())
                 .courseUuid(entity.getCourseUuid())
                 .classDefinitionUuid(entity.getClassDefinitionUuid())
+                .classDefinitionTitle(classDefinition == null ? null : classDefinition.title())
+                .courseTitle(lookup(titles.courseNames(), titleCourseUuid))
                 .programUuid(entity.getProgramUuid())
                 .productCode(entity.getProductCode())
                 .variantCode(entity.getVariantCode())
-                .unitAmount(resolveUnitAmount(entity))
+                .unitAmount(resolveUnitAmount(entity, classDefinition))
                 .currencyCode(entity.getCurrencyCode())
                 .active(entity.isActive())
                 .publiclyVisible(entity.isPubliclyVisible())
@@ -251,13 +306,14 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     }
 
     private List<CommerceCatalogueItemDTO> mapVisible(List<CommerceCatalogueItem> items, VisibilityContext context) {
-        return items.stream()
+        return toDtos(items.stream()
                 .filter(item -> accessService.canView(item, context))
-                .map(this::toDto)
-                .toList();
+                .toList(), Map.of());
     }
 
-    private BigDecimal resolveUnitAmount(CommerceCatalogueItem item) {
+    private BigDecimal resolveUnitAmount(
+            CommerceCatalogueItem item,
+            ClassDefinitionLookupService.ClassDefinitionSnapshot classDefinition) {
         if (item == null || ObjectUtils.isEmpty(item.getVariantCode())) {
             return null;
         }
@@ -275,9 +331,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             return baseAmount;
         }
 
-        RateBasis basis = classDefinitionLookupService.findByUuid(classDefinitionUuid)
-                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::rateBasis)
-                .orElse(null);
+        RateBasis basis = classDefinition == null ? null : classDefinition.rateBasis();
         if (basis == null) {
             // Without the class there is no contracted unit to multiply by, so the variant price stands alone.
             return baseAmount;
