@@ -1,3 +1,11 @@
+## [2.172.1](https://github.com/sarafrika/elimika/compare/v2.172.0...v2.172.1) (2026-10-11)
+
+
+### Performance Improvements
+
+* **classes:** batch templates, progress, approval and pay checks on listings ([569dbce](https://github.com/sarafrika/elimika/commit/569dbcec1f33f1f8f8973085559ac0175d061caf))
+* **timetabling:** read a student's scheduled sessions in one query ([30cb847](https://github.com/sarafrika/elimika/commit/30cb8471edef133f7a6d349a8d68d56fc83a770c))
+
 # [2.172.0](https://github.com/sarafrika/elimika/compare/v2.171.2...v2.172.0) (2026-10-11)
 
 
