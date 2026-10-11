@@ -39,6 +39,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.DisplayName;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 
 @ExtendWith(MockitoExtension.class)
 class CommerceCatalogueServiceImplTest {
@@ -292,6 +293,53 @@ class CommerceCatalogueServiceImplTest {
         assertThat(results).extracting(CommerceCatalogueItemDTO::classDefinitionTitle)
                 .containsExactly(null, "Morning Class", "Evening Class");
         verify(courseCatalogueLookupService, times(1)).findNamesByUuids(anyCollection());
+    }
+
+    @Test
+    @DisplayName("search prices a whole page with one variant, one class and one schedule lookup")
+    void searchBatchesPriceLookups() {
+        RateBasis[] bases = {RateBasis.PER_SESSION, RateBasis.PER_DAY, RateBasis.PER_HOUR};
+        String[] codes = {"variant-session", "variant-day", "variant-hour"};
+        List<CommerceCatalogueItem> items = new java.util.ArrayList<>();
+        Map<UUID, ClassDefinitionSnapshot> classes = new java.util.HashMap<>();
+        Map<UUID, ClassScheduleService.ClassScheduleSummary> summaries = new java.util.HashMap<>();
+        List<CommerceProductVariant> variants = new java.util.ArrayList<>();
+        for (int i = 0; i < bases.length; i++) {
+            UUID classUuid = UUID.randomUUID();
+            CommerceCatalogueItem item = catalogueItem(null, classUuid);
+            item.setVariantCode(codes[i]);
+            items.add(item);
+            classes.put(classUuid, new ClassDefinitionSnapshot(classUuid, null, null, "Class " + i, null,
+                    null, null, bases[i], null, null, 20, true, 30, null, null));
+            // 5 sessions across 3 days totalling 7 hours.
+            summaries.put(classUuid, new ClassScheduleService.ClassScheduleSummary(
+                    420, 5, 0, java.math.BigDecimal.ZERO, 3));
+            CommerceProductVariant variant = new CommerceProductVariant();
+            variant.setCode(codes[i]);
+            variant.setUnitAmount(new java.math.BigDecimal("3000.0000"));
+            variants.add(variant);
+        }
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(accessService.buildContext()).thenReturn(new VisibilityContext(true, true));
+        when(specificationBuilder.buildSpecification(any(), anyMap())).thenReturn(null);
+        when(catalogItemRepository.findAll(pageable)).thenReturn(new PageImpl<>(items, pageable, items.size()));
+        when(catalogueClassDefinitionLookupService.findByUuids(anyCollection())).thenReturn(classes);
+        when(variantRepository.findByCodeIn(anyCollection())).thenReturn(variants);
+        when(classScheduleService.getScheduleSummaries(anyCollection())).thenReturn(summaries);
+
+        List<CommerceCatalogueItemDTO> results = service.search(Map.of(), pageable).getContent();
+
+        assertThat(results).extracting(CommerceCatalogueItemDTO::unitAmount)
+                .usingElementComparator(java.math.BigDecimal::compareTo)
+                .containsExactly(new java.math.BigDecimal("15000"), new java.math.BigDecimal("9000"),
+                        new java.math.BigDecimal("21000"));
+        verify(variantRepository, times(1)).findByCodeIn(anyCollection());
+        verify(catalogueClassDefinitionLookupService, times(1)).findByUuids(anyCollection());
+        verify(classScheduleService, times(1)).getScheduleSummaries(anyCollection());
+        verify(variantRepository, never()).findByCode(any());
+        verify(catalogueClassDefinitionLookupService, never()).findByUuid(any());
+        verify(classScheduleService, never()).getScheduleSummary(any());
     }
 
     @Test
