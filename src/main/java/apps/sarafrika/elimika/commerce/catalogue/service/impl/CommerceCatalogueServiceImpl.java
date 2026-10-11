@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueIte
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueService;
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService;
 import apps.sarafrika.elimika.commerce.catalogue.service.CommerceCatalogueAccessService.VisibilityContext;
+import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
@@ -28,6 +29,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import apps.sarafrika.elimika.shared.spi.CourseCatalogueLookupService;
 import apps.sarafrika.elimika.shared.spi.CourseCatalogueSnapshot;
@@ -168,7 +171,12 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                         .toList());
 
         Titles titles = resolveTitles(page.getContent(), courses);
-        return page.map(entity -> toDto(entity, lookup(courses, entity.getCourseUuid()), titles));
+        Prices prices = resolvePrices(page.getContent(), titles);
+        return page.map(entity -> toDto(
+                entity,
+                lookup(courses, entity.getCourseUuid()),
+                titles,
+                resolveUnitAmount(entity, titles, prices)));
     }
 
     private void applyRequest(CommerceCatalogueItem entity, UpsertCommerceCatalogueItemRequest request) {
@@ -255,6 +263,15 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
     }
 
     private CommerceCatalogueItemDTO toDto(CommerceCatalogueItem entity, CourseCatalogueSnapshot course, Titles titles) {
+        return toDto(entity, course, titles,
+                resolveUnitAmount(entity, lookup(titles.classes(), entity.getClassDefinitionUuid())));
+    }
+
+    private CommerceCatalogueItemDTO toDto(
+            CommerceCatalogueItem entity,
+            CourseCatalogueSnapshot course,
+            Titles titles,
+            BigDecimal unitAmount) {
         ClassDefinitionLookupService.ClassDefinitionSnapshot classDefinition =
                 lookup(titles.classes(), entity.getClassDefinitionUuid());
         UUID titleCourseUuid = entity.getCourseUuid() != null
@@ -270,7 +287,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
                 .programUuid(entity.getProgramUuid())
                 .productCode(entity.getProductCode())
                 .variantCode(entity.getVariantCode())
-                .unitAmount(resolveUnitAmount(entity, classDefinition))
+                .unitAmount(unitAmount)
                 .currencyCode(entity.getCurrencyCode())
                 .active(entity.isActive())
                 .publiclyVisible(entity.isPubliclyVisible())
@@ -318,10 +335,67 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             return null;
         }
         BigDecimal baseAmount = variantRepository.findByCode(item.getVariantCode())
-                .map(variant -> variant.getUnitAmount() == null
-                        ? null
-                        : variant.getUnitAmount().setScale(4, RoundingMode.HALF_UP))
+                .map(CommerceCatalogueServiceImpl::baseAmount)
                 .orElse(null);
+        return applyRateBasis(baseAmount, item, classDefinition, classScheduleService::getScheduleSummary);
+    }
+
+    /** The search-page counterpart: every input comes from the page-wide batch lookups. */
+    private BigDecimal resolveUnitAmount(CommerceCatalogueItem item, Titles titles, Prices prices) {
+        if (item == null || ObjectUtils.isEmpty(item.getVariantCode())) {
+            return null;
+        }
+        CommerceProductVariant variant = prices.variantsByCode().get(item.getVariantCode());
+        return applyRateBasis(
+                variant == null ? null : baseAmount(variant),
+                item,
+                lookup(titles.classes(), item.getClassDefinitionUuid()),
+                uuid -> lookup(prices.summariesByUuid(), uuid));
+    }
+
+    /** Variants and schedule summaries for a page of rows: two queries however many rows there are. */
+    private record Prices(Map<String, CommerceProductVariant> variantsByCode,
+                          Map<UUID, ClassScheduleSummary> summariesByUuid) {
+    }
+
+    private Prices resolvePrices(List<CommerceCatalogueItem> entities, Titles titles) {
+        List<String> codes = entities.stream()
+                .map(CommerceCatalogueItem::getVariantCode)
+                .filter(code -> !ObjectUtils.isEmpty(code))
+                .distinct()
+                .toList();
+        if (codes.isEmpty()) {
+            return new Prices(Map.of(), Map.of());
+        }
+        Map<String, CommerceProductVariant> variants = variantRepository.findByCodeIn(codes).stream()
+                .collect(Collectors.toMap(CommerceProductVariant::getCode, Function.identity(), (a, b) -> a));
+
+        // Only priced rows whose class carries a rate basis need its timetable.
+        List<UUID> classUuids = entities.stream()
+                .filter(entity -> !ObjectUtils.isEmpty(entity.getVariantCode()))
+                .map(CommerceCatalogueItem::getClassDefinitionUuid)
+                .filter(Objects::nonNull)
+                .filter(uuid -> {
+                    ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = lookup(titles.classes(), uuid);
+                    return snapshot != null && snapshot.rateBasis() != null;
+                })
+                .distinct()
+                .toList();
+        Map<UUID, ClassScheduleSummary> summaries = classUuids.isEmpty()
+                ? Map.of()
+                : classScheduleService.getScheduleSummaries(classUuids);
+        return new Prices(variants, summaries);
+    }
+
+    private static BigDecimal baseAmount(CommerceProductVariant variant) {
+        return variant.getUnitAmount() == null ? null : variant.getUnitAmount().setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal applyRateBasis(
+            BigDecimal baseAmount,
+            CommerceCatalogueItem item,
+            ClassDefinitionLookupService.ClassDefinitionSnapshot classDefinition,
+            Function<UUID, ClassScheduleSummary> summaries) {
         if (baseAmount == null) {
             return null;
         }
@@ -337,7 +411,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             return baseAmount;
         }
 
-        ClassScheduleSummary summary = classScheduleService.getScheduleSummary(classDefinitionUuid);
+        ClassScheduleSummary summary = summaries.apply(classDefinitionUuid);
         if (summary == null) {
             return baseAmount;
         }

@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.shared.spi;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -15,6 +17,11 @@ public interface ClassScheduleService {
      * @return summary of scheduled minutes and instances
      */
     ClassScheduleSummary getScheduleSummary(UUID classDefinitionUuid);
+
+    /**
+     * {@link #getScheduleSummary(UUID)} for several classes in one query; every non-null uuid gets an entry.
+     */
+    Map<UUID, ClassScheduleSummary> getScheduleSummaries(Collection<UUID> classDefinitionUuids);
 
     /**
      * @param scheduledDays distinct calendar dates holding at least one session; two sessions on the

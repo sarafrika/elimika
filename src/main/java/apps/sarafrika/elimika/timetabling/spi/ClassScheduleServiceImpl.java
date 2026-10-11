@@ -6,8 +6,13 @@ import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +33,30 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
             return new ClassScheduleSummary(0, 0);
         }
 
-        List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+        return summarise(scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, ClassScheduleSummary> getScheduleSummaries(Collection<UUID> classDefinitionUuids) {
+        List<UUID> uuids = classDefinitionUuids == null ? List.of() : classDefinitionUuids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (uuids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<ScheduledInstance>> byClass = scheduledInstanceRepository.findByClassDefinitionUuidIn(uuids)
+                .stream()
+                .collect(Collectors.groupingBy(ScheduledInstance::getClassDefinitionUuid));
+        Map<UUID, ClassScheduleSummary> summaries = new HashMap<>();
+        for (UUID uuid : uuids) {
+            summaries.put(uuid, summarise(byClass.getOrDefault(uuid, List.of())));
+        }
+        return summaries;
+    }
+
+    private ClassScheduleSummary summarise(List<ScheduledInstance> instances) {
         if (instances.isEmpty()) {
             return new ClassScheduleSummary(0, 0);
         }

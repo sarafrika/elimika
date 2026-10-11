@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +59,28 @@ class ClassScheduleServiceImplTest {
         assertThat(summary.scheduledInstances()).isZero();
         assertThat(summary.completedSessions()).isZero();
         assertThat(summary.classProgressPercentage()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void getScheduleSummariesGroupsOneQueryByClass() {
+        UUID busyClass = UUID.randomUUID();
+        UUID emptyClass = UUID.randomUUID();
+        ClassScheduleServiceImpl service = new ClassScheduleServiceImpl(scheduledInstanceRepository);
+        ScheduledInstance first = scheduledInstance(SchedulingStatus.COMPLETED, 60);
+        ScheduledInstance second = scheduledInstance(SchedulingStatus.SCHEDULED, 90);
+        first.setClassDefinitionUuid(busyClass);
+        second.setClassDefinitionUuid(busyClass);
+
+        when(scheduledInstanceRepository.findByClassDefinitionUuidIn(List.of(busyClass, emptyClass)))
+                .thenReturn(List.of(first, second));
+
+        var summaries = service.getScheduleSummaries(List.of(busyClass, emptyClass));
+
+        assertThat(summaries.get(busyClass).scheduledMinutes()).isEqualTo(150);
+        assertThat(summaries.get(busyClass).scheduledInstances()).isEqualTo(2);
+        assertThat(summaries.get(busyClass).scheduledDays()).isEqualTo(1);
+        assertThat(summaries.get(emptyClass).scheduledInstances()).isZero();
+        verify(scheduledInstanceRepository, times(1)).findByClassDefinitionUuidIn(anyCollection());
     }
 
     private ScheduledInstance scheduledInstance(SchedulingStatus status, long minutes) {
