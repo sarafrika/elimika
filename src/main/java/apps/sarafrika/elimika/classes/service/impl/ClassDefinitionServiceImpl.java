@@ -1131,9 +1131,40 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         // Rejected before a row is read, so a refused sort tells the caller nothing about the data.
         rejectSortOnWithheldFigures(pageable);
 
-        return classDefinitionRepository.findAll(classListingVisibility.forCurrentCaller().toSpecification(), pageable)
+        Page<ClassDefinitionResponseDTO> page = classDefinitionRepository
+                .findAll(classListingVisibility.forCurrentCaller().toSpecification(), pageable)
                 .map(this::toDTOWithSessionTemplates)
                 .map(this::buildResponse);
+        return new PageImpl<>(withTitles(page.getContent()), page.getPageable(), page.getTotalElements());
+    }
+
+    /** Stamps course and program titles on a listing: one batched lookup each, never one per row. */
+    private List<ClassDefinitionResponseDTO> withTitles(List<ClassDefinitionResponseDTO> rows) {
+        Set<UUID> courseUuids = new HashSet<>();
+        Set<UUID> programUuids = new HashSet<>();
+        for (ClassDefinitionResponseDTO row : rows) {
+            if (row.classDefinition() == null) {
+                continue;
+            }
+            if (row.classDefinition().courseUuid() != null) {
+                courseUuids.add(row.classDefinition().courseUuid());
+            }
+            if (row.classDefinition().programUuid() != null) {
+                programUuids.add(row.classDefinition().programUuid());
+            }
+        }
+        Map<UUID, String> courseNames = courseUuids.isEmpty() ? Map.of() : courseInfoService.getCourseNames(courseUuids);
+        Map<UUID, String> programTitles = programUuids.isEmpty()
+                ? Map.of() : courseInfoService.getTrainingProgramTitles(programUuids);
+        return rows.stream()
+                .map(row -> row.classDefinition() == null ? row : row.withTitles(
+                        titleFor(courseNames, row.classDefinition().courseUuid()),
+                        titleFor(programTitles, row.classDefinition().programUuid())))
+                .toList();
+    }
+
+    private static String titleFor(Map<UUID, String> titles, UUID uuid) {
+        return uuid == null ? null : titles.get(uuid);
     }
 
     @Override
@@ -1289,6 +1320,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                             definition.getLocationLatitude(), definition.getLocationLongitude(), branchPins)));
                 })
                 .toList();
+        content = withTitles(content);
         return new PageImpl<>(content, PageRequest.of(page, size),
                 SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));
     }
