@@ -185,7 +185,15 @@ public class CourseServiceImpl implements CourseService {
         List<String> categoryNames = mappingRepository.findCategoryNamesByCourseUuid(uuid);
         List<CourseTrainingRequirementDTO> trainingRequirements = courseTrainingRequirementService.findByCourseUuid(uuid);
 
-        return CourseFactory.toDTO(course, categoryNames, trainingRequirements.isEmpty() ? null : trainingRequirements);
+        CourseDTO detail = CourseFactory.toDTO(course, categoryNames,
+                trainingRequirements.isEmpty() ? null : trainingRequirements);
+        UUID creatorUuid = course.getCourseCreatorUuid();
+        if (creatorUuid == null) {
+            return detail;
+        }
+        // Inline the creator's name so detail pages skip a follow-up course-creator request.
+        return detail.withCourseCreatorName(
+                courseCreatorLookupService.findFullNamesByUuids(Set.of(creatorUuid)).get(creatorUuid));
     }
 
     /**

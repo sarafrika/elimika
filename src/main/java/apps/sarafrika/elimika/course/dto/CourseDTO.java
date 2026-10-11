@@ -431,7 +431,7 @@ public record CourseDTO(
         CourseRatingSummary ratingSummary,
 
         @Schema(
-                description = "**[READ-ONLY]** Display name of the course creator. Populated on list and search responses.",
+                description = "**[READ-ONLY]** Display name of the course creator. Populated on list, search and detail responses.",
                 example = "Jane Wanjiku",
                 accessMode = Schema.AccessMode.READ_ONLY,
                 nullable = true
@@ -443,6 +443,16 @@ public record CourseDTO(
 
     /** This course with the list-item facts that are computed per page rather than stored on the row. */
     public CourseDTO withListFacts(Long lessonCount, CourseRatingSummary ratingSummary, String courseCreatorName) {
+        return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
+                objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
+                minimumTrainingFee, creatorSharePercentage, instructorSharePercentage, revenueShareNotes,
+                ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
+                trainingRequirements, categoryNames, createdDate, createdBy, updatedDate, updatedBy,
+                lessonCount, ratingSummary, courseCreatorName);
+    }
+
+    /** This course with the creator's display name attached; every other field is kept as is. */
+    public CourseDTO withCourseCreatorName(String courseCreatorName) {
         return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
                 objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
                 minimumTrainingFee, creatorSharePercentage, instructorSharePercentage, revenueShareNotes,
