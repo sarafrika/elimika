@@ -1062,4 +1062,74 @@ class TimetableServiceImplTest {
         enrollment.setStatus(status);
         return enrollment;
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void enrolmentSearchNarrowsToEveryClassInAClassDefinitionInList() {
+        UUID firstClass = UUID.randomUUID();
+        UUID secondClass = UUID.randomUUID();
+        ScheduledInstance firstSession = new ScheduledInstance();
+        firstSession.setUuid(UUID.randomUUID());
+        ScheduledInstance secondSession = new ScheduledInstance();
+        secondSession.setUuid(UUID.randomUUID());
+        when(scheduledInstanceRepository.findByClassDefinitionUuidIn(List.of(firstClass, secondClass)))
+                .thenReturn(List.of(firstSession, secondSession));
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        Pageable pageable = PageRequest.of(0, 50);
+        when(enrollmentRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+        when(enrollmentSpecBuilder.buildSpecification(eq(Enrollment.class), any()))
+                .thenReturn((root, query, cb) -> cb.conjunction());
+
+        timetableService.searchEnrollments(
+                Map.of("class_definition_uuid_in", firstClass + "," + secondClass + "," + firstClass), pageable);
+
+        org.mockito.ArgumentCaptor<Map<String, String>> params = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(enrollmentSpecBuilder).buildSpecification(eq(Enrollment.class), params.capture());
+        assertThat(params.getValue()).containsOnlyKeys("scheduled_instance_uuid_in");
+        assertThat(params.getValue().get("scheduled_instance_uuid_in"))
+                .isEqualTo(firstSession.getUuid() + "," + secondSession.getUuid());
+        verify(scheduledInstanceRepository, never()).findByClassDefinitionUuid(any(UUID.class));
+    }
+
+    @Test
+    void enrolmentSearchForClassesWithoutSessionsIsEmptyWithoutQueryingEnrolments() {
+        UUID firstClass = UUID.randomUUID();
+        UUID secondClass = UUID.randomUUID();
+        when(scheduledInstanceRepository.findByClassDefinitionUuidIn(List.of(firstClass, secondClass)))
+                .thenReturn(List.of());
+
+        Page<EnrollmentDTO> page = timetableService.searchEnrollments(
+                Map.of("class_definition_uuid_in", firstClass + "," + secondClass), PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+        verifyNoInteractions(enrollmentRepository);
+    }
+
+    @Test
+    void scheduledInstancesForManyClassesComeFromOneQueryOrderedByStart() {
+        UUID firstClass = UUID.randomUUID();
+        UUID secondClass = UUID.randomUUID();
+        ScheduledInstance later = new ScheduledInstance();
+        later.setUuid(UUID.randomUUID());
+        later.setClassDefinitionUuid(firstClass);
+        later.setStartTime(LocalDateTime.of(2026, 11, 2, 9, 0));
+        ScheduledInstance earlier = new ScheduledInstance();
+        earlier.setUuid(UUID.randomUUID());
+        earlier.setClassDefinitionUuid(secondClass);
+        earlier.setStartTime(LocalDateTime.of(2026, 11, 1, 9, 0));
+        when(scheduledInstanceRepository.findByClassDefinitionUuidIn(Set.of(firstClass, secondClass)))
+                .thenReturn(List.of(later, earlier));
+
+        List<ScheduledInstanceDTO> result = timetableService.getScheduledInstancesForClassDefinitions(
+                java.util.Arrays.asList(firstClass, null, secondClass, firstClass));
+
+        assertThat(result).extracting(ScheduledInstanceDTO::uuid).containsExactly(earlier.getUuid(), later.getUuid());
+    }
+
+    @Test
+    void scheduledInstancesForNoClassesSkipTheQuery() {
+        assertThat(timetableService.getScheduledInstancesForClassDefinitions(List.of())).isEmpty();
+        verifyNoInteractions(scheduledInstanceRepository);
+    }
 }
