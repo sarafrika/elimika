@@ -174,7 +174,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                 """,
             countQuery = """
@@ -183,7 +183,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                 """
     )
@@ -226,7 +226,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                   and i.courseUuid in :courseUuids
                 """,
@@ -236,7 +236,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                   and i.courseUuid in :courseUuids
                 """
@@ -281,7 +281,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                   and i.classDefinitionUuid in :classDefinitionUuids
                 """,
@@ -291,7 +291,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                   and i.classDefinitionUuid in :classDefinitionUuids
                 """
@@ -336,7 +336,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                   and i.studentUuid in :studentUuids
                 """,
@@ -346,7 +346,7 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                 join i.purchase p
                 where p.orderCreatedAt >= :startDate
                   and p.orderCreatedAt <= :endDate
-                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(:paymentStatus))
+                  and (:paymentStatus is null or lower(p.paymentStatus) = lower(cast(:paymentStatus as String)))
                   and (:scope is null or i.scope = :scope)
                   and i.studentUuid in :studentUuids
                 """
