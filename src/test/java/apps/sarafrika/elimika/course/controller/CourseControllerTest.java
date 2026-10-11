@@ -220,4 +220,21 @@ class CourseControllerTest {
         verify(storageService).load(filePathCaptor.capture());
         assertEquals("course_thumbnails/deb57188-94a2-4483-8ab6-f071ac02b3b0.png", filePathCaptor.getValue());
     }
+
+    @Test
+    void lessonsBatchLiteralPathRoutesToTheBatchReadNotToTheCourseByUuid() throws Exception {
+        CourseLessonBatchService courseLessonBatchService = org.mockito.Mockito.mock(CourseLessonBatchService.class);
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        when(courseLessonBatchService.getLessons(java.util.List.of(first, second))).thenReturn(java.util.List.of());
+        MockMvc mockMvc = MockMvcBuilders
+                .standaloneSetup(courseController, new CourseLessonBatchController(courseLessonBatchService))
+                .build();
+
+        mockMvc.perform(get("/api/v1/courses/lessons").param("course_uuids", first + "," + second))
+                .andExpect(status().isOk());
+
+        verify(courseLessonBatchService).getLessons(java.util.List.of(first, second));
+        org.mockito.Mockito.verifyNoInteractions(courseService);
+    }
 }
