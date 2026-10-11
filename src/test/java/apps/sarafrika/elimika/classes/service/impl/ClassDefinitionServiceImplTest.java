@@ -456,6 +456,48 @@ class ClassDefinitionServiceImplTest {
         assertThat(dto.instructorPay()).isEqualByComparingTo("2000.00");
     }
 
+    @Test
+    @DisplayName("A class listing stamps course and program titles with one batched lookup each")
+    void findAllClassesBatchesCourseAndProgramTitles() {
+        UUID courseA = UUID.randomUUID();
+        UUID courseB = UUID.randomUUID();
+        UUID program = UUID.randomUUID();
+        ClassDefinition first = listedClass(courseA, null);
+        ClassDefinition second = listedClass(courseB, null);
+        ClassDefinition third = listedClass(null, program);
+
+        when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(classDefinitionRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<ClassDefinition>>any(),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(first, second, third),
+                        org.springframework.data.domain.PageRequest.of(0, 20), 3));
+        when(courseInfoService.getCourseNames(argThat(uuids -> uuids != null
+                && java.util.Set.copyOf(uuids).equals(java.util.Set.of(courseA, courseB)))))
+                .thenReturn(java.util.Map.of(courseA, "Course A", courseB, "Course B"));
+        when(courseInfoService.getTrainingProgramTitles(argThat(uuids -> uuids != null
+                && java.util.Set.copyOf(uuids).equals(java.util.Set.of(program)))))
+                .thenReturn(java.util.Map.of(program, "Program P"));
+
+        List<ClassDefinitionResponseDTO> rows = service
+                .findAllClasses(org.springframework.data.domain.PageRequest.of(0, 20)).getContent();
+
+        assertThat(rows).extracting(ClassDefinitionResponseDTO::courseTitle)
+                .containsExactly("Course A", "Course B", null);
+        assertThat(rows).extracting(ClassDefinitionResponseDTO::programTitle)
+                .containsExactly(null, null, "Program P");
+        verify(courseInfoService, org.mockito.Mockito.times(1)).getCourseNames(any());
+        verify(courseInfoService, org.mockito.Mockito.times(1)).getTrainingProgramTitles(any());
+    }
+
+    private ClassDefinition listedClass(UUID courseUuid, UUID programUuid) {
+        ClassDefinition entity = sampleClassDefinitionEntity();
+        entity.setUuid(UUID.randomUUID());
+        entity.setCourseUuid(courseUuid);
+        entity.setProgramUuid(programUuid);
+        return entity;
+    }
+
     private ClassDefinition sampleClassDefinitionEntity() {
         ClassDefinition entity = new ClassDefinition();
         entity.setTitle("Data Science Cohort");
