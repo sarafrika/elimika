@@ -490,6 +490,141 @@ class ClassDefinitionServiceImplTest {
         verify(courseInfoService, org.mockito.Mockito.times(1)).getTrainingProgramTitles(any());
     }
 
+    // ── Listings read every row's templates, progress and pay visibility in batches ──────────
+
+    @Mock
+    private ClassScheduleService classScheduleService;
+
+    private final java.util.Map<UUID, List<UUID>> expectedTemplateOrder = new java.util.HashMap<>();
+
+    private List<ClassDefinition> twentyListedClasses(UUID courseUuid, UUID organisationA, UUID organisationB,
+                                                      UUID instructorA) {
+        List<ClassDefinition> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            ClassDefinition entity = listedClass(courseUuid, null);
+            entity.setOrganisationUuid(i % 2 == 0 ? organisationA : organisationB);
+            entity.setDefaultInstructorUuid(i % 3 == 0 ? instructorA : UUID.randomUUID());
+            entity.setSalePrice(new BigDecimal("3000.00"));
+            entity.setInstructorPay(new BigDecimal("2000.00"));
+            rows.add(entity);
+        }
+        List<ClassSessionTemplate> templates = new java.util.ArrayList<>();
+        for (ClassDefinition row : rows) {
+            ClassSessionTemplate second = sampleSessionTemplate(row.getUuid());
+            second.setUuid(UUID.randomUUID());
+            second.setTemplateOrder(1);
+            ClassSessionTemplate first = sampleSessionTemplate(row.getUuid());
+            first.setUuid(UUID.randomUUID());
+            templates.add(second);
+            templates.add(first);
+            expectedTemplateOrder.put(row.getUuid(), List.of(first.getUuid(), second.getUuid()));
+            lenient().when(classSessionTemplateRepository
+                            .findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(row.getUuid()))
+                    .thenReturn(List.of(first, second));
+            lenient().when(classDefinitionRepository.findByUuid(row.getUuid())).thenReturn(Optional.of(row));
+        }
+        lenient().when(classSessionTemplateRepository.findByClassDefinitionUuidIn(any())).thenReturn(templates);
+        lenient().when(classDefinitionRepository.findByCourseUuid(courseUuid)).thenReturn(rows);
+        lenient().when(classScheduleServiceProvider.getIfAvailable()).thenReturn(classScheduleService);
+        lenient().when(classScheduleService.getScheduleSummary(any())).thenAnswer(invocation ->
+                summaryFor(invocation.getArgument(0)));
+        lenient().when(classScheduleService.getScheduleSummaries(any())).thenAnswer(invocation -> {
+            java.util.Map<UUID, ClassScheduleService.ClassScheduleSummary> summaries = new java.util.HashMap<>();
+            java.util.Collection<UUID> uuids = invocation.getArgument(0);
+            uuids.forEach(uuid -> summaries.put(uuid, summaryFor(uuid)));
+            return summaries;
+        });
+        return rows;
+    }
+
+    private static ClassScheduleService.ClassScheduleSummary summaryFor(UUID uuid) {
+        long sessions = Math.floorMod(uuid.hashCode(), 9) + 1;
+        return new ClassScheduleService.ClassScheduleSummary(sessions * 60, sessions, 1,
+                BigDecimal.valueOf(100).divide(BigDecimal.valueOf(sessions), 2, java.math.RoundingMode.HALF_UP), sessions);
+    }
+
+    @Test
+    @DisplayName("a 20-row class listing makes a constant number of reads, none of them per row")
+    void listingBatchesTemplatesProgressAndPayVisibility() {
+        UUID courseUuid = UUID.randomUUID();
+        UUID organisationA = UUID.randomUUID();
+        UUID organisationB = UUID.randomUUID();
+        List<ClassDefinition> rows = twentyListedClasses(courseUuid, organisationA, organisationB, UUID.randomUUID());
+        when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(false);
+        when(classReadDomainSecurityService.isInstructorWithUuid(any())).thenReturn(false);
+        when(classReadDomainSecurityService.belongsToOrganisationWithDomain(any(), any())).thenReturn(false);
+
+        List<ClassDefinitionResponseDTO> listing = service.findClassesForCourse(courseUuid);
+
+        assertThat(listing).hasSize(20);
+        assertThat(listing).extracting(row -> row.classDefinition().uuid())
+                .containsExactlyElementsOf(rows.stream().map(ClassDefinition::getUuid).toList());
+        assertThat(listing).allSatisfy(row -> assertThat(row.classDefinition().sessionTemplates())
+                .extracting(ClassSessionTemplateDTO::uuid)
+                .containsExactlyElementsOf(expectedTemplateOrder.get(row.classDefinition().uuid())));
+        verify(classSessionTemplateRepository, org.mockito.Mockito.times(1)).findByClassDefinitionUuidIn(any());
+        verify(classSessionTemplateRepository, never()).findByClassDefinitionUuidOrderByTemplateOrderAscCreatedDateAsc(any());
+        verify(classScheduleService, org.mockito.Mockito.times(1)).getScheduleSummaries(any());
+        verify(classScheduleService, never()).getScheduleSummary(any());
+        verify(classReadDomainSecurityService, org.mockito.Mockito.times(1)).isPlatformAdmin();
+        // Two organisations, each asked under both manager domains once.
+        verify(classReadDomainSecurityService, org.mockito.Mockito.times(4))
+                .belongsToOrganisationWithDomain(any(), any());
+    }
+
+    @Test
+    @DisplayName("an active listing checks course approval once for all rows")
+    void activeListingBatchesTheApprovalCheck() {
+        UUID approvedCourse = UUID.randomUUID();
+        UUID pendingCourse = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        List<ClassDefinition> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            rows.add(listedClass(i % 2 == 0 ? approvedCourse : pendingCourse, null));
+        }
+        when(classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)).thenReturn(rows);
+        when(courseInfoService.findApprovedCourseUuids(any())).thenReturn(java.util.Set.of(approvedCourse));
+
+        List<ClassDefinitionResponseDTO> listing = service.findActiveClassesForInstructor(instructorUuid);
+
+        assertThat(listing).hasSize(10)
+                .allSatisfy(row -> assertThat(row.classDefinition().courseUuid()).isEqualTo(approvedCourse));
+        verify(courseInfoService, org.mockito.Mockito.times(1)).findApprovedCourseUuids(any());
+        verify(courseInfoService, never()).isCourseApproved(any());
+        verify(classSessionTemplateRepository, org.mockito.Mockito.times(1)).findByClassDefinitionUuidIn(any());
+    }
+
+    enum Reader { ADMIN, CLASS_INSTRUCTOR, ORGANISATION_MANAGER, LEARNER }
+
+    @ParameterizedTest
+    @EnumSource(Reader.class)
+    @DisplayName("a listing row is identical to the single-class read of the same row, redaction included")
+    void listingRowsMatchSingleReadsForEveryReader(Reader reader) {
+        UUID courseUuid = UUID.randomUUID();
+        UUID organisationA = UUID.randomUUID();
+        UUID instructorA = UUID.randomUUID();
+        List<ClassDefinition> rows = twentyListedClasses(courseUuid, organisationA, UUID.randomUUID(), instructorA);
+        lenient().when(classReadDomainSecurityService.isPlatformAdmin()).thenReturn(reader == Reader.ADMIN);
+        lenient().when(classReadDomainSecurityService.isInstructorWithUuid(any())).thenAnswer(invocation ->
+                reader == Reader.CLASS_INSTRUCTOR && instructorA.equals(invocation.getArgument(0)));
+        lenient().when(classReadDomainSecurityService.belongsToOrganisationWithDomain(any(), any())).thenAnswer(
+                invocation -> reader == Reader.ORGANISATION_MANAGER && organisationA.equals(invocation.getArgument(0)));
+
+        List<ClassDefinitionResponseDTO> listing = service.findClassesForCourse(courseUuid);
+        List<ClassDefinitionResponseDTO> singles = rows.stream()
+                .map(row -> service.getClassDefinition(row.getUuid()))
+                .toList();
+
+        assertThat(listing).isEqualTo(singles);
+        long visible = listing.stream().filter(row -> row.classDefinition().instructorPay() != null).count();
+        assertThat(visible).isEqualTo(switch (reader) {
+            case ADMIN -> 20L;
+            case CLASS_INSTRUCTOR -> 7L;
+            case ORGANISATION_MANAGER -> 10L;
+            case LEARNER -> 0L;
+        });
+    }
+
     private ClassDefinition listedClass(UUID courseUuid, UUID programUuid) {
         ClassDefinition entity = sampleClassDefinitionEntity();
         entity.setUuid(UUID.randomUUID());
