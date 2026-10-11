@@ -131,6 +131,12 @@ public class CourseCandidateStore {
         return jdbc.query(sql, params, (rs, rowNum) -> candidate(rs));
     }
 
+    /** Whether any course, listed or not, has this uuid. */
+    public boolean exists(UUID uuid) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM courses WHERE uuid = :uuid)",
+                new MapSqlParameterSource("uuid", uuid), Boolean.class));
+    }
+
     /** Every root course, listed or not, for the offline evaluator. */
     public List<CandidateCourse> loadAllRootCourses() {
         return jdbc.query(CANDIDATE_SELECT + " WHERE c.parent_course_uuid IS NULL", new MapSqlParameterSource(),

@@ -23,6 +23,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -200,10 +201,15 @@ class CourseOpenClassesIntegrationTest {
     }
 
     @Test
-    @DisplayName("A course that is not public is a 404, even when it has public classes")
-    void nonPublicCourseIsNotFound() throws Exception {
-        mockMvc.perform(get(url(unpublishedCourse))).andExpect(status().isNotFound());
-        mockMvc.perform(get(url(unapprovedCourse))).andExpect(status().isNotFound());
+    @DisplayName("A course that is not public lists no classes, even when it has public ones; an unknown course is a 404")
+    void nonPublicCourseListsNothing() throws Exception {
+        for (UUID course : List.of(unpublishedCourse, unapprovedCourse)) {
+            mockMvc.perform(get(url(course)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.open_class_count").value(0))
+                    .andExpect(jsonPath("$.data.price_from").doesNotExist())
+                    .andExpect(jsonPath("$.data.classes.length()").value(0));
+        }
         mockMvc.perform(get(url(UUID.randomUUID()))).andExpect(status().isNotFound());
     }
 

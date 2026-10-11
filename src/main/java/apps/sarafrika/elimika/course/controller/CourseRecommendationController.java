@@ -32,7 +32,7 @@ public class CourseRecommendationController {
     @Operation(operationId = "getSimilarCourses", summary = "Courses similar to a public course",
             description = "Anyone, signed in or not. Not personal: co-enrolment neighbours (pairs shared by at least 5 "
                     + "learners, 10 when a minor is involved), the same categories, and \"more like this\" on the "
-                    + "course text. Only public courses; 404 when the course itself is not public. Same item shape "
+                    + "course text. Only public courses; empty when the course itself is not public, 404 when it does not exist. Same item shape "
                     + "as the recommendations endpoint, with surface `similar`.")
     @GetMapping("/api/v1/courses/{uuid}/similar")
     public ResponseEntity<ApiResponse<List<RecommendedCourseDTO>>> getSimilarCourses(

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.dto.CourseOpenClasses;
 import apps.sarafrika.elimika.course.dto.OpenClassAvailability;
 import apps.sarafrika.elimika.course.dto.OpenClassSummary;
+import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.service.CourseOpenClassService;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -63,9 +64,12 @@ public class CourseOpenClassServiceImpl implements CourseOpenClassService {
 
     @Override
     public CourseOpenClasses getOpenClasses(UUID courseUuid) {
-        courseRepository.findByUuid(courseUuid)
-                .filter(CourseServiceImpl::isPublicCourse)
+        Course course = courseRepository.findByUuid(courseUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with UUID: " + courseUuid));
+        // A real but unlisted course has no joinable classes to publish; only an unknown course is a 404.
+        if (!CourseServiceImpl.isPublicCourse(course)) {
+            return new CourseOpenClasses(null, null, 0, List.of());
+        }
 
         List<OpenClassSummary> classes = new ArrayList<>();
         for (OpenClassListing listing : classDefinitionLookupService.findOpenClassesForCourse(courseUuid)) {
