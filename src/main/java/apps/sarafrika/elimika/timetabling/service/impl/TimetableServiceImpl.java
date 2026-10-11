@@ -68,6 +68,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -947,8 +948,16 @@ public class TimetableServiceImpl implements TimetableService {
         String classDefinitionParam = extractSearchParam(normalizedParams, "class_definition_uuid", "classDefinitionUuid");
         if (classDefinitionParam != null) {
             try {
-                UUID classDefinitionUuid = UUID.fromString(classDefinitionParam.trim());
-                List<ScheduledInstance> instances = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid);
+                // Comma-separated so class_definition_uuid_in narrows to many classes in one request.
+                List<UUID> classDefinitionUuids = Arrays.stream(classDefinitionParam.split(","))
+                        .map(String::trim)
+                        .filter(token -> !token.isEmpty())
+                        .map(UUID::fromString)
+                        .distinct()
+                        .toList();
+                List<ScheduledInstance> instances = classDefinitionUuids.size() == 1
+                        ? scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuids.get(0))
+                        : scheduledInstanceRepository.findByClassDefinitionUuidIn(classDefinitionUuids);
                 if (instances.isEmpty()) {
                     return Page.empty(pageable);
                 }
@@ -1119,6 +1128,25 @@ public class TimetableServiceImpl implements TimetableService {
 
         Page<ScheduledInstance> page = scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid, pageable);
         return page.map(ScheduledInstanceFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScheduledInstanceDTO> getScheduledInstancesForClassDefinitions(
+            Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> ids = classDefinitionUuids.stream().filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return scheduledInstanceRepository.findByClassDefinitionUuidIn(ids).stream()
+                .sorted(java.util.Comparator.comparing(ScheduledInstance::getStartTime,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .map(ScheduledInstanceFactory::toDTO)
+                .toList();
     }
 
     @Override

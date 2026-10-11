@@ -303,6 +303,9 @@ public interface TimetableService {
      */
     Page<ScheduledInstanceDTO> getScheduledInstancesForClassDefinition(UUID classDefinitionUuid, Pageable pageable);
 
+    /** Every scheduled instance of the given classes in one query, ordered by start time. */
+    List<ScheduledInstanceDTO> getScheduledInstancesForClassDefinitions(Collection<UUID> classDefinitionUuids);
+
     /**
      * Counts scheduled instances for a class definition.
      *
