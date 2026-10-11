@@ -344,7 +344,7 @@ class CourseRecommendationIntegrationTest {
     }
 
     @Test
-    @DisplayName("similar works anonymously for a public course, records nothing, and 404s for a draft")
+    @DisplayName("similar works anonymously for a public course, records nothing, is empty for a draft and 404s for an unknown course")
     void similarAnonymous() {
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(null);
         when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
@@ -362,7 +362,8 @@ class CourseRecommendationIntegrationTest {
         assertThat(similar).extracting(RecommendedCourseDTO::courseUuid).contains(other);
         verify(discoveryTracker, never()).recordImpressions(any(), anyString(), any(), any(), any());
 
-        assertThatThrownBy(() -> service.findSimilar(draft, 6)).isInstanceOf(ResourceNotFoundException.class);
+        assertThat(service.findSimilar(draft, 6)).isEmpty();
+        assertThatThrownBy(() -> service.findSimilar(UUID.randomUUID(), 6)).isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

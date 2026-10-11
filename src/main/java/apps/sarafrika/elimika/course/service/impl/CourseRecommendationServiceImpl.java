@@ -133,9 +133,16 @@ public class CourseRecommendationServiceImpl implements CourseRecommendationServ
 
     @Override
     public List<RecommendedCourseDTO> findSimilar(UUID courseUuid, int limit) {
+        // A real but unlisted course has nothing similar to show; only an unknown course is a 404.
         CandidateCourse anchor = candidateStore.loadPublic(List.of(courseUuid), Audience.anyone(), List.of()).stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Course with UUID " + courseUuid + " not found"));
+                .orElse(null);
+        if (anchor == null) {
+            if (candidateStore.exists(courseUuid)) {
+                return List.of();
+            }
+            throw new ResourceNotFoundException("Course with UUID " + courseUuid + " not found");
+        }
         Map<UUID, Double> lifts = candidateStore.findNeighbourLifts(List.of(courseUuid)).getOrDefault(courseUuid, Map.of());
         CandidateQuery query = new CandidateQuery(anchor.categoryUuids(), lifts.keySet(), List.of(), anchor.name(),
                 List.of(), List.of());

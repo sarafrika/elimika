@@ -33,8 +33,9 @@ public class CourseOpenClassesController {
             operationId = "getCourseOpenClasses",
             summary = "List the classes a visitor can still join on a public course",
             description = """
-                    Readable without a token. Answers only for a publicly visible course (root, published,
-                    active and admin-approved); any other course is a 404 for every caller.
+                    Readable without a token. Lists classes only for a publicly visible course (root, published,
+                    active and admin-approved); any other existing course answers an empty list, and an
+                    unknown course is a 404.
 
                     Lists the course's classes that are active, `PUBLIC`, and whose registration window
                     and teaching period have not ended (a missing end date counts as open), cheapest
@@ -58,7 +59,7 @@ public class CourseOpenClassesController {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(
                             responseCode = "200", description = "Open classes retrieved"),
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                            responseCode = "404", description = "Course not found or not publicly visible")
+                            responseCode = "404", description = "Course not found")
             }
     )
     @SecurityRequirements
