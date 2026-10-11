@@ -884,9 +884,22 @@ public class TimetableServiceImpl implements TimetableService {
         List<Enrollment> enrollments = enrollmentRepository.findByStudentAndTimeRange(
             studentUuid, startDateTime, endDateTime);
 
-        return enrollments.stream()
+        List<Enrollment> active = enrollments.stream()
             .filter(enrollment -> !EnrollmentStatus.CANCELLED.equals(enrollment.getStatus()))
-            .map(enrollment -> scheduledInstanceRepository.findByUuid(enrollment.getScheduledInstanceUuid())
+            .toList();
+        Set<UUID> instanceUuids = active.stream()
+            .map(Enrollment::getScheduledInstanceUuid)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        if (instanceUuids.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, ScheduledInstance> instancesByUuid = new HashMap<>();
+        scheduledInstanceRepository.findByUuidIn(instanceUuids)
+            .forEach(instance -> instancesByUuid.putIfAbsent(instance.getUuid(), instance));
+
+        return active.stream()
+            .map(enrollment -> Optional.ofNullable(instancesByUuid.get(enrollment.getScheduledInstanceUuid()))
                     .filter(instance -> !SchedulingStatus.CANCELLED.equals(instance.getStatus()))
                     .map(instance -> StudentScheduleFactory.toDTO(instance, enrollment))
                     .orElse(null))

@@ -506,8 +506,8 @@ class TimetableServiceImplTest {
                 any(LocalDateTime.class)))
                 .thenReturn(List.of(activeEnrollment, cancelledEnrollment));
 
-        when(scheduledInstanceRepository.findByUuid(activeEnrollment.getScheduledInstanceUuid()))
-                .thenReturn(Optional.of(activeInstance));
+        when(scheduledInstanceRepository.findByUuidIn(anyCollection()))
+                .thenReturn(List.of(activeInstance));
         List<StudentScheduleDTO> result = timetableService.getScheduleForStudent(studentUuid, start, end);
 
         assertThat(result)
@@ -515,6 +515,41 @@ class TimetableServiceImplTest {
                 .first()
                 .extracting(StudentScheduleDTO::scheduledInstanceUuid)
                 .isEqualTo(activeInstance.getUuid());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getScheduleForStudentReadsEverySessionInOneQueryInEnrollmentOrder() {
+        UUID studentUuid = UUID.randomUUID();
+        LocalDate start = LocalDate.now();
+        List<Enrollment> enrollments = new java.util.ArrayList<>();
+        List<ScheduledInstance> instances = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            Enrollment enrollment = buildEnrollment(EnrollmentStatus.ENROLLED);
+            ScheduledInstance instance = buildScheduledInstance(UUID.randomUUID(),
+                    i == 7 ? SchedulingStatus.CANCELLED : SchedulingStatus.SCHEDULED);
+            instance.setUuid(enrollment.getScheduledInstanceUuid());
+            enrollments.add(enrollment);
+            instances.add(instance);
+        }
+        when(enrollmentRepository.findByStudentAndTimeRange(eq(studentUuid), any(LocalDateTime.class),
+                any(LocalDateTime.class))).thenReturn(enrollments);
+        // Returned in reverse so the result order can only come from the enrollments.
+        when(scheduledInstanceRepository.findByUuidIn(anyCollection()))
+                .thenReturn(instances.reversed());
+
+        List<StudentScheduleDTO> result = timetableService.getScheduleForStudent(studentUuid, start, start);
+
+        List<UUID> expected = enrollments.stream()
+                .map(Enrollment::getScheduledInstanceUuid)
+                .filter(uuid -> !uuid.equals(instances.get(7).getUuid()))
+                .toList();
+        assertThat(result).extracting(StudentScheduleDTO::scheduledInstanceUuid).containsExactlyElementsOf(expected);
+        org.mockito.ArgumentCaptor<java.util.Collection<UUID>> requested =
+                org.mockito.ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(scheduledInstanceRepository, org.mockito.Mockito.times(1)).findByUuidIn(requested.capture());
+        assertThat(requested.getValue()).hasSize(20);
+        verify(scheduledInstanceRepository, never()).findByUuid(any());
     }
 
     @Test
