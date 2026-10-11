@@ -555,7 +555,11 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         if (scheduleService == null) {
             return classDefinition;
         }
-        ClassScheduleService.ClassScheduleSummary summary = scheduleService.getScheduleSummary(classDefinition.uuid());
+        return withScheduleProgress(classDefinition, scheduleService.getScheduleSummary(classDefinition.uuid()));
+    }
+
+    private static ClassDefinitionDTO withScheduleProgress(ClassDefinitionDTO classDefinition,
+                                                           ClassScheduleService.ClassScheduleSummary summary) {
         if (summary == null) {
             return classDefinition;
         }
@@ -667,6 +671,86 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         return redactInstructorPay(dto.withSessionTemplates(loadSessionTemplates(dto.uuid())));
     }
 
+    /** The listing twin of {@code buildResponse(toDTOWithSessionTemplates(..))}: one batched read per concern. */
+    private List<ClassDefinitionResponseDTO> toListingResponses(List<ClassDefinition> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<ClassDefinitionDTO> dtos = entities.stream().map(ClassDefinitionFactory::toDTO).toList();
+        Set<UUID> uuids = dtos.stream()
+                .filter(Objects::nonNull)
+                .map(ClassDefinitionDTO::uuid)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<UUID, List<ClassSessionTemplateDTO>> templates = loadSessionTemplates(uuids);
+        ClassScheduleService scheduleService = uuids.isEmpty() ? null : classScheduleServiceProvider.getIfAvailable();
+        Map<UUID, ClassScheduleService.ClassScheduleSummary> summaries = scheduleService == null
+                ? Map.of() : scheduleService.getScheduleSummaries(uuids);
+        PayVisibility payVisibility = new PayVisibility();
+        List<ClassDefinitionResponseDTO> responses = new ArrayList<>(dtos.size());
+        for (ClassDefinitionDTO dto : dtos) {
+            if (dto == null || dto.uuid() == null) {
+                responses.add(new ClassDefinitionResponseDTO(dto));
+                continue;
+            }
+            ClassDefinitionDTO withTemplates = dto.withSessionTemplates(templates.getOrDefault(dto.uuid(), List.of()));
+            ClassDefinitionDTO redacted = withTemplates.instructorPay() == null || payVisibility.maySee(withTemplates)
+                    ? withTemplates : withTemplates.withoutInstructorPay();
+            responses.add(new ClassDefinitionResponseDTO(withScheduleProgress(redacted, summaries.get(dto.uuid()))));
+        }
+        return responses;
+    }
+
+    private Map<UUID, List<ClassSessionTemplateDTO>> loadSessionTemplates(Collection<UUID> classDefinitionUuids) {
+        if (classDefinitionUuids.isEmpty()) {
+            return Map.of();
+        }
+        Comparator<ClassSessionTemplate> order = Comparator
+                .comparing(ClassSessionTemplate::getTemplateOrder, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(ClassSessionTemplate::getCreatedDate, Comparator.nullsLast(Comparator.naturalOrder()));
+        return classSessionTemplateRepository.findByClassDefinitionUuidIn(classDefinitionUuids).stream()
+                .sorted(order)
+                .collect(Collectors.groupingBy(ClassSessionTemplate::getClassDefinitionUuid,
+                        Collectors.collectingAndThen(Collectors.toList(), ClassSessionTemplateFactory::toDTOList)));
+    }
+
+    /** Keeps the rows whose course or program is approved, with one lookup per kind instead of per row. */
+    private List<ClassDefinition> retainApprovedContent(List<ClassDefinition> definitions) {
+        Set<UUID> courseUuids = new HashSet<>();
+        Set<UUID> programUuids = new HashSet<>();
+        for (ClassDefinition definition : definitions) {
+            if (definition == null) {
+                continue;
+            }
+            if (definition.getCourseUuid() != null) {
+                courseUuids.add(definition.getCourseUuid());
+            } else if (definition.getProgramUuid() != null) {
+                programUuids.add(definition.getProgramUuid());
+            }
+        }
+        Set<UUID> approvedCourses = courseUuids.isEmpty()
+                ? Set.of() : courseInfoService.findApprovedCourseUuids(courseUuids);
+        Set<UUID> approvedPrograms = programUuids.isEmpty()
+                ? Set.of() : courseInfoService.findApprovedTrainingProgramUuids(programUuids);
+        return definitions.stream()
+                .filter(definition -> isLinkedContentApproved(definition, approvedCourses, approvedPrograms))
+                .toList();
+    }
+
+    private static boolean isLinkedContentApproved(ClassDefinition definition, Set<UUID> approvedCourses,
+                                                   Set<UUID> approvedPrograms) {
+        if (definition == null) {
+            return false;
+        }
+        if (definition.getCourseUuid() != null) {
+            return approvedCourses.contains(definition.getCourseUuid());
+        }
+        if (definition.getProgramUuid() != null) {
+            return approvedPrograms.contains(definition.getProgramUuid());
+        }
+        return true;
+    }
+
     /**
      * Strips the instructor's pay for anyone who is not party to that agreement.
      * <p>
@@ -719,21 +803,61 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
      * stored, not merely what gets shown.
      */
     private boolean maySeeInstructorPay(ClassDefinitionDTO dto) {
-        try {
-            if (actingDomainCap.permits(UserDomain.admin) && domainSecurityService.isPlatformAdmin()) {
-                return true;
+        return new PayVisibility().maySee(dto);
+    }
+
+    /** {@link #maySeeInstructorPay}'s decision with each security answer asked once per listing. */
+    private final class PayVisibility {
+        private Boolean admin;
+        private Boolean instructorPage;
+        private Boolean organisationPage;
+        private final Map<UUID, Boolean> instructorMatches = new HashMap<>();
+        private final Map<UUID, Boolean> managedOrganisations = new HashMap<>();
+
+        boolean maySee(ClassDefinitionDTO dto) {
+            try {
+                if (admin == null) {
+                    admin = actingDomainCap.permits(UserDomain.admin) && domainSecurityService.isPlatformAdmin();
+                }
+                if (admin) {
+                    return true;
+                }
+                UUID instructorUuid = dto.defaultInstructorUuid();
+                if (instructorUuid != null && instructorPage == null) {
+                    instructorPage = actingDomainCap.permits(UserDomain.instructor);
+                }
+                if (instructorUuid != null && instructorPage && isInstructor(instructorUuid)) {
+                    return true;
+                }
+                if (organisationPage == null) {
+                    organisationPage = actingDomainCap.permits(UserDomain.organisation_user);
+                }
+                return organisationPage && manages(dto.organisationUuid());
+            } catch (Exception e) {
+                // Withholding is the safe failure: a reader who cannot be identified is not entitled.
+                return false;
             }
-            UUID instructorUuid = dto.defaultInstructorUuid();
-            if (actingDomainCap.permits(UserDomain.instructor)
-                    && instructorUuid != null
-                    && domainSecurityService.isInstructorWithUuid(instructorUuid)) {
-                return true;
+        }
+
+        private boolean isInstructor(UUID instructorUuid) {
+            Boolean known = instructorMatches.get(instructorUuid);
+            if (known == null) {
+                known = domainSecurityService.isInstructorWithUuid(instructorUuid);
+                instructorMatches.put(instructorUuid, known);
             }
-            return actingDomainCap.permits(UserDomain.organisation_user)
-                    && managesOrganisation(dto.organisationUuid());
-        } catch (Exception e) {
-            // Withholding is the safe failure: a reader who cannot be identified is not entitled.
-            return false;
+            return known;
+        }
+
+        private boolean manages(UUID organisationUuid) {
+            if (organisationUuid == null) {
+                return false;
+            }
+            Boolean known = managedOrganisations.get(organisationUuid);
+            if (known == null) {
+                known = managesOrganisation(organisationUuid);
+                managedOrganisations.put(organisationUuid, known);
+            }
+            return known;
         }
     }
 
@@ -997,11 +1121,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findClassesForCourse(UUID courseUuid) {
         log.debug("Finding classes for course UUID: {}", courseUuid);
 
-        return classDefinitionRepository.findByCourseUuid(courseUuid)
-                .stream()
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+        return toListingResponses(classDefinitionRepository.findByCourseUuid(courseUuid));
     }
 
     @Override
@@ -1014,11 +1134,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             return List.of();
         }
 
-        return classDefinitionRepository.findActiveClassesForCourse(courseUuid)
-                .stream()
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+        return toListingResponses(classDefinitionRepository.findActiveClassesForCourse(courseUuid));
     }
 
     @Override
@@ -1026,11 +1142,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findClassesForProgram(UUID programUuid) {
         log.debug("Finding classes for program UUID: {}", programUuid);
 
-        return classDefinitionRepository.findByProgramUuid(programUuid)
-                .stream()
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+        return toListingResponses(classDefinitionRepository.findByProgramUuid(programUuid));
     }
 
     @Override
@@ -1043,11 +1155,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             return List.of();
         }
 
-        return classDefinitionRepository.findActiveClassesForProgram(programUuid)
-                .stream()
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+        return toListingResponses(classDefinitionRepository.findActiveClassesForProgram(programUuid));
     }
 
     @Override
@@ -1055,11 +1163,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findClassesForInstructor(UUID instructorUuid) {
         log.debug("Finding classes for instructor UUID: {}", instructorUuid);
 
-        return classDefinitionRepository.findByDefaultInstructorUuid(instructorUuid)
-                .stream()
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+        return toListingResponses(classDefinitionRepository.findByDefaultInstructorUuid(instructorUuid));
     }
 
     @Override
@@ -1067,12 +1171,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
     public List<ClassDefinitionResponseDTO> findActiveClassesForInstructor(UUID instructorUuid) {
         log.debug("Finding active classes for instructor UUID: {}", instructorUuid);
 
-        return classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)
-                .stream()
-                .filter(this::isLinkedContentApproved)
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+        return toListingResponses(retainApprovedContent(
+                classDefinitionRepository.findActiveClassesForInstructor(instructorUuid)));
     }
 
     @Override
@@ -1083,12 +1183,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         // The organisation's staff see every class it runs; anyone else sees what the listing
         // scope admits — its active public classes, and the ones they teach or study in.
         ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
-        return classDefinitionRepository.findByOrganisationUuid(organisationUuid)
+        return toListingResponses(classDefinitionRepository.findByOrganisationUuid(organisationUuid)
                 .stream()
                 .filter(scope::admits)
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+                .toList());
     }
 
     /**
@@ -1131,11 +1229,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         // Rejected before a row is read, so a refused sort tells the caller nothing about the data.
         rejectSortOnWithheldFigures(pageable);
 
-        Page<ClassDefinitionResponseDTO> page = classDefinitionRepository
-                .findAll(classListingVisibility.forCurrentCaller().toSpecification(), pageable)
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse);
-        return new PageImpl<>(withTitles(page.getContent()), page.getPageable(), page.getTotalElements());
+        Page<ClassDefinition> page = classDefinitionRepository
+                .findAll(classListingVisibility.forCurrentCaller().toSpecification(), pageable);
+        return new PageImpl<>(withTitles(toListingResponses(page.getContent())), page.getPageable(),
+                page.getTotalElements());
     }
 
     /** Stamps course and program titles on a listing: one batched lookup each, never one per row. */
@@ -1173,13 +1270,10 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         log.debug("Finding all active classes");
 
         ClassListingVisibility.Scope scope = classListingVisibility.forCurrentCaller();
-        return classDefinitionRepository.findByIsActiveTrue()
+        return toListingResponses(retainApprovedContent(classDefinitionRepository.findByIsActiveTrue()
                 .stream()
                 .filter(scope::admits)
-                .filter(this::isLinkedContentApproved)
-                .map(this::toDTOWithSessionTemplates)
-                .map(this::buildResponse)
-                .collect(Collectors.toList());
+                .toList()));
     }
 
     @Override
@@ -1217,7 +1311,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 // was indexed drops out.
                 definition -> definition.getLocationType() == LocationType.IN_PERSON
                         || definition.getLocationType() == LocationType.HYBRID,
-                near);
+                false, near);
     }
 
     @Override
@@ -1231,9 +1325,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 SearchFilter.eq("is_active", true), SearchFilter.eq("content_approved", true));
         // Approval is re-read from the course module on the hits: the index copy is only refreshed
         // when the class itself changes.
-        return searchIndex(q, activeAndApproved, scope, List.of(),
-                0, SEARCH_LIST_LIMIT, definition -> Boolean.TRUE.equals(definition.getIsActive())
-                        && isLinkedContentApproved(definition)).getContent();
+        return searchIndex(q, activeAndApproved, scope, List.of(), 0, SEARCH_LIST_LIMIT,
+                definition -> Boolean.TRUE.equals(definition.getIsActive()), true, null).getContent();
     }
 
     @Override
@@ -1283,7 +1376,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                                                    int page,
                                                                    int size,
                                                                    java.util.function.Predicate<ClassDefinition> stillMatches) {
-        return searchIndex(q, filter, scope, sort, page, size, stillMatches, null);
+        return searchIndex(q, filter, scope, sort, page, size, stillMatches, false, null);
     }
 
     /**
@@ -1298,6 +1391,7 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                                                          int page,
                                                          int size,
                                                          java.util.function.Predicate<ClassDefinition> stillMatches,
+                                                         boolean approvedContentOnly,
                                                          NearMe near) {
         SearchRequest request = new SearchRequest(ClassSearchSource.INDEX, q == null ? null : q.trim(), filter,
                 ClassSearchScopes.forListing(scope), sort, page, size, List.of(), null);
@@ -1305,21 +1399,26 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
         Map<UUID, ClassDefinition> byUuid = classDefinitionRepository.findByUuidIn(hits.uuids()).stream()
                 .collect(Collectors.toMap(ClassDefinition::getUuid, Function.identity(), (first, second) -> first));
         var branchPins = BranchLocationResolver.branchPinMemo();
-        List<ClassDefinitionResponseDTO> content = hits.uuids().stream()
+        List<ClassDefinition> definitions = hits.uuids().stream()
                 .map(byUuid::get)
                 .filter(Objects::nonNull)
                 .filter(scope::admits)
                 .filter(stillMatches)
-                .map(definition -> {
-                    ClassDefinitionResponseDTO response = buildResponse(toDTOWithSessionTemplates(definition));
-                    if (near == null) {
-                        return response;
-                    }
-                    return response.forNearMe(near.distanceBand(branchLocationResolver.searchPoint(
-                            definition.getOrganisationUuid(), definition.getBranchUuid(), definition.getLocationType(),
-                            definition.getLocationLatitude(), definition.getLocationLongitude(), branchPins)));
-                })
                 .toList();
+        if (approvedContentOnly) {
+            definitions = retainApprovedContent(definitions);
+        }
+        List<ClassDefinitionResponseDTO> content = toListingResponses(definitions);
+        if (near != null) {
+            List<ClassDefinitionResponseDTO> located = new ArrayList<>(content.size());
+            for (int i = 0; i < content.size(); i++) {
+                ClassDefinition definition = definitions.get(i);
+                located.add(content.get(i).forNearMe(near.distanceBand(branchLocationResolver.searchPoint(
+                        definition.getOrganisationUuid(), definition.getBranchUuid(), definition.getLocationType(),
+                        definition.getLocationLatitude(), definition.getLocationLongitude(), branchPins))));
+            }
+            content = located;
+        }
         content = withTitles(content);
         return new PageImpl<>(content, PageRequest.of(page, size),
                 SearchResults.total(hits.totalHits(), hits.uuids().size(), content.size()));
@@ -1626,24 +1725,6 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
             entity.setProgramUuid(dto.programUuid());
             entity.setCourseUuid(null);
         }
-    }
-
-    private boolean isLinkedContentApproved(ClassDefinition classDefinition) {
-        if (classDefinition == null) {
-            return false;
-        }
-
-        UUID courseUuid = classDefinition.getCourseUuid();
-        if (courseUuid != null) {
-            return courseInfoService.isCourseApproved(courseUuid);
-        }
-
-        UUID programUuid = classDefinition.getProgramUuid();
-        if (programUuid != null) {
-            return courseInfoService.isTrainingProgramApproved(programUuid);
-        }
-
-        return true;
     }
 
     /**
