@@ -1,3 +1,10 @@
+## [2.171.2](https://github.com/sarafrika/elimika/compare/v2.171.1...v2.171.2) (2026-10-11)
+
+
+### Performance Improvements
+
+* **catalogue:** batch price lookups in catalogue search ([5088863](https://github.com/sarafrika/elimika/commit/5088863228b75869850f227bd418362d29cabb80))
+
 ## [2.171.1](https://github.com/sarafrika/elimika/compare/v2.171.0...v2.171.1) (2026-10-10)
 
 
