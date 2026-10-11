@@ -1,3 +1,24 @@
+# [2.172.0](https://github.com/sarafrika/elimika/compare/v2.171.2...v2.172.0) (2026-10-11)
+
+
+### Bug Fixes
+
+* **course:** answer empty open classes and similar for unlisted courses ([d892963](https://github.com/sarafrika/elimika/commit/d892963bcf21bc339700beb1cf6b46759568ec67))
+* **enrollment:** map the timestamptz last session of org student performance ([7c36c30](https://github.com/sarafrika/elimika/commit/7c36c303e452c6632d575c824cca5b7348e29907))
+* **revenue:** bind a null payment status filter as text in sales queries ([e6d0792](https://github.com/sarafrika/elimika/commit/e6d0792afbc5f5e9fb164d178c5ef636fdf96b0d))
+
+
+### Features
+
+* **classes:** batch-read the schedules of many classes ([01cdde6](https://github.com/sarafrika/elimika/commit/01cdde635cf3e585d80d9b7751893b4f2e00cd75))
+* **course:** batch-read the lessons of many courses ([3924f7c](https://github.com/sarafrika/elimika/commit/3924f7c270d9644a998c4915985dec3b70d49024))
+* **timetabling:** filter enrolment search by class_definition_uuid_in ([5b847d0](https://github.com/sarafrika/elimika/commit/5b847d0ef6debf374ecee7ba664a3f00b4537410))
+
+
+### Performance Improvements
+
+* **classes:** return course and program titles on class listings ([9de7f2e](https://github.com/sarafrika/elimika/commit/9de7f2e8ebcab789dd474fd2cadc7472480552f6))
+
 ## [2.171.2](https://github.com/sarafrika/elimika/compare/v2.171.1...v2.171.2) (2026-10-11)
 
 
