@@ -2221,19 +2221,22 @@ public class TimetableServiceImpl implements TimetableService {
     public List<OrganisationStudentPerformanceDTO> getStudentPerformanceForOrganisation(UUID organisationUuid,
                                                                                          UUID studentUuid) {
         return enrollmentRepository.findStudentPerformanceForOrganisation(organisationUuid, studentUuid).stream()
-                .map(row -> {
-                    long total = ((Number) row[2]).longValue();
-                    long attended = ((Number) row[3]).longValue();
-                    return new OrganisationStudentPerformanceDTO(
-                            (UUID) row[0],
-                            (String) row[1],
-                            total,
-                            attended,
-                            ((Number) row[4]).longValue(),
-                            total == 0 ? 0d : Math.round((attended * 1000d) / total) / 10d,
-                            row[5] == null ? null : ((java.sql.Timestamp) row[5]).toLocalDateTime());
-                })
+                .map(TimetableServiceImpl::toStudentPerformance)
                 .toList();
+    }
+
+    /** {@code last_session} is a timestamptz, which Hibernate 6 does not return as a {@code Timestamp}. */
+    static OrganisationStudentPerformanceDTO toStudentPerformance(Object[] row) {
+        long total = ((Number) row[2]).longValue();
+        long attended = ((Number) row[3]).longValue();
+        return new OrganisationStudentPerformanceDTO(
+                toUuid(row[0]),
+                (String) row[1],
+                total,
+                attended,
+                ((Number) row[4]).longValue(),
+                total == 0 ? 0d : Math.round((attended * 1000d) / total) / 10d,
+                toLocalDateTime(row[5]));
     }
 
     /**
