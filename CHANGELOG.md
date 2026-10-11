@@ -1,3 +1,10 @@
+## [2.172.2](https://github.com/sarafrika/elimika/compare/v2.172.1...v2.172.2) (2026-10-11)
+
+
+### Performance Improvements
+
+* **course:** inline course_creator_name on the course detail endpoint ([c9b7252](https://github.com/sarafrika/elimika/commit/c9b7252721fd272572cf92a824602ad1421b30dd))
+
 ## [2.172.1](https://github.com/sarafrika/elimika/compare/v2.172.0...v2.172.1) (2026-10-11)
 
 
