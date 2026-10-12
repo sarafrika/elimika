@@ -1082,9 +1082,8 @@ public class TimetableServiceImpl implements TimetableService {
             throw new IllegalArgumentException("Class definition UUID cannot be null");
         }
 
-        List<Enrollment> enrollments = enrollmentRepository.findByClassDefinitionUuid(classDefinitionUuid);
         if (timetableSecurityService.canReadClassRoster(classDefinitionUuid)) {
-            return EnrollmentFactory.toDTOList(enrollments);
+            return EnrollmentFactory.toDTOList(enrollmentRepository.findByClassDefinitionUuid(classDefinitionUuid));
         }
 
         UUID callerStudentUuid = domainSecurityService.getCurrentStudentUuid();
@@ -1092,9 +1091,9 @@ public class TimetableServiceImpl implements TimetableService {
             log.debug("Withholding the roster of class {} from a caller who does not hold it", classDefinitionUuid);
             return List.of();
         }
-        return EnrollmentFactory.toDTOList(enrollments.stream()
-                .filter(enrollment -> callerStudentUuid.equals(enrollment.getStudentUuid()))
-                .toList());
+        // A learner's own rows come straight from the database instead of filtering the whole roster.
+        return EnrollmentFactory.toDTOList(
+                enrollmentRepository.findByClassDefinitionUuidAndStudentUuid(classDefinitionUuid, callerStudentUuid));
     }
 
     @Override

@@ -110,6 +110,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            "AND e.status <> 'CANCELLED'")
     List<Enrollment> findByClassDefinitionUuid(@Param("classDefinitionUuid") UUID classDefinitionUuid);
 
+    /** One learner's rows of {@link #findByClassDefinitionUuid}, read without loading the roster. */
+    @Query("SELECT e FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
+           "WHERE si.classDefinitionUuid = :classDefinitionUuid " +
+           "AND e.studentUuid = :studentUuid " +
+           "AND si.status <> 'CANCELLED' " +
+           "AND e.status <> 'CANCELLED'")
+    List<Enrollment> findByClassDefinitionUuidAndStudentUuid(@Param("classDefinitionUuid") UUID classDefinitionUuid,
+                                                             @Param("studentUuid") UUID studentUuid);
+
     @Query("SELECT COUNT(DISTINCT e.studentUuid) FROM Enrollment e JOIN ScheduledInstance si ON e.scheduledInstanceUuid = si.uuid " +
            "WHERE si.classDefinitionUuid = :classDefinitionUuid " +
            "AND si.status <> 'CANCELLED' " +
