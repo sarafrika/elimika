@@ -35,6 +35,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 @Configuration @Slf4j
 public class JwtConfig {
@@ -51,7 +53,7 @@ public class JwtConfig {
 
     @Autowired
     public JwtConfig(@Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkUrl,
-                     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer) {
+                     @Value("${JWT_ISSUER_URI:}") String issuer) {
         this(new CachedJwkSet(() -> JWKSet.load(URI.create(jwkUrl).toURL(), JWK_SET_CONNECT_TIMEOUT_MS,
                 JWK_SET_READ_TIMEOUT_MS, JWK_SET_SIZE_LIMIT_BYTES), JWK_SET_TTL, JWK_SET_MIN_REFRESH_INTERVAL,
                 Clock.systemUTC()), tokenValidator(issuer, Clock.systemUTC()));
@@ -62,14 +64,16 @@ public class JwtConfig {
         this.tokenValidator = tokenValidator;
     }
 
-    /** Requires exp, rejects expired or not-yet-valid tokens (with {@link #CLOCK_SKEW}) and foreign issuers. */
+    /** Requires exp and rejects expired or not-yet-valid tokens; checks the issuer only when JWT_ISSUER_URI is set. */
     static OAuth2TokenValidator<Jwt> tokenValidator(String issuer, Clock clock) {
         JwtTimestampValidator timestamps = new JwtTimestampValidator(CLOCK_SKEW);
         timestamps.setClock(clock);
-        return new DelegatingOAuth2TokenValidator<>(
-                new JwtClaimValidator<>(JwtClaimNames.EXP, exp -> exp != null),
-                timestamps,
-                new JwtIssuerValidator(issuer));
+        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>(List.of(
+                new JwtClaimValidator<>(JwtClaimNames.EXP, exp -> exp != null), timestamps));
+        if (issuer != null && !issuer.isBlank()) {
+            validators.add(new JwtIssuerValidator(issuer));
+        }
+        return new DelegatingOAuth2TokenValidator<>(validators);
     }
 
     /** Fetches Keycloak's keys before traffic arrives; a failure here is retried on the first request. */

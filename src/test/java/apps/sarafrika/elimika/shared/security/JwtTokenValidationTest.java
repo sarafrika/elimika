@@ -31,12 +31,14 @@ class JwtTokenValidationTest {
 
     private OctetKeyPair key;
     private JwtDecoder decoder;
+    private Clock clock;
+    private CachedJwkSet keys;
 
     @BeforeEach
     void setUp() throws Exception {
         key = new OctetKeyPairGenerator(Curve.Ed25519).keyID("kid-1").generate();
-        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        CachedJwkSet keys = new CachedJwkSet(() -> new JWKSet(key.toPublicJWK()), Duration.ofMinutes(5),
+        clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        keys = new CachedJwkSet(() -> new JWKSet(key.toPublicJWK()), Duration.ofMinutes(5),
                 Duration.ofSeconds(30), clock);
         decoder = new JwtConfig(keys, JwtConfig.tokenValidator(ISSUER, clock)).jwtDecoder();
     }
@@ -89,6 +91,15 @@ class JwtTokenValidationTest {
         String token = sign(c -> c.issuer(ISSUER));
 
         assertThatThrownBy(() -> decoder.decode(token)).isInstanceOf(JwtValidationException.class);
+    }
+
+    @Test
+    void withoutAConfiguredIssuerStillRejectsExpiredTokens() throws Exception {
+        JwtDecoder lenient = new JwtConfig(keys, JwtConfig.tokenValidator("", clock)).jwtDecoder();
+
+        assertThat(lenient.decode(sign(c -> c.issuer("https://other.test").expirationTime(at(240))))).isNotNull();
+        assertThatThrownBy(() -> lenient.decode(sign(c -> c.issuer(ISSUER).expirationTime(at(-61)))))
+                .isInstanceOf(JwtValidationException.class);
     }
 
     private static Date at(long secondsFromNow) {
