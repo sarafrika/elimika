@@ -1,3 +1,15 @@
+## [2.172.3](https://github.com/sarafrika/elimika/compare/v2.172.2...v2.172.3) (2026-10-12)
+
+
+### Performance Improvements
+
+* **admin:** overlap the Keycloak read and index the activity feed ([b468d14](https://github.com/sarafrika/elimika/commit/b468d14e5cb7be470cc7610d79774087130d1824))
+* **admin:** read Keycloak admin events once for both dashboard windows ([8b5a8cc](https://github.com/sarafrika/elimika/commit/8b5a8cc5e452ba2a6e0824b0e5fc216e4bee8ea5))
+* **classes:** project schedule summaries and batch existence to plain columns ([456db77](https://github.com/sarafrika/elimika/commit/456db77c42e1d53c79c871c6eacc0ef6573fac87))
+* **instructor:** aggregate the rating summary in the database ([1dc0e29](https://github.com/sarafrika/elimika/commit/1dc0e29cfdfdddf9c7bf729b8ccdc90db6e39d2b))
+* **security:** cache the Keycloak JWK set instead of fetching it per request ([25813ea](https://github.com/sarafrika/elimika/commit/25813ea5006c86b599344095e34ef20df09d7647))
+* **timetabling:** read a learner's own class enrolments without the roster ([55a71c5](https://github.com/sarafrika/elimika/commit/55a71c560cad24c01934b00b77e1baab2fef1e86))
+
 ## [2.172.2](https://github.com/sarafrika/elimika/compare/v2.172.1...v2.172.2) (2026-10-11)
 
 
