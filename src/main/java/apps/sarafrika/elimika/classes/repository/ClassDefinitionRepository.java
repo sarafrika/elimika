@@ -22,6 +22,10 @@ public interface ClassDefinitionRepository extends JpaRepository<ClassDefinition
 
     List<ClassDefinition> findByUuidIn(Collection<UUID> uuids);
 
+    /** Which of {@code uuids} exist, read as ids only. */
+    @Query("SELECT cd.uuid FROM ClassDefinition cd WHERE cd.uuid IN :uuids")
+    List<UUID> findExistingUuids(@Param("uuids") Collection<UUID> uuids);
+
     /** Keyset page for search index rebuilds: rows after {@code id}, in id order. */
     List<ClassDefinition> findByIdGreaterThanOrderByIdAsc(Long id, Pageable pageable);
 

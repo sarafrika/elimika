@@ -1167,4 +1167,41 @@ class TimetableServiceImplTest {
         assertThat(timetableService.getScheduledInstancesForClassDefinitions(List.of())).isEmpty();
         verifyNoInteractions(scheduledInstanceRepository);
     }
+
+    @Test
+    void aLearnerReadsOnlyTheirOwnRowsOfAClassRosterFromTheDatabase() {
+        UUID classUuid = UUID.randomUUID();
+        UUID studentUuid = UUID.randomUUID();
+        Enrollment own = new Enrollment();
+        own.setUuid(UUID.randomUUID());
+        own.setStudentUuid(studentUuid);
+        when(timetableSecurityService.canReadClassRoster(classUuid)).thenReturn(false);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(studentUuid);
+        when(enrollmentRepository.findByClassDefinitionUuidAndStudentUuid(classUuid, studentUuid))
+                .thenReturn(List.of(own));
+
+        List<EnrollmentDTO> result = timetableService.getEnrollmentsForClass(classUuid);
+
+        assertThat(result).extracting(EnrollmentDTO::uuid).containsExactly(own.getUuid());
+        verify(enrollmentRepository, never()).findByClassDefinitionUuid(any(UUID.class));
+    }
+
+    @Test
+    void whoeverRunsTheClassReadsTheWholeRosterAndOthersReadNothing() {
+        UUID classUuid = UUID.randomUUID();
+        Enrollment row = new Enrollment();
+        row.setUuid(UUID.randomUUID());
+        when(timetableSecurityService.canReadClassRoster(classUuid)).thenReturn(true);
+        when(enrollmentRepository.findByClassDefinitionUuid(classUuid)).thenReturn(List.of(row));
+
+        assertThat(timetableService.getEnrollmentsForClass(classUuid))
+                .extracting(EnrollmentDTO::uuid).containsExactly(row.getUuid());
+
+        UUID otherClass = UUID.randomUUID();
+        when(timetableSecurityService.canReadClassRoster(otherClass)).thenReturn(false);
+        when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
+
+        assertThat(timetableService.getEnrollmentsForClass(otherClass)).isEmpty();
+        verify(enrollmentRepository, never()).findByClassDefinitionUuid(otherClass);
+    }
 }

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.instructor.service.impl;
 
+import apps.sarafrika.elimika.instructor.dto.InstructorRatingSummaryDTO;
 import apps.sarafrika.elimika.instructor.dto.InstructorReviewDTO;
 import apps.sarafrika.elimika.instructor.factory.InstructorReviewFactory;
 import apps.sarafrika.elimika.instructor.model.InstructorReview;
@@ -62,6 +63,16 @@ public class InstructorReviewServiceImpl implements InstructorReviewService {
                 .stream()
                 .map(InstructorReviewFactory::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InstructorRatingSummaryDTO getRatingSummary(UUID instructorUuid) {
+        // AVG skips null ratings and COUNT counts every review, as the old in-memory sum did.
+        return instructorReviewRepository.aggregateRatingsByInstructorUuidIn(List.of(instructorUuid)).stream()
+                .findFirst()
+                .map(rating -> new InstructorRatingSummaryDTO(instructorUuid, rating.average(), rating.count()))
+                .orElseGet(() -> new InstructorRatingSummaryDTO(instructorUuid, null, 0L));
     }
 
     private void publishInstructorReviewSubmitted(InstructorReview review) {

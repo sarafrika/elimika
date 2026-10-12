@@ -578,27 +578,7 @@ public class InstructorController {
     @GetMapping("/{instructorUuid}/reviews/summary")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<InstructorRatingSummaryDTO>> getInstructorRatingSummary(
             @PathVariable UUID instructorUuid) {
-        List<InstructorReviewDTO> reviews = instructorReviewService.getReviewsForInstructor(instructorUuid);
-        long count = reviews.size();
-
-        Double average = null;
-        if (count > 0) {
-            average = reviews.stream()
-                    .map(InstructorReviewDTO::rating)
-                    .filter(r -> r != null)
-                    .mapToInt(Integer::intValue)
-                    .average()
-                    .orElse(Double.NaN);
-            if (average.isNaN()) {
-                average = null;
-            }
-        }
-
-        InstructorRatingSummaryDTO summary = new InstructorRatingSummaryDTO(
-                instructorUuid,
-                average,
-                count
-        );
+        InstructorRatingSummaryDTO summary = instructorReviewService.getRatingSummary(instructorUuid);
 
         return ResponseEntity.ok(
                 apps.sarafrika.elimika.shared.dto.ApiResponse
