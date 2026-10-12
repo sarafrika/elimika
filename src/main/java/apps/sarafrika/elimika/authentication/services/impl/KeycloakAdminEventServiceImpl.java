@@ -43,18 +43,19 @@ public class KeycloakAdminEventServiceImpl implements KeycloakAdminEventService 
     @Override
     public KeycloakAdminEventSummary getAdminEventSummary() {
         Instant now = Instant.now();
-        AdminEventWindowStats last24Hours = fetchAdminEvents(now.minus(24, ChronoUnit.HOURS), now);
-        AdminEventWindowStats last7Days = fetchAdminEvents(now.minus(7, ChronoUnit.DAYS), now);
+        // One 7-day read; the 24-hour window is the slice of it at or after the cutoff.
+        AdminEventWindowStats last7Days = fetchAdminEvents(now.minus(7, ChronoUnit.DAYS), now,
+                now.minus(24, ChronoUnit.HOURS).toEpochMilli());
 
         return new KeycloakAdminEventSummary(
-                last24Hours.totalEvents(),
+                last7Days.recentEvents(),
                 last7Days.totalEvents(),
-                last24Hours.eventsByOperation(),
-                last24Hours.eventsByResourceType()
+                last7Days.eventsByOperation(),
+                last7Days.eventsByResourceType()
         );
     }
 
-    private AdminEventWindowStats fetchAdminEvents(Instant from, Instant to) {
+    private AdminEventWindowStats fetchAdminEvents(Instant from, Instant to, long recentFromMillis) {
         if (!StringUtils.hasText(realm)) {
             log.warn("Keycloak realm is not configured; admin event summary will be empty");
             return AdminEventWindowStats.empty();
@@ -62,6 +63,7 @@ public class KeycloakAdminEventServiceImpl implements KeycloakAdminEventService 
 
         int resolvedPageSize = pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
         long total = 0;
+        long recent = 0;
         Map<String, Long> byOperation = new HashMap<>();
         Map<String, Long> byResourceType = new HashMap<>();
 
@@ -90,8 +92,11 @@ public class KeycloakAdminEventServiceImpl implements KeycloakAdminEventService 
 
                 for (AdminEventRepresentation event : batch) {
                     total++;
-                    updateCounter(byOperation, event.getOperationType());
-                    updateCounter(byResourceType, event.getResourceType());
+                    if (event.getTime() >= recentFromMillis) {
+                        recent++;
+                        updateCounter(byOperation, event.getOperationType());
+                        updateCounter(byResourceType, event.getResourceType());
+                    }
                 }
 
                 if (batch.size() < resolvedPageSize) {
@@ -100,7 +105,7 @@ public class KeycloakAdminEventServiceImpl implements KeycloakAdminEventService 
                 first += batch.size();
             }
 
-            return new AdminEventWindowStats(total, byOperation, byResourceType);
+            return new AdminEventWindowStats(total, recent, byOperation, byResourceType);
         } catch (Exception ex) {
             log.warn("Failed to fetch Keycloak admin events for range {} - {}: {}", from, to, ex.getMessage());
             log.debug("Keycloak admin events retrieval error", ex);
@@ -120,10 +125,11 @@ public class KeycloakAdminEventServiceImpl implements KeycloakAdminEventService 
     }
 
     private record AdminEventWindowStats(long totalEvents,
+                                         long recentEvents,
                                          Map<String, Long> eventsByOperation,
                                          Map<String, Long> eventsByResourceType) {
         static AdminEventWindowStats empty() {
-            return new AdminEventWindowStats(0, Collections.emptyMap(), Collections.emptyMap());
+            return new AdminEventWindowStats(0, 0, Collections.emptyMap(), Collections.emptyMap());
         }
     }
 }

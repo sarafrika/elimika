@@ -56,6 +56,7 @@ import apps.sarafrika.elimika.tenancy.util.UserSpecificationBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -77,6 +78,9 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -90,6 +94,8 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Slf4j
 public class AdminServiceImpl implements AdminService {
+
+    private static final ExecutorService DASHBOARD_REMOTE_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final UserRepository userRepository;
     private final UserSpecificationBuilder userSpecificationBuilder;
@@ -418,6 +424,10 @@ public class AdminServiceImpl implements AdminService {
         LocalDateTime twentyFourHoursAgo = now.minusHours(24);
         LocalDateTime sevenDaysAgo = now.minusDays(7);
 
+        // The Keycloak read is a remote HTTP call; overlap it with the database counts below.
+        CompletableFuture<KeycloakAdminEventSummary> keycloakSummaryFuture = CompletableFuture.supplyAsync(
+                keycloakAdminEventService::getAdminEventSummary, DASHBOARD_REMOTE_EXECUTOR);
+
         // Cross-module snapshots
         CourseAnalyticsSnapshot courseAnalytics = courseAnalyticsService.captureSnapshot();
         TimetablingAnalyticsSnapshot timetablingAnalytics = timetablingAnalyticsService.captureSnapshot();
@@ -425,7 +435,6 @@ public class AdminServiceImpl implements AdminService {
         NotificationAnalyticsSnapshot notificationAnalytics = notificationAnalyticsService.captureSnapshot();
         InstructorAnalyticsSnapshot instructorAnalytics = instructorAnalyticsService.captureSnapshot();
         CourseCreatorAnalyticsSnapshot courseCreatorAnalytics = courseCreatorAnalyticsService.captureSnapshot();
-        KeycloakAdminEventSummary keycloakAdminEventSummary = keycloakAdminEventService.getAdminEventSummary();
 
         // User metrics
         long totalUsers = userRepository.count();
@@ -450,6 +459,7 @@ public class AdminServiceImpl implements AdminService {
         long totalAdmins = systemAdmins + organizationAdmins;
 
         AdminDashboardStatsDTO.SystemPerformance systemPerformance = buildSystemPerformance();
+        KeycloakAdminEventSummary keycloakAdminEventSummary = keycloakSummaryFuture.join();
 
         return new AdminDashboardStatsDTO(
                 now,
@@ -550,12 +560,9 @@ public class AdminServiceImpl implements AdminService {
 
         PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
 
-        Page<RequestAuditLog> auditLogs = requestAuditLogRepository.findAdminActivity(
-                "/api/v1/admin",
-                200,
-                399,
-                pageRequest
-        );
+        List<RequestAuditLog> rows = requestAuditLogRepository.findAdminActivity(200, 399, pageRequest);
+        Page<RequestAuditLog> auditLogs = PageableExecutionUtils.getPage(rows, pageRequest,
+                () -> requestAuditLogRepository.countAdminActivity(200, 399));
 
         return auditLogs.map(this::toAdminActivityEventDTO);
     }
