@@ -1,3 +1,11 @@
+## [2.172.4](https://github.com/sarafrika/elimika/compare/v2.172.3...v2.172.4) (2026-10-12)
+
+
+### Bug Fixes
+
+* **security:** check the token issuer only when JWT_ISSUER_URI is set ([0464f59](https://github.com/sarafrika/elimika/commit/0464f59af5e55479c6ba5dd885c9f41d86ccb3df))
+* **security:** reject expired, not-yet-valid and foreign-issuer access tokens ([a0f30f3](https://github.com/sarafrika/elimika/commit/a0f30f3221d8882436f4e88b310d1fc91368d9a2))
+
 ## [2.172.3](https://github.com/sarafrika/elimika/compare/v2.172.2...v2.172.3) (2026-10-12)
 
 
