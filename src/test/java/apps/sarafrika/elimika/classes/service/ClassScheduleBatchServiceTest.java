@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.classes.service;
 
-import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -45,10 +44,8 @@ class ClassScheduleBatchServiceTest {
     void readsTheSchedulesOfExistingClassesInOneTimetableCall() {
         UUID known = UUID.randomUUID();
         UUID unknown = UUID.randomUUID();
-        ClassDefinition definition = new ClassDefinition();
-        definition.setUuid(known);
-        when(classDefinitionRepository.findByUuidIn(new LinkedHashSet<>(List.of(known, unknown))))
-                .thenReturn(List.of(definition));
+        when(classDefinitionRepository.findExistingUuids(new LinkedHashSet<>(List.of(known, unknown))))
+                .thenReturn(List.of(known));
         when(timetableServiceProvider.getIfAvailable()).thenReturn(timetableService);
         List<ScheduledInstanceDTO> sessions = List.of();
         when(timetableService.getScheduledInstancesForClassDefinitions(List.of(known))).thenReturn(sessions);
@@ -60,7 +57,7 @@ class ClassScheduleBatchServiceTest {
     @Test
     void noExistingClassSkipsTheTimetable() {
         UUID unknown = UUID.randomUUID();
-        when(classDefinitionRepository.findByUuidIn(any())).thenReturn(List.of());
+        when(classDefinitionRepository.findExistingUuids(any())).thenReturn(List.of());
 
         assertThat(service.getSchedules(List.of(unknown))).isEmpty();
         verify(timetableService, never()).getScheduledInstancesForClassDefinitions(any());

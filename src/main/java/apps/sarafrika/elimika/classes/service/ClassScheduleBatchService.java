@@ -1,6 +1,5 @@
 package apps.sarafrika.elimika.classes.service;
 
-import apps.sarafrika.elimika.classes.model.ClassDefinition;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionRepository;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
@@ -45,8 +44,7 @@ public class ClassScheduleBatchService {
         }
         log.debug("Batch schedule read for {} classes", ids.size());
 
-        List<UUID> existing = classDefinitionRepository.findByUuidIn(ids).stream()
-                .map(ClassDefinition::getUuid)
+        List<UUID> existing = classDefinitionRepository.findExistingUuids(ids).stream()
                 .distinct()
                 .toList();
         TimetableService timetableService = timetableServiceProvider.getIfAvailable();

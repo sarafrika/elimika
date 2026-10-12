@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
-import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
+import apps.sarafrika.elimika.timetabling.repository.ScheduleSlice;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -33,7 +33,8 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
             return new ClassScheduleSummary(0, 0);
         }
 
-        return summarise(scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid));
+        return summarise(scheduledInstanceRepository.findScheduleSlicesByClassDefinitionUuidIn(
+                List.of(classDefinitionUuid)));
     }
 
     @Override
@@ -46,9 +47,9 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
         if (uuids.isEmpty()) {
             return Map.of();
         }
-        Map<UUID, List<ScheduledInstance>> byClass = scheduledInstanceRepository.findByClassDefinitionUuidIn(uuids)
+        Map<UUID, List<ScheduleSlice>> byClass = scheduledInstanceRepository.findScheduleSlicesByClassDefinitionUuidIn(uuids)
                 .stream()
-                .collect(Collectors.groupingBy(ScheduledInstance::getClassDefinitionUuid));
+                .collect(Collectors.groupingBy(ScheduleSlice::classDefinitionUuid));
         Map<UUID, ClassScheduleSummary> summaries = new HashMap<>();
         for (UUID uuid : uuids) {
             summaries.put(uuid, summarise(byClass.getOrDefault(uuid, List.of())));
@@ -56,7 +57,7 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
         return summaries;
     }
 
-    private ClassScheduleSummary summarise(List<ScheduledInstance> instances) {
+    private ClassScheduleSummary summarise(List<ScheduleSlice> instances) {
         if (instances.isEmpty()) {
             return new ClassScheduleSummary(0, 0);
         }
@@ -65,25 +66,25 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
         long instanceCount = 0;
         long completedSessions = 0;
         java.util.Set<java.time.LocalDate> distinctDays = new java.util.HashSet<>();
-        for (ScheduledInstance instance : instances) {
+        for (ScheduleSlice instance : instances) {
             if (!isCountableStatus(instance)) {
                 continue;
             }
             instanceCount++;
-            if (SchedulingStatus.COMPLETED.equals(instance.getStatus())) {
+            if (SchedulingStatus.COMPLETED.equals(instance.status())) {
                 completedSessions++;
             }
-            if (instance.getStartTime() != null) {
-                distinctDays.add(instance.getStartTime().toLocalDate());
+            if (instance.startTime() != null) {
+                distinctDays.add(instance.startTime().toLocalDate());
             }
-            if (instance.getStartTime() == null || instance.getEndTime() == null) {
+            if (instance.startTime() == null || instance.endTime() == null) {
                 continue;
             }
-            if (!instance.getEndTime().isAfter(instance.getStartTime())) {
+            if (!instance.endTime().isAfter(instance.startTime())) {
                 continue;
             }
 
-            long minutes = Duration.between(instance.getStartTime(), instance.getEndTime()).toMinutes();
+            long minutes = Duration.between(instance.startTime(), instance.endTime()).toMinutes();
             if (minutes <= 0) {
                 continue;
             }
@@ -99,11 +100,11 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
         );
     }
 
-    private boolean isCountableStatus(ScheduledInstance instance) {
-        if (instance == null || instance.getStatus() == null) {
+    private boolean isCountableStatus(ScheduleSlice instance) {
+        if (instance == null || instance.status() == null) {
             return false;
         }
-        SchedulingStatus status = instance.getStatus();
+        SchedulingStatus status = instance.status();
         return SchedulingStatus.SCHEDULED.equals(status)
                 || SchedulingStatus.ONGOING.equals(status)
                 || SchedulingStatus.COMPLETED.equals(status);

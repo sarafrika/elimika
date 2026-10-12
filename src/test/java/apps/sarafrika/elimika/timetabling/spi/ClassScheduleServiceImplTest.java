@@ -1,6 +1,6 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
-import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
+import apps.sarafrika.elimika.timetabling.repository.ScheduleSlice;
 import apps.sarafrika.elimika.timetabling.repository.ScheduledInstanceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,13 +29,13 @@ class ClassScheduleServiceImplTest {
         UUID classDefinitionUuid = UUID.randomUUID();
         ClassScheduleServiceImpl service = new ClassScheduleServiceImpl(scheduledInstanceRepository);
 
-        when(scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid))
+        when(scheduledInstanceRepository.findScheduleSlicesByClassDefinitionUuidIn(List.of(classDefinitionUuid)))
                 .thenReturn(List.of(
-                        scheduledInstance(SchedulingStatus.COMPLETED, 60),
-                        scheduledInstance(SchedulingStatus.ONGOING, 90),
-                        scheduledInstance(SchedulingStatus.SCHEDULED, 120),
-                        scheduledInstance(SchedulingStatus.CANCELLED, 60),
-                        scheduledInstance(SchedulingStatus.BLOCKED, 60)
+                        slice(classDefinitionUuid, SchedulingStatus.COMPLETED, 60),
+                        slice(classDefinitionUuid, SchedulingStatus.ONGOING, 90),
+                        slice(classDefinitionUuid, SchedulingStatus.SCHEDULED, 120),
+                        slice(classDefinitionUuid, SchedulingStatus.CANCELLED, 60),
+                        slice(classDefinitionUuid, SchedulingStatus.BLOCKED, 60)
                 ));
 
         var summary = service.getScheduleSummary(classDefinitionUuid);
@@ -51,7 +51,8 @@ class ClassScheduleServiceImplTest {
         UUID classDefinitionUuid = UUID.randomUUID();
         ClassScheduleServiceImpl service = new ClassScheduleServiceImpl(scheduledInstanceRepository);
 
-        when(scheduledInstanceRepository.findByClassDefinitionUuid(classDefinitionUuid)).thenReturn(List.of());
+        when(scheduledInstanceRepository.findScheduleSlicesByClassDefinitionUuidIn(List.of(classDefinitionUuid)))
+                .thenReturn(List.of());
 
         var summary = service.getScheduleSummary(classDefinitionUuid);
 
@@ -66,13 +67,9 @@ class ClassScheduleServiceImplTest {
         UUID busyClass = UUID.randomUUID();
         UUID emptyClass = UUID.randomUUID();
         ClassScheduleServiceImpl service = new ClassScheduleServiceImpl(scheduledInstanceRepository);
-        ScheduledInstance first = scheduledInstance(SchedulingStatus.COMPLETED, 60);
-        ScheduledInstance second = scheduledInstance(SchedulingStatus.SCHEDULED, 90);
-        first.setClassDefinitionUuid(busyClass);
-        second.setClassDefinitionUuid(busyClass);
-
-        when(scheduledInstanceRepository.findByClassDefinitionUuidIn(List.of(busyClass, emptyClass)))
-                .thenReturn(List.of(first, second));
+        when(scheduledInstanceRepository.findScheduleSlicesByClassDefinitionUuidIn(List.of(busyClass, emptyClass)))
+                .thenReturn(List.of(slice(busyClass, SchedulingStatus.COMPLETED, 60),
+                        slice(busyClass, SchedulingStatus.SCHEDULED, 90)));
 
         var summaries = service.getScheduleSummaries(List.of(busyClass, emptyClass));
 
@@ -80,15 +77,11 @@ class ClassScheduleServiceImplTest {
         assertThat(summaries.get(busyClass).scheduledInstances()).isEqualTo(2);
         assertThat(summaries.get(busyClass).scheduledDays()).isEqualTo(1);
         assertThat(summaries.get(emptyClass).scheduledInstances()).isZero();
-        verify(scheduledInstanceRepository, times(1)).findByClassDefinitionUuidIn(anyCollection());
+        verify(scheduledInstanceRepository, times(1)).findScheduleSlicesByClassDefinitionUuidIn(anyCollection());
     }
 
-    private ScheduledInstance scheduledInstance(SchedulingStatus status, long minutes) {
-        ScheduledInstance instance = new ScheduledInstance();
-        instance.setUuid(UUID.randomUUID());
-        instance.setStatus(status);
-        instance.setStartTime(LocalDateTime.of(2026, 4, 28, 8, 0));
-        instance.setEndTime(instance.getStartTime().plusMinutes(minutes));
-        return instance;
+    private ScheduleSlice slice(UUID classDefinitionUuid, SchedulingStatus status, long minutes) {
+        LocalDateTime start = LocalDateTime.of(2026, 4, 28, 8, 0);
+        return new ScheduleSlice(classDefinitionUuid, status, start, start.plusMinutes(minutes));
     }
 }
