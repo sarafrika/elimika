@@ -82,7 +82,7 @@ class SecurityConfigurationStatelessTest {
         @Bean
         JwtConfig jwtConfig() {
             return new JwtConfig(new CachedJwkSet(JWKSet::new, Duration.ofMinutes(5), Duration.ofSeconds(30),
-                    Clock.systemUTC())) {
+                    Clock.systemUTC()), JwtConfig.tokenValidator("https://issuer.test", Clock.systemUTC())) {
                 @Override
                 public JwtDecoder jwtDecoder() {
                     return token -> Jwt.withTokenValue(token)

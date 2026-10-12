@@ -5,7 +5,6 @@ import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jose.crypto.Ed25519Verifier;
-import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -18,7 +17,15 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 
@@ -37,18 +44,32 @@ public class JwtConfig {
     private static final int JWK_SET_CONNECT_TIMEOUT_MS = 2_000;
     private static final int JWK_SET_READ_TIMEOUT_MS = 3_000;
     private static final int JWK_SET_SIZE_LIMIT_BYTES = 512 * 1024;
+    static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
 
     private final CachedJwkSet jwkSet;
+    private final OAuth2TokenValidator<Jwt> tokenValidator;
 
     @Autowired
-    public JwtConfig(@Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkUrl) {
+    public JwtConfig(@Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkUrl,
+                     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer) {
         this(new CachedJwkSet(() -> JWKSet.load(URI.create(jwkUrl).toURL(), JWK_SET_CONNECT_TIMEOUT_MS,
                 JWK_SET_READ_TIMEOUT_MS, JWK_SET_SIZE_LIMIT_BYTES), JWK_SET_TTL, JWK_SET_MIN_REFRESH_INTERVAL,
-                Clock.systemUTC()));
+                Clock.systemUTC()), tokenValidator(issuer, Clock.systemUTC()));
     }
 
-    JwtConfig(CachedJwkSet jwkSet) {
+    JwtConfig(CachedJwkSet jwkSet, OAuth2TokenValidator<Jwt> tokenValidator) {
         this.jwkSet = jwkSet;
+        this.tokenValidator = tokenValidator;
+    }
+
+    /** Requires exp, rejects expired or not-yet-valid tokens (with {@link #CLOCK_SKEW}) and foreign issuers. */
+    static OAuth2TokenValidator<Jwt> tokenValidator(String issuer, Clock clock) {
+        JwtTimestampValidator timestamps = new JwtTimestampValidator(CLOCK_SKEW);
+        timestamps.setClock(clock);
+        return new DelegatingOAuth2TokenValidator<>(
+                new JwtClaimValidator<>(JwtClaimNames.EXP, exp -> exp != null),
+                timestamps,
+                new JwtIssuerValidator(issuer));
     }
 
     /** Fetches Keycloak's keys before traffic arrives; a failure here is retried on the first request. */
@@ -72,7 +93,13 @@ public class JwtConfig {
                     throw new JwtException("Invalid JWT signature for algorithm: " + algorithm);
                 }
 
-                return convertToJwt(signedJWT);
+                Jwt jwt = convertToJwt(signedJWT);
+                OAuth2TokenValidatorResult result = tokenValidator.validate(jwt);
+                if (result.hasErrors()) {
+                    throw new JwtValidationException("Invalid JWT: " + result.getErrors().iterator().next()
+                            .getDescription(), result.getErrors());
+                }
+                return jwt;
 
             } catch (ParseException | JOSEException e) {
                 throw new JwtException("Failed to parse or verify the JWT token", e);
@@ -83,7 +110,6 @@ public class JwtConfig {
     private boolean validateToken(SignedJWT signedJWT, JWSAlgorithm algorithm) throws JOSEException {
         return switch (algorithm.getName()) {
             case "RS256" -> validateRS256(signedJWT);
-            case "HS256" -> validateHMAC(signedJWT, "your-secret-key");
             case "EdDSA" -> validateEdDSA(signedJWT);
             case "ES256" -> validateES256(signedJWT);
             default -> throw new JwtException("Unsupported JWT algorithm: " + algorithm.getName());
@@ -114,10 +140,6 @@ public class JwtConfig {
             RSAPublicKey publicKey = (RSAPublicKey) jwk.toRSAKey().toPublicKey();
             return new RSASSAVerifier(publicKey);
         });
-    }
-
-    private boolean validateHMAC(SignedJWT signedJWT, String secretKey) throws JOSEException {
-        return signedJWT.verify(new MACVerifier(secretKey));
     }
 
     private boolean validateEdDSA(SignedJWT signedJWT) throws JOSEException {

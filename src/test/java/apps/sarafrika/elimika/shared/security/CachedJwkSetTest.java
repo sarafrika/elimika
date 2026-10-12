@@ -30,6 +30,7 @@ class CachedJwkSetTest {
 
     private static final Duration TTL = Duration.ofMinutes(5);
     private static final Duration MIN_REFRESH = Duration.ofSeconds(30);
+    private static final String ISSUER = "https://signin.example.test/realms/elimika";
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-12T08:00:00Z"));
     private final AtomicInteger loads = new AtomicInteger();
@@ -50,7 +51,7 @@ class CachedJwkSetTest {
 
     @Test
     void decoderVerifiesManyTokensWithOneJwksFetch() throws Exception {
-        JwtDecoder decoder = new JwtConfig(cache).jwtDecoder();
+        JwtDecoder decoder = new JwtConfig(cache, JwtConfig.tokenValidator(ISSUER, clock)).jwtDecoder();
 
         for (int i = 0; i < 3; i++) {
             assertThat(decoder.decode(sign(key, "user-" + i)).getSubject()).isEqualTo("user-" + i);
@@ -114,10 +115,11 @@ class CachedJwkSetTest {
         assertThatThrownBy(() -> cache.findByKeyId("kid-1")).isInstanceOf(JwtException.class);
     }
 
-    private static String sign(OctetKeyPair signingKey, String subject) throws Exception {
+    private String sign(OctetKeyPair signingKey, String subject) throws Exception {
         SignedJWT jwt = new SignedJWT(
                 new JWSHeader.Builder(JWSAlgorithm.EdDSA).keyID(signingKey.getKeyID()).build(),
-                new JWTClaimsSet.Builder().subject(subject).build());
+                new JWTClaimsSet.Builder().subject(subject).issuer(ISSUER)
+                        .expirationTime(java.util.Date.from(clock.instant().plusSeconds(300))).build());
         jwt.sign(new Ed25519Signer(signingKey));
         return jwt.serialize();
     }
