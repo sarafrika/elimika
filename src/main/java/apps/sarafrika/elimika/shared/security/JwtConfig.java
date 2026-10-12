@@ -12,24 +12,54 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 
 import java.net.URI;
-import java.net.URL;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
+import java.time.Clock;
+import java.time.Duration;
 
 @Configuration @Slf4j
 public class JwtConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
-    private String jwkUrl;
+    private static final Duration JWK_SET_TTL = Duration.ofMinutes(5);
+    private static final Duration JWK_SET_MIN_REFRESH_INTERVAL = Duration.ofSeconds(30);
+    private static final int JWK_SET_CONNECT_TIMEOUT_MS = 2_000;
+    private static final int JWK_SET_READ_TIMEOUT_MS = 3_000;
+    private static final int JWK_SET_SIZE_LIMIT_BYTES = 512 * 1024;
+
+    private final CachedJwkSet jwkSet;
+
+    @Autowired
+    public JwtConfig(@Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkUrl) {
+        this(new CachedJwkSet(() -> JWKSet.load(URI.create(jwkUrl).toURL(), JWK_SET_CONNECT_TIMEOUT_MS,
+                JWK_SET_READ_TIMEOUT_MS, JWK_SET_SIZE_LIMIT_BYTES), JWK_SET_TTL, JWK_SET_MIN_REFRESH_INTERVAL,
+                Clock.systemUTC()));
+    }
+
+    JwtConfig(CachedJwkSet jwkSet) {
+        this.jwkSet = jwkSet;
+    }
+
+    /** Fetches Keycloak's keys before traffic arrives; a failure here is retried on the first request. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void warmUpJwkSet() {
+        try {
+            jwkSet.warmUp();
+        } catch (RuntimeException e) {
+            log.warn("Could not preload the JWK set; it will be fetched on the first request", e);
+        }
+    }
 
     @Bean
     public JwtDecoder jwtDecoder() {
@@ -103,14 +133,7 @@ public class JwtConfig {
 
     private boolean validateWithJWK(SignedJWT signedJWT, JWKValidator validator) throws JOSEException {
         try {
-            JWKSet jwkSet = JWKSet.load(URI.create(jwkUrl).toURL());
-            String keyId = signedJWT.getHeader().getKeyID();
-
-            JWK jwk = jwkSet.getKeys().stream()
-                    .filter(k -> k.getKeyID().equals(keyId))
-                    .findFirst()
-                    .orElseThrow(() -> new JwtException("No matching public key found for key ID: " + keyId));
-
+            JWK jwk = jwkSet.findByKeyId(signedJWT.getHeader().getKeyID());
             JWSVerifier verifier = validator.createVerifier(jwk);
             return signedJWT.verify(verifier);
 
