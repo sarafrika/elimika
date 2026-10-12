@@ -109,6 +109,8 @@ services:
       SERVER_PORT: "38080"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elimika
       APP_KEYCLOAK_SERVERURL: http://keycloak:8080
+      # Must equal the iss Keycloak stamps (KC_HOSTNAME above), not the internal URL, or every token is refused.
+      JWT_ISSUER_URI: http://localhost:58080/realms/elimika-local
       SEARCH_MEILISEARCH_HOST: http://meilisearch:7700
       STORAGE_PATH: /app/storage
       STORAGE_BASE_URL: http://localhost:38080

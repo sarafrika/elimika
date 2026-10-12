@@ -45,6 +45,7 @@ services:
       MANAGEMENT_SERVER_PORT: "8081"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elimika
       APP_KEYCLOAK_SERVERURL: http://keycloak:8080
+      JWT_ISSUER_URI: http://localhost:58080/realms/elimika-local
       SEARCH_MEILISEARCH_HOST: http://meilisearch:7700
       STORAGE_PATH: /app/storage
       STORAGE_BASE_URL: http://localhost:38080
