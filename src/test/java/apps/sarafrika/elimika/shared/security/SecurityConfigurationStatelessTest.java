@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.shared.security;
 
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
+import com.nimbusds.jose.jwk.JWKSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,7 +81,8 @@ class SecurityConfigurationStatelessTest {
 
         @Bean
         JwtConfig jwtConfig() {
-            return new JwtConfig() {
+            return new JwtConfig(new CachedJwkSet(JWKSet::new, Duration.ofMinutes(5), Duration.ofSeconds(30),
+                    Clock.systemUTC())) {
                 @Override
                 public JwtDecoder jwtDecoder() {
                     return token -> Jwt.withTokenValue(token)
