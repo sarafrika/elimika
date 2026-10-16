@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.controller;
 
+import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
@@ -166,6 +167,20 @@ public class CourseGradeBookController {
                 evaluationDTO.withGrader(domainSecurityService.getCurrentUserUuid())
         );
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedEvaluation, "Gradebook line item rubric evaluation saved successfully"));
+    }
+
+    @Operation(summary = "List line item grade revisions", description = "Every grade given to a learner on a gradebook line item, oldest first, including regrades and earlier attempts.")
+    @GetMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/revisions/{enrollmentUuid}")
+    @PreAuthorize(READ_ENROLLMENT_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseAssessmentGradeRevisionDTO>>> getLineItemRevisions(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID assessmentUuid,
+            @PathVariable UUID lineItemUuid,
+            @PathVariable UUID enrollmentUuid
+    ) {
+        List<CourseAssessmentGradeRevisionDTO> revisions = courseGradeBookService.getLineItemRevisions(
+                courseUuid, assessmentUuid, lineItemUuid, enrollmentUuid);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(revisions, "Grade revisions retrieved successfully"));
     }
 
     @Operation(summary = "Get enrollment gradebook", description = "Returns the weighted gradebook view for a learner in a course.")

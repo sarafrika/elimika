@@ -8,6 +8,8 @@ import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.internal.CourseResultService;
+import apps.sarafrika.elimika.course.internal.GradeRevisionRecorder;
+import apps.sarafrika.elimika.course.repository.CourseAssessmentGradeRevisionRepository;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItem;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItemRubricEvaluation;
@@ -116,6 +118,10 @@ class CourseGradeBookServiceImplTest {
     private ClassDefinitionLookupService classDefinitionLookupService;
     @Mock
     private CourseResultService courseResultService;
+    @Mock
+    private GradeRevisionRecorder gradeRevisionRecorder;
+    @Mock
+    private CourseAssessmentGradeRevisionRepository gradeRevisionRepository;
 
     private CourseGradeBookServiceImpl service;
 
@@ -136,7 +142,9 @@ class CourseGradeBookServiceImplTest {
                 rubricCriteriaRepository,
                 rubricScoringLevelRepository,
                 classDefinitionLookupService,
-                courseResultService
+                courseResultService,
+                gradeRevisionRecorder,
+                gradeRevisionRepository
         );
     }
 

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.course.service;
 
+import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
@@ -51,6 +52,10 @@ public interface CourseGradeBookService {
     );
 
     CourseGradeBookDTO getEnrollmentGradeBook(UUID courseUuid, UUID enrollmentUuid);
+
+    /** Every grade the learner has been given on this line item, oldest first. */
+    List<CourseAssessmentGradeRevisionDTO> getLineItemRevisions(UUID courseUuid, UUID assessmentUuid, UUID lineItemUuid,
+                                                              UUID enrollmentUuid);
 
     void recalculateCourseAssessment(UUID courseUuid, UUID assessmentUuid);
 

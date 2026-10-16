@@ -62,6 +62,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 @Import({CourseGradeBookServiceImpl.class, apps.sarafrika.elimika.course.internal.CourseResultService.class,
+        apps.sarafrika.elimika.course.internal.GradeRevisionRecorder.class,
         GradebookAggregationIntegrationTest.TestConfig.class})
 @DisplayName("Gradebook aggregation of graded quizzes and assignments")
 class GradebookAggregationIntegrationTest {
@@ -181,6 +182,27 @@ class GradebookAggregationIntegrationTest {
         CourseEnrollment reloaded = courseEnrollmentRepository.findByUuid(enrollment.getUuid()).orElseThrow();
         // equal auto-weights: (80% + 90%) / 2 = 85.00%
         assertThat(reloaded.getFinalGrade()).isEqualByComparingTo("85.00");
+    }
+
+    @Test
+    @DisplayName("each quiz attempt synced to the gradebook is kept as its own grade revision")
+    void quizAttemptsAreKeptAsRevisions() {
+        Course course = persistCourse();
+        Lesson lesson = persistLesson(course.getUuid());
+        CourseAssessment assessment = persistAssessment(course.getUuid(), CourseAssessmentAggregationStrategy.POINTS_SUM);
+        Quiz quiz = persistQuiz(lesson.getUuid());
+        CourseEnrollment enrollment = persistEnrollment(course.getUuid());
+
+        gradeBookService.syncQuizAttemptGrade(quiz.getUuid(), enrollment.getUuid(),
+                new BigDecimal("6"), new BigDecimal("10"), null, LocalDateTime.now(), null, AttemptStatus.GRADED);
+        gradeBookService.syncQuizAttemptGrade(quiz.getUuid(), enrollment.getUuid(),
+                new BigDecimal("9"), new BigDecimal("10"), null, LocalDateTime.now(), null, AttemptStatus.GRADED);
+
+        UUID lineItemUuid = lineItemRepository.findByQuizUuid(quiz.getUuid()).orElseThrow().getUuid();
+        assertThat(gradeBookService.getLineItemRevisions(course.getUuid(), assessment.getUuid(), lineItemUuid,
+                enrollment.getUuid()))
+                .extracting(revision -> revision.score().stripTrailingZeros().toPlainString())
+                .containsExactly("6", "9");
     }
 
     private Course persistCourse() {

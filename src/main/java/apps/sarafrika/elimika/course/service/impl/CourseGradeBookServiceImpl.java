@@ -1,5 +1,9 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
+import apps.sarafrika.elimika.course.internal.GradeRevisionRecorder;
+import apps.sarafrika.elimika.course.model.CourseAssessmentGradeRevision;
+import apps.sarafrika.elimika.course.repository.CourseAssessmentGradeRevisionRepository;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationRowDTO;
@@ -59,6 +63,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -97,6 +102,8 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
     private final RubricScoringLevelRepository rubricScoringLevelRepository;
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final CourseResultService courseResultService;
+    private final GradeRevisionRecorder gradeRevisionRecorder;
+    private final CourseAssessmentGradeRevisionRepository gradeRevisionRepository;
 
     @Override
     public CourseAssessmentLineItemDTO createLineItem(UUID courseUuid, UUID assessmentUuid, CourseAssessmentLineItemDTO lineItemDTO) {
@@ -176,7 +183,8 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 scoreDTO.maxScore(),
                 scoreDTO.comments(),
                 scoreDTO.gradedAt(),
-                scoreDTO.gradedByUuid()
+                scoreDTO.gradedByUuid(),
+                null
         );
         recalculateAssessmentForEnrollment(enrollmentUuid, assessment);
         recalculateCourseFinalGrade(enrollment.getCourseUuid(), enrollmentUuid);
@@ -201,6 +209,23 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         }
 
         return buildRubricEvaluationDTO(lineItemUuid, enrollmentUuid, rubricUuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CourseAssessmentGradeRevisionDTO> getLineItemRevisions(
+            UUID courseUuid,
+            UUID assessmentUuid,
+            UUID lineItemUuid,
+            UUID enrollmentUuid
+    ) {
+        getAssessmentOrThrow(courseUuid, assessmentUuid);
+        getLineItemOrThrow(assessmentUuid, lineItemUuid);
+        getEnrollmentOrThrow(courseUuid, enrollmentUuid);
+        return gradeRevisionRepository.findByLineItemUuidAndEnrollmentUuidOrderByRevisionNumberAsc(lineItemUuid, enrollmentUuid)
+                .stream()
+                .map(CourseAssessmentGradeRevisionDTO::from)
+                .toList();
     }
 
     @Override
@@ -262,7 +287,13 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 maxScore,
                 evaluationDTO.comments(),
                 savedEvaluation.getGradedAt(),
-                savedEvaluation.getGradedByUuid()
+                savedEvaluation.getGradedByUuid(),
+                validatedSelections.stream()
+                        .map(selection -> new CourseAssessmentGradeRevision.Criterion(
+                                selection.criteria().getUuid(), selection.criteria().getComponentName(),
+                                selection.scoringLevel().getUuid(), selection.scoringLevel().getName(),
+                                selection.scoringLevel().getPoints(), selection.comments()))
+                        .toList()
         );
         recalculateAssessmentForEnrollment(enrollmentUuid, assessment);
         recalculateCourseFinalGrade(enrollment.getCourseUuid(), enrollmentUuid);
@@ -469,6 +500,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                     ATTENDANCE_MAX_SCORE,
                     buildAttendanceAutoScoreComment(attendanceStatus),
                     markedAt != null ? markedAt : LocalDateTime.now(),
+                    null,
                     null
             );
             recalculateAssessmentForEnrollment(enrollment.getUuid(), attendanceAssessment);
@@ -532,7 +564,8 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             BigDecimal maxScoreValue,
             String comments,
             LocalDateTime gradedAt,
-            UUID gradedByUuid
+            UUID gradedByUuid,
+            List<CourseAssessmentGradeRevision.Criterion> criteria
     ) {
         CourseAssessmentLineItemScore score = lineItemScoreRepository
                 .findByLineItemUuidAndEnrollmentUuid(lineItem.getUuid(), enrollmentUuid)
@@ -544,7 +577,9 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         score.setGradedAt(gradedAt != null ? gradedAt : LocalDateTime.now());
         score.setGradedByUuid(gradedByUuid);
         applyScoreValues(score, scoreValue, maxScoreValue, lineItem.getMaxScore());
-        return lineItemScoreRepository.save(score);
+        CourseAssessmentLineItemScore saved = lineItemScoreRepository.save(score);
+        gradeRevisionRecorder.record(lineItem, saved, criteria);
+        return saved;
     }
 
     /** The session's named lesson when it belongs to the course, else the lesson at the session's position. */
@@ -695,28 +730,34 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         return CourseAssessmentLineItemRubricEvaluationFactory.toDTO(evaluation, rowDTOs);
     }
 
+    /**
+     * Updates criterion rows in place: deleting then re-inserting in one flush breaks the
+     * (evaluation, criterion) unique key, because IDENTITY inserts run before queued deletes.
+     */
     private void persistEvaluationRows(
             UUID evaluationUuid,
             List<ValidatedRubricSelection> validatedSelections
     ) {
-        rubricEvaluationRowRepository.deleteByEvaluationUuid(evaluationUuid);
+        Map<UUID, CourseAssessmentLineItemRubricEvaluationRow> existingByCriteria = rubricEvaluationRowRepository
+                .findByEvaluationUuid(evaluationUuid)
+                .stream()
+                .collect(Collectors.toMap(CourseAssessmentLineItemRubricEvaluationRow::getCriteriaUuid,
+                        Function.identity(), (first, second) -> first, HashMap::new));
         List<CourseAssessmentLineItemRubricEvaluationRow> rows = validatedSelections.stream()
                 .map(selection -> {
-                    CourseAssessmentLineItemRubricEvaluationRowDTO rowDTO = new CourseAssessmentLineItemRubricEvaluationRowDTO(
-                            null,
-                            selection.criteria().getUuid(),
-                            null,
-                            selection.scoringLevel().getUuid(),
-                            null,
-                            selection.scoringLevel().getPoints(),
-                            selection.comments()
-                    );
-                    CourseAssessmentLineItemRubricEvaluationRow row = CourseAssessmentLineItemRubricEvaluationRowFactory.toEntity(rowDTO);
-                    row.setEvaluationUuid(evaluationUuid);
+                    CourseAssessmentLineItemRubricEvaluationRow row = existingByCriteria.remove(selection.criteria().getUuid());
+                    if (row == null) {
+                        row = new CourseAssessmentLineItemRubricEvaluationRow();
+                        row.setEvaluationUuid(evaluationUuid);
+                        row.setCriteriaUuid(selection.criteria().getUuid());
+                    }
+                    row.setScoringLevelUuid(selection.scoringLevel().getUuid());
                     row.setPoints(selection.scoringLevel().getPoints());
+                    row.setComments(selection.comments());
                     return row;
                 })
                 .toList();
+        rubricEvaluationRowRepository.deleteAll(existingByCriteria.values());
         rubricEvaluationRowRepository.saveAll(rows);
     }
 
@@ -854,7 +895,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             return;
         }
 
-        saveLineItemScore(lineItem, enrollmentUuid, scoreValue, maxScoreValue, comments, gradedAt, gradedByUuid);
+        saveLineItemScore(lineItem, enrollmentUuid, scoreValue, maxScoreValue, comments, gradedAt, gradedByUuid, null);
         recalculateAssessmentForEnrollment(enrollmentUuid, assessment);
         recalculateCourseFinalGrade(enrollment.getCourseUuid(), enrollmentUuid);
     }
