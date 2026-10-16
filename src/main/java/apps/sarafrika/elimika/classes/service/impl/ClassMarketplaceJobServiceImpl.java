@@ -1922,6 +1922,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
 
     private void replaceJobResources(UUID jobUuid, List<ClassMarketplaceJobResourceDTO> resources) {
         jobResourceRepository.deleteByJobUuid(jobUuid);
+        // Flush the deletes first: IDENTITY inserts would otherwise hit the (job, resource) unique key.
+        jobResourceRepository.flush();
         if (resources == null || resources.isEmpty()) {
             return;
         }
