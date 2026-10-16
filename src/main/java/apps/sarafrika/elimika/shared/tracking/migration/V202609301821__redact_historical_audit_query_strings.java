@@ -1,4 +1,4 @@
-package db.migration;
+package apps.sarafrika.elimika.shared.tracking.migration;
 
 import apps.sarafrika.elimika.shared.tracking.QueryStringRedactor;
 import java.sql.Connection;

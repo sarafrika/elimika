@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.shared.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import db.migration.V202609301821__redact_historical_audit_query_strings;
+import apps.sarafrika.elimika.shared.tracking.migration.V202609301821__redact_historical_audit_query_strings;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -128,7 +128,7 @@ class AuditQueryStringRedactionMigrationTest {
     private static FluentConfiguration flyway() {
         return Flyway.configure()
                 .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
-                .locations("classpath:db/migration")
+                .locations("classpath:db/migration", "classpath:apps/sarafrika/elimika/shared/tracking/migration")
                 .outOfOrder(true);
     }
 

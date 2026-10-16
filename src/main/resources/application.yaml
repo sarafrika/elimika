@@ -29,6 +29,8 @@ spring:
   # version predates an already-applied migration (out-of-order merges).
   flyway:
     out-of-order: true
+    # Java migrations live in their owning module; SQL ones stay in db/migration.
+    locations: classpath:db/migration,classpath:apps/sarafrika/elimika/shared/tracking/migration
 
   # Mail configuration
   mail:
