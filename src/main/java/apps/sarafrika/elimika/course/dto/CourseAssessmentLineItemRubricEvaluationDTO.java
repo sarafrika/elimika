@@ -27,7 +27,8 @@ public record CourseAssessmentLineItemRubricEvaluationDTO(
         @JsonProperty(value = "rubric_uuid", access = JsonProperty.Access.READ_ONLY)
         UUID rubricUuid,
 
-        @JsonProperty(value = "status", access = JsonProperty.Access.READ_ONLY)
+        @JsonProperty("status")
+        @Schema(description = "Send pending to save an incomplete draft that does not count yet; completed (default) submits it.")
         CourseAssessmentLineItemRubricEvaluationStatus status,
 
         @JsonProperty(value = "attendance_status", access = JsonProperty.Access.READ_ONLY)
@@ -61,6 +62,12 @@ public record CourseAssessmentLineItemRubricEvaluationDTO(
     public CourseAssessmentLineItemRubricEvaluationDTO withGrader(UUID graderUuid) {
         return new CourseAssessmentLineItemRubricEvaluationDTO(uuid, lineItemUuid, enrollmentUuid, rubricUuid, status,
                 attendanceStatus, score, maxScore, percentage, comments, gradedAt, graderUuid, criteriaSelections);
+    }
+
+    /** How a learner sees a draft: as not graded yet, with none of the instructor's work in progress. */
+    public CourseAssessmentLineItemRubricEvaluationDTO asNotYetGraded() {
+        return new CourseAssessmentLineItemRubricEvaluationDTO(uuid, lineItemUuid, enrollmentUuid, rubricUuid, status,
+                attendanceStatus, null, null, null, null, null, null, List.of());
     }
 
     @JsonProperty(value = "evaluation_display", access = JsonProperty.Access.READ_ONLY)

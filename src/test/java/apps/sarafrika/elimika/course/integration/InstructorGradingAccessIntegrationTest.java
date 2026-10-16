@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -218,6 +219,27 @@ class InstructorGradingAccessIntegrationTest {
         void schoolAdminCannotReadPrivateStudent() throws Exception {
             mockMvc.perform(get(gradebookUrl(privateStudentEnrollment)).with(jwt(SCHOOL_ADMIN)))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("Drafts stay with the instructor")
+    class Drafts {
+
+        @Test
+        @DisplayName("the learner sees a draft lesson score as not graded yet")
+        void learnerCannotSeeDraft() throws Exception {
+            String draft = "{\"status\":\"pending\",\"comments\":\"Still assessing pitch\",\"criteria_selections\":[{"
+                    + "\"criteria_uuid\":\"" + criteria.getFirst() + "\",\"scoring_level_uuid\":\"" + topLevelUuid + "\"}]}";
+            mockMvc.perform(put(rubricUrl(ownStudentEnrollment)).with(jwt(SCHOOL_PIANO))
+                    .contentType(MediaType.APPLICATION_JSON).content(draft)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.status").value("pending"))
+                    .andExpect(jsonPath("$.data.criteria_selections.length()").value(1));
+
+            mockMvc.perform(get(rubricUrl(ownStudentEnrollment)).with(jwt("kc-grading-own-student")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.criteria_selections.length()").value(0))
+                    .andExpect(jsonPath("$.data.comments").doesNotExist());
         }
     }
 

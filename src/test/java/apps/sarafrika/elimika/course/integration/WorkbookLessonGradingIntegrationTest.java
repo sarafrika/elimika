@@ -63,6 +63,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Replays the St. Scholastica Term 2 progress-report workbook through the real gradebook.
@@ -254,6 +255,41 @@ class WorkbookLessonGradingIntegrationTest {
             assertThat(saved.maxScore()).isEqualByComparingTo("30");
             assertThat(saved.percentage()).isEqualByComparingTo("100.00");
         }
+
+        @Test
+        @DisplayName("an instructor can save a half-scored lesson as a draft that does not count yet")
+        void partialAssessmentSavesAsDraft() {
+            Setup s = setup(2, descendingLevels(), null);
+            CourseAssessmentLineItemRubricEvaluationDTO draft = draft(s, 4, 4, 5);
+
+            assertThatCode(() -> gradeBookService.upsertLineItemRubricEvaluation(s.course().getUuid(),
+                    s.assessment().getUuid(), s.lessons().getFirst().getUuid(), s.enrollment().getUuid(), draft))
+                    .doesNotThrowAnyException();
+            assertThat(reload(s).getFinalGrade()).isNull();
+        }
+
+        @Test
+        @DisplayName("submitting a draft in full makes it count")
+        void submittedDraftCounts() {
+            Setup s = setup(1, descendingLevels(), null);
+            gradeBookService.upsertLineItemRubricEvaluation(s.course().getUuid(), s.assessment().getUuid(),
+                    s.lessons().getFirst().getUuid(), s.enrollment().getUuid(), draft(s, 4, 4, 5));
+
+            grade(s, 0, 4, 4, 5, 5, 4, 4);
+
+            assertThat(reload(s).getFinalGrade()).isEqualByComparingTo("86.67");
+        }
+
+        @Test
+        @DisplayName("a submitted lesson score cannot be turned back into a draft")
+        void submittedScoreCannotBecomeDraft() {
+            Setup s = setup(1, descendingLevels(), null);
+            grade(s, 0, 4, 4, 5, 5, 4, 4);
+
+            assertThatThrownBy(() -> gradeBookService.upsertLineItemRubricEvaluation(s.course().getUuid(),
+                    s.assessment().getUuid(), s.lessons().getFirst().getUuid(), s.enrollment().getUuid(), draft(s, 2, 2)))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
     }
 
     private CourseAssessmentLineItemRubricEvaluationDTO grade(Setup s, int lessonIndex, int... points) {
@@ -262,6 +298,12 @@ class WorkbookLessonGradingIntegrationTest {
                 LocalDateTime.now(), null, selections(s, points));
         return gradeBookService.upsertLineItemRubricEvaluation(s.course().getUuid(), s.assessment().getUuid(),
                 s.lessons().get(lessonIndex).getUuid(), s.enrollment().getUuid(), dto);
+    }
+
+    private CourseAssessmentLineItemRubricEvaluationDTO draft(Setup s, int... points) {
+        return new CourseAssessmentLineItemRubricEvaluationDTO(null, null, null, null,
+                CourseAssessmentLineItemRubricEvaluationStatus.PENDING, null, null, null, null, "Still assessing pitch",
+                null, null, selections(s, points));
     }
 
     private List<CourseAssessmentLineItemRubricEvaluationRowDTO> selections(Setup s, int... points) {

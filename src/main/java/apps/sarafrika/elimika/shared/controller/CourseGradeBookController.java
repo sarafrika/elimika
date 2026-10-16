@@ -9,6 +9,8 @@ import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
+import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemRubricEvaluationStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -60,6 +62,7 @@ public class CourseGradeBookController {
 
     private final CourseGradeBookService courseGradeBookService;
     private final DomainSecurityService domainSecurityService;
+    private final LearnerAssessmentScope learnerAssessmentScope;
 
     @Operation(summary = "Create gradebook line item", description = "Adds a linked task under a weighted course assessment component.")
     @PostMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items")
@@ -146,6 +149,10 @@ public class CourseGradeBookController {
                 lineItemUuid,
                 enrollmentUuid
         );
+        if (evaluation.status() == CourseAssessmentLineItemRubricEvaluationStatus.PENDING
+                && learnerAssessmentScope.ownsEnrollment(enrollmentUuid)) {
+            evaluation = evaluation.asNotYetGraded();
+        }
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(evaluation, "Gradebook line item rubric evaluation retrieved successfully"));
     }
 

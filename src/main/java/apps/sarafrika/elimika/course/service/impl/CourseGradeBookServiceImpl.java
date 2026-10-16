@@ -175,6 +175,9 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         CourseAssessment assessment = getAssessmentOrThrow(courseUuid, assessmentUuid);
         CourseAssessmentLineItem lineItem = getLineItemOrThrow(assessmentUuid, lineItemUuid);
         CourseEnrollment enrollment = getEnrollmentOrThrow(courseUuid, enrollmentUuid);
+        if (resolveEffectiveRubricUuid(assessment, lineItem) != null) {
+            throw new IllegalArgumentException("This line item is scored with a rubric; record a rubric evaluation instead of a raw score");
+        }
 
         CourseAssessmentLineItemScore savedScore = saveLineItemScore(
                 lineItem,
@@ -248,7 +251,10 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         AssessmentRubric rubric = getRubricOrThrow(rubricUuid);
         List<RubricCriteria> criteria = getRubricCriteria(rubricUuid);
         List<RubricScoringLevel> scoringLevels = getRubricScoringLevels(rubricUuid);
-        List<ValidatedRubricSelection> validatedSelections = validateRubricSelections(criteria, scoringLevels, evaluationDTO);
+        if (evaluationDTO != null && evaluationDTO.status() == CourseAssessmentLineItemRubricEvaluationStatus.PENDING) {
+            return saveDraftEvaluation(lineItemUuid, enrollmentUuid, rubricUuid, criteria, scoringLevels, evaluationDTO);
+        }
+        List<ValidatedRubricSelection> validatedSelections = validateRubricSelections(criteria, scoringLevels, evaluationDTO, true);
 
         BigDecimal score = validatedSelections.stream()
                 .map(selection -> selection.scoringLevel().getPoints())
@@ -761,10 +767,45 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         rubricEvaluationRowRepository.saveAll(rows);
     }
 
-    private List<ValidatedRubricSelection> validateRubricSelections(
+    /**
+     * A draft holds whatever criteria are scored so far and never touches the line item score, so
+     * aggregation and the result still treat the lesson as ungraded. A submitted score stays submitted.
+     */
+    private CourseAssessmentLineItemRubricEvaluationDTO saveDraftEvaluation(
+            UUID lineItemUuid,
+            UUID enrollmentUuid,
+            UUID rubricUuid,
             List<RubricCriteria> criteria,
             List<RubricScoringLevel> scoringLevels,
             CourseAssessmentLineItemRubricEvaluationDTO evaluationDTO
+    ) {
+        List<ValidatedRubricSelection> selections = validateRubricSelections(criteria, scoringLevels, evaluationDTO, false);
+        CourseAssessmentLineItemRubricEvaluation evaluation = rubricEvaluationRepository
+                .findByLineItemUuidAndEnrollmentUuid(lineItemUuid, enrollmentUuid)
+                .orElseGet(CourseAssessmentLineItemRubricEvaluation::new);
+        if (evaluation.getStatus() == CourseAssessmentLineItemRubricEvaluationStatus.COMPLETED) {
+            throw new IllegalArgumentException(
+                    "A submitted lesson score cannot go back to draft; submit the corrected scores instead");
+        }
+        evaluation.setLineItemUuid(lineItemUuid);
+        evaluation.setEnrollmentUuid(enrollmentUuid);
+        evaluation.setRubricUuid(rubricUuid);
+        evaluation.setStatus(CourseAssessmentLineItemRubricEvaluationStatus.PENDING);
+        evaluation.setScore(null);
+        evaluation.setMaxScore(null);
+        evaluation.setPercentage(null);
+        evaluation.setComments(evaluationDTO.comments());
+        evaluation.setGradedByUuid(evaluationDTO.gradedByUuid());
+        CourseAssessmentLineItemRubricEvaluation saved = rubricEvaluationRepository.save(evaluation);
+        persistEvaluationRows(saved.getUuid(), selections);
+        return buildRubricEvaluationDTO(lineItemUuid, enrollmentUuid, rubricUuid);
+    }
+
+    private List<ValidatedRubricSelection> validateRubricSelections(
+            List<RubricCriteria> criteria,
+            List<RubricScoringLevel> scoringLevels,
+            CourseAssessmentLineItemRubricEvaluationDTO evaluationDTO,
+            boolean requireEveryCriterion
     ) {
         if (criteria.isEmpty()) {
             throw new IllegalArgumentException("Rubric evaluations require at least one rubric criterion");
@@ -772,8 +813,13 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         if (scoringLevels.isEmpty()) {
             throw new IllegalArgumentException("Rubric evaluations require at least one rubric scoring level");
         }
-        if (evaluationDTO == null || evaluationDTO.criteriaSelections() == null || evaluationDTO.criteriaSelections().isEmpty()) {
-            throw new IllegalArgumentException("Rubric evaluations require one scoring selection for each criterion");
+        boolean noSelections = evaluationDTO == null || evaluationDTO.criteriaSelections() == null
+                || evaluationDTO.criteriaSelections().isEmpty();
+        if (noSelections) {
+            if (requireEveryCriterion) {
+                throw new IllegalArgumentException("Rubric evaluations require one scoring selection for each criterion");
+            }
+            return List.of();
         }
 
         Map<UUID, RubricCriteria> criteriaByUuid = criteria.stream()
@@ -812,7 +858,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         Set<UUID> selectedCriteriaUuids = validatedSelections.stream()
                 .map(selection -> selection.criteria().getUuid())
                 .collect(Collectors.toSet());
-        if (!selectedCriteriaUuids.equals(expectedCriteriaUuids)) {
+        if (requireEveryCriterion && !selectedCriteriaUuids.equals(expectedCriteriaUuids)) {
             throw new IllegalArgumentException("Rubric evaluations must include exactly one scoring selection for every criterion in the rubric");
         }
 
