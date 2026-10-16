@@ -49,6 +49,21 @@ public class TimetableSecurityService {
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
 
+    /** True when the caller is the instructor scheduled to teach this very session (a substitute included). */
+    public boolean teachesSession(UUID instanceUuid) {
+        if (instanceUuid == null) {
+            return false;
+        }
+        try {
+            return scheduledInstanceRepository.findByUuid(instanceUuid)
+                    .map(instance -> domainSecurityService.isInstructorWithUuid(instance.getInstructorUuid()))
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error checking who teaches scheduled instance {}", instanceUuid, e);
+            return false;
+        }
+    }
+
     /**
      * True when the caller may see the enrolments of one scheduled session.
      *

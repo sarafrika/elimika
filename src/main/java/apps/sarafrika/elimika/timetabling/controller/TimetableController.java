@@ -32,6 +32,15 @@ import java.util.UUID;
 @PreAuthorize("@domainSecurityService.isInstructorOrAdmin()")
 public class TimetableController {
 
+    /** Changing a session belongs to whoever runs its class; the instructor class-level rule alone let anyone. */
+    private static final String MANAGE_SESSION = "@enrollmentVisibilityService.canManageClassOfInstance(#instanceUuid)";
+    /** Running a session (start, end, status) also belongs to the instructor scheduled to teach it. */
+    private static final String RUN_SESSION = MANAGE_SESSION + " or @timetableSecurityService.teachesSession(#instanceUuid)";
+    private static final String OWN_INSTRUCTOR =
+            "@domainSecurityService.isInstructorWithUuid(#instructorUuid) or @domainSecurityService.isPlatformAdmin()";
+    private static final String READ_LEARNER_RECORD = "@enrollmentSecurityService.isOwner(#studentUuid, 'student') or "
+            + "@timetableSecurityService.canReadLearnerRecord(#studentUuid)";
+
     private final TimetableService timetableService;
     private final InstructorTimeHoldService instructorTimeHoldService;
 
@@ -44,6 +53,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input data or scheduling conflict")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class definition or instructor not found")
     @PostMapping("/schedule")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#request.classDefinitionUuid())")
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> scheduleClass(
             @Valid @RequestBody ScheduleRequestDTO request) {
         log.debug("REST request to schedule class for instructor: {} at time: {}", 
@@ -58,6 +68,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid cancellation request")
     @DeleteMapping("/schedule/{instanceUuid}")
+    @PreAuthorize(MANAGE_SESSION)
     public ResponseEntity<ApiResponse<Void>> cancelScheduledClass(
             @Parameter(description = "UUID of the scheduled instance to cancel")
             @PathVariable UUID instanceUuid,
@@ -74,6 +85,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid status value")
     @PatchMapping("/schedule/{instanceUuid}/status")
+    @PreAuthorize(RUN_SESSION)
     public ResponseEntity<ApiResponse<Void>> updateScheduledInstanceStatus(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid,
@@ -104,6 +116,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Linked venue or equipment is not available at the new time")
     @PatchMapping("/schedule/{instanceUuid}/time")
+    @PreAuthorize(MANAGE_SESSION)
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> rescheduleScheduledInstance(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid,
@@ -125,6 +138,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Scheduled instance cannot be started")
     @PostMapping("/schedule/{instanceUuid}/start")
+    @PreAuthorize(RUN_SESSION)
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> startScheduledInstance(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid) {
@@ -139,6 +153,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Scheduled instance cannot be ended")
     @PostMapping("/schedule/{instanceUuid}/end")
+    @PreAuthorize(RUN_SESSION)
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> endScheduledInstance(
             @Parameter(description = "UUID of the scheduled instance")
             @PathVariable UUID instanceUuid) {
@@ -156,6 +171,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Scheduled instance retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Scheduled instance not found")
     @GetMapping("/schedule/{instanceUuid}")
+    @PreAuthorize("@timetableSecurityService.canReadInstanceRoster(#instanceUuid)")
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> getScheduledInstance(
             @Parameter(description = "UUID of the scheduled instance to retrieve")
             @PathVariable UUID instanceUuid) {
@@ -207,7 +223,7 @@ public class TimetableController {
     @Operation(summary = "Get schedule for a specific student within a date range")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Student schedule retrieved successfully")
     @GetMapping("/student/{studentUuid}")
-    @PreAuthorize("@enrollmentSecurityService.isOwner(#studentUuid, 'student') or @domainSecurityService.isInstructorOrAdmin()")
+    @PreAuthorize(READ_LEARNER_RECORD)
     public ResponseEntity<ApiResponse<List<StudentScheduleDTO>>> getStudentSchedule(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,
@@ -243,6 +259,7 @@ public class TimetableController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Block created successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid block request")
     @PostMapping("/instructor/{instructorUuid}/blocks")
+    @PreAuthorize(OWN_INSTRUCTOR)
     public ResponseEntity<ApiResponse<ScheduledInstanceDTO>> blockInstructorTime(
             @Parameter(description = "UUID of the instructor")
             @PathVariable UUID instructorUuid,
@@ -257,7 +274,7 @@ public class TimetableController {
     @Operation(summary = "Check if a student has enrollment conflicts")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Conflict check completed")
     @PostMapping("/student/{studentUuid}/check-conflict")
-    @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")
+    @PreAuthorize(READ_LEARNER_RECORD)
     public ResponseEntity<ApiResponse<Boolean>> checkStudentConflict(
             @Parameter(description = "UUID of the student")
             @PathVariable UUID studentUuid,

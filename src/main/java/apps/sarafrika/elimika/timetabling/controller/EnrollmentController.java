@@ -99,6 +99,11 @@ public class EnrollmentController {
             "@enrollmentSecurityService.isOwner(#studentUuid, 'student') or "
                     + "@timetableSecurityService.canReadClassRoster(#classDefinitionUuid)";
 
+    /** A learner signs themselves up; only whoever runs the class may sign up somebody else. */
+    private static final String ENROL_SELF_OR_CLASS_MANAGER =
+            "@enrollmentSecurityService.isOwner(#request.studentUuid(), 'student') or "
+                    + "@classAccessSecurityService.canManageClass(#request.classDefinitionUuid())";
+
     private final TimetableService timetableService;
     private final EnrollmentVisibilityService enrollmentVisibilityService;
 
@@ -113,7 +118,7 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Payment required before enrollment is permitted")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Student already enrolled")
     @PostMapping
-    @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")
+    @PreAuthorize(ENROL_SELF_OR_CLASS_MANAGER)
     public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> enrollStudent(
             @Valid @RequestBody EnrollmentRequestDTO request) {
         log.debug("REST request to enroll student: {} into class definition: {}",
@@ -128,7 +133,7 @@ public class EnrollmentController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Waitlist disabled or class has available seats")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Class or scheduled instances not found")
     @PostMapping("/waitlist")
-    @PreAuthorize("@domainSecurityService.isStudentOrInstructorOrAdmin()")
+    @PreAuthorize(ENROL_SELF_OR_CLASS_MANAGER)
     public ResponseEntity<ApiResponse<List<EnrollmentDTO>>> joinWaitlist(
             @Valid @RequestBody EnrollmentRequestDTO request) {
         log.debug("REST request to join waitlist for student: {} and class definition: {}",
