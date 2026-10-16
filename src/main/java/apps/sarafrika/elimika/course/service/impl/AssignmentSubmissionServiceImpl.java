@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,7 +83,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
             submission.setStatus(SubmissionStatus.SUBMITTED);
         }
         if (submission.getSubmittedAt() == null) {
-            submission.setSubmittedAt(LocalDateTime.now());
+            submission.setSubmittedAt(LocalDateTime.now(ZoneOffset.UTC));
         }
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
@@ -213,7 +214,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         submission.setMaxScore(maxScore);
         submission.setPercentage(percentage);
         submission.setInstructorComments(comments);
-        submission.setGradedAt(LocalDateTime.now());
+        submission.setGradedAt(LocalDateTime.now(ZoneOffset.UTC));
         submission.setGradedByUuid(domainSecurityService.getCurrentUserUuid());
         submission.setStatus(SubmissionStatus.GRADED);
 
@@ -238,7 +239,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
 
         submission.setInstructorComments(feedback);
         submission.setStatus(SubmissionStatus.RETURNED);
-        submission.setGradedAt(LocalDateTime.now());
+        submission.setGradedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
         return AssignmentSubmissionFactory.toDTO(savedSubmission);
@@ -415,7 +416,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
 
         existingSubmission.setSubmissionText(request.submissionText());
         existingSubmission.setFileUrls(request.fileUrls());
-        existingSubmission.setSubmittedAt(LocalDateTime.now());
+        existingSubmission.setSubmittedAt(LocalDateTime.now(ZoneOffset.UTC));
         existingSubmission.setStatus(SubmissionStatus.SUBMITTED);
         existingSubmission.setScore(null);
         existingSubmission.setMaxScore(null);
@@ -434,7 +435,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         submission.setAssignmentUuid(assignmentUuid);
         submission.setSubmissionText(request.submissionText());
         submission.setFileUrls(request.fileUrls());
-        submission.setSubmittedAt(LocalDateTime.now());
+        submission.setSubmittedAt(LocalDateTime.now(ZoneOffset.UTC));
         submission.setStatus(SubmissionStatus.SUBMITTED);
         return submission;
     }

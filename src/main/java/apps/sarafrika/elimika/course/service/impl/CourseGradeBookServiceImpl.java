@@ -66,6 +66,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -290,7 +291,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         evaluation.setMaxScore(maxScore);
         evaluation.setPercentage(percentage);
         evaluation.setComments(evaluationDTO.comments());
-        evaluation.setGradedAt(evaluationDTO.gradedAt() != null ? evaluationDTO.gradedAt() : LocalDateTime.now());
+        evaluation.setGradedAt(evaluationDTO.gradedAt() != null ? evaluationDTO.gradedAt() : LocalDateTime.now(ZoneOffset.UTC));
         evaluation.setGradedByUuid(evaluationDTO.gradedByUuid());
 
         CourseAssessmentLineItemRubricEvaluation savedEvaluation = rubricEvaluationRepository.save(evaluation);
@@ -611,7 +612,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                     attendanceScore,
                     ATTENDANCE_MAX_SCORE,
                     buildAttendanceAutoScoreComment(attendanceStatus),
-                    markedAt != null ? markedAt : LocalDateTime.now(),
+                    markedAt != null ? markedAt : LocalDateTime.now(ZoneOffset.UTC),
                     null,
                     null
             );
@@ -686,7 +687,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         score.setLineItemUuid(lineItem.getUuid());
         score.setEnrollmentUuid(enrollmentUuid);
         score.setComments(comments);
-        score.setGradedAt(gradedAt != null ? gradedAt : LocalDateTime.now());
+        score.setGradedAt(gradedAt != null ? gradedAt : LocalDateTime.now(ZoneOffset.UTC));
         score.setGradedByUuid(gradedByUuid);
         applyScoreValues(score, scoreValue, maxScoreValue, lineItem.getMaxScore());
         CourseAssessmentLineItemScore saved = lineItemScoreRepository.save(score);

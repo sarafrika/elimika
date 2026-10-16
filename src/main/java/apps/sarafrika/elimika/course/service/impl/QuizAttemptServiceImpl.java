@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
@@ -51,7 +52,7 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
             attempt.setStatus(AttemptStatus.IN_PROGRESS);
         }
         if (attempt.getStartedAt() == null) {
-            attempt.setStartedAt(LocalDateTime.now());
+            attempt.setStartedAt(LocalDateTime.now(ZoneOffset.UTC));
         }
 
         QuizAttempt savedAttempt = quizAttemptRepository.save(attempt);
