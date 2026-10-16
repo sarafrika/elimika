@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.course.integration;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationRowDTO;
+import apps.sarafrika.elimika.course.dto.CourseEnrollmentFeedbackDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBandDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Course;
@@ -290,6 +292,42 @@ class WorkbookLessonGradingIntegrationTest {
                     s.assessment().getUuid(), s.lessons().getFirst().getUuid(), s.enrollment().getUuid(), draft(s, 2, 2)))
                     .isInstanceOf(IllegalArgumentException.class);
         }
+
+        @Test
+        @DisplayName("the gradebook returns the final grade label from the course's bands (Drums D4: 27.5/30 = 91.67% is Merit)")
+        void gradebookExposesFinalGradeLabel() {
+            Setup s = setup(6, descendingLevels(), null);
+            gradeBookService.replaceGradeBands(s.course().getUuid(), List.of(
+                    band("Distinction", "93.33"), band("Merit", "80.00"), band("Pass", "60.00"),
+                    band("Fail", "40.00"), band("No Effort", "0.00")));
+            int[][] lessons = {
+                    {5, 5, 5, 5, 5, 4}, {5, 5, 5, 5, 4, 5}, {5, 4, 5, 5, 5, 5},
+                    {5, 5, 5, 5, 5, 5}, {5, 4, 4, 5, 4, 5}, {4, 3, 4, 3, 3, 4}};
+            for (int i = 0; i < lessons.length; i++) {
+                grade(s, i, lessons[i]);
+            }
+
+            CourseGradeBookDTO gradebook = gradeBookService.getEnrollmentGradeBook(s.course().getUuid(), s.enrollment().getUuid());
+            assertThat(gradebook.finalGrade()).isEqualByComparingTo("91.67");
+            assertThat(gradebook.finalGradeLabel()).isEqualTo("Merit");
+            assertThat(gradebook.components().getFirst().averageLineItemScore()).isEqualByComparingTo("27.50");
+            assertThat(gradebook.components().getFirst().lineItemMaxScore()).isEqualByComparingTo("30");
+        }
+
+        @Test
+        @DisplayName("the gradebook carries the instructor's latest overall comment and keeps earlier ones (workbook INSTRUCTOR COMMENTS)")
+        void gradebookExposesInstructorComments() {
+            Setup s = setup(1, descendingLevels(), null);
+            gradeBookService.addEnrollmentFeedback(s.course().getUuid(), s.enrollment().getUuid(), "Work on finger speed", null);
+            gradeBookService.addEnrollmentFeedback(s.course().getUuid(), s.enrollment().getUuid(),
+                    "Amazing and a hardworking student", null);
+
+            assertThat(gradeBookService.getEnrollmentGradeBook(s.course().getUuid(), s.enrollment().getUuid())
+                    .instructorComments()).isEqualTo("Amazing and a hardworking student");
+            assertThat(gradeBookService.getEnrollmentFeedback(s.course().getUuid(), s.enrollment().getUuid()))
+                    .extracting(CourseEnrollmentFeedbackDTO::comments)
+                    .containsExactly("Amazing and a hardworking student", "Work on finger speed");
+        }
     }
 
     private CourseAssessmentLineItemRubricEvaluationDTO grade(Setup s, int lessonIndex, int... points) {
@@ -298,6 +336,10 @@ class WorkbookLessonGradingIntegrationTest {
                 LocalDateTime.now(), null, selections(s, points));
         return gradeBookService.upsertLineItemRubricEvaluation(s.course().getUuid(), s.assessment().getUuid(),
                 s.lessons().get(lessonIndex).getUuid(), s.enrollment().getUuid(), dto);
+    }
+
+    private static CourseGradeBandDTO band(String name, String minPercentage) {
+        return new CourseGradeBandDTO(null, null, name, new BigDecimal(minPercentage), null);
     }
 
     private CourseAssessmentLineItemRubricEvaluationDTO draft(Setup s, int... points) {

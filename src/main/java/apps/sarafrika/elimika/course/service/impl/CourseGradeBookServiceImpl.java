@@ -1,5 +1,12 @@
 package apps.sarafrika.elimika.course.service.impl;
 
+import apps.sarafrika.elimika.course.dto.CourseEnrollmentFeedbackDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBandDTO;
+import apps.sarafrika.elimika.course.internal.GradeBands;
+import apps.sarafrika.elimika.course.model.CourseEnrollmentFeedback;
+import apps.sarafrika.elimika.course.model.CourseGradeBand;
+import apps.sarafrika.elimika.course.repository.CourseEnrollmentFeedbackRepository;
+import apps.sarafrika.elimika.course.repository.CourseGradeBandRepository;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
 import apps.sarafrika.elimika.course.internal.GradeRevisionRecorder;
 import apps.sarafrika.elimika.course.model.CourseAssessmentGradeRevision;
@@ -65,6 +72,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -104,6 +112,8 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
     private final CourseResultService courseResultService;
     private final GradeRevisionRecorder gradeRevisionRecorder;
     private final CourseAssessmentGradeRevisionRepository gradeRevisionRepository;
+    private final CourseGradeBandRepository gradeBandRepository;
+    private final CourseEnrollmentFeedbackRepository enrollmentFeedbackRepository;
 
     @Override
     public CourseAssessmentLineItemDTO createLineItem(UUID courseUuid, UUID assessmentUuid, CourseAssessmentLineItemDTO lineItemDTO) {
@@ -311,14 +321,21 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
     @Transactional(readOnly = true)
     public CourseGradeBookDTO getEnrollmentGradeBook(UUID courseUuid, UUID enrollmentUuid) {
         CourseEnrollment enrollment = getEnrollmentOrThrow(courseUuid, enrollmentUuid);
-        List<CourseAssessment> assessments = courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid);
+        // Inactive components and line items count for nothing in the final grade, so they are left out here too.
+        List<CourseAssessment> assessments = courseAssessmentRepository.findByCourseUuidOrderByCreatedDateAsc(courseUuid)
+                .stream()
+                .filter(assessment -> !Boolean.FALSE.equals(assessment.getActive()))
+                .toList();
         List<UUID> assessmentUuids = assessments.stream()
                 .map(CourseAssessment::getUuid)
                 .toList();
 
         List<CourseAssessmentLineItem> lineItems = assessmentUuids.isEmpty()
                 ? List.of()
-                : lineItemRepository.findByCourseAssessmentUuidInOrderByDisplayOrderAscCreatedDateAsc(assessmentUuids);
+                : lineItemRepository.findByCourseAssessmentUuidInOrderByDisplayOrderAscCreatedDateAsc(assessmentUuids)
+                .stream()
+                .filter(lineItem -> !Boolean.FALSE.equals(lineItem.getActive()))
+                .toList();
         Map<UUID, List<CourseAssessmentLineItem>> lineItemsByAssessment = lineItems.stream()
                 .collect(Collectors.groupingBy(
                         CourseAssessmentLineItem::getCourseAssessmentUuid,
@@ -370,10 +387,19 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            List<CourseAssessmentLineItemScore> gradedScores = lineItemsByAssessment
+                    .getOrDefault(assessment.getUuid(), List.of())
+                    .stream()
+                    .map(lineItem -> lineItemScoresByItemUuid.get(lineItem.getUuid()))
+                    .filter(score -> score != null && score.getScore() != null)
+                    .toList();
+
             components.add(new CourseGradeBookDTO.ComponentDTO(
                     CourseAssessmentFactory.toDTO(assessment),
                     CourseAssessmentScoreFactory.toDTO(aggregateScore),
                     lineItemWeightTotal,
+                    averageScore(gradedScores),
+                    sharedMaxScore(gradedScores),
                     entries
             ));
         }
@@ -382,12 +408,92 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 enrollment.getCourseUuid(),
                 enrollment.getUuid(),
                 enrollment.getFinalGrade(),
+                GradeBands.labelFor(gradeBandRepository.findByCourseUuidOrderByMinPercentageDesc(enrollment.getCourseUuid()),
+                        enrollment.getFinalGrade()),
                 courseResultService.passMarkOf(enrollment.getCourseUuid()),
                 enrollment.getResultStatus(),
+                enrollmentFeedbackRepository.findFirstByEnrollmentUuidOrderByCreatedDateDescIdDesc(enrollment.getUuid())
+                        .map(CourseEnrollmentFeedback::getComments)
+                        .orElse(null),
                 gradedWeightPercentage,
                 configuredWeightPercentage,
                 components
         );
+    }
+
+    private static BigDecimal averageScore(List<CourseAssessmentLineItemScore> gradedScores) {
+        if (gradedScores.isEmpty()) {
+            return null;
+        }
+        return gradedScores.stream()
+                .map(CourseAssessmentLineItemScore::getScore)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(gradedScores.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal sharedMaxScore(List<CourseAssessmentLineItemScore> gradedScores) {
+        List<BigDecimal> maxima = gradedScores.stream()
+                .map(CourseAssessmentLineItemScore::getMaxScore)
+                .filter(Objects::nonNull)
+                .map(BigDecimal::stripTrailingZeros)
+                .distinct()
+                .toList();
+        return maxima.size() == 1 ? maxima.getFirst().setScale(2, RoundingMode.HALF_UP) : null;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CourseGradeBandDTO> getGradeBands(UUID courseUuid) {
+        return gradeBandRepository.findByCourseUuidOrderByMinPercentageDesc(courseUuid).stream()
+                .map(CourseGradeBandDTO::from)
+                .toList();
+    }
+
+    @Override
+    public List<CourseGradeBandDTO> replaceGradeBands(UUID courseUuid, List<CourseGradeBandDTO> bands) {
+        List<CourseGradeBandDTO> requested = bands == null ? List.of() : bands;
+        if (requested.stream().map(band -> band.name().trim().toLowerCase(Locale.ROOT)).distinct().count() != requested.size()
+                || requested.stream().map(band -> band.minPercentage().stripTrailingZeros()).distinct().count() != requested.size()) {
+            throw new IllegalArgumentException("Grade bands need distinct names and distinct minimum percentages");
+        }
+        gradeBandRepository.deleteAllByCourseUuid(courseUuid);
+        List<CourseGradeBand> saved = gradeBandRepository.saveAll(requested.stream()
+                .map(band -> {
+                    CourseGradeBand entity = new CourseGradeBand();
+                    entity.setCourseUuid(courseUuid);
+                    entity.setName(band.name().trim());
+                    entity.setMinPercentage(band.minPercentage().setScale(2, RoundingMode.HALF_UP));
+                    entity.setDisplayOrder(band.displayOrder() != null ? band.displayOrder() : 0);
+                    return entity;
+                })
+                .toList());
+        return saved.stream()
+                .sorted(Comparator.comparing(CourseGradeBand::getMinPercentage).reversed())
+                .map(CourseGradeBandDTO::from)
+                .toList();
+    }
+
+    @Override
+    public CourseEnrollmentFeedbackDTO addEnrollmentFeedback(UUID courseUuid, UUID enrollmentUuid, String comments,
+                                                             UUID authorUserUuid) {
+        getEnrollmentOrThrow(courseUuid, enrollmentUuid);
+        if (comments == null || comments.isBlank()) {
+            throw new IllegalArgumentException("Feedback needs some text");
+        }
+        CourseEnrollmentFeedback feedback = new CourseEnrollmentFeedback();
+        feedback.setEnrollmentUuid(enrollmentUuid);
+        feedback.setComments(comments.trim());
+        feedback.setAuthorUserUuid(authorUserUuid);
+        return CourseEnrollmentFeedbackDTO.from(enrollmentFeedbackRepository.save(feedback));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CourseEnrollmentFeedbackDTO> getEnrollmentFeedback(UUID courseUuid, UUID enrollmentUuid) {
+        getEnrollmentOrThrow(courseUuid, enrollmentUuid);
+        return enrollmentFeedbackRepository.findByEnrollmentUuidOrderByCreatedDateDescIdDesc(enrollmentUuid).stream()
+                .map(CourseEnrollmentFeedbackDTO::from)
+                .toList();
     }
 
     @Override

@@ -22,6 +22,9 @@ public record CourseGradeBookDTO(
 
         @JsonProperty("final_grade")
         BigDecimal finalGrade,
+        @Schema(description = "The course grade band the final grade reaches, e.g. Merit; null when the course has no bands")
+        @JsonProperty("final_grade_label")
+        String finalGradeLabel,
 
         @Schema(description = "Final grade needed to pass; null means completing every required item passes")
         @JsonProperty("pass_mark")
@@ -30,6 +33,9 @@ public record CourseGradeBookDTO(
         @Schema(description = "IN_PROGRESS until every required item is graded, then PASSED or FAILED")
         @JsonProperty("result_status")
         CourseResultStatus resultStatus,
+        @Schema(description = "The newest instructor comment on this learner's progress")
+        @JsonProperty("instructor_comments")
+        String instructorComments,
 
         @JsonProperty("graded_weight_percentage")
         BigDecimal gradedWeightPercentage,
@@ -45,6 +51,10 @@ public record CourseGradeBookDTO(
             @JsonProperty("assessment") CourseAssessmentDTO assessment,
             @JsonProperty("aggregate_score") CourseAssessmentScoreDTO aggregateScore,
             @JsonProperty("configured_line_item_weight_percentage") BigDecimal configuredLineItemWeightPercentage,
+            @Schema(description = "Average score of the graded line items, e.g. 27.5 for lessons out of 30")
+            @JsonProperty("average_line_item_score") BigDecimal averageLineItemScore,
+            @Schema(description = "The shared maximum of the graded line items, e.g. 30; null when they differ")
+            @JsonProperty("line_item_max_score") BigDecimal lineItemMaxScore,
             @JsonProperty("line_items") List<LineItemEntryDTO> lineItems
     ) {
     }

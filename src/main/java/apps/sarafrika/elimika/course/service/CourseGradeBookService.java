@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
+import apps.sarafrika.elimika.course.dto.CourseEnrollmentFeedbackDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBandDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
@@ -52,6 +54,18 @@ public interface CourseGradeBookService {
     );
 
     CourseGradeBookDTO getEnrollmentGradeBook(UUID courseUuid, UUID enrollmentUuid);
+
+    /** The course's grade bands, highest minimum first. */
+    List<CourseGradeBandDTO> getGradeBands(UUID courseUuid);
+
+    /** Replaces the course's grade bands with this set. */
+    List<CourseGradeBandDTO> replaceGradeBands(UUID courseUuid, List<CourseGradeBandDTO> bands);
+
+    /** Appends an instructor comment on the learner's progress; earlier comments are kept. */
+    CourseEnrollmentFeedbackDTO addEnrollmentFeedback(UUID courseUuid, UUID enrollmentUuid, String comments, UUID authorUserUuid);
+
+    /** Every instructor comment on the learner's progress, newest first. */
+    List<CourseEnrollmentFeedbackDTO> getEnrollmentFeedback(UUID courseUuid, UUID enrollmentUuid);
 
     /** Every grade the learner has been given on this line item, oldest first. */
     List<CourseAssessmentGradeRevisionDTO> getLineItemRevisions(UUID courseUuid, UUID assessmentUuid, UUID lineItemUuid,

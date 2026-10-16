@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.course.controller;
 
 import apps.sarafrika.elimika.course.dto.CourseAssessmentGradeRevisionDTO;
+import apps.sarafrika.elimika.course.dto.CourseEnrollmentFeedbackDTO;
+import apps.sarafrika.elimika.course.dto.CourseGradeBandDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
@@ -174,6 +176,52 @@ public class CourseGradeBookController {
                 evaluationDTO.withGrader(domainSecurityService.getCurrentUserUuid())
         );
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedEvaluation, "Gradebook line item rubric evaluation saved successfully"));
+    }
+
+    @Operation(summary = "List course grade bands", description = "The labels the course awards by final grade, highest minimum first.")
+    @GetMapping("/{courseUuid}/grade-bands")
+    @PreAuthorize("@courseSecurityService.canReadCourseContent(#courseUuid) or @domainSecurityService.isPlatformAdmin()")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseGradeBandDTO>>> getGradeBands(
+            @PathVariable UUID courseUuid
+    ) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                courseGradeBookService.getGradeBands(courseUuid), "Grade bands retrieved successfully"));
+    }
+
+    @Operation(summary = "Replace course grade bands", description = "Sets the course's grade bands; an empty list removes them. Only the course author may change grading policy.")
+    @PutMapping("/{courseUuid}/grade-bands")
+    @PreAuthorize("@courseSecurityService.isCourseOwner(#courseUuid) or @domainSecurityService.isPlatformAdmin()")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseGradeBandDTO>>> replaceGradeBands(
+            @PathVariable UUID courseUuid,
+            @Valid @RequestBody List<@Valid CourseGradeBandDTO> bands
+    ) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                courseGradeBookService.replaceGradeBands(courseUuid, bands), "Grade bands saved successfully"));
+    }
+
+    @Operation(summary = "Add instructor feedback", description = "Records the class instructor's comment on a learner's progress. Earlier comments are kept.")
+    @PostMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}/feedback")
+    @PreAuthorize(GRADE_ENROLLMENT_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseEnrollmentFeedbackDTO>> addEnrollmentFeedback(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID enrollmentUuid,
+            @Valid @RequestBody CourseEnrollmentFeedbackDTO feedback
+    ) {
+        CourseEnrollmentFeedbackDTO saved = courseGradeBookService.addEnrollmentFeedback(
+                courseUuid, enrollmentUuid, feedback.comments(), domainSecurityService.getCurrentUserUuid());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(apps.sarafrika.elimika.shared.dto.ApiResponse.success(saved, "Feedback saved successfully"));
+    }
+
+    @Operation(summary = "List instructor feedback", description = "Every instructor comment on a learner's progress, newest first.")
+    @GetMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}/feedback")
+    @PreAuthorize(READ_ENROLLMENT_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<CourseEnrollmentFeedbackDTO>>> getEnrollmentFeedback(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID enrollmentUuid
+    ) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                courseGradeBookService.getEnrollmentFeedback(courseUuid, enrollmentUuid), "Feedback retrieved successfully"));
     }
 
     @Operation(summary = "List line item grade revisions", description = "Every grade given to a learner on a gradebook line item, oldest first, including regrades and earlier attempts.")

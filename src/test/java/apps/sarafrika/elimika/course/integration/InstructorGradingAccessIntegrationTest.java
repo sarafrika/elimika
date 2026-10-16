@@ -28,6 +28,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -215,6 +216,19 @@ class InstructorGradingAccessIntegrationTest {
         }
 
         @Test
+        @DisplayName("the class trainer can leave feedback; a substitute cannot")
+        void onlyTheTrainerLeavesFeedback() throws Exception {
+            String body = "{\"comments\":\"Amazing and a hardworking student\"}";
+            mockMvc.perform(post(gradebookUrl(ownStudentEnrollment) + "/feedback").with(jwt(SCHOOL_PIANO))
+                    .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated());
+            mockMvc.perform(post(gradebookUrl(ownStudentEnrollment) + "/feedback").with(jwt(SUBSTITUTE))
+                    .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+            mockMvc.perform(get(gradebookUrl(ownStudentEnrollment)).with(jwt(SCHOOL_ADMIN)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.instructor_comments").value("Amazing and a hardworking student"));
+        }
+
+        @Test
         @DisplayName("the school's admin cannot read an independent instructor's private student")
         void schoolAdminCannotReadPrivateStudent() throws Exception {
             mockMvc.perform(get(gradebookUrl(privateStudentEnrollment)).with(jwt(SCHOOL_ADMIN)))
@@ -329,7 +343,8 @@ class InstructorGradingAccessIntegrationTest {
     }
 
     private void clean() {
-        jdbc.execute("TRUNCATE course_assessment_line_item_rubric_evaluation_rows, "
+        jdbc.execute("TRUNCATE course_enrollment_feedback, course_assessment_grade_revisions, "
+                + "course_assessment_line_item_rubric_evaluation_rows, "
                 + "course_assessment_line_item_rubric_evaluations, course_assessment_line_item_scores, "
                 + "course_assessment_scores, course_assessment_line_items, course_assessments, rubric_scoring_levels, "
                 + "rubric_criteria, assessment_rubrics, course_enrollments, class_enrollments, scheduled_instances, "

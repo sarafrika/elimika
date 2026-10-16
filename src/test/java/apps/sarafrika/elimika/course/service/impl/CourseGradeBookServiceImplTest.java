@@ -10,6 +10,8 @@ import apps.sarafrika.elimika.course.model.Assignment;
 import apps.sarafrika.elimika.course.internal.CourseResultService;
 import apps.sarafrika.elimika.course.internal.GradeRevisionRecorder;
 import apps.sarafrika.elimika.course.repository.CourseAssessmentGradeRevisionRepository;
+import apps.sarafrika.elimika.course.repository.CourseEnrollmentFeedbackRepository;
+import apps.sarafrika.elimika.course.repository.CourseGradeBandRepository;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItem;
 import apps.sarafrika.elimika.course.model.CourseAssessmentLineItemRubricEvaluation;
@@ -122,6 +124,10 @@ class CourseGradeBookServiceImplTest {
     private GradeRevisionRecorder gradeRevisionRecorder;
     @Mock
     private CourseAssessmentGradeRevisionRepository gradeRevisionRepository;
+    @Mock
+    private CourseGradeBandRepository gradeBandRepository;
+    @Mock
+    private CourseEnrollmentFeedbackRepository enrollmentFeedbackRepository;
 
     private CourseGradeBookServiceImpl service;
 
@@ -144,7 +150,9 @@ class CourseGradeBookServiceImplTest {
                 classDefinitionLookupService,
                 courseResultService,
                 gradeRevisionRecorder,
-                gradeRevisionRepository
+                gradeRevisionRepository,
+                gradeBandRepository,
+                enrollmentFeedbackRepository
         );
     }
 
