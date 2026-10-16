@@ -1,3 +1,21 @@
+# [2.173.0](https://github.com/sarafrika/elimika/compare/v2.172.4...v2.173.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **booking:** place confirmed bookings only in the booking instructor's own class ([a385505](https://github.com/sarafrika/elimika/commit/a385505aad81c3da40c751220f997c23e3ba61c0))
+* **classes:** flush deleted job resources before re-inserting them ([8feb8ed](https://github.com/sarafrika/elimika/commit/8feb8ed67f8fe4d8cbbf2b610a9eeaed7166a731))
+* **course:** derive the rubric maximum from its highest level and criteria count ([ec47eb0](https://github.com/sarafrika/elimika/commit/ec47eb0bde727abd88788b43c3ced201e21a16ae))
+* **course:** let only the learner's class trainer open a submitted quiz attempt for grading ([9043003](https://github.com/sarafrika/elimika/commit/9043003dee2934c4881b2e7a195e2b09cbc160d8))
+* **course:** update rubric rows in place on regrade and keep an append-only history of every grade ([72a3a4d](https://github.com/sarafrika/elimika/commit/72a3a4db2292c5325b18c647ba474a3017eb1939))
+* **security:** restrict grading to the learner's class default instructor and record the grader from the token ([057ea45](https://github.com/sarafrika/elimika/commit/057ea457c99f0154ecafc99600f3fcf1da59e3eb))
+* **timetabling:** require class ownership on session writes, enrolment of others and learner reads ([115fa19](https://github.com/sarafrika/elimika/commit/115fa191989dedd85f7106f716587da927cd3698))
+
+
+### Features
+
+* **course:** save incomplete lesson rubric scores as drafts hidden from the learner ([224a02d](https://github.com/sarafrika/elimika/commit/224a02d399c4d4f9d6060b392a08425860aac771))
+
 ## [2.172.4](https://github.com/sarafrika/elimika/compare/v2.172.3...v2.172.4) (2026-10-12)
 
 
