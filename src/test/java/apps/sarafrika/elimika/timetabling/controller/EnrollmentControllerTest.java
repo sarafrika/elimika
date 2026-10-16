@@ -62,6 +62,8 @@ class EnrollmentControllerTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
         );
 

@@ -79,4 +79,10 @@ public class ScheduledInstance extends BaseEntity {
 
     @Column(name = "concluded_at")
     private LocalDateTime concludedAt;
+
+    @Column(name = "topic_covered")
+    private String topicCovered;
+
+    @Column(name = "instructor_remarks")
+    private String instructorRemarks;
 }

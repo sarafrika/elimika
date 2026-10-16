@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.timetabling.spi.ClassEnrolmentEligibilityDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
+import apps.sarafrika.elimika.timetabling.spi.InstrumentCondition;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
@@ -174,7 +175,7 @@ public class EnrollmentController {
     @Operation(summary = "Mark attendance for a student enrollment")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance marked successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Enrollment not found")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Attendance already marked")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The seat is cancelled, waitlisted or only reserved")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not hold the session this enrolment sits on")
     @PatchMapping("/{enrollmentUuid}/attendance")
     // See cancelEnrollment: the narrower of the two guards proposed for this route is enforced.
@@ -183,11 +184,16 @@ public class EnrollmentController {
             @Parameter(description = "UUID of the enrollment")
             @PathVariable UUID enrollmentUuid,
             @Parameter(description = "Whether the student attended (true) or was absent (false)")
-            @RequestParam boolean attended) {
+            @RequestParam boolean attended,
+            @Parameter(description = "Condition of the learner's instrument: GOOD, NEEDS_REPAIR or NO_EQUIPMENT")
+            @RequestParam(name = "instrument_condition", required = false) String instrumentCondition,
+            @Parameter(description = "The instructor's comment on this learner for the session")
+            @RequestParam(required = false) String comment) {
         log.debug("REST request to mark attendance for enrollment: {} as: {}",
             enrollmentUuid, attended ? "ATTENDED" : "ABSENT");
 
-        timetableService.markAttendance(enrollmentUuid, attended);
+        timetableService.markAttendance(enrollmentUuid, attended, InstrumentCondition.fromValue(instrumentCondition),
+                comment);
         return ResponseEntity.ok(ApiResponse.success(null, "Attendance marked successfully"));
     }
 

@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.SessionRecordDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -108,6 +109,25 @@ public class TimetableController {
             @RequestParam(required = false) UUID lessonUuid) {
         timetableService.assignLesson(instanceUuid, lessonUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "Session lesson updated successfully"));
+    }
+
+    @Operation(summary = "Get what was taught in a session", description = "Topic covered, instructor remarks and duration.")
+    @GetMapping("/schedule/{instanceUuid}/record")
+    @PreAuthorize("@timetableSecurityService.canReadInstanceRoster(#instanceUuid)")
+    public ResponseEntity<ApiResponse<SessionRecordDTO>> getSessionRecord(@PathVariable UUID instanceUuid) {
+        return ResponseEntity.ok(ApiResponse.success(timetableService.getSessionRecord(instanceUuid),
+                "Session record retrieved successfully"));
+    }
+
+    @Operation(summary = "Record what was taught in a session", description = "Saves the topic covered and the instructor's remarks.")
+    @PutMapping("/schedule/{instanceUuid}/record")
+    @PreAuthorize(RUN_SESSION)
+    public ResponseEntity<ApiResponse<SessionRecordDTO>> recordSession(
+            @PathVariable UUID instanceUuid,
+            @Valid @RequestBody SessionRecordDTO record) {
+        return ResponseEntity.ok(ApiResponse.success(
+                timetableService.recordSession(instanceUuid, record.topicCovered(), record.instructorRemarks()),
+                "Session record saved successfully"));
     }
 
     @Operation(summary = "Reschedule a scheduled class instance")

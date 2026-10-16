@@ -26,7 +26,9 @@ public class EnrollmentFactory {
                 entity.getCreatedDate(),
                 entity.getLastModifiedDate(),
                 entity.getCreatedBy(),
-                entity.getLastModifiedBy()
+                entity.getLastModifiedBy(),
+                entity.getInstrumentCondition(),
+                entity.getAttendanceComment()
         );
     }
 

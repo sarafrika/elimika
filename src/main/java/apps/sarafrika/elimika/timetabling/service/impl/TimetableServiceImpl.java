@@ -25,6 +25,8 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.StudentEnrolledEventDTO;
+import apps.sarafrika.elimika.timetabling.spi.InstrumentCondition;
+import apps.sarafrika.elimika.timetabling.spi.SessionRecordDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
@@ -70,11 +72,13 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -87,6 +91,9 @@ import java.util.stream.Collectors;
 @Transactional
 @Slf4j
 public class TimetableServiceImpl implements TimetableService {
+
+    private static final Set<EnrollmentStatus> MARKABLE_STATUSES =
+            EnumSet.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT);
 
     private final ScheduledInstanceRepository scheduledInstanceRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -656,8 +663,14 @@ public class TimetableServiceImpl implements TimetableService {
 
     @Override
     public void markAttendance(UUID enrollmentUuid, boolean attended) {
+        markAttendance(enrollmentUuid, attended, null, null);
+    }
+
+    @Override
+    public void markAttendance(UUID enrollmentUuid, boolean attended, InstrumentCondition instrumentCondition,
+                               String comment) {
         log.debug("Marking attendance for enrollment: {} as: {}", enrollmentUuid, attended ? "ATTENDED" : "ABSENT");
-        
+
         if (enrollmentUuid == null) {
             throw new IllegalArgumentException("Enrollment UUID cannot be null");
         }
@@ -666,12 +679,16 @@ public class TimetableServiceImpl implements TimetableService {
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(ENROLLMENT_NOT_FOUND_TEMPLATE, enrollmentUuid)));
 
-        if (entity.getAttendanceMarkedAt() != null) {
-            throw new IllegalArgumentException("Attendance has already been marked for this enrollment");
+        // A mark can be corrected, but only on a seat the learner actually holds.
+        if (!MARKABLE_STATUSES.contains(entity.getStatus())) {
+            throw new IllegalArgumentException("Attendance can only be marked on an enrolled seat, not one that is "
+                    + entity.getStatus().getValue().toLowerCase(Locale.ROOT));
         }
 
         entity.setStatus(attended ? EnrollmentStatus.ATTENDED : EnrollmentStatus.ABSENT);
-        entity.setAttendanceMarkedAt(LocalDateTime.now());
+        entity.setAttendanceMarkedAt(LocalDateTime.now(ZoneOffset.UTC));
+        entity.setInstrumentCondition(instrumentCondition);
+        entity.setAttendanceComment(comment == null || comment.isBlank() ? null : comment.trim());
         Enrollment savedEntity = enrollmentRepository.save(entity);
 
         // Get scheduled instance details for event
@@ -696,6 +713,37 @@ public class TimetableServiceImpl implements TimetableService {
                 .ifPresent(instance -> publishEnrollmentStatusChanged(savedEntity, instance));
 
         log.debug("Marked attendance for enrollment: {} as: {}", enrollmentUuid, entity.getStatus());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SessionRecordDTO getSessionRecord(UUID instanceUuid) {
+        return toSessionRecord(scheduledInstanceRepository.findByUuid(instanceUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid))));
+    }
+
+    @Override
+    public SessionRecordDTO recordSession(UUID instanceUuid, String topicCovered, String instructorRemarks) {
+        ScheduledInstance instance = scheduledInstanceRepository.findByUuid(instanceUuid)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
+        instance.setTopicCovered(blankToNull(topicCovered));
+        instance.setInstructorRemarks(blankToNull(instructorRemarks));
+        return toSessionRecord(scheduledInstanceRepository.save(instance));
+    }
+
+    private static SessionRecordDTO toSessionRecord(ScheduledInstance instance) {
+        Long minutes = instance.getStartTime() != null && instance.getEndTime() != null
+                ? java.time.Duration.between(instance.getStartTime(), instance.getEndTime()).toMinutes()
+                : null;
+        return new SessionRecordDTO(instance.getUuid(), instance.getLessonUuid(), instance.getTitle(),
+                instance.getTopicCovered(), instance.getInstructorRemarks(), instance.getStartTime(),
+                instance.getEndTime(), minutes);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Override

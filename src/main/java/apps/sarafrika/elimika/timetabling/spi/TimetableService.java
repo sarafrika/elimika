@@ -167,6 +167,15 @@ public interface TimetableService {
      */
     void markAttendance(UUID enrollmentUuid, boolean attended);
 
+    /** Marks or corrects attendance, with the instrument's condition and a comment as on the register. */
+    void markAttendance(UUID enrollmentUuid, boolean attended, InstrumentCondition instrumentCondition, String comment);
+
+    /** What was taught in a session: its recorded topic, remarks and duration. */
+    SessionRecordDTO getSessionRecord(UUID instanceUuid);
+
+    /** Records what was actually taught in a session. */
+    SessionRecordDTO recordSession(UUID instanceUuid, String topicCovered, String instructorRemarks);
+
     // ===== Query Operations =====
 
     /**

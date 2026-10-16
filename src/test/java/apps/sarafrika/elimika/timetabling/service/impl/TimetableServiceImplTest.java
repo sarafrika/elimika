@@ -1204,4 +1204,57 @@ class TimetableServiceImplTest {
         assertThat(timetableService.getEnrollmentsForClass(otherClass)).isEmpty();
         verify(enrollmentRepository, never()).findByClassDefinitionUuid(otherClass);
     }
+
+    // ===== ATTENDANCE CORRECTION AND SESSION RECORD =====
+
+    @Test
+    void attendanceCanBeCorrectedAndKeepsTheInstrumentConditionAndComment() {
+        UUID enrollmentUuid = UUID.randomUUID();
+        apps.sarafrika.elimika.timetabling.model.Enrollment seat = new apps.sarafrika.elimika.timetabling.model.Enrollment();
+        seat.setUuid(enrollmentUuid);
+        seat.setStatus(apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus.ABSENT);
+        seat.setAttendanceMarkedAt(java.time.LocalDateTime.now());
+        when(enrollmentRepository.findByUuid(enrollmentUuid)).thenReturn(java.util.Optional.of(seat));
+        when(enrollmentRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        timetableService.markAttendance(enrollmentUuid, true,
+                apps.sarafrika.elimika.timetabling.spi.InstrumentCondition.NEEDS_REPAIR, "  Loose string  ");
+
+        assertThat(seat.getStatus()).isEqualTo(apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus.ATTENDED);
+        assertThat(seat.getInstrumentCondition())
+                .isEqualTo(apps.sarafrika.elimika.timetabling.spi.InstrumentCondition.NEEDS_REPAIR);
+        assertThat(seat.getAttendanceComment()).isEqualTo("Loose string");
+    }
+
+    @Test
+    void attendanceCannotBeMarkedOnACancelledSeat() {
+        UUID enrollmentUuid = UUID.randomUUID();
+        apps.sarafrika.elimika.timetabling.model.Enrollment seat = new apps.sarafrika.elimika.timetabling.model.Enrollment();
+        seat.setUuid(enrollmentUuid);
+        seat.setStatus(apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus.CANCELLED);
+        when(enrollmentRepository.findByUuid(enrollmentUuid)).thenReturn(java.util.Optional.of(seat));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> timetableService.markAttendance(enrollmentUuid, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cancelled");
+    }
+
+    @Test
+    void aSessionRecordsWhatWasTaughtAndItsDuration() {
+        UUID instanceUuid = UUID.randomUUID();
+        apps.sarafrika.elimika.timetabling.model.ScheduledInstance instance =
+                new apps.sarafrika.elimika.timetabling.model.ScheduledInstance();
+        instance.setUuid(instanceUuid);
+        instance.setStartTime(java.time.LocalDateTime.of(2026, 5, 5, 9, 0));
+        instance.setEndTime(java.time.LocalDateTime.of(2026, 5, 5, 9, 45));
+        when(scheduledInstanceRepository.findByUuid(instanceUuid)).thenReturn(java.util.Optional.of(instance));
+        when(scheduledInstanceRepository.save(instance)).thenReturn(instance);
+
+        apps.sarafrika.elimika.timetabling.spi.SessionRecordDTO record = timetableService.recordSession(instanceUuid,
+                "Grand staff: treble and bass clefs", " ");
+
+        assertThat(record.topicCovered()).isEqualTo("Grand staff: treble and bass clefs");
+        assertThat(record.instructorRemarks()).isNull();
+        assertThat(record.durationMinutes()).isEqualTo(45L);
+    }
 }

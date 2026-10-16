@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.timetabling.model;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.timetabling.util.converter.EnrollmentStatusConverter;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
+import apps.sarafrika.elimika.timetabling.spi.InstrumentCondition;
+import apps.sarafrika.elimika.timetabling.util.converter.InstrumentConditionConverter;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
@@ -49,4 +51,11 @@ public class Enrollment extends BaseEntity {
     
     @Column(name = "attendance_marked_at")
     private LocalDateTime attendanceMarkedAt;
+
+    @Column(name = "instrument_condition")
+    @Convert(converter = InstrumentConditionConverter.class)
+    private InstrumentCondition instrumentCondition;
+
+    @Column(name = "attendance_comment")
+    private String attendanceComment;
 }

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.timetabling.spi;
 
+import apps.sarafrika.elimika.timetabling.spi.InstrumentCondition;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -120,7 +121,17 @@ public record EnrollmentDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(description = "**[READ-ONLY]** Condition of the learner's instrument in this session, noted when attendance is marked.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty(value = "instrument_condition", access = JsonProperty.Access.READ_ONLY)
+        InstrumentCondition instrumentCondition,
+
+        @Schema(description = "**[READ-ONLY]** The instructor's attendance comment for this session.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty(value = "attendance_comment", access = JsonProperty.Access.READ_ONLY)
+        String attendanceComment
 
 ) {
 
