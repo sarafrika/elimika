@@ -255,7 +255,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal maxScore = resolveRubricMaxScore(rubric, criteria, scoringLevels);
+        BigDecimal maxScore = resolveRubricMaxScore(criteria, scoringLevels);
         BigDecimal percentage = score
                 .divide(maxScore, DIVISION_SCALE, RoundingMode.HALF_UP)
                 .multiply(ONE_HUNDRED)
@@ -660,7 +660,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         }
 
         AssessmentRubric rubric = getRubricOrThrow(rubricUuid);
-        return resolveRubricMaxScore(rubric, getRubricCriteria(rubricUuid), getRubricScoringLevels(rubricUuid));
+        return resolveRubricMaxScore(getRubricCriteria(rubricUuid), getRubricScoringLevels(rubricUuid));
     }
 
     private String buildAttendanceLineItemTitle(String classTitle, LocalDateTime markedAt, UUID scheduledInstanceUuid) {
@@ -838,24 +838,20 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         return rubricScoringLevelRepository.findByRubricUuidOrderByLevelOrder(rubricUuid);
     }
 
+    /** Highest level's points × criteria, whatever order the levels are listed in or a stale stored maximum. */
     private BigDecimal resolveRubricMaxScore(
-            AssessmentRubric rubric,
             List<RubricCriteria> criteria,
             List<RubricScoringLevel> scoringLevels
     ) {
-        if (rubric.getMaxScore() != null && rubric.getMaxScore().compareTo(BigDecimal.ZERO) > 0) {
-            return rubric.getMaxScore().setScale(2, RoundingMode.HALF_UP);
-        }
-
-        RubricScoringLevel highestScoringLevel = scoringLevels.stream()
-                .min(Comparator.comparing(RubricScoringLevel::getLevelOrder, Comparator.nullsLast(Integer::compareTo))
-                        .thenComparing(RubricScoringLevel::getCreatedDate, Comparator.nullsLast(LocalDateTime::compareTo)))
+        BigDecimal highestPoints = scoringLevels.stream()
+                .map(RubricScoringLevel::getPoints)
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
                 .orElse(null);
-        if (highestScoringLevel == null || highestScoringLevel.getPoints() == null || criteria.isEmpty()) {
-            throw new IllegalStateException("Cannot determine rubric maximum score without criteria and scoring levels");
+        if (highestPoints == null || highestPoints.signum() <= 0 || criteria.isEmpty()) {
+            throw new IllegalStateException("Cannot determine rubric maximum score without criteria and a positive scoring level");
         }
-
-        return highestScoringLevel.getPoints()
+        return highestPoints
                 .multiply(BigDecimal.valueOf(criteria.size()))
                 .setScale(2, RoundingMode.HALF_UP);
     }
@@ -1057,7 +1053,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
 
     private BigDecimal rubricMaxScore(UUID rubricUuid) {
         AssessmentRubric rubric = getRubricOrThrow(rubricUuid);
-        return resolveRubricMaxScore(rubric, getRubricCriteria(rubricUuid), getRubricScoringLevels(rubricUuid));
+        return resolveRubricMaxScore(getRubricCriteria(rubricUuid), getRubricScoringLevels(rubricUuid));
     }
 
     /**

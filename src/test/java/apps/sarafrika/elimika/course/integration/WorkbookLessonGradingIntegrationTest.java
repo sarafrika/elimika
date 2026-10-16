@@ -230,6 +230,30 @@ class WorkbookLessonGradingIntegrationTest {
             assertThat(revisions.getFirst().criteria()).hasSize(6)
                     .allSatisfy(c -> assertThat(c.points()).isEqualByComparingTo("3"));
         }
+
+        @Test
+        @DisplayName("a 0–5 scale listed lowest-first still gives a lesson out of 30 (workbook allows 0)")
+        void zeroToFiveScaleInAscendingOrder() {
+            Setup s = setup(1, ascendingLevels(), null);
+
+            assertThatCode(() -> grade(s, 0, 4, 0, 5, 5, 4, 4)).doesNotThrowAnyException();
+            CourseAssessmentLineItemRubricEvaluationDTO saved =
+                    gradeBookService.getLineItemRubricEvaluation(s.course().getUuid(), s.assessment().getUuid(),
+                            s.lessons().getFirst().getUuid(), s.enrollment().getUuid());
+            assertThat(saved.score()).isEqualByComparingTo("22");
+            assertThat(saved.maxScore()).isEqualByComparingTo("30");
+        }
+
+        @Test
+        @DisplayName("lesson maximum follows the rubric's six criteria, not a stale stored max_score")
+        void staleRubricMaxScoreIsIgnored() {
+            Setup s = setup(1, descendingLevels(), new BigDecimal("25.00"));
+
+            CourseAssessmentLineItemRubricEvaluationDTO saved = grade(s, 0, 5, 5, 5, 5, 5, 5);
+
+            assertThat(saved.maxScore()).isEqualByComparingTo("30");
+            assertThat(saved.percentage()).isEqualByComparingTo("100.00");
+        }
     }
 
     private CourseAssessmentLineItemRubricEvaluationDTO grade(Setup s, int lessonIndex, int... points) {

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -165,15 +166,14 @@ public class RubricMatrixServiceImpl implements RubricMatrixService {
         BigDecimal minPassingScore = BigDecimal.ZERO;
 
         if (!matrix.scoringLevels().isEmpty() && !matrix.criteria().isEmpty()) {
-            // Find highest scoring level
+            // By points, not level order: a 0–5 scale may be listed lowest-first.
             RubricScoringLevelDTO highestLevel = matrix.scoringLevels().stream()
-                    .min((l1, l2) -> Integer.compare(l1.levelOrder(), l2.levelOrder()))
+                    .filter(level -> level.points() != null)
+                    .max(Comparator.comparing(RubricScoringLevelDTO::points))
                     .orElse(null);
-
-            // Find lowest passing level
             RubricScoringLevelDTO lowestPassingLevel = matrix.scoringLevels().stream()
-                    .filter(level -> Boolean.TRUE.equals(level.isPassing()))
-                    .max((l1, l2) -> Integer.compare(l1.levelOrder(), l2.levelOrder()))
+                    .filter(level -> Boolean.TRUE.equals(level.isPassing()) && level.points() != null)
+                    .min(Comparator.comparing(RubricScoringLevelDTO::points))
                     .orElse(null);
 
             // Equal weight calculation - all criteria are weighted equally
