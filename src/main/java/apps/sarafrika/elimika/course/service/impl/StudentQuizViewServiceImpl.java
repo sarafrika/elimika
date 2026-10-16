@@ -88,7 +88,7 @@ public class StudentQuizViewServiceImpl implements StudentQuizViewService {
         }
         // Students may only review graded attempts. Staff who mark this course may also open a
         // submitted (pending) attempt so they can read and grade its text responses.
-        boolean canReviewPending = accessValidator.marksCourse(enrollment.getCourseUuid());
+        boolean canReviewPending = accessValidator.gradesEnrollment(enrollment.getCourseUuid(), enrollment.getUuid());
         if (attempt.getStatus() == AttemptStatus.IN_PROGRESS
                 || (attempt.getStatus() != AttemptStatus.GRADED && !canReviewPending)) {
             throw new IllegalStateException("Quiz review is available only after the attempt has been graded.");

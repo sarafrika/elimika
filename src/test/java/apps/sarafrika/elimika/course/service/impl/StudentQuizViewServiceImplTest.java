@@ -131,7 +131,7 @@ class StudentQuizViewServiceImplTest {
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
         when(domainSecurityService.getCurrentStudentUuid()).thenReturn(UUID.randomUUID());
-        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(false);
+        when(courseSecurityService.canGradeEnrollment(courseUuid, enrollmentUuid)).thenReturn(false);
 
         assertThatThrownBy(() -> service.getStudentQuiz(quizUuid, enrollmentUuid))
                 .isInstanceOf(AccessDeniedException.class)
@@ -206,8 +206,8 @@ class StudentQuizViewServiceImplTest {
         UUID responseUuid = UUID.randomUUID();
 
         stubQuizCourseAndEnrollment(quizUuid, lessonUuid, courseUuid, enrollmentUuid, studentUuid);
-        // Marking this course is what lets staff open a learner's attempt; the domain alone is not.
-        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(true);
+        // Being this learner's class trainer is what lets staff open their attempt; the domain alone is not.
+        when(courseSecurityService.canGradeEnrollment(courseUuid, enrollmentUuid)).thenReturn(true);
         when(quizAttemptRepository.findByUuid(attemptUuid))
                 .thenReturn(Optional.of(attempt(attemptUuid, quizUuid, enrollmentUuid, AttemptStatus.SUBMITTED)));
         when(quizResponseRepository.findByAttemptUuid(attemptUuid))

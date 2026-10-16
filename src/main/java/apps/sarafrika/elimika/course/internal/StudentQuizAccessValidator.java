@@ -63,16 +63,11 @@ public class StudentQuizAccessValidator {
     }
 
     /**
-     * Whether the caller marks this course, and so may open a submitted-but-ungraded attempt in
-     * order to grade its text responses — which the learner who sat it may not do.
-     * <p>
-     * Asked per course rather than per role. Holding the instructor or course_creator domain says
-     * only that the caller teaches <em>somewhere</em>, and an ungraded attempt shows the correct
-     * answers alongside the learner's, so a platform-wide test would hand every instructor every
-     * course's answer key the moment a learner submitted.
+     * Whether the caller grades this learner, and so may open a submitted-but-ungraded attempt to
+     * mark its text responses. The answers show beside the key, so it is the learner's class trainer only.
      */
-    public boolean marksCourse(UUID courseUuid) {
-        return courseSecurityService.canManageCourseGradebook(courseUuid)
+    public boolean gradesEnrollment(UUID courseUuid, UUID enrollmentUuid) {
+        return courseSecurityService.canGradeEnrollment(courseUuid, enrollmentUuid)
                 || domainSecurityService.isPlatformAdmin();
     }
 }
