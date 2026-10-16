@@ -43,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.EnumSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -469,24 +470,13 @@ public class BookingServiceImpl implements BookingService {
                 .filter(definition -> booking.getInstructorUuid().equals(definition.defaultInstructorUuid()))
                 .toList();
 
-        if (instructorMatches.size() == 1) {
-            return instructorMatches.get(0);
-        }
-        if (instructorMatches.isEmpty() && classDefinitions.size() == 1) {
-            ClassDefinitionDTO classDefinition = classDefinitions.get(0).classDefinition();
-            if (classDefinition == null) {
-                throw new IllegalStateException("Class definition details missing for course " + booking.getCourseUuid());
-            }
-            return classDefinition;
-        }
-        if (!instructorMatches.isEmpty()) {
-            throw new IllegalStateException(
-                    "Multiple active class definitions found for course " + booking.getCourseUuid()
-                            + " and instructor " + booking.getInstructorUuid());
-        }
-        throw new IllegalStateException(
-                "Multiple active class definitions found for course " + booking.getCourseUuid()
-                        + " without a matching instructor " + booking.getInstructorUuid());
+        // A private booking belongs in the booking instructor's own class, never in somebody else's.
+        return instructorMatches.stream()
+                .min(Comparator.comparing((ClassDefinitionDTO definition) -> definition.organisationUuid() != null)
+                        .thenComparing(ClassDefinitionDTO::createdDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .orElseThrow(() -> new IllegalStateException(
+                        "Instructor " + booking.getInstructorUuid() + " has no active class for course "
+                                + booking.getCourseUuid() + "; create one before confirming the booking"));
     }
 
     private void enforceCourseApproval(UUID courseUuid) {
