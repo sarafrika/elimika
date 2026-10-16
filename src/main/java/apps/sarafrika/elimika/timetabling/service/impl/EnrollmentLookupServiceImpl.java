@@ -130,6 +130,30 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
         return new LinkedHashSet<>(enrollmentRepository.findDistinctStudentUuidsTaughtByInstructor(instructorUuid));
     }
 
+    @Override
+    public boolean isDefaultInstructorOfStudentForCourse(UUID instructorUuid, UUID studentUuid, UUID courseUuid) {
+        if (instructorUuid == null || studentUuid == null || courseUuid == null) {
+            return false;
+        }
+        return enrollmentRepository.isDefaultInstructorOfStudentForCourse(instructorUuid, studentUuid, courseUuid);
+    }
+
+    @Override
+    public boolean isClassInstructorOfStudentForCourse(UUID instructorUuid, UUID studentUuid, UUID courseUuid) {
+        if (instructorUuid == null || studentUuid == null || courseUuid == null) {
+            return false;
+        }
+        return enrollmentRepository.isClassInstructorOfStudentForCourse(instructorUuid, studentUuid, courseUuid);
+    }
+
+    @Override
+    public Set<UUID> findClassOrganisationsOfStudentForCourse(UUID studentUuid, UUID courseUuid) {
+        if (studentUuid == null || courseUuid == null) {
+            return Set.of();
+        }
+        return new LinkedHashSet<>(enrollmentRepository.findClassOrganisationsOfStudentForCourse(studentUuid, courseUuid));
+    }
+
     private static Collection<UUID> sanitise(Collection<UUID> classDefinitionUuids) {
         if (classDefinitionUuids == null || classDefinitionUuids.isEmpty()) {
             return List.of();

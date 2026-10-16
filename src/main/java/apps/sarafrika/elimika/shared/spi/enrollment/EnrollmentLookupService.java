@@ -128,4 +128,13 @@ public interface EnrollmentLookupService {
      * @return the distinct student profile identifiers, never null
      */
     Set<UUID> findStudentUuidsTaughtByInstructor(UUID instructorUuid);
+
+    /** True when the instructor is the default instructor of a live class the learner takes this course in. */
+    boolean isDefaultInstructorOfStudentForCourse(UUID instructorUuid, UUID studentUuid, UUID courseUuid);
+
+    /** As above, but also true for an instructor scheduled on any session of such a class. */
+    boolean isClassInstructorOfStudentForCourse(UUID instructorUuid, UUID studentUuid, UUID courseUuid);
+
+    /** Organisations owning a live class the learner takes this course in. */
+    Set<UUID> findClassOrganisationsOfStudentForCourse(UUID studentUuid, UUID courseUuid);
 }

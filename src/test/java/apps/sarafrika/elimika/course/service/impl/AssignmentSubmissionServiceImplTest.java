@@ -20,6 +20,7 @@ import apps.sarafrika.elimika.course.util.enums.SubmissionStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,6 +70,8 @@ class AssignmentSubmissionServiceImplTest {
     private CourseSecuritySpi courseSecurityService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private EnrollmentLookupService enrollmentLookupService;
 
     private AssignmentSubmissionServiceImpl service;
 
@@ -85,7 +88,8 @@ class AssignmentSubmissionServiceImplTest {
                 domainSecurityService,
                 learnerAssessmentScope,
                 courseSecurityService,
-                eventPublisher
+                eventPublisher,
+                enrollmentLookupService
         );
     }
 

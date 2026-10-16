@@ -24,6 +24,7 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramRequirementRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.repository.projection.MaterialCourseView;
@@ -35,6 +36,7 @@ import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
@@ -105,6 +107,8 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
     private final DomainSecurityService domainSecurityService;
     private final TeachingOrganisations teachingOrganisations;
     private final RequestScopedCache requestScopedCache;
+    private final QuizAttemptRepository quizAttemptRepository;
+    private final EnrollmentLookupService enrollmentLookupService;
 
     /**
      * Checks if the currently authenticated user is the owner of the specified course.
@@ -398,6 +402,95 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
             log.error("Error binding submission {} to assignment {}", submissionUuid, assignmentUuid, e);
             return false;
         }
+    }
+
+    /**
+     * Approval to train the course is not enough: a learner is marked only by the default
+     * instructor of the class they sit in. Platform admins are granted at the endpoint.
+     */
+    @Override
+    public boolean canGradeEnrollment(UUID courseUuid, UUID enrollmentUuid) {
+        return enrolmentStudent(courseUuid, enrollmentUuid)
+                .map(studentUuid -> enrollmentLookupService.isDefaultInstructorOfStudentForCourse(
+                        domainSecurityService.getCurrentInstructorUuid(), studentUuid, courseUuid))
+                .orElse(false);
+    }
+
+    /**
+     * Readers are the people around the learner's class: its instructors (substitutes included),
+     * managers of the organisation that owns it, the course author, and the learner.
+     */
+    @Override
+    public boolean canReadEnrollmentGrades(UUID courseUuid, UUID enrollmentUuid) {
+        Optional<UUID> student = enrolmentStudent(courseUuid, enrollmentUuid);
+        if (student.isEmpty()) {
+            return false;
+        }
+        UUID studentUuid = student.get();
+        if (domainSecurityService.isStudentWithUuid(studentUuid) || isCourseOwner(courseUuid)) {
+            return true;
+        }
+        try {
+            if (enrollmentLookupService.isClassInstructorOfStudentForCourse(
+                    domainSecurityService.getCurrentInstructorUuid(), studentUuid, courseUuid)) {
+                return true;
+            }
+            UUID userUuid = currentUserUuid();
+            return userUuid != null && enrollmentLookupService
+                    .findClassOrganisationsOfStudentForCourse(studentUuid, courseUuid).stream()
+                    .anyMatch(organisationUuid -> managesOrganisation(userUuid, organisationUuid));
+        } catch (Exception e) {
+            log.error("Error resolving grade readers for enrolment {}", enrollmentUuid, e);
+            return false;
+        }
+    }
+
+    /** Grading counterpart of {@link #canManageAssignmentSubmission}: the submitter's class trainer only. */
+    public boolean canGradeAssignmentSubmission(UUID assignmentUuid, UUID submissionUuid) {
+        if (!canManageAssignmentSubmission(assignmentUuid, submissionUuid)) {
+            return false;
+        }
+        return materialCourse(CACHE_ASSIGNMENT_COURSE, assignmentUuid, assignmentRepository::findCourseViewByUuid)
+                .flatMap(material -> assignmentSubmissionRepository.findByUuid(submissionUuid)
+                        .map(submission -> canGradeEnrollment(material.courseUuid(), submission.getEnrollmentUuid())))
+                .orElse(false);
+    }
+
+    /** True when the attempt is on this quiz and the caller is the attempting learner's class trainer. */
+    public boolean canGradeQuizAttempt(UUID quizUuid, UUID attemptUuid) {
+        if (quizUuid == null || attemptUuid == null || !canManageQuiz(quizUuid)) {
+            return false;
+        }
+        try {
+            return materialCourse(CACHE_QUIZ_COURSE, quizUuid, quizRepository::findCourseViewByUuid)
+                    .flatMap(material -> quizAttemptRepository.findByUuid(attemptUuid)
+                            .filter(attempt -> quizUuid.equals(attempt.getQuizUuid()))
+                            .map(attempt -> canGradeEnrollment(material.courseUuid(), attempt.getEnrollmentUuid())))
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error binding attempt {} to quiz {}", attemptUuid, quizUuid, e);
+            return false;
+        }
+    }
+
+    /** The learner behind a course enrolment, only when the enrolment belongs to this course. */
+    private Optional<UUID> enrolmentStudent(UUID courseUuid, UUID enrollmentUuid) {
+        if (courseUuid == null || enrollmentUuid == null) {
+            return Optional.empty();
+        }
+        try {
+            return courseEnrollmentRepository.findByUuidAndCourseUuid(enrollmentUuid, courseUuid)
+                    .map(enrollment -> enrollment.getStudentUuid());
+        } catch (Exception e) {
+            log.error("Error loading enrolment {} for course {}", enrollmentUuid, courseUuid, e);
+            return Optional.empty();
+        }
+    }
+
+    /** Organisation managers only; an org's instructors read through their own classes instead. */
+    private boolean managesOrganisation(UUID userUuid, UUID organisationUuid) {
+        return userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, UserDomain.organisation_user)
+                || userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, UserDomain.admin);
     }
 
     /**

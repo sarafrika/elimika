@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.internal.security;
 import apps.sarafrika.elimika.course.model.AssignmentSubmission;
 import apps.sarafrika.elimika.course.model.Certificate;
 import apps.sarafrika.elimika.course.model.Course;
+import apps.sarafrika.elimika.course.model.CourseEnrollment;
 import apps.sarafrika.elimika.course.model.TrainingProgram;
 import apps.sarafrika.elimika.course.repository.AssessmentRubricRepository;
 import apps.sarafrika.elimika.course.repository.AssignmentRepository;
@@ -17,6 +18,7 @@ import apps.sarafrika.elimika.course.repository.CourseTrainingApplicationReposit
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramRequirementRepository;
 import apps.sarafrika.elimika.course.repository.ProgramTrainingApplicationRepository;
+import apps.sarafrika.elimika.course.repository.QuizAttemptRepository;
 import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.repository.projection.MaterialCourseView;
@@ -28,6 +30,7 @@ import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.security.RequestScopedCache;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import org.junit.jupiter.api.AfterEach;
@@ -84,6 +87,8 @@ class CourseSecurityServiceImplTest {
     @Mock private AssessmentRubricRepository assessmentRubricRepository;
     @Mock private RubricCriteriaRepository rubricCriteriaRepository;
     @Mock private CourseRubricAssociationRepository courseRubricAssociationRepository;
+    @Mock private QuizAttemptRepository quizAttemptRepository;
+    @Mock private EnrollmentLookupService enrollmentLookupService;
 
     private CourseSecurityServiceImpl service;
 
@@ -96,7 +101,8 @@ class CourseSecurityServiceImplTest {
                 certificateRepository, trainingProgramRepository, programRequirementRepository,
                 assessmentRubricRepository, rubricCriteriaRepository, courseRubricAssociationRepository,
                 courseCreatorLookupService, instructorLookupService, userLookupService,
-                domainSecurityService, new TeachingOrganisations(userLookupService), new RequestScopedCache());
+                domainSecurityService, new TeachingOrganisations(userLookupService), new RequestScopedCache(),
+                quizAttemptRepository, enrollmentLookupService);
 
         authenticateAsJwtUser();
         when(userLookupService.findUserUuidByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(USER_UUID));
@@ -571,5 +577,80 @@ class CourseSecurityServiceImplTest {
         TestingAuthenticationToken authentication = new TestingAuthenticationToken(jwt, null, "ROLE_USER");
         authentication.setAuthenticated(true);
         SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    // ===== PER-LEARNER GRADING =====
+    // Approval to train a course opens its setup; marking one learner needs their class.
+
+    private static final UUID ENROLLMENT_UUID = UUID.randomUUID();
+    private static final UUID STUDENT_UUID = UUID.randomUUID();
+    private static final UUID CALLER_INSTRUCTOR_UUID = UUID.randomUUID();
+
+    private void enrolmentOnThisCourse() {
+        CourseEnrollment enrollment = new CourseEnrollment();
+        enrollment.setStudentUuid(STUDENT_UUID);
+        enrollment.setCourseUuid(COURSE_UUID);
+        when(courseEnrollmentRepository.findByUuidAndCourseUuid(ENROLLMENT_UUID, COURSE_UUID))
+                .thenReturn(Optional.of(enrollment));
+        when(domainSecurityService.getCurrentInstructorUuid()).thenReturn(CALLER_INSTRUCTOR_UUID);
+    }
+
+    @Test
+    void theDefaultInstructorOfTheLearnersClassMayGradeThem() {
+        enrolmentOnThisCourse();
+        when(enrollmentLookupService.isDefaultInstructorOfStudentForCourse(CALLER_INSTRUCTOR_UUID, STUDENT_UUID, COURSE_UUID))
+                .thenReturn(true);
+
+        assertThat(service.canGradeEnrollment(COURSE_UUID, ENROLLMENT_UUID)).isTrue();
+    }
+
+    @Test
+    void anInstructorApprovedForTheCourseButNotTeachingTheLearnerMayNotGradeThem() {
+        enrolmentOnThisCourse();
+        when(trainingApplicationRepository.findApprovedCourseUuids(any(), any(), any())).thenReturn(List.of(COURSE_UUID));
+
+        assertThat(service.canGradeEnrollment(COURSE_UUID, ENROLLMENT_UUID)).isFalse();
+    }
+
+    @Test
+    void anEnrolmentOnAnotherCourseCannotBeGradedThroughThisOne() {
+        when(courseEnrollmentRepository.findByUuidAndCourseUuid(ENROLLMENT_UUID, COURSE_UUID)).thenReturn(Optional.empty());
+
+        assertThat(service.canGradeEnrollment(COURSE_UUID, ENROLLMENT_UUID)).isFalse();
+        assertThat(service.canReadEnrollmentGrades(COURSE_UUID, ENROLLMENT_UUID)).isFalse();
+    }
+
+    @Test
+    void aSubstituteOnTheLearnersClassMayReadButNotGrade() {
+        enrolmentOnThisCourse();
+        when(enrollmentLookupService.isClassInstructorOfStudentForCourse(CALLER_INSTRUCTOR_UUID, STUDENT_UUID, COURSE_UUID))
+                .thenReturn(true);
+
+        assertThat(service.canReadEnrollmentGrades(COURSE_UUID, ENROLLMENT_UUID)).isTrue();
+        assertThat(service.canGradeEnrollment(COURSE_UUID, ENROLLMENT_UUID)).isFalse();
+    }
+
+    @Test
+    void aManagerOfTheClassOrganisationMayRead() {
+        enrolmentOnThisCourse();
+        UUID school = UUID.randomUUID();
+        when(enrollmentLookupService.findClassOrganisationsOfStudentForCourse(STUDENT_UUID, COURSE_UUID))
+                .thenReturn(Set.of(school));
+        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, school, UserDomain.organisation_user))
+                .thenReturn(true);
+
+        assertThat(service.canReadEnrollmentGrades(COURSE_UUID, ENROLLMENT_UUID)).isTrue();
+    }
+
+    @Test
+    void aFellowInstructorOfTheClassOrganisationMayNotRead() {
+        enrolmentOnThisCourse();
+        UUID school = UUID.randomUUID();
+        when(enrollmentLookupService.findClassOrganisationsOfStudentForCourse(STUDENT_UUID, COURSE_UUID))
+                .thenReturn(Set.of(school));
+        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, school, UserDomain.instructor))
+                .thenReturn(true);
+
+        assertThat(service.canReadEnrollmentGrades(COURSE_UUID, ENROLLMENT_UUID)).isFalse();
     }
 }

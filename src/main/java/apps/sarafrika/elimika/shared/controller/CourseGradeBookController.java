@@ -8,6 +8,7 @@ import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,23 +42,23 @@ public class CourseGradeBookController {
             "@courseSecurityService.canManageCourseGradebook(#courseUuid) "
             + "or @domainSecurityService.isPlatformAdmin()";
     /**
-     * Reading a grade is not the same act as awarding one. A learner may look at their own
-     * marks, so the read-only enrolment-scoped endpoints widen management access by the
-     * caller's ownership of {@code enrollmentUuid}.
-     * <p>
-     * A method-level {@code @PreAuthorize} <em>replaces</em> the class-level one rather than
-     * being ANDed with it, so the management clause is restated here verbatim. Ownership alone
-     * proves the enrolment is the caller's, not that it sits under {@code courseUuid}; the
-     * service closes that gap by loading the enrolment with
-     * {@code findByUuidAndCourseUuid}, so a learner cannot read their own enrolment through
-     * some other course's path.
+     * Marks on one learner are awarded only by the default instructor of that learner's class.
+     * A method-level {@code @PreAuthorize} replaces the class-level one, it is not ANDed with it.
      */
-    static final String MANAGEMENT_ACCESS_OR_OWN_ENROLLMENT =
-            "@courseSecurityService.canManageCourseGradebook(#courseUuid) "
+    static final String GRADE_ENROLLMENT_ACCESS =
+            "@courseSecurityService.canGradeEnrollment(#courseUuid, #enrollmentUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
+    /**
+     * Reading one learner's marks: people around their class, the course author, or the learner.
+     * The service still loads the enrolment by {@code findByUuidAndCourseUuid}.
+     */
+    static final String READ_ENROLLMENT_ACCESS =
+            "@courseSecurityService.canReadEnrollmentGrades(#courseUuid, #enrollmentUuid) "
             + "or @domainSecurityService.isPlatformAdmin() "
             + "or @learnerAssessmentScope.ownsEnrollment(#enrollmentUuid)";
 
     private final CourseGradeBookService courseGradeBookService;
+    private final DomainSecurityService domainSecurityService;
 
     @Operation(summary = "Create gradebook line item", description = "Adds a linked task under a weighted course assessment component.")
     @PostMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items")
@@ -111,6 +112,7 @@ public class CourseGradeBookController {
 
     @Operation(summary = "Upsert line item score", description = "Records or updates a learner score for a linked gradebook task.")
     @PutMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/scores/{enrollmentUuid}")
+    @PreAuthorize(GRADE_ENROLLMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentLineItemScoreDTO>> upsertLineItemScore(
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid,
@@ -123,14 +125,14 @@ public class CourseGradeBookController {
                 assessmentUuid,
                 lineItemUuid,
                 enrollmentUuid,
-                scoreDTO
+                scoreDTO.withGrader(domainSecurityService.getCurrentUserUuid())
         );
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedScore, "Gradebook line item score saved successfully"));
     }
 
     @Operation(summary = "Get line item rubric evaluation", description = "Returns the rubric evaluation for a learner against a rubric-backed gradebook line item.")
     @GetMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/rubric-evaluations/{enrollmentUuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS_OR_OWN_ENROLLMENT)
+    @PreAuthorize(READ_ENROLLMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentLineItemRubricEvaluationDTO>> getLineItemRubricEvaluation(
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid,
@@ -148,6 +150,7 @@ public class CourseGradeBookController {
 
     @Operation(summary = "Upsert line item rubric evaluation", description = "Completes or updates the rubric evaluation for a learner against a rubric-backed gradebook line item.")
     @PutMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items/{lineItemUuid}/rubric-evaluations/{enrollmentUuid}")
+    @PreAuthorize(GRADE_ENROLLMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseAssessmentLineItemRubricEvaluationDTO>> upsertLineItemRubricEvaluation(
             @PathVariable UUID courseUuid,
             @PathVariable UUID assessmentUuid,
@@ -160,14 +163,14 @@ public class CourseGradeBookController {
                 assessmentUuid,
                 lineItemUuid,
                 enrollmentUuid,
-                evaluationDTO
+                evaluationDTO.withGrader(domainSecurityService.getCurrentUserUuid())
         );
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedEvaluation, "Gradebook line item rubric evaluation saved successfully"));
     }
 
     @Operation(summary = "Get enrollment gradebook", description = "Returns the weighted gradebook view for a learner in a course.")
     @GetMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}")
-    @PreAuthorize(MANAGEMENT_ACCESS_OR_OWN_ENROLLMENT)
+    @PreAuthorize(READ_ENROLLMENT_ACCESS)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseGradeBookDTO>> getEnrollmentGradeBook(
             @PathVariable UUID courseUuid,
             @PathVariable UUID enrollmentUuid

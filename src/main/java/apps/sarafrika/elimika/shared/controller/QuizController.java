@@ -61,6 +61,9 @@ public class QuizController {
      */
     private static final String QUIZ_MANAGEMENT = "@courseSecurityService.canManageQuiz(#quizUuid) "
             + "or @domainSecurityService.isPlatformAdmin()";
+    /** Manual marking of one attempt: only the attempting learner's class trainer. */
+    private static final String QUIZ_ATTEMPT_GRADING = "@courseSecurityService.canGradeQuizAttempt(#quizUuid, #attemptUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
     /** The same decision for routes that name the quiz {@code uuid} rather than {@code quizUuid}. */
     private static final String QUIZ_MANAGEMENT_BY_UUID = "@courseSecurityService.canManageQuiz(#uuid) "
             + "or @domainSecurityService.isPlatformAdmin()";
@@ -184,7 +187,7 @@ public class QuizController {
                     + "its grade synced to the gradebook."
     )
     @PostMapping("/{quizUuid}/attempts/{attemptUuid}/questions/{questionUuid}/grade")
-    @PreAuthorize(QUIZ_MANAGEMENT)
+    @PreAuthorize(QUIZ_ATTEMPT_GRADING)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<QuizAttemptDTO>> gradeQuizTextResponse(
             @PathVariable UUID quizUuid,
             @PathVariable UUID attemptUuid,

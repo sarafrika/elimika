@@ -104,6 +104,10 @@ public class AssignmentController {
     static final String SUBMISSION_MANAGEMENT =
             "@courseSecurityService.canManageAssignmentSubmission(#assignmentUuid, #submissionUuid) "
             + "or @domainSecurityService.isPlatformAdmin()";
+    /** Scoring or returning one submission: only the submitter's class trainer, never every course trainer. */
+    static final String SUBMISSION_GRADING =
+            "@courseSecurityService.canGradeAssignmentSubmission(#assignmentUuid, #submissionUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()";
     /**
      * One submission's attachments are the learner's own handed-in files. Being enrolled alongside
      * them is not enough — the previous role-only check let any student on the platform list and
@@ -535,7 +539,7 @@ public class AssignmentController {
             description = "Grades a student's assignment submission with score and comments."
     )
     @PostMapping("/{assignmentUuid}/submissions/{submissionUuid}/grade")
-    @PreAuthorize(SUBMISSION_MANAGEMENT)
+    @PreAuthorize(SUBMISSION_GRADING)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> gradeSubmission(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,
@@ -553,7 +557,7 @@ public class AssignmentController {
             description = "Returns a submission to student with feedback for revision."
     )
     @PostMapping("/{assignmentUuid}/submissions/{submissionUuid}/return")
-    @PreAuthorize(SUBMISSION_MANAGEMENT)
+    @PreAuthorize(SUBMISSION_GRADING)
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<AssignmentSubmissionDTO>> returnSubmission(
             @PathVariable UUID assignmentUuid,
             @PathVariable UUID submissionUuid,

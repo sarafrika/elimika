@@ -185,12 +185,12 @@ public class LearnerAssessmentScope {
         if (callerStudentUuid != null && callerStudentUuid.equals(enrollment.getStudentUuid())) {
             return;
         }
-        if (courseSecurityService.canManageCourseGradebook(courseUuid)
+        if (courseSecurityService.canGradeEnrollment(courseUuid, enrollment.getUuid())
                 || domainSecurityService.isPlatformAdmin()) {
             return;
         }
         throw new AccessDeniedException(
-                "Only the learner who owns this course enrollment, or staff who mark its course, may act through it.");
+                "Only the learner who owns this course enrollment, or their class instructor, may act through it.");
     }
 
     /**

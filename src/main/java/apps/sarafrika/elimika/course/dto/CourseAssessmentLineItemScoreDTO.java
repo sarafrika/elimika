@@ -57,7 +57,7 @@ public record CourseAssessmentLineItemScoreDTO(
         @JsonProperty("graded_at")
         LocalDateTime gradedAt,
 
-        @JsonProperty("graded_by_uuid")
+        @JsonProperty(value = "graded_by_uuid", access = JsonProperty.Access.READ_ONLY)
         UUID gradedByUuid,
 
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
@@ -72,6 +72,12 @@ public record CourseAssessmentLineItemScoreDTO(
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
         String updatedBy
 ) {
+
+    /** The same score recorded as given by this grader; the grader is never taken from a request body. */
+    public CourseAssessmentLineItemScoreDTO withGrader(UUID graderUuid) {
+        return new CourseAssessmentLineItemScoreDTO(uuid, lineItemUuid, enrollmentUuid, score, maxScore, percentage,
+                comments, gradedAt, graderUuid, createdDate, createdBy, updatedDate, updatedBy);
+    }
 
     @JsonProperty(value = "grade_display", access = JsonProperty.Access.READ_ONLY)
     @Schema(accessMode = Schema.AccessMode.READ_ONLY, example = "18 / 20 (90%)")

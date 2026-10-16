@@ -260,16 +260,16 @@ class LearnerAssessmentScopeTest {
     }
 
     @Test
-    void anInstructorWhoDoesNotMarkTheCourseMayNotActThroughItsEnrolments() {
-        // Being staff somewhere is not the licence: the review flow hands back the answer key and
-        // a named learner's answers, so it has to be staff on *this* course.
+    void anInstructorWhoIsNotTheLearnersClassTrainerMayNotActThroughTheirEnrolment() {
+        // Training the course is not the licence: the review flow hands back the answer key and a
+        // named learner's answers, so it has to be the trainer of *this* learner's class.
         UUID courseUuid = UUID.randomUUID();
         UUID suppliedUuid = UUID.randomUUID();
         CourseEnrollment theirs =
                 enrollment(suppliedUuid, UUID.randomUUID(), courseUuid, EnrollmentStatus.ACTIVE);
         when(courseEnrollmentRepository.findByUuid(suppliedUuid)).thenReturn(Optional.of(theirs));
         when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
-        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(false);
+        when(courseSecurityService.canGradeEnrollment(courseUuid, suppliedUuid)).thenReturn(false);
         when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
 
         assertThatThrownBy(() -> scope.resolveEnrollment(courseUuid, suppliedUuid))
@@ -277,14 +277,14 @@ class LearnerAssessmentScopeTest {
     }
 
     @Test
-    void staffWhoMarkTheCourseMayActThroughALearnersEnrolment() {
+    void theLearnersClassTrainerMayActThroughTheirEnrolment() {
         UUID courseUuid = UUID.randomUUID();
         UUID suppliedUuid = UUID.randomUUID();
         CourseEnrollment theirs =
                 enrollment(suppliedUuid, UUID.randomUUID(), courseUuid, EnrollmentStatus.ACTIVE);
         when(courseEnrollmentRepository.findByUuid(suppliedUuid)).thenReturn(Optional.of(theirs));
         when(domainSecurityService.getCurrentStudentUuid()).thenReturn(null);
-        when(courseSecurityService.canManageCourseGradebook(courseUuid)).thenReturn(true);
+        when(courseSecurityService.canGradeEnrollment(courseUuid, suppliedUuid)).thenReturn(true);
 
         assertThat(scope.resolveEnrollment(courseUuid, suppliedUuid)).isSameAs(theirs);
     }

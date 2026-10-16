@@ -17,6 +17,7 @@ import apps.sarafrika.elimika.course.util.enums.CourseContentAccess;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.service.AgeVerificationService;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +31,9 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +48,7 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
     private final CourseSecuritySpi courseSecurityService;
     private final DomainSecurityService domainSecurityService;
     private final CourseFootingCap courseFootingCap;
+    private final EnrollmentLookupService enrollmentLookupService;
 
     private static final String ENROLLMENT_NOT_FOUND_TEMPLATE = "Course enrollment with ID %s not found";
 
@@ -154,11 +158,22 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
         Map<String, String> filters = new HashMap<>();
         filters.put("courseUuid", courseUuid.toString());
 
+        boolean staffFooting = courseFootingCap.permitsAnyStaffFooting();
         boolean readsRoster =
                 (courseFootingCap.permits(CourseContentAccess.ADMIN) && domainSecurityService.isPlatformAdmin())
-                        || (courseFootingCap.permitsAnyStaffFooting()
-                                && courseSecurityService.canManageCourseGradebook(courseUuid));
+                        || (staffFooting && courseSecurityService.isCourseOwner(courseUuid));
         if (readsRoster) {
+            return search(filters, pageable);
+        }
+
+        // A trainer approved for the course sees only the learners in classes they teach.
+        UUID instructorUuid = domainSecurityService.getCurrentInstructorUuid();
+        if (staffFooting && instructorUuid != null && courseSecurityService.canManageCourseGradebook(courseUuid)) {
+            Set<UUID> taught = enrollmentLookupService.findStudentUuidsTaughtByInstructor(instructorUuid);
+            if (taught.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            filters.put("studentUuid_in", taught.stream().map(UUID::toString).collect(Collectors.joining(",")));
             return search(filters, pageable);
         }
 

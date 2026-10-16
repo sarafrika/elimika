@@ -132,6 +132,18 @@ public interface CourseSecuritySpi {
     boolean canManageCourseGradebook(UUID courseUuid);
 
     /**
+     * True when the caller may award or change marks on this course enrolment: they are the
+     * default instructor of a class the learner takes this course in.
+     */
+    boolean canGradeEnrollment(UUID courseUuid, UUID enrollmentUuid);
+
+    /**
+     * True when the caller may read this enrolment's marks: its class instructors, managers of
+     * the class's organisation, the course author, or the learner.
+     */
+    boolean canReadEnrollmentGrades(UUID courseUuid, UUID enrollmentUuid);
+
+    /**
      * Every course the current caller may mark: the ones they authored, the ones they are approved
      * to train as an instructor, the ones an organisation they teach for is approved to train, and
      * the courses inside any training programme approved on either footing.

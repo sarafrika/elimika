@@ -49,13 +49,19 @@ public record CourseAssessmentLineItemRubricEvaluationDTO(
         @JsonProperty("graded_at")
         LocalDateTime gradedAt,
 
-        @JsonProperty("graded_by_uuid")
+        @JsonProperty(value = "graded_by_uuid", access = JsonProperty.Access.READ_ONLY)
         UUID gradedByUuid,
 
         @JsonProperty("criteria_selections")
         @Valid
         List<CourseAssessmentLineItemRubricEvaluationRowDTO> criteriaSelections
 ) {
+
+    /** The same evaluation recorded as given by this grader; the grader is never taken from a request body. */
+    public CourseAssessmentLineItemRubricEvaluationDTO withGrader(UUID graderUuid) {
+        return new CourseAssessmentLineItemRubricEvaluationDTO(uuid, lineItemUuid, enrollmentUuid, rubricUuid, status,
+                attendanceStatus, score, maxScore, percentage, comments, gradedAt, graderUuid, criteriaSelections);
+    }
 
     @JsonProperty(value = "evaluation_display", access = JsonProperty.Access.READ_ONLY)
     @Schema(accessMode = Schema.AccessMode.READ_ONLY, example = "Completed: 8 / 10 (80%)")

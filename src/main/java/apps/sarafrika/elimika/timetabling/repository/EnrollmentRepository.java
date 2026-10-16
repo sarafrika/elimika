@@ -175,6 +175,37 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<UUID> findDistinctStudentUuidsTaughtByInstructor(@Param("instructorUuid") UUID instructorUuid);
 
+    /** The learner's live seats on classes that teach this course, directly or through a programme. */
+    String LEARNER_CLASSES_FOR_COURSE =
+            "FROM class_enrollments ce " +
+            "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+            "JOIN class_definitions cd ON si.class_definition_uuid = cd.uuid " +
+            "WHERE ce.student_uuid = :studentUuid " +
+            "AND UPPER(ce.status) NOT IN ('CANCELLED', 'WAITLISTED') " +
+            "AND (cd.course_uuid = :courseUuid OR cd.program_uuid IN " +
+            "(SELECT pc.program_uuid FROM program_courses pc WHERE pc.course_uuid = :courseUuid)) ";
+
+    @Query(value = "SELECT EXISTS (SELECT 1 " + LEARNER_CLASSES_FOR_COURSE +
+                   "AND cd.default_instructor_uuid = :instructorUuid)",
+           nativeQuery = true)
+    boolean isDefaultInstructorOfStudentForCourse(@Param("instructorUuid") UUID instructorUuid,
+                                                  @Param("studentUuid") UUID studentUuid,
+                                                  @Param("courseUuid") UUID courseUuid);
+
+    @Query(value = "SELECT EXISTS (SELECT 1 " + LEARNER_CLASSES_FOR_COURSE +
+                   "AND (cd.default_instructor_uuid = :instructorUuid OR EXISTS (SELECT 1 FROM scheduled_instances s2 " +
+                   "WHERE s2.class_definition_uuid = cd.uuid AND s2.instructor_uuid = :instructorUuid)))",
+           nativeQuery = true)
+    boolean isClassInstructorOfStudentForCourse(@Param("instructorUuid") UUID instructorUuid,
+                                                @Param("studentUuid") UUID studentUuid,
+                                                @Param("courseUuid") UUID courseUuid);
+
+    @Query(value = "SELECT DISTINCT cd.organisation_uuid " + LEARNER_CLASSES_FOR_COURSE +
+                   "AND cd.organisation_uuid IS NOT NULL",
+           nativeQuery = true)
+    List<UUID> findClassOrganisationsOfStudentForCourse(@Param("studentUuid") UUID studentUuid,
+                                                        @Param("courseUuid") UUID courseUuid);
+
     @Query(value = "SELECT ce.* " +
                    "FROM class_enrollments ce " +
                    "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +

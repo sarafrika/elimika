@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionDTO;
 import apps.sarafrika.elimika.course.dto.AssignmentSubmissionRequest;
@@ -56,6 +57,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     private final LearnerAssessmentScope learnerAssessmentScope;
     private final CourseSecuritySpi courseSecurityService;
     private final ApplicationEventPublisher eventPublisher;
+    private final EnrollmentLookupService enrollmentLookupService;
 
     private static final String SUBMISSION_NOT_FOUND_TEMPLATE = "Assignment submission with ID %s not found";
 
@@ -212,6 +214,7 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         submission.setPercentage(percentage);
         submission.setInstructorComments(comments);
         submission.setGradedAt(LocalDateTime.now());
+        submission.setGradedByUuid(domainSecurityService.getCurrentUserUuid());
         submission.setStatus(SubmissionStatus.GRADED);
 
         AssignmentSubmission savedSubmission = assignmentSubmissionRepository.save(submission);
@@ -298,11 +301,20 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         return assignmentSubmissionRepository
                 .findByStatusAndCourseUuidIn(SubmissionStatus.SUBMITTED, courseUuids)
                 .stream()
+                .filter(submission -> isClassTrainerOf(instructorUuid, submission.getEnrollmentUuid()))
                 .map(AssignmentSubmissionFactory::toDTO)
                 .collect(Collectors.toList());
     }
 
     // ===== PRIVATE HELPER METHODS =====
+
+    /** Only work the instructor may actually mark: their own class's learners. */
+    private boolean isClassTrainerOf(UUID instructorUuid, UUID enrollmentUuid) {
+        return courseEnrollmentRepository.findByUuid(enrollmentUuid)
+                .map(enrollment -> enrollmentLookupService.isDefaultInstructorOfStudentForCourse(
+                        instructorUuid, enrollment.getStudentUuid(), enrollment.getCourseUuid()))
+                .orElse(false);
+    }
 
     private void updateSubmissionFields(AssignmentSubmission existingSubmission, AssignmentSubmissionDTO dto) {
         if (dto.enrollmentUuid() != null) {
@@ -337,9 +349,6 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
         }
         if (dto.gradedAt() != null) {
             existingSubmission.setGradedAt(dto.gradedAt());
-        }
-        if (dto.gradedByUuid() != null) {
-            existingSubmission.setGradedByUuid(dto.gradedByUuid());
         }
     }
 
