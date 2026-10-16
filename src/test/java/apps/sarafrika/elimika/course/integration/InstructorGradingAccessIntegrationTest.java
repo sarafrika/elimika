@@ -229,6 +229,19 @@ class InstructorGradingAccessIntegrationTest {
         }
 
         @Test
+        @DisplayName("the school's admin can open the progress report; a colleague trainer cannot")
+        void progressReportFollowsReadRules() throws Exception {
+            mockMvc.perform(put(rubricUrl(ownStudentEnrollment)).with(jwt(SCHOOL_PIANO))
+                    .contentType(MediaType.APPLICATION_JSON).content(allTopMarks(null))).andExpect(status().isOk());
+            mockMvc.perform(get(gradebookUrl(ownStudentEnrollment) + "/progress-report").with(jwt(SCHOOL_ADMIN)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.lessons[0].marks[0].score").value(30.0))
+                    .andExpect(jsonPath("$.data.lessons[0].marks[0].criteria.length()").value(6));
+            mockMvc.perform(get(gradebookUrl(ownStudentEnrollment) + "/progress-report").with(jwt(SCHOOL_DRUMS)))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
         @DisplayName("the school's admin cannot read an independent instructor's private student")
         void schoolAdminCannotReadPrivateStudent() throws Exception {
             mockMvc.perform(get(gradebookUrl(privateStudentEnrollment)).with(jwt(SCHOOL_ADMIN)))

@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluatio
 import apps.sarafrika.elimika.course.dto.CourseEnrollmentFeedbackDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradeBandDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
+import apps.sarafrika.elimika.course.dto.CourseProgressReportDTO;
 import apps.sarafrika.elimika.course.model.AssessmentRubric;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseAssessment;
@@ -78,6 +79,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Testcontainers
 @Import({CourseGradeBookServiceImpl.class, apps.sarafrika.elimika.course.internal.CourseResultService.class,
         apps.sarafrika.elimika.course.internal.GradeRevisionRecorder.class,
+        apps.sarafrika.elimika.course.internal.CourseProgressReportBuilder.class,
         WorkbookLessonGradingIntegrationTest.TestConfig.class})
 @DisplayName("Instructor lesson grading against the Term 2 workbook")
 class WorkbookLessonGradingIntegrationTest {
@@ -107,6 +109,11 @@ class WorkbookLessonGradingIntegrationTest {
         ClassDefinitionLookupService classDefinitionLookupService() {
             return Mockito.mock(ClassDefinitionLookupService.class);
         }
+
+        @Bean
+        apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService enrollmentLookupService() {
+            return Mockito.mock(apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService.class);
+        }
     }
 
     @Autowired private CourseGradeBookServiceImpl gradeBookService;
@@ -120,6 +127,7 @@ class WorkbookLessonGradingIntegrationTest {
     @Autowired private RubricCriteriaRepository criteriaRepository;
     @Autowired private RubricScoringLevelRepository scoringLevelRepository;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private apps.sarafrika.elimika.course.internal.CourseProgressReportBuilder progressReportBuilder;
 
     private UUID courseCreatorUuid;
     private UUID studentUuid;
@@ -195,6 +203,40 @@ class WorkbookLessonGradingIntegrationTest {
             CourseEnrollment reloaded = reload(s);
             assertThat(reloaded.getFinalGrade()).isEqualByComparingTo("90.00"); // workbook D4 shows 3.0/30
             assertThat(reloaded.getResultStatus()).isEqualTo(CourseResultStatus.IN_PROGRESS);
+        }
+    }
+
+    @Nested
+    @DisplayName("The progress report matches the gradebook")
+    class ProgressReport {
+
+        @Test
+        @DisplayName("Drums D4 fixture: six lessons, 27.5/30 average, 91.67% Merit, lesson rows in order with criteria")
+        void reportMatchesGradebook() {
+            Setup s = setup(7, descendingLevels(), null);
+            gradeBookService.replaceGradeBands(s.course().getUuid(), List.of(band("Distinction", "93.33"),
+                    band("Merit", "80.00"), band("Pass", "60.00"), band("Fail", "40.00"), band("No Effort", "0.00")));
+            int[][] lessons = {
+                    {5, 5, 5, 5, 5, 4}, {5, 5, 5, 5, 4, 5}, {5, 4, 5, 5, 5, 5},
+                    {5, 5, 5, 5, 5, 5}, {5, 4, 4, 5, 4, 5}, {4, 3, 4, 3, 3, 4}};
+            for (int i = 0; i < lessons.length; i++) {
+                grade(s, i, lessons[i]);
+            }
+            gradeBookService.addEnrollmentFeedback(s.course().getUuid(), s.enrollment().getUuid(), "Keep practising rudiments", null);
+
+            CourseProgressReportDTO report = progressReportBuilder.build(s.course().getUuid(), s.enrollment().getUuid());
+
+            assertThat(report.finalGrade()).isEqualByComparingTo("91.67");
+            assertThat(report.finalGradeLabel()).isEqualTo("Merit");
+            assertThat(report.averageLessonScore()).isEqualByComparingTo("27.50");
+            assertThat(report.lessonMaxScore()).isEqualByComparingTo("30");
+            assertThat(report.progressPercentage()).isEqualByComparingTo("85.71"); // 6 of 7 lessons graded
+            assertThat(report.instructorComments()).isEqualTo("Keep practising rudiments");
+            assertThat(report.lessons()).extracting(CourseProgressReportDTO.LessonRowDTO::lessonNumber)
+                    .containsExactly(1, 2, 3, 4, 5, 6, 7);
+            assertThat(report.lessons().getFirst().marks().getFirst().score()).isEqualByComparingTo("29");
+            assertThat(report.lessons().getFirst().marks().getFirst().criteria()).hasSize(6);
+            assertThat(report.lessons().getLast().marks().getFirst().status()).isEqualTo("ungraded");
         }
     }
 

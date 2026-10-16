@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.shared.spi.enrollment;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -17,6 +18,19 @@ import java.util.UUID;
  * @since 2025-10-23
  */
 public interface EnrollmentLookupService {
+
+    /** One session a learner sat for a course: what was taught and how they attended. */
+    record LearnerSessionSnapshot(
+            UUID scheduledInstanceUuid,
+            UUID lessonUuid,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String topicCovered,
+            String instructorRemarks,
+            String attendanceStatus,
+            String instrumentCondition,
+            String attendanceComment
+    ) { }
 
     record ClassEnrollmentStatusSnapshot(
             UUID enrollmentUuid,
@@ -137,4 +151,7 @@ public interface EnrollmentLookupService {
 
     /** Organisations owning a live class the learner takes this course in. */
     Set<UUID> findClassOrganisationsOfStudentForCourse(UUID studentUuid, UUID courseUuid);
+
+    /** The learner's sessions for this course, oldest first, with the session record and their attendance. */
+    List<LearnerSessionSnapshot> findSessionsOfStudentForCourse(UUID studentUuid, UUID courseUuid);
 }

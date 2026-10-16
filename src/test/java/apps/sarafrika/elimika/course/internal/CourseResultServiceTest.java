@@ -31,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -87,8 +86,19 @@ class CourseResultServiceTest {
         enrollment.setFinalGrade(new BigDecimal("95"));
 
         assertThat(service.decide(enrollment, List.of(component))).isEqualTo(CourseResultStatus.IN_PROGRESS);
-        verify(courseEnrollmentRepository, never()).save(any());
+        // Nothing graded yet: the result is unchanged and progress reads 0%, not the stale default.
+        assertThat(enrollment.getProgressPercentage()).isEqualByComparingTo("0");
+        assertThat(enrollment.getStatus()).isNotEqualTo(EnrollmentStatus.COMPLETED);
         verify(eventPublisher).publishEvent(any(CourseGradeRecalculatedEvent.class));
+    }
+
+    @Test
+    void progressIsTheShareOfRequiredItemsGraded() {
+        graded();
+
+        service.decide(enrollment, List.of(component));
+
+        assertThat(enrollment.getProgressPercentage()).isEqualByComparingTo("100");
     }
 
     @Test

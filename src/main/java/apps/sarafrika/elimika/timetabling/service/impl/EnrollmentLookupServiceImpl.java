@@ -147,6 +147,35 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
     }
 
     @Override
+    public List<LearnerSessionSnapshot> findSessionsOfStudentForCourse(UUID studentUuid, UUID courseUuid) {
+        if (studentUuid == null || courseUuid == null) {
+            return List.of();
+        }
+        return enrollmentRepository.findSessionRowsOfStudentForCourse(studentUuid, courseUuid).stream()
+                .map(row -> new LearnerSessionSnapshot((UUID) row[0], (UUID) row[1], toLocalDateTime(row[2]),
+                        toLocalDateTime(row[3]), (String) row[4], (String) row[5], (String) row[6], (String) row[7],
+                        (String) row[8]))
+                .toList();
+    }
+
+    /** Native rows bring timestamptz back as an Instant or OffsetDateTime depending on the driver path. */
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value instanceof LocalDateTime local) {
+            return local;
+        }
+        if (value instanceof java.time.OffsetDateTime offset) {
+            return offset.withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDateTime();
+        }
+        if (value instanceof java.time.Instant instant) {
+            return LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return null;
+    }
+
+    @Override
     public Set<UUID> findClassOrganisationsOfStudentForCourse(UUID studentUuid, UUID courseUuid) {
         if (studentUuid == null || courseUuid == null) {
             return Set.of();

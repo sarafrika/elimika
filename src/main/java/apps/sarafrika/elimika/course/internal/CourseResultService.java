@@ -41,8 +41,18 @@ public class CourseResultService {
 
     public CourseResultStatus decide(CourseEnrollment enrollment, List<CourseAssessment> activeAssessments) {
         CourseResultStatus previous = enrollment.getResultStatus();
-        CourseResultStatus result = resultFor(enrollment, activeAssessments);
+        GradingProgress progress = progressOf(enrollment.getUuid(), activeAssessments);
+        CourseResultStatus result = resultFor(enrollment, activeAssessments, progress);
+        BigDecimal percentage = progress.percentage();
+        boolean progressChanged = percentage != null && (enrollment.getProgressPercentage() == null
+                || percentage.compareTo(enrollment.getProgressPercentage()) != 0);
+        if (percentage != null) {
+            enrollment.setProgressPercentage(percentage);
+        }
         if (result == previous) {
+            if (progressChanged) {
+                courseEnrollmentRepository.save(enrollment);
+            }
             publishRecalculated(enrollment, result);
             return result;
         }
@@ -74,8 +84,9 @@ public class CourseResultService {
         return courseRepository.findByUuid(courseUuid).map(course -> course.getPassMark()).orElse(null);
     }
 
-    private CourseResultStatus resultFor(CourseEnrollment enrollment, List<CourseAssessment> activeAssessments) {
-        if (activeAssessments.isEmpty() || !allRequiredItemsGraded(enrollment.getUuid(), activeAssessments)) {
+    private CourseResultStatus resultFor(CourseEnrollment enrollment, List<CourseAssessment> activeAssessments,
+                                         GradingProgress progress) {
+        if (activeAssessments.isEmpty() || !progress.complete()) {
             return CourseResultStatus.IN_PROGRESS;
         }
         BigDecimal passMark = passMarkOf(enrollment.getCourseUuid());
@@ -86,13 +97,21 @@ public class CourseResultService {
         return finalGrade != null && finalGrade.compareTo(passMark) >= 0 ? CourseResultStatus.PASSED : CourseResultStatus.FAILED;
     }
 
-    private boolean allRequiredItemsGraded(UUID enrollmentUuid, List<CourseAssessment> activeAssessments) {
+    /** Graded required items out of all required items; course progress is this share. */
+    private record GradingProgress(int graded, int required, boolean complete) {
+        BigDecimal percentage() {
+            return required == 0 ? null : BigDecimal.valueOf(graded * 100L)
+                    .divide(BigDecimal.valueOf(required), 2, java.math.RoundingMode.HALF_UP);
+        }
+    }
+
+    private GradingProgress progressOf(UUID enrollmentUuid, List<CourseAssessment> activeAssessments) {
         List<UUID> requiredAssessments = activeAssessments.stream()
                 .filter(assessment -> Boolean.TRUE.equals(assessment.getIsRequired()))
                 .map(CourseAssessment::getUuid)
                 .toList();
         if (requiredAssessments.isEmpty()) {
-            return true;
+            return new GradingProgress(0, 0, true);
         }
         List<UUID> requiredItems = lineItemRepository.findByCourseAssessmentUuidInOrderByDisplayOrderAscCreatedDateAsc(requiredAssessments)
                 .stream()
@@ -100,7 +119,7 @@ public class CourseResultService {
                 .map(CourseAssessmentLineItem::getUuid)
                 .toList();
         if (requiredItems.isEmpty()) {
-            return false;
+            return new GradingProgress(0, 0, false);
         }
         Set<UUID> graded = lineItemScoreRepository.findByEnrollmentUuidAndLineItemUuidIn(enrollmentUuid, requiredItems)
                 .stream()
@@ -111,7 +130,8 @@ public class CourseResultService {
                 .filter(evaluation -> evaluation.getStatus() == CourseAssessmentLineItemRubricEvaluationStatus.COMPLETED)
                 .map(CourseAssessmentLineItemRubricEvaluation::getLineItemUuid)
                 .forEach(graded::add);
-        return graded.containsAll(requiredItems);
+        graded.retainAll(requiredItems);
+        return new GradingProgress(graded.size(), requiredItems.size(), graded.size() == requiredItems.size());
     }
 
     private static LocalDateTime now() {

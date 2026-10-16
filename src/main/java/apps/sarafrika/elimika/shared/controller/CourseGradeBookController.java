@@ -7,10 +7,12 @@ import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemRubricEvaluationDTO;
 import apps.sarafrika.elimika.course.dto.CourseAssessmentLineItemScoreDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradeBookDTO;
+import apps.sarafrika.elimika.course.dto.CourseProgressReportDTO;
 import apps.sarafrika.elimika.course.service.CourseGradeBookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import apps.sarafrika.elimika.course.internal.CourseProgressReportBuilder;
 import apps.sarafrika.elimika.course.internal.LearnerAssessmentScope;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemRubricEvaluationStatus;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -65,6 +67,7 @@ public class CourseGradeBookController {
     private final CourseGradeBookService courseGradeBookService;
     private final DomainSecurityService domainSecurityService;
     private final LearnerAssessmentScope learnerAssessmentScope;
+    private final CourseProgressReportBuilder progressReportBuilder;
 
     @Operation(summary = "Create gradebook line item", description = "Adds a linked task under a weighted course assessment component.")
     @PostMapping("/{courseUuid}/assessments/{assessmentUuid}/line-items")
@@ -176,6 +179,17 @@ public class CourseGradeBookController {
                 evaluationDTO.withGrader(domainSecurityService.getCurrentUserUuid())
         );
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(savedEvaluation, "Gradebook line item rubric evaluation saved successfully"));
+    }
+
+    @Operation(summary = "Get learner progress report", description = "Lesson-by-lesson report for one learner: what was taught, attendance, marks with criteria, final grade and label, and instructor feedback.")
+    @GetMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}/progress-report")
+    @PreAuthorize(READ_ENROLLMENT_ACCESS)
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseProgressReportDTO>> getProgressReport(
+            @PathVariable UUID courseUuid,
+            @PathVariable UUID enrollmentUuid
+    ) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                progressReportBuilder.build(courseUuid, enrollmentUuid), "Progress report retrieved successfully"));
     }
 
     @Operation(summary = "List course grade bands", description = "The labels the course awards by final grade, highest minimum first.")

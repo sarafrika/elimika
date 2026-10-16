@@ -206,6 +206,13 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
     List<UUID> findClassOrganisationsOfStudentForCourse(@Param("studentUuid") UUID studentUuid,
                                                         @Param("courseUuid") UUID courseUuid);
 
+    @Query(value = "SELECT si.uuid, si.lesson_uuid, si.start_time, si.end_time, si.topic_covered, si.instructor_remarks, "
+                   + "ce.status, ce.instrument_condition, ce.attendance_comment " + LEARNER_CLASSES_FOR_COURSE
+                   + "ORDER BY si.start_time",
+           nativeQuery = true)
+    List<Object[]> findSessionRowsOfStudentForCourse(@Param("studentUuid") UUID studentUuid,
+                                                     @Param("courseUuid") UUID courseUuid);
+
     @Query(value = "SELECT ce.* " +
                    "FROM class_enrollments ce " +
                    "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
