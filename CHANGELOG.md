@@ -1,3 +1,17 @@
+# [2.174.0](https://github.com/sarafrika/elimika/compare/v2.173.0...v2.174.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **course:** stamp grades and quiz attempts in UTC ([7de6745](https://github.com/sarafrika/elimika/commit/7de67455b349f533beccbf15f39be1ec23b722e1))
+
+
+### Features
+
+* **course:** add per-course grade bands, the final grade label and instructor feedback on the gradebook ([a896895](https://github.com/sarafrika/elimika/commit/a8968956dcb8bea26d4b947ded71fb23a780e2ed))
+* **course:** add the per-learner progress report and derive course progress from graded required items ([a09b53e](https://github.com/sarafrika/elimika/commit/a09b53ef4b2556ae5a41cfa8897c4860825755ef))
+* **timetabling:** record lesson topic, remarks, instrument condition and attendance corrections per session ([ef4a59f](https://github.com/sarafrika/elimika/commit/ef4a59fae3f081a9289e346769407749ee1e7aa5))
+
 # [2.173.0](https://github.com/sarafrika/elimika/compare/v2.172.4...v2.173.0) (2026-10-16)
 
 
