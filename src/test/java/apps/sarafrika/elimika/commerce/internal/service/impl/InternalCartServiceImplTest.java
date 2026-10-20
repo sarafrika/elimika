@@ -1,6 +1,9 @@
 package apps.sarafrika.elimika.commerce.internal.service.impl;
 
 import apps.sarafrika.elimika.commerce.cart.dto.CartLineItemRequest;
+import apps.sarafrika.elimika.commerce.internal.service.LearnerResolver;
+import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
+import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.commerce.cart.dto.CartResponse;
 import apps.sarafrika.elimika.commerce.catalogue.repository.CommerceCatalogueItemRepository;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceCart;
@@ -80,6 +83,10 @@ class InternalCartServiceImplTest {
     private CurrencyValidator currencyValidator;
     @Mock
     private DomainSecurityService domainSecurityService;
+    @Mock
+    private StudentGuardianLookupService studentGuardianLookupService;
+    @Mock
+    private StudentLookupService studentLookupService;
 
     private InternalCartServiceImpl service;
 
@@ -100,7 +107,8 @@ class InternalCartServiceImplTest {
                 classScheduleService,
                 classDefinitionLookupService,
                 currencyValidator,
-                domainSecurityService);
+                domainSecurityService,
+                new LearnerResolver(domainSecurityService, studentGuardianLookupService, studentLookupService));
     }
 
     @Test
@@ -194,6 +202,28 @@ class InternalCartServiceImplTest {
         verify(mapper, never()).toOrderResponse(any());
     }
 
+    @Test
+    void aSeatForALearnerTheBuyerDoesNotGuardIsRefusedBeforeAnythingIsWritten() {
+        UUID stranger = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+        CommerceCart cart = new CommerceCart();
+        cart.setUuid(UUID.fromString(CART_ID));
+        cart.setUserUuid(BUYER);
+        cart.setStatus(CartStatus.OPEN);
+        cart.setCurrencyCode("KES");
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(BUYER);
+        when(cartRepository.findByUuid(UUID.fromString(CART_ID))).thenReturn(Optional.of(cart));
+        when(variantRepository.findByCode(VARIANT_ID)).thenReturn(Optional.of(variant()));
+        when(studentLookupService.findStudentUuidByUserUuid(BUYER)).thenReturn(Optional.empty());
+        when(studentGuardianLookupService.findActiveGuardianStudents(BUYER)).thenReturn(List.of());
+
+        CartLineItemRequest request = lineItemRequest(VARIANT_ID, 1);
+        request.setStudentUuid(stranger);
+
+        assertThatThrownBy(() -> service.addItem(CART_ID, request))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        verify(cartItemRepository, never()).save(any());
+    }
+
     private CommerceCart completedCartWithItem() {
         CommerceCart cart = new CommerceCart();
         cart.setUuid(UUID.fromString(CART_ID));
@@ -217,6 +247,14 @@ class InternalCartServiceImplTest {
         item.setVariant(variant);
         item.setQuantity(1);
         return item;
+    }
+
+    private CommerceProductVariant variant() {
+        CommerceProductVariant variant = new CommerceProductVariant();
+        variant.setCode(VARIANT_ID);
+        variant.setCurrencyCode("KES");
+        variant.setUnitAmount(new BigDecimal("1000"));
+        return variant;
     }
 
     private CartLineItemRequest lineItemRequest(String variantId, int quantity) {

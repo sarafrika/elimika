@@ -31,6 +31,7 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
     private final MpesaGatewayClient mpesaGatewayClient;
     private final ApplicationEventPublisher eventPublisher;
     private final ClassEnrolmentGateService classEnrolmentGateService;
+    private final apps.sarafrika.elimika.commerce.internal.service.LearnerResolver learnerResolver;
 
     @Override
     public MpesaCheckoutResponse initiateMpesaPayment(String orderId, String phoneNumber) {
@@ -98,8 +99,10 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
                 continue;
             }
             try {
+                // A seat bought for a child is judged by the child, not the guardian paying.
                 var blocker = classEnrolmentGateService.findEnrolmentBlocker(
-                        java.util.UUID.fromString(classUuid.toString()), order.getUserUuid());
+                        java.util.UUID.fromString(classUuid.toString()),
+                        learnerResolver.learnerUserUuid(item.getMetadata(), order.getUserUuid()));
                 if (blocker.isPresent()) {
                     return blocker.get();
                 }

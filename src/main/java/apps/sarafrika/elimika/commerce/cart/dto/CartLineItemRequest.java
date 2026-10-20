@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.cart.dto;
 
+import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -45,4 +46,12 @@ public class CartLineItemRequest {
     @Min(value = 1, message = "Quantity must be at least 1")
     @JsonProperty("quantity")
     private int quantity;
+
+    @Schema(
+            description = "Optional. The learner this seat is for, when a guardian buys for a child they hold an "
+                    + "active link to. Omit to buy for yourself.",
+            format = "uuid"
+    )
+    @JsonProperty("student_uuid")
+    private UUID studentUuid;
 }

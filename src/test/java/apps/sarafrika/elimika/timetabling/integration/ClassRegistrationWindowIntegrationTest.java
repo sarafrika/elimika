@@ -206,7 +206,10 @@ class ClassRegistrationWindowIntegrationTest {
                 mock(ClassScheduleService.class),
                 mock(apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.class),
                 mock(CurrencyValidator.class),
-                cartSecurity);
+                cartSecurity,
+                new apps.sarafrika.elimika.commerce.internal.service.LearnerResolver(cartSecurity,
+                        mock(apps.sarafrika.elimika.student.spi.StudentGuardianLookupService.class),
+                        mock(apps.sarafrika.elimika.student.spi.StudentLookupService.class)));
     }
 
     @Test

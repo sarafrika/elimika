@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderItemRepo
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderRepository;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
+import apps.sarafrika.elimika.commerce.internal.service.LearnerResolver;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -80,6 +81,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final ClassDefinitionLookupService classDefinitionLookupService;
     private final CurrencyValidator currencyValidator;
     private final DomainSecurityService domainSecurityService;
+    private final LearnerResolver learnerResolver;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -260,6 +262,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
 
         int quantity = Math.max(1, request.getQuantity());
+        UUID learner = learnerResolver.authorise(request.getStudentUuid());
         UUID classDefinitionUuid = resolveClassDefinitionUuid(variant);
         ClassScheduleSummary scheduleSummary = resolveScheduleSummary(classDefinitionUuid);
         if (shouldEnforceInventory(variant)
@@ -268,7 +271,7 @@ public class InternalCartServiceImpl implements InternalCartService {
             throw new IllegalStateException("Insufficient inventory for variant " + variant.getCode());
         }
 
-        CommerceCartItem existing = findExistingItem(cart, variant);
+        CommerceCartItem existing = findExistingItem(cart, variant, learner);
         if (existing == null) {
             CommerceCartItem item = new CommerceCartItem();
             item.setCart(cart);
@@ -278,7 +281,7 @@ public class InternalCartServiceImpl implements InternalCartService {
             item.setUnitAmount(unitAmount);
             item.setSubtotalAmount(unitAmount.multiply(BigDecimal.valueOf(quantity)));
             item.setTotalAmount(item.getSubtotalAmount());
-            item.setMetadataJson(writeMetadata(buildLineItemMetadata(variant, classDefinitionUuid, scheduleSummary)));
+            item.setMetadataJson(writeMetadata(forLearner(buildLineItemMetadata(variant, classDefinitionUuid, scheduleSummary), learner)));
 
             if (cart.getItems() == null) {
                 cart.setItems(new ArrayList<>());
@@ -297,19 +300,30 @@ public class InternalCartServiceImpl implements InternalCartService {
             existing.setUnitAmount(unitAmount);
             existing.setSubtotalAmount(unitAmount.multiply(BigDecimal.valueOf(newQuantity)));
             existing.setTotalAmount(existing.getSubtotalAmount());
-            existing.setMetadataJson(writeMetadata(buildLineItemMetadata(variant, classDefinitionUuid, scheduleSummary)));
+            existing.setMetadataJson(writeMetadata(forLearner(buildLineItemMetadata(variant, classDefinitionUuid, scheduleSummary), learner)));
             cartItemRepository.save(existing);
         }
     }
 
-    private CommerceCartItem findExistingItem(CommerceCart cart, CommerceProductVariant variant) {
+    /** The same class for two children is two lines, so a line is matched on variant and learner. */
+    private CommerceCartItem findExistingItem(CommerceCart cart, CommerceProductVariant variant, UUID learner) {
         if (CollectionUtils.isEmpty(cart.getItems())) {
             return null;
         }
         return cart.getItems().stream()
                 .filter(item -> item.getVariant() != null && Objects.equals(item.getVariant().getId(), variant.getId()))
+                .filter(item -> Objects.equals(learnerResolver.learnerOf(readMetadata(item.getMetadataJson())), learner))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private Map<String, Object> forLearner(Map<String, Object> metadata, UUID learner) {
+        if (learner == null) {
+            return metadata;
+        }
+        Map<String, Object> tagged = new LinkedHashMap<>(metadata);
+        tagged.put(LearnerResolver.STUDENT_KEY, learner.toString());
+        return tagged;
     }
 
     private void recalcTotals(CommerceCart cart) {
@@ -462,8 +476,9 @@ public class InternalCartServiceImpl implements InternalCartService {
             if (classDefinitionUuid == null) {
                 continue;
             }
+            UUID learnerUser = learnerResolver.learnerUserUuid(readMetadata(item.getMetadataJson()), cart.getUserUuid());
             boolean held = classEnrolmentGateService.reserveSeats(
-                    classDefinitionUuid, cart.getUserUuid(), holdUntil.toLocalDateTime());
+                    classDefinitionUuid, learnerUser, holdUntil.toLocalDateTime());
             if (!held) {
                 throw new IllegalStateException(
                         "The last seat on this class was taken while you were checking out. Nothing has been charged.");
@@ -481,7 +496,8 @@ public class InternalCartServiceImpl implements InternalCartService {
             if (classDefinitionUuid == null) {
                 continue;
             }
-            classEnrolmentGateService.findEnrolmentBlocker(classDefinitionUuid, cart.getUserUuid())
+            UUID learnerUser = learnerResolver.learnerUserUuid(readMetadata(item.getMetadataJson()), cart.getUserUuid());
+            classEnrolmentGateService.findEnrolmentBlocker(classDefinitionUuid, learnerUser)
                     .ifPresent(reason -> {
                         throw new IllegalStateException(reason);
                     });

@@ -12,7 +12,8 @@
                 "notifications",
                 "notifications :: notifications-spi",
                 "notifications::events-api",
-                "commerce.purchase :: commerce-purchase-spi"
+                "commerce.purchase :: commerce-purchase-spi",
+                "student :: student-spi"
         }
 )
 package apps.sarafrika.elimika.commerce;
