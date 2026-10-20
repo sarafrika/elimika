@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.wallet.mapper;
 
+import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import apps.sarafrika.elimika.wallet.dto.WalletDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
@@ -16,7 +17,9 @@ public final class WalletMapper {
         }
         return new WalletDTO(
                 wallet.getUuid(),
-                wallet.getUserUuid(),
+                wallet.getOwnerType() == WalletOwnerType.USER ? wallet.getOwnerUuid() : null,
+                wallet.getOwnerType(),
+                wallet.getOwnerUuid(),
                 wallet.getCurrencyCode(),
                 wallet.getBalanceAmount(),
                 wallet.getCreatedDate(),

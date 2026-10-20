@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.repository;
 
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
+import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -14,12 +15,15 @@ public interface UserWalletRepository extends JpaRepository<UserWallet, Long> {
 
     Optional<UserWallet> findByUuid(UUID uuid);
 
-    Optional<UserWallet> findByUserUuidAndCurrencyCode(UUID userUuid, String currencyCode);
+    Optional<UserWallet> findByOwnerTypeAndOwnerUuidAndCurrencyCode(
+            WalletOwnerType ownerType, UUID ownerUuid, String currencyCode);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select wallet from UserWallet wallet where wallet.userUuid = :userUuid and wallet.currencyCode = :currencyCode")
-    Optional<UserWallet> findLockedByUserUuidAndCurrencyCode(
-            @Param("userUuid") UUID userUuid,
+    @Query("select wallet from UserWallet wallet where wallet.ownerType = :ownerType "
+            + "and wallet.ownerUuid = :ownerUuid and wallet.currencyCode = :currencyCode")
+    Optional<UserWallet> findLocked(
+            @Param("ownerType") WalletOwnerType ownerType,
+            @Param("ownerUuid") UUID ownerUuid,
             @Param("currencyCode") String currencyCode
     );
 
@@ -45,7 +49,7 @@ public interface UserWalletRepository extends JpaRepository<UserWallet, Long> {
                              where e.account_uuid = la.uuid), 0) as "ledgerBalance"
             from user_wallets w
                      left join ledger_accounts la
-                               on la.owner_type = 'USER'
+                               on la.owner_type = w.owner_type
                                    and la.owner_uuid = w.user_uuid
                                    and la.purse = 'EARNINGS'
                                    and la.currency_code = w.currency_code

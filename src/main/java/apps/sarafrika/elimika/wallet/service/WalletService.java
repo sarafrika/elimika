@@ -16,6 +16,20 @@ public interface WalletService {
 
     Page<UserWalletTransaction> getTransactions(UUID userUuid, String currencyCode, Pageable pageable);
 
+    /** Reads any owner's balance without locking or creating a wallet; a missing wallet reads as zero. */
+    WalletBalanceSummary balanceOf(WalletOwner owner, String currencyCode);
+
+    Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, Pageable pageable);
+
+    /**
+     * Pays one earner's share of a sale: a SALE credit of {@code gross}, then a PLATFORM_FEE debit of
+     * {@code platformFee} when it is above zero, in one transaction. Idempotent on {@code reference}.
+     *
+     * @return {@code true} when settled now, {@code false} when this reference was already settled
+     */
+    boolean settleSaleShare(WalletOwner owner, BigDecimal gross, BigDecimal platformFee, String currencyCode,
+                            String reference, String description);
+
     UserWallet deposit(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description);
 
     UserWallet creditSale(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description);

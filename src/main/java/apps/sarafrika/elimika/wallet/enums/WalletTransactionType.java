@@ -6,7 +6,9 @@ public enum WalletTransactionType {
     DEPOSIT,
     SALE,
     TRANSFER_IN,
-    TRANSFER_OUT;
+    TRANSFER_OUT,
+    /** The platform's fee on a sale share, debited right after the share itself. */
+    PLATFORM_FEE;
 
     public static WalletTransactionType fromString(String value) {
         if (value == null || value.isBlank()) {

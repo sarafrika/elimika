@@ -37,6 +37,17 @@ public record LedgerAccountRef(
                 LedgerOwnerType.USER, userUuid, LedgerAccountType.LIABILITY, LedgerPurse.EARNINGS, currencyCode);
     }
 
+    /** An organisation's spendable balance; a liability like a user's. */
+    public static LedgerAccountRef organisationEarnings(UUID organisationUuid, String currencyCode) {
+        return new LedgerAccountRef(LedgerOwnerType.ORGANISATION, organisationUuid,
+                LedgerAccountType.LIABILITY, LedgerPurse.EARNINGS, currencyCode);
+    }
+
+    /** Where the platform's own fee lands. */
+    public static LedgerAccountRef platformFeeRevenue(String currencyCode) {
+        return platform(LedgerAccountType.REVENUE, LedgerPurse.PLATFORM_FEE_REVENUE, currencyCode);
+    }
+
     public static LedgerAccountRef platform(LedgerAccountType accountType, LedgerPurse purse, String currencyCode) {
         return new LedgerAccountRef(LedgerOwnerType.PLATFORM, null, accountType, purse, currencyCode);
     }

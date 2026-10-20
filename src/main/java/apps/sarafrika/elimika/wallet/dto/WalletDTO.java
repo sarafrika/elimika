@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.wallet.dto;
 
+import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -8,7 +9,7 @@ import java.util.UUID;
 
 @Schema(
         name = "Wallet",
-        description = "User wallet summary for a specific currency"
+        description = "User or organisation wallet summary for a specific currency"
 )
 public record WalletDTO(
 
@@ -21,12 +22,28 @@ public record WalletDTO(
         UUID uuid,
 
         @Schema(
-                description = "**[READ-ONLY]** User UUID that owns this wallet.",
+                description = "**[READ-ONLY]** User UUID that owns this wallet; null for an organisation wallet.",
                 format = "uuid",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("user_uuid")
         UUID userUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** Who owns this wallet.",
+                example = "USER",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("owner_type")
+        WalletOwnerType ownerType,
+
+        @Schema(
+                description = "**[READ-ONLY]** UUID of the owning user or organisation.",
+                format = "uuid",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("owner_uuid")
+        UUID ownerUuid,
 
         @Schema(
                 description = "**[READ-ONLY]** ISO currency code for this wallet balance.",
