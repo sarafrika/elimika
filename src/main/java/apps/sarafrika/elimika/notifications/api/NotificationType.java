@@ -66,6 +66,9 @@ public enum NotificationType {
     INSTRUCTOR_CLASS_ENROLLMENT_MILESTONE("INSTRUCTOR_CLASS_ENROLLMENT_MILESTONE", "instructor-class-enrollment-milestone", "Enrollment Milestone", NotificationCategory.COURSE_MANAGEMENT),
     INSTRUCTOR_CLASS_ENROLLMENT_NOTICE("INSTRUCTOR_CLASS_ENROLLMENT_NOTICE", "instructor-class-enrollment-notice", "Enrollment Notice", NotificationCategory.COURSE_MANAGEMENT),
     UPCOMING_CLASS_REMINDER("UPCOMING_CLASS_REMINDER", "upcoming-class-reminder", "Upcoming Class", NotificationCategory.COURSE_MANAGEMENT),
+    SESSION_REPORT_DUE("SESSION_REPORT_DUE", "session-report-due", "Session Report Due", NotificationCategory.COURSE_MANAGEMENT),
+    SESSION_REPORT_OVERDUE("SESSION_REPORT_OVERDUE", "session-report-overdue", "Session Report Overdue", NotificationCategory.COURSE_MANAGEMENT),
+    SESSION_REPORT_OVERDUE_ORG("SESSION_REPORT_OVERDUE_ORG", "session-report-overdue-org", "Session Report Overdue", NotificationCategory.COURSE_MANAGEMENT),
     COURSE_REVIEW_SUBMITTED("COURSE_REVIEW_SUBMITTED", "review-submitted", "Course Review", NotificationCategory.COURSE_MANAGEMENT),
     PROGRAM_REVIEW_SUBMITTED("PROGRAM_REVIEW_SUBMITTED", "review-submitted", "Program Review", NotificationCategory.COURSE_MANAGEMENT),
     CLASS_REVIEW_SUBMITTED("CLASS_REVIEW_SUBMITTED", "review-submitted", "Class Review", NotificationCategory.COURSE_MANAGEMENT),
@@ -229,7 +232,9 @@ public enum NotificationType {
                  CLASS_REVIEW_SUBMITTED,
                  INSTRUCTOR_REVIEW_SUBMITTED,
                  INSTRUCTOR_VERIFICATION_APPROVED,
-                 INSTRUCTOR_VERIFICATION_REVOKED -> "instructor";
+                 INSTRUCTOR_VERIFICATION_REVOKED,
+                 SESSION_REPORT_DUE,
+                 SESSION_REPORT_OVERDUE -> "instructor";
 
             case COURSE_CONTENT_APPROVED,
                  COURSE_CONTENT_REJECTED,
@@ -250,7 +255,8 @@ public enum NotificationType {
                  CLASS_MARKETPLACE_JOB_HIRE_BLOCKED_ORGANISATION,
                  ORGANISATION_INVITATION_ACCEPTED,
                  ORGANISATION_VERIFICATION_APPROVED,
-                 ORGANISATION_VERIFICATION_REVOKED -> "organisation_user";
+                 ORGANISATION_VERIFICATION_REVOKED,
+                 SESSION_REPORT_OVERDUE_ORG -> "organisation_user";
 
             // Account-level notifications are relevant in every dashboard.
             // The two invitation types are deliberately here: their recipient may hold no
