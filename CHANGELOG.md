@@ -1,3 +1,12 @@
+# [2.180.0](https://github.com/sarafrika/elimika/compare/v2.179.1...v2.180.0) (2026-10-20)
+
+
+### Features
+
+* **commerce:** let a guardian buy a class seat for a linked child, judging eligibility and seat holds by the child ([8469325](https://github.com/sarafrika/elimika/commit/8469325961b43f8ec18401449622800a2f895733))
+* **payout:** pay a program-only class's creator its courses' average creator share ([705addf](https://github.com/sarafrika/elimika/commit/705addf4b265e72cf29486f82f41fde4c9196596))
+* **wallet:** return lifetime shares, fees, sales and transfers with each wallet, summed in the database ([2f49500](https://github.com/sarafrika/elimika/commit/2f495009ee46dc7e927724e6355dc3e98b188f5e))
+
 ## [2.179.1](https://github.com/sarafrika/elimika/compare/v2.179.0...v2.179.1) (2026-10-20)
 
 
