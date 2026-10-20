@@ -41,6 +41,9 @@ public interface ClassDefinitionLookupService {
      */
     Optional<UUID> findOrganisationUuid(UUID classDefinitionUuid);
 
+    /** The organisation that hired the class's instructor through a marketplace job; empty for any other class. */
+    Optional<UUID> findHiringOrganisationUuid(UUID classDefinitionUuid);
+
     /**
      * The training branch (location) a class is delivered at.
      *

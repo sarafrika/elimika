@@ -8,11 +8,8 @@ import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 /**
- * How one sale line divides between the course creator and the party that delivered the class.
- * <p>
- * Each side takes its share of the gross and then pays the platform fee on that share, so the fee shows
- * on every earner's own statement. Remainder cents go to the delivery side, so the legs always add back
- * to exactly what the learner paid.
+ * One sale line split between the course creator and the delivery party; each pays the platform fee
+ * on their own share. Remainder cents go to delivery, so the legs always add back to the gross.
  */
 public record RevenueSplit(Leg creator, Leg delivery) {
 
@@ -33,11 +30,7 @@ public record RevenueSplit(Leg creator, Leg delivery) {
         }
     }
 
-    /**
-     * @param lineGross         what the learner paid for the line
-     * @param creatorPercentage the course's creator share; the delivery side gets the rest
-     * @param feeOnShare        the platform fee charged on one earner's gross share
-     */
+    /** Splits {@code lineGross} by the creator's percentage; {@code feeOnShare} prices one earner's fee. */
     public static RevenueSplit of(BigDecimal lineGross, BigDecimal creatorPercentage, UnaryOperator<BigDecimal> feeOnShare) {
         BigDecimal gross = lineGross == null || lineGross.signum() <= 0
                 ? zero()

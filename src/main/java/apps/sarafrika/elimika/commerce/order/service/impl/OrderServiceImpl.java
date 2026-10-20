@@ -2,11 +2,9 @@ package apps.sarafrika.elimika.commerce.order.service.impl;
 
 import apps.sarafrika.elimika.commerce.internal.config.CommerceCaptureProperties;
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
-import apps.sarafrika.elimika.commerce.internal.service.impl.PlatformFeeCalculator;
 import apps.sarafrika.elimika.commerce.order.service.OrderService;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +21,6 @@ public class OrderServiceImpl implements OrderService {
 
     private final InternalOrderService internalOrderService;
     private final apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService classEnrolmentGateService;
-    private final PlatformFeeCalculator platformFeeCalculator;
     private final ApplicationEventPublisher eventPublisher;
 
     private final CommerceCaptureProperties captureProperties;
@@ -41,10 +38,7 @@ public class OrderServiceImpl implements OrderService {
                 throw new IllegalStateException(blocker);
             }
             try {
-                OrderResponse captured = internalOrderService.markOrderCaptured(response.getId());
-                PlatformFeeBreakdown fee =
-                        platformFeeCalculator.compute(captured.getTotal(), captured.getCurrencyCode());
-                response = captured.toBuilder().platformFee(fee).build();
+                response = internalOrderService.markOrderCaptured(response.getId());
             } catch (Exception ex) {
                 log.warn("Auto-capture failed for order {}: {}", response.getId(), ex.getMessage());
             }

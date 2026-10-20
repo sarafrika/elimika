@@ -1,12 +1,10 @@
 package apps.sarafrika.elimika.commerce.payment.service.impl;
 
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
-import apps.sarafrika.elimika.commerce.internal.service.impl.PlatformFeeCalculator;
 import apps.sarafrika.elimika.commerce.payment.client.MpesaGatewayClient;
 import apps.sarafrika.elimika.commerce.payment.dto.MpesaCheckoutResponse;
 import apps.sarafrika.elimika.commerce.payment.dto.PaymentStatusResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,8 +35,6 @@ class OrderPaymentServiceImplTest {
     private InternalOrderService internalOrderService;
     @Mock
     private MpesaGatewayClient mpesaGatewayClient;
-    @Mock
-    private PlatformFeeCalculator platformFeeCalculator;
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
@@ -84,9 +80,6 @@ class OrderPaymentServiceImplTest {
         when(internalOrderService.findCheckoutRequestId(ORDER_ID)).thenReturn(Optional.of(CHECKOUT_ID));
         when(mpesaGatewayClient.getPaymentStatus(CHECKOUT_ID)).thenReturn("SUCCESS");
         when(internalOrderService.markOrderCaptured(ORDER_ID)).thenReturn(order("CAPTURED"));
-        PlatformFeeBreakdown fee = new PlatformFeeBreakdown(
-                new BigDecimal("25.00"), "KES", null, null, new BigDecimal("1000.00"), null, null);
-        when(platformFeeCalculator.compute(new BigDecimal("1000.00"), "KES")).thenReturn(fee);
 
         PaymentStatusResponse response = service.getPaymentStatus(ORDER_ID);
 
@@ -96,7 +89,7 @@ class OrderPaymentServiceImplTest {
         ArgumentCaptor<OrderCompletedEvent> captor = ArgumentCaptor.forClass(OrderCompletedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().order().getPaymentStatus()).isEqualTo("CAPTURED");
-        assertThat(captor.getValue().order().getPlatformFee()).isEqualTo(fee);
+        assertThat(captor.getValue().order().getPlatformFee()).isNull();
         assertThat(captor.getValue().checkoutRequest()).isNull();
     }
 

@@ -22,10 +22,8 @@ public interface WalletService {
     Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, Pageable pageable);
 
     /**
-     * Pays one earner's share of a sale: a SALE credit of {@code gross}, then a PLATFORM_FEE debit of
-     * {@code platformFee} when it is above zero, in one transaction. Idempotent on {@code reference}.
-     *
-     * @return {@code true} when settled now, {@code false} when this reference was already settled
+     * Pays one earner's sale share: a SALE credit of {@code gross}, then a PLATFORM_FEE debit when the fee
+     * is above zero, in one transaction. Returns false when {@code reference} was already settled.
      */
     boolean settleSaleShare(WalletOwner owner, BigDecimal gross, BigDecimal platformFee, String currencyCode,
                             String reference, String description);

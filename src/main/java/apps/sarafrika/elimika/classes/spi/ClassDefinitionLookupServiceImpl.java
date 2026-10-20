@@ -82,6 +82,16 @@ public class ClassDefinitionLookupServiceImpl implements ClassDefinitionLookupSe
     }
 
     @Override
+    public Optional<UUID> findHiringOrganisationUuid(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return Optional.empty();
+        }
+        return classDefinitionRepository.findByUuid(classDefinitionUuid)
+                .filter(definition -> definition.getMarketplaceJobUuid() != null)
+                .map(ClassDefinition::getOrganisationUuid);
+    }
+
+    @Override
     public Optional<UUID> findBranchUuid(UUID classDefinitionUuid) {
         if (classDefinitionUuid == null) {
             return Optional.empty();

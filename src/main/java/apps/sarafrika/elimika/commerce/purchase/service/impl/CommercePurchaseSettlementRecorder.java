@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.commerce.purchase.service.impl;
 
+import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
@@ -48,10 +49,17 @@ public class CommercePurchaseSettlementRecorder implements PurchaseSettlementRec
         item.setPlatformFeeAmount(settlement.platformFeeAmount());
         item.setCreditedAmount(settlement.creditedAmount());
         item.setRetainedAmount(settlement.retainedAmount());
-        purchaseItemRepository.save(item);
+        purchaseItemRepository.saveAndFlush(item);
+        rollUpPlatformFee(item.getPurchase());
 
         log.debug("Recorded settlement for order {} line {}: gross {}, fee {}, credited {}, retained {}",
                 settlement.orderId(), settlement.lineItemId(), settlement.grossAmount(),
                 settlement.platformFeeAmount(), settlement.creditedAmount(), settlement.retainedAmount());
+    }
+
+    /** Fees are charged per earner at settlement, so the purchase's fee is the sum of its settled lines. */
+    private void rollUpPlatformFee(CommercePurchase purchase) {
+        purchase.setPlatformFeeAmount(purchaseItemRepository.sumPlatformFeeByPurchaseId(purchase.getId()));
+        purchase.setPlatformFeeCurrency(purchase.getOrderCurrencyCode());
     }
 }

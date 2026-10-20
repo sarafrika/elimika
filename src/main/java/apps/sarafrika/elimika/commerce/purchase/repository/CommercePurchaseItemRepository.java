@@ -21,6 +21,9 @@ import org.springframework.data.domain.Pageable;
 @Repository
 public interface CommercePurchaseItemRepository extends JpaRepository<CommercePurchaseItem, Long> {
 
+    @Query("select coalesce(sum(i.platformFeeAmount), 0) from CommercePurchaseItem i where i.purchase.id = :purchaseId")
+    BigDecimal sumPlatformFeeByPurchaseId(@Param("purchaseId") Long purchaseId);
+
     List<CommercePurchaseItem> findByStudentUuidAndScopeAndCourseUuid(UUID studentUuid, PurchaseScope scope, UUID courseUuid);
 
     List<CommercePurchaseItem> findByStudentUuidAndScopeAndClassDefinitionUuid(UUID studentUuid, PurchaseScope scope, UUID classDefinitionUuid);

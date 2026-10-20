@@ -17,7 +17,7 @@ import java.math.BigDecimal;
  * @param orderId           the commerce order the line belongs to
  * @param lineItemId        the line item, unique within the commerce stack
  * @param grossAmount       the line total the buyer actually paid
- * @param platformFeeAmount the order's platform fee apportioned to this line, taken off the top
+ * @param platformFeeAmount the platform fees charged to this line's earners on their shares
  * @param creditedAmount    what was credited to an earner's wallet for this line; zero if nobody was
  * @param retainedAmount    collected, not fee, credited to no earner
  */

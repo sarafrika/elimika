@@ -2,10 +2,8 @@ package apps.sarafrika.elimika.commerce.order.service.impl;
 
 import apps.sarafrika.elimika.commerce.internal.config.CommerceCaptureProperties;
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
-import apps.sarafrika.elimika.commerce.internal.service.impl.PlatformFeeCalculator;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,8 +27,6 @@ class OrderServiceImplTest {
 
     @Mock
     private InternalOrderService internalOrderService;
-    @Mock
-    private PlatformFeeCalculator platformFeeCalculator;
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
@@ -57,25 +53,22 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void completeCheckoutAutoCapturesAndAttachesPlatformFee() {
+    void completeCheckoutAutoCapturesWithoutChargingTheLearnerAPlatformFee() {
         autoCaptureOnComplete(true);
         CheckoutRequest request = new CheckoutRequest();
         when(internalOrderService.completeCheckout(request)).thenReturn(order("AWAITING_PAYMENT"));
         when(internalOrderService.markOrderCaptured("11111111-1111-1111-1111-111111111111"))
                 .thenReturn(order("CAPTURED"));
-        PlatformFeeBreakdown fee = new PlatformFeeBreakdown(
-                new BigDecimal("25.00"), "KES", null, null, new BigDecimal("1000.00"), null, null);
-        when(platformFeeCalculator.compute(new BigDecimal("1000.00"), "KES")).thenReturn(fee);
 
         OrderResponse result = service.completeCheckout(request);
 
         assertThat(result.getPaymentStatus()).isEqualTo("CAPTURED");
-        assertThat(result.getPlatformFee()).isEqualTo(fee);
+        assertThat(result.getPlatformFee()).isNull();
 
         ArgumentCaptor<OrderCompletedEvent> captor = ArgumentCaptor.forClass(OrderCompletedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().order().getPaymentStatus()).isEqualTo("CAPTURED");
-        assertThat(captor.getValue().order().getPlatformFee()).isEqualTo(fee);
+        assertThat(captor.getValue().order().getPlatformFee()).isNull();
     }
 
     @Test

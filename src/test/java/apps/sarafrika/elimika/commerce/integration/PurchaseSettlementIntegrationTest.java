@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -194,6 +195,35 @@ class PurchaseSettlementIntegrationTest {
 
         assertThat(purchaseItemRepository.findByOrderIdAndLineItemId(orderId, "line-1").orElseThrow()
                 .getCreditedAmount()).isEqualByComparingTo(new BigDecimal("693.00"));
+    }
+
+    @Test
+    @DisplayName("the purchase's platform fee is the sum of what its settled lines were charged")
+    void purchaseFeeRollsUpFromItsLines() {
+        CommercePurchaseItem first = recordPurchase("line-1", "1000.00");
+        CommercePurchaseItem second = new CommercePurchaseItem();
+        second.setLineItemId("line-2");
+        second.setTitle("Second class");
+        second.setQuantity(1);
+        second.setUnitPrice(new BigDecimal("500.00"));
+        second.setSubtotal(new BigDecimal("500.00"));
+        second.setTotal(new BigDecimal("500.00"));
+        second.setScope(PurchaseScope.CLASS);
+        CommercePurchase purchase = purchaseRepository.findById(first.getPurchase().getId()).orElseThrow();
+        second.setPurchase(purchase);
+        purchase.getItems().add(second);
+        purchaseRepository.saveAndFlush(purchase);
+
+        recorder.recordLineSettlement(new PurchaseLineSettlement(orderId, "line-1",
+                new BigDecimal("1000.00"), new BigDecimal("100.00"), new BigDecimal("900.00"), BigDecimal.ZERO));
+        recorder.recordLineSettlement(new PurchaseLineSettlement(orderId, "line-2",
+                new BigDecimal("500.00"), new BigDecimal("50.00"), new BigDecimal("450.00"), BigDecimal.ZERO));
+
+        purchaseRepository.flush();
+        Map<String, Object> stored = jdbc.queryForMap(
+                "select platform_fee_amount, platform_fee_currency from commerce_purchase where order_id = ?", orderId);
+        assertThat((BigDecimal) stored.get("platform_fee_amount")).isEqualByComparingTo("150.00");
+        assertThat(stored.get("platform_fee_currency")).isEqualTo("KES");
     }
 
     @Test

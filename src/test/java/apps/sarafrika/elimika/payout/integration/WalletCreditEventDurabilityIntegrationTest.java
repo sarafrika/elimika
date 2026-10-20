@@ -16,6 +16,7 @@ import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseSettlementRecorder;
+import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -150,6 +151,9 @@ class WalletCreditEventDurabilityIntegrationTest {
     // the durability behaviour under test is not entangled with the settlement write-back.
     @MockitoBean
     private PurchaseSettlementRecorder purchaseSettlementRecorder;
+    // No fee rule: an unstubbed mock resolves Optional.empty().
+    @MockitoBean
+    private RuleEvaluationService ruleEvaluationService;
 
     private final UUID courseUuid = UUID.randomUUID();
     private final UUID creatorUserUuid = UUID.randomUUID();
@@ -205,12 +209,12 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("a successful credit completes its event publication")
     void successfulCreditCompletesThePublication() {
-        when(walletService.creditSaleIdempotent(any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         eventPublisher.publishEvent(capturedOrder());
 
-        verify(walletService).creditSaleIdempotent(
-                any(), any(BigDecimal.class), any(), any(), any());
+        verify(walletService).settleSaleShare(
+                any(), any(BigDecimal.class), any(), any(), any(), any());
         assertThat(completedPublications()).isOne();
         assertThat(incompletePublications()).isZero();
     }
@@ -218,7 +222,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("a failed credit is durably recorded as an incomplete publication")
     void failedCreditLeavesAnIncompletePublication() {
-        when(walletService.creditSaleIdempotent(any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         eventPublisher.publishEvent(capturedOrder());
@@ -236,7 +240,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("the order still completes when the credit fails")
     void publisherIsUnaffectedByACreditFailure() {
-        when(walletService.creditSaleIdempotent(any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         // Checkout availability: publishing must not blow up in the caller's face.
@@ -247,7 +251,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("an incomplete publication is retried and pays the earner")
     void incompletePublicationCanBeResubmitted() {
-        when(walletService.creditSaleIdempotent(any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"))
                 .thenReturn(true);
 
@@ -258,7 +262,7 @@ class WalletCreditEventDurabilityIntegrationTest {
                 publication -> publication.getEvent() instanceof OrderCompletedEvent);
 
         // Second attempt succeeded, so the publication is settled and the creator has been paid.
-        verify(walletService, times(2)).creditSaleIdempotent(any(), any(), any(), any(), any());
+        verify(walletService, times(2)).settleSaleShare(any(), any(), any(), any(), any(), any());
         assertThat(incompletePublications()).isZero();
         assertThat(completedPublications()).isOne();
     }
@@ -266,7 +270,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("a stored publication can be read back, so restart republication works")
     void storedPublicationDeserialisesBackIntoTheEvent() {
-        when(walletService.creditSaleIdempotent(any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         eventPublisher.publishEvent(capturedOrder());

@@ -1,13 +1,11 @@
 package apps.sarafrika.elimika.commerce.payment.service.impl;
 
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
-import apps.sarafrika.elimika.commerce.internal.service.impl.PlatformFeeCalculator;
 import apps.sarafrika.elimika.commerce.payment.client.MpesaGatewayClient;
 import apps.sarafrika.elimika.commerce.payment.dto.MpesaCheckoutResponse;
 import apps.sarafrika.elimika.commerce.payment.dto.PaymentStatusResponse;
 import apps.sarafrika.elimika.commerce.payment.service.OrderPaymentService;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
 import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +29,6 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
 
     private final InternalOrderService internalOrderService;
     private final MpesaGatewayClient mpesaGatewayClient;
-    private final PlatformFeeCalculator platformFeeCalculator;
     private final ApplicationEventPublisher eventPublisher;
     private final ClassEnrolmentGateService classEnrolmentGateService;
 
@@ -78,11 +75,9 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
                         orderId, blocker, checkoutRequestId, order.getTotal(), order.getCurrencyCode());
                 return new PaymentStatusResponse("REFUSED");
             }
+            // The learner pays the plain price; platform fees are charged to each earner at settlement.
             OrderResponse captured = internalOrderService.markOrderCaptured(orderId);
-            PlatformFeeBreakdown fee =
-                    platformFeeCalculator.compute(captured.getTotal(), captured.getCurrencyCode());
-            OrderResponse enriched = captured.toBuilder().platformFee(fee).build();
-            eventPublisher.publishEvent(new OrderCompletedEvent(enriched, null));
+            eventPublisher.publishEvent(new OrderCompletedEvent(captured, null));
             log.info("Captured order {} on confirmed M-Pesa payment {}", orderId, checkoutRequestId);
             return new PaymentStatusResponse(STATUS_CAPTURED);
         }

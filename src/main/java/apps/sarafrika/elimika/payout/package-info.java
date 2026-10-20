@@ -37,6 +37,7 @@
         displayName = "Payout",
         allowedDependencies = {
                 "shared",
+                "systemconfig",
                 "course::course-spi",
                 "instructor::instructor-spi",
                 "wallet::wallet-spi"
