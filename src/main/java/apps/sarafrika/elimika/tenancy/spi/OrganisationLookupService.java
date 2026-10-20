@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.spi;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,4 +47,10 @@ public interface OrganisationLookupService {
      * @return town keyed by organisation UUID, omitting organisations that name no town
      */
     Map<UUID, String> findOrganisationTowns(Collection<UUID> organisationUuids);
+
+    /** Hours a submitted session report stays editable for classes this organisation runs. */
+    int sessionReportGraceHours(UUID organisationUuid);
+
+    /** Users who manage this organisation (its organisation_user and admin members). */
+    List<UUID> findManagerUserUuids(UUID organisationUuid);
 }

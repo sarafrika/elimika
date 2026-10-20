@@ -1,5 +1,8 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
+import apps.sarafrika.elimika.tenancy.service.OrganisationSettingsService;
+import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
+import apps.sarafrika.elimika.tenancy.entity.UserOrganisationDomainMapping;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.projection.OrganisationTownView;
@@ -15,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,7 +30,11 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class OrganisationLookupServiceImpl implements OrganisationLookupService {
 
+    private static final Set<String> MANAGER_DOMAINS = Set.of("organisation_user", "admin");
+
     private final OrganisationRepository organisationRepository;
+    private final OrganisationSettingsService organisationSettingsService;
+    private final UserOrganisationDomainMappingRepository membershipRepository;
 
     @Override
     public Optional<String> findOrganisationName(UUID organisationUuid) {
@@ -79,5 +87,23 @@ public class OrganisationLookupServiceImpl implements OrganisationLookupService 
         return organisationUuids.stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    @Override
+    public int sessionReportGraceHours(UUID organisationUuid) {
+        return organisationSettingsService.graceHours(organisationUuid);
+    }
+
+    @Override
+    public List<UUID> findManagerUserUuids(UUID organisationUuid) {
+        if (organisationUuid == null) {
+            return List.of();
+        }
+        return membershipRepository.findActiveByOrganisation(organisationUuid).stream()
+                .filter(membership -> membership.getDomain() != null
+                        && MANAGER_DOMAINS.contains(membership.getDomain().getDomainName()))
+                .map(UserOrganisationDomainMapping::getUserUuid)
+                .distinct()
+                .toList();
     }
 }
