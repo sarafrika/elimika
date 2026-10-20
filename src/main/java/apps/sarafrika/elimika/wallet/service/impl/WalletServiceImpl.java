@@ -13,7 +13,6 @@ import apps.sarafrika.elimika.wallet.ledger.LedgerService;
 import apps.sarafrika.elimika.wallet.repository.UserWalletRepository;
 import apps.sarafrika.elimika.wallet.repository.UserWalletTransactionRepository;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
-import apps.sarafrika.elimika.wallet.service.SaleRecord;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import apps.sarafrika.elimika.wallet.service.WalletService;
@@ -155,39 +154,6 @@ public class WalletServiceImpl implements WalletService {
                     wallet, fee, WalletTransactionType.PLATFORM_FEE, reference + ":fee", feeDescription, null, null);
             recordLedgerFee(wallet, feeRow, fee, resolvedCurrency, feeDescription);
         }
-        return true;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<SaleRecord> findSaleByReference(String reference) {
-        return transactionRepository.findFirstByReferenceAndTransactionType(reference, WalletTransactionType.SALE)
-                .map(sale -> new SaleRecord(sale.getWallet().owner(), sale.getAmount(), sale.getCurrencyCode()));
-    }
-
-    @Override
-    @Transactional
-    public boolean reverseSale(String reference, String description) {
-        String reversalReference = reference + ":reversal";
-        if (transactionRepository.existsByReference(reversalReference)) {
-            return false;
-        }
-        UserWalletTransaction sale = transactionRepository
-                .findFirstByReferenceAndTransactionType(reference, WalletTransactionType.SALE)
-                .orElseThrow(() -> new IllegalStateException("No sale " + reference + " to reverse"));
-        UserWallet wallet = lockOrCreateWallet(sale.getWallet().owner(), sale.getCurrencyCode());
-        UserWalletTransaction reversal = applyDebit(wallet, sale.getAmount(), WalletTransactionType.SALE_REVERSAL,
-                reversalReference, description, null, null);
-        // The money returns to unallocated revenue, the account the sale was funded from.
-        postToLedger(new LedgerPostingRequest(
-                "wallet-txn:" + reversal.getUuid(),
-                reversal.getCreatedDate(),
-                description,
-                CAUSE_WALLET_TRANSACTION,
-                reversal.getUuid(),
-                List.of(LedgerPostingLeg.debit(earningsAccount(wallet, sale.getCurrencyCode()), sale.getAmount()),
-                        LedgerPostingLeg.credit(LedgerAccountRef.platformUnallocatedRevenue(sale.getCurrencyCode()),
-                                sale.getAmount()))));
         return true;
     }
 

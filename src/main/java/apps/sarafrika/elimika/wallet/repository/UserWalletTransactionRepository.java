@@ -1,8 +1,6 @@
 package apps.sarafrika.elimika.wallet.repository;
 
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
-import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,7 +17,4 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
     Page<UserWalletTransaction> findByWalletUuid(@Param("walletUuid") UUID walletUuid, Pageable pageable);
 
     boolean existsByReference(String reference);
-
-    @EntityGraph(attributePaths = "wallet")
-    Optional<UserWalletTransaction> findFirstByReferenceAndTransactionType(String reference, WalletTransactionType type);
 }

@@ -175,37 +175,6 @@ class SaleShareSettlementIntegrationTest {
                 .containsExactly(WalletTransactionType.SALE);
     }
 
-    @Test
-    @DisplayName("a sale can be looked up by its reference, with who was paid and how much")
-    void findSaleByReference() {
-        WalletOwner instructor = WalletOwner.user(user("Mwangi"));
-        walletService.creditSaleIdempotent(instructor.uuid(), new BigDecimal("93600.00"), KES, "order-5:line-1", "Sale");
-
-        assertThat(walletService.findSaleByReference("order-5:line-1"))
-                .hasValueSatisfying(sale -> {
-                    assertThat(sale.owner()).isEqualTo(instructor);
-                    assertThat(sale.amount()).isEqualByComparingTo("93600.00");
-                });
-        assertThat(walletService.findSaleByReference("order-5:line-9")).isEmpty();
-    }
-
-    @Test
-    @DisplayName("reversing a sale debits it once, shows on the statement and in the ledger")
-    void reverseSale() {
-        WalletOwner instructor = WalletOwner.user(user("Njeri"));
-        walletService.creditSaleIdempotent(instructor.uuid(), new BigDecimal("93600.00"), KES, "order-6:line-1", "Sale");
-
-        assertThat(walletService.reverseSale("order-6:line-1", "Moved to the hiring organisation")).isTrue();
-        assertThat(walletService.reverseSale("order-6:line-1", "Moved to the hiring organisation")).isFalse();
-
-        assertThat(walletService.balanceOf(instructor, KES).balanceAmount()).isEqualByComparingTo("0.00");
-        assertThat(statement(instructor)).extracting(UserWalletTransaction::getTransactionType)
-                .containsExactly(WalletTransactionType.SALE_REVERSAL, WalletTransactionType.SALE);
-        assertThat(ledgerService.derivedBalance(earnings(LedgerOwnerType.USER, instructor.uuid())))
-                .isEqualByComparingTo("0.00");
-        assertThat(reconciliationJob.runOnce().isClean()).isTrue();
-    }
-
     private List<UserWalletTransaction> statement(WalletOwner owner) {
         return walletService.statementOf(owner, KES, PageRequest.of(0, 20)).getContent();
     }
