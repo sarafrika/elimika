@@ -253,8 +253,10 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        // Ensure umbrella organisation_user domain is present without granting platform-wide admin
-        ensureOrganisationUserDomain(user);
+        // Only school staff get the umbrella organisation_user domain (and with it the school dashboard).
+        if (isOrganisationStaffDomain(domain)) {
+            ensureOrganisationUserDomain(user);
+        }
 
         log.info("Successfully invited user {} to organisation {} with domain {}", email, organisationUuid, domainName);
     }
@@ -330,10 +332,12 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        // Maintain umbrella organisation membership domain without elevating to platform admin
-        User user = userRepository.findByUuid(userUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        ensureOrganisationUserDomain(user);
+        // Promotion to school staff brings the umbrella domain; a learner or trainer role never does.
+        if (isOrganisationStaffDomain(newDomain)) {
+            User user = userRepository.findByUuid(userUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            ensureOrganisationUserDomain(user);
+        }
 
         log.info("Updated user {} role in organisation {} to {}", userUuid, organisationUuid, newDomainName);
     }
@@ -416,6 +420,12 @@ public class OrganisationServiceImpl implements OrganisationService {
             log.error("Failed to assign creator as admin", e);
             throw new RuntimeException("Failed to assign creator as admin: " + e.getMessage(), e);
         }
+    }
+
+    /** School staff roles: the organisation's admins and members. Students, trainers and parents are not staff. */
+    private static boolean isOrganisationStaffDomain(UserDomain domain) {
+        String name = domain.getDomainName();
+        return "admin".equalsIgnoreCase(name) || "organisation_user".equalsIgnoreCase(name);
     }
 
     /**
