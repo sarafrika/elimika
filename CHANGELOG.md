@@ -1,3 +1,13 @@
+# [2.176.0](https://github.com/sarafrika/elimika/compare/v2.175.0...v2.176.0) (2026-10-20)
+
+
+### Features
+
+* **course:** list a learner's course enrolments for the learner and their school's managers ([b6732f8](https://github.com/sarafrika/elimika/commit/b6732f80c5b5083101790643bcb83b8b20586841))
+* **payout:** pay class sales to the creator and the hiring organisation or instructor, each net of their own platform fee ([74af06b](https://github.com/sarafrika/elimika/commit/74af06b2decee3adede86d72990ab290beddeffc))
+* **payout:** split each class sale between creator and delivery party with the platform fee charged per earner ([9bb7f39](https://github.com/sarafrika/elimika/commit/9bb7f399777898140a2bd7d10fec85f06fd3ad1e))
+* **wallet:** let organisations hold wallets and settle a sale share as the share and its platform fee ([3e2a8a8](https://github.com/sarafrika/elimika/commit/3e2a8a80fbbd6c8492c225d77af2917c6f57b94d))
+
 # [2.175.0](https://github.com/sarafrika/elimika/compare/v2.174.0...v2.175.0) (2026-10-20)
 
 
