@@ -1,3 +1,10 @@
+## [2.179.1](https://github.com/sarafrika/elimika/compare/v2.179.0...v2.179.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **timetabling:** freeze the lesson a session taught when its report is submitted so locks apply ([63e0963](https://github.com/sarafrika/elimika/commit/63e0963f65d63fd9b0188c65e1ad3d5e8e896da4))
+
 # [2.179.0](https://github.com/sarafrika/elimika/compare/v2.178.0...v2.179.0) (2026-10-20)
 
 
