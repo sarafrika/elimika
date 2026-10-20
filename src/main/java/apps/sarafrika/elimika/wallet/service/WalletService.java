@@ -19,6 +19,9 @@ public interface WalletService {
     /** Reads any owner's balance without locking or creating a wallet; a missing wallet reads as zero. */
     WalletBalanceSummary balanceOf(WalletOwner owner, String currencyCode);
 
+    /** Lifetime totals for a wallet; zero when the owner has no wallet yet. */
+    WalletTotals totalsOf(WalletOwner owner, String currencyCode);
+
     Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, Pageable pageable);
 
     /**

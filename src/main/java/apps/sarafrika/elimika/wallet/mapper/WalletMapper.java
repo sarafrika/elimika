@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.mapper;
 
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.dto.WalletDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
@@ -12,6 +13,11 @@ public final class WalletMapper {
     }
 
     public static WalletDTO toDto(UserWallet wallet) {
+        return toDto(wallet, null);
+    }
+
+    /** With lifetime totals, for the screens that show them. */
+    public static WalletDTO toDto(UserWallet wallet, WalletTotals totals) {
         if (wallet == null) {
             return null;
         }
@@ -23,7 +29,11 @@ public final class WalletMapper {
                 wallet.getCurrencyCode(),
                 wallet.getBalanceAmount(),
                 wallet.getCreatedDate(),
-                wallet.getLastModifiedDate()
+                wallet.getLastModifiedDate(),
+                totals == null ? null : totals.sharesTotal(),
+                totals == null ? null : totals.platformFeesTotal(),
+                totals == null ? null : totals.salesCount(),
+                totals == null ? null : totals.transferredOutTotal()
         );
     }
 

@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.wallet.ledger.LedgerService;
 import apps.sarafrika.elimika.wallet.ledger.WalletLedgerReconciliationJob;
 import apps.sarafrika.elimika.wallet.ledger.impl.LedgerServiceImpl;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.service.impl.WalletServiceImpl;
 import java.math.BigDecimal;
 import java.util.List;
@@ -166,6 +167,29 @@ class SaleShareSettlementIntegrationTest {
 
         assertThat(statement(instructor)).extracting(UserWalletTransaction::getTransactionType)
                 .containsExactly(WalletTransactionType.SALE);
+    }
+
+    @Test
+    @DisplayName("a wallet's totals are summed over every row, not just one page")
+    void totalsCoverTheWholeStatement() {
+        WalletOwner creator = WalletOwner.user(user("Mumbi"));
+        for (int i = 0; i < 120; i++) {
+            walletService.settleSaleShare(creator, new BigDecimal("100.00"), new BigDecimal("10.00"),
+                    KES, "order-t" + i + ":line-1:creator", "Share");
+        }
+
+        WalletTotals totals = walletService.totalsOf(creator, KES);
+
+        assertThat(totals.sharesTotal()).isEqualByComparingTo("12000.00");
+        assertThat(totals.platformFeesTotal()).isEqualByComparingTo("1200.00");
+        assertThat(totals.salesCount()).isEqualTo(120);
+        assertThat(totals.transferredOutTotal()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("a wallet with no rows has zero totals")
+    void emptyTotals() {
+        assertThat(walletService.totalsOf(WalletOwner.organisation(UUID.randomUUID()), KES).salesCount()).isZero();
     }
 
     private List<UserWalletTransaction> statement(WalletOwner owner) {

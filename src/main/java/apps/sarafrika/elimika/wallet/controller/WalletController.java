@@ -10,7 +10,9 @@ import apps.sarafrika.elimika.wallet.dto.WalletTransferResponse;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.mapper.WalletMapper;
+import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletService;
+import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +48,8 @@ public class WalletController {
             @RequestParam(value = "currency_code", required = false) String currencyCode
     ) {
         UserWallet wallet = walletService.getOrCreateWallet(userUuid, currencyCode);
-        return ResponseEntity.ok(ApiResponse.success(WalletMapper.toDto(wallet), "Wallet retrieved successfully"));
+        WalletTotals totals = walletService.totalsOf(WalletOwner.user(userUuid), currencyCode);
+        return ResponseEntity.ok(ApiResponse.success(WalletMapper.toDto(wallet, totals), "Wallet retrieved successfully"));
     }
 
     @GetMapping("/{userUuid}/transactions")

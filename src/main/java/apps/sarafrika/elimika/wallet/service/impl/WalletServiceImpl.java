@@ -15,6 +15,7 @@ import apps.sarafrika.elimika.wallet.repository.UserWalletTransactionRepository;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import java.math.BigDecimal;
@@ -84,6 +85,33 @@ public class WalletServiceImpl implements WalletService {
     @Transactional(readOnly = true)
     public Page<UserWalletTransaction> getTransactions(UUID userUuid, String currencyCode, Pageable pageable) {
         return statementOf(WalletOwner.user(userUuid), currencyCode, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public WalletTotals totalsOf(WalletOwner owner, String currencyCode) {
+        return userWalletRepository
+                .findByOwnerTypeAndOwnerUuidAndCurrencyCode(owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
+                .map(wallet -> {
+                    BigDecimal shares = ZERO;
+                    BigDecimal fees = ZERO;
+                    BigDecimal out = ZERO;
+                    long sales = 0;
+                    for (Object[] row : transactionRepository.totalsByType(wallet.getId())) {
+                        WalletTransactionType type = (WalletTransactionType) row[0];
+                        BigDecimal sum = (BigDecimal) row[1];
+                        long count = ((Number) row[2]).longValue();
+                        switch (type) {
+                            case SALE -> { shares = shares.add(sum); sales += count; }
+                            case SALE_REVERSAL -> { shares = shares.subtract(sum); sales -= count; }
+                            case PLATFORM_FEE -> fees = fees.add(sum);
+                            case TRANSFER_OUT -> out = out.add(sum);
+                            default -> { }
+                        }
+                    }
+                    return new WalletTotals(shares, fees, Math.max(sales, 0), out);
+                })
+                .orElseGet(WalletTotals::none);
     }
 
     @Override

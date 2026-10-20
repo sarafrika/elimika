@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.wallet.service;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -14,6 +15,28 @@ public record WalletBalanceSummary(
         @JsonProperty("currency_code")
         String currencyCode,
         @JsonProperty("balance_amount")
-        BigDecimal balanceAmount
+        BigDecimal balanceAmount,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("shares_total")
+        BigDecimal sharesTotal,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("platform_fees_total")
+        BigDecimal platformFeesTotal,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("sales_count")
+        Long salesCount,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("transferred_out_total")
+        BigDecimal transferredOutTotal
 ) {
+
+    public WalletBalanceSummary(UUID walletUuid, String currencyCode, BigDecimal balanceAmount) {
+        this(walletUuid, currencyCode, balanceAmount, null, null, null, null);
+    }
+
+    /** The same balance with the wallet's lifetime totals, for the screens that show them. */
+    public WalletBalanceSummary withTotals(WalletTotals totals) {
+        return new WalletBalanceSummary(walletUuid, currencyCode, balanceAmount, totals.sharesTotal(),
+                totals.platformFeesTotal(), totals.salesCount(), totals.transferredOutTotal());
+    }
 }

@@ -75,6 +75,26 @@ public record WalletDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("updated_date")
-        LocalDateTime updatedDate
+        LocalDateTime updatedDate,
+
+        @Schema(description = "**[READ-ONLY]** Lifetime sale shares credited, net of reversals. Null where not computed.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("shares_total")
+        BigDecimal sharesTotal,
+
+        @Schema(description = "**[READ-ONLY]** Lifetime platform fees charged on those shares.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("platform_fees_total")
+        BigDecimal platformFeesTotal,
+
+        @Schema(description = "**[READ-ONLY]** Number of class sales credited, net of reversals.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("sales_count")
+        Long salesCount,
+
+        @Schema(description = "**[READ-ONLY]** Lifetime money transferred out to other users.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("transferred_out_total")
+        BigDecimal transferredOutTotal
 ) {
 }

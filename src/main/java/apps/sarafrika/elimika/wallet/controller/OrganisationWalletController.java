@@ -38,8 +38,10 @@ public class OrganisationWalletController {
             @PathVariable UUID organisationUuid,
             @RequestParam(value = "currency_code", required = false) String currencyCode
     ) {
-        WalletBalanceSummary summary = walletService.balanceOf(WalletOwner.organisation(organisationUuid), currencyCode);
-        return ResponseEntity.ok(ApiResponse.success(summary, "Organisation wallet retrieved successfully"));
+        WalletOwner owner = WalletOwner.organisation(organisationUuid);
+        WalletBalanceSummary summary = walletService.balanceOf(owner, currencyCode);
+        return ResponseEntity.ok(ApiResponse.success(summary.withTotals(walletService.totalsOf(owner, currencyCode)),
+                "Organisation wallet retrieved successfully"));
     }
 
     @GetMapping("/transactions")

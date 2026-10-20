@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletService;
+import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,11 +50,16 @@ class OrganisationWalletControllerTest {
         UUID organisationUuid = UUID.randomUUID();
         when(walletService.balanceOf(WalletOwner.organisation(organisationUuid), null))
                 .thenReturn(new WalletBalanceSummary(UUID.randomUUID(), "KES", new BigDecimal("31500.00")));
+        when(walletService.totalsOf(WalletOwner.organisation(organisationUuid), null))
+                .thenReturn(new WalletTotals(new BigDecimal("35000.00"), new BigDecimal("3500.00"), 1, BigDecimal.ZERO));
 
         mockMvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet", organisationUuid))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.currency_code").value("KES"))
-                .andExpect(jsonPath("$.data.balance_amount").value(31500.00));
+                .andExpect(jsonPath("$.data.balance_amount").value(31500.00))
+                .andExpect(jsonPath("$.data.shares_total").value(35000.00))
+                .andExpect(jsonPath("$.data.platform_fees_total").value(3500.00))
+                .andExpect(jsonPath("$.data.sales_count").value(1));
     }
 
     @Test

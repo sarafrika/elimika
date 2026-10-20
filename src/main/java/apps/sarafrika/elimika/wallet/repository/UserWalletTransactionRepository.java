@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.repository;
 
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,4 +18,9 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
     Page<UserWalletTransaction> findByWalletUuid(@Param("walletUuid") UUID walletUuid, Pageable pageable);
 
     boolean existsByReference(String reference);
+
+    /** Sum and count per transaction type for one wallet; each row is {type, sum, count}. */
+    @Query("select txn.transactionType, coalesce(sum(txn.amount), 0), count(txn) "
+            + "from UserWalletTransaction txn where txn.wallet.id = :walletId group by txn.transactionType")
+    List<Object[]> totalsByType(@Param("walletId") Long walletId);
 }
