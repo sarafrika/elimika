@@ -1,3 +1,19 @@
+# [2.177.0](https://github.com/sarafrika/elimika/compare/v2.176.0...v2.177.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **commerce:** charge a class at checkout by its rate basis, matching the catalogue price ([61b0610](https://github.com/sarafrika/elimika/commit/61b06105de6d798f0d167f64e142bc36b9f0d737))
+* **commerce:** update a class's catalogue price when its sale price changes ([258a77d](https://github.com/sarafrika/elimika/commit/258a77d8e0f4cd272615bf8553b4b1cd05ebf8f1))
+* **timetabling:** name session report criterion and assignment schemas apart from the gradebook's ([d28a793](https://github.com/sarafrika/elimika/commit/d28a793c1086a1a8f8e8ca29a118c64a1fafdb04))
+
+
+### Features
+
+* **commerce:** list the signed-in buyer's own orders with their items, newest first ([b1aa2b2](https://github.com/sarafrika/elimika/commit/b1aa2b280d76b3be49598c4c52e95db59d5c01cd))
+* **payout:** add a dry-run-first admin tool to re-settle past class sales to creators and hiring organisations ([badae9d](https://github.com/sarafrika/elimika/commit/badae9d792122c1c013ea0d92aeaed590ec502c1))
+* **wallet:** look up a sale by reference and reverse it once, mirrored in the ledger ([3bf6051](https://github.com/sarafrika/elimika/commit/3bf6051406640e2792121de0e095f92d782e99c6))
+
 # [2.176.0](https://github.com/sarafrika/elimika/compare/v2.175.0...v2.176.0) (2026-10-20)
 
 
